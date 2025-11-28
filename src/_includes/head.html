@@ -3,18 +3,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 
 <title>Impro</title>
-{% if true %}
-<!-- nodeEnv == 'development' -->
-<!-- Append random query parameter to prevent caching -->
-<script>
-  const version = Math.random().toString(36).substring(2, 15);
-  document.write(
-    `<link rel="stylesheet" href="/css/style.css?v=${version}" />`
-  );
-</script>
-{% else %}
+
 <link rel="stylesheet" href="/css/style.css" />
-{% endif %}
+
 <script>
   // Inject environment variables from 11ty
   window.env = {
