@@ -26,7 +26,7 @@ function loggedOutSidebarTemplate() {
     <animated-sidebar class="logged-out-sidebar">
       <div class="sidebar-content">
         <div class="sidebar-header">
-          <h1>IMPRO</h1>
+          <a href="/"><h1>IMPRO</h1></a>
           <p>An extensible Bluesky client</p>
           <a href="/login" class="rounded-button rounded-button-primary"
             >Sign in</a

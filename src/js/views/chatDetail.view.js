@@ -483,6 +483,14 @@ class ChatDetailView extends View {
       `;
     }
 
+    function messageDayTitleTemplate({ date, startTime }) {
+      const isToday = isSameDate(date, new Date());
+      return html`<div class="message-day-title">
+        <strong>${isToday ? "Today" : getDayOfWeek(date)}</strong> at
+        ${formatTime(startTime)}
+      </div>`;
+    }
+
     function messagesTemplate({
       loadingEnabled,
       messages,
@@ -532,10 +540,10 @@ class ChatDetailView extends View {
           <div class="message-list">
             ${days.map((day) => {
               return html`<div class="message-day">
-                <div class="message-day-title">
-                  <strong>${getDayOfWeek(day.date)}</strong> at
-                  ${formatTime(day.messageGroups[0].lastSentAt)}
-                </div>
+                ${messageDayTitleTemplate({
+                  date: day.date,
+                  startTime: day.messageGroups[0].lastSentAt,
+                })}
                 ${day.messageGroups.map((group) =>
                   messageGroupTemplate({
                     group,
