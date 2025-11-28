@@ -1,0 +1,17 @@
+import { html } from "/js/lib/lit-html.js";
+
+// https://github.com/halfmage/majesticons/blob/main/line/send-line.svg
+
+export function sendIconTemplate() {
+  return html`<div class="icon send-icon">
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+      <path
+        stroke="currentColor"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        stroke-width="2"
+        d="m6 12-3 9 18-9L3 3l3 9zm0 0h6"
+      />
+    </svg>
+  </div>`;
+}

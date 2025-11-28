@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/img/favicon.ico" />
+
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, height=device-height"
+    />
+    <meta name="theme-color" content="#15191c" />
+
+    <!-- Viewport for mobile optimization -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, user-scalable=no"
+    />
+
+    <title>Impro</title>
+  </head>
+
+  <body>
+    <script type="module">
+      import { getAuth } from "/js/auth.js";
+
+      async function main() {
+        const params = new URLSearchParams(window.location.search);
+
+        const code = params.get("code");
+        const state = params.get("state");
+        const iss = params.get("iss");
+
+        if (!code || !state || !iss) {
+          window.location.href = "/";
+          return;
+        }
+
+        const parsedState = JSON.parse(decodeURIComponent(state));
+
+        if (
+          parsedState.loopback === true &&
+          !window.location.origin.includes("localhost")
+        ) {
+          window.location.href =
+            "http://localhost:8080/callback.html" + window.location.search;
+          return;
+        }
+        const auth = await getAuth();
+        try {
+          await auth.handleOauthCallback(window.location.href);
+          window.location.href = "/";
+          return;
+        } catch (error) {
+          console.error("error", error);
+          const params = new URLSearchParams();
+          params.set(
+            "error_message",
+            "OAuth callback failed. Please try again."
+          );
+          window.location.href = "/login?" + params.toString();
+          return;
+        }
+      }
+      main();
+    </script>
+  </body>
+</html>

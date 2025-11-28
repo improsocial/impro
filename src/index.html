@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" href="/img/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Impro</title>
+    {% if true %}
+    <!-- nodeEnv == 'development' -->
+    <!-- Append random query parameter to prevent caching -->
+    <script>
+      const version = Math.random().toString(36).substring(2, 15);
+      document.write(
+        `<link rel="stylesheet" href="/css/style.css?v=${version}" />`
+      );
+    </script>
+    {% else %}
+    <link rel="stylesheet" href="/css/style.css" />
+    {% endif %}
+    <script>
+      import("/js/theme.js").then(({ theme }) => {
+        // Apply theme separately so it applies even if the other JS fails somehow.
+        // We could make this synchronous but it's not worth the effort for now.
+        theme.apply();
+      });
+    </script>
+  </head>
+  <!-- style="padding-top: 100px" -->
+  <body>
+    <div id="app-root">
+      <div class="splash-screen-container" hidden>
+        <div class="splash-screen">
+          <h1>Impro</h1>
+        </div>
+      </div>
+      <script>
+        setTimeout(() => {
+          document.querySelector(".splash-screen-container").hidden = false;
+        }, 2000);
+      </script>
+    </div>
+
+    <script type="module">
+      import homeView from "/js/views/home.view.js";
+      import postThreadView from "/js/views/postThread.view.js";
+      import postLikesView from "/js/views/postLikes.view.js";
+      import postQuotesView from "/js/views/postQuotes.view.js";
+      import postRepostsView from "/js/views/postReposts.view.js";
+      import loginView from "/js/views/login.view.js";
+      import notificationsView from "/js/views/notifications.view.js";
+      import chatView from "/js/views/chat.view.js";
+      import chatRequestsView from "/js/views/chatRequests.view.js";
+      import chatDetailView from "/js/views/chatDetail.view.js";
+      import feedsView from "/js/views/feeds.view.js";
+      import profileView from "/js/views/profile.view.js";
+      import profileFollowersView from "/js/views/profileFollowers.view.js";
+      import profileFollowingView from "/js/views/profileFollowing.view.js";
+      import searchView from "/js/views/search.view.js";
+      import hashtagView from "/js/views/hashtag.view.js";
+      import notFoundView from "/js/views/notFound.view.js";
+      import settingsView from "/js/views/settings.view.js";
+      import settingsAppearanceView from "/js/views/settings/appearance.view.js";
+      import feedDetailView from "/js/views/feedDetail.view.js";
+      import bookmarksView from "/js/views/bookmarks.view.js";
+      import { DataLayer } from "/js/dataLayer/dataLayer.js";
+      import { IdentityResolver } from "/js/atproto.js";
+      import { Router } from "/js/router.js";
+      import { Api } from "/js/api.js";
+      import { getAuth } from "/js/auth.js";
+      import { NotificationService } from "/js/notificationService.js";
+      import { ChatNotificationService } from "/js/chatNotificationService.js";
+      import { PostComposerService } from "/js/postComposerService.js";
+      import { hapticsImpactLight } from "/js/haptics.js";
+      import { isNative, wait } from "/js/utils.js";
+      import {
+        enableNativeRefresh,
+        disableNativeRefresh,
+        dispatchNativeRefreshEnded,
+      } from "/js/nativeRefresh.js";
+      import { getQuotedPost } from "/js/dataHelpers.js";
+      import { enableErrorLogs } from "/js/errorLogs.js";
+      import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
+      import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
+
+      // Dev tools
+      import "/js/perf.js";
+
+      // Body class for styling
+      if (isNative()) {
+        document.body.classList.add("native");
+      }
+
+      // Used for displaying the version in the settings view
+      window.gitCommit = "{{ gitCommit }}";
+
+      const auth = await getAuth();
+      const session = await auth.getSession();
+      const api = new Api(session ?? null);
+      const dataLayer = new DataLayer(api);
+      const identityResolver = new IdentityResolver();
+      const notificationService = session ? new NotificationService(api) : null;
+      const chatNotificationService = session
+        ? new ChatNotificationService(api)
+        : null;
+      const postComposerService = session
+        ? new PostComposerService(dataLayer, identityResolver)
+        : null;
+
+      // Precache author DIDs when data is set in the data store.
+      // This will save us from needing to resolve handles when navigating between pages.
+      setUpIdentityPrecaching(dataLayer, identityResolver);
+
+      // Preload preferences - sometimes this fails, so try it twice.
+      try {
+        await dataLayer.initializePreferences();
+      } catch (error) {
+        console.error("Error initializing preferences", error);
+        await wait(1000);
+        await dataLayer.initializePreferences();
+      }
+
+      if (notificationService) {
+        notificationService.startPolling();
+
+        notificationService.on("update", () => {
+          const numNotifications = notificationService.getNumNotifications();
+          // When there are new notifications, preload notifications for the notifs page.
+          if (
+            numNotifications > 0 &&
+            !window.location.pathname.includes("notifications")
+          ) {
+            const loadedNotifications = dataLayer.selectors.getNotifications();
+            // Only preload if there are no notifications loaded, or if the previously (pre)loaded notifications were not read.
+            if (
+              !loadedNotifications ||
+              loadedNotifications.some((notification) => !notification.isRead)
+            ) {
+              dataLayer.requests.loadNotifications({
+                limit: NOTIFICATIONS_PAGE_SIZE,
+                reload: true,
+              });
+            }
+          }
+        });
+      }
+
+      if (chatNotificationService) {
+        chatNotificationService.startPolling();
+      }
+
+      const context = {
+        isAuthenticated: !!session,
+        api,
+        dataLayer,
+        identityResolver,
+        notificationService,
+        chatNotificationService,
+        postComposerService,
+      };
+
+      // routes
+      const router = new Router();
+      router.addRoute("/", () => homeView, "home");
+      router.addRoute("/login", () => loginView);
+      router.addRoute("/notifications", () => notificationsView);
+      router.addRoute("/messages/inbox", () => chatRequestsView);
+      router.addRoute("/messages/:convoId", () => chatDetailView);
+      router.addRoute("/messages", () => chatView);
+      router.addRoute("/feeds", () => feedsView);
+      router.addRoute("/bookmarks", () => bookmarksView);
+      router.addRoute("/search", () => searchView);
+      router.addRoute("/hashtag/:tag", () => hashtagView);
+      router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
+      router.addRoute(
+        "/profile/:handleOrDid/post/:rkey/likes",
+        () => postLikesView
+      );
+      router.addRoute(
+        "/profile/:handleOrDid/post/:rkey/quotes",
+        () => postQuotesView
+      );
+      router.addRoute(
+        "/profile/:handleOrDid/post/:rkey/reposts",
+        () => postRepostsView
+      );
+      router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView);
+      router.addRoute(
+        "/profile/:handleOrDid/followers",
+        () => profileFollowersView
+      );
+      router.addRoute(
+        "/profile/:handleOrDid/following",
+        () => profileFollowingView
+      );
+      router.addRoute("/profile/:handleOrDid", () => profileView);
+      router.addRoute("/settings", () => settingsView);
+      router.addRoute("/settings/appearance", () => settingsAppearanceView);
+      router.setNotFoundView(() => notFoundView);
+
+      router.renderRoute(({ view, params, container }) => {
+        return view.render({
+          root: container,
+          router,
+          params,
+          context,
+        });
+      });
+
+      router.on("page-shown", (page) => {
+        if (page.nativeRefreshDisabled) {
+          disableNativeRefresh();
+        } else {
+          enableNativeRefresh();
+        }
+      });
+
+      router.mount(document.getElementById("app-root"));
+
+      // attach to window since it's used in some nested functions
+      window.router = router;
+
+      // intercept in-app links
+      document.addEventListener("click", (e) => {
+        const anchor = e.target.closest("a");
+        if (!anchor) {
+          return;
+        }
+        if (anchor.href.startsWith("/")) {
+          e.preventDefault();
+          router.go(anchor.href);
+        } else if (anchor.href.startsWith(window.location.origin)) {
+          const relativePath = anchor.href.slice(window.location.origin.length);
+          e.preventDefault();
+          router.go(relativePath);
+        }
+      });
+
+      await router.load(window.location.pathname ?? "/");
+
+      window.addEventListener("native-reload", () => {
+        hapticsImpactLight();
+        window.location.reload();
+      });
+
+      // Page has loaded, let the native app know
+      dispatchNativeRefreshEnded();
+
+      // Enable error logs, for now.
+      enableErrorLogs();
+    </script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "client_id": "https://impro.social/oauth-client-metadata.json",
+  "client_name": "Impro",
+  "client_uri": "https://impro.social",
+  "logo_uri": "https://impro.social/img/impro-logo.jpg",
+  "redirect_uris": ["https://impro.social/callback.html"],
+  "scope": "atproto transition:generic transition:chat.bsky",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "application_type": "web",
+  "dpop_bound_access_tokens": true
+}
