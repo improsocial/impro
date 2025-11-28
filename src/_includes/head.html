@@ -1,0 +1,31 @@
+<meta charset="UTF-8" />
+<link rel="icon" href="/img/favicon.ico" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+<title>Impro</title>
+{% if true %}
+<!-- nodeEnv == 'development' -->
+<!-- Append random query parameter to prevent caching -->
+<script>
+  const version = Math.random().toString(36).substring(2, 15);
+  document.write(
+    `<link rel="stylesheet" href="/css/style.css?v=${version}" />`
+  );
+</script>
+{% else %}
+<link rel="stylesheet" href="/css/style.css" />
+{% endif %}
+<script>
+  // Inject environment variables from 11ty
+  window.env = {
+    hostName: "{{ hostName }}",
+    gitCommit: "{{ gitCommit }}",
+  };
+</script>
+<script>
+  import("/js/theme.js").then(({ theme }) => {
+    // Apply theme separately so it applies even if the other JS fails somehow.
+    // We could make this synchronous but it's not worth the effort for now.
+    theme.apply();
+  });
+</script>

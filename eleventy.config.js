@@ -26,10 +26,16 @@ export default async function (eleventyConfig) {
   });
 
   // Auto-generate modulepreload tags
-  eleventyConfig.addTransform("modulepreload", async function (content) {
-    const baseUrl = new URL("src", import.meta.url);
-    return await linkHtml(content, { baseUrl, exclude: ["/lib/hls.js"] });
-  });
+  eleventyConfig.addTransform(
+    "modulepreload",
+    async function (content, outputPath) {
+      if (outputPath.endsWith(".html")) {
+        const baseUrl = new URL("src", import.meta.url);
+        return await linkHtml(content, { baseUrl, exclude: ["/lib/hls.js"] });
+      }
+      return content;
+    }
+  );
 
   return {
     dir: {
