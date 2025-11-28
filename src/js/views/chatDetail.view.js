@@ -372,6 +372,9 @@ class ChatDetailView extends View {
               emojiPicker.addEventListener("emoji-click", (e) => {
                 handleEmojiSelect(e.detail.unicode, message.id, currentUserDid);
               });
+              emojiPicker.addEventListener("click", (e) => {
+                e.stopPropagation();
+              });
               e.target.parentElement.appendChild(emojiPicker);
             }}
           >
