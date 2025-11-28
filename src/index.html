@@ -91,8 +91,11 @@
         document.body.classList.add("native");
       }
 
-      // Used for displaying the version in the settings view
-      window.gitCommit = "{{ gitCommit }}";
+      // Inject environment variables from 11ty
+      window.env = {
+        hostName: "{{ hostName }}",
+        gitCommit: "{{ gitCommit }}",
+      };
 
       const auth = await getAuth();
       const session = await auth.getSession();

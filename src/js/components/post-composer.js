@@ -12,7 +12,11 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 
-const SUPPORTED_QUOTE_POST_DOMAINS = ["bsky.app", "impro.social"];
+const SUPPORTED_QUOTE_POST_DOMAINS = [
+  "bsky.app",
+  "impro.social",
+  "dev.impro.social",
+];
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const QUOTE_POST_PATHNAME_PATTERN =
   /^\/profile\/[a-zA-Z0-9.-]+\/post\/[a-zA-Z0-9.-]+$/;

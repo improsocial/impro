@@ -82,7 +82,7 @@ class SettingsView extends View {
                   </button>
                 </nav>
                 <div class="version-info">
-                  Impro v0.1.0 - ${window.gitCommit}
+                  Impro v0.1.0 - ${window.env.gitCommit}
                 </div>
               </main>`,
           })}

@@ -150,8 +150,8 @@ export class OAuth {
   async getClient() {
     if (!this._client) {
       this._client = await OauthClient.load({
-        clientId: "https://impro.social/oauth-client-metadata.json",
-        redirectUri: "https://impro.social/callback.html",
+        clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
+        redirectUri: `https://${window.env.hostName}/callback.html`,
       });
     }
     return this._client;
