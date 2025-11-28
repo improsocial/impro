@@ -12,7 +12,7 @@ import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
 
 function blockedQuoteTemplate() {
-  return html`<div class="quoted-post">Blocked</div>`;
+  return html`<div class="quoted-post">Post unavailable</div>`;
 }
 
 function removedQuoteTemplate() {
