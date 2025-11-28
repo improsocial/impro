@@ -44,7 +44,7 @@ class FeedsView extends View {
                 title: "Feeds",
                 subtitle: "",
               })}
-              <div class="feeds-list-header">My Pinned Feeds</div>
+              <div class="feeds-list-header">Pinned Feeds</div>
               <div class="feeds-list">
                 ${pinnedFeedGenerators
                   ? pinnedFeedGenerators.map(
