@@ -5140,3 +5140,18 @@ emoji-picker {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+.logged-out-sidebar h1 {
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.logged-out-sidebar .sidebar-header {
+  gap: 10px;
+}
+
+.logged-out-sidebar p {
+  font-size: 14px;
+  color: var(--text-color-muted);
+  padding-bottom: 5px;
+}

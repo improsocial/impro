@@ -21,7 +21,24 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 
+function loggedOutSidebarTemplate() {
+  return html`
+    <animated-sidebar class="logged-out-sidebar">
+      <div class="sidebar-content">
+        <div class="sidebar-header">
+          <h1>IMPRO</h1>
+          <p>An extensible Bluesky client</p>
+          <a href="/login" class="rounded-button rounded-button-primary"
+            >Sign in</a
+          >
+        </div>
+      </div>
+    </animated-sidebar>
+  `;
+}
+
 export function sidebarTemplate({
+  isAuthenticated,
   currentUser,
   activeNavItem = null,
   numNotifications = 0,
@@ -29,6 +46,10 @@ export function sidebarTemplate({
   onClickActiveItem,
   onClickComposeButton,
 }) {
+  if (!isAuthenticated) {
+    return loggedOutSidebarTemplate();
+  }
+
   const menuItems = [
     {
       id: "home",

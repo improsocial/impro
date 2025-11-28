@@ -9,7 +9,12 @@ import { linkToFeed } from "/js/navigation.js";
 class FeedsView extends View {
   async render({
     root,
-    context: { dataLayer, notificationService, chatNotificationService, postComposerService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -39,7 +44,7 @@ class FeedsView extends View {
                 title: "Feeds",
                 subtitle: "",
               })}
-              <div class="feeds-list-header">My Feeds</div>
+              <div class="feeds-list-header">My Pinned Feeds</div>
               <div class="feeds-list">
                 ${pinnedFeedGenerators
                   ? pinnedFeedGenerators.map(

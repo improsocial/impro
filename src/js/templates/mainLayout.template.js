@@ -4,21 +4,6 @@ import { footerNavTemplate } from "/js/templates/footerNav.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import "/js/components/animated-sidebar.js";
 
-function loggedOutSidebarTemplate() {
-  return html`
-    <animated-sidebar class="logged-out-sidebar">
-      <div class="sidebar-content">
-        <div class="sidebar-header">
-          <h1>IMPRO</h1>
-          <a href="/login" class="rounded-button rounded-button-primary"
-            >Sign in</a
-          >
-        </div>
-      </div>
-    </animated-sidebar>
-  `;
-}
-
 export function mainLayoutTemplate({
   isAuthenticated = true,
   currentUser,
@@ -40,16 +25,15 @@ export function mainLayoutTemplate({
     <div class="view-columns">
       <div class="view-column-left">
         ${doRenderSidebar
-          ? isAuthenticated
-            ? sidebarTemplate({
-                currentUser,
-                activeNavItem,
-                numNotifications,
-                numChatNotifications,
-                onClickActiveItem: onClickActiveNavItem,
-                onClickComposeButton,
-              })
-            : loggedOutSidebarTemplate()
+          ? sidebarTemplate({
+              isAuthenticated,
+              currentUser,
+              activeNavItem,
+              numNotifications,
+              numChatNotifications,
+              onClickActiveItem: onClickActiveNavItem,
+              onClickComposeButton,
+            })
           : ""}
       </div>
       <div class="view-column-center">${children}</div>

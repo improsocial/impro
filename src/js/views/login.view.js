@@ -65,7 +65,7 @@ class LoginView extends View {
                   </div>`
                 : ""}
               <button type="submit" ?disabled=${state.loading}>
-                Login
+                Sign in
                 ${state.loading
                   ? html`<div class="loading-spinner"></div>`
                   : ""}
