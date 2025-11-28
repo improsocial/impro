@@ -11,29 +11,39 @@ function ensureExternal(href) {
   return href.includes("://") ? href : `https://${href}`;
 }
 
+function stripTrailingPunctuation(text) {
+  return text.replace(/[.,!?:;)\]\u201d\u2019'"']+$/, "");
+}
+
 function getLinkFacetsFromText(text) {
   const matches = text.matchAll(urlRegex) || [];
-  return [...matches]
-    .filter((match) => !match[0].startsWith("@")) // Don't include mentions
-    .filter((match) => {
+  const items = [...matches].map((match) => {
+    return {
+      index: match.index,
+      text: stripTrailingPunctuation(match[0]),
+    };
+  });
+  return items
+    .filter((item) => !item.text.startsWith("@")) // Don't include mentions
+    .filter((item) => {
       // Check for valid TLD
       try {
-        const url = new URL(ensureExternal(match[0]));
+        const url = new URL(ensureExternal(item.text));
         return tlds.includes(url.hostname.split(".").pop());
       } catch (error) {
-        console.error(error);
+        console.warn("Invalid URL: " + item.text, error);
         return false;
       }
     })
-    .map((match) => {
-      const byteStart = getByteIndex(text, match.index);
-      const byteEnd = getByteIndex(text, match.index + match[0].length);
+    .map((item) => {
+      const byteStart = getByteIndex(text, item.index);
+      const byteEnd = getByteIndex(text, item.index + item.text.length);
       return {
         index: { byteStart, byteEnd },
         features: [
           {
             $type: "app.bsky.richtext.facet#link",
-            uri: ensureExternal(match[0]),
+            uri: ensureExternal(item.text),
           },
         ],
       };
@@ -60,13 +70,22 @@ const mentionRegex = /@[a-zA-Z0-9._-]+/gm;
 
 function getUnresolvedMentions(text) {
   const matches = text.matchAll(mentionRegex) || [];
-  return [...matches].map((match) => {
-    const byteStart = getByteIndex(text, match.index);
-    const byteEnd = getByteIndex(text, match.index + match[0].length);
+  const items = [...matches].map((match) => {
+    return {
+      index: match.index,
+      text: stripTrailingPunctuation(match[0]),
+    };
+  });
+  return items.map((item) => {
+    const byteStart = getByteIndex(text, item.index);
+    const byteEnd = getByteIndex(text, item.index + item.text.length);
     return {
       index: { byteStart, byteEnd },
       features: [
-        { $type: "app.bsky.richtext.facet#mention", handle: match[0].slice(1) },
+        {
+          $type: "app.bsky.richtext.facet#mention",
+          handle: item.text.slice(1),
+        },
       ],
     };
   });

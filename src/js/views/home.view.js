@@ -7,7 +7,6 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
-import { requireAuth } from "/js/auth.js";
 
 class HomeView extends View {
   async render({
@@ -21,10 +20,6 @@ class HomeView extends View {
       isAuthenticated,
     },
   }) {
-    // // Require auth for now, even though the page can render without it.
-    // // We can re-enable it once we have a non-terrible feed to show people.
-    // await requireAuth();
-
     function createSessionState(namespace) {
       return new Proxy(
         {},
