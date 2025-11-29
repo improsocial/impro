@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
-import { footerNavTemplate } from "/js/templates/footerNav.template.js";
+import { footerTemplate } from "/js/templates/footer.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import "/js/components/animated-sidebar.js";
 
@@ -39,15 +39,14 @@ export function mainLayoutTemplate({
       <div class="view-column-center">${children}</div>
       <div class="view-column-right"></div>
     </div>
-    ${isAuthenticated
-      ? footerNavTemplate({
-          currentUser,
-          activeNavItem,
-          numNotifications,
-          numChatNotifications,
-          onClickActiveItem: onClickActiveNavItem,
-        })
-      : ""}
+    ${footerTemplate({
+      isAuthenticated,
+      currentUser,
+      activeNavItem,
+      numNotifications,
+      numChatNotifications,
+      onClickActiveItem: onClickActiveNavItem,
+    })}
     ${currentUser && showFloatingComposeButton
       ? html`<button
           class="floating-compose-button"

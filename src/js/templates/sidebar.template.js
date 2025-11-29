@@ -84,9 +84,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
         <a href="/" class="sidebar-title"><h1>IMPRO</h1></a>
       </div>
       ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
-      <a
-        href="/login"
-        class="rounded-button rounded-button-primary login-button"
+      <a href="/login" class="square-button primary-button login-button"
         >Sign in</a
       >
     </animated-sidebar>

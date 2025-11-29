@@ -18,13 +18,28 @@ function footerNavItemTemplate({ item, active }) {
     : null} `;
 }
 
-export function footerNavTemplate({
+function loggedOutFooterTemplate() {
+  return html`
+    <footer class="footer-nav logged-out-footer">
+      <a href="/"><h2>IMPRO</h2></a>
+      <a href="/login" class="square-button primary-button login-button"
+        >Sign in</a
+      >
+    </footer>
+  `;
+}
+
+export function footerTemplate({
+  isAuthenticated,
   currentUser,
   activeNavItem = null,
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
 }) {
+  if (!isAuthenticated) {
+    return loggedOutFooterTemplate();
+  }
   const menuItems = [
     {
       id: "home",
