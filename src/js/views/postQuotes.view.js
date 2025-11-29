@@ -84,8 +84,10 @@ class PostQuotesView extends View {
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService.getNumNotifications();
-      const numChatNotifications = chatNotificationService?.getNumNotifications() ?? null;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const postQuotes = dataLayer.selectors.getPostQuotes(postUri);
       const post = dataLayer.selectors.getPost(postUri);
       const postQuotesRequestStatus =
@@ -164,7 +166,7 @@ class PostQuotesView extends View {
       }
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 

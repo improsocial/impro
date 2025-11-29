@@ -97,7 +97,8 @@
         notificationService.startPolling();
 
         notificationService.on("update", () => {
-          const numNotifications = notificationService.getNumNotifications();
+          const numNotifications =
+            notificationService?.getNumNotifications() ?? 0;
           // When there are new notifications, preload notifications for the notifs page.
           if (
             numNotifications > 0 &&

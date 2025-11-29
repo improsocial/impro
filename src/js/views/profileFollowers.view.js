@@ -15,7 +15,13 @@ class ProfileFollowersView extends View {
   async render({
     root,
     params,
-    context: { dataLayer, identityResolver, notificationService, chatNotificationService, postComposerService },
+    context: {
+      dataLayer,
+      identityResolver,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -71,8 +77,10 @@ class ProfileFollowersView extends View {
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService.getNumNotifications();
-      const numChatNotifications = chatNotificationService?.getNumNotifications() ?? null;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const profileFollowers =
         dataLayer.selectors.getProfileFollowers(profileDid);
       const profile = dataLayer.selectors.getProfile(profileDid);
@@ -90,7 +98,8 @@ class ProfileFollowersView extends View {
       render(
         html`<div id="profile-followers-view">
           ${mainLayoutTemplate({
-            onClickComposeButton: () => postComposerService.composePost({ currentUser }),
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
             numChatNotifications,
@@ -155,7 +164,7 @@ class ProfileFollowersView extends View {
       }
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 

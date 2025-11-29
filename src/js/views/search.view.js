@@ -1,5 +1,4 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { requireAuth } from "/js/auth.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
@@ -14,10 +13,14 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 class SearchView extends View {
   async render({
     root,
-    context: { dataLayer, notificationService, chatNotificationService, postComposerService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+      isAuthenticated,
+    },
   }) {
-    await requireAuth();
-
     const state = {
       activeTab: "profiles",
       searchQuery: "",
@@ -43,11 +46,13 @@ class SearchView extends View {
         })
       );
 
-      requests.push(
-        dataLayer.requests.loadPostSearch(normalizedQuery, {
-          limit: 25,
-        })
-      );
+      if (isAuthenticated) {
+        requests.push(
+          dataLayer.requests.loadPostSearch(normalizedQuery, {
+            limit: 25,
+          })
+        );
+      }
 
       renderPage();
 
@@ -166,8 +171,10 @@ class SearchView extends View {
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService.getNumNotifications();
-      const numChatNotifications = chatNotificationService?.getNumNotifications() ?? null;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const normalizedQuery = state.searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
       const postStatus = dataLayer.requests.getStatus("loadPostSearch");
@@ -179,6 +186,7 @@ class SearchView extends View {
       render(
         html`<div id="search-view">
           ${mainLayoutTemplate({
+            isAuthenticated,
             currentUser,
             numNotifications,
             numChatNotifications,
@@ -193,7 +201,9 @@ class SearchView extends View {
                   <input
                     class="search-input"
                     type="search"
-                    placeholder="Search for users and posts"
+                    placeholder=${isAuthenticated
+                      ? "Search for users and posts"
+                      : "Search for users"}
                     .value=${state.searchQuery}
                     @input=${(event) => handleSearchInput(event.target.value)}
                   />
@@ -218,14 +228,18 @@ class SearchView extends View {
                           >
                             Profiles
                           </button>
-                          <button
-                            class=${classnames("tab-bar-button", {
-                              active: state.activeTab === "posts",
-                            })}
-                            @click=${() => handleTabChange("posts")}
-                          >
-                            Posts
-                          </button>
+                          ${isAuthenticated
+                            ? html`
+                                <button
+                                  class=${classnames("tab-bar-button", {
+                                    active: state.activeTab === "posts",
+                                  })}
+                                  @click=${() => handleTabChange("posts")}
+                                >
+                                  Posts
+                                </button>
+                              `
+                            : ""}
                         </div>
                       `
                     : ""}
@@ -266,7 +280,10 @@ class SearchView extends View {
                           ${searchIconTemplate()}
                         </div>
                         <div class="search-placeholder-text">
-                          Start typing to search for users and posts.
+                          ${isAuthenticated
+                            ? "Start typing to search for users and posts."
+                            : html`Start typing to search for users.<br />Sign
+                                in to search for posts.`}
                         </div>
                       </div>`}
                 </div>
@@ -287,16 +304,18 @@ class SearchView extends View {
         loadSearchResults();
       }
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      if (isAuthenticated) {
+        dataLayer.declarations.ensureCurrentUser().then(() => {
+          renderPage();
+        });
+      }
     });
 
     root.addEventListener("page-restore", () => {
       renderPage();
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 

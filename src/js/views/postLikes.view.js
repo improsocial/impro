@@ -3,7 +3,10 @@ import { requireAuth } from "/js/auth.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
-import { profileListItemTemplate, profileListItemSkeletonTemplate } from "/js/templates/profileListItem.template.js";
+import {
+  profileListItemTemplate,
+  profileListItemSkeletonTemplate,
+} from "/js/templates/profileListItem.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -11,7 +14,13 @@ class PostLikesView extends View {
   async render({
     root,
     params,
-    context: { dataLayer, identityResolver, notificationService, chatNotificationService, postComposerService },
+    context: {
+      dataLayer,
+      identityResolver,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -41,14 +50,18 @@ class PostLikesView extends View {
           ${likes.map((like) => profileListItemTemplate({ actor: like.actor }))}
         </div>
         ${hasMore
-          ? Array.from({ length: 5 }).map(() => profileListItemSkeletonTemplate())
+          ? Array.from({ length: 5 }).map(() =>
+              profileListItemSkeletonTemplate()
+            )
           : ""}
       </infinite-scroll-container>`;
     }
 
     function likesSkeletonTemplate() {
       return html`<div class="profile-list">
-        ${Array.from({ length: 10 }).map(() => profileListItemSkeletonTemplate())}
+        ${Array.from({ length: 10 }).map(() =>
+          profileListItemSkeletonTemplate()
+        )}
       </div>`;
     }
 
@@ -62,8 +75,10 @@ class PostLikesView extends View {
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService.getNumNotifications();
-      const numChatNotifications = chatNotificationService?.getNumNotifications() ?? null;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const postLikes = dataLayer.selectors.getPostLikes(postUri);
       const post = dataLayer.selectors.getPost(postUri);
       const postLikesRequestStatus =
@@ -79,7 +94,8 @@ class PostLikesView extends View {
       render(
         html`<div id="post-likes-view">
           ${mainLayoutTemplate({
-            onClickComposeButton: () => postComposerService.composePost({ currentUser }),
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
             numChatNotifications,
@@ -140,7 +156,7 @@ class PostLikesView extends View {
       }
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 

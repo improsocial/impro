@@ -76,7 +76,8 @@ class HashtagView extends View {
     }
 
     async function renderPage() {
-      const numNotifications = notificationService.getNumNotifications();
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
       const currentUser = dataLayer.selectors.getCurrentUser();
@@ -157,7 +158,7 @@ class HashtagView extends View {
       renderPage();
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 

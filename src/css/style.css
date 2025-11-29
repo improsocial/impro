@@ -5141,9 +5141,17 @@ emoji-picker {
   white-space: nowrap;
 }
 
-.logged-out-sidebar h1 {
-  font-size: 24px;
+.logged-out-sidebar .sidebar-title {
   font-weight: 600;
+  width: 100%;
+  padding-left: 6px;
+  padding-top: 10px;
+}
+
+@media (min-width: 1200px) {
+  .logged-out-sidebar .sidebar-title {
+    padding-left: 20px;
+  }
 }
 
 .logged-out-sidebar .sidebar-header {
@@ -5154,4 +5162,10 @@ emoji-picker {
   font-size: 14px;
   color: var(--text-color-muted);
   padding-bottom: 5px;
+  min-width: 100px;
+}
+
+.logged-out-sidebar .login-button {
+  width: fit-content;
+  margin-left: 16px;
 }

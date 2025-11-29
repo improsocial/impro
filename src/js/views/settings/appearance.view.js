@@ -34,7 +34,8 @@ class SettingsAppearanceView extends View {
 
     async function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService.getNumNotifications();
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
       const currentHighlightColor = theme.highlightColor;
       const defaultHighlightColor = getDefaultHighlightColor();
       const currentLikeColor = theme.likeColor;
@@ -143,7 +144,7 @@ class SettingsAppearanceView extends View {
       window.scrollTo(0, 0);
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
   }

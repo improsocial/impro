@@ -21,18 +21,74 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 
-function loggedOutSidebarTemplate() {
+function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
+  return html`
+    <nav class="sidebar-nav">
+      ${menuItems.map(
+        (item) => html`
+          <a
+            href="${item.url}"
+            class=${classnames("sidebar-nav-item", {
+              disabled: item.disabled,
+            })}
+            @click=${function (e) {
+              // Handle active item click
+              if (activeNavItem === item.id) {
+                e.preventDefault();
+                e.stopPropagation();
+                if (onClickActiveItem) {
+                  onClickActiveItem(item.id);
+                } else {
+                  window.scrollTo(0, 0);
+                }
+              }
+              // Close sidebar
+              const sidebar = this.closest("animated-sidebar");
+              sidebar.close();
+            }}
+          >
+            <span class="sidebar-nav-icon"
+              >${item.icon({ filled: activeNavItem === item.id })}
+              ${item.badge
+                ? html`<div class="status-badge">
+                    <div class="status-badge-text">${item.badge}</div>
+                  </div>`
+                : ""}
+            </span>
+            <span class="sidebar-nav-label">${item.label}</span>
+          </a>
+        `
+      )}
+    </nav>
+  `;
+}
+
+function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
+  const menuItems = [
+    {
+      id: "home",
+      icon: homeIconTemplate,
+      label: "Home",
+      url: "/",
+    },
+    {
+      id: "search",
+      icon: searchIconTemplate,
+      label: "Search",
+      url: "/search",
+    },
+  ];
   return html`
     <animated-sidebar class="logged-out-sidebar">
-      <div class="sidebar-content">
-        <div class="sidebar-header">
-          <a href="/"><h1>IMPRO</h1></a>
-          <p>An extensible Bluesky client</p>
-          <a href="/login" class="rounded-button rounded-button-primary"
-            >Sign in</a
-          >
-        </div>
+      <div class="sidebar-header">
+        <a href="/" class="sidebar-title"><h1>IMPRO</h1></a>
       </div>
+      ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
+      <a
+        href="/login"
+        class="rounded-button rounded-button-primary login-button"
+        >Sign in</a
+      >
     </animated-sidebar>
   `;
 }
@@ -47,7 +103,7 @@ export function sidebarTemplate({
   onClickComposeButton,
 }) {
   if (!isAuthenticated) {
-    return loggedOutSidebarTemplate();
+    return loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem });
   }
 
   const menuItems = [
@@ -166,48 +222,8 @@ export function sidebarTemplate({
           </a>
         </div>
       </div>
-
       <div class="sidebar-divider"></div>
-
-      <!-- Menu Items -->
-      <nav class="sidebar-nav">
-        ${menuItems.map(
-          (item) => html`
-            <a
-              href="${item.url}"
-              class=${classnames("sidebar-nav-item", {
-                disabled: item.disabled,
-              })}
-              @click=${function (e) {
-                // Handle active item click
-                if (activeNavItem === item.id) {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (onClickActiveItem) {
-                    onClickActiveItem(item.id);
-                  } else {
-                    window.scrollTo(0, 0);
-                  }
-                }
-                // Close sidebar
-                const sidebar = this.closest("animated-sidebar");
-                sidebar.close();
-              }}
-            >
-              <span class="sidebar-nav-icon"
-                >${item.icon({ filled: activeNavItem === item.id })}
-                ${item.badge
-                  ? html`<div class="status-badge">
-                      <div class="status-badge-text">${item.badge}</div>
-                    </div>`
-                  : ""}
-              </span>
-              <span class="sidebar-nav-label">${item.label}</span>
-            </a>
-          `
-        )}
-      </nav>
-
+      ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
       ${onClickComposeButton
         ? html`<button
             class="sidebar-compose-button"

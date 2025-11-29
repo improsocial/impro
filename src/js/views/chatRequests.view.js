@@ -9,7 +9,11 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { showToast } from "/js/toasts.js";
 
 class ChatRequestsView extends View {
-  async render({ root, router, context: { dataLayer, notificationService, chatNotificationService } }) {
+  async render({
+    root,
+    router,
+    context: { dataLayer, notificationService, chatNotificationService },
+  }) {
     await requireAuth();
 
     async function handleAccept(convo) {
@@ -154,8 +158,10 @@ class ChatRequestsView extends View {
 
     async function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService?.getNumNotifications() ?? 0;
-      const numChatNotifications = chatNotificationService?.getNumNotifications() ?? null;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const convos = dataLayer.selectors.getConvoList();
       const convosRequestStatus = dataLayer.requests.getStatus("loadConvoList");
       const cursor = dataLayer.selectors.getConvoListCursor();

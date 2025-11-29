@@ -575,7 +575,8 @@ class ChatDetailView extends View {
 
     async function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
-      const numNotifications = notificationService?.getNumNotifications() ?? 0;
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? 0;
       const messagesData = dataLayer.selectors.getConvoMessages(convoId);

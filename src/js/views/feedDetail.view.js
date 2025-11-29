@@ -77,7 +77,8 @@ class FeedDetailView extends View {
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item
       );
-      const numNotifications = notificationService.getNumNotifications();
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
       const currentUser = dataLayer.selectors.getCurrentUser();
@@ -162,7 +163,7 @@ class FeedDetailView extends View {
       renderPage();
     });
 
-    notificationService.on("update", () => {
+    notificationService?.on("update", () => {
       renderPage();
     });
 
