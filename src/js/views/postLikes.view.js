@@ -1,5 +1,4 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { requireAuth } from "/js/auth.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
@@ -20,10 +19,9 @@ class PostLikesView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      isAuthenticated,
     },
   }) {
-    await requireAuth();
-
     const { handleOrDid, rkey } = params;
 
     let authorDid = null;
@@ -94,6 +92,7 @@ class PostLikesView extends View {
       render(
         html`<div id="post-likes-view">
           ${mainLayoutTemplate({
+            isAuthenticated,
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             currentUser,
@@ -138,9 +137,11 @@ class PostLikesView extends View {
 
     root.addEventListener("page-enter", async () => {
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      if (isAuthenticated) {
+        dataLayer.declarations.ensureCurrentUser().then(() => {
+          renderPage();
+        });
+      }
       // Load the post thread to get the post like count
       dataLayer.declarations.ensurePostThread(postUri).then(() => {
         renderPage();
