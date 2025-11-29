@@ -49,13 +49,12 @@ html {
   --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
   --reply-context-line-width: 1px;
 
+  /* border radius */
   --image-border-radius: 10px;
   --video-border-radius: 10px;
   --text-input-border-radius: 6px;
-
   --embed-border-radius: 10px;
-
-  --moderation-warning-radius: 6px;
+  --moderation-warning-border-radius: 6px;
   --blocked-post-radius: 6px;
   --square-button-radius: 6px;
 
@@ -2749,7 +2748,7 @@ moderation-warning .top-bar {
   flex-direction: row;
   justify-content: space-between;
   gap: 8px;
-  border-radius: var(--moderation-warning-radius);
+  border-radius: var(--moderation-warning-border-radius);
   padding-left: 16px;
   padding-right: 16px;
   padding-top: 12px;
