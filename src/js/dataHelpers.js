@@ -292,6 +292,8 @@ export function getDisplayName(profile) {
   }
   if (profile.handle === "missing.invalid") {
     return "Deleted Account";
+  } else if (profile.handle === "handle.invalid") {
+    return "Invalid Handle";
   }
   return profile.handle;
 }
