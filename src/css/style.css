@@ -5177,7 +5177,7 @@ emoji-picker {
 
 @media (min-width: 800px) {
   .logged-out-sidebar .sidebar-title {
-    padding-left: 6px;
+    padding-left: 12px;
   }
 }
 
