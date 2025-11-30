@@ -2966,6 +2966,7 @@ form button {
 }
 
 form button[type="submit"] {
+  font-weight: normal;
   background: var(--primary-button-color);
   color: var(--primary-button-text-color);
 }
