@@ -4130,6 +4130,7 @@ post-context-menu .text-button-text {
 
 input[type="color"] {
   -webkit-appearance: none;
+  appearance: none;
   width: 40px;
   height: 40px;
   border: none;
