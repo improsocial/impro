@@ -236,7 +236,9 @@ class PostThreadView extends View {
                         author: currentUser,
                         clickAction: "none",
                       })}
-                      Write your reply
+                      <span class="post-thread-reply-prompt-text">
+                        Write your reply
+                      </span>
                     </div>
                   </div>
                 `
