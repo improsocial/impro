@@ -28,6 +28,10 @@ html {
   --pink: #df4074;
 
   --background-color: light-dark(var(--less-white), var(--dark-gray));
+  --background-color-secondary: light-dark(
+    var(--lightest-gray),
+    var(--mid-gray)
+  );
   --text-color: light-dark(var(--dark-gray), var(--off-white));
   --text-color-muted: light-dark(#666, #999);
   --generic-border-color: light-dark(var(--lighter-gray), var(--light-gray));
@@ -2818,11 +2822,56 @@ moderation-warning .toggle-content {
 /* login view */
 
 #login-view main {
+  margin: 0;
+  max-width: none;
+  display: flex;
+  flex-direction: row;
+  min-height: 100vh;
+}
+
+#login-view h1 {
+  font-size: 55px;
+  font-weight: 800;
+  color: var(--highlight-color);
+}
+
+#login-view .column-left {
+  flex: 3;
+  display: none;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  background: var(--background-color-secondary);
+  padding: 0 32px;
+}
+
+#login-view h2 small {
+  font-size: 18px;
+}
+
+#login-view h2 {
+  padding-bottom: 2em;
+}
+
+@media (min-width: 800px) {
+  #login-view .column-left {
+    display: flex;
+  }
+}
+
+#login-view .column-right {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 100vh;
+  align-items: flex-start;
+  justify-content: flex-start;
+}
+
+@media (min-width: 800px) {
+  #login-view .column-right {
+    flex: 7;
+    justify-content: center;
+  }
 }
 
 .form-group {
@@ -2830,6 +2879,19 @@ moderation-warning .toggle-content {
   flex-direction: column;
   align-items: flex-start;
   justify-content: center;
+  width: 100%;
+}
+
+.button-group {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.button-group button {
+  width: fit-content;
 }
 
 #login-form {
@@ -2838,6 +2900,33 @@ moderation-warning .toggle-content {
   align-items: flex-start;
   justify-content: center;
   gap: 8px;
+  width: 100%;
+  padding: 24px 16px;
+}
+
+@media (min-width: 800px) {
+  #login-form {
+    padding: 24px 32px;
+    max-width: 500px;
+  }
+}
+
+#login-form .button-group {
+  margin-top: 8px;
+}
+
+@media (min-width: 800px) {
+  #login-form .form-title {
+    display: none;
+  }
+}
+
+.form-title {
+  width: 100%;
+  text-align: left;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 form input {
@@ -2845,7 +2934,7 @@ form input {
   padding: 12px;
   border-radius: var(--text-input-border-radius);
   border: var(--hair) solid var(--post-border-color);
-  background: var(--background-color);
+  background: var(--text-input-background-color);
   color: var(--text-color);
 }
 
@@ -2853,7 +2942,8 @@ form label {
   font-size: 14px;
   margin-bottom: 8px;
   margin-left: 2px;
-  /* color: var(--text-color); */
+  font-weight: 500;
+  color: var(--text-color-muted);
 }
 
 form button {
@@ -2862,7 +2952,8 @@ form button {
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 12px;
+  padding: 10px 20px;
+  font-size: 15px;
   border-radius: var(--square-button-radius);
   border: var(--hair) solid var(--post-border-color);
   background: var(--background-color);
@@ -2870,12 +2961,25 @@ form button {
   cursor: pointer;
 }
 
+form button[type="submit"] {
+  background: var(--primary-button-color);
+  color: var(--primary-button-text-color);
+}
+
+@media (min-width: 800px) {
+  form button[type="submit"]:hover {
+    background: var(--primary-button-hover-color);
+  }
+}
+
 form button:disabled {
   opacity: 0.5;
 }
 
-form button:hover {
-  background: var(--post-hover-color);
+@media (min-width: 800px) {
+  form button:hover {
+    background: var(--post-hover-color);
+  }
 }
 
 .error-message {
@@ -4462,9 +4566,9 @@ input[type="color"]::-moz-color-swatch {
 
 .login-title {
   color: var(--text-color);
-  font-size: 32px;
+  font-size: 24px;
   font-weight: 600;
-  margin-bottom: 34px;
+  margin: 18px;
 }
 
 .pin-feed-button {

@@ -37,44 +37,55 @@ class LoginView extends View {
 
     function renderPage() {
       render(
-        html` <div id="login-view">
+        html`<div id="login-view">
           <main>
-            <h1 class="login-title">IMPRO</h1>
-            <form id="login-form" @submit=${(e) => handleSubmit(e)}>
-              <div class="form-group">
-                <label for="email">Username or Email</label>
-                <input
-                  name="handle"
-                  type="text"
-                  placeholder="example.bsky.social"
-                  required
-                  autocorrect="off"
-                  autocapitalize="off"
-                  spellcheck="false"
-                />
-              </div>
-              ${isBasicAuth
-                ? html` <div class="form-group">
-                    <label for="password">Password</label>
-                    <input
-                      name="password"
-                      type="password"
-                      placeholder="Password"
-                      required
-                    />
-                  </div>`
-                : ""}
-              <button type="submit" ?disabled=${state.loading}>
-                Sign in
-                ${state.loading
-                  ? html`<div class="loading-spinner"></div>`
+            <div class="column-left">
+              <h1>Sign in</h1>
+              <h2><small>to</small> IMPRO</h2>
+            </div>
+            <div class="column-right">
+              <form id="login-form" @submit=${(e) => handleSubmit(e)}>
+                <div class="form-title">Sign in</div>
+                <div class="form-group">
+                  <label for="email">Username or email</label>
+                  <input
+                    name="handle"
+                    type="text"
+                    placeholder="example.bsky.social"
+                    required
+                    autocorrect="off"
+                    autocapitalize="off"
+                    spellcheck="false"
+                  />
+                </div>
+                ${isBasicAuth
+                  ? html` <div class="form-group">
+                      <label for="password">Password</label>
+                      <input
+                        name="password"
+                        type="password"
+                        placeholder="Password"
+                        required
+                      />
+                    </div>`
                   : ""}
-              </button>
-            </form>
-            <div class="error-message-container">
-              ${state.errorMessage
-                ? html`<div class="error-message">${state.errorMessage}</div>`
-                : ""}
+                <div class="button-group">
+                  <button type="button" @click=${() => router.go("/")}>
+                    Back
+                  </button>
+                  <button type="submit" ?disabled=${state.loading}>
+                    Next
+                    ${state.loading
+                      ? html`<div class="loading-spinner"></div>`
+                      : ""}
+                  </button>
+                </div>
+              </form>
+              <div class="error-message-container">
+                ${state.errorMessage
+                  ? html`<div class="error-message">${state.errorMessage}</div>`
+                  : ""}
+              </div>
             </div>
           </main>
         </div>`,
