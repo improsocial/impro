@@ -186,15 +186,59 @@ class PostThreadView extends View {
       renderPage();
     }
 
+    function postThreadRepliesTemplate({ replies, currentUser }) {
+      const hiddenReplies = replies.filter(
+        (reply) => reply.post && isMutedPost(reply.post)
+      );
+      const replyChains = buildReplyChains(replies, currentUser);
+      return html`
+        <div class="post-thread-replies">
+          <div class="post-thread-reply-chains">
+            ${replyChains.map((replyChain, i) =>
+              // there can be a lot of images in a reply chain, so lazy load them after the first few
+              // TODO: infinite scroll for reply chains? or use v2 endpoint?
+              replyChainTemplate({
+                replyChain,
+                currentUser,
+                lazyLoadImages: i > 20,
+              })
+            )}
+          </div>
+          ${hiddenReplies.length > 0
+            ? html`<hidden-replies-section>
+          ${hiddenReplies.map((reply) =>
+            smallPostTemplate({
+              post: reply.post,
+              isUserPost: currentUser?.did === reply.post?.author?.did,
+              postInteractionHandler,
+              overrideMutedWords: true,
+              lazyLoadImages: true,
+            })
+          )}
+        </hidden-replies-section>
+        </div>`
+            : ""}
+          <div class="post-thread-extra-space"></div>
+        </div>
+      `;
+    }
+
+    function repliesSkeletonTemplate({ numReplies }) {
+      return html`
+        <div class="post-thread-replies-skeleton">
+          ${Array.from({ length: Math.min(numReplies, 10) }).map(() =>
+            postSkeletonTemplate()
+          )}
+        </div>
+      `;
+    }
+
     function threadTemplate({ postThread, currentUser }) {
       try {
         const parents = flattenParents(postThread);
         const root = parents.length > 0 ? parents[0].post : postThread.post;
-        const replies = postThread.replies ?? [];
-        const hiddenReplies = replies.filter(
-          (reply) => reply.post && isMutedPost(reply.post)
-        );
-        const replyChains = buildReplyChains(replies, currentUser);
+        const numReplies = postThread.post.replyCount;
+        const replies = postThread.replies;
         return html`
           <div class="post-thread">
             ${parents.map((parent, i) =>
@@ -243,34 +287,19 @@ class PostThreadView extends View {
                   </div>
                 `
               : ""}
-            <div class="post-thread-replies">
-              <div class="post-thread-reply-chains">
-                ${replyChains.map((replyChain, i) =>
-                  // there can be a lot of images in a reply chain, so lazy load them after the first few
-                  // TODO: infinite scroll for reply chains? or use v2 endpoint?
-                  replyChainTemplate({
-                    replyChain,
-                    currentUser,
-                    lazyLoadImages: i > 20,
-                  })
-                )}
-              </div>
-              ${hiddenReplies.length > 0
-                ? html`<hidden-replies-section>
-                  ${hiddenReplies.map((reply) =>
-                    smallPostTemplate({
-                      post: reply.post,
-                      isUserPost: currentUser?.did === reply.post?.author?.did,
-                      postInteractionHandler,
-                      overrideMutedWords: true,
-                      lazyLoadImages: true,
-                    })
-                  )}
-                </hidden-replies-section>
-                </div>`
-                : ""}
-              <div class="post-thread-extra-space"></div>
-            </div>
+            ${(() => {
+              if (replies) {
+                return postThreadRepliesTemplate({
+                  replies,
+                  currentUser,
+                });
+              }
+              const numReplies = postThread.post.replyCount;
+              if (numReplies > 0) {
+                return repliesSkeletonTemplate({ numReplies });
+              }
+              return "";
+            })()}
           </div>
         `;
       } catch (error) {
@@ -295,7 +324,7 @@ class PostThreadView extends View {
           postThread = {
             post,
             parent: null,
-            replies: [],
+            replies: null,
           };
         }
       }
