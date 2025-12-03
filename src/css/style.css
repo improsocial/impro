@@ -132,7 +132,7 @@ html {
   /* heights */
   --text-header-height: 48px;
   --footer-height: 55px;
-  --message-input-height: 70px;
+  --message-input-min-height: 70px;
 
   /* animations */
   --like-count-animation-duration: 0.3s;
@@ -658,7 +658,7 @@ body.native {
   padding-right: 16px;
   padding-top: 16px;
   padding-bottom: calc(
-    var(--message-input-height) + var(--footer-height) +
+    var(--message-input-min-height) + var(--footer-height) +
       var(--safe-area-inset-bottom) + 8px
   );
 }
@@ -666,7 +666,7 @@ body.native {
 @media (min-width: 800px) {
   .chat-detail-main .message-list {
     padding-bottom: calc(
-      var(--message-input-height) + var(--safe-area-inset-bottom) + 8px
+      var(--message-input-min-height) + var(--safe-area-inset-bottom) + 8px
     );
   }
 }
@@ -933,7 +933,7 @@ body.native {
   border-top: 1px solid var(--generic-border-color);
   /* position: sticky; */
   position: relative;
-  height: var(--message-input-height);
+  min-height: var(--message-input-min-height);
   z-index: var(--message-input-z-index);
   bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
@@ -988,8 +988,8 @@ chat-input {
   transition: border-color 0.2s;
   resize: none;
   overflow-y: auto;
-  max-height: 120px;
-  min-height: 44px;
+  /* max-height: 120px;
+  min-height: 44px; */
   line-height: 1.4;
   scrollbar-width: none;
 }

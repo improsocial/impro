@@ -68,6 +68,17 @@ class ChatDetailView extends View {
       scrollingElement.scrollTop = scrollingElement.scrollHeight;
     }
 
+    function isScrolledToBottom() {
+      const scrollingElement = document.scrollingElement || document.body;
+      // 10px threshold
+      return (
+        scrollingElement.scrollHeight -
+          scrollingElement.scrollTop -
+          scrollingElement.clientHeight <=
+        10
+      );
+    }
+
     class MessageFetcher extends EventEmitter {
       constructor(dataLayer, api, convoId, currentUser) {
         super();
@@ -635,6 +646,18 @@ class ChatDetailView extends View {
               <div class="message-input-wrapper">
                 <chat-input
                   @send=${(e) => handleSendMessage(e.detail.message)}
+                  @resize=${function () {
+                    // update the padding bottom of the message list to match the height of the input
+                    const messageList = root.querySelector(".message-list");
+                    if (messageList) {
+                      const wasScrolledToBottom = isScrolledToBottom();
+                      messageList.style.paddingBottom =
+                        this.clientHeight + "px";
+                      if (wasScrolledToBottom) {
+                        scrollToBottom();
+                      }
+                    }
+                  }}
                   ?disabled=${!messages || state.isSendingMessage}
                   ?loading=${state.isSendingMessage}
                 ></chat-input>
