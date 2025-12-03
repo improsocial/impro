@@ -328,50 +328,50 @@ function recordEmbedTemplate({ record, lazyLoadImages }) {
   }
 }
 
+function moderationWarningWrapperTemplate({ children, labels }) {
+  const warningLabel = getWarningLabel(labels);
+  return warningLabel
+    ? moderationWarningTemplate({ label: warningLabel, children })
+    : children;
+}
+
 export function postEmbedTemplate({
   embed,
   labels,
   enabledEmbedTypes,
-  // lazyLoadImages = false,
   lazyLoadImages = false,
 }) {
-  let content = null;
   if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
     return null;
   }
   switch (embed.$type) {
     case "app.bsky.embed.record#view":
-      content = recordEmbedTemplate({ record: embed.record, lazyLoadImages });
-      break;
+      return recordEmbedTemplate({ record: embed.record, lazyLoadImages });
     case "app.bsky.embed.recordWithMedia#view":
-      content = html`
-        ${postEmbedTemplate({ embed: embed.media })}
+      return html`
+        ${postEmbedTemplate({ embed: embed.media, labels, lazyLoadImages })}
         ${recordEmbedTemplate({ record: embed.record.record, lazyLoadImages })}
       `;
-      break;
     case "app.bsky.embed.video#view":
-      content = videoTemplate({ video: embed });
-      break;
-    case "app.bsky.embed.images#view":
-      content = imagesTemplate({
-        images: embed.images,
-        lazyLoad: lazyLoadImages,
+      return moderationWarningWrapperTemplate({
+        labels,
+        children: videoTemplate({ video: embed }),
       });
-      break;
+    case "app.bsky.embed.images#view":
+      return moderationWarningWrapperTemplate({
+        labels,
+        children: imagesTemplate({
+          images: embed.images,
+          lazyLoad: lazyLoadImages,
+        }),
+      });
     case "app.bsky.embed.external#view":
-      content = externalTemplate({
+      return externalTemplate({
         external: embed.external,
         lazyLoadImages,
       });
-      break;
     default:
       console.warn("Embed type not supported: ", embed.$type);
       break;
   }
-  // Optionally wrap with moderation warning
-  const warningLabel = getWarningLabel(labels);
-  const wrappedContent = warningLabel
-    ? moderationWarningTemplate({ label: warningLabel, children: content })
-    : content;
-  return wrappedContent;
 }
