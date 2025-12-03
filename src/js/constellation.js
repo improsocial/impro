@@ -1,6 +1,11 @@
 import { buildQueryString } from "/js/api.js";
 
-export async function getLinks({ subject, source, timeout = 10000 }) {
+export async function getLinks({
+  subject,
+  source,
+  limit = null,
+  timeout = 10000,
+}) {
   let cursor = null;
   const links = [];
   const controller = new AbortController();
@@ -11,6 +16,7 @@ export async function getLinks({ subject, source, timeout = 10000 }) {
     const query = {
       subject,
       source,
+      limit: 100,
     };
     if (cursor) {
       query.cursor = cursor;
@@ -29,6 +35,6 @@ export async function getLinks({ subject, source, timeout = 10000 }) {
     const data = await response.json();
     links.push(...data.records);
     cursor = data.cursor;
-  } while (cursor);
-  return links;
+  } while (cursor && (limit ? links.length < limit : true));
+  return limit ? links.slice(0, limit) : links;
 }

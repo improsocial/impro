@@ -181,12 +181,19 @@ export class Requests {
       (uri) => !loadedReplies.some((reply) => reply.post?.uri === uri)
     );
     if (missingReplyUris.length > 0) {
-      const missingReplies = await this.api.getPosts(missingReplyUris, {
+      // Load up to 100 blocked replies.
+      // Larger numbers can happen when a post has a lot of replies and they aren't all included in the initial load.
+      // The v2 endpoint solves this (I think) but it's still unspec'd.
+      const urisToLoad = missingReplyUris.slice(0, 100);
+      const missingReplies = await this.api.getPosts(urisToLoad, {
         labelers,
       });
-      this.dataStore.setPosts(missingReplies);
+      const repliesToAdd = missingReplies.filter(
+        (post) => !isBlockingUser(post)
+      );
+      this.dataStore.setPosts(repliesToAdd);
       loadedReplies.push(
-        ...missingReplies.map((post) => {
+        ...repliesToAdd.map((post) => {
           return {
             $type: "app.bsky.feed.defs#threadViewPost",
             post: post,
