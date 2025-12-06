@@ -148,7 +148,8 @@ class DPoPRequests {
     if (
       !response.ok &&
       [401, 400].includes(response.status) &&
-      retryCount === 0
+      retryCount === 0 &&
+      !options.noDpopRetry // NOTE: special option if we just want to get the dpop nonce
     ) {
       try {
         const errorData = await response.json();

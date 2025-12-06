@@ -32,6 +32,20 @@ class ChatInput extends Component {
     }
   }
 
+  focus() {
+    const textarea = this.querySelector(".message-input-field");
+    if (textarea) {
+      textarea.focus();
+    }
+  }
+
+  blur() {
+    const textarea = this.querySelector(".message-input-field");
+    if (textarea) {
+      textarea.blur();
+    }
+  }
+
   updateTextareaHeight() {
     const textarea = this.querySelector(".message-input-field");
     const oldHeight = textarea.style.height;

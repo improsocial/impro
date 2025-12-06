@@ -43,7 +43,7 @@
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
       import { Api } from "/js/api.js";
-      import { getAuth } from "/js/auth.js";
+      import { getAuth, OAuth } from "/js/auth.js";
       import { NotificationService } from "/js/notificationService.js";
       import { ChatNotificationService } from "/js/chatNotificationService.js";
       import { PostComposerService } from "/js/postComposerService.js";
@@ -83,6 +83,17 @@
       // Precache author DIDs when data is set in the data store.
       // This will save us from needing to resolve handles when navigating between pages.
       setUpIdentityPrecaching(dataLayer, identityResolver);
+
+      // If we're authenticated, make an initial request to get the dPop nonce.
+      // getPreferences is slow so we don't want to make that call first.
+      if (session && auth instanceof OAuth) {
+        await session.fetch(
+          `${session.serviceEndpoint}/xrpc/com.atproto.server.getSession`,
+          {
+            noDpopRetry: true,
+          }
+        );
+      }
 
       // Preload preferences - sometimes this fails, so try it twice.
       try {

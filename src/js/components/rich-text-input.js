@@ -5,23 +5,73 @@ import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
-function removeNewlines(text) {
-  return text.replace(/\n/g, "");
-}
-
-// Without newlines - we add those later
 function getCursorPosition(editableDiv) {
-  let caretPos = 0;
   const sel = window.getSelection();
+  if (!sel.rangeCount) return 0;
 
-  if (sel.rangeCount) {
-    const range = sel.getRangeAt(0);
-    const preCaretRange = range.cloneRange();
-    preCaretRange.selectNodeContents(editableDiv);
-    preCaretRange.setEnd(range.endContainer, range.endOffset);
-    caretPos = removeNewlines(preCaretRange.toString()).length;
+  const range = sel.getRangeAt(0);
+  const endContainer = range.endContainer;
+  const endOffset = range.endOffset;
+
+  let position = 0;
+  let found = false;
+
+  function walkNodes(node) {
+    if (found) return;
+
+    if (node === endContainer) {
+      if (node.nodeType === Node.TEXT_NODE) {
+        position += endOffset;
+      } else {
+        // Element node - count children up to endOffset
+        for (let i = 0; i < endOffset && i < node.childNodes.length; i++) {
+          countNodeChars(node.childNodes[i]);
+        }
+      }
+      found = true;
+      return;
+    }
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      position += node.textContent.length;
+    } else if (node.nodeName === "BR") {
+      position += 1;
+    } else if (node.nodeName === "DIV" && node !== editableDiv) {
+      for (let child of node.childNodes) {
+        walkNodes(child);
+        if (found) return;
+      }
+      // Add 1 for the newline after the DIV (matching setCursorPosition)
+      if (!found) {
+        position += 1;
+      }
+    } else {
+      for (let child of node.childNodes) {
+        walkNodes(child);
+        if (found) return;
+      }
+    }
   }
-  return caretPos;
+
+  function countNodeChars(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      position += node.textContent.length;
+    } else if (node.nodeName === "BR") {
+      position += 1;
+    } else if (node.nodeName === "DIV") {
+      for (let child of node.childNodes) {
+        countNodeChars(child);
+      }
+      position += 1;
+    } else {
+      for (let child of node.childNodes) {
+        countNodeChars(child);
+      }
+    }
+  }
+
+  walkNodes(editableDiv);
+  return position;
 }
 
 function setCursorPosition(editableDiv, position) {
@@ -43,6 +93,20 @@ function setCursorPosition(editableDiv, position) {
         return true;
       }
       currentPos += nodeLength;
+    }
+    if (node.nodeName === "BR") {
+      if (currentPos + 1 >= position) {
+        foundNode = node;
+        foundOffset = 0;
+        return true;
+      }
+      currentPos += 1;
+    } else if (node.nodeName === "DIV") {
+      for (let child of node.childNodes) {
+        if (walkTextNodes(child)) return true;
+      }
+      // Add 1 to the current position to account for the newline
+      currentPos += 1;
     } else {
       for (let child of node.childNodes) {
         if (walkTextNodes(child)) return true;
@@ -183,6 +247,7 @@ export class RichTextInput extends Component {
     this.selectedSuggestionIndex = null;
     this.currentMentionQuery = null;
     this.currentMentionStart = null;
+    this.currentMentionEnd = null;
     this.resolvedMentions = new Map();
     this.render();
     this.initialized = true;
@@ -264,7 +329,8 @@ export class RichTextInput extends Component {
     input.innerHTML = "";
     const div = document.createElement("div");
     render(richTextTemplate({ text: this.text, facets: this.facets }), div);
-    input.innerHTML = div.innerHTML;
+    let content = div.querySelector(".rich-text").innerHTML;
+    input.innerHTML = content;
   }
 
   detectPendingMention() {
@@ -288,7 +354,7 @@ export class RichTextInput extends Component {
     if (mentionStart !== -1) {
       const query = this.text.substring(mentionStart + 1, cursorPosition);
       if (query.length > 0) {
-        return { query, start: mentionStart };
+        return { query, start: mentionStart, end: cursorPosition };
       }
     }
 
@@ -321,6 +387,7 @@ export class RichTextInput extends Component {
     if (pendingMention) {
       this.currentMentionQuery = pendingMention.query;
       this.currentMentionStart = pendingMention.start;
+      this.currentMentionEnd = pendingMention.end;
       const suggestions = await this.fetchMentionSuggestions(
         pendingMention.query
       );
@@ -330,6 +397,7 @@ export class RichTextInput extends Component {
       this.selectedSuggestionIndex = null;
       this.currentMentionQuery = null;
       this.currentMentionStart = null;
+      this.currentMentionEnd = null;
     }
 
     this.render();
@@ -339,11 +407,11 @@ export class RichTextInput extends Component {
     if (this.currentMentionStart === null) return;
 
     const input = this.querySelector(".rich-text-input");
-    const cursorPosition = getCursorPosition(input);
+    // Use stored cursor position since clicking the dropdown moves focus
 
     // Replace the @query with @handle
     const before = this.text.substring(0, this.currentMentionStart);
-    const after = this.text.substring(cursorPosition);
+    const after = this.text.substring(this.currentMentionEnd);
     const mention = `@${actor.handle}`;
 
     this.text = before + mention + after;
@@ -413,7 +481,7 @@ export class RichTextInput extends Component {
 
   handleKeydown(e) {
     if (this.mentionSuggestions.length === 0) return;
-
+    // Navigate through the mention suggestions
     if (e.key === "ArrowDown") {
       e.preventDefault();
       if (this.selectedSuggestionIndex === null) {
@@ -439,12 +507,10 @@ export class RichTextInput extends Component {
       this.render();
     } else if (e.key === "Enter" || e.key === "Tab") {
       e.preventDefault();
-      if (this.selectedSuggestionIndex !== null) {
-        const selectedActor =
-          this.mentionSuggestions[this.selectedSuggestionIndex];
-        if (selectedActor) {
-          this.selectMention(selectedActor);
-        }
+      const index = this.selectedSuggestionIndex ?? 0;
+      const selectedActor = this.mentionSuggestions[index];
+      if (selectedActor) {
+        this.selectMention(selectedActor);
       }
     } else if (e.key === "Escape") {
       e.preventDefault();
@@ -453,17 +519,15 @@ export class RichTextInput extends Component {
       this.selectedSuggestionIndex = null;
       this.currentMentionQuery = null;
       this.currentMentionStart = null;
+      this.currentMentionEnd = null;
       this.render();
     }
   }
 
   handleInput(e) {
-    let oldText = this.text;
     this.text = getContentEditableText(e.target);
 
     let cursorPosition = getCursorPosition(e.target);
-    const numNewlines = this.text.split("\n").length - 1;
-    cursorPosition += numNewlines;
 
     // Get unresolved facets and resolve them using our stored DIDs if possible
     const unresolvedFacets = getUnresolvedFacetsFromText(this.text);
@@ -471,14 +535,9 @@ export class RichTextInput extends Component {
 
     if (JSON.stringify(this.facets) !== JSON.stringify(newFacets)) {
       this.facets = newFacets;
-      this.updateFacets();
     }
-
-    const changedNewlines =
-      this.text.split("\n").length !== oldText.split("\n").length;
-    if (!changedNewlines) {
-      setCursorPosition(e.target, cursorPosition);
-    }
+    this.updateFacets();
+    setCursorPosition(e.target, cursorPosition);
 
     // Check for mention typeahead
     this.updateMentionSuggestions();

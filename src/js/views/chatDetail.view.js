@@ -63,6 +63,13 @@ class ChatDetailView extends View {
       selectedMessageId: null,
     };
 
+    function focusChatInput() {
+      const chatInput = root.querySelector("chat-input");
+      if (chatInput) {
+        chatInput.focus();
+      }
+    }
+
     function scrollToBottom() {
       const scrollingElement = document.scrollingElement || document.body;
       scrollingElement.scrollTop = scrollingElement.scrollHeight;
@@ -221,7 +228,6 @@ class ChatDetailView extends View {
           facets,
         });
         renderPage();
-        // Scroll to bottom after sending
         scrollToBottom();
       } catch (error) {
         console.error(error);
@@ -229,6 +235,7 @@ class ChatDetailView extends View {
       } finally {
         state.isSendingMessage = false;
         renderPage();
+        focusChatInput();
       }
     }
 

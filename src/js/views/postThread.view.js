@@ -237,7 +237,6 @@ class PostThreadView extends View {
       try {
         const parents = flattenParents(postThread);
         const root = parents.length > 0 ? parents[0].post : postThread.post;
-        const numReplies = postThread.post.replyCount;
         const replies = postThread.replies;
         return html`
           <div class="post-thread">
