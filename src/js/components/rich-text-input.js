@@ -41,9 +41,13 @@ function getCursorPosition(editableDiv) {
         walkNodes(child);
         if (found) return;
       }
-      // Add 1 for the newline after the DIV (matching setCursorPosition)
+      // Add 1 for the newline after the DIV, but only if it didn't end with BR
+      // (BR already counted as newline, so don't double-count)
       if (!found) {
-        position += 1;
+        const lastChild = node.childNodes[node.childNodes.length - 1];
+        if (!lastChild || lastChild.nodeName !== "BR") {
+          position += 1;
+        }
       }
     } else {
       for (let child of node.childNodes) {
@@ -62,7 +66,11 @@ function getCursorPosition(editableDiv) {
       for (let child of node.childNodes) {
         countNodeChars(child);
       }
-      position += 1;
+      // Only add newline if DIV didn't end with BR (which already counted)
+      const lastChild = node.childNodes[node.childNodes.length - 1];
+      if (!lastChild || lastChild.nodeName !== "BR") {
+        position += 1;
+      }
     } else {
       for (let child of node.childNodes) {
         countNodeChars(child);
@@ -95,7 +103,8 @@ function setCursorPosition(editableDiv, position) {
       currentPos += nodeLength;
     }
     if (node.nodeName === "BR") {
-      if (currentPos + 1 >= position) {
+      if (currentPos + 1 > position) {
+        // Position is before or at the BR
         foundNode = node;
         foundOffset = 0;
         return true;
@@ -105,8 +114,11 @@ function setCursorPosition(editableDiv, position) {
       for (let child of node.childNodes) {
         if (walkTextNodes(child)) return true;
       }
-      // Add 1 to the current position to account for the newline
-      currentPos += 1;
+      // Add 1 for newline, but only if DIV didn't end with BR (which already counted)
+      const lastChild = node.childNodes[node.childNodes.length - 1];
+      if (!lastChild || lastChild.nodeName !== "BR") {
+        currentPos += 1;
+      }
     } else {
       for (let child of node.childNodes) {
         if (walkTextNodes(child)) return true;
@@ -329,8 +341,7 @@ export class RichTextInput extends Component {
     input.innerHTML = "";
     const div = document.createElement("div");
     render(richTextTemplate({ text: this.text, facets: this.facets }), div);
-    let content = div.querySelector(".rich-text").innerHTML;
-    input.innerHTML = content;
+    input.innerHTML = div.innerHTML;
   }
 
   detectPendingMention() {
