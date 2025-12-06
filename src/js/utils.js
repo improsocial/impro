@@ -94,6 +94,11 @@ export function getByteIndex(text, index) {
   return bytes.length;
 }
 
+export function getByteLength(text) {
+  const encoder = new TextEncoder();
+  return encoder.encode(text).length;
+}
+
 export function getIndexFromByteIndex(text, byteIndex) {
   const encoder = new TextEncoder();
   const decoder = new TextDecoder();

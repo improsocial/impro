@@ -305,6 +305,7 @@ class HomeView extends View {
       // Ensure current user before loading feed to prevent flash of unfiltered feed
       if (isAuthenticated) {
         await dataLayer.declarations.ensureCurrentUser();
+        renderPage();
       }
       await loadCurrentFeed();
     });

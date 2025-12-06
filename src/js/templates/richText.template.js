@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { sliceByByte, sortBy } from "/js/utils.js";
+import { sliceByByte, sortBy, getByteLength } from "/js/utils.js";
 import { linkToHashtag, linkToProfile } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
@@ -32,20 +32,53 @@ function facetTemplate({ facet, wrappedText }) {
   }
 }
 
-export function richTextTemplate({ text, facets = [] }) {
+function textPartTemplate({ text }) {
+  return text;
+}
+
+function richTextLineTemplate({ text, facets, byteOffset }) {
+  if (text.length === 0) {
+    return html`<div><br /></div>`;
+  }
   let parts = [];
   let currentIndex = 0;
   const sortedFacets = sortBy(facets, (facet) => facet.index.byteStart);
   for (const facet of sortedFacets) {
-    parts.push(sliceByByte(text, currentIndex, facet.index.byteStart));
+    const textPart = sliceByByte(
+      text,
+      currentIndex,
+      facet.index.byteStart - byteOffset
+    );
+    parts.push(textPartTemplate({ text: textPart }));
     const wrappedText = sliceByByte(
       text,
-      facet.index.byteStart,
-      facet.index.byteEnd
+      facet.index.byteStart - byteOffset,
+      facet.index.byteEnd - byteOffset
     );
     parts.push(facetTemplate({ facet, wrappedText }));
-    currentIndex = facet.index.byteEnd;
+    currentIndex = facet.index.byteEnd - byteOffset;
   }
-  parts.push(sliceByByte(text, currentIndex));
-  return html`<div class="rich-text">${parts}</div>`;
+  const finalTextPart = sliceByByte(text, currentIndex);
+  parts.push(textPartTemplate({ text: finalTextPart }));
+  return html`<div>${parts}</div>`;
+}
+
+export function richTextTemplate({ text, facets = [] }) {
+  const lines = text.split("\n");
+  const divs = [];
+  let byteOffset = 0;
+  for (const line of lines) {
+    const lineByteLength = getByteLength(line);
+    const facetsForLine = facets.filter(
+      (facet) =>
+        facet.index.byteStart >= byteOffset &&
+        facet.index.byteEnd <= byteOffset + lineByteLength
+    );
+    divs.push(
+      richTextLineTemplate({ text: line, facets: facetsForLine, byteOffset })
+    );
+    byteOffset += lineByteLength + 1; // +1 for the newline character
+  }
+  // prettier-ignore
+  return html`<div class="rich-text">${divs}</div>`;
 }

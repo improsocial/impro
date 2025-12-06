@@ -4,6 +4,10 @@ import { footerTemplate } from "/js/templates/footer.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import "/js/components/animated-sidebar.js";
 
+function defaultOnClickComposeButton() {
+  console.warn("onClickComposeButton not provided");
+}
+
 export function mainLayoutTemplate({
   isAuthenticated = true,
   currentUser,
@@ -13,7 +17,7 @@ export function mainLayoutTemplate({
   onClickActiveNavItem,
   children,
   showFloatingComposeButton = false,
-  onClickComposeButton,
+  onClickComposeButton = defaultOnClickComposeButton,
   showSidebarOverlay = true,
 }) {
   // This fixes a weird performance bug that was happening on the postThread view
