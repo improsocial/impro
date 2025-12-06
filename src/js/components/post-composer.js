@@ -530,7 +530,6 @@ class PostComposer extends Component {
     if (this._dragState) {
       dialog.style.transform = "";
       dialog.style.transition = "";
-      dialog.style.height = "";
       this._dragState = null;
     }
 
@@ -591,7 +590,6 @@ class PostComposer extends Component {
       startY: 0,
       currentY: 0,
       isDragging: false,
-      initialHeight: 0,
     };
 
     this._dragState = dragState;
@@ -610,7 +608,6 @@ class PostComposer extends Component {
       dragState.startY = e.touches[0].clientY;
       dragState.currentY = dragState.startY;
       dragState.isDragging = true;
-      dragState.initialHeight = dialog.getBoundingClientRect().height;
 
       // Remove any existing transitions for immediate response
       dialog.style.transition = "none";
@@ -628,15 +625,6 @@ class PostComposer extends Component {
         // Dragging down - translate the whole menu
         const adjustedDelta = deltaY * RESISTANCE_FACTOR;
         dialog.style.transform = `translateY(${adjustedDelta}px)`;
-      } else {
-        // Dragging up - stretch the element taller with rubber band
-        const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
-
-        // Calculate the stretched height based on initial height + stretch amount
-        const newHeight = dragState.initialHeight + adjustedDelta;
-
-        // Expand upward by increasing height (no transform needed, bottom stays at 0)
-        dialog.style.height = `${newHeight}px`;
       }
     };
 
@@ -646,17 +634,15 @@ class PostComposer extends Component {
       const deltaY = dragState.currentY - dragState.startY;
 
       // Add transition for snap-back or dismiss animation
-      dialog.style.transition =
-        "transform 0.15s ease-out, height 0.15s ease-out";
+      dialog.style.transition = "transform 0.15s ease-out";
 
       if (deltaY > DISMISS_THRESHOLD && (await this.confirmClose())) {
-        // Dismiss - animate out and close (only if dragged down)
+        // Dismiss - animate out and close
         dialog.style.transform = "translateY(100%)";
         this.close();
       } else {
-        // Snap back to original position (for both up and down drags)
+        // Snap back to original position
         dialog.style.transform = "";
-        dialog.style.height = "";
       }
 
       dragState.isDragging = false;
