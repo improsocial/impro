@@ -1436,9 +1436,8 @@ body.scroll-locked header {
   margin-bottom: 10px;
 }
 
-/* todo - this should be based on the the number of replies */
 .post-thread-extra-space {
-  height: 100vh;
+  height: 75vh;
 }
 
 .feed {
