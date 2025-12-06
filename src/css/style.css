@@ -4683,6 +4683,26 @@ input[type="color"]::-moz-color-swatch {
     display: flex;
     flex-direction: column;
     min-height: 0;
+    flex: 1;
+  }
+
+  .post-composer-body-right rich-text-input {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .post-composer-body-right .rich-text-input-container {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .post-composer-body-right .rich-text-input {
+    flex: 1;
+    min-height: 0;
   }
 
   .post-composer-textarea {
