@@ -4,6 +4,7 @@ import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
+import { deepClone } from "/js/utils.js";
 
 function getCursorPosition(editableDiv) {
   const sel = window.getSelection();
@@ -255,6 +256,15 @@ export class RichTextInput extends Component {
     this.placeholder = this.getAttribute("placeholder") || "";
     this.facets = [];
     this.text = "";
+    this.history = [
+      {
+        text: "",
+        facets: [],
+        cursorPosition: 0,
+      },
+    ];
+    this.historyIndex = 0;
+    this.historyDebounceTimer = null;
     this.mentionSuggestions = [];
     this.selectedSuggestionIndex = null;
     this.currentMentionQuery = null;
@@ -490,55 +500,185 @@ export class RichTextInput extends Component {
     });
   }
 
-  handleKeydown(e) {
-    if (this.mentionSuggestions.length === 0) return;
-    // Navigate through the mention suggestions
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      if (this.selectedSuggestionIndex === null) {
-        this.selectedSuggestionIndex = 0;
-      } else {
-        this.selectedSuggestionIndex = Math.min(
-          this.selectedSuggestionIndex + 1,
-          this.mentionSuggestions.length - 1
-        );
+  saveHistory() {
+    const input = this.querySelector(".rich-text-input");
+    const cursorPosition = getCursorPosition(input);
+
+    // Clear any pending debounce
+    if (this.historyDebounceTimer) {
+      clearTimeout(this.historyDebounceTimer);
+    }
+
+    // Debounce: save state after 300ms of no changes
+    this.historyDebounceTimer = setTimeout(() => {
+      // Don't save if state hasn't changed from last saved
+      const currentEntry = this.history[this.historyIndex];
+      if (currentEntry && currentEntry.text === this.text) {
+        return;
       }
-      this.render();
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      if (this.selectedSuggestionIndex === null) {
-        this.selectedSuggestionIndex = 0;
-      } else {
-        this.selectedSuggestionIndex = bound({
-          value: this.selectedSuggestionIndex - 1,
-          min: 0,
-          max: this.mentionSuggestions.length - 1,
+
+      // Clear any "future" states beyond current index
+      this.history = this.history.slice(0, this.historyIndex + 1);
+
+      this.history.push({
+        text: this.text,
+        facets: deepClone(this.facets),
+        cursorPosition,
+      });
+
+      this.historyIndex = this.history.length - 1;
+
+      // Limit history size
+      if (this.history.length > 100) {
+        this.history.shift();
+        this.historyIndex--;
+      }
+
+      this.historyDebounceTimer = null;
+    }, 300);
+  }
+
+  undo() {
+    const input = this.querySelector(".rich-text-input");
+    const currentCursorPosition = getCursorPosition(input);
+
+    // If there's a pending save, flush it first
+    if (this.historyDebounceTimer) {
+      clearTimeout(this.historyDebounceTimer);
+      this.historyDebounceTimer = null;
+
+      const currentEntry = this.history[this.historyIndex];
+      if (!currentEntry || currentEntry.text !== this.text) {
+        // Clear any "future" states beyond current index
+        this.history = this.history.slice(0, this.historyIndex + 1);
+
+        this.history.push({
+          text: this.text,
+          facets: deepClone(this.facets),
+          cursorPosition: currentCursorPosition,
         });
+        this.historyIndex = this.history.length - 1;
       }
-      this.render();
-    } else if (e.key === "Enter" || e.key === "Tab") {
+    }
+
+    if (this.historyIndex <= 0) return;
+
+    // Move back in history
+    this.historyIndex--;
+    const prev = this.history[this.historyIndex];
+
+    this.text = prev.text;
+    this.facets = prev.facets;
+
+    this.updateFacets();
+    this.render();
+
+    setTimeout(() => {
+      setCursorPosition(input, prev.cursorPosition);
+    }, 0);
+
+    this.dispatchEvent(
+      new CustomEvent("input", {
+        detail: { text: this.text, facets: this.facets },
+      })
+    );
+  }
+
+  redo() {
+    if (this.historyIndex >= this.history.length - 1) return;
+
+    // Move forward in history
+    this.historyIndex++;
+    const next = this.history[this.historyIndex];
+
+    this.text = next.text;
+    this.facets = next.facets;
+
+    this.updateFacets();
+    this.render();
+
+    const input = this.querySelector(".rich-text-input");
+    setTimeout(() => {
+      setCursorPosition(input, next.cursorPosition);
+    }, 0);
+
+    this.dispatchEvent(
+      new CustomEvent("input", {
+        detail: { text: this.text, facets: this.facets },
+      })
+    );
+  }
+
+  handleKeydown(e) {
+    // Handle undo/redo before anything else
+    if ((e.ctrlKey || e.metaKey) && e.key === "z" && !e.shiftKey) {
       e.preventDefault();
-      const index = this.selectedSuggestionIndex ?? 0;
-      const selectedActor = this.mentionSuggestions[index];
-      if (selectedActor) {
-        this.selectMention(selectedActor);
+      this.undo();
+      return;
+    }
+    if (
+      (e.ctrlKey || e.metaKey) &&
+      (e.key === "y" || (e.key === "z" && e.shiftKey))
+    ) {
+      e.preventDefault();
+      this.redo();
+      return;
+    }
+
+    if (this.mentionSuggestions.length > 0) {
+      // Navigate through the mention suggestions
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        if (this.selectedSuggestionIndex === null) {
+          this.selectedSuggestionIndex = 0;
+        } else {
+          this.selectedSuggestionIndex = Math.min(
+            this.selectedSuggestionIndex + 1,
+            this.mentionSuggestions.length - 1
+          );
+        }
+        this.render();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        if (this.selectedSuggestionIndex === null) {
+          this.selectedSuggestionIndex = 0;
+        } else {
+          this.selectedSuggestionIndex = Math.max(
+            this.selectedSuggestionIndex - 1,
+            0
+          );
+        }
+        this.render();
+      } else if (e.key === "Enter" || e.key === "Tab") {
+        e.preventDefault();
+        const index = this.selectedSuggestionIndex ?? 0;
+        const selectedActor = this.mentionSuggestions[index];
+        if (selectedActor) {
+          this.selectMention(selectedActor);
+        }
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        e.stopPropagation();
+        this.mentionSuggestions = [];
+        this.selectedSuggestionIndex = null;
+        this.currentMentionQuery = null;
+        this.currentMentionStart = null;
+        this.currentMentionEnd = null;
+        this.render();
       }
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      this.mentionSuggestions = [];
-      this.selectedSuggestionIndex = null;
-      this.currentMentionQuery = null;
-      this.currentMentionStart = null;
-      this.currentMentionEnd = null;
-      this.render();
     }
   }
 
   handleInput(e) {
+    const prevText = this.text;
     this.text = getContentEditableText(e.target);
 
     let cursorPosition = getCursorPosition(e.target);
+
+    // Save to history if text changed
+    if (prevText !== this.text) {
+      this.saveHistory();
+    }
 
     // Get unresolved facets and resolve them using our stored DIDs if possible
     const unresolvedFacets = getUnresolvedFacetsFromText(this.text);
