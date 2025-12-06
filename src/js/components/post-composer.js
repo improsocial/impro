@@ -598,8 +598,15 @@ class PostComposer extends Component {
 
     const handleTouchStart = (e) => {
       // Only start drag from non-interactive elements
-      if (e.target.tagName === "BUTTON" || e.target.tagName === "TEXTAREA")
+      if (
+        e.target.tagName === "BUTTON" ||
+        e.target.tagName === "TEXTAREA" ||
+        e.target.isContentEditable ||
+        e.target.closest("[contenteditable]")
+      ) {
         return;
+      }
+      // Don't start drag if touch is inside contenteditable (allows text selection)
 
       dragState.startY = e.touches[0].clientY;
       dragState.currentY = dragState.startY;
