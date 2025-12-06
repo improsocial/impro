@@ -4676,6 +4676,7 @@ input[type="color"]::-moz-color-swatch {
     flex: 1;
     min-height: 0;
     display: flex;
+    overflow-y: auto;
   }
 
   .post-composer-body-right {
