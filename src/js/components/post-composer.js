@@ -606,7 +606,6 @@ class PostComposer extends Component {
       ) {
         return;
       }
-      // Don't start drag if touch is inside contenteditable (allows text selection)
 
       dragState.startY = e.touches[0].clientY;
       dragState.currentY = dragState.startY;
