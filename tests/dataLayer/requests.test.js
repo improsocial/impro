@@ -2,6 +2,7 @@ import { TestSuite } from "../testSuite.js";
 import { assertEquals } from "../testHelpers.js";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { Preferences } from "/js/dataLayer/preferencesProvider.js";
 
 const t = new TestSuite("Requests");
 
@@ -29,7 +30,10 @@ t.describe("loadPostThread", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadPostThread(postURI);
 
@@ -54,7 +58,10 @@ t.describe("loadPostThread", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadPostThread(postURI);
 
@@ -82,7 +89,10 @@ t.describe("loadNextFeedPage", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadNextFeedPage(feedURI);
 
@@ -119,7 +129,10 @@ t.describe("loadNextFeedPage", (it) => {
       getFeed: async () => newPage,
     };
 
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadNextFeedPage(feedURI);
 
@@ -147,7 +160,10 @@ t.describe("loadNextFeedPage", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadNextFeedPage(feedURI);
 
@@ -179,7 +195,10 @@ t.describe("loadNextFeedPage", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadNextFeedPage(feedURI);
 
@@ -206,7 +225,11 @@ t.describe("loadProfile", (it) => {
     };
 
     const dataStore = new DataStore();
-    const requests = new Requests(mockApi, dataStore);
+
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadProfile(profileDID);
 
@@ -228,7 +251,10 @@ t.describe("loadProfile", (it) => {
       getProfile: async () => initialProfile,
     };
 
-    const requests = new Requests(mockApi, dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
 
     await requests.loadProfile(profileDID);
 

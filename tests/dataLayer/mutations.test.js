@@ -3,6 +3,7 @@ import { assertEquals } from "../testHelpers.js";
 import { Mutations } from "../../src/js/dataLayer/mutations.js";
 import { DataStore } from "../../src/js/dataLayer/dataStore.js";
 import { PatchStore } from "../../src/js/dataLayer/patchStore.js";
+import { Preferences } from "../../src/js/dataLayer/preferencesProvider.js";
 
 const t = new TestSuite("Mutations");
 
@@ -19,7 +20,15 @@ t.describe("addLike", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start the mutation
     mutations.addLike(testPost);
@@ -37,7 +46,15 @@ t.describe("addLike", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     await mutations.addLike(testPost);
 
@@ -60,7 +77,15 @@ t.describe("addLike", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start two concurrent operations
     const promise1 = mutations.addLike(testPost);
@@ -90,7 +115,15 @@ t.describe("removeLike", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start the mutation
     mutations.removeLike(testPost);
@@ -107,7 +140,15 @@ t.describe("removeLike", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     await mutations.removeLike(testPost);
 
@@ -127,6 +168,7 @@ t.describe("followProfile", (it) => {
     uri: "did:test:profile",
     did: "did:test:profile",
     handle: "test.user",
+    followersCount: 10,
     viewer: { following: null },
   };
 
@@ -139,7 +181,15 @@ t.describe("followProfile", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start the mutation
     mutations.followProfile(testProfile);
@@ -147,6 +197,7 @@ t.describe("followProfile", (it) => {
     // Check that patch was applied immediately
     const patchedProfile = patchStore.applyProfilePatches(testProfile);
     assertEquals(patchedProfile.viewer.following, "fake following");
+    assertEquals(patchedProfile.followersCount, 11);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -156,13 +207,22 @@ t.describe("followProfile", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     await mutations.followProfile(testProfile);
 
     // Check that profile was updated in store
     const storedProfile = dataStore.getProfile(testProfile.did);
     assertEquals(storedProfile.viewer.following, "follow-123");
+    assertEquals(storedProfile.followersCount, 11);
 
     // Check that patch was removed
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
@@ -175,6 +235,7 @@ t.describe("unfollowProfile", (it) => {
     uri: "did:test:profile",
     did: "did:test:profile",
     handle: "test.user",
+    followersCount: 10,
     viewer: { following: "existing-follow-uri" },
   };
 
@@ -187,7 +248,15 @@ t.describe("unfollowProfile", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start the mutation
     mutations.unfollowProfile(testProfile);
@@ -195,6 +264,7 @@ t.describe("unfollowProfile", (it) => {
     // Check that patch was applied immediately
     const patchedProfile = patchStore.applyProfilePatches(testProfile);
     assertEquals(patchedProfile.viewer.following, null);
+    assertEquals(patchedProfile.followersCount, 9);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -203,13 +273,22 @@ t.describe("unfollowProfile", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     await mutations.unfollowProfile(testProfile);
 
     // Check that profile was updated in store
     const storedProfile = dataStore.getProfile(testProfile.did);
     assertEquals(storedProfile.viewer.following, null);
+    assertEquals(storedProfile.followersCount, 9);
 
     // Check that patch was removed
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
@@ -235,7 +314,15 @@ t.describe("Error Handling and Edge Cases", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     // Start like, then unlike before like completes
     const likePromise = mutations.addLike(post);
@@ -264,7 +351,15 @@ t.describe("Error Handling and Edge Cases", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const mutations = new Mutations(mockApi, dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider
+    );
 
     await mutations.removeLike(post);
 

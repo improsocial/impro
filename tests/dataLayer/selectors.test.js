@@ -3,6 +3,7 @@ import { assert, assertEquals } from "../testHelpers.js";
 import { Selectors } from "../../src/js/dataLayer/selectors.js";
 import { DataStore } from "../../src/js/dataLayer/dataStore.js";
 import { PatchStore } from "../../src/js/dataLayer/patchStore.js";
+import { Preferences } from "../../src/js/dataLayer/preferencesProvider.js";
 
 const t = new TestSuite("Selectors");
 
@@ -12,7 +13,15 @@ t.describe("getFeed", (it) => {
   it("should return null when feed does not exist", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const result = selectors.getFeed(feedURI);
     assertEquals(result, null);
@@ -21,7 +30,15 @@ t.describe("getFeed", (it) => {
   it("should hydrate and return a feed with posts", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     // Set up test data
     const rawFeed = {
@@ -47,7 +64,15 @@ t.describe("getFeed", (it) => {
   it("should apply patches to posts in feed", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawFeed = {
       feed: [{ post: { uri: "post1" } }],
@@ -78,7 +103,15 @@ t.describe("getPostThread", (it) => {
   it("should return null when post thread does not exist", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const result = selectors.getPostThread(postURI);
     assertEquals(result, null);
@@ -87,7 +120,15 @@ t.describe("getPostThread", (it) => {
   it("should hydrate and return a simple post thread", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawThread = {
       post: { uri: postURI },
@@ -110,7 +151,15 @@ t.describe("getPostThread", (it) => {
   it("should hydrate post thread with replies", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawThread = {
       post: { uri: postURI },
@@ -143,7 +192,15 @@ t.describe("getPostThread", (it) => {
   it("should hydrate post thread with parent", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawThread = {
       post: { uri: postURI },
@@ -173,7 +230,15 @@ t.describe("getPostThread", (it) => {
   it("should apply patches to thread posts", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawThread = {
       post: { uri: postURI },
@@ -200,7 +265,15 @@ t.describe("getPostThread", (it) => {
   it("should preserve non-threadViewPost replies unchanged", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const rawThread = {
       post: { uri: postURI },
@@ -247,7 +320,15 @@ t.describe("getPost", (it) => {
   it("should return post with patches applied", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     dataStore.setPost(postURI, testPost);
     patchStore.addPostPatch(postURI, { type: "addLike" });
@@ -262,7 +343,15 @@ t.describe("getPost", (it) => {
   it("should return post without patches when no patches exist", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     dataStore.setPost(postURI, testPost);
 
@@ -275,7 +364,15 @@ t.describe("getPost", (it) => {
   it("should return null when optional post missing", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const result = selectors.getPost("nonExistentPost", { require: false });
     assertEquals(result, null);
@@ -284,7 +381,15 @@ t.describe("getPost", (it) => {
   it("should return null when post missing and require not specified", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const result = selectors.getPost("nonExistentPost");
     assertEquals(result, null);
@@ -303,7 +408,15 @@ t.describe("getProfile", (it) => {
   it("should return null when profile does not exist", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     const result = selectors.getProfile(profileDID);
     assertEquals(result, null);
@@ -326,7 +439,15 @@ t.describe("getProfile", (it) => {
   it("should return profile without patches when no patches exist", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     dataStore.setProfile(profileDID, testProfile);
 
@@ -341,7 +462,15 @@ t.describe("Integration with DataStore and PatchStore", (it) => {
   it("should work with multiple data types and patches", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false
+    );
 
     // Set up data
     const feedURI = "feed1";
