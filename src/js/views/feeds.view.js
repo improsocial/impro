@@ -96,10 +96,10 @@ class FeedsView extends View {
 
     root.addEventListener("page-enter", async () => {
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         renderPage();
       });
-      await dataLayer.declarations.ensurePinnedFeedGenerators();
+      await dataLayer.declarative.ensurePinnedFeedGenerators();
       renderPage();
     });
 

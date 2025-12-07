@@ -284,7 +284,7 @@ class HomeView extends View {
       // Initial empty state
       renderPage();
 
-      await dataLayer.declarations
+      await dataLayer.declarative
         .ensurePinnedFeedGenerators()
         .then((pinnedFeedGenerators) => {
           // If the current feed is not in the pinned feed generators, reset to default feed
@@ -304,7 +304,7 @@ class HomeView extends View {
 
       // Ensure current user before loading feed to prevent flash of unfiltered feed
       if (isAuthenticated) {
-        await dataLayer.declarations.ensureCurrentUser();
+        await dataLayer.declarative.ensureCurrentUser();
         renderPage();
       }
       await loadCurrentFeed();

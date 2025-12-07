@@ -147,11 +147,11 @@ class FeedDetailView extends View {
     root.addEventListener("page-enter", async () => {
       // Initial empty state
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         renderPage();
       });
       // Load feed generator info
-      dataLayer.declarations.ensureFeedGenerator(feedUri).then(() => {
+      dataLayer.declarative.ensureFeedGenerator(feedUri).then(() => {
         renderPage();
       });
       await loadFeed();

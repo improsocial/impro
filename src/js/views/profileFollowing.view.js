@@ -140,11 +140,11 @@ class ProfileFollowingView extends View {
 
     root.addEventListener("page-enter", async () => {
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         renderPage();
       });
       // Load the profile to get the follows count
-      dataLayer.declarations.ensureProfile(profileDid).then(() => {
+      dataLayer.declarative.ensureProfile(profileDid).then(() => {
         renderPage();
       });
       await loadFollowing();

@@ -261,7 +261,7 @@ class ChatView extends View {
 
     root.addEventListener("page-enter", async () => {
       renderPage();
-      await dataLayer.declarations.ensureCurrentUser();
+      await dataLayer.declarative.ensureCurrentUser();
       await loadConvoList({ reload: true });
     });
 
