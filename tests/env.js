@@ -13,3 +13,8 @@ globalThis.document = dom.window.document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.customElements = dom.window.customElements;
 globalThis.CustomEvent = dom.window.CustomEvent;
+class IntersectionObserver {
+  observe() {}
+  unobserve() {}
+}
+globalThis.IntersectionObserver = IntersectionObserver;
