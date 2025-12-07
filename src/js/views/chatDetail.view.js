@@ -432,13 +432,12 @@ class ChatDetailView extends View {
       onLongPress,
       isSelected,
     }) {
-      // return "This is a message";
       return html`
         <div
           class="message-wrapper ${isSelected ? "message-wrapper-active" : ""}"
         >
           <div
-            ref=${ref((el) => {
+            ${ref((el) => {
               if (el) {
                 enableLongPress(el);
               }
