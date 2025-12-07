@@ -715,7 +715,7 @@ class ChatDetailView extends View {
 
     root.addEventListener("page-enter", async () => {
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then((currentUser) => {
+      dataLayer.declarative.ensureCurrentUser().then((currentUser) => {
         renderPage();
         // Initialize message fetcher
         messageFetcher = new MessageFetcher(
@@ -729,7 +729,7 @@ class ChatDetailView extends View {
         });
         messageFetcher.start();
       });
-      await dataLayer.declarations.ensureConvo(convoId);
+      await dataLayer.declarative.ensureConvo(convoId);
       await loadMessages({ reload: true });
       // Scroll to bottom of messages
       scrollToBottom({ onlyIfNeeded: true });

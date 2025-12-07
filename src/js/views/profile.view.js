@@ -139,7 +139,7 @@ class ProfileView extends View {
                   window.router.go(`/messages/${profileChatStatus.convo.id}`);
                 } else {
                   const convo =
-                    await dataLayer.declarations.ensureConvoForProfile(
+                    await dataLayer.declarative.ensureConvoForProfile(
                       profile.did
                     );
                   window.router.go(`/messages/${convo.id}`);
@@ -306,9 +306,9 @@ class ProfileView extends View {
     root.addEventListener("page-enter", async () => {
       renderPage();
       if (isAuthenticated) {
-        await dataLayer.declarations.ensureCurrentUser();
+        await dataLayer.declarative.ensureCurrentUser();
       }
-      const profile = await dataLayer.declarations.ensureProfile(profileDid);
+      const profile = await dataLayer.declarative.ensureProfile(profileDid);
       state.richTextProfileDescription = await loadProfileDescription(profile);
       renderPage();
       if (!profile.viewer?.blocking) {

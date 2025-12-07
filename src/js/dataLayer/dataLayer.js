@@ -4,7 +4,7 @@ import { PreferencesProvider } from "./preferencesProvider.js";
 import { Mutations } from "./mutations.js";
 import { Requests } from "./requests.js";
 import { Selectors } from "./selectors.js";
-import { Declarations } from "./declarations.js";
+import { Declarative } from "./declarative.js";
 
 export class DataLayer {
   constructor(api) {
@@ -30,7 +30,7 @@ export class DataLayer {
       this.preferencesProvider,
       this.isAuthenticated
     );
-    this.declarations = new Declarations(this.selectors, this.requests);
+    this.declarative = new Declarative(this.selectors, this.requests);
     this.subscribers = [];
   }
 

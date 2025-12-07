@@ -86,7 +86,7 @@ class BookmarksView extends View {
       // Initial empty state
       renderPage();
 
-      dataLayer.declarations.ensureCurrentUser().then(() => {
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         renderPage();
       });
 

@@ -1,4 +1,4 @@
-export class Declarations {
+export class Declarative {
   constructor(selectors, requests) {
     this.selectors = selectors;
     this.requests = requests;

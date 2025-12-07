@@ -328,7 +328,7 @@ class PostComposer extends Component {
         : await this.identityResolver.resolveHandle(didOrHandle);
       const rkey = parsedUrl.pathname.split("/")[4];
       const postUri = `at://${did}/app.bsky.feed.post/${rkey}`;
-      this.quotedPost = await this.dataLayer.declarations.ensurePost(postUri);
+      this.quotedPost = await this.dataLayer.declarative.ensurePost(postUri);
       this.render();
     } catch (error) {
       console.error("Error loading quoted post from link: ", error);

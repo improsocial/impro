@@ -95,7 +95,7 @@ class SettingsView extends View {
     root.addEventListener("page-enter", async () => {
       // Initial empty state
       renderPage();
-      dataLayer.declarations.ensureCurrentUser().then(() => {
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         renderPage();
       });
     });

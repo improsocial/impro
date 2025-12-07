@@ -305,7 +305,7 @@ class SearchView extends View {
       }
       renderPage();
       if (isAuthenticated) {
-        dataLayer.declarations.ensureCurrentUser().then(() => {
+        dataLayer.declarative.ensureCurrentUser().then(() => {
           renderPage();
         });
       }
