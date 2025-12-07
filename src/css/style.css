@@ -1720,7 +1720,7 @@ body.scroll-locked header {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 99999px;
+  border-radius: 999px;
 }
 
 .post-actions .text-button-text {
@@ -2974,6 +2974,13 @@ form button[type="submit"] {
   font-weight: normal;
   background: var(--primary-button-color);
   color: var(--primary-button-text-color);
+}
+
+form button[type="submit"] .loading-spinner {
+  border-top-color: var(--primary-button-text-color);
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
 }
 
 @media (min-width: 800px) {
@@ -4821,7 +4828,7 @@ input[type="color"]::-moz-color-swatch {
   position: relative;
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: 50%;
   border: 1px solid var(--highlight-color);
   position: relative;
   display: flex;
