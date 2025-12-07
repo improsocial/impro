@@ -217,39 +217,39 @@ class PostComposer extends Component {
                   : html`<span>${this.replyTo ? "Reply" : "Post"}</span>`}
               </button>
             </div>
-            ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
-            <div class="post-composer-body">
-              <div class="post-composer-body-left">
-                ${avatarTemplate({
-                  author: this.currentUser,
-                  clickAction: "none",
-                })}
+            <div class="post-composer-scroll-area">
+              ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
+              <div class="post-composer-body">
+                <div class="post-composer-body-left">
+                  ${avatarTemplate({
+                    author: this.currentUser,
+                    clickAction: "none",
+                  })}
+                </div>
+                <div class="post-composer-body-right">
+                  <rich-text-input
+                    @input=${(e) => {
+                      this.handleInput(e);
+                    }}
+                    placeholder="${promptText}"
+                  ></rich-text-input>
+                </div>
               </div>
-              <div class="post-composer-body-right">
-                <rich-text-input
-                  @input=${(e) => {
-                    this.handleInput(e);
-                  }}
-                  placeholder="${promptText}"
-                ></rich-text-input>
-              </div>
-            </div>
-            ${this._externalLinkEmbedData
-              ? externalLinkEmbedPreviewTemplate({
-                  data: this._externalLinkEmbedData,
-                  onClose: () => {
-                    this.handleExternalLinkEmbedPreviewClose();
-                  },
-                })
-              : ""}
-            ${this._selectedImages.length > 0
-              ? imagePreviewTemplate({
-                  images: this._selectedImages,
-                  onRemove: (index) => this.handleRemoveImage(index),
-                  onEditAltText: (index) => this.handleEditAltText(index),
-                })
-              : ""}
-            <div class="post-composer-quoted-post-container">
+              ${this._externalLinkEmbedData
+                ? externalLinkEmbedPreviewTemplate({
+                    data: this._externalLinkEmbedData,
+                    onClose: () => {
+                      this.handleExternalLinkEmbedPreviewClose();
+                    },
+                  })
+                : ""}
+              ${this._selectedImages.length > 0
+                ? imagePreviewTemplate({
+                    images: this._selectedImages,
+                    onRemove: (index) => this.handleRemoveImage(index),
+                    onEditAltText: (index) => this.handleEditAltText(index),
+                  })
+                : ""}
               ${this.quotedPost
                 ? html`<div class="post-composer-embed-preview">
                     <button
@@ -263,38 +263,38 @@ class PostComposer extends Component {
                     ${quotedPostTemplate({ post: this.quotedPost })}
                   </div>`
                 : ""}
-            </div>
-            <div class="post-composer-bottom-bar">
-              <div class="post-composer-bottom-bar-left">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style="display: none;"
-                  @change=${(e) => this.handleImageSelect(e)}
-                  @cancel=${(e) => {
-                    e.stopPropagation();
-                  }}
-                />
-                <button
-                  class="image-picker-button"
-                  @click=${() => this.handleImageButtonClick()}
-                  .disabled=${this._selectedImages.length >= 4}
+              <div class="post-composer-bottom-bar">
+                <div class="post-composer-bottom-bar-left">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style="display: none;"
+                    @change=${(e) => this.handleImageSelect(e)}
+                    @cancel=${(e) => {
+                      e.stopPropagation();
+                    }}
+                  />
+                  <button
+                    class="image-picker-button"
+                    @click=${() => this.handleImageButtonClick()}
+                    .disabled=${this._selectedImages.length >= 4}
+                  >
+                    ${imageIconTemplate()}
+                  </button>
+                </div>
+                <div
+                  class=${classnames("word-count", {
+                    overflow: isAboveCharLimit,
+                  })}
                 >
-                  ${imageIconTemplate()}
-                </button>
-              </div>
-              <div
-                class=${classnames("word-count", {
-                  overflow: isAboveCharLimit,
-                })}
-              >
-                <span class="word-count-text">${300 - currentCharCount}</span>
-                <div class="word-count-indicator">
-                  <div
-                    class="word-count-indicator-bar"
-                    style="height: ${charCountPercentage}%"
-                  ></div>
+                  <span class="word-count-text">${300 - currentCharCount}</span>
+                  <div class="word-count-indicator">
+                    <div
+                      class="word-count-indicator-bar"
+                      style="height: ${charCountPercentage}%"
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -508,10 +508,7 @@ class PostComposer extends Component {
     // Setup mobile swipe-to-dismiss
     this.setupMobileDragToDismiss(dialog);
 
-    // Setup keyboard handling for mobile
-    this.setupKeyboardHandling(dialog);
-
-    // focus on the textarea after a small delay to ensure keyboard handling is set up
+    // focus on the textarea
     requestAnimationFrame(() => {
       requestAnimationFrame(() => {
         const richTextInput = this.querySelector("rich-text-input");
@@ -531,19 +528,6 @@ class PostComposer extends Component {
       dialog.style.transform = "";
       dialog.style.transition = "";
       this._dragState = null;
-    }
-
-    // Clean up keyboard listeners
-    if (this._keyboardListeners) {
-      window.visualViewport?.removeEventListener(
-        "resize",
-        this._keyboardListeners.resize
-      );
-      window.visualViewport?.removeEventListener(
-        "scroll",
-        this._keyboardListeners.scroll
-      );
-      this._keyboardListeners = null;
     }
 
     dialog.close();
@@ -667,54 +651,6 @@ class PostComposer extends Component {
       confirmButtonStyle: "danger",
       confirmButtonText: "Discard",
     });
-  }
-  // Claude wrote this
-  setupKeyboardHandling() {
-    // Only enable on mobile
-    if (window.matchMedia("(min-width: 800px)").matches) return;
-    if (!window.visualViewport) return;
-
-    const content = this.querySelector(".post-composer-content");
-    // const bottomBar = this.querySelector(".post-composer-bottom-bar");
-
-    const updatePosition = () => {
-      const viewport = window.visualViewport;
-      const viewportHeight = viewport.height;
-      const offsetTop = viewport.offsetTop;
-
-      // When keyboard opens, viewport height decreases
-      // Keep modal full height but adjust content padding to bring bottom bar up
-      if (offsetTop > 0 || viewportHeight < window.innerHeight) {
-        // Keyboard is likely open
-        const keyboardHeight = window.innerHeight - viewportHeight;
-        if (content) {
-          // Add padding to push bottom bar above keyboard
-          content.style.paddingBottom = `${keyboardHeight + 16}px`;
-        }
-      } else {
-        // Keyboard is closed
-        if (content) {
-          content.style.paddingBottom =
-            "calc(var(--safe-area-inset-bottom) + 16px)";
-        }
-      }
-    };
-
-    const handleResize = () => {
-      updatePosition();
-    };
-
-    const handleScroll = () => {
-      updatePosition();
-    };
-
-    this._keyboardListeners = {
-      resize: handleResize,
-      scroll: handleScroll,
-    };
-
-    window.visualViewport.addEventListener("resize", handleResize);
-    window.visualViewport.addEventListener("scroll", handleScroll);
   }
 }
 
