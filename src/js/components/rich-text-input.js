@@ -142,7 +142,10 @@ function setCursorPosition(editableDiv, position) {
 }
 
 function getContentEditableText(element) {
-  if (element.children.length === 1 && element.children[0].nodeName === "BR") {
+  if (
+    element.childNodes.length === 1 &&
+    element.childNodes[0].nodeName === "BR"
+  ) {
     return "";
   }
   function extractText(node) {

@@ -70,8 +70,29 @@ class ChatDetailView extends View {
       }
     }
 
-    function scrollToBottom() {
+    function scrollToBottom({ onlyIfNeeded = false } = {}) {
       const scrollingElement = document.scrollingElement || document.body;
+      // Only scroll if content overflows the viewport
+      if (scrollingElement.scrollHeight <= scrollingElement.clientHeight) {
+        return;
+      }
+      if (onlyIfNeeded) {
+        // Don't scroll if last message is already visible on screen
+        const messageList = root.querySelector(".message-list");
+        if (messageList) {
+          const lastMessage = messageList.querySelector(
+            ".message-group:last-child"
+          );
+          if (lastMessage) {
+            const lastMessageBottom =
+              lastMessage.getBoundingClientRect().bottom;
+            const viewportHeight = window.innerHeight;
+            if (lastMessageBottom <= viewportHeight) {
+              return;
+            }
+          }
+        }
+      }
       scrollingElement.scrollTop = scrollingElement.scrollHeight;
     }
 
@@ -614,6 +635,7 @@ class ChatDetailView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            showSidebarOverlay: false,
             showFloatingComposeButton: false,
             children: html`
               ${textHeaderTemplate({
@@ -710,12 +732,12 @@ class ChatDetailView extends View {
       await dataLayer.declarations.ensureConvo(convoId);
       await loadMessages({ reload: true });
       // Scroll to bottom of messages
-      scrollToBottom();
+      scrollToBottom({ onlyIfNeeded: true });
       // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
       state.loadingEnabled = true;
       renderPage();
       // Sometimes it jumps after the render, so we scroll to bottom again
-      scrollToBottom();
+      scrollToBottom({ onlyIfNeeded: true });
     });
 
     root.addEventListener("page-restore", async (e) => {
