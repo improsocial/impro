@@ -61,6 +61,23 @@ html {
   --moderation-warning-border-radius: 6px;
   --blocked-post-radius: 6px;
   --square-button-radius: 6px;
+  --toast-border-radius: 8px;
+  --dialog-border-radius: 12px;
+  --message-bubble-border-radius: 18px;
+  --sheet-border-radius: 20px;
+  --reaction-palette-border-radius: 30px;
+  --context-menu-border-radius: 10px;
+  --skeleton-border-radius: 4px;
+  --tag-border-radius: 4px;
+  --image-preview-border-radius: 8px;
+  --typeahead-border-radius: 8px;
+  --message-input-border-radius: 24px;
+  --list-avatar-border-radius: 4px;
+  --icon-button-border-radius: 4px;
+  --avatar-border-radius: 50%;
+  --circular-button-border-radius: 50%;
+  --pill-button-border-radius: 999px;
+  --label-badge-border-radius: 999px;
 
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
 
@@ -114,8 +131,6 @@ html {
   --tab-bar-button-active-color: var(--highlight-color);
 
   --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
-
-  --toast-border-radius: 8px;
 
   --hair: 1px;
 
@@ -337,7 +352,7 @@ body.native {
   height: 100px;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: 6px;
+  border-radius: var(--square-button-radius);
   background-color: var(--generic-border-color);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -509,20 +524,6 @@ body.native {
   font-weight: 500;
 }
 
-.convo-badge {
-  position: absolute;
-  top: 12px;
-  right: 16px;
-  background-color: var(--highlight-color);
-  color: white;
-  border-radius: 12px;
-  padding: 2px 8px;
-  font-size: 12px;
-  font-weight: 600;
-  min-width: 20px;
-  text-align: center;
-}
-
 /* Skeleton loaders for chat */
 .convo-item.skeleton {
   pointer-events: none;
@@ -531,32 +532,32 @@ body.native {
 .convo-skeleton-avatar {
   width: 48px;
   height: 48px;
-  border-radius: 24px;
+  border-radius: var(--avatar-border-radius);
 }
 
 .convo-skeleton-name {
   width: 120px;
   height: 16px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .convo-skeleton-time {
   width: 40px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
 }
 
 .convo-skeleton-handle {
   width: 90px;
   height: 12px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
   margin-top: 4px;
 }
 
 .convo-skeleton-preview {
   width: 80%;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
   margin-top: 6px;
 }
 
@@ -610,7 +611,7 @@ body.native {
   flex: 1;
   padding: 10px 16px;
   border: none;
-  border-radius: 20px;
+  border-radius: var(--sheet-border-radius);
   font-size: 14px;
   /* font-weight: 600; */
   cursor: pointer;
@@ -642,7 +643,7 @@ body.native {
 .chat-request-skeleton-button {
   flex: 1;
   height: 40px;
-  border-radius: 20px;
+  border-radius: var(--sheet-border-radius);
 }
 
 /* Chat Detail View */
@@ -739,14 +740,14 @@ body.native {
 .avatar-placeholder {
   width: 32px;
   height: 32px;
-  border-radius: 16px;
+  border-radius: var(--avatar-border-radius);
   background-color: var(--generic-border-color);
 }
 
 .message-bubble {
   max-width: 70%;
   padding: 10px 14px;
-  border-radius: 18px;
+  border-radius: var(--message-bubble-border-radius);
   word-wrap: break-word;
   overflow-wrap: break-word;
   /* margin-bottom: 4px; */
@@ -800,7 +801,7 @@ body.native {
   top: 100%;
   left: 0;
   background: var(--context-menu-background-color);
-  border-radius: 30px;
+  border-radius: var(--reaction-palette-border-radius);
   padding: 0px 0px;
   display: flex;
   gap: 0px;
@@ -835,7 +836,7 @@ body.native {
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   transition: background-color 0.15s, transform 0.1s;
   -webkit-tap-highlight-color: transparent;
   user-select: none;
@@ -885,7 +886,7 @@ body.native {
   gap: 4px;
   background: var(--background-color);
   border: var(--hair) solid var(--generic-border-color);
-  border-radius: 18px;
+  border-radius: var(--message-bubble-border-radius);
   padding: 4px 8px;
   font-size: 14px;
   min-width: 40px;
@@ -981,7 +982,7 @@ chat-input {
   flex: 1;
   padding: 12px 16px;
   border: 1px solid var(--highlight-color);
-  border-radius: 24px;
+  border-radius: var(--message-input-border-radius);
   background-color: var(--background-color);
   color: var(--text-color);
   font-size: 16px;
@@ -1012,7 +1013,7 @@ chat-input {
   flex-shrink: 0;
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   color: var(--primary-button-text-color);
   background-color: var(--highlight-color);
   border: none;
@@ -1063,7 +1064,7 @@ chat-input {
 .message-skeleton-bubble {
   width: 200px;
   height: 40px;
-  border-radius: 18px;
+  border-radius: var(--message-bubble-border-radius);
   margin-left: 40px;
 }
 
@@ -1273,7 +1274,7 @@ body.scroll-locked header {
   cursor: pointer;
   color: var(--icon-button-color);
   font-size: 18px;
-  border-radius: 3px;
+  border-radius: var(--icon-button-border-radius);
   height: 30px;
   width: 30px;
   transition: background-color 0.2s;
@@ -1285,7 +1286,7 @@ body.scroll-locked header {
   cursor: pointer;
   background: rgba(0, 0, 0, 0.5);
   color: var(--off-white);
-  border-radius: 5px;
+  border-radius: var(--icon-button-border-radius);
   top: 16px;
   left: 16px;
   height: 30px;
@@ -1339,7 +1340,7 @@ body.scroll-locked header {
 }
 
 .post-thread-reply-prompt-inner {
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   padding: 5px;
   overflow: hidden;
   display: flex;
@@ -1500,7 +1501,7 @@ body.scroll-locked header {
 .avatar-image {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   flex-shrink: 0;
   background: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
@@ -1720,7 +1721,7 @@ body.scroll-locked header {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
 }
 
 .post-actions .text-button-text {
@@ -2130,7 +2131,7 @@ like-button {
   position: absolute;
   right: 8px;
   top: 8px;
-  border-radius: 999px;
+  border-radius: var(--circular-button-border-radius);
   color: var(--text-color);
   border: var(--hair) solid var(--post-border-color);
   background: light-dark(var(--lightest-gray), var(--dark-gray));
@@ -2156,7 +2157,7 @@ like-button {
   position: relative;
   width: 120px;
   height: 120px;
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   overflow: hidden;
   border: var(--hair) solid var(--post-border-color);
 }
@@ -2172,7 +2173,7 @@ like-button {
   position: absolute;
   right: 4px;
   top: 4px;
-  border-radius: 999px;
+  border-radius: var(--circular-button-border-radius);
   color: white;
   border: none;
   background: rgba(0, 0, 0, 0.6);
@@ -2204,7 +2205,7 @@ like-button {
   background: rgba(0, 0, 0, 0.6);
   color: white;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
@@ -2227,7 +2228,7 @@ like-button {
 /* Image Alt Text Dialog */
 .image-alt-text-dialog {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--dialog-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   max-width: 600px;
@@ -2252,7 +2253,7 @@ like-button {
     max-width: 100%;
     height: auto;
     max-height: calc(100vh - 16px);
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
     box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
     animation: slide-up 0.15s ease-out;
     transform: none;
@@ -2296,7 +2297,7 @@ like-button {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--icon-button-border-radius);
   transition: background-color 0.2s;
 }
 
@@ -2313,7 +2314,7 @@ like-button {
 .image-alt-text-dialog-image-container {
   width: 100%;
   max-height: 300px;
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   overflow: hidden;
   border: var(--hair) solid var(--post-border-color);
   background-color: light-dark(var(--light-gray), var(--dark-gray));
@@ -2340,7 +2341,7 @@ like-button {
   min-height: 120px;
   padding: 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 8px;
+  border-radius: var(--text-input-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
@@ -2388,7 +2389,6 @@ like-button {
 .image-alt-text-dialog-char-count .char-count-indicator {
   height: 18px;
   width: 18px;
-  border-radius: 999px;
   border: 2px solid var(--light-gray);
   position: relative;
   overflow: hidden;
@@ -2519,38 +2519,12 @@ like-button {
   border-width: 2px;
 }
 
-.profile-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-}
-
-.profile-action-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  border: var(--hair) solid var(--post-border-color);
-  background: transparent;
-  color: var(--icon-button-color);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-
-@media (min-width: 800px) {
-  .profile-action-btn:hover {
-    background: var(--post-hover-color);
-  }
-}
-
 .rounded-button {
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 8px 15px;
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   border: none;
   color: var(--text-color);
   cursor: pointer;
@@ -2644,7 +2618,7 @@ like-button {
   font-size: 13px;
   background: var(--primary-button-muted-color);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   display: inline-block;
 }
 
@@ -2652,17 +2626,9 @@ like-button {
   font-size: 13px;
   background: var(--primary-button-muted-color);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--tag-border-radius);
   display: inline-block;
   margin-left: 1em;
-  /* font-size: 15px;
-  color: var(--text-color-muted);
-  padding: 16px;
-  text-align: center;
-  background: var(--background-color-secondary);
-  border-radius: 8px;
-  margin: 12px 16px;
-  width: fit-content; */
 }
 
 .profile-stats {
@@ -2734,7 +2700,7 @@ like-button {
 .profile-followed-by-avatar {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   border: 2px solid var(--background-color);
   margin-left: -4px;
 }
@@ -3050,7 +3016,7 @@ form button:disabled {
 .skeleton-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   background: var(--skeleton-color);
 }
 
@@ -3075,21 +3041,21 @@ form button:disabled {
 .skeleton-line {
   width: 100%;
   height: 10px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
   background: var(--skeleton-color);
 }
 
 .skeleton-line-short {
   width: 10em;
   height: 12px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
   background: var(--skeleton-color);
 }
 
 .skeleton-line-shorter {
   width: 7em;
   height: 12px;
-  border-radius: 4px;
+  border-radius: var(--skeleton-border-radius);
   background: var(--skeleton-color);
 }
 
@@ -3130,7 +3096,7 @@ form button:disabled {
 
 .error-state button {
   border: none;
-  border-radius: 4px;
+  border-radius: var(--square-button-radius);
   color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
@@ -3189,7 +3155,7 @@ img[data-lightbox] {
   background: rgba(0, 0, 0, 0.5);
   width: 40px;
   height: 40px;
-  border-radius: 20px;
+  border-radius: var(--icon-button-border-radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -3335,7 +3301,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   margin: 0;
   color: var(--text-color);
   background-color: var(--context-menu-background-color);
-  border-radius: 10px;
+  border-radius: var(--context-menu-border-radius);
   overflow: hidden;
   border: var(--hair) solid var(--post-border-color);
 }
@@ -3349,7 +3315,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
     top: auto !important;
     width: 100%;
     max-width: 100%;
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
     box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
     animation: slide-up 0.15s ease-out;
     padding-top: 16px;
@@ -3401,7 +3367,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
     cursor: pointer;
     flex: 1;
     padding: 14px;
-    border-radius: 7px;
+    border-radius: var(--square-button-radius);
   }
 }
 
@@ -3609,7 +3575,7 @@ post-context-menu .text-button-text {
   position: absolute;
   background: var(--highlight-color);
   color: var(--white);
-  border-radius: 10px;
+  border-radius: var(--context-menu-border-radius);
   font-size: 11px;
   font-weight: 600;
   /* min-width: 17px;
@@ -3643,7 +3609,7 @@ post-context-menu .text-button-text {
 .footer-nav-item .avatar-image-placeholder {
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   background: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -3789,14 +3755,14 @@ post-context-menu .text-button-text {
 .sidebar-profile-avatar .avatar-image {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
 }
 
 .sidebar-profile-avatar .avatar-placeholder {
   width: 64px;
   height: 64px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   background: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -3861,7 +3827,7 @@ post-context-menu .text-button-text {
   transition: background-color 0.2s;
   cursor: pointer;
   font-size: 20px;
-  border-radius: 6px;
+  border-radius: var(--square-button-radius);
 }
 
 @media (min-width: 800px) {
@@ -3907,7 +3873,7 @@ post-context-menu .text-button-text {
   background-color: var(--primary-button-color);
   color: var(--off-white);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   font-size: 16px;
   font-weight: 600;
   cursor: pointer;
@@ -3975,7 +3941,7 @@ post-context-menu .text-button-text {
   color: var(--text-color-muted);
   margin-top: 5px;
   margin-left: -7px;
-  border-radius: 999px;
+  border-radius: var(--label-badge-border-radius);
   padding-left: 7px;
   padding-right: 7px;
   padding-top: 2px;
@@ -3985,7 +3951,7 @@ post-context-menu .text-button-text {
 .small-post .label-badge-image {
   width: 12px;
   height: 12px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   object-fit: cover;
 }
 
@@ -4001,7 +3967,7 @@ post-context-menu .text-button-text {
   color: var(--text-color-muted);
   background: light-dark(var(--lightest-gray), var(--gray));
   width: fit-content;
-  border-radius: 999px;
+  border-radius: var(--label-badge-border-radius);
   padding-left: 8px;
   padding-right: 8px;
   padding-top: 3px;
@@ -4011,7 +3977,7 @@ post-context-menu .text-button-text {
 .large-post .label-badge-image {
   width: 16px;
   height: 16px;
-  border-radius: 50%;
+  border-radius: var(--avatar-border-radius);
   object-fit: cover;
 }
 
@@ -4562,7 +4528,7 @@ input[type="color"]::-moz-color-swatch {
   /* font-size: 24px; */
   color: var(--text-color-muted);
   cursor: pointer;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   border: none;
   display: flex;
   align-items: center;
@@ -4617,7 +4583,7 @@ input[type="color"]::-moz-color-swatch {
 
 .post-composer {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--dialog-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   max-width: 600px;
@@ -4641,7 +4607,7 @@ input[type="color"]::-moz-color-swatch {
     max-width: 100%;
     height: auto;
     max-height: calc(100vh - 16px);
-    border-radius: 20px 20px 0 0;
+    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
     box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
     animation: slide-up 0.15s ease-out;
     transform: none;
@@ -4649,19 +4615,6 @@ input[type="color"]::-moz-color-swatch {
     display: flex;
     flex-direction: column;
   }
-
-  /* .post-composer::before {
-    content: "";
-    position: absolute;
-    top: 7px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 36px;
-    height: 4px;
-    background-color: var(--light-gray);
-    border-radius: 2px;
-    z-index: 1;
-  } */
 }
 
 .post-composer-content {
@@ -4707,7 +4660,7 @@ input[type="color"]::-moz-color-swatch {
   cursor: pointer;
   padding: 8px 12px;
   transition: color 0.2s;
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   color: var(--highlight-color);
 }
 
@@ -4715,7 +4668,7 @@ input[type="color"]::-moz-color-swatch {
   background-color: var(--primary-button-color);
   color: var(--off-white);
   border: none;
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   font-size: 15px;
   font-weight: 600;
   padding: 10px 20px;
@@ -4790,7 +4743,7 @@ input[type="color"]::-moz-color-swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--icon-button-border-radius);
   transition: background-color 0.2s;
 }
 
@@ -4862,7 +4815,7 @@ input[type="color"]::-moz-color-swatch {
 /* Shared modal base styles */
 .modal-dialog {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 12px;
+  border-radius: var(--dialog-border-radius);
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
   padding: 0;
@@ -5000,7 +4953,7 @@ input[type="color"]::-moz-color-swatch {
   right: 50px;
   width: 60px;
   height: 60px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   background-color: var(--primary-button-color);
   color: var(--off-white);
   border: none;
@@ -5084,7 +5037,7 @@ input[type="color"]::-moz-color-swatch {
 .feeds-list-item-avatar .feed-avatar {
   width: 30px;
   height: 30px;
-  border-radius: 5px;
+  border-radius: var(--list-avatar-border-radius);
 }
 
 .feeds-list-item-content {
@@ -5224,7 +5177,7 @@ emoji-picker {
   position: absolute;
   background: var(--context-menu-background-color);
   border: 1px solid var(--generic-border-color);
-  border-radius: 8px;
+  border-radius: var(--typeahead-border-radius);
   overflow: hidden;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   margin-top: 8px;
