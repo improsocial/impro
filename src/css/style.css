@@ -10,6 +10,7 @@
 }
 
 html {
+  /* colors */
   --white: #ffffff;
   --less-white: #fcfcfc;
   --off-white: rgb(241, 243, 245);
@@ -20,13 +21,13 @@ html {
   --mid-light-gray: #656565;
   --lighter-gray: #d0d0d0;
   --lightest-gray: #f3f3f3;
-  --red: #d81316;
-  --red-muted: #ff4949;
-
   --blue: #006aff;
   --purple: #9054f9;
   --pink: #df4074;
+  --red: #d81316;
+  --red-muted: #ff4949;
 
+  /* theme colors */
   --background-color: light-dark(var(--less-white), var(--dark-gray));
   --background-color-secondary: light-dark(
     var(--lightest-gray),
@@ -36,56 +37,13 @@ html {
   --text-color-muted: light-dark(#666, #999);
   --generic-border-color: light-dark(var(--lighter-gray), var(--light-gray));
   --text-input-background-color: light-dark(var(--off-white), var(--gray));
-
-  --error-color: var(--red-muted);
-
+  --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
+  --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
   --context-menu-background-color: light-dark(var(--white), var(--mid-gray));
   --context-menu-item-hover-color: light-dark(
     var(--off-white),
     var(--light-gray)
   );
-
-  --header-border-color: var(--generic-border-color);
-  --embed-border-color: var(--generic-border-color);
-  --post-border-color: var(--generic-border-color);
-  --avatar-border-color: var(--generic-border-color);
-
-  --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
-  --reply-context-line-width: 1px;
-
-  /* border radius */
-  --image-border-radius: 10px;
-  --video-border-radius: 10px;
-  --text-input-border-radius: 6px;
-  --embed-border-radius: 10px;
-  --moderation-warning-border-radius: 6px;
-  --blocked-post-radius: 6px;
-  --square-button-radius: 6px;
-  --toast-border-radius: 8px;
-  --dialog-border-radius: 12px;
-  --message-bubble-border-radius: 18px;
-  --sheet-border-radius: 20px;
-  --reaction-palette-border-radius: 30px;
-  --context-menu-border-radius: 10px;
-  --skeleton-border-radius: 4px;
-  --tag-border-radius: 4px;
-  --image-preview-border-radius: 8px;
-  --typeahead-border-radius: 8px;
-  --message-input-border-radius: 24px;
-  --list-avatar-border-radius: 4px;
-  --icon-button-border-radius: 4px;
-  --avatar-border-radius: 50%;
-  --circular-button-border-radius: 50%;
-  --pill-button-border-radius: 999px;
-  --label-badge-border-radius: 999px;
-
-  --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
-
-  --font-size: 15px;
-
-  --back-button-hover-color: var(--post-hover-color);
-
-  --icon-button-color: var(--text-color-muted);
   --post-action-icon-color: light-dark(
     var(--mid-light-gray),
     var(--text-color-muted)
@@ -108,8 +66,19 @@ html {
   );
   --highlight-color-tint-hover: var(--post-hover-color);
 
-  --like-color: var(--pink);
   --text-link-color: var(--highlight-color);
+  --like-color: var(--pink);
+  --error-color: var(--red-muted);
+
+  /* border colors */
+  --header-border-color: var(--generic-border-color);
+  --embed-border-color: var(--generic-border-color);
+  --post-border-color: var(--generic-border-color);
+  --avatar-border-color: var(--generic-border-color);
+  --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
+  --reply-context-line-width: 1px;
+
+  /* button colors */
   --primary-button-color: var(--highlight-color);
   --primary-button-hover-color: color-mix(
     in srgb,
@@ -122,17 +91,36 @@ html {
     var(--lighter-gray),
     var(--light-gray)
   );
-  /* compute hover color from highlight color */
-  --primary-button-hover-color: color-mix(
-    in srgb,
-    var(--highlight-color) 80%,
-    transparent
-  );
+  --back-button-hover-color: var(--post-hover-color);
+  --icon-button-color: var(--text-color-muted);
   --tab-bar-button-active-color: var(--highlight-color);
 
-  --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
+  /* border radius */
 
-  --hair: 1px;
+  --skeleton-border-radius: 4px;
+  --tag-border-radius: 4px;
+  --list-avatar-border-radius: 4px;
+  --icon-button-border-radius: 4px;
+  --text-input-border-radius: 6px;
+  --moderation-warning-border-radius: 6px;
+  --blocked-post-radius: 6px;
+  --square-button-radius: 6px;
+  --toast-border-radius: 8px;
+  --image-preview-border-radius: 8px;
+  --typeahead-border-radius: 8px;
+  --image-border-radius: 10px;
+  --video-border-radius: 10px;
+  --embed-border-radius: 10px;
+  --context-menu-border-radius: 10px;
+  --dialog-border-radius: 12px;
+  --message-bubble-border-radius: 18px;
+  --sheet-border-radius: 20px;
+  --message-input-border-radius: 24px;
+  --reaction-palette-border-radius: 30px;
+  --avatar-border-radius: 50%;
+  --circular-button-border-radius: 50%;
+  --pill-button-border-radius: 999px;
+  --label-badge-border-radius: 999px;
 
   /* z-index */
   --context-menu-z-index: 2;
@@ -144,16 +132,18 @@ html {
   --reaction-palette-z-index: 4;
   --toast-z-index: 5;
 
-  /* heights */
+  /* sizing */
+  --font-size: 15px;
+  --hair: 1px;
   --text-header-height: 48px;
   --footer-height: 55px;
   --message-input-min-height: 70px;
+  --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
 
   /* animations */
   --like-count-animation-duration: 0.3s;
 
-  --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
-
+  /* base styles */
   background: var(--background-color);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   color: var(--text-color);
