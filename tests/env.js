@@ -8,6 +8,8 @@ register(new URL("./loader.js", import.meta.url));
 // Enable JSDOM
 const dom = new JSDOM();
 globalThis.window = dom.window;
+globalThis.window.scrollTo = () => {};
 globalThis.document = dom.window.document;
 globalThis.HTMLElement = dom.window.HTMLElement;
 globalThis.customElements = dom.window.customElements;
+globalThis.CustomEvent = dom.window.CustomEvent;
