@@ -162,19 +162,24 @@ body.native {
 }
 
 /* Show backdrop for context menu on mobile */
-@media (max-width: 799px) {
-  .context-menu::backdrop {
-    background-color: rgba(0, 0, 0, 0.6);
-    animation: fade-in 0.25s ease-out;
-  }
+.context-menu::backdrop {
+  background-color: rgba(0, 0, 0, 0.6);
+  animation: fade-in 0.25s ease-out;
+}
 
-  @keyframes fade-in {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (min-width: 800px) {
+  .context-menu::backdrop {
+    background-color: transparent;
+    animation: none;
   }
 }
 
@@ -2218,35 +2223,40 @@ like-button {
 /* Image Alt Text Dialog */
 .image-alt-text-dialog {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--dialog-border-radius);
+  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
-  max-width: 600px;
-  width: 90%;
+  max-width: 100%;
+  width: 100%;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 16px;
+  height: auto;
+  max-height: calc(100vh - 16px);
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
+  animation: slide-up 0.15s ease-out;
+  transform: none;
   margin: 0;
   overflow: visible;
   padding: 0;
 }
 
-@media (max-width: 799px) {
+@media (min-width: 800px) {
   .image-alt-text-dialog {
-    position: fixed;
-    left: 0 !important;
-    right: 0;
-    bottom: 0 !important;
-    top: 16px !important;
-    width: 100%;
-    max-width: 100%;
+    max-width: 600px;
+    width: 90%;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
     height: auto;
-    max-height: calc(100vh - 16px);
-    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-    box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
-    animation: slide-up 0.15s ease-out;
-    transform: none;
+    max-height: none;
+    border-radius: var(--dialog-border-radius);
+    box-shadow: none;
+    animation: none;
+    transform: translate(-50%, -50%);
   }
 }
 
@@ -3275,89 +3285,116 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   position: relative;
 }
 
-@media (max-width: 799px) {
+.context-menu-container.open {
+  position: fixed;
+  inset: 0;
+}
+
+@media (min-width: 800px) {
   .context-menu-container.open {
-    position: fixed;
-    inset: 0;
+    position: relative;
+    inset: auto;
   }
 }
 
 .context-menu {
-  position: absolute;
+  position: fixed;
   z-index: var(--context-menu-z-index);
   border: none;
-
-  box-shadow: 5px 5px 10px 5px rgba(0, 0, 0, 0.05);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: auto;
+  width: 100%;
+  max-width: 100%;
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
   margin: 0;
   color: var(--text-color);
-  background-color: var(--context-menu-background-color);
-  border-radius: var(--context-menu-border-radius);
+  background-color: var(--background-color);
+  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
   overflow: hidden;
   border: var(--hair) solid var(--post-border-color);
+  animation: slide-up 0.15s ease-out;
+  padding-top: 16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 16px);
+  touch-action: pan-y;
 }
 
-@media (max-width: 799px) {
+.context-menu::before {
+  content: "";
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  background-color: var(--light-gray);
+  border-radius: 2px;
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+context-menu-item:last-child .context-menu-item {
+  margin-bottom: 0;
+}
+
+.context-menu-item {
+  margin-bottom: 12px;
+}
+
+.context-menu .context-menu-item button {
+  width: 100%;
+  border: none;
+  background-color: light-dark(var(--off-white), var(--gray));
+  font-size: inherit;
+  text-align: left;
+  color: inherit;
+  cursor: pointer;
+  flex: 1;
+  padding: 14px;
+  border-radius: var(--square-button-radius);
+}
+
+@media (min-width: 800px) {
   .context-menu {
-    position: fixed;
-    left: 0 !important;
-    right: 0;
-    bottom: 0 !important;
-    top: auto !important;
-    width: 100%;
-    max-width: 100%;
-    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-    box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
-    animation: slide-up 0.15s ease-out;
-    padding-top: 16px;
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: calc(var(--safe-area-inset-bottom) + 16px);
-    background-color: var(--background-color);
-    touch-action: pan-y;
+    position: absolute;
+    left: auto;
+    right: auto;
+    bottom: auto;
+    top: auto;
+    width: auto;
+    max-width: none;
+    box-shadow: 5px 5px 10px 5px rgba(0, 0, 0, 0.05);
+    background-color: var(--context-menu-background-color);
+    border-radius: var(--context-menu-border-radius);
+    animation: none;
+    padding: 0;
+    touch-action: auto;
   }
 
   .context-menu::before {
-    content: "";
-    position: absolute;
-    top: 7px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 36px;
-    height: 4px;
-    background-color: var(--light-gray);
-    border-radius: 2px;
-  }
-
-  @keyframes slide-up {
-    from {
-      transform: translateY(100%);
-      opacity: 0;
-    }
-    to {
-      transform: translateY(0);
-      opacity: 1;
-    }
-  }
-
-  context-menu-item:last-child .context-menu-item {
-    margin-bottom: 0;
+    display: none;
   }
 
   .context-menu-item {
-    margin-bottom: 12px;
+    margin-bottom: 0;
   }
 
   .context-menu .context-menu-item button {
-    width: 100%;
-    border: none;
-    background-color: light-dark(var(--off-white), var(--gray));
-    font-size: inherit;
-    text-align: left;
-    color: inherit;
-    cursor: pointer;
-    flex: 1;
-    padding: 14px;
-    border-radius: var(--square-button-radius);
+    background-color: transparent;
+    padding: 14px 16px;
+    border-radius: 0;
   }
 }
 
@@ -4565,61 +4602,78 @@ input[type="color"]::-moz-color-swatch {
 
 .post-composer {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--dialog-border-radius);
+  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
-  max-width: 600px;
-  width: 90%;
+  max-width: 100%;
+  width: 100%;
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  top: 16px;
+  height: auto;
+  max-height: calc(100vh - 16px);
+  box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
+  animation: slide-up 0.15s ease-out;
+  transform: none;
   margin: 0;
   overflow: visible;
+  touch-action: pan-y;
+  display: flex;
+  flex-direction: column;
 }
 
-@media (max-width: 799px) {
+@media (min-width: 800px) {
   .post-composer {
-    position: fixed;
-    left: 0 !important;
-    right: 0;
-    bottom: 0 !important;
-    top: 16px !important;
-    width: 100%;
-    max-width: 100%;
+    max-width: 600px;
+    width: 90%;
+    top: 50%;
+    left: 50%;
+    right: auto;
+    bottom: auto;
     height: auto;
-    max-height: calc(100vh - 16px);
-    border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-    box-shadow: 0 -2px 20px rgba(0, 0, 0, 0.4);
-    animation: slide-up 0.15s ease-out;
-    transform: none;
-    touch-action: pan-y;
-    display: flex;
-    flex-direction: column;
+    max-height: none;
+    border-radius: var(--dialog-border-radius);
+    box-shadow: none;
+    animation: none;
+    transform: translate(-50%, -50%);
+    touch-action: auto;
+    display: block;
   }
 }
 
 .post-composer-content {
-  padding: 10px;
+  padding-top: 16px;
+  padding-left: 16px;
+  padding-right: 16px;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
-@media (max-width: 799px) {
+.post-composer-scroll-area {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding-bottom: calc(var(--safe-area-inset-bottom) + 16px);
+}
+
+@media (min-width: 800px) {
   .post-composer-content {
-    padding-top: 16px;
-    padding-left: 16px;
-    padding-right: 16px;
-    padding-bottom: 0;
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
+    padding: 10px;
+    display: block;
+    flex: none;
+    min-height: auto;
   }
 
   .post-composer-scroll-area {
-    flex: 1;
-    min-height: 0;
-    overflow-y: auto;
-    padding-bottom: calc(var(--safe-area-inset-bottom) + 16px);
+    flex: none;
+    min-height: auto;
+    overflow-y: visible;
+    padding-bottom: 0;
   }
 }
 
@@ -4929,10 +4983,10 @@ input[type="color"]::-moz-color-swatch {
   justify-content: center;
 }
 .floating-compose-button {
-  display: none;
+  display: flex;
   position: fixed;
   bottom: calc(70px + var(--safe-area-inset-bottom));
-  right: 50px;
+  right: 20px;
   width: 60px;
   height: 60px;
   border-radius: var(--circular-button-border-radius);
@@ -4957,26 +5011,24 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .floating-compose-button .icon {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
 }
-/* NOTE: max instead of min width */
-/* todo: fix this */
 
-@media (max-width: 800px) {
+@media (min-width: 800px) {
   .floating-compose-button {
-    right: 20px;
+    right: 50px;
   }
 
   .floating-compose-button .icon {
-    width: 24px;
-    height: 24px;
+    width: 30px;
+    height: 30px;
   }
 }
 
-@media (max-width: 1200px) {
+@media (min-width: 1200px) {
   .floating-compose-button {
-    display: flex;
+    display: none;
   }
 }
 
