@@ -79,7 +79,15 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages }) {
     isMuted = true;
     mutedLabel = "Muted Account";
   }
-  return html`<a class="quoted-post-link" href="${linkToPost(quotedPost)}">
+  return html`<a
+    class="quoted-post-link"
+    @click=${(e) => {
+      e.stopPropagation();
+      e.preventDefault();
+      router.go(linkToPost(quotedPost));
+    }}
+    href="${linkToPost(quotedPost)}"
+  >
     <div class="quoted-post post-content">
       ${mutedWrapperTemplate({
         isMuted,
