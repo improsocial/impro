@@ -5049,7 +5049,7 @@ emoji-picker {
   margin-top: 16px;
 }
 
-.message a {
+.message-bubble a {
   text-decoration: underline;
 }
 

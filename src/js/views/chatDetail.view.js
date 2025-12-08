@@ -74,20 +74,24 @@ class ChatDetailView extends View {
       const scrollingElement = document.scrollingElement || document.body;
       // Only scroll if content overflows the viewport
       if (scrollingElement.scrollHeight <= scrollingElement.clientHeight) {
+        console.log(
+          "scrollingElement.scrollHeight <= scrollingElement.clientHeight"
+        );
         return;
       }
       if (onlyIfNeeded) {
         // Don't scroll if last message is already visible on screen
         const messageList = root.querySelector(".message-list");
         if (messageList) {
-          const lastMessage = messageList.querySelector(
-            ".message-group:last-child"
-          );
+          const lastMessage = [
+            ...messageList.querySelectorAll(".message-bubble"),
+          ].at(-1);
           if (lastMessage) {
             const lastMessageBottom =
               lastMessage.getBoundingClientRect().bottom;
             const viewportHeight = window.innerHeight;
             if (lastMessageBottom <= viewportHeight) {
+              console.log("lastMessageBottom <= viewportHeight");
               return;
             }
           }
