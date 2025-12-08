@@ -48,14 +48,9 @@ t.describe("Post Management", (it) => {
     assertEquals(dataStore.hasPost(postURI), true);
   });
 
-  it("should emit update and setPost events when setting post", () => {
+  it("should emit setPost event when setting post", () => {
     const dataStore = new DataStore();
-    let updateEmitted = false;
     let setPostEmitted = false;
-
-    dataStore.on("update", () => {
-      updateEmitted = true;
-    });
 
     dataStore.on("setPost", (post) => {
       setPostEmitted = true;
@@ -63,7 +58,6 @@ t.describe("Post Management", (it) => {
     });
 
     dataStore.setPost(postURI, testPost);
-    assertEquals(updateEmitted, true);
     assertEquals(setPostEmitted, true);
   });
 
@@ -145,10 +139,10 @@ t.describe("Event Handling", (it) => {
     let listener1Called = false;
     let listener2Called = false;
 
-    dataStore.on("update", () => {
+    dataStore.on("setPost", () => {
       listener1Called = true;
     });
-    dataStore.on("update", () => {
+    dataStore.on("setPost", () => {
       listener2Called = true;
     });
 

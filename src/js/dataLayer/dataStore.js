@@ -44,7 +44,6 @@ export class DataStore extends EventEmitter {
 
   setCurrentUser(user) {
     this.currentUser = user;
-    this.emit("update");
   }
 
   getCurrentUser() {
@@ -53,7 +52,6 @@ export class DataStore extends EventEmitter {
 
   clearCurrentUser() {
     this.currentUser = null;
-    this.emit("update");
   }
 
   hasPreferences() {
@@ -66,12 +64,10 @@ export class DataStore extends EventEmitter {
 
   setPreferences(preferences) {
     this.preferences = preferences;
-    this.emit("update");
   }
 
   clearPreferences() {
     this.preferences = null;
-    this.emit("update");
   }
 
   hasFeed(feedURI) {
@@ -84,12 +80,10 @@ export class DataStore extends EventEmitter {
 
   setFeed(feedURI, feed) {
     this.feeds.set(feedURI, feed);
-    this.emit("update");
   }
 
   clearFeed(feedURI) {
     this.feeds.delete(feedURI);
-    this.emit("update");
   }
 
   hasPost(postURI) {
@@ -106,13 +100,11 @@ export class DataStore extends EventEmitter {
 
   setPost(postURI, post) {
     this.posts.set(postURI, post);
-    this.emit("update");
     this.emit("setPost", post);
   }
 
   clearPost(postURI) {
     this.posts.delete(postURI);
-    this.emit("update");
   }
 
   // convenience method
@@ -130,12 +122,10 @@ export class DataStore extends EventEmitter {
 
   setPostThread(postURI, postThread) {
     this.postThreads.set(postURI, postThread);
-    this.emit("update");
   }
 
   clearPostThread(postURI) {
     this.postThreads.delete(postURI);
-    this.emit("update");
   }
 
   hasProfile(did) {
@@ -144,7 +134,6 @@ export class DataStore extends EventEmitter {
 
   setProfile(did, profile) {
     this.profiles.set(did, profile);
-    this.emit("update");
   }
 
   getProfile(did) {
@@ -153,7 +142,6 @@ export class DataStore extends EventEmitter {
 
   clearProfile(did) {
     this.profiles.delete(did);
-    this.emit("update");
   }
 
   hasProfileSearchResults() {
@@ -166,12 +154,10 @@ export class DataStore extends EventEmitter {
 
   setProfileSearchResults(dids) {
     this.profileSearchResults = dids;
-    this.emit("update");
   }
 
   clearProfileSearchResults() {
     this.profileSearchResults = null;
-    this.emit("update");
   }
 
   hasPostSearchResults() {
@@ -184,12 +170,10 @@ export class DataStore extends EventEmitter {
 
   setPostSearchResults(postUris) {
     this.postSearchResults = postUris;
-    this.emit("update");
   }
 
   clearPostSearchResults() {
     this.postSearchResults = null;
-    this.emit("update");
   }
 
   hasAuthorFeed(feedURI) {
@@ -202,12 +186,10 @@ export class DataStore extends EventEmitter {
 
   setAuthorFeed(feedURI, feed) {
     this.authorFeeds.set(feedURI, feed);
-    this.emit("update");
   }
 
   clearAuthorFeed(feedURI) {
     this.authorFeeds.delete(feedURI);
-    this.emit("update");
   }
 
   getShowLessInteractions() {
@@ -216,7 +198,6 @@ export class DataStore extends EventEmitter {
 
   addShowLessInteraction(interaction) {
     this.showLessInteractions.push(interaction);
-    this.emit("update");
   }
 
   hasUnavailablePost(uri) {
@@ -233,7 +214,6 @@ export class DataStore extends EventEmitter {
 
   clearUnavailablePost(uri) {
     this.unavailablePosts.delete(uri);
-    this.emit("update");
   }
 
   hasRepost(repostURI) {
@@ -246,12 +226,10 @@ export class DataStore extends EventEmitter {
 
   setRepost(repostURI, repost) {
     this.reposts.set(repostURI, repost);
-    this.emit("update");
   }
 
   clearRepost(repostURI) {
     this.reposts.delete(repostURI);
-    this.emit("update");
   }
 
   setReposts(reposts) {
@@ -260,7 +238,6 @@ export class DataStore extends EventEmitter {
 
   clearReposts() {
     this.reposts.clear();
-    this.emit("update");
   }
 
   hasNotifications() {
@@ -273,12 +250,10 @@ export class DataStore extends EventEmitter {
 
   setNotifications(notifications) {
     this.notifications = notifications;
-    this.emit("update");
   }
 
   clearNotifications() {
     this.notifications = null;
-    this.emit("update");
   }
 
   hasNotificationCursor() {
@@ -291,12 +266,10 @@ export class DataStore extends EventEmitter {
 
   setNotificationCursor(cursor) {
     this.notificationCursor = cursor;
-    this.emit("update");
   }
 
   clearNotificationCursor() {
     this.notificationCursor = null;
-    this.emit("update");
   }
 
   hasConvoList() {
@@ -309,12 +282,10 @@ export class DataStore extends EventEmitter {
 
   setConvoList(convos) {
     this.convoList = convos;
-    this.emit("update");
   }
 
   clearConvoList() {
     this.convoList = null;
-    this.emit("update");
   }
 
   hasConvoListCursor() {
@@ -327,12 +298,10 @@ export class DataStore extends EventEmitter {
 
   setConvoListCursor(cursor) {
     this.convoListCursor = cursor;
-    this.emit("update");
   }
 
   clearConvoListCursor() {
     this.convoListCursor = null;
-    this.emit("update");
   }
 
   hasConvo(convoId) {
@@ -345,12 +314,10 @@ export class DataStore extends EventEmitter {
 
   setConvo(convoId, convo) {
     this.convos.set(convoId, convo);
-    this.emit("update");
   }
 
   clearConvo(convoId) {
     this.convos.delete(convoId);
-    this.emit("update");
   }
 
   getAllConvos() {
@@ -367,12 +334,10 @@ export class DataStore extends EventEmitter {
 
   setConvoMessages(convoId, messages) {
     this.convoMessages.set(convoId, messages);
-    this.emit("update");
   }
 
   clearConvoMessages(convoId) {
     this.convoMessages.delete(convoId);
-    this.emit("update");
   }
 
   hasMessage(messageId) {
@@ -385,12 +350,10 @@ export class DataStore extends EventEmitter {
 
   setMessage(messageId, message) {
     this.messages.set(messageId, message);
-    this.emit("update");
   }
 
   clearMessage(messageId) {
     this.messages.delete(messageId);
-    this.emit("update");
   }
 
   hasPostLikes(postUri) {
@@ -403,12 +366,10 @@ export class DataStore extends EventEmitter {
 
   setPostLikes(postUri, likes) {
     this.postLikes.set(postUri, likes);
-    this.emit("update");
   }
 
   clearPostLikes(postUri) {
     this.postLikes.delete(postUri);
-    this.emit("update");
   }
 
   hasPostQuotes(postUri) {
@@ -421,12 +382,10 @@ export class DataStore extends EventEmitter {
 
   setPostQuotes(postUri, quotes) {
     this.postQuotes.set(postUri, quotes);
-    this.emit("update");
   }
 
   clearPostQuotes(postUri) {
     this.postQuotes.delete(postUri);
-    this.emit("update");
   }
 
   hasPostReposts(postUri) {
@@ -439,12 +398,10 @@ export class DataStore extends EventEmitter {
 
   setPostReposts(postUri, reposts) {
     this.postReposts.set(postUri, reposts);
-    this.emit("update");
   }
 
   clearPostReposts(postUri) {
     this.postReposts.delete(postUri);
-    this.emit("update");
   }
 
   hasFeedGenerator(feedUri) {
@@ -457,13 +414,11 @@ export class DataStore extends EventEmitter {
 
   setFeedGenerator(feedUri, feedGenerator) {
     this.feedGenerators.set(feedUri, feedGenerator);
-    this.emit("update");
     this.emit("setFeedGenerator", feedGenerator);
   }
 
   clearFeedGenerator(feedUri) {
     this.feedGenerators.delete(feedUri);
-    this.emit("update");
   }
 
   hasHashtagFeed(hashtagKey) {
@@ -476,12 +431,10 @@ export class DataStore extends EventEmitter {
 
   setHashtagFeed(hashtagKey, feed) {
     this.hashtagFeeds.set(hashtagKey, feed);
-    this.emit("update");
   }
 
   clearHashtagFeed(hashtagKey) {
     this.hashtagFeeds.delete(hashtagKey);
-    this.emit("update");
   }
 
   hasPinnedFeedGenerators() {
@@ -494,12 +447,10 @@ export class DataStore extends EventEmitter {
 
   setPinnedFeedGenerators(pinnedFeedGenerators) {
     this.pinnedFeedGenerators = pinnedFeedGenerators;
-    this.emit("update");
   }
 
   clearPinnedFeedGenerators() {
     this.pinnedFeedGenerators = null;
-    this.emit("update");
   }
 
   hasBookmarks() {
@@ -512,12 +463,10 @@ export class DataStore extends EventEmitter {
 
   setBookmarks(bookmarks) {
     this.bookmarks = bookmarks;
-    this.emit("update");
   }
 
   clearBookmarks() {
     this.bookmarks = null;
-    this.emit("update");
   }
 
   hasProfileFollowers(profileDid) {
@@ -530,12 +479,10 @@ export class DataStore extends EventEmitter {
 
   setProfileFollowers(profileDid, followers) {
     this.profileFollowers.set(profileDid, followers);
-    this.emit("update");
   }
 
   clearProfileFollowers(profileDid) {
     this.profileFollowers.delete(profileDid);
-    this.emit("update");
   }
 
   hasProfileFollows(profileDid) {
@@ -548,12 +495,10 @@ export class DataStore extends EventEmitter {
 
   setProfileFollows(profileDid, follows) {
     this.profileFollows.set(profileDid, follows);
-    this.emit("update");
   }
 
   clearProfileFollows(profileDid) {
     this.profileFollows.delete(profileDid);
-    this.emit("update");
   }
 
   hasProfileChatStatus(profileDid) {
@@ -566,11 +511,9 @@ export class DataStore extends EventEmitter {
 
   setProfileChatStatus(profileDid, chatStatus) {
     this.profileChatStatus.set(profileDid, chatStatus);
-    this.emit("update");
   }
 
   clearProfileChatStatus(profileDid) {
     this.profileChatStatus.delete(profileDid);
-    this.emit("update");
   }
 }
