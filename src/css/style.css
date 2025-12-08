@@ -3566,19 +3566,11 @@ post-context-menu .text-button-text {
   background: var(--highlight-color);
   color: var(--white);
   border-radius: var(--context-menu-border-radius);
-  font-size: 11px;
-  font-weight: 600;
-  /* min-width: 17px;
-  min-height: 17px; */
+  font-size: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 1px 5px;
-}
-
-.status-badge-text {
-  /* margin-right: -4px;
-  margin-left: -4px; */
+  padding: 1px 4px;
 }
 
 .footer-nav-item .status-badge {
