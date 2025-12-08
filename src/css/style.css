@@ -317,6 +317,7 @@ body.native {
   display: grid;
   gap: 4px;
   margin-top: 8px;
+  width: fit-content;
 }
 
 .notification-preview-images:first-child {
@@ -3897,7 +3898,7 @@ post-context-menu .text-button-text {
 }
 
 .large-post .label-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   font-size: 13px;
