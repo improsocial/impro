@@ -26,7 +26,7 @@ function getDisplayNameForLabel(label, labeler) {
   return enLocale?.name || "";
 }
 
-class Preferences {
+export class Preferences {
   constructor(obj, labelerDefs) {
     this.obj = obj;
     this.labelerDefs = labelerDefs;
@@ -165,6 +165,13 @@ class Preferences {
     );
   }
 
+  static getImproThemePreference(obj) {
+    return Preferences.getPreferenceByType(
+      obj,
+      "app.bsky.actor.defs#improThemePref"
+    );
+  }
+
   static getLabelerDidsFromPreferences(obj) {
     const labelerPreference = Preferences.getLabelerPreference(obj);
     const labelers = labelerPreference ? labelerPreference.labelers : [];
@@ -172,25 +179,25 @@ class Preferences {
       .map((labeler) => labeler.did)
       .concat(["did:plc:ar7c4by46qjdydhdevvrndac"]); // default
   }
-}
 
-function createLoggedOutPreferences() {
-  return new Preferences(
-    [
-      {
-        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
-        items: [
-          {
-            id: "3l6ovcmm2vd2j",
-            type: "feed",
-            value: DISCOVER_FEED_URI,
-            pinned: true,
-          },
-        ],
-      },
-    ],
-    []
-  );
+  static createLoggedOutPreferences() {
+    return new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [
+            {
+              id: "3l6ovcmm2vd2j",
+              type: "feed",
+              value: DISCOVER_FEED_URI,
+              pinned: true,
+            },
+          ],
+        },
+      ],
+      []
+    );
+  }
 }
 
 export class PreferencesProvider {
@@ -208,7 +215,7 @@ export class PreferencesProvider {
 
   async fetchPreferences() {
     if (!this.api.isAuthenticated) {
-      this._preferences = createLoggedOutPreferences();
+      this._preferences = Preferences.createLoggedOutPreferences();
       return;
     }
     const preferencesObj = await this.api.getPreferences();

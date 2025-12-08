@@ -13,7 +13,7 @@ export function getDefaultLikeColor() {
 }
 
 export function getDefaultColorScheme() {
-  return "dark";
+  return "system";
 }
 
 class Theme {

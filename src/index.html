@@ -145,7 +145,7 @@
       };
 
       const router = new Router();
-      router.addRoute("/", () => homeView, "home");
+      router.addRoute("/", () => homeView);
       router.addRoute("/login", () => loginView);
       router.addRoute("/notifications", () => notificationsView);
       router.addRoute("/messages/inbox", () => chatRequestsView);
