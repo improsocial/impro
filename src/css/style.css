@@ -4275,7 +4275,7 @@ input[type="color"]::-moz-color-swatch {
   border-radius: var(--text-input-border-radius);
   background: var(--text-input-background-color);
   color: var(--text-color);
-  font-size: 14px;
+  font-size: 16px;
   outline: none;
   transition: border-color 0.2s;
 }
