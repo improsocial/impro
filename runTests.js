@@ -2,9 +2,17 @@ import fs from "fs";
 
 import "./tests/env.js";
 
-// Get test files, pattern is **/*.test.js
-// And may be in subdirectories
-const testFiles = fs.globSync("tests/**/*.test.js");
+let testFiles = [];
+
+// If test files are provided as arguments, use them
+// Otherwise, get test files from the tests directory
+if (process.argv.length > 2) {
+  testFiles = process.argv.slice(2);
+} else {
+  // Get test files, pattern is **/*.test.js
+  // And may be in subdirectories
+  testFiles = fs.globSync("tests/**/*.test.js");
+}
 
 const results = [];
 
