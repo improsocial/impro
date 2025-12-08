@@ -2159,7 +2159,7 @@ like-button {
   left: auto;
   padding: 1px 3px;
   color: var(--text-color);
-  background: light-dark(var(--lightest-gray), var(--dark-gray));
+  background: rgba(26, 26, 26, 0.75);
 }
 
 /* Image Alt Text Dialog */
