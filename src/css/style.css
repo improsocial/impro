@@ -3603,6 +3603,7 @@ post-context-menu .text-button-text {
   top: 0;
   left: 0;
   width: 300px;
+  max-width: 80%;
   height: 100%;
   background: var(--background-color);
   z-index: 999;
@@ -3617,6 +3618,7 @@ post-context-menu .text-button-text {
     position: sticky;
     top: 0;
     height: 100vh;
+    max-width: 300px;
     transform: none;
     border-right: none;
     overflow-y: auto;
@@ -3726,9 +3728,6 @@ post-context-menu .text-button-text {
 .sidebar-profile-stats {
   font-size: 14px;
   color: var(--text-color-muted);
-  display: flex;
-  align-items: center;
-  gap: 8px;
 }
 
 .sidebar-profile-stats strong {
@@ -3736,8 +3735,16 @@ post-context-menu .text-button-text {
   font-weight: 700;
 }
 
+.sidebar-profile-stats a {
+  margin-bottom: 2px;
+  display: inline-block;
+}
+
 .sidebar-profile-separator {
   color: var(--text-color-muted);
+  text-align: center;
+  padding-left: 2px;
+  padding-right: 2px;
 }
 
 /* Sidebar Navigation */
@@ -3800,6 +3807,9 @@ post-context-menu .text-button-text {
 
 .sidebar-nav-label {
   flex: 1;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
 }
 
 .sidebar-compose-button {
