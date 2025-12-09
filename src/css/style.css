@@ -638,17 +638,15 @@ body.native {
   padding-left: 16px;
   padding-right: 16px;
   padding-top: 16px;
-  padding-bottom: calc(
-    var(--message-input-min-height) + var(--footer-height) +
-      var(--safe-area-inset-bottom) + 8px
+  padding-bottom: var(--message-input-min-height);
+  margin-bottom: calc(
+    var(--footer-height) + var(--safe-area-inset-bottom) + 8px
   );
 }
 
 @media (min-width: 800px) {
   .chat-detail-main .message-list {
-    padding-bottom: calc(
-      var(--message-input-min-height) + var(--safe-area-inset-bottom) + 8px
-    );
+    margin-bottom: calc(var(--safe-area-inset-bottom) + 8px);
   }
 }
 
