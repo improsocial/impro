@@ -3534,6 +3534,7 @@ post-context-menu .text-button-text {
   align-items: center;
   justify-content: center;
   padding: 1px 4px;
+  min-width: 16px;
 }
 
 .footer-nav-item .status-badge {
