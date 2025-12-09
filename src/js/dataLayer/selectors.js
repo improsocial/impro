@@ -13,7 +13,9 @@ import {
   isBlockedPost,
   isPostView,
   getQuotedPost,
+  getLastInteractionTimestamp,
 } from "/js/dataHelpers.js";
+import { sortBy } from "/js/utils.js";
 
 // Selectors are used to get data from the store.
 // They combine the canonical data from the store with the patch data.
@@ -299,7 +301,16 @@ export class Selectors {
     for (const convo of convoList) {
       hydratedConvos.push(this.getConvo(convo.id));
     }
-    return hydratedConvos;
+    // Sort by last message/reaction timestamp
+    // The API response is already sorted, but we need to sort again to account for in-memory patches to the messages.
+    const sortedConvos = sortBy(
+      hydratedConvos,
+      (convo) => new Date(getLastInteractionTimestamp(convo)),
+      {
+        direction: "desc",
+      }
+    );
+    return sortedConvos;
   }
 
   getConvoListCursor() {

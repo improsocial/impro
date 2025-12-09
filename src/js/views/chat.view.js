@@ -4,7 +4,11 @@ import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import {
+  getDisplayName,
+  getLastInteraction,
+  getInteractionTimestamp,
+} from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -35,36 +39,6 @@ class ChatView extends View {
           return `${displayName} reacted ${interaction.reaction.value} to "${interaction.message.text}"`;
         case "chat.bsky.convo.defs#deletedMessageView":
           return "Deleted message";
-        default:
-          throw new Error(`Unknown interaction type: ${interaction.$type}`);
-      }
-    }
-
-    function getLastInteraction(convo) {
-      // Interaction = message or reaction
-      const lastMessage = convo.lastMessage;
-      const lastReaction = convo.lastReaction;
-      if (!lastMessage && !lastReaction) {
-        return null;
-      }
-      if (!lastMessage) {
-        return lastReaction;
-      } else if (!lastReaction) {
-        return lastMessage;
-      } else {
-        return lastMessage.sentAt > lastReaction.reaction.createdAt
-          ? lastMessage
-          : lastReaction;
-      }
-    }
-
-    function getInteractionTimestamp(interaction) {
-      switch (interaction.$type) {
-        case "chat.bsky.convo.defs#messageView":
-        case "chat.bsky.convo.defs#deletedMessageView":
-          return interaction.sentAt;
-        case "chat.bsky.convo.defs#messageAndReactionView":
-          return interaction.reaction.createdAt;
         default:
           throw new Error(`Unknown interaction type: ${interaction.$type}`);
       }

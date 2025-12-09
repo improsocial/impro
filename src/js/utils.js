@@ -28,10 +28,17 @@ export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   if (typeof fnOrKey === "string") {
     fn = (item) => item[fnOrKey];
   }
-  const sorted = array.sort((a, b) => fn(a) - fn(b));
-  if (direction === "desc") {
-    return sorted.toReversed();
-  }
+  const sorted = array.sort((a, b) => {
+    const aValue = fn(a);
+    const bValue = fn(b);
+    if (direction === "desc") {
+      return bValue - aValue;
+    } else if (direction === "asc") {
+      return aValue - bValue;
+    } else {
+      throw new Error("Invalid direction", direction);
+    }
+  });
   return sorted;
 }
 

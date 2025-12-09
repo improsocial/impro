@@ -297,3 +297,42 @@ export function getDisplayName(profile) {
   }
   return profile.handle;
 }
+
+export function getLastInteraction(convo) {
+  // Interaction = message or reaction
+  const lastMessage = convo.lastMessage;
+  const lastReaction = convo.lastReaction;
+  if (!lastMessage && !lastReaction) {
+    return null;
+  }
+  if (!lastMessage) {
+    return lastReaction;
+  } else if (!lastReaction) {
+    return lastMessage;
+  } else {
+    return new Date(lastMessage.sentAt) >
+      new Date(lastReaction.reaction.createdAt)
+      ? lastMessage
+      : lastReaction;
+  }
+}
+
+export function getInteractionTimestamp(interaction) {
+  switch (interaction.$type) {
+    case "chat.bsky.convo.defs#messageView":
+    case "chat.bsky.convo.defs#deletedMessageView":
+      return interaction.sentAt;
+    case "chat.bsky.convo.defs#messageAndReactionView":
+      return interaction.reaction.createdAt;
+    default:
+      throw new Error(`Unknown interaction type: ${interaction.$type}`);
+  }
+}
+
+export function getLastInteractionTimestamp(convo) {
+  const lastInteraction = getLastInteraction(convo);
+  if (!lastInteraction) {
+    return null;
+  }
+  return getInteractionTimestamp(lastInteraction);
+}
