@@ -74,9 +74,6 @@ class ChatDetailView extends View {
       const scrollingElement = document.scrollingElement || document.body;
       // Only scroll if content overflows the viewport
       if (scrollingElement.scrollHeight <= scrollingElement.clientHeight) {
-        console.log(
-          "scrollingElement.scrollHeight <= scrollingElement.clientHeight"
-        );
         return;
       }
       if (onlyIfNeeded) {
@@ -91,7 +88,6 @@ class ChatDetailView extends View {
               lastMessage.getBoundingClientRect().bottom;
             const viewportHeight = window.innerHeight;
             if (lastMessageBottom <= viewportHeight) {
-              console.log("lastMessageBottom <= viewportHeight");
               return;
             }
           }

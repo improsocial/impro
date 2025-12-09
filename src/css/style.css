@@ -809,6 +809,7 @@ body.native {
   -webkit-tap-highlight-color: transparent;
   user-select: none;
   padding: 0;
+  touch-action: manipulation;
 }
 
 .reaction-palette-button-inner {
@@ -817,6 +818,7 @@ body.native {
   display: flex;
   align-items: center;
   justify-content: center;
+  pointer-events: none;
 }
 
 .reaction-palette-button-more .reaction-palette-button-inner {
