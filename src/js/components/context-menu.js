@@ -62,22 +62,27 @@ class ContextMenu extends Component {
 
     const dialog = this.querySelector(".context-menu");
     dialog.showModal();
-    const rect = dialog.getBoundingClientRect();
-    const margin = 8;
-    let left = x;
-    let top = y;
 
-    // Adjust if dialog would go off-screen (with margin)
-    const maxX = window.innerWidth - rect.width - margin;
-    const maxY = window.innerHeight - rect.height - margin;
+    // On desktop, position the dialog at the mouse cursor
+    if (window.matchMedia("(min-width: 800px)").matches) {
+      const rect = dialog.getBoundingClientRect();
+      const margin = 8;
+      let left = x;
+      let top = y;
 
-    if (left > maxX) left = maxX;
-    if (top > maxY) top = maxY;
-    if (left < margin) left = margin;
-    if (top < margin) top = margin;
+      // Adjust if dialog would go off-screen (with margin)
+      const maxX = window.innerWidth - rect.width - margin;
+      const maxY = window.innerHeight - rect.height - margin;
 
-    dialog.style.left = `${left}px`;
-    dialog.style.top = `${top}px`;
+      if (left > maxX) left = maxX;
+      if (top > maxY) top = maxY;
+      if (left < margin) left = margin;
+      if (top < margin) top = margin;
+
+      dialog.style.left = `${left}px`;
+      dialog.style.top = `${top}px`;
+    }
+
     this.isOpen = true;
     this.render();
 
