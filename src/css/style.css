@@ -2728,7 +2728,7 @@ moderation-warning .toggle-content {
   max-width: none;
   display: flex;
   flex-direction: row;
-  height: 100%;
+  height: 100vh;
 }
 
 #login-view h1 {
