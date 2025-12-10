@@ -3881,7 +3881,7 @@ post-context-menu .text-button-text {
 }
 
 .small-post .label-badge {
-  display: flex;
+  display: inline-flex;
   align-items: center;
   gap: 6px;
   width: fit-content;
@@ -3889,7 +3889,7 @@ post-context-menu .text-button-text {
   font-size: 12px;
   color: var(--text-color-muted);
   margin-top: 5px;
-  margin-left: -7px;
+  margin-right: 2px;
   border-radius: var(--label-badge-border-radius);
   padding-left: 7px;
   padding-right: 7px;
@@ -3921,6 +3921,7 @@ post-context-menu .text-button-text {
   padding-right: 8px;
   padding-top: 3px;
   padding-bottom: 4px;
+  margin-right: 4px;
 }
 
 .large-post .label-badge-image {
