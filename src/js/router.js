@@ -81,6 +81,10 @@ export class Router extends EventEmitter {
       // Return to existing page
       const page = this.pages.get(path);
       this.currentPage = page;
+      // Re-insert the page so it's at the end of the stack
+      // This means the least recently used page is always at the start of the stack
+      this.pages.delete(path);
+      this.pages.set(path, page);
       const scrollY = this.scrollStates.get(path) ?? 0;
       // Keep page hidden during scroll restoration to prevent flash
       // this.currentPage.style.opacity = 0;
