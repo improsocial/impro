@@ -354,6 +354,13 @@ class AuthServer {
   }
 }
 
+export class HandleNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HandleNotFoundError";
+  }
+}
+
 export class OauthClient {
   constructor({ clientId, redirectUri, dpopKeypair }) {
     this.clientId = clientId;
@@ -378,6 +385,9 @@ export class OauthClient {
     } = {}
   ) {
     const did = await resolveHandle(handle);
+    if (!did) {
+      throw new HandleNotFoundError("DID not found for handle");
+    }
     const didDoc = await resolveDid(did);
     const serviceEndpoint = getServiceEndpointFromDidDoc(didDoc);
 
