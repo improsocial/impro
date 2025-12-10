@@ -228,7 +228,7 @@ class ChatRequestsView extends View {
         window.scrollTo(0, scrollY);
       } else {
         window.scrollTo(0, 0);
-        await loadConvoList({ reload: true });
+        await dataLayer.requests.loadConvoList({ reload: true });
       }
       renderPage();
     });
