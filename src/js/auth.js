@@ -1,5 +1,9 @@
 import { getServiceEndpointForHandle } from "/js/atproto.js";
-import { OauthClient, HandleNotFoundError } from "/js/oauth.js";
+import {
+  OauthClient,
+  HandleNotFoundError,
+  InvalidAuthUrlError,
+} from "/js/oauth.js";
 import { isDev, isNative } from "/js/utils.js";
 
 export class RefreshTokenError extends Error {
@@ -13,6 +17,13 @@ export class InvalidUsernameError extends Error {
   constructor(message) {
     super(message);
     this.name = "InvalidUsernameError";
+  }
+}
+
+export class AuthError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AuthError";
   }
 }
 
@@ -179,6 +190,8 @@ export class OAuth {
     } catch (error) {
       if (error instanceof HandleNotFoundError) {
         throw new InvalidUsernameError("Invalid username");
+      } else if (error instanceof InvalidAuthUrlError) {
+        throw new AuthError("Invalid authorization URL: " + error.message);
       }
       throw error;
     }

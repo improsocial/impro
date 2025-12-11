@@ -4,6 +4,7 @@ import {
   requireNoAuth,
   BasicAuth,
   InvalidUsernameError,
+  AuthError,
 } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
 
@@ -38,6 +39,8 @@ class LoginView extends View {
       } catch (error) {
         if (error instanceof InvalidUsernameError) {
           state.errorMessage = "Invalid username";
+        } else if (error instanceof AuthError) {
+          state.errorMessage = "Authorization failed";
         } else {
           console.error(error);
           state.errorMessage = "Incorrect username or password";
