@@ -2140,7 +2140,7 @@ like-button {
   top: 8px;
   left: 8px;
   background: rgba(0, 0, 0, 0.6);
-  color: white;
+  color: var(--white);
   padding: 2px 6px;
   border-radius: var(--tag-border-radius);
   font-size: 11px;
@@ -2158,7 +2158,7 @@ like-button {
   top: auto;
   left: auto;
   padding: 1px 3px;
-  color: var(--text-color);
+  color: var(--white);
   background: rgba(26, 26, 26, 0.75);
 }
 
