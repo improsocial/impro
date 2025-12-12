@@ -52,6 +52,7 @@ export class Api {
       headers = {},
       parseJson = true,
       stringifyBody = true,
+      ...restOptions
     } = options;
     let queryString = "";
     if (query) {
@@ -60,6 +61,7 @@ export class Api {
     let res = null;
     try {
       const fetchOptions = {
+        ...restOptions,
         method: method ?? "GET",
         headers: {
           "Content-Type": "application/json",
