@@ -55,12 +55,13 @@
         dispatchNativeRefreshEnded,
       } from "/js/nativeRefresh.js";
       import { getQuotedPost } from "/js/dataHelpers.js";
-      import { enableErrorLogs } from "/js/errorLogs.js";
       import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
       import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 
       // Dev tools
       import "/js/perf.js";
+      import { enableErrorLogs } from "/js/errorLogs.js";
+      enableErrorLogs();
 
       // Body class for styling
       if (isNative()) {
@@ -87,11 +88,11 @@
       // If we're authenticated, make an initial request to get the dPop nonce.
       // getPreferences is slow so we don't want to make that call first.
       // TODO: is there a faster endpoint than this?
-      if (session && auth instanceof OAuth) {
-        await api.request("com.atproto.server.getSession", {
-          noDpopRetry: true,
-        });
-      }
+      // if (session && auth instanceof OAuth) {
+      //   await api.request("com.atproto.server.getSession", {
+      //     noDpopRetry: true,
+      //   });
+      // }
 
       // Preload preferences - sometimes this fails, so try it twice.
       try {
@@ -227,9 +228,6 @@
 
       // Page has loaded, let the native app know
       dispatchNativeRefreshEnded();
-
-      // Enable error logs, for now.
-      enableErrorLogs();
     </script>
   </body>
 </html>
