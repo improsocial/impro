@@ -88,11 +88,15 @@
       // If we're authenticated, make an initial request to get the dPop nonce.
       // getPreferences is slow so we don't want to make that call first.
       // TODO: is there a faster endpoint than this?
-      // if (session && auth instanceof OAuth) {
-      //   await api.request("com.atproto.server.getSession", {
-      //     noDpopRetry: true,
-      //   });
-      // }
+      if (session && auth instanceof OAuth) {
+        try {
+          await api.request("com.atproto.server.getSession", {
+            noDpopRetry: true,
+          });
+        } catch {
+          // pass
+        }
+      }
 
       // Preload preferences - sometimes this fails, so try it twice.
       try {
