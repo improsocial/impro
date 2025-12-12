@@ -55,12 +55,13 @@
         dispatchNativeRefreshEnded,
       } from "/js/nativeRefresh.js";
       import { getQuotedPost } from "/js/dataHelpers.js";
-      import { enableErrorLogs } from "/js/errorLogs.js";
       import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
       import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 
       // Dev tools
       import "/js/perf.js";
+      import { enableErrorLogs } from "/js/errorLogs.js";
+      enableErrorLogs();
 
       // Body class for styling
       if (isNative()) {
@@ -227,9 +228,6 @@
 
       // Page has loaded, let the native app know
       dispatchNativeRefreshEnded();
-
-      // Enable error logs, for now.
-      enableErrorLogs();
     </script>
   </body>
 </html>
