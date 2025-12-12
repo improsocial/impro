@@ -12,7 +12,12 @@ class ChatRequestsView extends View {
   async render({
     root,
     router,
-    context: { dataLayer, notificationService, chatNotificationService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -181,7 +186,8 @@ class ChatRequestsView extends View {
             onClickActiveNavItem: () => {
               router.go("/messages");
             },
-            showFloatingComposeButton: false,
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
             children: html`
               ${textHeaderTemplate({
                 title: "Chat requests",

@@ -16,7 +16,12 @@ class ChatView extends View {
   async render({
     root,
     router,
-    context: { dataLayer, notificationService, chatNotificationService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -178,7 +183,8 @@ class ChatView extends View {
               window.scrollTo(0, 0);
               await loadConvoList({ reload: true });
             },
-            showFloatingComposeButton: false,
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
             children: html`
               ${textHeaderTemplate({
                 title: "Chats",

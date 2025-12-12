@@ -51,6 +51,7 @@ class ChatDetailView extends View {
       api,
       chatNotificationService,
       identityResolver,
+      postComposerService,
     },
   }) {
     await requireAuth();
@@ -635,7 +636,8 @@ class ChatDetailView extends View {
             numNotifications,
             numChatNotifications,
             showSidebarOverlay: false,
-            showFloatingComposeButton: false,
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
             children: html`
               ${textHeaderTemplate({
                 avatarTemplate: () => {

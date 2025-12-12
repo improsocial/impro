@@ -415,9 +415,11 @@ class PostComposer extends Component {
     const previousFacets = this._unresolvedFacets;
     this._postText = e.detail.text;
     this._unresolvedFacets = e.detail.facets;
-    // If the facets *haven't* changed, check for possible link embeds
+    // If the facets *haven't* changed, and the latest change was a space or newline, check for possible link embeds
     if (
-      JSON.stringify(previousFacets) === JSON.stringify(this._unresolvedFacets)
+      JSON.stringify(previousFacets) ===
+        JSON.stringify(this._unresolvedFacets) &&
+      (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))
     ) {
       for (const facet of this._unresolvedFacets) {
         // Only handle one feature for now

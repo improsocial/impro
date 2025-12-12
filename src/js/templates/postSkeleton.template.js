@@ -6,7 +6,7 @@ import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 export function postSkeletonTemplate() {
   return html`<div class="post-skeleton">
     <div class="skeleton-left">
-      <div class="skeleton-avatar"></div>
+      <div class="skeleton-avatar skeleton-animate"></div>
     </div>
     <div class="skeleton-right">
       <div class="skeleton-content">
