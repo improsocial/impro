@@ -354,6 +354,20 @@ class AuthServer {
   }
 }
 
+export class HandleNotFoundError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "HandleNotFoundError";
+  }
+}
+
+export class InvalidAuthUrlError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "InvalidAuthUrlError";
+  }
+}
+
 export class OauthClient {
   constructor({ clientId, redirectUri, dpopKeypair }) {
     this.clientId = clientId;
@@ -378,6 +392,9 @@ export class OauthClient {
     } = {}
   ) {
     const did = await resolveHandle(handle);
+    if (!did) {
+      throw new HandleNotFoundError("DID not found for handle");
+    }
     const didDoc = await resolveDid(did);
     const serviceEndpoint = getServiceEndpointFromDidDoc(didDoc);
 
@@ -419,7 +436,15 @@ export class OauthClient {
       scope,
       login_hint: handle,
     });
-    const authUrl = new URL(authServerMetadata.authorization_endpoint);
+    let authUrl = null;
+    try {
+      authUrl = new URL(authServerMetadata.authorization_endpoint);
+    } catch (error) {
+      throw new InvalidAuthUrlError("Error parsing authorization URL");
+    }
+    if (authUrl.protocol !== "https:") {
+      throw new InvalidAuthUrlError("Authorization URL protocol must be HTTPS");
+    }
     authUrl.searchParams.set("client_id", this.clientId);
     authUrl.searchParams.set("request_uri", parResponse.request_uri);
     return authUrl.toString();

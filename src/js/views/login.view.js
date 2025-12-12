@@ -1,5 +1,11 @@
 import { View } from "./view.js";
-import { getAuth, requireNoAuth, BasicAuth } from "/js/auth.js";
+import {
+  getAuth,
+  requireNoAuth,
+  BasicAuth,
+  InvalidUsernameError,
+  AuthError,
+} from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
 
 class LoginView extends View {
@@ -22,14 +28,23 @@ class LoginView extends View {
       renderPage();
       try {
         // allow truncated handles
-        const fullHandle = handle.includes(".")
+        let fullHandle = handle.includes(".")
           ? handle
           : handle + ".bsky.social";
+        if (fullHandle.startsWith("@")) {
+          fullHandle = fullHandle.slice(1);
+        }
         await auth.login(fullHandle, password);
         window.location.href = "/";
       } catch (error) {
-        console.error(error);
-        state.errorMessage = "Incorrect username or password";
+        if (error instanceof InvalidUsernameError) {
+          state.errorMessage = "Invalid username";
+        } else if (error instanceof AuthError) {
+          state.errorMessage = "Authorization failed";
+        } else {
+          console.error(error);
+          state.errorMessage = "Incorrect username or password";
+        }
         state.loading = false;
         renderPage();
       }

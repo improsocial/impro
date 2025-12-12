@@ -1,11 +1,29 @@
 import { getServiceEndpointForHandle } from "/js/atproto.js";
-import { OauthClient } from "/js/oauth.js";
+import {
+  OauthClient,
+  HandleNotFoundError,
+  InvalidAuthUrlError,
+} from "/js/oauth.js";
 import { isDev, isNative } from "/js/utils.js";
 
 export class RefreshTokenError extends Error {
   constructor(res) {
     super("Refresh token error");
     this.res = res;
+  }
+}
+
+export class InvalidUsernameError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "InvalidUsernameError";
+  }
+}
+
+export class AuthError extends Error {
+  constructor(message) {
+    super(message);
+    this.name = "AuthError";
   }
 }
 
@@ -164,9 +182,19 @@ export class OAuth {
 
   async login(handle) {
     const client = await this.getClient();
-    const authUrl = await client.getAuthorizationUrl(handle, {
-      state: { loopback: isDev() },
-    });
+    let authUrl = null;
+    try {
+      authUrl = await client.getAuthorizationUrl(handle, {
+        state: { loopback: isDev() },
+      });
+    } catch (error) {
+      if (error instanceof HandleNotFoundError) {
+        throw new InvalidUsernameError("Invalid username");
+      } else if (error instanceof InvalidAuthUrlError) {
+        throw new AuthError("Invalid authorization URL: " + error.message);
+      }
+      throw error;
+    }
     window.location.href = authUrl;
     return new Promise(() => {}); // no resolve, just wait for redirect
     // if (isNative()) {

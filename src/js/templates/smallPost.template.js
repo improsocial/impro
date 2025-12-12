@@ -5,7 +5,7 @@ import {
   isUnavailablePost,
   getDisplayName,
 } from "/js/dataHelpers.js";
-import { noop, classnames } from "/js/utils.js";
+import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -24,7 +24,6 @@ import "/js/components/muted-reply-toggle.js";
 export function smallPostTemplate({
   post,
   isUserPost,
-  enableClick = true,
   postInteractionHandler,
   replyContext,
   repostAuthor,
@@ -45,11 +44,9 @@ export function smallPostTemplate({
   }
   const content = html`
     <div
-      class=${classnames("post small-post", { clickable: enableClick })}
+      class="post small-post clickable"
       @click=${() => {
-        if (enableClick) {
-          window.router.go(linkToPost(post));
-        }
+        window.router.go(linkToPost(post));
       }}
     >
       <div class="post-content-with-space">
@@ -118,6 +115,9 @@ export function smallPostTemplate({
               post,
               isUserPost,
               isAuthenticated: postInteractionHandler.isAuthenticated,
+              onClickReply: () => {
+                window.router.go(linkToPost(post));
+              },
               onClickLike: (post, doLike) =>
                 postInteractionHandler.handleLike(post, doLike),
               onClickRepost: (post, doRepost) =>

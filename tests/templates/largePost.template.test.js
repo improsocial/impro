@@ -23,15 +23,6 @@ t.describe("largePostTemplate", (it) => {
     assert(result instanceof Object);
   });
 
-  it("should render with enableClick disabled", () => {
-    const result = largePostTemplate({
-      post,
-      postInteractionHandler,
-      enableClick: false,
-    });
-    assert(result instanceof Object);
-  });
-
   it("should render with reply context", () => {
     const result = largePostTemplate({
       post,

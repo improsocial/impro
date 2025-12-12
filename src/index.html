@@ -86,13 +86,11 @@
 
       // If we're authenticated, make an initial request to get the dPop nonce.
       // getPreferences is slow so we don't want to make that call first.
+      // TODO: is there a faster endpoint than this?
       if (session && auth instanceof OAuth) {
-        await session.fetch(
-          `${session.serviceEndpoint}/xrpc/com.atproto.server.getSession`,
-          {
-            noDpopRetry: true,
-          }
-        );
+        await api.request("com.atproto.server.getSession", {
+          noDpopRetry: true,
+        });
       }
 
       // Preload preferences - sometimes this fails, so try it twice.
