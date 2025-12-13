@@ -116,7 +116,11 @@ export function getIndexFromByteIndex(text, byteIndex) {
 
 export function formatLargeNumber(number) {
   if (number >= 1000) {
-    return (number / 1000).toFixed(1) + "K";
+    let formatted = (number / 1000).toFixed(1);
+    if (formatted.endsWith(".0")) {
+      formatted = formatted.slice(0, -2);
+    }
+    return formatted + "K";
   }
   return number;
 }
