@@ -1702,7 +1702,6 @@ body.scroll-locked header {
   background: none;
   cursor: pointer;
   color: var(--post-action-icon-color);
-  font-size: inherit;
   transition: background-color 0.2s;
   min-width: 30px;
   margin-top: -1px;
@@ -1736,8 +1735,7 @@ like-button {
 }
 
 .post-action-button.like-button .heart-icon {
-  width: 18px;
-  height: 18px;
+  width: 17px;
   top: 1px;
   left: 1px;
 }
@@ -1821,18 +1819,22 @@ like-button {
 .reply-icon {
   width: 25px !important;
   height: 25px !important;
-  top: -2px !important;
+  top: -4px !important;
 }
 
 .post-action-icon .repost-icon {
   width: 25px;
   height: 25px;
-  top: 0;
+  top: -1px;
 }
 
 .post-action-icon .repost-icon path,
 .post-action-icon .reply-icon path {
-  stroke-width: 3.5;
+  stroke-width: 3;
+}
+
+.post-action-icon .heart-icon path {
+  stroke-width: 1.8;
 }
 
 .like-button.liked {
@@ -1873,9 +1875,14 @@ like-button {
 
 .post-action-count {
   position: relative;
-  display: inline-block;
   overflow: hidden;
   vertical-align: top;
+  font-size: 13px;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  top: -1px;
+  left: -1px;
 }
 
 .post-action-count .count-current {
@@ -3534,7 +3541,7 @@ post-context-menu .text-button-text {
   align-items: center;
   justify-content: center;
   padding: 1px 4px;
-  min-width: 16px;
+  min-width: 17px;
 }
 
 .footer-nav-item .status-badge {
@@ -4242,12 +4249,6 @@ input[type="color"]::-moz-color-swatch {
   margin-top: 8px;
   padding-top: 10px;
   padding-bottom: 12px;
-}
-
-.post-action-count {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
 }
 
 .post-action-count-num {
