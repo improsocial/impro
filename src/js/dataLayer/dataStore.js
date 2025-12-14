@@ -152,8 +152,9 @@ export class DataStore extends EventEmitter {
     return this.profileSearchResults;
   }
 
-  setProfileSearchResults(dids) {
-    this.profileSearchResults = dids;
+  setProfileSearchResults(profileSearchResults) {
+    this.profileSearchResults = profileSearchResults;
+    this.emit("setProfileSearchResults", profileSearchResults);
   }
 
   clearProfileSearchResults() {
@@ -168,8 +169,8 @@ export class DataStore extends EventEmitter {
     return this.postSearchResults;
   }
 
-  setPostSearchResults(postUris) {
-    this.postSearchResults = postUris;
+  setPostSearchResults(postSearchResults) {
+    this.postSearchResults = postSearchResults;
   }
 
   clearPostSearchResults() {

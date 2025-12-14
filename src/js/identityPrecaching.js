@@ -56,4 +56,11 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
       console.error(error);
     }
   });
+
+  // Precache author DIDs when profiles are set in the data store
+  dataLayer.dataStore.on("setProfileSearchResults", (profileSearchResults) => {
+    for (const searchResult of profileSearchResults) {
+      identityResolver.setDidForHandle(searchResult.handle, searchResult.did);
+    }
+  });
 }

@@ -120,7 +120,7 @@ class ProfileView extends View {
     function profileUnavailableTemplate() {
       return html`
         <div class="error-state">
-          <h1>Sign-in Required</h1>
+          <h1>Sign-In Required</h1>
           <p>
             This account has requested that users sign in to view their profile.
           </p>
