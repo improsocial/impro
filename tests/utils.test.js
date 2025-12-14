@@ -117,9 +117,14 @@ t.describe("sliceByByte", (it) => {
 
 t.describe("formatLargeNumber", (it) => {
   it("should format numbers >= 1000 with K suffix", () => {
-    assertEquals(formatLargeNumber(1000), "1.0K");
     assertEquals(formatLargeNumber(1500), "1.5K");
     assertEquals(formatLargeNumber(2342), "2.3K");
+  });
+
+  it("should drop the decimal if it is 0", () => {
+    assertEquals(formatLargeNumber(1000), "1K");
+    assertEquals(formatLargeNumber(1001), "1K");
+    assertEquals(formatLargeNumber(1100), "1.1K");
   });
 
   it("should return number as-is if < 1000", () => {
@@ -222,7 +227,11 @@ t.describe("deepClone", (it) => {
   });
 
   it("should clone nested arrays", () => {
-    const input = [[1, 2], [3, 4], [5, [6, 7]]];
+    const input = [
+      [1, 2],
+      [3, 4],
+      [5, [6, 7]],
+    ];
     const result = deepClone(input);
     assertEquals(result, input);
     assert(result !== input, "Should create new array");
