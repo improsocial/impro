@@ -7,7 +7,6 @@ import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
 } from "/js/templates/profileListItem.template.js";
-import { formatLargeNumber } from "/js/utils.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -90,7 +89,7 @@ class ProfileFollowersView extends View {
       const hasMore = profileFollowers?.cursor ? true : false;
 
       const subtitle = profile?.followersCount
-        ? `${formatLargeNumber(profile.followersCount)} ${
+        ? `${profile.followersCount.toLocaleString()} ${
             profile.followersCount === 1 ? "follower" : "followers"
           }`
         : null;

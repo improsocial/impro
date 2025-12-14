@@ -1389,7 +1389,7 @@ body.scroll-locked header {
   background: light-dark(var(--lightest-gray), var(--gray));
   color: var(--text-color-muted);
   width: 100%;
-  margin-bottom: 10px;
+  /* margin-bottom: 10px; */
 }
 
 .post-thread-extra-space {
@@ -1702,7 +1702,6 @@ body.scroll-locked header {
   background: none;
   cursor: pointer;
   color: var(--post-action-icon-color);
-  font-size: inherit;
   transition: background-color 0.2s;
   min-width: 30px;
   margin-top: -1px;
@@ -1736,10 +1735,9 @@ like-button {
 }
 
 .post-action-button.like-button .heart-icon {
-  width: 18px;
-  height: 18px;
+  width: 17px;
   top: 1px;
-  left: 1px;
+  left: 2px;
 }
 
 .like-button.liked .heart-icon path {
@@ -1811,7 +1809,7 @@ like-button {
 }
 
 .skeleton-action .skeleton-action-icon .heart-icon path {
-  stroke-width: 1.6;
+  stroke-width: 1.7;
 }
 
 .icon {
@@ -1821,18 +1819,22 @@ like-button {
 .reply-icon {
   width: 25px !important;
   height: 25px !important;
-  top: -2px !important;
+  top: -4px !important;
 }
 
 .post-action-icon .repost-icon {
   width: 25px;
   height: 25px;
-  top: 0;
+  top: -1px;
 }
 
 .post-action-icon .repost-icon path,
 .post-action-icon .reply-icon path {
-  stroke-width: 3.5;
+  stroke-width: 3;
+}
+
+.post-action-icon .heart-icon path {
+  stroke-width: 1.8;
 }
 
 .like-button.liked {
@@ -1873,9 +1875,14 @@ like-button {
 
 .post-action-count {
   position: relative;
-  display: inline-block;
   overflow: hidden;
   vertical-align: top;
+  font-size: 13px;
+  display: flex;
+  flex-direction: row;
+  gap: 4px;
+  top: -1px;
+  left: -1px;
 }
 
 .post-action-count .count-current {
@@ -3035,6 +3042,10 @@ form button:disabled {
   padding: 8px 16px;
 }
 
+#profile-view .error-state {
+  min-height: 30vh;
+}
+
 /* lightbox */
 
 .lightbox-container {
@@ -3296,6 +3307,11 @@ context-menu-item:last-child .context-menu-item {
   border-radius: var(--square-button-radius);
 }
 
+.context-menu .context-menu-item button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (min-width: 800px) {
   .context-menu {
     position: absolute;
@@ -3359,7 +3375,7 @@ context-menu-item:last-child .context-menu-item {
 }
 
 @media (min-width: 800px) {
-  .context-menu-item button:hover {
+  .context-menu-item button:not([disabled]):hover {
     background-color: var(--context-menu-item-hover-color);
   }
 }
@@ -3534,7 +3550,7 @@ post-context-menu .text-button-text {
   align-items: center;
   justify-content: center;
   padding: 1px 4px;
-  min-width: 16px;
+  min-width: 17px;
 }
 
 .footer-nav-item .status-badge {
@@ -4242,12 +4258,6 @@ input[type="color"]::-moz-color-swatch {
   margin-top: 8px;
   padding-top: 10px;
   padding-bottom: 12px;
-}
-
-.post-action-count {
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
 }
 
 .post-action-count-num {

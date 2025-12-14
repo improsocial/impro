@@ -4,6 +4,7 @@ import {
   isNotFoundPost,
   isUnavailablePost,
   getDisplayName,
+  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
@@ -40,6 +41,12 @@ export function smallPostTemplate({
   } else if (isNotFoundPost(post)) {
     return notFoundPostTemplate();
   } else if (isUnavailablePost(post)) {
+    return unavailablePostTemplate();
+  } else if (
+    !postInteractionHandler.isAuthenticated &&
+    post.author &&
+    doHideAuthorOnUnauthenticated(post.author)
+  ) {
     return unavailablePostTemplate();
   }
   const content = html`

@@ -1,14 +1,10 @@
 import { html } from "/js/lib/lit-html.js";
-import {
-  noop,
-  classnames,
-  formatFullTimestamp,
-  formatLargeNumber,
-} from "/js/utils.js";
+import { noop, formatFullTimestamp, formatLargeNumber } from "/js/utils.js";
 import {
   isBlockedPost,
   isNotFoundPost,
   isUnavailablePost,
+  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -106,6 +102,12 @@ export function largePostTemplate({
   } else if (isNotFoundPost(post)) {
     return notFoundPostTemplate();
   } else if (isUnavailablePost(post)) {
+    return unavailablePostTemplate();
+  } else if (
+    !postInteractionHandler.isAuthenticated &&
+    post.author &&
+    doHideAuthorOnUnauthenticated(post.author)
+  ) {
     return unavailablePostTemplate();
   }
   return html`
