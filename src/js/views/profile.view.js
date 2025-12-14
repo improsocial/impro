@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames, wait } from "/js/utils.js";
+import { doHideAuthorOnUnauthenticated } from "/js/dataHelpers.js";
 import { View } from "./view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
@@ -116,8 +117,23 @@ class ProfileView extends View {
       </div>`;
     }
 
+    function profileUnavailableTemplate() {
+      return html`
+        <div class="error-state">
+          <h1>Sign-in Required</h1>
+          <p>
+            This account has requested that users sign in to view their profile.
+          </p>
+          <button @click=${() => window.router.back()}>Go back</button>
+        </div>
+      `;
+    }
+
     function profileTemplate({ profile, currentUser = null }) {
       try {
+        if (!isAuthenticated && doHideAuthorOnUnauthenticated(profile)) {
+          return profileUnavailableTemplate();
+        }
         const isBlocked = !!profile.viewer?.blocking;
         const profileChatStatus = dataLayer.selectors.getProfileChatStatus(
           profile.did

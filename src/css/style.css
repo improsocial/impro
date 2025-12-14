@@ -1389,7 +1389,7 @@ body.scroll-locked header {
   background: light-dark(var(--lightest-gray), var(--gray));
   color: var(--text-color-muted);
   width: 100%;
-  margin-bottom: 10px;
+  /* margin-bottom: 10px; */
 }
 
 .post-thread-extra-space {
@@ -3040,6 +3040,10 @@ form button:disabled {
   color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
+}
+
+#profile-view .error-state {
+  min-height: 30vh;
 }
 
 /* lightbox */

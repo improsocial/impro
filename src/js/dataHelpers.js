@@ -336,3 +336,8 @@ export function getLastInteractionTimestamp(convo) {
   }
   return getInteractionTimestamp(lastInteraction);
 }
+
+export function doHideAuthorOnUnauthenticated(author) {
+  const authorLabels = author.labels || [];
+  return authorLabels.some((label) => label.val === "!no-unauthenticated");
+}
