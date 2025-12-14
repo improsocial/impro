@@ -3307,6 +3307,11 @@ context-menu-item:last-child .context-menu-item {
   border-radius: var(--square-button-radius);
 }
 
+.context-menu .context-menu-item button[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
 @media (min-width: 800px) {
   .context-menu {
     position: absolute;
@@ -3370,7 +3375,7 @@ context-menu-item:last-child .context-menu-item {
 }
 
 @media (min-width: 800px) {
-  .context-menu-item button:hover {
+  .context-menu-item button:not([disabled]):hover {
     background-color: var(--context-menu-item-hover-color);
   }
 }

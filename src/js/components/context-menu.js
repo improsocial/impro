@@ -63,7 +63,7 @@ class ContextMenu extends Component {
     const dialog = this.querySelector(".context-menu");
     dialog.showModal();
 
-    // On desktop, position the dialog at the mouse cursor
+    // On desktop, position the dialog at the mouse cursor - claude wrote this
     if (window.matchMedia("(min-width: 800px)").matches) {
       const rect = dialog.getBoundingClientRect();
       const margin = 8;
@@ -107,7 +107,7 @@ class ContextMenu extends Component {
     this.render();
   }
 
-  // NOTE: Claude wrote this. It seems to work fine, so I'm leaving it as-is.
+  // Claude wrote this
   setupMobileDragToDismiss(dialog) {
     // Only enable on mobile
     if (window.matchMedia("(min-width: 800px)").matches) return;

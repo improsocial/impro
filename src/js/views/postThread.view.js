@@ -174,6 +174,9 @@ class PostThreadView extends View {
       ) {
         return false;
       }
+      if (post.viewer?.replyDisabled) {
+        return false;
+      }
       return true;
     }
 

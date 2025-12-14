@@ -37,6 +37,7 @@ export function postActionBarTemplate({
   const numLikes = post.likeCount;
   const isLiked = !!post.viewer?.like;
   const isBookmarked = !!post.viewer?.bookmarked;
+  const canQuotePost = !post.viewer?.embeddingDisabled;
   return html`
     <div
       class="post-actions"
@@ -96,6 +97,7 @@ export function postActionBarTemplate({
               ${isReposted ? "Undo repost" : "Repost"}
             </context-menu-item>
             <context-menu-item
+              ?disabled=${!canQuotePost}
               @click=${() => {
                 if (!isAuthenticated) {
                   showSignInModal();
@@ -104,7 +106,7 @@ export function postActionBarTemplate({
                 onClickQuotePost(post);
               }}
             >
-              Quote post
+              ${canQuotePost ? "Quote post" : "Quote posts disabled"}
             </context-menu-item>
           </context-menu>
         </button>
