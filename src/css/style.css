@@ -1376,7 +1376,7 @@ body.scroll-locked header {
 .small-post .repost-label .icon path {
   stroke: var(--text-color-muted);
   fill: none;
-  stroke-width: 3;
+  stroke-width: 2.75;
 }
 
 .small-post .missing-post-indicator {
@@ -1735,7 +1735,8 @@ like-button {
 }
 
 .post-action-button.like-button .heart-icon {
-  width: 17px;
+  width: 18px;
+  height: 18px;
   top: 1px;
   left: 2px;
 }
@@ -1760,8 +1761,8 @@ like-button {
 }
 
 .post-action-icon .bookmark-icon {
-  width: 16px;
-  height: 16px;
+  width: 17px;
+  height: 17px;
   top: 2px;
   left: 2px;
 }
@@ -1817,14 +1818,14 @@ like-button {
 }
 
 .reply-icon {
-  width: 25px !important;
-  height: 25px !important;
+  width: 27px !important;
+  height: 27px !important;
   top: -4px !important;
 }
 
 .post-action-icon .repost-icon {
-  width: 25px;
-  height: 25px;
+  width: 27px;
+  height: 27px;
   top: -1px;
 }
 
@@ -1881,7 +1882,6 @@ like-button {
   display: flex;
   flex-direction: row;
   gap: 4px;
-  top: -1px;
   left: -1px;
 }
 
