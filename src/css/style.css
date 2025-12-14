@@ -1737,7 +1737,7 @@ like-button {
 .post-action-button.like-button .heart-icon {
   width: 17px;
   top: 1px;
-  left: 1px;
+  left: 2px;
 }
 
 .like-button.liked .heart-icon path {
@@ -1809,7 +1809,7 @@ like-button {
 }
 
 .skeleton-action .skeleton-action-icon .heart-icon path {
-  stroke-width: 1.6;
+  stroke-width: 1.7;
 }
 
 .icon {
