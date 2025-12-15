@@ -3286,15 +3286,18 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   }
 }
 
-context-menu-item:last-child .context-menu-item {
+context-menu-item:last-child {
   margin-bottom: 0;
 }
 
 .context-menu-item {
   margin-bottom: 12px;
+  white-space: nowrap;
+  color: var(--text-color);
+  width: 100%;
 }
 
-.context-menu .context-menu-item button {
+.context-menu-item button {
   width: 100%;
   border: none;
   background-color: light-dark(var(--off-white), var(--gray));
@@ -3307,7 +3310,7 @@ context-menu-item:last-child .context-menu-item {
   border-radius: var(--square-button-radius);
 }
 
-.context-menu .context-menu-item button[disabled] {
+.context-menu-item button[disabled] {
   opacity: 0.5;
   cursor: default;
 }
@@ -3337,17 +3340,11 @@ context-menu-item:last-child .context-menu-item {
     margin-bottom: 0;
   }
 
-  .context-menu .context-menu-item button {
+  .context-menu-item button {
     background-color: transparent;
     padding: 14px 16px;
     border-radius: 0;
   }
-}
-
-.context-menu-item {
-  white-space: nowrap;
-  color: var(--text-color);
-  width: 100%;
 }
 
 .context-menu-item a {
@@ -3362,19 +3359,7 @@ context-menu-item:last-child .context-menu-item {
   .context-menu-item a:hover {
     background-color: var(--context-menu-item-hover-color);
   }
-}
-.context-menu-item button {
-  padding: 14px 16px;
-  width: 100%;
-  border: none;
-  background: none;
-  font-size: inherit;
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
-}
 
-@media (min-width: 800px) {
   .context-menu-item button:not([disabled]):hover {
     background-color: var(--context-menu-item-hover-color);
   }
