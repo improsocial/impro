@@ -74,7 +74,7 @@ export function postActionBarTemplate({
             if (!isAuthenticated) {
               return showSignInModal();
             }
-            const contextMenu = this.querySelector("context-menu");
+            const contextMenu = this.nextElementSibling;
             contextMenu.open(e.clientX, e.clientY);
           }}
         >
@@ -84,32 +84,32 @@ export function postActionBarTemplate({
                 >${formatLargeNumber(numReposts)}</span
               >`
             : null}
-          <context-menu>
-            <context-menu-item
-              @click=${() => {
-                if (!isAuthenticated) {
-                  showSignInModal();
-                  return;
-                }
-                onClickRepost(post, !isReposted);
-              }}
-            >
-              ${isReposted ? "Undo repost" : "Repost"}
-            </context-menu-item>
-            <context-menu-item
-              ?disabled=${!canQuotePost}
-              @click=${() => {
-                if (!isAuthenticated) {
-                  showSignInModal();
-                  return;
-                }
-                onClickQuotePost(post);
-              }}
-            >
-              ${canQuotePost ? "Quote post" : "Quote posts disabled"}
-            </context-menu-item>
-          </context-menu>
         </button>
+        <context-menu>
+          <context-menu-item
+            @click=${() => {
+              if (!isAuthenticated) {
+                showSignInModal();
+                return;
+              }
+              onClickRepost(post, !isReposted);
+            }}
+          >
+            ${isReposted ? "Undo repost" : "Repost"}
+          </context-menu-item>
+          <context-menu-item
+            ?disabled=${!canQuotePost}
+            @click=${() => {
+              if (!isAuthenticated) {
+                showSignInModal();
+                return;
+              }
+              onClickQuotePost(post);
+            }}
+          >
+            ${canQuotePost ? "Quote post" : "Quote posts disabled"}
+          </context-menu-item>
+        </context-menu>
       </div>
       <div class="post-action">
         ${keyed(
