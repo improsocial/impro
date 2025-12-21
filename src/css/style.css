@@ -1838,6 +1838,10 @@ like-button {
   stroke-width: 1.8;
 }
 
+.post-action-icon .bookmark-icon path {
+  stroke-width: 1.9;
+}
+
 .like-button.liked {
   color: var(--like-color);
 }
