@@ -14,6 +14,7 @@ import {
   isPostView,
   getQuotedPost,
   getLastInteractionTimestamp,
+  markBlockedQuoteNotFound,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
 
@@ -160,6 +161,8 @@ export class Selectors {
       if (fullBlockedPost) {
         const blockedQuoteEmbed = createEmbedFromPost(fullBlockedPost);
         post = replaceBlockedQuote(post, blockedQuoteEmbed);
+      } else {
+        post = markBlockedQuoteNotFound(post, blockedQuote.uri);
       }
     }
     post = this._markMutedWords(post);
