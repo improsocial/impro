@@ -1735,9 +1735,9 @@ like-button {
 }
 
 .post-action-button.like-button .heart-icon {
-  width: 18px;
-  height: 18px;
-  top: 1px;
+  width: 19.5px;
+  height: 19.5px;
+  top: 0.75px;
   left: 2px;
 }
 
@@ -1761,9 +1761,9 @@ like-button {
 }
 
 .post-action-icon .bookmark-icon {
-  width: 17px;
-  height: 17px;
-  top: 2px;
+  width: 18px;
+  height: 18px;
+  top: 1.75px;
   left: 2px;
 }
 
@@ -1818,28 +1818,31 @@ like-button {
 }
 
 .reply-icon {
-  width: 27px !important;
-  height: 27px !important;
-  top: -4px !important;
+  width: 26px !important;
+  height: 26px !important;
+  top: -3.8px !important;
 }
 
 .post-action-icon .repost-icon {
-  width: 27px;
-  height: 27px;
-  top: -1px;
+  width: 25px;
+  height: 25px;
+  top: 0px;
 }
 
-.post-action-icon .repost-icon path,
 .post-action-icon .reply-icon path {
-  stroke-width: 3;
+  stroke-width: 3.1;
+}
+
+.post-action-icon .repost-icon path {
+  stroke-width: 3.25;
 }
 
 .post-action-icon .heart-icon path {
-  stroke-width: 1.8;
+  stroke-width: 1.65;
 }
 
 .post-action-icon .bookmark-icon path {
-  stroke-width: 1.9;
+  stroke-width: 1.8;
 }
 
 .like-button.liked {
