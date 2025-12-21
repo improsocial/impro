@@ -5221,3 +5221,20 @@ emoji-picker {
   margin-left: 16px;
   margin-top: 6px;
 }
+
+.sidebar-about-link {
+  margin-left: 16px;
+  margin-top: 16px;
+  font-size: 14px;
+  color: var(--text-link-color);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+@media (min-width: 800px) {
+  .sidebar-about-link:hover {
+    text-decoration: underline;
+  }
+}

@@ -20,6 +20,7 @@ import {
   linkToProfileFollowing,
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
+import { showInfoModal } from "/js/modals.js";
 
 function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
   return html`
@@ -87,6 +88,14 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       <a href="/login" class="square-button primary-button login-button"
         >Sign in</a
       >
+      <button
+        class="sidebar-about-link"
+        @click=${() => {
+          showInfoModal({ title: "About Impro", message: "Placeholder text" });
+        }}
+      >
+        About
+      </button>
     </animated-sidebar>
   `;
 }

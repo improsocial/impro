@@ -38,6 +38,49 @@ export async function showSignInModal() {
   signInModal.showModal();
 }
 
+export function showInfoModal({ title, message }) {
+  const dialog = document.createElement("dialog");
+  dialog.classList.add("modal-dialog");
+
+  render(
+    html`
+      <div class="modal-dialog-content">
+        <h2 class="modal-dialog-title">${title}</h2>
+        <p class="modal-dialog-message">${message}</p>
+        <div class="modal-dialog-buttons">
+          <button class="modal-dialog-button primary-button">OK</button>
+        </div>
+      </div>
+    `,
+    dialog
+  );
+
+  const okButton = dialog.querySelector(".primary-button");
+
+  const dismiss = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  okButton.addEventListener("click", dismiss);
+
+  // Dismiss on backdrop click
+  dialog.addEventListener("click", (e) => {
+    if (e.target.tagName === "DIALOG") {
+      dismiss();
+    }
+  });
+
+  // Dismiss on Escape key
+  dialog.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    dismiss();
+  });
+
+  document.body.appendChild(dialog);
+  dialog.showModal();
+}
+
 export async function confirm(
   message,
   {
