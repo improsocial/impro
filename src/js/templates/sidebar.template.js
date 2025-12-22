@@ -96,7 +96,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
             message: html`<div>
               Impro is an <strong>alternative Bluesky client</strong> built from
               the ground up to be extensible and customizable. You can find more
-              information about the project, including the full source code, on
+              information about the project, including the full source code, at
               our
               <a href="https://github.com/improsocial/impro/"
                 >GitHub repository</a
