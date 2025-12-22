@@ -4817,6 +4817,20 @@ input[type="color"]::-moz-color-swatch {
   color: var(--text-color);
 }
 
+.info-modal .modal-dialog-message {
+  margin-bottom: 18px;
+}
+
+.modal-dialog-message a {
+  color: var(--text-link-color);
+}
+
+@media (min-width: 800px) {
+  .modal-dialog-message a:hover {
+    text-decoration: underline;
+  }
+}
+
 .modal-dialog-button {
   padding: 10px 20px;
   border-radius: var(--square-button-radius);

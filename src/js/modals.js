@@ -40,7 +40,7 @@ export async function showSignInModal() {
 
 export function showInfoModal({ title, message }) {
   const dialog = document.createElement("dialog");
-  dialog.classList.add("modal-dialog");
+  dialog.classList.add("modal-dialog", "info-modal");
 
   render(
     html`

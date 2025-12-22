@@ -91,10 +91,21 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       <button
         class="sidebar-about-link"
         @click=${() => {
-          showInfoModal({ title: "About Impro", message: "Placeholder text" });
+          showInfoModal({
+            title: "About Impro",
+            message: html`<div>
+              Impro is an <strong>alternative Bluesky client</strong> built from
+              the ground up to be extensible and customizable. You can find more
+              information about the project, including the full source code, on
+              our
+              <a href="https://github.com/improsocial/impro/"
+                >GitHub repository</a
+              >.
+            </div>`,
+          });
         }}
       >
-        About
+        About Impro
       </button>
     </animated-sidebar>
   `;
