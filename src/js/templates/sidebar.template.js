@@ -98,7 +98,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
               the ground up to be extensible and customizable. You can find more
               information about the project, including the full source code, at
               our
-              <a href="https://github.com/improsocial/impro/"
+              <a href="https://github.com/improsocial/impro/blob/main/README.md"
                 >GitHub repository</a
               >.
             </div>`,
