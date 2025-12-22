@@ -20,6 +20,7 @@ import {
   linkToProfileFollowing,
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
+import { showInfoModal } from "/js/modals.js";
 
 function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
   return html`
@@ -87,6 +88,25 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       <a href="/login" class="square-button primary-button login-button"
         >Sign in</a
       >
+      <button
+        class="sidebar-about-link"
+        @click=${() => {
+          showInfoModal({
+            title: "About Impro",
+            message: html`<div>
+              Impro is an <strong>alternative Bluesky client</strong> built from
+              the ground up to be extensible and customizable. You can find more
+              information about the project, including the full source code, at
+              our
+              <a href="https://github.com/improsocial/impro/blob/main/README.md"
+                >GitHub repository</a
+              >.
+            </div>`,
+          });
+        }}
+      >
+        About Impro
+      </button>
     </animated-sidebar>
   `;
 }

@@ -138,7 +138,7 @@ class NotificationsView extends View {
       );
     }
 
-    function notificationAvatarsTemplate({ notifications, maxAvatars = 4 }) {
+    function notificationAvatarsTemplate({ notifications, maxAvatars = 5 }) {
       const displayCount = Math.min(notifications.length, maxAvatars);
       return html`
         <div class="notification-avatars">

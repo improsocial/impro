@@ -160,6 +160,15 @@ export function replaceBlockedQuote(post, fullBlockedQuote) {
   });
 }
 
+export function markBlockedQuoteNotFound(post, uri) {
+  return updateNested(post, (obj) => {
+    if (obj.$type === "app.bsky.embed.record#viewBlocked" && obj.uri === uri) {
+      return { ...obj, $type: "app.bsky.embed.record#viewNotFound", uri };
+    }
+    return obj;
+  });
+}
+
 export function isBlockedPost(post) {
   return post.$type === "app.bsky.feed.defs#blockedPost";
 }
