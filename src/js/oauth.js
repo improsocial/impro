@@ -242,10 +242,10 @@ class Session {
     const response = await authServer.refresh(params);
 
     if (!response.ok) {
-      const error = await response.text();
-      if (error.error === "server_error" && retryCount === 0) {
+      if (response.status === 500 && retryCount === 0) {
         return await this.refreshToken({ retryCount: retryCount + 1 });
       }
+      const error = await response.text();
       throw new TokenRefreshError(`Token refresh failed: ${error}`);
     }
 
@@ -262,10 +262,11 @@ class Session {
     // refresh session if needed
     if (Date.now() > this.sessionData.expiresAt - 60000) {
       if (!this.pendingRefresh) {
-        this.pendingRefresh = this.refreshToken();
+        this.pendingRefresh = this.refreshToken().finally(() => {
+          this.pendingRefresh = null;
+        });
       }
       await this.pendingRefresh;
-      this.pendingRefresh = null;
     }
     return this.dpopRequests.fetch(url, {
       headers: {

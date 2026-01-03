@@ -98,6 +98,7 @@ export class BasicAuthSession {
         if (refreshRes.ok) {
           const data = await refreshRes.json();
           this.accessJwt = data.accessJwt;
+          this.refreshJwt = data.refreshJwt;
           this.save();
           return await this.fetch(url, options);
         } else {
