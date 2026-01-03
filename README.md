@@ -5,7 +5,7 @@ You can try it out here: https://impro.social
 
 ## Differences from main client
 
-Impro is designed to have _core feature parity_ with the Bluesky web app. However, there are some differences:
+Impro is designed to have feature parity with the core functionality of the Bluesky web app. However, there are some differences:
 
 ### Less restrictive blocking
 
