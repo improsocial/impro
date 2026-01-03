@@ -83,7 +83,7 @@ class SettingsView extends View {
                   </button>
                 </nav>
                 <div class="version-info">
-                  Impro v0.1.0 - ${window.env.gitCommit}
+                  Impro v${window.env.version} - ${window.env.gitCommit}
                 </div>
                 <div class="settings-footer-links">
                   <a href="/tos.html" data-external="true">Terms</a>
