@@ -57,7 +57,7 @@ The core of Impro is human-designed and human-written, but some views and compon
 
 ## Planned features
 
-The following features are marked as high priority for development:
+The following features are required for Impro's goal of feature parity with the Bluesky web app:
 
 - Muted word management
 - Profile editing
