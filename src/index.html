@@ -210,7 +210,7 @@
       // intercept in-app links
       document.addEventListener("click", (e) => {
         const anchor = e.target.closest("a");
-        if (!anchor) {
+        if (!anchor || anchor.dataset.external) {
           return;
         }
         if (anchor.href.startsWith("/")) {

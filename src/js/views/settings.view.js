@@ -85,6 +85,13 @@ class SettingsView extends View {
                 <div class="version-info">
                   Impro v0.1.0 - ${window.env.gitCommit}
                 </div>
+                <div class="settings-footer-links">
+                  <a href="/tos.html" data-external="true">Terms</a>
+                  <span class="settings-footer-separator">·</span>
+                  <a href="/privacy.html" data-external="true"
+                    >Privacy Policy</a
+                  >
+                </div>
               </main>`,
           })}
         </div>`,

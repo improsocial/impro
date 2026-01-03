@@ -38,7 +38,7 @@ export async function showSignInModal() {
   signInModal.showModal();
 }
 
-export function showInfoModal({ title, message }) {
+export function showInfoModal({ title, message, confirmButtonText = "OK" }) {
   const dialog = document.createElement("dialog");
   dialog.classList.add("modal-dialog", "info-modal");
 
@@ -48,7 +48,9 @@ export function showInfoModal({ title, message }) {
         <h2 class="modal-dialog-title">${title}</h2>
         <p class="modal-dialog-message">${message}</p>
         <div class="modal-dialog-buttons">
-          <button class="modal-dialog-button primary-button">OK</button>
+          <button class="modal-dialog-button primary-button">
+            ${confirmButtonText}
+          </button>
         </div>
       </div>
     `,
