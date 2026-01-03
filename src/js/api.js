@@ -93,14 +93,14 @@ export class Api {
       }
       throw error;
     }
-    if (!res.ok) {
-      throw new ApiError(res);
-    }
     let data = null;
     if (parseJson) {
       data = await res.json();
     }
     res.data = data;
+    if (!res.ok) {
+      throw new ApiError(res);
+    }
     return res;
   }
 

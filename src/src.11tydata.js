@@ -5,5 +5,5 @@ export default {
   permalink: (data) => (data.page.fileSlug || "index") + ".html",
   gitCommit: () => execSync("git rev-parse --short=8 HEAD").toString().trim(),
   hostName: process.env.HOST_NAME ?? "impro.social",
-  nodeEnv: process.env.NODE_ENV,
+  environment: process.env.ENVIRONMENT ?? "development",
 };

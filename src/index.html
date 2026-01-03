@@ -61,7 +61,10 @@
       // Dev tools
       import "/js/perf.js";
       import { enableErrorLogs } from "/js/errorLogs.js";
-      enableErrorLogs();
+
+      if (window.env.environment === "development") {
+        enableErrorLogs();
+      }
 
       // Body class for styling
       if (isNative()) {

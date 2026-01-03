@@ -380,7 +380,7 @@ main {
 }
 
 .danger-button {
-  color: var(--error-color);
+  color: var(--error-color) !important;
   font-size: 14px;
 }
 
