@@ -208,7 +208,12 @@ class NotificationsView extends View {
       const profileLink = linkToProfile(post.author);
       return html`
         <div
-          @click=${() => window.router.go(linkToPost(post))}
+          @click=${() => {
+            if (isUnavailablePost(post)) {
+              return;
+            }
+            window.router.go(linkToPost(post));
+          }}
           class="notification-item notification-item-clickable ${isUnread
             ? "unread"
             : ""}"
@@ -245,7 +250,12 @@ class NotificationsView extends View {
 
       return html`
         <div
-          @click=${() => window.router.go(linkToPost(likedPost))}
+          @click=${() => {
+            if (isUnavailablePost(likedPost)) {
+              return;
+            }
+            window.router.go(linkToPost(likedPost));
+          }}
           class="notification-item notification-item-clickable ${isUnread
             ? "unread"
             : ""}"
@@ -275,10 +285,14 @@ class NotificationsView extends View {
 
       // Get the reposted post for preview
       const repostedPost = firstNotif.subject;
-
       return html`
-        <a
-          href="${linkToPost(repostedPost)}"
+        <div
+          @click=${() => {
+            if (isUnavailablePost(repostedPost)) {
+              return;
+            }
+            window.router.go(linkToPost(repostedPost));
+          }}
           class="notification-item notification-item-clickable ${isUnread
             ? "unread"
             : ""}"
@@ -293,7 +307,7 @@ class NotificationsView extends View {
             </div>
             ${postPreviewTemplate({ post: repostedPost })}
           </div>
-        </a>
+        </div>
       `;
     }
 
