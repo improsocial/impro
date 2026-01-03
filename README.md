@@ -1,12 +1,33 @@
 # Impro
 
-Impro is a Bluesky client written in HTML, CSS, and JavaScript. It is dependency-light by design and intended to serve as an example for implementing common Bluesky client features in vanilla JS.
-
+Impro is a Bluesky client written in HTML, CSS, and JavaScript.
 You can try it out here: https://impro.social
+
+## Differences from main client
+
+Impro is designed to have _core feature parity_ with the Bluesky web app. However, there are some differences:
+
+### Less restrictive blocking
+
+Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
+
+### Themeing
+
+Impro supports changing the "highlight color" of UI elements via the Settings menu.
+
+### Coming soon: shareable themes and plugins!
+
+## Issues and feature requests
+
+If you notice a bug or a core feature missing, please open [an issue](https://github.com/improsocial/impro/issues) for it or thumbs-up an existing issue.
+
+## Backend
+
+Impro uses the [Bluesky API](https://docs.bsky.app/docs/category/http-reference) for authentication and data fetching. Additionally, it uses [Constellation](https://constellation.microcosm.blue/) to populate blocked replies.
 
 ## Dependencies
 
-Impro uses the following libraries:
+Impro uses the following external libraries:
 
 - [lit-html](https://www.npmjs.com/package/lit-html) for declarative rendering
 - [Capacitor](https://capacitorjs.com/) for native builds
@@ -29,3 +50,7 @@ External libraries are included as standalone files in `lib`. In cases where bun
 npm run bundle:capacitor
 npm run bundle:lit-html
 ```
+
+## AI Disclosure
+
+The core of Impro is human-designed and human-written, but some views and components were generated using Claude Code. The project owner has reviewed the generated code and takes full responsibility for its accuracy and completeness. In cases where an entire function was written by AI, it is clearly marked with a comment.
