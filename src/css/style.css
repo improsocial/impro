@@ -26,6 +26,9 @@ html {
   --pink: #df4074;
   --red: #d81316;
   --red-muted: #ff4949;
+  --muted-gray-light: #666;
+  --muted-gray-dark: #999;
+  --disabled-gray: #464646;
 
   /* theme colors */
   --background-color: light-dark(var(--less-white), var(--dark-gray));
@@ -34,7 +37,10 @@ html {
     var(--mid-gray)
   );
   --text-color: light-dark(var(--dark-gray), var(--off-white));
-  --text-color-muted: light-dark(#666, #999);
+  --text-color-muted: light-dark(
+    var(--muted-gray-light),
+    var(--muted-gray-dark)
+  );
   --generic-border-color: light-dark(var(--lighter-gray), var(--light-gray));
   --text-input-background-color: light-dark(var(--off-white), var(--gray));
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
@@ -1258,21 +1264,6 @@ body.scroll-locked header {
   }
 }
 
-.header-tabs {
-  display: none;
-}
-
-.header-tab {
-  padding: 16px 4px;
-  text-decoration: none;
-  border-bottom: 4px solid transparent;
-  font-weight: 500;
-}
-
-.header-tab.active {
-  border-bottom-color: #ff6b35;
-}
-
 .post-thread {
   min-height: 100vh;
 }
@@ -1712,11 +1703,11 @@ like-button {
 
 .post-action[disabled] {
   pointer-events: none;
-  color: rgb(70, 70, 70);
+  color: var(--disabled-gray);
 }
 
 .post-action[disabled] .icon path {
-  stroke: rgb(70, 70, 70);
+  stroke: var(--disabled-gray);
   fill: none;
 }
 
