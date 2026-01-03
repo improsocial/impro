@@ -5231,13 +5231,11 @@ emoji-picker {
 
 .sidebar-about-link {
   margin: 16px;
-  text-align: center;
+  margin-left: 20px;
+  text-align: left;
 }
 
 @media (min-width: 800px) {
-  .sidebar-about-link {
-    text-align: left;
-  }
   .sidebar-about-link:hover {
     text-decoration: underline;
   }
