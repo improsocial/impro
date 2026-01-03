@@ -89,7 +89,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
         >Sign in</a
       >
       <button
-        class="sidebar-about-link"
+        class="sidebar-about-link sidebar-text-link"
         @click=${() => {
           showInfoModal({
             title: "About Impro",
@@ -102,11 +102,20 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
                 >GitHub repository</a
               >.
             </div>`,
+            confirmButtonText: "Got it!",
           });
         }}
       >
-        About Impro
+        About
       </button>
+      <div class="sidebar-footer">
+        <a href="/tos.html" class="sidebar-text-link" data-external="true"
+          >Terms</a
+        >
+        <a href="/privacy.html" class="sidebar-text-link" data-external="true"
+          >Privacy Policy</a
+        >
+      </div>
     </animated-sidebar>
   `;
 }
@@ -192,9 +201,11 @@ export function sidebarTemplate({
       <!-- Profile Section -->
       <div class="sidebar-profile">
         <div class="sidebar-profile-avatar">
-          ${currentUser
-            ? html`${avatarTemplate({ author: currentUser })}`
-            : html`<div class="avatar-placeholder"></div>`}
+          ${
+            currentUser
+              ? html`${avatarTemplate({ author: currentUser })}`
+              : html`<div class="avatar-placeholder"></div>`
+          }
         </div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name">
@@ -215,9 +226,9 @@ export function sidebarTemplate({
             }}
           >
             <strong
-              >${followersCount !== null
-                ? formatLargeNumber(followersCount)
-                : ""}</strong
+              >${
+                followersCount !== null ? formatLargeNumber(followersCount) : ""
+              }</strong
             >
             followers
           </a>
@@ -232,9 +243,9 @@ export function sidebarTemplate({
             }}
           >
             <strong
-              >${followsCount !== null
-                ? formatLargeNumber(followsCount)
-                : ""}</strong
+              >${
+                followsCount !== null ? formatLargeNumber(followsCount) : ""
+              }</strong
             >
             following
           </a>
@@ -242,23 +253,18 @@ export function sidebarTemplate({
       </div>
       <div class="sidebar-divider"></div>
       ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
-      ${onClickComposeButton
-        ? html`<button
-            class="sidebar-compose-button"
-            @click=${() => onClickComposeButton()}
-          >
-            ${editIconTemplate()} <span>New Post</span>
-          </button>`
-        : ""}
-
-      <!-- <div class="sidebar-divider"></div> -->
-
-      <!-- 
-        <div class="sidebar-footer">
-          <a href="#" class="sidebar-footer-link">Terms of Service</a>
-          <a href="#" class="sidebar-footer-link">Privacy Policy</a>
-        </div>
-        -->
+      ${
+        onClickComposeButton
+          ? html`<button
+              class="sidebar-compose-button"
+              @click=${() => onClickComposeButton()}
+            >
+              ${editIconTemplate()} <span>New Post</span>
+            </button>`
+          : ""
+      }
+      
+      </div>
     </animated-sidebar>
   `;
 }
