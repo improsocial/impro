@@ -1564,9 +1564,6 @@ body.scroll-locked header {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.large-post-header-text .post-name {
   width: 100%;
 }
 
@@ -1715,15 +1712,12 @@ like-button {
 
 .post-action[disabled] {
   pointer-events: none;
+  color: rgb(70, 70, 70);
 }
 
 .post-action[disabled] .icon path {
   stroke: rgb(70, 70, 70);
   fill: none;
-}
-
-.post-action[disabled] {
-  color: rgb(70, 70, 70);
 }
 
 .post-action-repost.reposted {
