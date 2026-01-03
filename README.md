@@ -12,7 +12,7 @@ Impro is designed to have feature parity with the core functionality of the Blue
 
 Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
 
-### Themeing
+### Theming
 
 Impro supports changing the "highlight color" of UI elements via the Settings menu.
 
