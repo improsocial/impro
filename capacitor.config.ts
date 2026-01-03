@@ -1,5 +1,6 @@
 import { CapacitorConfig } from "@capacitor/cli";
-import ip from "ip";
+
+const localIp = process.env.LOCAL_IP;
 
  const config =<CapacitorConfig>{
   appId: "social.impro",
@@ -20,7 +21,7 @@ import ip from "ip";
 if (process.env.NODE_ENV === "development") {
   config.server = {
     // https://capacitorjs.com/docs/guides/live-reload
-    url: `http://${ip.address()}:8080`,
+    url: `http://${localIp}:8080`,
     cleartext: true,
   }
 }
