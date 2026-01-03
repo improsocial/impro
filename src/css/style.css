@@ -1668,7 +1668,7 @@ body.scroll-locked header {
 
 .post-actions .text-button-text {
   position: relative;
-  top: -4px;
+  top: -2px;
 }
 
 .post-action-spacer {
@@ -2128,8 +2128,8 @@ like-button {
   color: white;
   border: none;
   background: rgba(0, 0, 0, 0.6);
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -2145,7 +2145,7 @@ like-button {
   font-size: 18px;
   line-height: 1;
   position: relative;
-  top: -2px;
+  top: -1px;
 }
 
 .alt-indicator {
