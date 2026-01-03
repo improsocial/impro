@@ -6,13 +6,13 @@ You can try it out here: https://impro.social
 
 ## Differences from main client
 
-Impro is designed to have feature parity with the core functionality of the Bluesky web app. (For TBD features, see [planned features](#planned-features)). However, there are some differences in behavior:
+Impro aims to have feature parity with the core functionality of the Bluesky web app. (For TBD features, see [planned features](#planned-features)). However, there are some differences in behavior:
 
 ### Less restrictive blocking
 
 Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
 
-### Themeing
+### Theming
 
 Impro supports changing the "highlight color" of UI elements via the Settings menu.
 

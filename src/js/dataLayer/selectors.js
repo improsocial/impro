@@ -252,7 +252,11 @@ export class Selectors {
 
     return notifications.map((notification) => {
       if (notification.reason === "like" || notification.reason === "repost") {
-        const subject = this.getPost(notification.reasonSubject);
+        let subject = this.getPost(notification.reasonSubject);
+        // If it was not found, create an unavailable post.
+        if (!subject) {
+          subject = createUnavailablePost(notification.reasonSubject);
+        }
         return {
           ...notification,
           subject,
