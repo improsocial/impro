@@ -1,6 +1,7 @@
 # Impro
 
 Impro is a Bluesky client written in HTML, CSS, and JavaScript.
+
 You can try it out here: https://impro.social
 
 ## Differences from main client
