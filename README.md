@@ -13,7 +13,7 @@ Impro uses the following libraries:
 - [HLS.js](https://github.com/video-dev/hls.js/) for streaming video
 - [emoji-picker-element](https://github.com/nolanlawson/emoji-picker-element) for emoji picker UI
 
-The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set.
+The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set (MIT license).
 
 ## Development
 
