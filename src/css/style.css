@@ -380,7 +380,7 @@ main {
 }
 
 .danger-button {
-  color: var(--error-color) !important;
+  color: var(--error-color);
   font-size: 14px;
 }
 
@@ -618,7 +618,7 @@ input[type="color"]::-moz-color-swatch {
   width: 40px;
   height: 40px;
   border-radius: var(--avatar-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
 }
 
 .skeleton-content-container {
@@ -643,21 +643,21 @@ input[type="color"]::-moz-color-swatch {
   width: 100%;
   height: 10px;
   border-radius: var(--skeleton-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
 }
 
 .skeleton-line-short {
   width: 10em;
   height: 12px;
   border-radius: var(--skeleton-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
 }
 
 .skeleton-line-shorter {
   width: 7em;
   height: 12px;
   border-radius: var(--skeleton-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
 }
 
 .skeleton-actions {
@@ -702,7 +702,7 @@ input[type="color"]::-moz-color-swatch {
   height: 40px;
   border-radius: var(--avatar-border-radius);
   flex-shrink: 0;
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
 }
 
@@ -960,7 +960,7 @@ body.scroll-locked header {
   width: 64px;
   height: 64px;
   border-radius: var(--avatar-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
 }
 
@@ -1263,7 +1263,7 @@ body.scroll-locked header {
   width: 24px;
   height: 24px;
   border-radius: var(--avatar-border-radius);
-  background: var(--skeleton-color);
+  background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
 }
 
@@ -1488,31 +1488,34 @@ body.scroll-locked header {
   width: 100%;
 }
 
-.large-post .label-badge {
+.label-badge {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 13px;
   color: var(--text-color-muted);
-  background: light-dark(var(--lightest-gray), var(--gray));
   width: fit-content;
   border-radius: var(--label-badge-border-radius);
-  padding-left: 8px;
-  padding-right: 8px;
-  padding-top: 3px;
-  padding-bottom: 4px;
+  background: light-dark(var(--lightest-gray), var(--gray));
+}
+
+.label-badge:hover {
+  background: light-dark(var(--lighter-gray), var(--light-gray));
+}
+
+.label-badge-image {
+  border-radius: var(--avatar-border-radius);
+  object-fit: cover;
+}
+
+.large-post .label-badge {
+  font-size: 13px;
+  padding: 3px 8px 4px;
   margin-right: 4px;
 }
 
 .large-post .label-badge-image {
   width: 16px;
   height: 16px;
-  border-radius: var(--avatar-border-radius);
-  object-fit: cover;
-}
-
-.large-post .label-badge:hover {
-  background: light-dark(var(--lighter-gray), var(--light-gray));
 }
 
 .large-post .post-labels {
@@ -1571,31 +1574,16 @@ body.scroll-locked header {
 }
 
 .small-post .label-badge {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  width: fit-content;
-  height: 20px;
   font-size: 12px;
-  color: var(--text-color-muted);
+  height: 20px;
+  padding: 2px 7px 3px;
   margin-top: 5px;
   margin-right: 2px;
-  border-radius: var(--label-badge-border-radius);
-  padding-left: 7px;
-  padding-right: 7px;
-  padding-top: 2px;
-  padding-bottom: 3px;
 }
 
 .small-post .label-badge-image {
   width: 12px;
   height: 12px;
-  border-radius: var(--avatar-border-radius);
-  object-fit: cover;
-}
-
-.small-post .label-badge:hover {
-  background: light-dark(var(--lightest-gray), var(--light-gray));
 }
 
 .post-skeleton .icon path {
@@ -3605,6 +3593,7 @@ emoji-picker {
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
 }
 
@@ -4911,7 +4900,6 @@ img[data-lightbox] {
   align-items: center;
   gap: 12px;
   padding: 12px 20px;
-  color: var(--text-color);
   text-decoration: none;
   transition: background-color 0.2s;
   cursor: pointer;

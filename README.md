@@ -1,6 +1,6 @@
 # Impro
 
-Impro is a Bluesky client written in HTML, CSS, and JavaScript.
+Impro is a Bluesky web client written in HTML, CSS, and JavaScript.
 
 You can try it out here: https://impro.social
 
@@ -12,6 +12,10 @@ Impro aims to have feature parity with the core functionality of the Bluesky web
 
 Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
 
+### Nested quotes
+
+Quote posts are shown nested up to two levels deep, versus the default of one level.
+
 ### Theming
 
 Impro supports changing the "highlight color" of UI elements via the Settings menu.
@@ -20,7 +24,7 @@ Impro supports changing the "highlight color" of UI elements via the Settings me
 
 ## Issues and feature requests
 
-If you notice a bug or feature missing, please open [an issue](https://github.com/improsocial/impro/issues) for it or thumbs-up an existing issue.
+If you notice a bug or feature missing, please open [an issue](https://github.com/improsocial/impro/issues) for it or thumbs-up an existing issue!
 
 ## Backend
 
@@ -54,7 +58,7 @@ npm run bundle:lit-html
 
 ## AI Disclosure
 
-The core of Impro is human-designed and human-written, but some views and components were generated using Claude Code. The project owner has reviewed the generated code and takes full responsibility for its accuracy and completeness. In cases where an entire function was written by AI, it is clearly marked with a comment.
+The core of Impro is human-designed and human-written, but some views and components were generated using Claude Code. The project owner has reviewed the generated code and takes full responsibility for its accuracy and completeness.
 
 ## Planned features
 
@@ -65,6 +69,5 @@ The following features are required for Impro's goal of feature parity with the 
 - Tenor GIF picker
 - Video upload
 - List and starter pack management
-- Basic localization
 
 Further features will be added on an as-requested basis.
