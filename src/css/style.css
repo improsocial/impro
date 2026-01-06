@@ -1116,7 +1116,7 @@ body.scroll-locked header {
   padding: 16px 20px;
 }
 
-.sidebar-footer a {
+.sidebar-footer .sidebar-text-link {
   display: block;
   margin-bottom: 8px;
 }
@@ -1143,7 +1143,7 @@ body.scroll-locked header {
 
 .sidebar-about-link {
   margin: 16px;
-  margin-left: 20px;
+  margin-left: 35px;
   text-align: left;
 }
 

@@ -15,6 +15,7 @@ import {
   getQuotedPost,
   getLastInteractionTimestamp,
   markBlockedQuoteNotFound,
+  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
 
@@ -41,6 +42,13 @@ export class Selectors {
     let feed = this.dataStore.getFeed(feedURI);
     if (!feed) {
       return null;
+    }
+    // If unauthenticated, filter out posts that are hidden for unauthenticated users.
+    if (!this.isAuthenticated) {
+      feed.feed = feed.feed.filter((feedItem) => {
+        const author = feedItem?.post?.author;
+        return author ? !doHideAuthorOnUnauthenticated(author) : true;
+      });
     }
     // Hydrate
     const hydratedFeedItems = [];
