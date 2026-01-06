@@ -22,6 +22,21 @@ import {
 import "/js/components/animated-sidebar.js";
 import { showInfoModal } from "/js/modals.js";
 
+function showAboutModal() {
+  showInfoModal({
+    title: "About Impro",
+    message: html`<div>
+      Impro is an <strong>alternative Bluesky client</strong> built from the
+      ground up to be extensible and customizable. You can find more information
+      about the project, including the full source code, at our
+      <a href="https://github.com/improsocial/impro/blob/main/README.md"
+        >GitHub repository</a
+      >.
+    </div>`,
+    confirmButtonText: "Got it!",
+  });
+}
+
 function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
   return html`
     <nav class="sidebar-nav">
@@ -91,19 +106,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       <button
         class="sidebar-about-link sidebar-text-link"
         @click=${() => {
-          showInfoModal({
-            title: "About Impro",
-            message: html`<div>
-              Impro is an <strong>alternative Bluesky client</strong> built from
-              the ground up to be extensible and customizable. You can find more
-              information about the project, including the full source code, at
-              our
-              <a href="https://github.com/improsocial/impro/blob/main/README.md"
-                >GitHub repository</a
-              >.
-            </div>`,
-            confirmButtonText: "Got it!",
-          });
+          showAboutModal();
         }}
       >
         About
@@ -201,11 +204,9 @@ export function sidebarTemplate({
       <!-- Profile Section -->
       <div class="sidebar-profile">
         <div class="sidebar-profile-avatar">
-          ${
-            currentUser
-              ? html`${avatarTemplate({ author: currentUser })}`
-              : html`<div class="avatar-placeholder"></div>`
-          }
+          ${currentUser
+            ? html`${avatarTemplate({ author: currentUser })}`
+            : html`<div class="avatar-placeholder"></div>`}
         </div>
         <div class="sidebar-profile-info">
           <div class="sidebar-profile-name">
@@ -226,9 +227,9 @@ export function sidebarTemplate({
             }}
           >
             <strong
-              >${
-                followersCount !== null ? formatLargeNumber(followersCount) : ""
-              }</strong
+              >${followersCount !== null
+                ? formatLargeNumber(followersCount)
+                : ""}</strong
             >
             followers
           </a>
@@ -243,9 +244,9 @@ export function sidebarTemplate({
             }}
           >
             <strong
-              >${
-                followsCount !== null ? formatLargeNumber(followsCount) : ""
-              }</strong
+              >${followsCount !== null
+                ? formatLargeNumber(followsCount)
+                : ""}</strong
             >
             following
           </a>
@@ -253,17 +254,23 @@ export function sidebarTemplate({
       </div>
       <div class="sidebar-divider"></div>
       ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
-      ${
-        onClickComposeButton
-          ? html`<button
-              class="sidebar-compose-button"
-              @click=${() => onClickComposeButton()}
-            >
-              ${editIconTemplate()} <span>New Post</span>
-            </button>`
-          : ""
-      }
-      
+      ${onClickComposeButton
+        ? html`<button
+            class="sidebar-compose-button"
+            @click=${() => onClickComposeButton()}
+          >
+            ${editIconTemplate()} <span>New Post</span>
+          </button>`
+        : ""}
+      <div class="sidebar-footer">
+        <button class="sidebar-text-link" @click=${() => showAboutModal()}>
+          About
+        </button>
+        <a
+          href="https://github.com/improsocial/impro/issues"
+          class="sidebar-text-link"
+          >Report bug
+        </a>
       </div>
     </animated-sidebar>
   `;
