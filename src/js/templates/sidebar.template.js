@@ -263,9 +263,6 @@ export function sidebarTemplate({
           </button>`
         : ""}
       <div class="sidebar-footer">
-        <button class="sidebar-text-link" @click=${() => showAboutModal()}>
-          About
-        </button>
         <a
           href="https://github.com/improsocial/impro/issues"
           class="sidebar-text-link"

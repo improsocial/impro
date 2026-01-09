@@ -1109,10 +1109,7 @@ body.scroll-locked header {
 }
 
 .sidebar-footer {
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  margin-top: auto;
   padding: 16px 20px;
 }
 
