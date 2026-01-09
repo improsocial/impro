@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { sliceByByte, sortBy, getByteLength } from "/js/utils.js";
+import { sliceByByte, sortBy, getByteLength, sanitizeUri } from "/js/utils.js";
 import { linkToHashtag, linkToProfile } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
@@ -14,7 +14,7 @@ function facetTemplate({ facet, wrappedText }) {
   switch (feature.$type) {
     case "app.bsky.richtext.facet#link":
       const uri = feature.uri;
-      return html`<a href="${uri}">${wrappedText}</a>`;
+      return html`<a href="${sanitizeUri(uri)}">${wrappedText}</a>`;
     case "app.bsky.richtext.facet#tag":
       const tag = feature.tag;
       return html`<a href="${linkToHashtag(tag)}">${wrappedText}</a>`;

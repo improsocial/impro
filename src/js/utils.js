@@ -213,3 +213,16 @@ export function batch(items, batchSize) {
 export function getCurrentTimestamp() {
   return new Date().toISOString();
 }
+
+export function sanitizeUri(uri) {
+  let parsedUri = null;
+  try {
+    parsedUri = new URL(uri);
+  } catch (error) {
+    return "";
+  }
+  if (["http:", "https:"].includes(parsedUri.protocol)) {
+    return parsedUri.toString();
+  }
+  return "";
+}

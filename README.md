@@ -35,7 +35,6 @@ Impro uses the [Bluesky API](https://docs.bsky.app/docs/category/http-reference)
 Impro uses the following external libraries:
 
 - [lit-html](https://www.npmjs.com/package/lit-html) for declarative rendering
-- [Capacitor](https://capacitorjs.com/) for native builds
 - [HLS.js](https://github.com/video-dev/hls.js/) for streaming video
 - [emoji-picker-element](https://github.com/nolanlawson/emoji-picker-element) for emoji picker UI
 
