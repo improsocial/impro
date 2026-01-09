@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { noop } from "/js/utils.js";
+import { sanitizeUri } from "/js/utils.js";
 
 function getDomainFromUri(uri) {
   return new URL(uri).hostname;
@@ -13,7 +13,11 @@ export function externalLinkTemplate({
   lazyLoadImages,
 }) {
   return html`<div class="external-link">
-    <a href="${url}" target="_blank" @click=${(e) => e.stopPropagation()}>
+    <a
+      href="${sanitizeUri(url)}"
+      target="_blank"
+      @click=${(e) => e.stopPropagation()}
+    >
       <div class="external-link-content">
         ${image
           ? html`<img
