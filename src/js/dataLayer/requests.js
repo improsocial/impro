@@ -311,7 +311,13 @@ export class Requests {
 
     // Handle likes feed separately since it uses a different API endpoint
     if (feedType === "likes") {
-      feed = await this.api.getActorLikes(did, params);
+      const currentUser = this.dataStore.getCurrentUser();
+
+      if (currentUser && currentUser.did === did) {
+        feed = await this.api.getActorLikes(did, params);
+      } else {
+        feed = await this._loadOtherUserLikes(did, { limit, cursor });
+      }
     } else {
       // set params based on feed type
       switch (feedType) {
@@ -352,6 +358,44 @@ export class Requests {
       // Set new feed
       this.dataStore.setAuthorFeed(feedURI, feed);
     }
+  }
+
+  async _loadOtherUserLikes(did, { limit = 31, cursor = "" } = {}) {
+    let pdsEndpoint = this.dataStore.getPdsEndpoint(did);
+
+    if (!pdsEndpoint) {
+      pdsEndpoint = await this.api.resolvePdsEndpoint(did);
+      this.dataStore.setPdsEndpoint(did, pdsEndpoint);
+    }
+
+    const likeRecords = await this.api.listRecords(did, "app.bsky.feed.like", {
+      limit,
+      cursor,
+      pdsEndpoint,
+    });
+
+    const postUris = likeRecords.records.map(
+      (record) => record.value.subject.uri,
+    );
+
+    const labelers = this.requireLabelers();
+    let posts = [];
+    if (postUris.length > 0) {
+      posts = await this.api.getPosts(postUris, { labelers });
+    }
+
+    const feed = [];
+    for (const uri of postUris) {
+      const post = posts.find((p) => p.uri === uri);
+      if (post) {
+        feed.push({ post });
+      }
+    }
+
+    return {
+      feed,
+      cursor: likeRecords.cursor,
+    };
   }
 
   async loadNotifications({ reload = false, limit = 31 } = {}) {

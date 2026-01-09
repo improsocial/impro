@@ -781,4 +781,82 @@ export class Api {
     });
     return res.data.blob;
   }
+
+  async resolvePdsEndpoint(did) {
+    let didDoc;
+    if (did.startsWith("did:plc:")) {
+      const response = await fetch(`https://plc.directory/${did}`);
+      if (!response.ok) {
+        throw new Error(`Failed to resolve DID ${did}`);
+      }
+      didDoc = await response.json();
+    } else if (did.startsWith("did:web:")) {
+      const domain = did.replace("did:web:", "");
+      const response = await fetch(`https://${domain}/.well-known/did.json`);
+      if (!response.ok) {
+        throw new Error(`Failed to resolve DID ${did}`);
+      }
+      didDoc = await response.json();
+    } else {
+      throw new Error(`Unsupported DID method for ${did}`);
+    }
+
+    const pdsEndpoint = didDoc.service?.find(
+      (s) => s.id === "#atproto_pds",
+    )?.serviceEndpoint;
+
+    if (!pdsEndpoint) {
+      throw new Error(`Could not find PDS endpoint for user ${did}`);
+    }
+
+    return pdsEndpoint;
+  }
+
+  async listRecords(
+    did,
+    collection,
+    { limit = 100, cursor = "", pdsEndpoint = null } = {},
+  ) {
+    const query = { repo: did, collection, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+
+    if (!pdsEndpoint || pdsEndpoint === this.session.serviceEndpoint) {
+      const res = await this.request("com.atproto.repo.listRecords", {
+        query,
+      });
+      return res.data;
+    }
+
+    const queryString = buildQueryString(query);
+    const url = `${pdsEndpoint}/xrpc/com.atproto.repo.listRecords${queryString ? `?${queryString}` : ""}`;
+
+    const res = await fetch(url, {
+      method: "GET",
+      headers: {
+        "Content-Type": "application/json",
+      },
+    });
+
+    if (!res.ok) {
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        data = text;
+      }
+      throw new ApiError({
+        status: res.status,
+        statusText: res.statusText,
+        data,
+        headers: res.headers,
+        url: res.url,
+      });
+    }
+
+    const data = await res.json();
+    return data;
+  }
 }
