@@ -116,9 +116,12 @@ export function getIndexFromByteIndex(text, byteIndex) {
 
 export function formatLargeNumber(number) {
   if (number >= 1000) {
-    let formatted = (number / 1000).toFixed(1);
-    if (formatted.endsWith(".0")) {
-      formatted = formatted.slice(0, -2);
+    const stringified = String(number / 1000);
+    const [integer, decimal] = stringified.split(".");
+    const truncatedDecimal = decimal.slice(0, 1);
+    let formatted = integer;
+    if (truncatedDecimal !== "0") {
+      formatted += "." + truncatedDecimal;
     }
     return formatted + "K";
   }
