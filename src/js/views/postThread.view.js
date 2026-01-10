@@ -12,6 +12,7 @@ import {
   isNotFoundPost,
   isUnavailablePost,
   isMutedPost,
+  getReplyRootFromPost,
 } from "/js/dataHelpers.js";
 import { ApiError } from "/js/api.js";
 import { View } from "./view.js";
@@ -239,7 +240,7 @@ class PostThreadView extends View {
     function threadTemplate({ postThread, currentUser }) {
       try {
         const parents = flattenParents(postThread);
-        const root = parents.length > 0 ? parents[0].post : postThread.post;
+        const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
         return html`
           <div class="post-thread">
