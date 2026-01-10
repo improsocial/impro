@@ -24,7 +24,7 @@ class ProfileView extends View {
       isAuthenticated,
     },
   }) {
-    const authorFeeds = [
+    const defaultAuthorFeeds = [
       {
         feedType: "posts",
         name: "Posts",
@@ -37,6 +37,10 @@ class ProfileView extends View {
         feedType: "media",
         name: "Media",
       },
+    ];
+
+    const currentUserAuthorFeeds = [
+      ...defaultAuthorFeeds,
       {
         feedType: "likes",
         name: "Likes",
@@ -44,7 +48,7 @@ class ProfileView extends View {
     ];
 
     const state = {
-      currentFeedType: authorFeeds[0].feedType,
+      currentFeedType: "posts",
       richTextProfileDescription: null,
     };
 
@@ -138,13 +142,17 @@ class ProfileView extends View {
         const profileChatStatus = dataLayer.selectors.getProfileChatStatus(
           profile.did
         );
+        const isCurrentUser = currentUser?.did === profile.did;
+        const authorFeedsToShow = isCurrentUser
+          ? currentUserAuthorFeeds
+          : defaultAuthorFeeds;
         return html`
           <div class="profile-container">
             ${profileCardTemplate({
               profile,
               richTextProfileDescription: state.richTextProfileDescription,
               isAuthenticated,
-              isCurrentUser: currentUser?.did === profile.did,
+              isCurrentUser,
               profileChatStatus,
               onClickChat: async (profile) => {
                 if (!profileChatStatus || !profileChatStatus.canChat) {
@@ -183,7 +191,7 @@ class ProfileView extends View {
               : html`
                   <div class="profile-tab-bar">
                     <div class="tab-bar">
-                      ${authorFeeds.map(
+                      ${authorFeedsToShow.map(
                         (feedInfo) =>
                           html`<button
                             class=${classnames("tab-bar-button", {
@@ -197,7 +205,7 @@ class ProfileView extends View {
                       )}
                     </div>
                   </div>
-                  ${authorFeeds.map((feedInfo) => {
+                  ${authorFeedsToShow.map((feedInfo) => {
                     const authorFeed = dataLayer.selectors.getAuthorFeed(
                       profileDid,
                       feedInfo.feedType
@@ -292,11 +300,7 @@ class ProfileView extends View {
     }
 
     async function preloadHiddenFeeds() {
-      const feedsToPreload = authorFeeds.filter(
-        (feed) =>
-          feed.feedType !== state.currentFeedType && feed.feedType !== "likes"
-      );
-      for (const feed of feedsToPreload) {
+      for (const feed of defaultAuthorFeeds) {
         await dataLayer.requests.loadNextAuthorFeedPage(
           profileDid,
           feed.feedType,
