@@ -118,10 +118,12 @@ export function formatLargeNumber(number) {
   if (number >= 1000) {
     const stringified = String(number / 1000);
     const [integer, decimal] = stringified.split(".");
-    const truncatedDecimal = decimal.slice(0, 1);
     let formatted = integer;
-    if (truncatedDecimal !== "0") {
-      formatted += "." + truncatedDecimal;
+    if (decimal) {
+      const truncatedDecimal = decimal.slice(0, 1);
+      if (truncatedDecimal !== "0") {
+        formatted += "." + truncatedDecimal;
+      }
     }
     return formatted + "K";
   }
