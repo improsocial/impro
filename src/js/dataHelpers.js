@@ -112,6 +112,11 @@ export function getReplyPosts(postThread) {
   return postThread.replies.map((reply) => reply.post).filter(Boolean);
 }
 
+export function getReplyRootFromPost(post) {
+  // If the post is not a reply, return the post itself
+  return post.record.reply?.root ?? { uri: post.uri, cid: post.cid };
+}
+
 export function getNestedReplyPosts(postThread) {
   if (!postThread.replies) {
     return [];

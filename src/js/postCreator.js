@@ -26,7 +26,6 @@ export class PostCreator {
         root: {
           uri: replyRoot.uri,
           cid: replyRoot.cid,
-          $type: "com.atproto.repo.strongRef",
         },
         parent: { uri: replyTo.uri, cid: replyTo.cid },
       };
