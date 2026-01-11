@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.3.10",
+  "version": "0.3.11",
   "type": "module",
   "scripts": {
     "start": "rm -rf build && NODE_ENV=development eleventy --serve",
@@ -9,7 +9,8 @@
     "bundle:capacitor": "esbuild ./clientLibs/capacitor.js --bundle --format=esm --outfile=src/js/lib/capacitor.js",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "test": "npm run test:unit",
-    "test:unit": "node runTests.js"
+    "test:unit": "node runTests.js",
+    "prepare": "husky"
   },
   "license": "MIT",
   "devDependencies": {
@@ -20,6 +21,7 @@
     "es-module-lexer": "^1.4.1",
     "esbuild": "^0.25.10",
     "htmlparser2": "^9.0.0",
+    "husky": "^9.1.7",
     "jest": "^30.1.3",
     "jest-environment-jsdom": "^30.1.2",
     "jsdom": "^27.0.0",
