@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert } from "../../testHelpers.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 
 const t = new TestSuite("richTextTemplate");

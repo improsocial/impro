@@ -1,10 +1,10 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   filterFollowingFeed,
   filterAlgorithmicFeed,
   filterAuthorFeed,
-} from "../src/js/feedFilters.js";
+} from "../../src/js/feedFilters.js";
 
 const t = new TestSuite("feedFilters");
 

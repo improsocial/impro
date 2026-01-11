@@ -1,5 +1,5 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   avatarThumbnailUrl,
   getRKey,
@@ -7,7 +7,7 @@ import {
   getQuotedPost,
   getBlockedQuote,
   createEmbedFromPost,
-} from "../src/js/dataHelpers.js";
+} from "../../src/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
 

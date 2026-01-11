@@ -1,5 +1,5 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   linkToHashtag,
   linkToProfile,
@@ -13,7 +13,7 @@ import {
   linkToFeed,
   getPermalinkForPost,
   getPermalinkForProfile,
-} from "../src/js/navigation.js";
+} from "../../src/js/navigation.js";
 
 const t = new TestSuite("navigation");
 

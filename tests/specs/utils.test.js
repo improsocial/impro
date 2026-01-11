@@ -1,5 +1,5 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   unique,
   noop,
@@ -8,7 +8,7 @@ import {
   formatFullTimestamp,
   classnames,
   deepClone,
-} from "../src/js/utils.js";
+} from "../../src/js/utils.js";
 
 const t = new TestSuite("utils");
 

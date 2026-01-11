@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert } from "../../testHelpers.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 
 const t = new TestSuite("postSkeletonTemplate");

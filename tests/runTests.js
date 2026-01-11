@@ -1,6 +1,6 @@
 import fs from "fs";
 
-import "./tests/env.js";
+import "./env.js";
 
 let testFiles = [];
 
@@ -11,7 +11,7 @@ if (process.argv.length > 2) {
 } else {
   // Get test files, pattern is **/*.test.js
   // And may be in subdirectories
-  testFiles = fs.globSync("tests/**/*.test.js");
+  testFiles = fs.globSync("tests/specs/**/*.test.js");
 }
 
 const results = [];
@@ -19,7 +19,7 @@ const results = [];
 for (const testFile of testFiles) {
   try {
     console.info(`${testFile}`);
-    await import(`./${testFile}`);
+    await import(`../${testFile}`);
     results.push({ name: testFile, success: true });
   } catch (error) {
     results.push({ name: testFile, success: false, error: error.message });

@@ -1,6 +1,6 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
-import { Router } from "../src/js/router.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
+import { Router } from "../../src/js/router.js";
 
 const t = new TestSuite("Router");
 

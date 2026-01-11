@@ -9,7 +9,7 @@
     "bundle:capacitor": "esbuild ./clientLibs/capacitor.js --bundle --format=esm --outfile=src/js/lib/capacitor.js",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "test": "npm run test:unit",
-    "test:unit": "node runTests.js",
+    "test:unit": "node tests/runTests.js",
     "prepare": "husky"
   },
   "license": "MIT",

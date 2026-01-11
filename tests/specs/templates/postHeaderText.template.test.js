@@ -1,7 +1,7 @@
-import { TestSuite } from "../testSuite.js";
-import { assert } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert } from "../../testHelpers.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { post } from "../fixtures.js";
+import { post } from "../../fixtures.js";
 
 const t = new TestSuite("postHeaderTextTemplate");
 

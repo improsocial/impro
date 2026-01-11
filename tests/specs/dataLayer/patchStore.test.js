@@ -1,6 +1,6 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
-import { PatchStore } from "../../src/js/dataLayer/patchStore.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert, assertEquals } from "../../testHelpers.js";
+import { PatchStore } from "../../../src/js/dataLayer/patchStore.js";
 
 const t = new TestSuite("PatchStore");
 

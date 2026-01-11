@@ -1,6 +1,6 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
-import { Declarative } from "../../src/js/dataLayer/declarative.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert, assertEquals } from "../../testHelpers.js";
+import { Declarative } from "../../../src/js/dataLayer/declarative.js";
 
 const t = new TestSuite("Declarative");
 

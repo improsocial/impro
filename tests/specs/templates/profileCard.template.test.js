@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert } from "../../testHelpers.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 
 const t = new TestSuite("profileCardTemplate");

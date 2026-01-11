@@ -1,10 +1,10 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   getUnresolvedFacetsFromText,
   resolveFacets,
   getFacetsFromText,
-} from "../src/js/facetHelpers.js";
+} from "../../src/js/facetHelpers.js";
 
 const t = new TestSuite("facetHelpers");
 
