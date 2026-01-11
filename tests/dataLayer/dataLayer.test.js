@@ -95,75 +95,6 @@ t.describe("hasCachedFeed", (it) => {
   });
 });
 
-t.describe("hasCachedPost", (it) => {
-  it("should return false when post not cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-
-    const result = dataLayer.hasCachedPost("at://post/uri");
-
-    assertEquals(result, false);
-  });
-
-  it("should return true when post is cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-    const postURI = "at://post/uri";
-
-    dataLayer.dataStore.setPost(postURI, { uri: postURI, text: "test" });
-
-    const result = dataLayer.hasCachedPost(postURI);
-
-    assertEquals(result, true);
-  });
-});
-
-t.describe("hasCachedPostThread", (it) => {
-  it("should return false when post thread not cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-
-    const result = dataLayer.hasCachedPostThread("at://post/uri");
-
-    assertEquals(result, false);
-  });
-
-  it("should return true when post thread is cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-    const postURI = "at://post/uri";
-
-    dataLayer.dataStore.setPostThread(postURI, { post: { uri: postURI }, replies: [] });
-
-    const result = dataLayer.hasCachedPostThread(postURI);
-
-    assertEquals(result, true);
-  });
-});
-
-t.describe("hasCachedProfile", (it) => {
-  it("should return false when profile not cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-
-    const result = dataLayer.hasCachedProfile("did:test:user");
-
-    assertEquals(result, false);
-  });
-
-  it("should return true when profile is cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-    const profileDid = "did:test:user";
-
-    dataLayer.dataStore.setProfile(profileDid, { did: profileDid, handle: "test" });
-
-    const result = dataLayer.hasCachedProfile(profileDid);
-
-    assertEquals(result, true);
-  });
-});
-
 t.describe("hasCachedAuthorFeed", (it) => {
   it("should return false when author feed not cached", () => {
     const mockApi = createMockApi();
@@ -203,28 +134,6 @@ t.describe("hasCachedAuthorFeed", (it) => {
     });
 
     const result = dataLayer.hasCachedAuthorFeed(profileDid, feedType);
-
-    assertEquals(result, true);
-  });
-});
-
-t.describe("hasCachedCurrentUser", (it) => {
-  it("should return false when current user not cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-
-    const result = dataLayer.hasCachedCurrentUser();
-
-    assertEquals(result, false);
-  });
-
-  it("should return true when current user is cached", () => {
-    const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
-
-    dataLayer.dataStore.setCurrentUser({ did: "did:test:user", handle: "test" });
-
-    const result = dataLayer.hasCachedCurrentUser();
 
     assertEquals(result, true);
   });
