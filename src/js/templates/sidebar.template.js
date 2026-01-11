@@ -266,7 +266,7 @@ export function sidebarTemplate({
         <a
           href="https://github.com/improsocial/impro/issues"
           class="sidebar-text-link"
-          >Report bug
+          >Report a bug
         </a>
       </div>
     </animated-sidebar>
