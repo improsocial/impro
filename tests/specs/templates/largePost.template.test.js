@@ -1,7 +1,7 @@
-import { TestSuite } from "../testSuite.js";
-import { assert } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert } from "../../testHelpers.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
-import { post } from "../fixtures.js";
+import { post } from "../../fixtures.js";
 
 const noop = () => {};
 const postInteractionHandler = {

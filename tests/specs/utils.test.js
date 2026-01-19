@@ -1,5 +1,5 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
 import {
   unique,
   noop,
@@ -8,7 +8,7 @@ import {
   formatFullTimestamp,
   classnames,
   deepClone,
-} from "../src/js/utils.js";
+} from "../../src/js/utils.js";
 
 const t = new TestSuite("utils");
 
@@ -121,9 +121,16 @@ t.describe("formatLargeNumber", (it) => {
     assertEquals(formatLargeNumber(2342), "2.3K");
   });
 
+  it("should truncate decimal instead of rounding", () => {
+    assertEquals(formatLargeNumber(1599), "1.5K");
+    assertEquals(formatLargeNumber(1950), "1.9K");
+    assertEquals(formatLargeNumber(2999), "2.9K");
+  });
+
   it("should drop the decimal if it is 0", () => {
     assertEquals(formatLargeNumber(1000), "1K");
     assertEquals(formatLargeNumber(1001), "1K");
+    assertEquals(formatLargeNumber(1099), "1K");
     assertEquals(formatLargeNumber(1100), "1.1K");
   });
 

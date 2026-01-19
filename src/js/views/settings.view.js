@@ -91,6 +91,8 @@ class SettingsView extends View {
                   <a href="/privacy.html" data-external="true"
                     >Privacy Policy</a
                   >
+                  <span class="settings-footer-separator">·</span>
+                  <a href="https://github.com/improsocial/impro">GitHub</a>
                 </div>
               </main>`,
           })}

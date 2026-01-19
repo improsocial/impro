@@ -896,13 +896,13 @@ body.scroll-locked header {
   }
 
   .sidebar .sidebar-profile-avatar .avatar-image {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
   }
 
   .sidebar .sidebar-profile-avatar .avatar-placeholder {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
   }
 
   .sidebar-divider {
@@ -946,19 +946,33 @@ body.scroll-locked header {
 }
 
 .sidebar-profile-avatar {
+  display: flex;
+  justify-content: flex-start;
   margin-bottom: 12px;
 }
 
+@media (min-width: 800px) {
+  .sidebar-profile-avatar {
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1200px) {
+  .sidebar-profile-avatar {
+    justify-content: flex-start;
+  }
+}
+
 .sidebar-profile-avatar .avatar-image {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
 }
 
 .sidebar-profile-avatar .avatar-placeholder {
-  width: 64px;
-  height: 64px;
+  width: 52px;
+  height: 52px;
   border-radius: var(--avatar-border-radius);
   background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);

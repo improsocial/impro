@@ -1,6 +1,6 @@
-import { TestSuite } from "./testSuite.js";
-import { assert, assertEquals } from "./testHelpers.js";
-import { EventEmitter } from "../src/js/eventEmitter.js";
+import { TestSuite } from "../testSuite.js";
+import { assert, assertEquals } from "../testHelpers.js";
+import { EventEmitter } from "../../src/js/eventEmitter.js";
 
 const t = new TestSuite("EventEmitter");
 

@@ -42,24 +42,8 @@ export class DataLayer {
     return this.dataStore.hasFeed(feedURI);
   }
 
-  hasCachedPost(postURI) {
-    return this.dataStore.hasPost(postURI);
-  }
-
-  hasCachedPostThread(postURI) {
-    return this.dataStore.hasPostThread(postURI);
-  }
-
-  hasCachedProfile(profileDid) {
-    return this.dataStore.hasProfile(profileDid);
-  }
-
   hasCachedAuthorFeed(profileDid, feedType) {
     const feedURI = `${profileDid}-${feedType}`;
     return this.dataStore.hasAuthorFeed(feedURI);
-  }
-
-  hasCachedCurrentUser() {
-    return this.dataStore.hasCurrentUser();
   }
 }

@@ -43,3 +43,18 @@ export function assertEquals(actual, expected) {
     `);
   }
 }
+
+// Equivalent to jest.fn()
+export function mock(fn = () => {}) {
+  const calls = [];
+  const results = [];
+  const mockFn = (...args) => {
+    calls.push(args);
+    const result = fn(...args);
+    results.push(result);
+    return result;
+  };
+  mockFn.calls = calls;
+  mockFn.results = results;
+  return mockFn;
+}
