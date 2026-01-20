@@ -102,7 +102,6 @@ html {
   --tab-bar-button-active-color: var(--highlight-color);
 
   /* border radius */
-
   --skeleton-border-radius: 4px;
   --tag-border-radius: 4px;
   --list-avatar-border-radius: 4px;
@@ -138,6 +137,13 @@ html {
   --message-input-z-index: 4;
   --reaction-palette-z-index: 4;
   --toast-z-index: 5;
+  --floating-compose-button-z-index: 6;
+  --sidebar-overlay-z-index: 7;
+  --sidebar-z-index: 8;
+  --lightbox-container-z-index: 9;
+  --lightbox-z-index: 10;
+  --mention-typeahead-z-index: 10;
+  --lightbox-close-z-index: 11;
 
   /* sizing */
   --font-size: 15px;
@@ -852,7 +858,7 @@ body.scroll-locked header {
   width: 100%;
   height: 100%;
   background: rgba(0, 0, 0, 0.5);
-  z-index: 998;
+  z-index: var(--sidebar-overlay-z-index);
   opacity: 0;
   visibility: hidden;
   transition: opacity 0.3s ease, visibility 0.3s ease;
@@ -871,7 +877,7 @@ body.scroll-locked header {
   max-width: 80%;
   height: 100%;
   background: var(--background-color);
-  z-index: 999;
+  z-index: var(--sidebar-z-index);
   transform: translateX(-100%);
   transition: transform 0.3s ease;
   overflow-y: auto;
@@ -4173,7 +4179,7 @@ emoji-picker {
   border: none;
   cursor: pointer;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
+  z-index: var(--floating-compose-button-z-index);
   align-items: center;
   justify-content: center;
   transition: transform 0.2s, box-shadow 0.2s;
@@ -4220,7 +4226,7 @@ emoji-picker {
   margin-top: 8px;
   max-height: 320px;
   overflow-y: auto;
-  z-index: 10000;
+  z-index: var(--mention-typeahead-z-index);
 }
 
 .mention-suggestion {
@@ -4783,7 +4789,7 @@ post-context-menu .text-button-text {
   position: fixed;
   top: 0;
   left: 0;
-  z-index: 9999;
+  z-index: var(--lightbox-container-z-index);
 }
 
 .lightbox {
@@ -4797,7 +4803,7 @@ post-context-menu .text-button-text {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  z-index: 10000;
+  z-index: var(--lightbox-z-index);
 }
 
 .lightbox img {
@@ -4834,7 +4840,7 @@ img[data-lightbox] {
   display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 10001;
+  z-index: var(--lightbox-close-z-index);
 }
 
 .settings-section {
