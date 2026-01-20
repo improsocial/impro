@@ -5164,6 +5164,7 @@ moderation-warning .toggle-content {
   align-items: center;
   justify-content: center;
   gap: 16px;
+  line-height: 1.5;
 }
 
 .error-state button {
@@ -5172,6 +5173,10 @@ moderation-warning .toggle-content {
   color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
+}
+
+.error-state a {
+  color: var(--text-link-color);
 }
 
 #profile-view .error-state {

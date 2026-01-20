@@ -75,7 +75,10 @@ export class Requests {
     this.enableStatus(this.loadPreferences, "loadPreferences");
     this.enableStatus(this.loadPostThread, "loadPostThread");
     this.enableStatus(this.loadPost, "loadPost");
-    this.enableStatus(this.loadNextFeedPage, "loadNextFeedPage");
+    this.enableStatus(
+      this.loadNextFeedPage,
+      (feedURI) => "loadNextFeedPage-" + feedURI
+    );
     this.enableStatus(this.loadProfile, "loadProfile");
     this.enableStatus(this.loadNextAuthorFeedPage, "loadNextAuthorFeedPage");
     this.enableStatus(this.loadProfileSearch, "loadProfileSearch");
@@ -510,8 +513,12 @@ export class Requests {
   }
 
   // Decorate a request method with status tracking
-  enableStatus(requestMethod, requestId) {
+  enableStatus(requestMethod, requestIdOrFn) {
     async function wrappedRequestMethod(...args) {
+      const requestId =
+        typeof requestIdOrFn === "function"
+          ? requestIdOrFn(...args)
+          : requestIdOrFn;
       this.statusStore.setLoading(requestId, true);
       try {
         return await requestMethod.apply(this, args);

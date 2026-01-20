@@ -1,5 +1,6 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
 import { classnames } from "/js/utils.js";
@@ -7,6 +8,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { ApiError } from "/js/api.js";
 
 class HomeView extends View {
   async render({
@@ -29,17 +31,16 @@ class HomeView extends View {
             return value ? JSON.parse(value) : null;
           },
           set: (target, prop, value) => {
-            localStorage.setItem(
-              `${namespace}-${prop}`,
-              JSON.stringify(value)
-            );
+            localStorage.setItem(`${namespace}-${prop}`, JSON.stringify(value));
             return true;
           },
         }
       );
     }
 
-    const persistedState = isAuthenticated ? createPersistedState("home-view") : {};
+    const persistedState = isAuthenticated
+      ? createPersistedState("home-view")
+      : {};
 
     function resetToDefaultFeed() {
       persistedState.currentFeedUri = isAuthenticated
@@ -158,6 +159,17 @@ class HomeView extends View {
         postSeenObserver.checkAllIntersections();
       }
     }
+
+    function feedErrorTemplate({ feedGenerator }) {
+      return html`<div class="error-state">
+        <div>
+          An issue occurred when contacting the feed server.<br />
+          Please let the feed owner know about this issue.<br />
+          <a href=${linkToProfile(feedGenerator.creator)}>View profile</a>
+        </div>
+      </div>`;
+    }
+
     async function renderPage() {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
@@ -214,9 +226,20 @@ class HomeView extends View {
               <main>
                 ${feedGenerators.map((feedGenerator) => {
                   const feed = dataLayer.selectors.getFeed(feedGenerator.uri);
+                  const feedRequestStatus = dataLayer.requests.getStatus(
+                    "loadNextFeedPage-" + feedGenerator.uri
+                  );
+                  if (feedRequestStatus.error) {
+                    return html`<div class="feed-container">
+                      ${feedErrorTemplate({
+                        feedGenerator,
+                      })}
+                    </div>`;
+                  }
                   return html`<div
                     class="feed-container"
-                    ?hidden=${persistedState.currentFeedUri !== feedGenerator.uri}
+                    ?hidden=${persistedState.currentFeedUri !==
+                    feedGenerator.uri}
                   >
                     ${postFeedTemplate({
                       feed,
