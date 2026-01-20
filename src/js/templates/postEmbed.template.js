@@ -149,7 +149,7 @@ function imagesTemplate({ images, lazyLoad = false }) {
 }
 
 function videoTemplate({ video }) {
-  return html`<div class="post-video">
+  return html`<div class="post-video" @click=${(e) => e.stopPropagation()}>
     <streaming-video
       src="${video.playlist}"
       controls
