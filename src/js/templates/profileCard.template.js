@@ -13,6 +13,7 @@ import { showSignInModal } from "/js/modals.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/lightbox-image-group.js";
 
 function getBlueskyLinkForProfile(profile) {
   return `https://bsky.app/profile/${profile.handle}`;
@@ -36,11 +37,13 @@ export function profileCardTemplate({
     <div class="profile-banner-container">
       ${profile.banner
         ? html`
-            <img
-              src="${profile.banner}"
-              alt="${profile.displayName} banner"
-              class="profile-banner"
-            />
+            <lightbox-image-group hide-alt-text="true">
+              <img
+                src="${profile.banner}"
+                alt="${profile.displayName} banner"
+                class="profile-banner"
+              />
+            </lightbox-image-group>
           `
         : ""}
     </div>

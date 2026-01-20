@@ -129,6 +129,7 @@ html {
   --label-badge-border-radius: 999px;
 
   /* z-index */
+  --profile-header-z-index: 1;
   --context-menu-z-index: 2;
   --header-z-index: 3;
   --footer-z-index: 3;
@@ -3389,7 +3390,15 @@ emoji-picker {
   object-fit: cover;
 }
 
+.profile-banner-container lightbox-image-group {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 .profile-header {
+  position: relative;
+  z-index: var(--profile-header-z-index);
   padding: 16px;
   padding-bottom: 4px;
 }
