@@ -590,7 +590,7 @@ input[type="color"]::-moz-color-swatch {
     light-dark(rgba(0, 0, 0, 0.03), rgba(255, 255, 255, 0.05)) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 2s infinite;
+  animation: shimmer 1.5s infinite;
 }
 
 @keyframes shimmer {
