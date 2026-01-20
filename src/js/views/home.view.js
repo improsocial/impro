@@ -8,7 +8,6 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
-import { ApiError } from "/js/api.js";
 
 class HomeView extends View {
   async render({
@@ -229,29 +228,24 @@ class HomeView extends View {
                   const feedRequestStatus = dataLayer.requests.getStatus(
                     "loadNextFeedPage-" + feedGenerator.uri
                   );
-                  if (feedRequestStatus.error) {
-                    return html`<div class="feed-container">
-                      ${feedErrorTemplate({
-                        feedGenerator,
-                      })}
-                    </div>`;
-                  }
                   return html`<div
                     class="feed-container"
                     ?hidden=${persistedState.currentFeedUri !==
                     feedGenerator.uri}
                   >
-                    ${postFeedTemplate({
-                      feed,
-                      currentUser,
-                      feedGenerator,
-                      hiddenPostUris,
-                      postInteractionHandler,
-                      onClickShowLess: (post, feedContext) =>
-                        handleShowLess(post, feedContext, feedGenerator),
-                      enableFeedFeedback: true,
-                      onLoadMore: () => loadCurrentFeed(),
-                    })}
+                    ${feedRequestStatus.error
+                      ? feedErrorTemplate({ feedGenerator })
+                      : postFeedTemplate({
+                          feed,
+                          currentUser,
+                          feedGenerator,
+                          hiddenPostUris,
+                          postInteractionHandler,
+                          onClickShowLess: (post, feedContext) =>
+                            handleShowLess(post, feedContext, feedGenerator),
+                          enableFeedFeedback: true,
+                          onLoadMore: () => loadCurrentFeed(),
+                        })}
                   </div>`;
                 })}
               </main>`,
