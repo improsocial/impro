@@ -474,7 +474,10 @@ class ChatDetailView extends View {
                   : "message-received"}"
               >
                 <div class="message-embed">
-                  ${postEmbedTemplate({ embed: message.embed })}
+                  ${postEmbedTemplate({
+                    embed: message.embed,
+                    isAuthenticated: true,
+                  })}
                 </div>
               </div>`
             : ""}

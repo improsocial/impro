@@ -1,5 +1,5 @@
 import { html } from "/js/lib/lit-html.js";
-import { getRKey } from "/js/dataHelpers.js";
+import { getRKey, doHideAuthorOnUnauthenticated } from "/js/dataHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -61,7 +61,7 @@ function showNestedEmbed(embed) {
   return true;
 }
 
-function quotedPostTemplate({ quotedPost, lazyLoadImages }) {
+function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
   if (!quotedPost) {
     return html`<div class="quoted-post">Post not found</div>`;
   }
@@ -116,6 +116,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages }) {
                     embed: embed,
                     labels: quotedPost.labels,
                     lazyLoadImages,
+                    isAuthenticated,
                   })}
                 </div>`
               : ""}
@@ -313,10 +314,21 @@ function getWarningLabel(labels) {
   return labels.find((label) => HIDDEN_LABELS.includes(label.val));
 }
 
-function recordEmbedTemplate({ record, lazyLoadImages }) {
+function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
-      return quotedPostTemplate({ quotedPost: record, lazyLoadImages });
+      if (
+        !isAuthenticated &&
+        record.author &&
+        doHideAuthorOnUnauthenticated(record.author)
+      ) {
+        return blockedQuoteTemplate();
+      }
+      return quotedPostTemplate({
+        quotedPost: record,
+        lazyLoadImages,
+        isAuthenticated,
+      });
     // This only happens if the author is blocking the viewer
     case "app.bsky.embed.record#viewBlocked":
       return blockedQuoteTemplate();
@@ -348,17 +360,31 @@ export function postEmbedTemplate({
   labels,
   enabledEmbedTypes,
   lazyLoadImages = false,
+  isAuthenticated,
 }) {
   if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
     return null;
   }
   switch (embed.$type) {
     case "app.bsky.embed.record#view":
-      return recordEmbedTemplate({ record: embed.record, lazyLoadImages });
+      return recordEmbedTemplate({
+        record: embed.record,
+        lazyLoadImages,
+        isAuthenticated,
+      });
     case "app.bsky.embed.recordWithMedia#view":
       return html`
-        ${postEmbedTemplate({ embed: embed.media, labels, lazyLoadImages })}
-        ${recordEmbedTemplate({ record: embed.record.record, lazyLoadImages })}
+        ${postEmbedTemplate({
+          embed: embed.media,
+          labels,
+          lazyLoadImages,
+          isAuthenticated,
+        })}
+        ${recordEmbedTemplate({
+          record: embed.record.record,
+          lazyLoadImages,
+          isAuthenticated,
+        })}
       `;
     case "app.bsky.embed.video#view":
       return moderationWarningWrapperTemplate({

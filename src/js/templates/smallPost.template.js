@@ -115,6 +115,7 @@ export function smallPostTemplate({
                     embed: post.embed,
                     labels: post.labels,
                     lazyLoadImages,
+                    isAuthenticated: postInteractionHandler.isAuthenticated,
                   })}
                 </div>`
               : null}
