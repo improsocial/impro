@@ -6,6 +6,7 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy("src/css");
   eleventyConfig.addPassthroughCopy("src/img");
+  eleventyConfig.addPassthroughCopy("src/manifest.json");
 
   // Send index for SPA
   eleventyConfig.setServerOptions({
