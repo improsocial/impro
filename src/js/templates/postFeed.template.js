@@ -92,6 +92,7 @@ function feedItemTemplate({
       : null;
   const replyToAuthor = !!repostAuthor && reply ? reply.parent?.author : null;
   const showReplyContext = reply && reply.parent && !repostAuthor;
+  const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
   return html`
     <div>
       ${showReplyContext
@@ -108,6 +109,7 @@ function feedItemTemplate({
         : ""}
       ${postTemplate({
         post,
+        isPinned,
         hiddenPostUris,
         isUserPost: currentUser?.did === post.author?.did,
         replyContext: showReplyContext ? "reply" : null,
