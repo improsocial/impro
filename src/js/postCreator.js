@@ -150,9 +150,7 @@ export class PostCreator {
     // If there's an external link, upload the preview image
     if (externalImage) {
       try {
-        const imageRes = await fetch(
-          "https://cardyb.bsky.app/v1/image?url=http://gracekind.net/img/og-image.png"
-        );
+        const imageRes = await fetch(externalImage);
         const imageBlob = await imageRes.blob();
         const blob = await this.api.uploadBlob(imageBlob);
         externalEmbed.external.thumb = {
