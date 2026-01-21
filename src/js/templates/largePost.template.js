@@ -156,6 +156,7 @@ export function largePostTemplate({
                     ${postEmbedTemplate({
                       embed: post.embed,
                       labels: post.labels,
+                      isAuthenticated: postInteractionHandler.isAuthenticated,
                     })}
                   </div>`
                 : null

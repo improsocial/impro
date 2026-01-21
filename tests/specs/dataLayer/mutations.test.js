@@ -3,7 +3,7 @@ import { assertEquals } from "../../testHelpers.js";
 import { Mutations } from "../../../src/js/dataLayer/mutations.js";
 import { DataStore } from "../../../src/js/dataLayer/dataStore.js";
 import { PatchStore } from "../../../src/js/dataLayer/patchStore.js";
-import { Preferences } from "../../../src/js/dataLayer/preferencesProvider.js";
+import { Preferences } from "../../../src/js/preferences.js";
 
 const t = new TestSuite("Mutations");
 

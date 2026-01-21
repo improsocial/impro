@@ -2,7 +2,7 @@ import { TestSuite } from "../../testSuite.js";
 import { assertEquals } from "../../testHelpers.js";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
-import { Preferences } from "/js/dataLayer/preferencesProvider.js";
+import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Requests");
 

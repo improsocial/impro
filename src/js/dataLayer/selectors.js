@@ -47,7 +47,14 @@ export class Selectors {
     if (!this.isAuthenticated) {
       feed.feed = feed.feed.filter((feedItem) => {
         const author = feedItem?.post?.author;
-        return author ? !doHideAuthorOnUnauthenticated(author) : true;
+        if (author && doHideAuthorOnUnauthenticated(author)) {
+          return false;
+        }
+        const quotedPost = getQuotedPost(feedItem.post);
+        if (quotedPost?.author && doHideAuthorOnUnauthenticated(quotedPost.author)) {
+          return false;
+        }
+        return true;
       });
     }
     // Hydrate
