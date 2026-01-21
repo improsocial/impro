@@ -221,17 +221,23 @@ t.describe("Preferences.getLabelerDids", (it) => {
   });
 });
 
-t.describe("Preferences.textHasMutedWord", (it) => {
+t.describe("Preferences.hasMutedWord", (it) => {
   it("should return true when text contains muted word", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
-    const result = preferences.textHasMutedWord("This is spam content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, true);
   });
@@ -240,12 +246,18 @@ t.describe("Preferences.textHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "SPAM" }],
+        items: [{ value: "SPAM", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
-    const result = preferences.textHasMutedWord("This is spam content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, true);
   });
@@ -254,19 +266,31 @@ t.describe("Preferences.textHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
-    const result = preferences.textHasMutedWord("This is normal content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is normal content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, false);
   });
 
   it("should return false when no muted words preference", () => {
     const preferences = new Preferences([], []);
-    const result = preferences.textHasMutedWord("This is spam content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, false);
   });
@@ -276,12 +300,18 @@ t.describe("Preferences.textHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", expiresAt: pastDate }],
+        items: [{ value: "spam", targets: ["content"], expiresAt: pastDate }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
-    const result = preferences.textHasMutedWord("This is spam content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, false);
   });
@@ -291,170 +321,199 @@ t.describe("Preferences.textHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", expiresAt: futureDate }],
+        items: [{ value: "spam", targets: ["content"], expiresAt: futureDate }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
-    const result = preferences.textHasMutedWord("This is spam content", []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
 
     assertEquals(result, true);
   });
+
+  it("should return false when text is null", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: null,
+      facets: null,
+      embed: null,
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, false);
+  });
 });
 
-t.describe("Preferences.textHasMutedWord - word boundary matching", (it) => {
+t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
+  const hasMutedWord = (preferences, text, languages = []) =>
+    preferences.hasMutedWord({
+      text,
+      facets: null,
+      embed: null,
+      languages,
+      author: null,
+    });
+
   it("should NOT match when muted word is a substring of another word", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "cat" }],
+        items: [{ value: "cat", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
     // Should NOT match - "cat" is a substring of these words
-    assertEquals(preferences.textHasMutedWord("I love category theory", []), false);
-    assertEquals(
-      preferences.textHasMutedWord("concatenate these strings", []),
-      false
-    );
-    assertEquals(preferences.textHasMutedWord("The vacation was great", []), false);
+    assertEquals(hasMutedWord(preferences, "I love category theory"), false);
+    assertEquals(hasMutedWord(preferences, "concatenate these strings"), false);
+    assertEquals(hasMutedWord(preferences, "The vacation was great"), false);
   });
 
   it("should match when muted word appears as a standalone word", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "cat" }],
+        items: [{ value: "cat", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(preferences.textHasMutedWord("I love my cat", []), true);
-    assertEquals(preferences.textHasMutedWord("cat is cute", []), true);
-    assertEquals(preferences.textHasMutedWord("the cat sat", []), true);
+    assertEquals(hasMutedWord(preferences, "I love my cat"), true);
+    assertEquals(hasMutedWord(preferences, "cat is cute"), true);
+    assertEquals(hasMutedWord(preferences, "the cat sat"), true);
   });
 
   it("should use substring matching for single character muted words", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "x" }],
+        items: [{ value: "x", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(preferences.textHasMutedWord("example text", []), true);
-    assertEquals(preferences.textHasMutedWord("no match here", []), false);
+    assertEquals(hasMutedWord(preferences, "example text"), true);
+    assertEquals(hasMutedWord(preferences, "no match here"), false);
   });
 
   it("should use substring matching for language exceptions", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "test" }],
+        items: [{ value: "test", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
     // Languages that don't use spaces should use substring matching
-    assertEquals(preferences.textHasMutedWord("testing", ["ja"]), true); // Japanese
-    assertEquals(preferences.textHasMutedWord("testing", ["zh"]), true); // Chinese
-    assertEquals(preferences.textHasMutedWord("testing", ["ko"]), true); // Korean
-    assertEquals(preferences.textHasMutedWord("testing", ["th"]), true); // Thai
-    assertEquals(preferences.textHasMutedWord("testing", ["vi"]), true); // Vietnamese
+    assertEquals(hasMutedWord(preferences, "testing", ["ja"]), true); // Japanese
+    assertEquals(hasMutedWord(preferences, "testing", ["zh"]), true); // Chinese
+    assertEquals(hasMutedWord(preferences, "testing", ["ko"]), true); // Korean
+    assertEquals(hasMutedWord(preferences, "testing", ["th"]), true); // Thai
+    assertEquals(hasMutedWord(preferences, "testing", ["vi"]), true); // Vietnamese
 
     // Non-exception languages should use word boundary matching
-    assertEquals(preferences.textHasMutedWord("testing", ["en"]), false);
-    assertEquals(preferences.textHasMutedWord("testing", []), false);
+    assertEquals(hasMutedWord(preferences, "testing", ["en"]), false);
+    assertEquals(hasMutedWord(preferences, "testing", []), false);
   });
 
   it("should use substring matching for phrases with spaces", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "bad phrase" }],
+        items: [{ value: "bad phrase", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(
-      preferences.textHasMutedWord("this is a bad phrase here", []),
-      true
-    );
-    assertEquals(preferences.textHasMutedWord("bad phrase at start", []), true);
-    assertEquals(preferences.textHasMutedWord("ends with bad phrase", []), true);
-    assertEquals(
-      preferences.textHasMutedWord("bad and phrase separate", []),
-      false
-    );
+    assertEquals(hasMutedWord(preferences, "this is a bad phrase here"), true);
+    assertEquals(hasMutedWord(preferences, "bad phrase at start"), true);
+    assertEquals(hasMutedWord(preferences, "ends with bad phrase"), true);
+    assertEquals(hasMutedWord(preferences, "bad and phrase separate"), false);
   });
 
   it("should strip leading and trailing punctuation when matching", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "hello" }],
+        items: [{ value: "hello", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(preferences.textHasMutedWord("...hello...", []), true);
-    assertEquals(preferences.textHasMutedWord('"hello"', []), true);
-    assertEquals(preferences.textHasMutedWord("(hello)", []), true);
-    assertEquals(preferences.textHasMutedWord("hello!", []), true);
-    assertEquals(preferences.textHasMutedWord("!hello", []), true);
+    assertEquals(hasMutedWord(preferences, "...hello..."), true);
+    assertEquals(hasMutedWord(preferences, '"hello"'), true);
+    assertEquals(hasMutedWord(preferences, "(hello)"), true);
+    assertEquals(hasMutedWord(preferences, "hello!"), true);
+    assertEquals(hasMutedWord(preferences, "!hello"), true);
   });
 
   it("should handle internal punctuation by normalizing", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "dont" }],
+        items: [{ value: "dont", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
     // "don't" with punctuation removed becomes "dont"
-    assertEquals(preferences.textHasMutedWord("I don't know", []), true);
+    assertEquals(hasMutedWord(preferences, "I don't know"), true);
   });
 
   it("should NOT match words containing slashes to avoid false positives", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "and" }],
+        items: [{ value: "and", targets: ["content"] }],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
     // "and/or" contains "/" so should be skipped to avoid "Andor" matching "and/or"
-    assertEquals(preferences.textHasMutedWord("this and/or that", []), false);
+    assertEquals(hasMutedWord(preferences, "this and/or that"), false);
     // But standalone "and" should still match
-    assertEquals(preferences.textHasMutedWord("this and that", []), true);
+    assertEquals(hasMutedWord(preferences, "this and that"), true);
   });
 
   it("should match multiple muted words correctly", () => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }, { value: "scam" }],
+        items: [
+          { value: "spam", targets: ["content"] },
+          { value: "scam", targets: ["content"] },
+        ],
       },
     ];
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(preferences.textHasMutedWord("this is spam", []), true);
-    assertEquals(preferences.textHasMutedWord("this is a scam", []), true);
-    assertEquals(preferences.textHasMutedWord("normal content", []), false);
+    assertEquals(hasMutedWord(preferences, "this is spam"), true);
+    assertEquals(hasMutedWord(preferences, "this is a scam"), true);
+    assertEquals(hasMutedWord(preferences, "normal content"), false);
   });
 });
 
@@ -463,7 +522,7 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
@@ -478,7 +537,7 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
@@ -493,7 +552,7 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
@@ -509,7 +568,7 @@ t.describe("Preferences.quotedPostHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
@@ -524,7 +583,7 @@ t.describe("Preferences.quotedPostHasMutedWord", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam" }],
+        items: [{ value: "spam", targets: ["content"] }],
       },
     ];
 
@@ -533,6 +592,336 @@ t.describe("Preferences.quotedPostHasMutedWord", (it) => {
     const result = preferences.quotedPostHasMutedWord(quotedPost);
 
     assertEquals(result, false);
+  });
+});
+
+t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
+  it("should match muted word in image alt text", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out this image",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.images",
+        images: [{ alt: "This is spam content" }],
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should match muted word in any image alt text", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Multiple images",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.images",
+        images: [
+          { alt: "Normal image" },
+          { alt: "This has spam in it" },
+          { alt: "Another normal one" },
+        ],
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should skip images without alt text", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Image without alt",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.images",
+        images: [{ alt: "" }, { alt: null }],
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, false);
+  });
+
+  it("should match muted word in external link title", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out this link",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          uri: "https://example.com",
+          title: "This is spam content",
+          description: "A normal description",
+        },
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should match muted word in external link description", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out this link",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          uri: "https://example.com",
+          title: "Normal title",
+          description: "This description has spam",
+        },
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should match muted word in recordWithMedia embed", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Quote with media",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia",
+        media: {
+          $type: "app.bsky.embed.images",
+          images: [{ alt: "This has spam" }],
+        },
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should not check embed when target is tags only", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["tags"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out this link",
+      facets: null,
+      embed: {
+        $type: "app.bsky.embed.external",
+        external: {
+          uri: "https://example.com",
+          title: "This is spam content",
+          description: "spam spam spam",
+        },
+      },
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, false);
+  });
+});
+
+t.describe("Preferences.hasMutedWord - tag matching", (it) => {
+  it("should match muted word in hashtag", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["tags"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "Check out this post #spam",
+      facets: [
+        {
+          index: { byteStart: 20, byteEnd: 25 },
+          features: [{ $type: "app.bsky.richtext.facet#tag", tag: "spam" }],
+        },
+      ],
+      embed: null,
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should not match text when target is tags only", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["tags"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: [],
+      embed: null,
+      languages: [],
+      author: null,
+    });
+
+    assertEquals(result, false);
+  });
+
+  it("should match both text and tags when both targets specified", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content", "tags"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+
+    // Should match text
+    const textResult = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: [],
+      embed: null,
+      languages: [],
+      author: null,
+    });
+    assertEquals(textResult, true);
+
+    // Should match tag
+    const tagResult = preferences.hasMutedWord({
+      text: "Normal content",
+      facets: [
+        {
+          features: [{ $type: "app.bsky.richtext.facet#tag", tag: "spam" }],
+        },
+      ],
+      embed: null,
+      languages: [],
+      author: null,
+    });
+    assertEquals(tagResult, true);
+  });
+});
+
+t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
+  it("should skip muting for followed accounts when actorTarget is exclude-following", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [
+          { value: "spam", targets: ["content"], actorTarget: "exclude-following" },
+        ],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: { viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" } },
+    });
+
+    assertEquals(result, false);
+  });
+
+  it("should mute non-followed accounts even with exclude-following", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [
+          { value: "spam", targets: ["content"], actorTarget: "exclude-following" },
+        ],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: { viewer: { following: null } },
+    });
+
+    assertEquals(result, true);
+  });
+
+  it("should mute followed accounts without exclude-following actorTarget", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [{ value: "spam", targets: ["content"] }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.hasMutedWord({
+      text: "This is spam content",
+      facets: null,
+      embed: null,
+      languages: [],
+      author: { viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" } },
+    });
+
+    assertEquals(result, true);
   });
 });
 

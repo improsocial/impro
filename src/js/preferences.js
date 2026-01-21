@@ -1,6 +1,34 @@
 import { getPostLabels } from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
 import { DISCOVER_FEED_URI } from "/js/config.js";
+import { getTagsFromFacets } from "/js/facetHelpers.js";
+
+function getContentTextFromEmbed(embed) {
+  const texts = [];
+
+  switch (embed.$type) {
+    case "app.bsky.embed.images":
+      for (const image of embed.images) {
+        if (image.alt) {
+          texts.push(image.alt);
+        }
+      }
+      break;
+    case "app.bsky.embed.external":
+      if (embed.external.title) {
+        texts.push(embed.external.title);
+      }
+      if (embed.external.description) {
+        texts.push(embed.external.description);
+      }
+      break;
+    case "app.bsky.embed.recordWithMedia":
+      texts.push(...getContentTextFromEmbed(embed.media));
+      break;
+  }
+
+  return texts;
+}
 
 const WORD_BOUNDARY_REGEX = /[\s\n\t\r\f\v]+/g;
 const LEADING_TRAILING_PUNCTUATION_REGEX = /(?:^\p{P}+|\p{P}+$)/gu;
@@ -140,7 +168,13 @@ export class Preferences {
     return displayLabels;
   }
 
-  textHasMutedWord(text, languages) {
+  hasMutedWord({
+    text,
+    facets,
+    embed,
+    languages,
+    author
+  }) {
     const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
     if (!mutedWordsPreference) {
       return false;
@@ -150,8 +184,31 @@ export class Preferences {
       item.expiresAt ? item.expiresAt > now : true
     );
     for (const item of activeItems) {
-      if (textMatchesMutedWord(text, item.value, languages)) {
-        return true;
+      if (item.actorTarget === "exclude-following" && author?.viewer?.following) {
+        continue;
+      }
+      if (item.targets.includes("content")) {
+        if (text && textMatchesMutedWord(text, item.value, languages)) {
+          return true;
+        }
+        // Also look at alt text and external links
+        if (embed) {
+          const embedTextSnippets = getContentTextFromEmbed(embed);
+          for (const embedTextSnippet of embedTextSnippets) {
+            if (textMatchesMutedWord(embedTextSnippet, item.value, languages)) {
+              return true;
+            }
+          }
+        }
+      }
+      if (item.targets.includes("tags")) {
+        const tagFacets = facets ? getTagsFromFacets(facets) : [];
+        for (const tagFacet of tagFacets) {
+          const tagText = tagFacet.features[0].tag;
+          if (textMatchesMutedWord(tagText, item.value, languages)) {
+            return true;
+          }
+        }
       }
     }
     return false;
@@ -159,19 +216,21 @@ export class Preferences {
 
   // Todo - memoize this?
   postHasMutedWord(post) {
-    const postText = post?.record?.text;
-    if (!postText) {
-      return false;
-    }
-    return this.textHasMutedWord(postText, post.record.langs || []);
+    const text = post?.record?.text ?? null;
+    const facets = post?.record?.facets ?? null;
+    const embed = post?.record?.embed ?? null;
+    const languages = post?.record?.langs ?? [];
+    const author = post?.author ?? null;
+    return this.hasMutedWord({ text, facets, embed, languages, author });
   }
 
   quotedPostHasMutedWord(quotedPost) {
-    const quotedPostText = quotedPost?.value?.text;
-    if (!quotedPostText) {
-      return false;
-    }
-    return this.textHasMutedWord(quotedPostText, quotedPost.value.langs || []);
+    const text = quotedPost?.value?.text ?? null;
+    const facets = quotedPost?.value?.facets ?? null;
+    const embed = quotedPost?.value?.embed ?? null;
+    const languages = quotedPost?.value?.langs ?? [];
+    const author = quotedPost?.author ?? null;
+    return this.hasMutedWord({ text, facets, embed, languages, author });
   }
 
   clone() {

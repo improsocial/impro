@@ -4,6 +4,7 @@ import {
   getUnresolvedFacetsFromText,
   resolveFacets,
   getFacetsFromText,
+  getTagsFromFacets,
 } from "../../src/js/facetHelpers.js";
 
 const t = new TestSuite("facetHelpers");
@@ -263,6 +264,80 @@ t.describe("getFacetsFromText", (it) => {
     const facets = await getFacetsFromText(text, resolver);
 
     assertEquals(facets.length, 2);
+  });
+});
+
+t.describe("getTagsFromFacets", (it) => {
+  it("should return only tag facets", () => {
+    const facets = [
+      {
+        index: { byteStart: 0, byteEnd: 5 },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: "hello" }],
+      },
+      {
+        index: { byteStart: 10, byteEnd: 21 },
+        features: [
+          { $type: "app.bsky.richtext.facet#link", uri: "https://example.com" },
+        ],
+      },
+      {
+        index: { byteStart: 25, byteEnd: 30 },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: "world" }],
+      },
+    ];
+
+    const tags = getTagsFromFacets(facets);
+
+    assertEquals(tags.length, 2);
+    assertEquals(tags[0].features[0].tag, "hello");
+    assertEquals(tags[1].features[0].tag, "world");
+  });
+
+  it("should return empty array when no tags present", () => {
+    const facets = [
+      {
+        index: { byteStart: 0, byteEnd: 11 },
+        features: [
+          { $type: "app.bsky.richtext.facet#link", uri: "https://example.com" },
+        ],
+      },
+      {
+        index: { byteStart: 15, byteEnd: 33 },
+        features: [
+          { $type: "app.bsky.richtext.facet#mention", did: "did:plc:abc123" },
+        ],
+      },
+    ];
+
+    const tags = getTagsFromFacets(facets);
+
+    assertEquals(tags.length, 0);
+  });
+
+  it("should return empty array for empty facets array", () => {
+    const tags = getTagsFromFacets([]);
+
+    assertEquals(tags.length, 0);
+  });
+
+  it("should filter out mentions", () => {
+    const facets = [
+      {
+        index: { byteStart: 0, byteEnd: 5 },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: "test" }],
+      },
+      {
+        index: { byteStart: 10, byteEnd: 28 },
+        features: [
+          { $type: "app.bsky.richtext.facet#mention", did: "did:plc:user123" },
+        ],
+      },
+    ];
+
+    const tags = getTagsFromFacets(facets);
+
+    assertEquals(tags.length, 1);
+    assertEquals(tags[0].features[0].$type, "app.bsky.richtext.facet#tag");
   });
 });
 

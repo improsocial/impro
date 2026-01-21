@@ -147,3 +147,7 @@ export async function getFacetsFromText(text, identityResolver) {
   );
   return resolvedFacets;
 }
+
+export function getTagsFromFacets(facets) {
+  return facets.filter((facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag")
+}
