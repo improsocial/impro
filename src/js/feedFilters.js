@@ -190,6 +190,19 @@ function filterEmptyPosts(feed) {
   };
 }
 
+function filterHiddenPosts(feed) {
+  const filteredFeedItems = feed.feed.filter((item) => {
+    if (item.post.viewer?.isHidden) {
+      return false;
+    }
+    return true;
+  });
+  return {
+    feed: filteredFeedItems,
+    cursor: feed.cursor,
+  };
+}
+
 export function filterFollowingFeed(feed, currentUser, preferences) {
   const followingFeedPreference = preferences.getFollowingFeedPreference();
   let filteredFeed = filterByFollowing(feed, currentUser);
@@ -207,6 +220,7 @@ export function filterFollowingFeed(feed, currentUser, preferences) {
   filteredFeed = filterMutedQuotes(filteredFeed);
   filteredFeed = filterMutedPosts(filteredFeed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }
 
@@ -216,11 +230,13 @@ export function filterAlgorithmicFeed(feed) {
   filteredFeed = filterMutedQuotes(filteredFeed);
   filteredFeed = filterMutedPosts(filteredFeed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }
 
 export function filterAuthorFeed(feed) {
   let filteredFeed = dedupeFeed(feed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }
