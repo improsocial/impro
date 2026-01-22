@@ -208,8 +208,8 @@ export function postActionBarTemplate({
                   }}
                 >
                   ${post.author.viewer?.muted
-                    ? "Unmute Account"
-                    : "Mute Account"}
+                    ? "Unmute account"
+                    : "Mute account"}
                 </context-menu-item>
                 <context-menu-item
                   @click=${() => {
@@ -217,8 +217,8 @@ export function postActionBarTemplate({
                   }}
                 >
                   ${post.author.viewer?.blocking
-                    ? "Unblock Account"
-                    : "Block Account"}
+                    ? "Unblock account"
+                    : "Block account"}
                 </context-menu-item>
                 ${isUserPost
                   ? html` <context-menu-item
