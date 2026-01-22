@@ -112,6 +112,14 @@ export class PatchStore {
           },
           bookmarkCount: post.bookmarkCount - 1,
         };
+      case "hidePost":
+        return {
+          ...post,
+          viewer: {
+            ...post.viewer,
+            isHidden: true,
+          },
+        };
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

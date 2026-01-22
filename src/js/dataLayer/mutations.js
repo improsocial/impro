@@ -256,6 +256,23 @@ export class Mutations {
     }
   }
 
+  async hidePost(post) {
+    const patchId = this.patchStore.addPostPatch(post.uri, {
+      type: "hidePost",
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.hidePost(post.uri);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      // clear patch
+      this.patchStore.removePostPatch(post.uri, patchId);
+    }
+  }
+
   async muteProfile(profile) {
     const patchId = this.patchStore.addProfilePatch(profile.did, {
       type: "muteProfile",

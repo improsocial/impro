@@ -181,6 +181,7 @@ export class Selectors {
       }
     }
     post = this._markMutedWords(post);
+    post = this._markIsHidden(post);
     return this.patchStore.applyPostPatches(post);
   }
 
@@ -509,6 +510,15 @@ export class Selectors {
           nestedQuotedPost.hasMutedWord = true;
         }
       }
+    }
+    return post;
+  }
+
+  _markIsHidden(post) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const isHidden = preferences.isPostHidden(post.uri);
+    if (isHidden) {
+      post.viewer.isHidden = true;
     }
     return post;
   }

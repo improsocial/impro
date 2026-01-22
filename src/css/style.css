@@ -4985,6 +4985,10 @@ img[data-lightbox] {
   stroke: var(--text-color-muted);
 }
 
+moderation-warning {
+  width: 100%;
+}
+
 moderation-warning .top-bar {
   display: flex;
   flex-direction: row;
@@ -5023,10 +5027,6 @@ moderation-warning .show-hide-label {
 
 moderation-warning .toggle-content {
   margin-top: 8px;
-}
-
-.muted-word-warning {
-  width: 100%;
 }
 
 #login-view main {

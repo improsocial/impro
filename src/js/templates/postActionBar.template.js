@@ -26,6 +26,7 @@ export function postActionBarTemplate({
   onClickLike = noop,
   onClickBookmark = noop,
   onClickShowLess = noop,
+  onClickHidePost = noop,
   onClickMute = noop,
   onClickBlock = noop,
   onClickDelete = noop,
@@ -127,7 +128,7 @@ export function postActionBarTemplate({
               }
               onClickLike(post, !isLiked);
             }}
-          ></like-button>`
+          ></like-button>`,
         )}
       </div>
       <div class="post-action post-action-bookmark">
@@ -177,19 +178,31 @@ export function postActionBarTemplate({
           >
             Copy link to post
           </context-menu-item>
-          ${enableFeedFeedback && isAuthenticated
-            ? html`
-                <context-menu-item
-                  @click=${() => {
-                    onClickShowLess(post);
-                  }}
-                >
-                  Show less like this
-                </context-menu-item>
-              `
-            : null}
           ${isAuthenticated
-            ? html`<context-menu-item
+            ? html`
+                ${enableFeedFeedback
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickShowLess(post);
+                        }}
+                      >
+                        Show less like this
+                      </context-menu-item>
+                    `
+                  : null}
+                ${!post.viewer?.isHidden
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickHidePost(post);
+                        }}
+                      >
+                        Hide post for me
+                      </context-menu-item>
+                    `
+                  : null}
+                <context-menu-item
                   @click=${() => {
                     onClickMute(post.author, !post.author.viewer?.muted);
                   }}
@@ -215,7 +228,8 @@ export function postActionBarTemplate({
                     >
                       Delete post
                     </context-menu-item>`
-                  : null} `
+                  : null}
+              `
             : null}
         </context-menu>
       </div>

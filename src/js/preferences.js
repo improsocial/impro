@@ -113,6 +113,9 @@ export class Preferences {
   unpinFeed(feedUri) {
     const clone = this.clone();
     const savedFeedsPreference = Preferences.getSavedFeedsPreference(clone.obj);
+    if (!savedFeedsPreference) {
+      throw new Error("Saved feeds preference not found");
+    }
     const matchingItem = savedFeedsPreference.items.find(
       (item) => item.value === feedUri
     );
@@ -125,6 +128,9 @@ export class Preferences {
   pinFeed(feedUri, type = "feed") {
     const clone = this.clone();
     const savedFeedsPreference = Preferences.getSavedFeedsPreference(clone.obj);
+    if (!savedFeedsPreference) {
+      throw new Error("Saved feeds preference not found");
+    }
     const matchingItem = savedFeedsPreference.items.find(
       (item) => item.value === feedUri
     );
@@ -138,6 +144,21 @@ export class Preferences {
         pinned: true,
       });
     }
+    return clone;
+  }
+
+  hidePost(postUri) {
+    const clone = this.clone();
+    let hiddenPostsPreference = Preferences.getHiddenPostsPreference(clone.obj);
+    // If the preference doesn't exist, create it
+    if (!hiddenPostsPreference) {
+      hiddenPostsPreference = {
+        $type: "app.bsky.actor.defs#improHiddenPostsPref",
+        items: [],
+      };
+      clone.obj.push(hiddenPostsPreference);
+    }
+    hiddenPostsPreference.items.push(postUri);
     return clone;
   }
 
@@ -166,6 +187,14 @@ export class Preferences {
       }
     }
     return displayLabels;
+  }
+
+  isPostHidden(postUri) {
+    const hiddenPostsPreference = Preferences.getHiddenPostsPreference(this.obj);
+    if (!hiddenPostsPreference) {
+      return false;
+    }
+    return hiddenPostsPreference.items.includes(postUri);
   }
 
   hasMutedWord({
@@ -250,6 +279,15 @@ export class Preferences {
 
   static getPreferenceByType(obj, type) {
     return obj.find((preference) => preference.$type === type);
+  }
+
+  static getHiddenPostsPreference(obj) {
+    // Note: This is a custom preference type. social-app stores hidden posts in local storage,
+    // but there's a note in the code to "move to the server" so let's just do that here.
+    return Preferences.getPreferenceByType(
+      obj,
+      "app.bsky.actor.defs#improHiddenPostsPref"
+    );
   }
 
   static getMutedWordsPreference(obj) {
