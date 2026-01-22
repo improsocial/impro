@@ -36,6 +36,10 @@ function textPartTemplate({ text }) {
   return text;
 }
 
+function facetOverlaps(facet1, facet2) {
+  return facet1.index.byteStart <= facet2.index.byteEnd && facet1.index.byteEnd >= facet2.index.byteStart;
+}
+
 function richTextLineTemplate({ text, facets, byteOffset }) {
   if (text.length === 0) {
     return html`<div><br /></div>`;
@@ -43,7 +47,14 @@ function richTextLineTemplate({ text, facets, byteOffset }) {
   let parts = [];
   let currentIndex = 0;
   const sortedFacets = sortBy(facets, (facet) => facet.index.byteStart);
+  // Filter overlapping facets
+  const distinctFacets = []
   for (const facet of sortedFacets) {
+    if (!distinctFacets.some(f => facetOverlaps(f, facet))) {
+      distinctFacets.push(facet);
+    }
+  }
+  for (const facet of distinctFacets) {
     const textPart = sliceByByte(
       text,
       currentIndex,
