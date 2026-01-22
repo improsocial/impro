@@ -521,7 +521,28 @@ export class Selectors {
     const preferences = this.preferencesProvider.requirePreferences();
     const isHidden = preferences.isPostHidden(post.uri);
     if (isHidden) {
+      // NOTE: LEXICON DEVIATION
       post.viewer.isHidden = true;
+    }
+    // Also check for hidden quotes
+    const quotedPost = getQuotedPost(post);
+    if (quotedPost) {
+      const quotedPostIsHidden = preferences.isPostHidden(quotedPost.uri);
+      if (quotedPostIsHidden) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.isHidden = true;
+      }
+      // Also check for nested hidden quotes
+      const nestedQuotedPost = getQuotedPost(quotedPost);
+      if (nestedQuotedPost) {
+        const nestedQuotedPostIsHidden = preferences.isPostHidden(
+          nestedQuotedPost.uri,
+        );
+        if (nestedQuotedPostIsHidden) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.isHidden = true;
+        }
+      }
     }
     return post;
   }

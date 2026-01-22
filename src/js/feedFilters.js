@@ -195,6 +195,11 @@ function filterHiddenPosts(feed) {
     if (item.post.viewer?.isHidden) {
       return false;
     }
+    // Also filter hidden quotes
+    const quotedPost = getQuotedPost(item.post);
+    if (quotedPost && quotedPost.isHidden) {
+      return false;
+    }
     return true;
   });
   return {
