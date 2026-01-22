@@ -7,7 +7,7 @@ export function avatarThumbnailUrl(avatarUrl) {
   }
   return avatarUrl.replace(
     "/img/avatar/plain/",
-    "/img/avatar_thumbnail/plain/"
+    "/img/avatar_thumbnail/plain/",
   );
 }
 

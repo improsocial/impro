@@ -19,7 +19,7 @@ class NotFoundView extends View {
             >
           </main>
         </div>`,
-        root
+        root,
       );
     }
 

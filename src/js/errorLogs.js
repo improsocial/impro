@@ -38,7 +38,7 @@ export function enableErrorLogs() {
     const errorDiv = document.createElement("div");
     errorDiv.style.padding = "15px";
     errorDiv.innerHTML = `${args.join(
-      " "
+      " ",
     )} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
     errorLog.appendChild(errorDiv);
     consoleError(...args);

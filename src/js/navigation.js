@@ -51,7 +51,7 @@ export function linkToProfileFollowing(handleOrProfile) {
 
 export function linkToFeed(feedGenerator) {
   return `/profile/${feedGenerator.creator.handle}/feed/${getRKey(
-    feedGenerator
+    feedGenerator,
   )}`;
 }
 

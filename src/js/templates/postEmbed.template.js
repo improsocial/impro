@@ -143,7 +143,7 @@ function imagesTemplate({ images, lazyLoad = false }) {
             loading=${lazyLoad ? "lazy" : "eager"}
           />
           ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
-        </div> `
+        </div> `,
     )}
   </lightbox-image-group>`;
 }
@@ -247,7 +247,7 @@ function listTemplate({ list }) {
   return html`<div class="list-embed">
     <a
       href="https://bsky.app/profile/${list.creator.handle}/lists/${getRKey(
-        list
+        list,
       )}"
       target="_blank"
       @click=${(e) => e.stopPropagation()}

@@ -188,7 +188,7 @@ export function postFeedTemplate({
                   postInteractionHandler,
                   onClickShowLess,
                   enableFeedFeedback,
-                })
+                }),
               )}
             </div>`;
             if (i < feed.feed.length - 1) {

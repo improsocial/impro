@@ -55,8 +55,12 @@ function createCurrentUser(did = "did:plc:currentuser") {
 t.describe("filterFollowingFeed", (it) => {
   it("should return all non-reply posts", () => {
     const items = [
-      createFeedItem({ post: { author: { did: "did:plc:1", handle: "user1" } } }),
-      createFeedItem({ post: { author: { did: "did:plc:2", handle: "user2" } } }),
+      createFeedItem({
+        post: { author: { did: "did:plc:1", handle: "user1" } },
+      }),
+      createFeedItem({
+        post: { author: { did: "did:plc:2", handle: "user2" } },
+      }),
     ];
     const feed = createFeed(items);
     const currentUser = createCurrentUser();
@@ -70,7 +74,9 @@ t.describe("filterFollowingFeed", (it) => {
 
   it("should filter out reposts when hideReposts is true", () => {
     const items = [
-      createFeedItem({ post: { author: { did: "did:plc:1", handle: "user1" } } }),
+      createFeedItem({
+        post: { author: { did: "did:plc:1", handle: "user1" } },
+      }),
       createFeedItem({
         post: { author: { did: "did:plc:2", handle: "user2" } },
         reason: { $type: "app.bsky.feed.defs#reasonRepost" },
@@ -87,7 +93,9 @@ t.describe("filterFollowingFeed", (it) => {
 
   it("should keep reposts when hideReposts is false", () => {
     const items = [
-      createFeedItem({ post: { author: { did: "did:plc:1", handle: "user1" } } }),
+      createFeedItem({
+        post: { author: { did: "did:plc:1", handle: "user1" } },
+      }),
       createFeedItem({
         post: { author: { did: "did:plc:2", handle: "user2" } },
         reason: { $type: "app.bsky.feed.defs#reasonRepost" },
@@ -104,7 +112,9 @@ t.describe("filterFollowingFeed", (it) => {
 
   it("should filter out replies when hideReplies is true", () => {
     const items = [
-      createFeedItem({ post: { author: { did: "did:plc:1", handle: "user1" } } }),
+      createFeedItem({
+        post: { author: { did: "did:plc:1", handle: "user1" } },
+      }),
       createFeedItem({
         post: { author: { did: "did:plc:2", handle: "user2" } },
         reply: {
@@ -127,7 +137,9 @@ t.describe("filterFollowingFeed", (it) => {
     const items = [
       createFeedItem({ post: { uri: rootUri } }),
       createFeedItem({ post: { uri: rootUri } }),
-      createFeedItem({ post: { uri: "at://did:plc:other/app.bsky.feed.post/456" } }),
+      createFeedItem({
+        post: { uri: "at://did:plc:other/app.bsky.feed.post/456" },
+      }),
     ];
     const feed = createFeed(items);
     const currentUser = createCurrentUser();
@@ -140,7 +152,9 @@ t.describe("filterFollowingFeed", (it) => {
 
   it("should return unfiltered feed when no currentUser", () => {
     const items = [
-      createFeedItem({ post: { author: { did: "did:plc:1", handle: "user1" } } }),
+      createFeedItem({
+        post: { author: { did: "did:plc:1", handle: "user1" } },
+      }),
     ];
     const feed = createFeed(items);
     const preferences = createPreferences();
@@ -198,9 +212,15 @@ t.describe("filterAuthorFeed", (it) => {
 
   it("should preserve non-duplicate posts", () => {
     const items = [
-      createFeedItem({ post: { uri: "at://did:plc:test/app.bsky.feed.post/1" } }),
-      createFeedItem({ post: { uri: "at://did:plc:test/app.bsky.feed.post/2" } }),
-      createFeedItem({ post: { uri: "at://did:plc:test/app.bsky.feed.post/3" } }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/3" },
+      }),
     ];
     const feed = createFeed(items);
 

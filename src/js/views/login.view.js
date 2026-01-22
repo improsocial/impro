@@ -104,7 +104,7 @@ class LoginView extends View {
             </div>
           </main>
         </div>`,
-        root
+        root,
       );
     }
 

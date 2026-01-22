@@ -67,7 +67,7 @@ class ChatInput extends Component {
       this.dispatchEvent(
         new CustomEvent("send", {
           detail: { message },
-        })
+        }),
       );
       // Clear input after sending
       textarea.value = "";

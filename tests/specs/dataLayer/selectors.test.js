@@ -20,7 +20,7 @@ t.describe("getFeed", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const result = selectors.getFeed(feedURI);
@@ -37,7 +37,7 @@ t.describe("getFeed", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     // Set up test data
@@ -71,7 +71,7 @@ t.describe("getFeed", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawFeed = {
@@ -110,7 +110,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const result = selectors.getPostThread(postURI);
@@ -127,7 +127,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawThread = {
@@ -158,7 +158,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawThread = {
@@ -199,7 +199,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawThread = {
@@ -237,7 +237,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawThread = {
@@ -272,7 +272,7 @@ t.describe("getPostThread", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const rawThread = {
@@ -327,7 +327,7 @@ t.describe("getPost", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     dataStore.setPost(postURI, testPost);
@@ -350,7 +350,7 @@ t.describe("getPost", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     dataStore.setPost(postURI, testPost);
@@ -371,7 +371,7 @@ t.describe("getPost", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const result = selectors.getPost("nonExistentPost", { require: false });
@@ -388,7 +388,7 @@ t.describe("getPost", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const result = selectors.getPost("nonExistentPost");
@@ -415,7 +415,7 @@ t.describe("getProfile", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     const result = selectors.getProfile(profileDID);
@@ -446,7 +446,7 @@ t.describe("getProfile", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     dataStore.setProfile(profileDID, testProfile);
@@ -469,7 +469,7 @@ t.describe("Integration with DataStore and PatchStore", (it) => {
       dataStore,
       patchStore,
       mockPreferencesProvider,
-      false
+      false,
     );
 
     // Set up data

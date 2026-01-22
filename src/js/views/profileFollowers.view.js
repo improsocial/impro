@@ -47,12 +47,12 @@ class ProfileFollowersView extends View {
       >
         <div class="profile-list">
           ${followers.map((follower) =>
-            profileListItemTemplate({ actor: follower })
+            profileListItemTemplate({ actor: follower }),
           )}
         </div>
         ${hasMore
           ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate()
+              profileListItemSkeletonTemplate(),
             )
           : ""}
       </infinite-scroll-container>`;
@@ -61,7 +61,7 @@ class ProfileFollowersView extends View {
     function followersSkeletonTemplate() {
       return html`<div class="profile-list">
         ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate()
+          profileListItemSkeletonTemplate(),
         )}
       </div>`;
     }
@@ -84,7 +84,7 @@ class ProfileFollowersView extends View {
         dataLayer.selectors.getProfileFollowers(profileDid);
       const profile = dataLayer.selectors.getProfile(profileDid);
       const profileFollowersRequestStatus = dataLayer.requests.getStatus(
-        "loadProfileFollowers"
+        "loadProfileFollowers",
       );
       const hasMore = profileFollowers?.cursor ? true : false;
 
@@ -124,7 +124,7 @@ class ProfileFollowersView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 
@@ -136,7 +136,7 @@ class ProfileFollowersView extends View {
         profileDid,
         {
           cursor,
-        }
+        },
       );
       renderPage();
       await loadingPromise;

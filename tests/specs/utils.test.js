@@ -166,7 +166,7 @@ t.describe("classnames", (it) => {
     const result = classnames(
       "base",
       { active: true, disabled: false },
-      "extra"
+      "extra",
     );
     assertEquals(result, "base active extra");
   });
@@ -229,7 +229,7 @@ t.describe("deepClone", (it) => {
     assert(result.address !== input.address, "Should clone nested object");
     assert(
       result.address.coords !== input.address.coords,
-      "Should clone deeply nested object"
+      "Should clone deeply nested object",
     );
   });
 
@@ -264,7 +264,7 @@ t.describe("deepClone", (it) => {
     assert(result.users[0] !== input.users[0], "Should clone objects in array");
     assert(
       result.users[0].tags !== input.users[0].tags,
-      "Should clone nested arrays"
+      "Should clone nested arrays",
     );
   });
 

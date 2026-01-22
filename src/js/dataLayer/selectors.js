@@ -51,7 +51,10 @@ export class Selectors {
           return false;
         }
         const quotedPost = getQuotedPost(feedItem.post);
-        if (quotedPost?.author && doHideAuthorOnUnauthenticated(quotedPost.author)) {
+        if (
+          quotedPost?.author &&
+          doHideAuthorOnUnauthenticated(quotedPost.author)
+        ) {
           return false;
         }
         return true;
@@ -331,7 +334,7 @@ export class Selectors {
       (convo) => new Date(getLastInteractionTimestamp(convo)),
       {
         direction: "desc",
-      }
+      },
     );
     return sortedConvos;
   }
@@ -371,7 +374,7 @@ export class Selectors {
       return null;
     }
     const hydratedMessages = messages.messages.map((message) =>
-      this.getMessage(message.id)
+      this.getMessage(message.id),
     );
     return {
       messages: hydratedMessages,
@@ -390,7 +393,7 @@ export class Selectors {
     }
     // Hydrate the posts
     const hydratedPosts = quotes.posts.map((post) =>
-      this.getPost(post.uri, { required: true })
+      this.getPost(post.uri, { required: true }),
     );
     return {
       posts: hydratedPosts,
@@ -441,7 +444,7 @@ export class Selectors {
     }
     for (const pinnedFeedGenerator of pinnedFeedGenerators) {
       hydratedPinnedFeedGenerators.push(
-        this.getFeedGenerator(pinnedFeedGenerator.uri)
+        this.getFeedGenerator(pinnedFeedGenerator.uri),
       );
     }
     return hydratedPinnedFeedGenerators;

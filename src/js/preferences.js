@@ -69,7 +69,7 @@ function textMatchesMutedWord(text, mutedWord, languages) {
       // Also try matching with all punctuation removed (e.g., "don't" -> "dont")
       const wordNoPunctuation = wordTrimmed.replace(
         INTERNAL_PUNCTUATION_REGEX,
-        ""
+        "",
       );
       if (wordNoPunctuation === normalizedMutedWord) {
         return true;
@@ -81,14 +81,14 @@ function textMatchesMutedWord(text, mutedWord, languages) {
 
 function getLabelerForLabel(label, labelers) {
   const matchingLabeler = labelers.find(
-    (labeler) => labeler.creator.did === label.src
+    (labeler) => labeler.creator.did === label.src,
   );
   return matchingLabeler ?? null;
 }
 
 function getDefinitionForLabel(label, labeler) {
   return labeler.policies.labelValueDefinitions.find(
-    (definition) => definition.identifier === label.val
+    (definition) => definition.identifier === label.val,
   );
 }
 
@@ -98,7 +98,7 @@ function getDisplayNameForLabel(label, labeler) {
     return null;
   }
   const enLocale = matchingDefinition.locales.find(
-    (locale) => locale.lang === "en"
+    (locale) => locale.lang === "en",
   );
   return enLocale?.name || "";
 }
@@ -117,7 +117,7 @@ export class Preferences {
       throw new Error("Saved feeds preference not found");
     }
     const matchingItem = savedFeedsPreference.items.find(
-      (item) => item.value === feedUri
+      (item) => item.value === feedUri,
     );
     if (matchingItem) {
       matchingItem.pinned = false;
@@ -132,7 +132,7 @@ export class Preferences {
       throw new Error("Saved feeds preference not found");
     }
     const matchingItem = savedFeedsPreference.items.find(
-      (item) => item.value === feedUri
+      (item) => item.value === feedUri,
     );
     if (matchingItem) {
       matchingItem.pinned = true;
@@ -190,30 +190,29 @@ export class Preferences {
   }
 
   isPostHidden(postUri) {
-    const hiddenPostsPreference = Preferences.getHiddenPostsPreference(this.obj);
+    const hiddenPostsPreference = Preferences.getHiddenPostsPreference(
+      this.obj,
+    );
     if (!hiddenPostsPreference) {
       return false;
     }
     return hiddenPostsPreference.items.includes(postUri);
   }
 
-  hasMutedWord({
-    text,
-    facets,
-    embed,
-    languages,
-    author
-  }) {
+  hasMutedWord({ text, facets, embed, languages, author }) {
     const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
     if (!mutedWordsPreference) {
       return false;
     }
     const now = new Date().toISOString();
     const activeItems = mutedWordsPreference.items.filter((item) =>
-      item.expiresAt ? item.expiresAt > now : true
+      item.expiresAt ? item.expiresAt > now : true,
     );
     for (const item of activeItems) {
-      if (item.actorTarget === "exclude-following" && author?.viewer?.following) {
+      if (
+        item.actorTarget === "exclude-following" &&
+        author?.viewer?.following
+      ) {
         continue;
       }
       if (item.targets.includes("content")) {
@@ -270,7 +269,7 @@ export class Preferences {
     const followingFeedPreference = this.obj.find(
       (preference) =>
         preference.$type === "app.bsky.actor.defs#feedViewPref" &&
-        preference.feed === "home"
+        preference.feed === "home",
     );
     return followingFeedPreference ?? null;
   }
@@ -286,35 +285,35 @@ export class Preferences {
     // but there's a note in the code to "move to the server" so let's just do that here.
     return Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#improHiddenPostsPref"
+      "app.bsky.actor.defs#improHiddenPostsPref",
     );
   }
 
   static getMutedWordsPreference(obj) {
     return Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#mutedWordsPref"
+      "app.bsky.actor.defs#mutedWordsPref",
     );
   }
 
   static getSavedFeedsPreference(obj) {
     return Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#savedFeedsPrefV2"
+      "app.bsky.actor.defs#savedFeedsPrefV2",
     );
   }
 
   static getLabelerPreference(obj) {
     return Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#labelersPref"
+      "app.bsky.actor.defs#labelersPref",
     );
   }
 
   static getImproThemePreference(obj) {
     return Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#improThemePref"
+      "app.bsky.actor.defs#improThemePref",
     );
   }
 
@@ -341,7 +340,7 @@ export class Preferences {
           ],
         },
       ],
-      []
+      [],
     );
   }
 }

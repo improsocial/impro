@@ -18,7 +18,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         if (quotedPost.author) {
           identityResolver.setDidForHandle(
             quotedPost.author.handle,
-            quotedPost.author.did
+            quotedPost.author.did,
           );
         }
         // we can go deeper...
@@ -28,7 +28,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
           if (nestedQuotedPost.author) {
             identityResolver.setDidForHandle(
               nestedQuotedPost.author.handle,
-              nestedQuotedPost.author.did
+              nestedQuotedPost.author.did,
             );
           }
         }
@@ -45,13 +45,13 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
       if (feedGenerator.creator) {
         identityResolver.setDidForHandle(
           feedGenerator.creator.handle,
-          feedGenerator.creator.did
+          feedGenerator.creator.did,
         );
       }
     } catch (error) {
       console.error(
         "error when setting DID from feed generator",
-        feedGenerator
+        feedGenerator,
       );
       console.error(error);
     }

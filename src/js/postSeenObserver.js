@@ -21,7 +21,7 @@ class InteractionsDispatch {
   sendInteraction(interaction) {
     if (
       this.sentInteractions.some((sentInteraction) =>
-        shallowEqual(sentInteraction, interaction)
+        shallowEqual(sentInteraction, interaction),
       )
     ) {
       console.warn("interaction already sent", interaction);
@@ -43,7 +43,7 @@ class InteractionsDispatch {
     } catch (error) {
       console.warn(
         "Failed to send interactions to feed proxy url",
-        this.feedProxyUrl
+        this.feedProxyUrl,
       );
     }
     this.queue = [];
@@ -124,7 +124,7 @@ export class PostSeenObserver {
       "scroll",
       throttle(() => {
         this.handleScroll();
-      }, 100)
+      }, 100),
     );
   }
 
@@ -164,7 +164,7 @@ export class PostSeenObserver {
   register(el, postUri, feedContext) {
     // don't double-register
     this.observedElements = this.observedElements.filter(
-      (item) => item.postUri !== postUri
+      (item) => item.postUri !== postUri,
     );
     this.observedElements.push({ postUri, el, feedContext });
     // check intersections immediately - this is similar to how the intersection observer works

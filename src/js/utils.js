@@ -166,7 +166,7 @@ export function deepClone(value) {
     return value.map((item) => deepClone(item));
   } else if (value !== null && typeof value === "object") {
     return Object.fromEntries(
-      Object.entries(value).map(([key, value]) => [key, deepClone(value)])
+      Object.entries(value).map(([key, value]) => [key, deepClone(value)]),
     );
   }
   return value;

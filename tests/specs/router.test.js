@@ -75,7 +75,7 @@ t.describe("matchPath (static method)", (it) => {
   it("should extract multiple parameters", () => {
     const params = Router.matchPath(
       "/profile/gracekind.net/post/3lykznxiikc2k",
-      "/profile/:handle/post/:rkey"
+      "/profile/:handle/post/:rkey",
     );
     assertEquals(params, { handle: "gracekind.net", rkey: "3lykznxiikc2k" });
   });

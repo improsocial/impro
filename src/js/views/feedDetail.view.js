@@ -40,7 +40,7 @@ class FeedDetailView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     async function handleClickPinFeed(doPin) {
@@ -75,7 +75,7 @@ class FeedDetailView extends View {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
       const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item
+        (interaction) => interaction.item,
       );
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -132,7 +132,7 @@ class FeedDetailView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

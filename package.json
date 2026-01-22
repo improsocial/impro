@@ -8,6 +8,7 @@
     "ios": "npm run build && cap sync && NODE_ENV=development cap run ios",
     "bundle:capacitor": "esbuild ./clientLibs/capacitor.js --bundle --format=esm --outfile=src/js/lib/capacitor.js",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
+    "format": "prettier --no-config --write .",
     "test": "npm run test:unit",
     "test:unit": "node tests/runTests.js",
     "prepare": "husky"
@@ -26,6 +27,7 @@
     "jest-environment-jsdom": "^30.1.2",
     "jsdom": "^27.0.0",
     "native-run": "^2.0.1",
+    "prettier": "^3.8.1",
     "typescript": "^5.9.2"
   },
   "dependencies": {

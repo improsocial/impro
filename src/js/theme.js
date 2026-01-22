@@ -48,7 +48,7 @@ class Theme {
   apply() {
     document.documentElement.style.setProperty(
       `--highlight-color`,
-      this.highlightColor
+      this.highlightColor,
     );
     document.documentElement.style.setProperty(`--like-color`, this.likeColor);
     // Apply color scheme
@@ -57,7 +57,7 @@ class Theme {
     } else {
       document.documentElement.style.setProperty(
         "color-scheme",
-        this.colorScheme
+        this.colorScheme,
       );
     }
     // Background color for iOS

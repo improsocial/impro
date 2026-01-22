@@ -10,10 +10,7 @@ export function profileListItemTemplate({ actor }) {
   >
     ${avatarTemplate({ author: actor })}
     <div class="profile-list-item-body">
-      <a
-        class="profile-list-item-name"
-        href="${linkToProfile(actor.handle)}"
-      >
+      <a class="profile-list-item-name" href="${linkToProfile(actor.handle)}">
         <span class="profile-list-item-display-name"> ${displayName} </span>
       </a>
       <div class="profile-list-item-handle">@${actor.handle}</div>

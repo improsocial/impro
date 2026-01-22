@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     {% include "head.html" %}
@@ -40,7 +40,7 @@
           const params = new URLSearchParams();
           params.set(
             "error_message",
-            "OAuth callback failed. Please try again."
+            "OAuth callback failed. Please try again.",
           );
           window.location.href = "/login?" + params.toString();
           return;

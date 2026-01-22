@@ -30,7 +30,7 @@ class ImageAltTextDialog extends Component {
     const maxChars = 2000;
     const charCountPercentage = Math.min(
       Math.round((currentCharCount / maxChars) * 100),
-      100
+      100,
     );
     const isAboveCharLimit = currentCharCount > maxChars;
 
@@ -101,7 +101,7 @@ class ImageAltTextDialog extends Component {
           </div>
         </div>
       </dialog>`,
-      this
+      this,
     );
   }
 
@@ -134,7 +134,7 @@ class ImageAltTextDialog extends Component {
         detail: {
           altText: this.value,
         },
-      })
+      }),
     );
     this.close();
   }

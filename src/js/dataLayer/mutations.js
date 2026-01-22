@@ -485,7 +485,7 @@ export class Mutations {
     const convoList = this.dataStore.getConvoList();
     if (convoList) {
       const updatedList = convoList.map((c) =>
-        c.id === convo.id ? updatedConvo : c
+        c.id === convo.id ? updatedConvo : c,
       );
       this.dataStore.setConvoList(updatedList);
     }
@@ -527,7 +527,7 @@ export class Mutations {
       const message = await this.api.addMessageReaction(
         convoId,
         messageId,
-        emoji
+        emoji,
       );
       this.dataStore.setMessage(messageId, message);
       // Update the last reaction in the convo
@@ -560,7 +560,7 @@ export class Mutations {
       const message = await this.api.removeMessageReaction(
         convoId,
         messageId,
-        emoji
+        emoji,
       );
       this.dataStore.setMessage(messageId, message);
       // Update the last reaction in the convo

@@ -114,7 +114,7 @@ export class PostInteractionHandler {
           title: "Delete this post?",
           confirmButtonStyle: "danger",
           confirmButtonText: "Delete",
-        }
+        },
       ))
     ) {
       return;

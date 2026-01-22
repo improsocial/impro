@@ -155,7 +155,9 @@ t.describe("ensureProfile", (it) => {
     const profile = { did: profileDid, handle: "test.profile" };
     let loadCalled = false;
 
-    const selectors = createMockSelectors({ profiles: { [profileDid]: profile } });
+    const selectors = createMockSelectors({
+      profiles: { [profileDid]: profile },
+    });
     const requests = {
       loadProfile: async () => {
         loadCalled = true;

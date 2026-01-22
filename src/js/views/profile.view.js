@@ -69,7 +69,7 @@ class ProfileView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     const feedScrollState = new Map();
@@ -140,7 +140,7 @@ class ProfileView extends View {
         }
         const isBlocked = !!profile.viewer?.blocking;
         const profileChatStatus = dataLayer.selectors.getProfileChatStatus(
-          profile.did
+          profile.did,
         );
         const isCurrentUser = currentUser?.did === profile.did;
         const authorFeedsToShow = isCurrentUser
@@ -164,7 +164,7 @@ class ProfileView extends View {
                 } else {
                   const convo =
                     await dataLayer.declarative.ensureConvoForProfile(
-                      profile.did
+                      profile.did,
                     );
                   window.router.go(`/messages/${convo.id}`);
                 }
@@ -201,14 +201,14 @@ class ProfileView extends View {
                             @click=${() => handleTabClick(feedInfo)}
                           >
                             ${feedInfo.name}
-                          </button>`
+                          </button>`,
                       )}
                     </div>
                   </div>
                   ${authorFeedsToShow.map((feedInfo) => {
                     const authorFeed = dataLayer.selectors.getAuthorFeed(
                       profileDid,
-                      feedInfo.feedType
+                      feedInfo.feedType,
                     );
                     return html`<div
                       class="feed-container"
@@ -283,7 +283,7 @@ class ProfileView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 
@@ -294,7 +294,7 @@ class ProfileView extends View {
         {
           reload,
           limit: AUTHOR_FEED_PAGE_SIZE + 1,
-        }
+        },
       );
       renderPage();
     }
@@ -306,7 +306,7 @@ class ProfileView extends View {
           feed.feedType,
           {
             limit: AUTHOR_FEED_PAGE_SIZE + 1,
-          }
+          },
         );
       }
     }
@@ -318,7 +318,7 @@ class ProfileView extends View {
       }
       const facets = await getFacetsFromText(
         profile.description,
-        identityResolver
+        identityResolver,
       );
       return { text: profile.description, facets };
     }

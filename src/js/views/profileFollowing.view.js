@@ -52,7 +52,7 @@ class ProfileFollowingView extends View {
         </div>
         ${hasMore
           ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate()
+              profileListItemSkeletonTemplate(),
             )
           : ""}
       </infinite-scroll-container>`;
@@ -61,7 +61,7 @@ class ProfileFollowingView extends View {
     function followingSkeletonTemplate() {
       return html`<div class="profile-list">
         ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate()
+          profileListItemSkeletonTemplate(),
         )}
       </div>`;
     }
@@ -121,7 +121,7 @@ class ProfileFollowingView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

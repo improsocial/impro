@@ -36,7 +36,7 @@ class PostQuotesView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     function quotesListTemplate({ quotes, hasMore, currentUser }) {
@@ -57,7 +57,7 @@ class PostQuotesView extends View {
               post: quote,
               isUserPost: currentUser?.did === quote.author?.did,
               postInteractionHandler,
-            })
+            }),
           )}
         </div>
         ${hasMore
@@ -130,7 +130,7 @@ class PostQuotesView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

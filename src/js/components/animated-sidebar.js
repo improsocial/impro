@@ -28,7 +28,7 @@ class AnimatedSidebar extends Component {
         <aside class="sidebar ${this.isOpen ? "open" : ""}">
           <div class="sidebar-content"></div>
         </aside>`,
-      this
+      this,
     );
     const sidebarContent = this.querySelector(".sidebar-content");
     sidebarContent.appendChild(this._children);

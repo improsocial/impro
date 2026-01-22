@@ -34,7 +34,7 @@ function filterByFollowing(feed, currentUser) {
       continue;
     }
     const { parentAuthor, grandparentAuthor, rootAuthor } = getReplyAuthors(
-      feedItem.reply
+      feedItem.reply,
     );
 
     if (!isSelfOrFollowing(author, userDid)) {
@@ -97,7 +97,7 @@ function filterReplies(feed) {
 
 function filterQuotePosts(feed) {
   const filteredFeedItems = feed.feed.filter(
-    (item) => !getQuotedPost(item.post)
+    (item) => !getQuotedPost(item.post),
   );
   return {
     feed: filteredFeedItems,
@@ -138,7 +138,7 @@ function filterBlockedQuotes(feed) {
 
 function filterMutedQuotes(feed) {
   const filteredFeedItems = feed.feed.filter(
-    (item) => !getMutedQuote(item.post)
+    (item) => !getMutedQuote(item.post),
   );
   return {
     feed: filteredFeedItems,

@@ -20,7 +20,7 @@ function avatarWrapperTemplate({ author, clickAction, children }) {
           });
         }}
         >${children}</a
-      >`
+      >`,
     );
   } else if (clickAction === "lightbox") {
     return html`<lightbox-image-group hide-alt-text="true"

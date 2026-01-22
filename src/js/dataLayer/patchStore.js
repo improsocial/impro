@@ -38,7 +38,7 @@ export class PatchStore {
     const postPatches = this._getPostPatches(postURI);
     this.postPatches.set(
       postURI,
-      postPatches.filter(({ id }) => id !== patchId)
+      postPatches.filter(({ id }) => id !== patchId),
     );
   }
 
@@ -143,7 +143,7 @@ export class PatchStore {
     const profilePatches = this._getProfilePatches(profileURI);
     this.profilePatches.set(
       profileURI,
-      profilePatches.filter(({ id }) => id !== patchId)
+      profilePatches.filter(({ id }) => id !== patchId),
     );
   }
 
@@ -231,7 +231,7 @@ export class PatchStore {
     const messagePatches = this._getMessagePatches(messageId);
     this.messagePatches.set(
       messageId,
-      messagePatches.filter(({ id }) => id !== patchId)
+      messagePatches.filter(({ id }) => id !== patchId),
     );
   }
 
@@ -257,7 +257,8 @@ export class PatchStore {
           ...message,
           reactions: message.reactions.filter(
             (reaction) =>
-              reaction.sender.did !== currentUserDid && reaction.value !== value
+              reaction.sender.did !== currentUserDid &&
+              reaction.value !== value,
           ),
         };
       default:
@@ -281,7 +282,7 @@ export class PatchStore {
   removePreferencePatch(patchId) {
     const preferencePatches = this._getPreferencePatches();
     this.preferencePatches = preferencePatches.filter(
-      ({ id }) => id !== patchId
+      ({ id }) => id !== patchId,
     );
   }
 
@@ -291,7 +292,7 @@ export class PatchStore {
     for (const patch of preferencePatches) {
       patchedPreferences = this.applyPreferencePatch(
         patchedPreferences,
-        patch.body
+        patch.body,
       );
     }
     return patchedPreferences;

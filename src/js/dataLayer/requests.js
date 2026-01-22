@@ -19,7 +19,7 @@ async function getReplyUrisForPostFromBacklinks(post) {
     timeout: 2000,
   });
   return backlinks.map(({ did, collection, rkey }) =>
-    buildUri({ repo: did, collection, rkey })
+    buildUri({ repo: did, collection, rkey }),
   );
 }
 
@@ -77,7 +77,7 @@ export class Requests {
     this.enableStatus(this.loadPost, "loadPost");
     this.enableStatus(
       this.loadNextFeedPage,
-      (feedURI) => "loadNextFeedPage-" + feedURI
+      (feedURI) => "loadNextFeedPage-" + feedURI,
     );
     this.enableStatus(this.loadProfile, "loadProfile");
     this.enableStatus(this.loadNextAuthorFeedPage, "loadNextAuthorFeedPage");
@@ -181,7 +181,7 @@ export class Requests {
       throw error;
     }
     const missingReplyUris = allReplyUris.filter(
-      (uri) => !loadedReplies.some((reply) => reply.post?.uri === uri)
+      (uri) => !loadedReplies.some((reply) => reply.post?.uri === uri),
     );
     if (missingReplyUris.length > 0) {
       // Load up to 100 blocked replies.
@@ -192,7 +192,7 @@ export class Requests {
         labelers,
       });
       const repliesToAdd = missingReplies.filter(
-        (post) => !isBlockingUser(post)
+        (post) => !isBlockingUser(post),
       );
       this.dataStore.setPosts(repliesToAdd);
       loadedReplies.push(
@@ -202,7 +202,7 @@ export class Requests {
             post: post,
             replies: [], // don't bother loading replies, if people want to see them they can click the post detail
           };
-        })
+        }),
       );
     }
     return loadedReplies;
@@ -247,7 +247,7 @@ export class Requests {
     this.dataStore.setPosts(fetchedBlockedPosts);
     // If any blocked posts are not found, create an unavailable post for them
     const notFoundPostUris = blockedPostUris.filter(
-      (uri) => !fetchedBlockedPosts.some((post) => post.uri === uri)
+      (uri) => !fetchedBlockedPosts.some((post) => post.uri === uri),
     );
     if (notFoundPostUris.length > 0) {
       for (const uri of notFoundPostUris) {
@@ -299,7 +299,7 @@ export class Requests {
   async loadNextAuthorFeedPage(
     did,
     feedType,
-    { reload = false, limit = 31 } = {}
+    { reload = false, limit = 31 } = {},
   ) {
     const feedURI = `${did}-${feedType}`;
     const existingFeed = this.dataStore.getAuthorFeed(feedURI);
@@ -365,7 +365,7 @@ export class Requests {
     const res = await this.api.getNotifications({ cursor, limit });
     // Get associated posts
     const { postUris, repostUris } = getPostAndRepostUrisFromNotifications(
-      res.notifications
+      res.notifications,
     );
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris);

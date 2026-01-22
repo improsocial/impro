@@ -33,7 +33,10 @@ t.describe("linkToHashtag", (it) => {
 
 t.describe("linkToProfile", (it) => {
   it("should return profile link from handle string", () => {
-    assertEquals(linkToProfile("alice.bsky.social"), "/profile/alice.bsky.social");
+    assertEquals(
+      linkToProfile("alice.bsky.social"),
+      "/profile/alice.bsky.social",
+    );
   });
 
   it("should return profile link from profile object", () => {
@@ -65,13 +68,16 @@ t.describe("linkToPostFromUri", (it) => {
     const uri = "at://did:plc:alice123/app.bsky.feed.post/postkey456";
     assertEquals(
       linkToPostFromUri(uri),
-      "/profile/did:plc:alice123/post/postkey456"
+      "/profile/did:plc:alice123/post/postkey456",
     );
   });
 
   it("should handle different DIDs", () => {
     const uri = "at://did:web:example.com/app.bsky.feed.post/key";
-    assertEquals(linkToPostFromUri(uri), "/profile/did:web:example.com/post/key");
+    assertEquals(
+      linkToPostFromUri(uri),
+      "/profile/did:web:example.com/post/key",
+    );
   });
 });
 
@@ -81,7 +87,10 @@ t.describe("linkToPostLikes", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(linkToPostLikes(post), "/profile/alice.bsky.social/post/abc123/likes");
+    assertEquals(
+      linkToPostLikes(post),
+      "/profile/alice.bsky.social/post/abc123/likes",
+    );
   });
 });
 
@@ -91,7 +100,10 @@ t.describe("linkToPostQuotes", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(linkToPostQuotes(post), "/profile/alice.bsky.social/post/abc123/quotes");
+    assertEquals(
+      linkToPostQuotes(post),
+      "/profile/alice.bsky.social/post/abc123/quotes",
+    );
   });
 });
 
@@ -101,7 +113,10 @@ t.describe("linkToPostReposts", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(linkToPostReposts(post), "/profile/alice.bsky.social/post/abc123/reposts");
+    assertEquals(
+      linkToPostReposts(post),
+      "/profile/alice.bsky.social/post/abc123/reposts",
+    );
   });
 });
 
@@ -109,7 +124,7 @@ t.describe("linkToProfileFollowers", (it) => {
   it("should return followers link from handle string", () => {
     assertEquals(
       linkToProfileFollowers("alice.bsky.social"),
-      "/profile/alice.bsky.social/followers"
+      "/profile/alice.bsky.social/followers",
     );
   });
 
@@ -117,7 +132,7 @@ t.describe("linkToProfileFollowers", (it) => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(
       linkToProfileFollowers(profile),
-      "/profile/bob.bsky.social/followers"
+      "/profile/bob.bsky.social/followers",
     );
   });
 });
@@ -126,7 +141,7 @@ t.describe("linkToProfileFollowing", (it) => {
   it("should return following link from handle string", () => {
     assertEquals(
       linkToProfileFollowing("alice.bsky.social"),
-      "/profile/alice.bsky.social/following"
+      "/profile/alice.bsky.social/following",
     );
   });
 
@@ -134,7 +149,7 @@ t.describe("linkToProfileFollowing", (it) => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(
       linkToProfileFollowing(profile),
-      "/profile/bob.bsky.social/following"
+      "/profile/bob.bsky.social/following",
     );
   });
 });
@@ -147,7 +162,7 @@ t.describe("linkToFeed", (it) => {
     };
     assertEquals(
       linkToFeed(feedGenerator),
-      "/profile/feedcreator.bsky.social/feed/myfeed"
+      "/profile/feedcreator.bsky.social/feed/myfeed",
     );
   });
 
@@ -158,7 +173,7 @@ t.describe("linkToFeed", (it) => {
     };
     assertEquals(
       linkToFeed(feedGenerator),
-      "/profile/alice.bsky.social/feed/trending"
+      "/profile/alice.bsky.social/feed/trending",
     );
   });
 });
@@ -171,7 +186,7 @@ t.describe("getPermalinkForPost", (it) => {
     };
     assertEquals(
       getPermalinkForPost(post),
-      "https://bsky.app/profile/alice.bsky.social/post/abc123"
+      "https://bsky.app/profile/alice.bsky.social/post/abc123",
     );
   });
 });
@@ -181,7 +196,7 @@ t.describe("getPermalinkForProfile", (it) => {
     const profile = { handle: "alice.bsky.social", did: "did:plc:alice" };
     assertEquals(
       getPermalinkForProfile(profile),
-      "https://bsky.app/profile/alice.bsky.social"
+      "https://bsky.app/profile/alice.bsky.social",
     );
   });
 });

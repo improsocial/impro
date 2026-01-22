@@ -24,7 +24,7 @@ class BookmarksView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     async function scrollAndReloadBookmarks() {
@@ -68,7 +68,7 @@ class BookmarksView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

@@ -33,7 +33,7 @@ class HomeView extends View {
             localStorage.setItem(`${namespace}-${prop}`, JSON.stringify(value));
             return true;
           },
-        }
+        },
       );
     }
 
@@ -68,14 +68,14 @@ class HomeView extends View {
       const interactableFeedGenerators = pinnedFeedGenerators.filter(
         (pinnedFeedGenerator) =>
           pinnedFeedGenerator.acceptsInteractions ||
-          pinnedFeedGenerator.uri === DISCOVER_FEED_URI
+          pinnedFeedGenerator.uri === DISCOVER_FEED_URI,
       );
       for (const pinnedFeedGenerator of interactableFeedGenerators) {
         const proxyUrl = getProxyUrl(pinnedFeedGenerator);
         if (proxyUrl) {
           postSeenObservers.set(
             pinnedFeedGenerator.uri,
-            new PostSeenObserver(api, proxyUrl)
+            new PostSeenObserver(api, proxyUrl),
           );
         }
       }
@@ -91,7 +91,7 @@ class HomeView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     function isVisible(element) {
@@ -105,7 +105,7 @@ class HomeView extends View {
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
         feedContext,
-        getProxyUrl(feedGenerator)
+        getProxyUrl(feedGenerator),
       );
       // Render optimistic update
       renderPage();
@@ -152,7 +152,7 @@ class HomeView extends View {
       }
       // Trigger post seen checks for the new feed
       const postSeenObserver = postSeenObservers.get(
-        persistedState.currentFeedUri
+        persistedState.currentFeedUri,
       );
       if (postSeenObserver) {
         postSeenObserver.checkAllIntersections();
@@ -173,7 +173,7 @@ class HomeView extends View {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
       const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item
+        (interaction) => interaction.item,
       );
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -216,7 +216,7 @@ class HomeView extends View {
                             @click=${() => handleTabClick(feedGenerator)}
                           >
                             ${feedGenerator.displayName}
-                          </button>`
+                          </button>`,
                       )}
                     </div>
                   </div>
@@ -226,7 +226,7 @@ class HomeView extends View {
                 ${feedGenerators.map((feedGenerator) => {
                   const feed = dataLayer.selectors.getFeed(feedGenerator.uri);
                   const feedRequestStatus = dataLayer.requests.getStatus(
-                    "loadNextFeedPage-" + feedGenerator.uri
+                    "loadNextFeedPage-" + feedGenerator.uri,
                   );
                   return html`<div
                     class="feed-container"
@@ -251,7 +251,7 @@ class HomeView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
       const feedItems = document.querySelectorAll(".feed-item");
       feedItems.forEach((feedItem) => {
@@ -307,7 +307,7 @@ class HomeView extends View {
           // If the current feed is not in the pinned feed generators, reset to default feed
           if (
             !pinnedFeedGenerators.some(
-              (feed) => feed.uri === persistedState.currentFeedUri
+              (feed) => feed.uri === persistedState.currentFeedUri,
             )
           ) {
             resetToDefaultFeed();

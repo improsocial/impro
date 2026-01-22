@@ -16,19 +16,19 @@ export class DataLayer {
     this.requests = new Requests(
       this.api,
       this.dataStore,
-      this.preferencesProvider
+      this.preferencesProvider,
     );
     this.mutations = new Mutations(
       this.api,
       this.dataStore,
       this.patchStore,
-      this.preferencesProvider
+      this.preferencesProvider,
     );
     this.selectors = new Selectors(
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
-      this.isAuthenticated
+      this.isAuthenticated,
     );
     this.declarative = new Declarative(this.selectors, this.requests);
     this.subscribers = [];

@@ -49,7 +49,7 @@ class PostLikesView extends View {
         </div>
         ${hasMore
           ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate()
+              profileListItemSkeletonTemplate(),
             )
           : ""}
       </infinite-scroll-container>`;
@@ -58,7 +58,7 @@ class PostLikesView extends View {
     function likesSkeletonTemplate() {
       return html`<div class="profile-list">
         ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate()
+          profileListItemSkeletonTemplate(),
         )}
       </div>`;
     }
@@ -120,7 +120,7 @@ class PostLikesView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

@@ -94,7 +94,7 @@ class InfiniteScrollContainer extends Component {
                 }
               },
             },
-          })
+          }),
         );
       }
     }, options);

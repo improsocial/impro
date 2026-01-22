@@ -37,7 +37,7 @@ class HashtagView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     const feedScrollState = new Map();
@@ -68,7 +68,7 @@ class HashtagView extends View {
       // Load feed if not cached
       const feed = dataLayer.selectors.getHashtagFeed(
         hashtag,
-        state.currentSort
+        state.currentSort,
       );
       if (!feed) {
         await loadCurrentFeed();
@@ -106,14 +106,14 @@ class HashtagView extends View {
                         @click=${() => handleTabClick(sort.value)}
                       >
                         ${sort.label}
-                      </button>`
+                      </button>`,
                   )}
                 </div>
               </div>
               ${sortOptions.map((sort) => {
                 const feed = dataLayer.selectors.getHashtagFeed(
                   hashtag,
-                  sort.value
+                  sort.value,
                 );
                 return html`<div
                   class="feed-container"
@@ -131,7 +131,7 @@ class HashtagView extends View {
             </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

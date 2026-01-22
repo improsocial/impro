@@ -63,7 +63,7 @@ class SettingsView extends View {
                           >${chevronRightIconTemplate()}</span
                         >
                       </a>
-                    `
+                    `,
                   )}
                   <hr />
                   <button
@@ -97,7 +97,7 @@ class SettingsView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 
