@@ -2033,7 +2033,7 @@ like-button {
 }
 
 .external-link-image {
-  height: 270px;
+  height: 297px;
   max-width: 100%;
   border-bottom: var(--hair) solid var(--post-border-color);
   object-fit: cover;
