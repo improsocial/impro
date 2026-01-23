@@ -193,9 +193,16 @@ export class Requests {
       const missingReplies = await this.api.getPosts(urisToLoad, {
         labelers,
       });
-      const repliesToAdd = missingReplies.filter(
-        (post) => !isBlockingUser(post),
-      );
+      let repliesToAdd = missingReplies.filter((post) => !isBlockingUser(post));
+      // Add an attribute indicating that this was a blocked reply
+      // we use this to put in the hidden section on the post thread view
+      repliesToAdd = repliesToAdd.map((post) => {
+        return {
+          ...post,
+          // NOTE: LEXICON DEVIATION
+          isBlockedReply: true,
+        };
+      });
       this.dataStore.setPosts(repliesToAdd);
       loadedReplies.push(
         ...repliesToAdd.map((post) => {

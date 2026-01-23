@@ -74,7 +74,12 @@ class PostThreadView extends View {
       if (!post) {
         return false;
       }
-      if (isBlockedPost(post) || isNotFoundPost(post) || isMutedPost(post)) {
+      if (
+        isBlockedPost(post) ||
+        isNotFoundPost(post) ||
+        isMutedPost(post) ||
+        post.isBlockedReply
+      ) {
         return false;
       }
       return true;
@@ -190,9 +195,24 @@ class PostThreadView extends View {
       renderPage();
     }
 
+    // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
+    function doPutReplyInHiddenSection(reply) {
+      if (!reply.post) {
+        return false;
+      }
+      if (isMutedPost(reply.post)) {
+        return true;
+      }
+      // If the post author blocked the replier, put the reply in the hidden section
+      if (reply.post.isBlockedReply) {
+        return true;
+      }
+      return false;
+    }
+
     function postThreadRepliesTemplate({ replies, currentUser }) {
-      const hiddenReplies = replies.filter(
-        (reply) => reply.post && isMutedPost(reply.post),
+      const hiddenSectionReplies = replies.filter((reply) =>
+        doPutReplyInHiddenSection(reply),
       );
       const replyChains = buildReplyChains(replies, currentUser);
       return html`
@@ -208,9 +228,9 @@ class PostThreadView extends View {
               }),
             )}
           </div>
-          ${hiddenReplies.length > 0
+          ${hiddenSectionReplies.length > 0
             ? html`<hidden-replies-section>
-          ${hiddenReplies.map((reply) =>
+          ${hiddenSectionReplies.map((reply) =>
             smallPostTemplate({
               post: reply.post,
               isUserPost: currentUser?.did === reply.post?.author?.did,
