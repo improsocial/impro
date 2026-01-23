@@ -2033,8 +2033,8 @@ like-button {
 }
 
 .external-link-image {
-  height: 100%;
   width: 100%;
+  aspect-ratio: 1200 / 630;
   border-bottom: var(--hair) solid var(--post-border-color);
   object-fit: cover;
 }
