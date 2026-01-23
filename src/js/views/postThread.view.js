@@ -116,32 +116,42 @@ class PostThreadView extends View {
       return !!post.viewer?.like ? likeCount - 1 : likeCount;
     }
 
-    function buildReplyChains(replies, currentUser) {
+    function buildReplyChains(replies, postAuthor) {
       const replyChains = [];
       for (const reply of replies) {
         if (doShowReply(reply)) {
           replyChains.push(buildReplyChain(reply));
         }
       }
-      const sortedReplyChains = sortBy(
+      let sortedReplyChains = sortBy(
         replyChains,
         (chain) => getLikesWithoutUser(chain[0].post),
         {
           direction: "desc",
         },
       );
+      // Put replies by the post author first
+      if (postAuthor) {
+        sortedReplyChains = [
+          ...sortedReplyChains.filter(
+            (chain) => chain[0].post.author?.did === postAuthor.did,
+          ),
+          ...sortedReplyChains.filter(
+            (chain) => chain[0].post.author?.did !== postAuthor.did,
+          ),
+        ];
+      }
       // If there's a recent reply from the user, put it at the top
       const recentReplyFromUser = sortedReplyChains.find(
         (chain) => chain[0].post.viewer?.priorityReply,
       );
       if (recentReplyFromUser) {
-        return [
+        sortedReplyChains = [
           recentReplyFromUser,
           ...sortedReplyChains.filter((chain) => chain !== recentReplyFromUser),
         ];
-      } else {
-        return sortedReplyChains;
       }
+      return sortedReplyChains;
     }
 
     function getReplyContext(replyIndex, numReplies) {
@@ -210,11 +220,11 @@ class PostThreadView extends View {
       return false;
     }
 
-    function postThreadRepliesTemplate({ replies, currentUser }) {
+    function postThreadRepliesTemplate({ replies, postAuthor, currentUser }) {
       const hiddenSectionReplies = replies.filter((reply) =>
         doPutReplyInHiddenSection(reply),
       );
-      const replyChains = buildReplyChains(replies, currentUser);
+      const replyChains = buildReplyChains(replies, postAuthor);
       return html`
         <div class="post-thread-replies">
           <div class="post-thread-reply-chains">
@@ -262,6 +272,7 @@ class PostThreadView extends View {
         const parents = flattenParents(postThread);
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
+        const postAuthor = postThread.post?.author;
         return html`
           <div class="post-thread">
             ${parents.map((parent, i) =>
@@ -314,6 +325,7 @@ class PostThreadView extends View {
               if (replies) {
                 return postThreadRepliesTemplate({
                   replies,
+                  postAuthor,
                   currentUser,
                 });
               }
