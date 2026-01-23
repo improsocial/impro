@@ -202,6 +202,7 @@ class SearchView extends View {
                   <input
                     class="search-input"
                     type="search"
+                    autocapitalize="none"
                     placeholder=${isAuthenticated
                       ? "Search for users and posts"
                       : "Search for users"}
