@@ -2628,6 +2628,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 }
 
 .notification-preview-text {
+  word-break: break-word;
   margin-bottom: 8px;
 }
 
