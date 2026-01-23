@@ -66,7 +66,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const facets = getUnresolvedFacetsFromText(text);
 
     const hashtags = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
     assertEquals(hashtags.length, 2);
     assertEquals(hashtags[0].features[0].tag, "world");
@@ -78,7 +78,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const facets = getUnresolvedFacetsFromText(text);
 
     const mentions = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
     assertEquals(mentions.length, 2);
     assertEquals(mentions[0].features[0].handle, "alice.bsky.social");
@@ -86,18 +86,17 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
   });
 
   it("should detect mixed content", () => {
-    const text =
-      "Hey @alice.bsky.social check out example.com #cool";
+    const text = "Hey @alice.bsky.social check out example.com #cool";
     const facets = getUnresolvedFacetsFromText(text);
 
     const links = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#link"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
     );
     const hashtags = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
     const mentions = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
 
     assertEquals(links.length, 1);
@@ -119,7 +118,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const facets = getUnresolvedFacetsFromText(text);
 
     const mentions = facets.filter(
-      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention"
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
     assertEquals(mentions.length, 1);
     // 'Hello ' = 6 bytes, '世界' = 6 bytes (3 each), ' ' = 1 byte = 13 bytes before @
@@ -155,7 +154,10 @@ t.describe("resolveFacets", (it) => {
       {
         index: { byteStart: 0, byteEnd: 18 },
         features: [
-          { $type: "app.bsky.richtext.facet#mention", handle: "alice.bsky.social" },
+          {
+            $type: "app.bsky.richtext.facet#mention",
+            handle: "alice.bsky.social",
+          },
         ],
       },
     ];
@@ -166,7 +168,10 @@ t.describe("resolveFacets", (it) => {
     const resolved = await resolveFacets(facets, resolver);
 
     assertEquals(resolved.length, 1);
-    assertEquals(resolved[0].features[0].$type, "app.bsky.richtext.facet#mention");
+    assertEquals(
+      resolved[0].features[0].$type,
+      "app.bsky.richtext.facet#mention",
+    );
     assertEquals(resolved[0].features[0].did, "did:plc:alice123");
   });
 
@@ -208,7 +213,10 @@ t.describe("resolveFacets", (it) => {
       {
         index: { byteStart: 0, byteEnd: 18 },
         features: [
-          { $type: "app.bsky.richtext.facet#mention", handle: "alice.bsky.social" },
+          {
+            $type: "app.bsky.richtext.facet#mention",
+            handle: "alice.bsky.social",
+          },
         ],
       },
       {
@@ -244,7 +252,10 @@ t.describe("getFacetsFromText", (it) => {
     const facets = await getFacetsFromText(text, resolver);
 
     assertEquals(facets.length, 1);
-    assertEquals(facets[0].features[0].$type, "app.bsky.richtext.facet#mention");
+    assertEquals(
+      facets[0].features[0].$type,
+      "app.bsky.richtext.facet#mention",
+    );
     assertEquals(facets[0].features[0].did, "did:plc:alice123");
   });
 

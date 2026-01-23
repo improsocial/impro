@@ -11,7 +11,7 @@ t.describe("Preferences.createLoggedOutPreferences", (it) => {
     assertEquals(preferences.obj.length, 1);
     assertEquals(
       preferences.obj[0].$type,
-      "app.bsky.actor.defs#savedFeedsPrefV2"
+      "app.bsky.actor.defs#savedFeedsPrefV2",
     );
     assertEquals(preferences.obj[0].items.length, 1);
     assertEquals(preferences.obj[0].items[0].pinned, true);
@@ -33,7 +33,7 @@ t.describe("Preferences.getPreferenceByType", (it) => {
 
     const result = Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#mutedWordsPref"
+      "app.bsky.actor.defs#mutedWordsPref",
     );
 
     assertEquals(result.$type, "app.bsky.actor.defs#mutedWordsPref");
@@ -44,7 +44,7 @@ t.describe("Preferences.getPreferenceByType", (it) => {
 
     const result = Preferences.getPreferenceByType(
       obj,
-      "app.bsky.actor.defs#nonExistent"
+      "app.bsky.actor.defs#nonExistent",
     );
 
     assertEquals(result, undefined);
@@ -865,7 +865,11 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
         items: [
-          { value: "spam", targets: ["content"], actorTarget: "exclude-following" },
+          {
+            value: "spam",
+            targets: ["content"],
+            actorTarget: "exclude-following",
+          },
         ],
       },
     ];
@@ -876,7 +880,9 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       facets: null,
       embed: null,
       languages: [],
-      author: { viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" } },
+      author: {
+        viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" },
+      },
     });
 
     assertEquals(result, false);
@@ -887,7 +893,11 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
         items: [
-          { value: "spam", targets: ["content"], actorTarget: "exclude-following" },
+          {
+            value: "spam",
+            targets: ["content"],
+            actorTarget: "exclude-following",
+          },
         ],
       },
     ];
@@ -918,7 +928,9 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       facets: null,
       embed: null,
       languages: [],
-      author: { viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" } },
+      author: {
+        viewer: { following: "at://did:plc:xyz/app.bsky.graph.follow/abc" },
+      },
     });
 
     assertEquals(result, true);

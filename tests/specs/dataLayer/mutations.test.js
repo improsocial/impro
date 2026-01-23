@@ -27,7 +27,7 @@ t.describe("addLike", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start the mutation
@@ -53,7 +53,7 @@ t.describe("addLike", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     await mutations.addLike(testPost);
@@ -72,7 +72,7 @@ t.describe("addLike", (it) => {
     const mockApi = {
       createLikeRecord: async () =>
         new Promise((resolve) =>
-          setTimeout(() => resolve({ uri: "like-uri" }), 50)
+          setTimeout(() => resolve({ uri: "like-uri" }), 50),
         ),
     };
     const dataStore = new DataStore();
@@ -84,7 +84,7 @@ t.describe("addLike", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start two concurrent operations
@@ -122,7 +122,7 @@ t.describe("removeLike", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start the mutation
@@ -147,7 +147,7 @@ t.describe("removeLike", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     await mutations.removeLike(testPost);
@@ -188,7 +188,7 @@ t.describe("followProfile", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start the mutation
@@ -214,7 +214,7 @@ t.describe("followProfile", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     await mutations.followProfile(testProfile);
@@ -255,7 +255,7 @@ t.describe("unfollowProfile", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start the mutation
@@ -280,7 +280,7 @@ t.describe("unfollowProfile", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     await mutations.unfollowProfile(testProfile);
@@ -307,7 +307,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
     const mockApi = {
       createLikeRecord: async () =>
         new Promise((resolve) =>
-          setTimeout(() => resolve({ uri: "like1" }), 50)
+          setTimeout(() => resolve({ uri: "like1" }), 50),
         ),
       deleteLikeRecord: async () =>
         new Promise((resolve) => setTimeout(resolve, 75)),
@@ -321,7 +321,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     // Start like, then unlike before like completes
@@ -358,7 +358,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
       mockApi,
       dataStore,
       patchStore,
-      mockPreferencesProvider
+      mockPreferencesProvider,
     );
 
     await mutations.removeLike(post);

@@ -36,6 +36,13 @@ function textPartTemplate({ text }) {
   return text;
 }
 
+function facetOverlaps(facet1, facet2) {
+  return (
+    facet1.index.byteStart <= facet2.index.byteEnd &&
+    facet1.index.byteEnd >= facet2.index.byteStart
+  );
+}
+
 function richTextLineTemplate({ text, facets, byteOffset }) {
   if (text.length === 0) {
     return html`<div><br /></div>`;
@@ -43,17 +50,24 @@ function richTextLineTemplate({ text, facets, byteOffset }) {
   let parts = [];
   let currentIndex = 0;
   const sortedFacets = sortBy(facets, (facet) => facet.index.byteStart);
+  // Filter overlapping facets
+  const distinctFacets = [];
   for (const facet of sortedFacets) {
+    if (!distinctFacets.some((f) => facetOverlaps(f, facet))) {
+      distinctFacets.push(facet);
+    }
+  }
+  for (const facet of distinctFacets) {
     const textPart = sliceByByte(
       text,
       currentIndex,
-      facet.index.byteStart - byteOffset
+      facet.index.byteStart - byteOffset,
     );
     parts.push(textPartTemplate({ text: textPart }));
     const wrappedText = sliceByByte(
       text,
       facet.index.byteStart - byteOffset,
-      facet.index.byteEnd - byteOffset
+      facet.index.byteEnd - byteOffset,
     );
     parts.push(facetTemplate({ facet, wrappedText }));
     currentIndex = facet.index.byteEnd - byteOffset;
@@ -72,10 +86,10 @@ export function richTextTemplate({ text, facets = [] }) {
     const facetsForLine = facets.filter(
       (facet) =>
         facet.index.byteStart >= byteOffset &&
-        facet.index.byteEnd <= byteOffset + lineByteLength
+        facet.index.byteEnd <= byteOffset + lineByteLength,
     );
     divs.push(
-      richTextLineTemplate({ text: line, facets: facetsForLine, byteOffset })
+      richTextLineTemplate({ text: line, facets: facetsForLine, byteOffset }),
     );
     byteOffset += lineByteLength + 1; // +1 for the newline character
   }

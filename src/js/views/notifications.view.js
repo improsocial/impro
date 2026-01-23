@@ -69,7 +69,7 @@ class NotificationsView extends View {
                           alt="${image.alt || ""}"
                           class="notification-preview-image"
                         />
-                      `
+                      `,
                     )}
                 </div>
               `
@@ -83,7 +83,7 @@ class NotificationsView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     async function handleMenuClick() {
@@ -107,7 +107,7 @@ class NotificationsView extends View {
         const subject = notification.reasonSubject;
 
         const existingGroup = notificationGroups.find(
-          (group) => group.type === type && group.subject === subject
+          (group) => group.type === type && group.subject === subject,
         );
 
         if (existingGroup && GROUPED_NOTIFICATION_TYPES.includes(type)) {
@@ -131,10 +131,10 @@ class NotificationsView extends View {
       // Only group notifications per page
       const batchedNotifications = batch(
         notifications,
-        NOTIFICATIONS_PAGE_SIZE
+        NOTIFICATIONS_PAGE_SIZE,
       );
       return batchedNotifications.flatMap((batch) =>
-        groupNotificationsForBatch(batch)
+        groupNotificationsForBatch(batch),
       );
     }
 
@@ -149,7 +149,7 @@ class NotificationsView extends View {
                 <div class="notification-avatar">
                   ${avatarTemplate({ author: notif.author })}
                 </div>
-              `
+              `,
             )}
           ${notifications.length > maxAvatars
             ? html`<div class="notification-more">
@@ -399,7 +399,7 @@ class NotificationsView extends View {
             }}
           >
             ${groupedNotifications.map((notificationGroup) =>
-              notificationGroupTemplate({ notificationGroup, currentUser })
+              notificationGroupTemplate({ notificationGroup, currentUser }),
             )}
             ${!hasMore
               ? html`<div class="feed-end-message">No more notifications</div>`
@@ -422,7 +422,7 @@ class NotificationsView extends View {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
       const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item
+        (interaction) => interaction.item,
       );
       // Filter out notifications for hidden posts
       if (notifications && hiddenPostUris.length > 0) {
@@ -497,7 +497,7 @@ class NotificationsView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

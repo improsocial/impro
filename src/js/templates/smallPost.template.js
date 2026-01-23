@@ -135,6 +135,8 @@ export function smallPostTemplate({
               onClickBookmark: (post, doBookmark) =>
                 postInteractionHandler.handleBookmark(post, doBookmark),
               onClickShowLess,
+              onClickHidePost: (post) =>
+                postInteractionHandler.handleHidePost(post),
               onClickMute: (profile, doMute) =>
                 postInteractionHandler.handleMuteAuthor(profile, doMute),
               onClickBlock: (profile, doBlock) =>
@@ -156,6 +158,11 @@ export function smallPostTemplate({
   }
   if (post.viewer?.hasMutedWord && !overrideMutedWords) {
     return html`<muted-reply-toggle label="Hidden by muted word">
+      ${content}
+    </muted-reply-toggle>`;
+  }
+  if (post.viewer?.isHidden) {
+    return html`<muted-reply-toggle label="Post hidden by you">
       ${content}
     </muted-reply-toggle>`;
   }

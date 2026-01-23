@@ -128,7 +128,7 @@ class SettingsAppearanceView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

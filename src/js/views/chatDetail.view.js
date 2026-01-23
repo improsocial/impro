@@ -142,7 +142,7 @@ class ChatDetailView extends View {
         const res = await this.api.getChatLogs({ cursor: this._cursor });
         this._cursor = res.cursor;
         const logsForConvo = res.logs.filter(
-          (log) => log.convoId === this.convoId
+          (log) => log.convoId === this.convoId,
         );
         for (const log of logsForConvo) {
           if (log.$type === "chat.bsky.convo.defs#logCreateMessage") {
@@ -151,7 +151,7 @@ class ChatDetailView extends View {
               continue;
             }
             const convoMessages = this.dataLayer.selectors.getConvoMessages(
-              this.convoId
+              this.convoId,
             );
             if (!convoMessages) {
               console.warn("No messages data found for convoId", this.convoId);
@@ -182,7 +182,7 @@ class ChatDetailView extends View {
           convoId,
           messageId,
           emoji,
-          currentUserDid
+          currentUserDid,
         );
         closeReactionPalette();
         renderPage();
@@ -199,7 +199,7 @@ class ChatDetailView extends View {
           const promise = dataLayer.mutations.removeMessageReaction(
             convoId,
             messageId,
-            emoji
+            emoji,
           );
           // optimistic update
           renderPage();
@@ -215,7 +215,7 @@ class ChatDetailView extends View {
           const promise = dataLayer.mutations.addMessageReaction(
             convoId,
             messageId,
-            emoji
+            emoji,
           );
           // optimistic update
           renderPage();
@@ -398,7 +398,7 @@ class ChatDetailView extends View {
               >
                 <span class="reaction-palette-button-inner">${emoji}</span>
               </button>
-            `
+            `,
           )}
           <button
             class="reaction-palette-button reaction-palette-button-more"
@@ -455,8 +455,8 @@ class ChatDetailView extends View {
                     : html`<div class="avatar-placeholder"></div>`}
                 </div>`
               : !isCurrentUser && !showAvatar
-              ? html`<div class="message-avatar-spacer"></div>`
-              : ""}
+                ? html`<div class="message-avatar-spacer"></div>`
+                : ""}
             <div class="message-bubble">
               <div class="message-text">
                 ${richTextTemplate({
@@ -512,7 +512,7 @@ class ChatDetailView extends View {
               otherMember,
               onLongPress: (msg, e) => handleLongPress(msg, e),
               isSelected: state.selectedMessageId === message.id,
-            })
+            }),
           )}
           <div
             class="message-group-time ${group.isCurrentUser
@@ -591,7 +591,7 @@ class ChatDetailView extends View {
                     group,
                     otherMember,
                     currentUserDid,
-                  })
+                  }),
                 )}
               </div>`;
             })}
@@ -698,7 +698,7 @@ class ChatDetailView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 
@@ -726,7 +726,7 @@ class ChatDetailView extends View {
           dataLayer,
           api,
           convoId,
-          currentUser
+          currentUser,
         );
         messageFetcher.on("message", () => {
           renderPage();

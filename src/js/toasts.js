@@ -5,7 +5,7 @@ import { wait, raf } from "/js/utils.js";
 
 export async function showToast(
   message,
-  { error = false, timeout = 3000 } = {}
+  { error = false, timeout = 3000 } = {},
 ) {
   const toast = document.createElement("div");
   toast.setAttribute("popover", "manual");
@@ -20,7 +20,7 @@ export async function showToast(
       >
       ${message}
     `,
-    toast
+    toast,
   );
   document.body.appendChild(toast);
   await raf();

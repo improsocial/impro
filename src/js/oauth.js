@@ -36,7 +36,7 @@ async function signJWT(header, payload, privateKey) {
   const signatureBuffer = await window.crypto.subtle.sign(
     { name: "ECDSA", hash: "SHA-256" },
     privateKey,
-    encodeUtf8(signatureInput)
+    encodeUtf8(signatureInput),
   );
 
   const signatureB64 = base64UrlEncode(signatureBuffer);
@@ -61,7 +61,7 @@ async function fetchResourceServerMetadata(pdsUrl) {
 async function fetchAuthServerMetadata(authServerUrl) {
   const metadataUrl = new URL(
     "/.well-known/oauth-authorization-server",
-    authServerUrl
+    authServerUrl,
   );
   const response = await fetch(metadataUrl);
   if (!response.ok) {
@@ -80,14 +80,14 @@ async function loadOrGenerateDPoPKeypair() {
         pubkey,
         { name: "ECDSA", namedCurve: "P-256" },
         true,
-        ["verify"]
+        ["verify"],
       ),
       privateKey: await window.crypto.subtle.importKey(
         "jwk",
         privkey,
         { name: "ECDSA", namedCurve: "P-256" },
         true,
-        ["sign"]
+        ["sign"],
       ),
     };
   }
@@ -97,22 +97,22 @@ async function loadOrGenerateDPoPKeypair() {
       namedCurve: "P-256",
     },
     true,
-    ["sign", "verify"]
+    ["sign", "verify"],
   );
   const publicKeyJwk = await window.crypto.subtle.exportKey(
     "jwk",
-    keyPair.publicKey
+    keyPair.publicKey,
   );
   const privateKeyJwk = await window.crypto.subtle.exportKey(
     "jwk",
-    keyPair.privateKey
+    keyPair.privateKey,
   );
   localStorage.setItem(
     "dpop_keypair",
     JSON.stringify({
       pubkey: publicKeyJwk,
       privkey: privateKeyJwk,
-    })
+    }),
   );
   return keyPair;
 }
@@ -168,7 +168,7 @@ class DPoPRequests {
   async createProof(method, url, dpopNonce = null, accessToken = null) {
     const publicJwk = await window.crypto.subtle.exportKey(
       "jwk",
-      this.dpopKeypair.publicKey
+      this.dpopKeypair.publicKey,
     );
     const header = {
       typ: "dpop+jwt",
@@ -230,7 +230,7 @@ class Session {
   async refreshToken({ retryCount = 0 } = {}) {
     const authServer = new AuthServer(
       this.sessionData.authServerMetadata,
-      this.dpopRequests
+      this.dpopRequests,
     );
 
     const params = {
@@ -390,7 +390,7 @@ export class OauthClient {
     {
       scope = "atproto transition:generic transition:chat.bsky",
       state = {},
-    } = {}
+    } = {},
   ) {
     const did = await resolveHandle(handle);
     if (!did) {
@@ -423,7 +423,7 @@ export class OauthClient {
     };
     localStorage.setItem(
       `oauth_in_flight_${requestId}`,
-      JSON.stringify(inFlightData)
+      JSON.stringify(inFlightData),
     );
 
     const authServer = new AuthServer(authServerMetadata, this.dpopRequests);
@@ -458,7 +458,7 @@ export class OauthClient {
 
     const { requestId } = JSON.parse(decodeURIComponent(stateStr));
     const inFlightDataStr = localStorage.getItem(
-      `oauth_in_flight_${requestId}`
+      `oauth_in_flight_${requestId}`,
     );
     if (!inFlightDataStr) {
       throw new Error("No in-flight data found for requestId");
@@ -474,13 +474,13 @@ export class OauthClient {
 
     const authServer = new AuthServer(
       inFlightData.authServerMetadata,
-      this.dpopRequests
+      this.dpopRequests,
     );
     const tokenResponse = await authServer.exchangeCodeForToken(
       this.clientId,
       code,
       inFlightData.codeVerifier,
-      inFlightData.redirectUri
+      inFlightData.redirectUri,
     );
 
     if (tokenResponse.sub !== inFlightData.did) {

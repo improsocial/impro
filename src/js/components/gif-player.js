@@ -12,7 +12,7 @@ const gifPlayerObserver = new IntersectionObserver(
   },
   {
     rootMargin: "200px",
-  }
+  },
 );
 
 class GifPlayer extends Component {
@@ -48,7 +48,7 @@ class GifPlayer extends Component {
         style="flex: 1 1 0%;"
         aria-label="${this.alt}"
       ></video>`,
-      this
+      this,
     );
   }
 

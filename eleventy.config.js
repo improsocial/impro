@@ -35,7 +35,7 @@ export default async function (eleventyConfig) {
         return await linkHtml(content, { baseUrl, exclude: ["/lib/hls.js"] });
       }
       return content;
-    }
+    },
   );
 
   return {

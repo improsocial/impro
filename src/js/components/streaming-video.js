@@ -12,7 +12,7 @@ const streamingVideoObserver = new IntersectionObserver(
   },
   {
     rootMargin: "200px",
-  }
+  },
 );
 
 class StreamingVideo extends Component {
@@ -45,7 +45,7 @@ class StreamingVideo extends Component {
         height=${this.height}
         width=${this.width}
       ></video>`,
-      this
+      this,
     );
     const video = this.querySelector("video");
     if (this.muted) {

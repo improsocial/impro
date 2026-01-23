@@ -34,7 +34,7 @@ class ImportCollector {
     }
     if (!resolvedImport) {
       console.warn(
-        `WARNING: could not resolve import specifier: ${specifier} from parent: ${parent} - skipping`
+        `WARNING: could not resolve import specifier: ${specifier} from parent: ${parent} - skipping`,
       );
       return;
     }
@@ -46,7 +46,9 @@ class ImportCollector {
         contents = await fs.promises.readFile(resolvedImport, "utf8");
       } catch (e) {
         console.warn(
-          "WARNING: could not read file: " + resolvedImport.href + " - skipping"
+          "WARNING: could not read file: " +
+            resolvedImport.href +
+            " - skipping",
         );
       }
       if (contents) {
@@ -65,7 +67,7 @@ class ImportCollector {
     const parent = new URL("./index.js", this.baseUrl);
     await Promise.all(this.imports.map((entry) => this.visit(entry, parent)));
     return [...this.dependencies].map((dep) =>
-      dep.replace(this.baseUrl.href, "/")
+      dep.replace(this.baseUrl.href, "/"),
     );
   }
 }
@@ -113,7 +115,7 @@ async function parseHtml(contents) {
 export async function getDependencies(
   contents,
   baseUrl,
-  { noFetch, exclude = [] } = {}
+  { noFetch, exclude = [] } = {},
 ) {
   if (!baseUrl) {
     throw new Error("baseUrl is required");
@@ -136,7 +138,7 @@ export async function getDependencies(
 export function injectPreloads(
   contents,
   dependencies,
-  { includeComments = true } = {}
+  { includeComments = true } = {},
 ) {
   let preloads = "";
   if (includeComments) {
@@ -154,7 +156,7 @@ export function injectPreloads(
     return contents.replace("<html>", `<html>\n${preloads}`);
   } else {
     console.warn(
-      "WARNING: could not find <head> or <html> in HTML - skipping."
+      "WARNING: could not find <head> or <html> in HTML - skipping.",
     );
     return contents;
   }
@@ -162,7 +164,7 @@ export function injectPreloads(
 
 export async function linkHtml(
   htmlContentsOrUrl,
-  { baseUrl: providedBaseUrl, noFetch, exclude, includeComments } = {}
+  { baseUrl: providedBaseUrl, noFetch, exclude, includeComments } = {},
 ) {
   let html = htmlContentsOrUrl;
   let baseUrl = providedBaseUrl;

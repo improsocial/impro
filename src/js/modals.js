@@ -23,7 +23,7 @@ export async function showSignInModal() {
           </a>
         </div>
       `,
-      signInModal
+      signInModal,
     );
 
     // Dismiss on backdrop click
@@ -54,7 +54,7 @@ export function showInfoModal({ title, message, confirmButtonText = "OK" }) {
         </div>
       </div>
     `,
-    dialog
+    dialog,
   );
 
   const okButton = dialog.querySelector(".primary-button");
@@ -89,7 +89,7 @@ export async function confirm(
     title = null,
     confirmButtonStyle = "primary",
     confirmButtonText = "Confirm",
-  } = {}
+  } = {},
 ) {
   return new Promise((resolve) => {
     const dialog = document.createElement("dialog");
@@ -110,7 +110,7 @@ export async function confirm(
           </div>
         </div>
       `,
-      dialog
+      dialog,
     );
 
     const cancelButton = dialog.querySelector(".cancel-button");

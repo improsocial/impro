@@ -256,6 +256,23 @@ export class Mutations {
     }
   }
 
+  async hidePost(post) {
+    const patchId = this.patchStore.addPostPatch(post.uri, {
+      type: "hidePost",
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.hidePost(post.uri);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      // clear patch
+      this.patchStore.removePostPatch(post.uri, patchId);
+    }
+  }
+
   async muteProfile(profile) {
     const patchId = this.patchStore.addProfilePatch(profile.did, {
       type: "muteProfile",
@@ -468,7 +485,7 @@ export class Mutations {
     const convoList = this.dataStore.getConvoList();
     if (convoList) {
       const updatedList = convoList.map((c) =>
-        c.id === convo.id ? updatedConvo : c
+        c.id === convo.id ? updatedConvo : c,
       );
       this.dataStore.setConvoList(updatedList);
     }
@@ -510,7 +527,7 @@ export class Mutations {
       const message = await this.api.addMessageReaction(
         convoId,
         messageId,
-        emoji
+        emoji,
       );
       this.dataStore.setMessage(messageId, message);
       // Update the last reaction in the convo
@@ -543,7 +560,7 @@ export class Mutations {
       const message = await this.api.removeMessageReaction(
         convoId,
         messageId,
-        emoji
+        emoji,
       );
       this.dataStore.setMessage(messageId, message);
       // Update the last reaction in the convo

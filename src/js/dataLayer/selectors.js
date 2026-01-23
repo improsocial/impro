@@ -51,7 +51,10 @@ export class Selectors {
           return false;
         }
         const quotedPost = getQuotedPost(feedItem.post);
-        if (quotedPost?.author && doHideAuthorOnUnauthenticated(quotedPost.author)) {
+        if (
+          quotedPost?.author &&
+          doHideAuthorOnUnauthenticated(quotedPost.author)
+        ) {
           return false;
         }
         return true;
@@ -181,6 +184,7 @@ export class Selectors {
       }
     }
     post = this._markMutedWords(post);
+    post = this._markIsHidden(post);
     return this.patchStore.applyPostPatches(post);
   }
 
@@ -330,7 +334,7 @@ export class Selectors {
       (convo) => new Date(getLastInteractionTimestamp(convo)),
       {
         direction: "desc",
-      }
+      },
     );
     return sortedConvos;
   }
@@ -370,7 +374,7 @@ export class Selectors {
       return null;
     }
     const hydratedMessages = messages.messages.map((message) =>
-      this.getMessage(message.id)
+      this.getMessage(message.id),
     );
     return {
       messages: hydratedMessages,
@@ -389,7 +393,7 @@ export class Selectors {
     }
     // Hydrate the posts
     const hydratedPosts = quotes.posts.map((post) =>
-      this.getPost(post.uri, { required: true })
+      this.getPost(post.uri, { required: true }),
     );
     return {
       posts: hydratedPosts,
@@ -440,7 +444,7 @@ export class Selectors {
     }
     for (const pinnedFeedGenerator of pinnedFeedGenerators) {
       hydratedPinnedFeedGenerators.push(
-        this.getFeedGenerator(pinnedFeedGenerator.uri)
+        this.getFeedGenerator(pinnedFeedGenerator.uri),
       );
     }
     return hydratedPinnedFeedGenerators;
@@ -507,6 +511,36 @@ export class Selectors {
         if (nestedQuotedPostHasMutedWord) {
           // NOTE: LEXICON DEVIATION
           nestedQuotedPost.hasMutedWord = true;
+        }
+      }
+    }
+    return post;
+  }
+
+  _markIsHidden(post) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const isHidden = preferences.isPostHidden(post.uri);
+    if (isHidden) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.isHidden = true;
+    }
+    // Also check for hidden quotes
+    const quotedPost = getQuotedPost(post);
+    if (quotedPost) {
+      const quotedPostIsHidden = preferences.isPostHidden(quotedPost.uri);
+      if (quotedPostIsHidden) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.isHidden = true;
+      }
+      // Also check for nested hidden quotes
+      const nestedQuotedPost = getQuotedPost(quotedPost);
+      if (nestedQuotedPost) {
+        const nestedQuotedPostIsHidden = preferences.isPostHidden(
+          nestedQuotedPost.uri,
+        );
+        if (nestedQuotedPostIsHidden) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.isHidden = true;
         }
       }
     }

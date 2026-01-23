@@ -14,7 +14,7 @@ export class NotificationService extends EventEmitter {
     const snoozedUntil = new Date(Date.now() + timeoutMinutes * 60 * 1000);
     localStorage.setItem(
       "notifications-snoozed-until",
-      snoozedUntil.toISOString()
+      snoozedUntil.toISOString(),
     );
   }
 

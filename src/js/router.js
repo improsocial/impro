@@ -99,7 +99,7 @@ export class Router extends EventEmitter {
               this.currentPage.style.opacity = 1;
             },
           },
-        })
+        }),
       );
       this.emit("page-shown", this.currentPage);
       return;

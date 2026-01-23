@@ -34,7 +34,7 @@ function filterByFollowing(feed, currentUser) {
       continue;
     }
     const { parentAuthor, grandparentAuthor, rootAuthor } = getReplyAuthors(
-      feedItem.reply
+      feedItem.reply,
     );
 
     if (!isSelfOrFollowing(author, userDid)) {
@@ -97,7 +97,7 @@ function filterReplies(feed) {
 
 function filterQuotePosts(feed) {
   const filteredFeedItems = feed.feed.filter(
-    (item) => !getQuotedPost(item.post)
+    (item) => !getQuotedPost(item.post),
   );
   return {
     feed: filteredFeedItems,
@@ -138,7 +138,7 @@ function filterBlockedQuotes(feed) {
 
 function filterMutedQuotes(feed) {
   const filteredFeedItems = feed.feed.filter(
-    (item) => !getMutedQuote(item.post)
+    (item) => !getMutedQuote(item.post),
   );
   return {
     feed: filteredFeedItems,
@@ -190,6 +190,24 @@ function filterEmptyPosts(feed) {
   };
 }
 
+function filterHiddenPosts(feed) {
+  const filteredFeedItems = feed.feed.filter((item) => {
+    if (item.post.viewer?.isHidden) {
+      return false;
+    }
+    // Also filter hidden quotes
+    const quotedPost = getQuotedPost(item.post);
+    if (quotedPost && quotedPost.isHidden) {
+      return false;
+    }
+    return true;
+  });
+  return {
+    feed: filteredFeedItems,
+    cursor: feed.cursor,
+  };
+}
+
 export function filterFollowingFeed(feed, currentUser, preferences) {
   const followingFeedPreference = preferences.getFollowingFeedPreference();
   let filteredFeed = filterByFollowing(feed, currentUser);
@@ -207,6 +225,7 @@ export function filterFollowingFeed(feed, currentUser, preferences) {
   filteredFeed = filterMutedQuotes(filteredFeed);
   filteredFeed = filterMutedPosts(filteredFeed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }
 
@@ -216,11 +235,13 @@ export function filterAlgorithmicFeed(feed) {
   filteredFeed = filterMutedQuotes(filteredFeed);
   filteredFeed = filterMutedPosts(filteredFeed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }
 
 export function filterAuthorFeed(feed) {
   let filteredFeed = dedupeFeed(feed);
   filteredFeed = filterEmptyPosts(filteredFeed);
+  filteredFeed = filterHiddenPosts(filteredFeed);
   return filteredFeed;
 }

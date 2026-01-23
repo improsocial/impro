@@ -63,7 +63,7 @@ t.describe("PreferencesProvider", (it) => {
 
     const newPreferences = new Preferences(
       [{ $type: "app.bsky.actor.defs#testPref" }],
-      []
+      [],
     );
     await provider.updatePreferences(newPreferences);
 

@@ -52,7 +52,7 @@ class ChatView extends View {
     function convoItemTemplate({ convo, currentUser }) {
       const lastInteraction = getLastInteraction(convo);
       const otherUser = convo.members.find(
-        (member) => member.did !== currentUser?.did
+        (member) => member.did !== currentUser?.did,
       );
       const timeAgo = lastInteraction
         ? displayRelativeTime(getInteractionTimestamp(lastInteraction))
@@ -107,14 +107,14 @@ class ChatView extends View {
                 <div class="convo-skeleton-preview skeleton-animate"></div>
               </div>
             </div>
-          `
+          `,
         )}
       `;
     }
 
     function chatRequestsTemplate({ chatRequests }) {
       const hasUnreadRequests = chatRequests.some(
-        (convo) => convo.unreadCount > 0
+        (convo) => convo.unreadCount > 0,
       );
       return html`
         <div
@@ -200,10 +200,10 @@ class ChatView extends View {
                     });
                   } else if (convos && currentUser) {
                     const chatRequests = convos.filter(
-                      (convo) => convo.status === "request"
+                      (convo) => convo.status === "request",
                     );
                     const acceptedConvos = convos.filter(
-                      (convo) => convo.status === "accepted"
+                      (convo) => convo.status === "accepted",
                     );
                     return html`
                       <div>
@@ -225,7 +225,7 @@ class ChatView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

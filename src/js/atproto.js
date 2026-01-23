@@ -4,7 +4,7 @@ export function getServiceEndpointFromDidDoc(didDoc) {
   const service = didDoc.service.find((s) => s.id === PDS_SERVICE_ID);
   if (!service) {
     throw new Error(
-      `No PDS service found in DID doc ${JSON.stringify(didDoc)}`
+      `No PDS service found in DID doc ${JSON.stringify(didDoc)}`,
     );
   }
   return service.serviceEndpoint;
@@ -16,7 +16,7 @@ export async function resolveHandle(handle) {
   });
   const res = await fetch(
     "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?" +
-      params.toString()
+      params.toString(),
   );
   const data = await res.json();
   return data.did;

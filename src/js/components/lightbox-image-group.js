@@ -84,7 +84,7 @@ class LightboxImageGroup extends Component {
             : ""}
         </div>
       `,
-      lightboxContainer
+      lightboxContainer,
     );
 
     document.body.style.overflow = "hidden"; // Prevent background scrolling

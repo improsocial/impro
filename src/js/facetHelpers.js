@@ -4,7 +4,7 @@ import tlds from "/js/lib/tlds.js";
 const urlCharacterRegex = /[a-zA-Z0-9.\-:/_-~?#\[\]@!$&'()*+,;%=]/;
 const urlRegex = new RegExp(
   `${urlCharacterRegex.source}${urlCharacterRegex.source}+\\.${urlCharacterRegex.source}${urlCharacterRegex.source}+`,
-  "gm"
+  "gm",
 );
 
 function ensureExternal(href) {
@@ -134,7 +134,7 @@ export async function resolveFacets(facets, identityResolver) {
   }
   const resolvedMentions = await resolveMentions(
     unresolvedMentions,
-    identityResolver
+    identityResolver,
   );
   return [...resolvedFacets, ...resolvedMentions];
 }
@@ -143,11 +143,13 @@ export async function getFacetsFromText(text, identityResolver) {
   const unresolvedFacets = getUnresolvedFacetsFromText(text);
   const resolvedFacets = await resolveFacets(
     unresolvedFacets,
-    identityResolver
+    identityResolver,
   );
   return resolvedFacets;
 }
 
 export function getTagsFromFacets(facets) {
-  return facets.filter((facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag")
+  return facets.filter(
+    (facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag",
+  );
 }

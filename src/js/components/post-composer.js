@@ -144,7 +144,7 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
               ${img.alt ? "✓ ALT" : "+ ALT"}
             </div>
           </div>
-        `
+        `,
       )}
     </div>
   `;
@@ -174,7 +174,7 @@ class PostComposer extends Component {
     const currentCharCount = this._postText.length;
     const charCountPercentage = Math.min(
       Math.round((currentCharCount / 300) * 100),
-      100
+      100,
     );
     const isAboveCharLimit = currentCharCount > 300;
     render(
@@ -301,7 +301,7 @@ class PostComposer extends Component {
           </div>
         </dialog>
       `,
-      this
+      this,
     );
   }
 
@@ -450,7 +450,7 @@ class PostComposer extends Component {
     ) {
       const linkFacetUrls = this._unresolvedFacets
         .filter(
-          (facet) => facet.features[0].$type === "app.bsky.richtext.facet#link"
+          (facet) => facet.features[0].$type === "app.bsky.richtext.facet#link",
         )
         .map((facet) => facet.features[0].uri);
       for (const rejectedLinkEmbed of this._rejectedLinkEmbeds) {
@@ -560,7 +560,7 @@ class PostComposer extends Component {
           successCallback,
           errorCallback,
         },
-      })
+      }),
     );
   }
 

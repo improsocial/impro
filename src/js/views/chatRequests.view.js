@@ -47,7 +47,7 @@ class ChatRequestsView extends View {
     function requestItemTemplate({ convo }) {
       const lastMessage = convo.lastMessage;
       const members = convo.members.filter(
-        (member) => member.did !== dataLayer.selectors.getCurrentUser()?.did
+        (member) => member.did !== dataLayer.selectors.getCurrentUser()?.did,
       );
       const otherMember = members[0];
       const timeAgo = lastMessage
@@ -136,7 +136,7 @@ class ChatRequestsView extends View {
                 ></div>
               </div>
             </div>
-          `
+          `,
         )}
       `;
     }
@@ -214,7 +214,7 @@ class ChatRequestsView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

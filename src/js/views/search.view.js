@@ -43,14 +43,14 @@ class SearchView extends View {
       requests.push(
         dataLayer.requests.loadProfileSearch(normalizedQuery, {
           limit: 10,
-        })
+        }),
       );
 
       if (isAuthenticated) {
         requests.push(
           dataLayer.requests.loadPostSearch(normalizedQuery, {
             limit: 25,
-          })
+          }),
         );
       }
 
@@ -70,7 +70,7 @@ class SearchView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     const handleSearchInput = debounce((value) => {
@@ -130,13 +130,14 @@ class SearchView extends View {
         class=${classnames("loading-area", { loading: status.loading })}
       >
         ${postSearchResults.map(
-          (post) => html`<div class="feed-item" data-post-uri="${post.uri}">
-            ${smallPostTemplate({
-              post,
-              isUserPost: currentUser?.did === post.author?.did,
-              postInteractionHandler,
-            })}
-          </div>`
+          (post) =>
+            html`<div class="feed-item" data-post-uri="${post.uri}">
+              ${smallPostTemplate({
+                post,
+                isUserPost: currentUser?.did === post.author?.did,
+                postInteractionHandler,
+              })}
+            </div>`,
         )}
       </div>`;
     }
@@ -164,7 +165,7 @@ class SearchView extends View {
         })}
       >
         ${profileSearchResults.map((profile) =>
-          profileResultTemplate({ profile })
+          profileResultTemplate({ profile }),
         )}
       </div>`;
     }
@@ -291,7 +292,7 @@ class SearchView extends View {
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

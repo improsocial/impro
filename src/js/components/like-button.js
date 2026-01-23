@@ -96,7 +96,7 @@ class LikeButton extends Component {
       },
       this._isCountIncreasing
         ? COUNT_INCREASING_ANIMATION_DURATION
-        : COUNT_DECREASING_ANIMATION_DURATION
+        : COUNT_DECREASING_ANIMATION_DURATION,
     );
   }
 
@@ -115,7 +115,7 @@ class LikeButton extends Component {
       new CustomEvent("click-like", {
         bubbles: true,
         composed: true,
-      })
+      }),
     );
     setTimeout(() => {
       this._recentlyClicked = false;
@@ -153,7 +153,7 @@ class LikeButton extends Component {
             : null}
         </button>
       `,
-      this
+      this,
     );
   }
 }

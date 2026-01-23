@@ -38,7 +38,7 @@ class ModerationWarning extends Component {
         </div>
         <div class="toggle-content" ?hidden=${!this.expanded}></div>
       `,
-      this
+      this,
     );
 
     const toggleContent = this.querySelector(".toggle-content");

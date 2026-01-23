@@ -78,17 +78,6 @@ function postActionCountsTemplate({
   `;
 }
 
-function mutedWordWrappedTemplate({ hasMutedWord, children }) {
-  if (hasMutedWord) {
-    return html`<moderation-warning
-      class="muted-word-warning"
-      label="Post hidden by muted word"
-      >${children}</moderation-warning
-    > `;
-  }
-  return children;
-}
-
 export function largePostTemplate({
   post,
   isUserPost,
@@ -110,11 +99,7 @@ export function largePostTemplate({
   ) {
     return unavailablePostTemplate();
   }
-  return html`
-    <div class="post large-post">
-      ${mutedWordWrappedTemplate({
-        hasMutedWord: post.viewer?.hasMutedWord,
-        children: html`
+  let content = html`
       <div class="post-content">
         <div class="post-content-top">
           <div>
@@ -184,6 +169,8 @@ export function largePostTemplate({
                 postInteractionHandler.handleQuotePost(post),
               onClickBookmark: (post, doBookmark) =>
                 postInteractionHandler.handleBookmark(post, doBookmark),
+              onClickHidePost: (post) =>
+                postInteractionHandler.handleHidePost(post),
               onClickMute: (profile, doMute) =>
                 postInteractionHandler.handleMuteAuthor(profile, doMute),
               onClickBlock: (profile, doBlock) =>
@@ -199,8 +186,15 @@ export function largePostTemplate({
           </div>
         </div>
       </div>
-    `,
-      })}
-    </div>
-  `;
+    `;
+  if (post.viewer?.hasMutedWord) {
+    content = html`<moderation-warning label="Post hidden by muted word"
+      >${content}</moderation-warning
+    > `;
+  } else if (post.viewer?.isHidden) {
+    content = html`<moderation-warning label="Post hidden by you"
+      >${content}</moderation-warning
+    > `;
+  }
+  return html`<div class="post large-post">${content}</div>`;
 }

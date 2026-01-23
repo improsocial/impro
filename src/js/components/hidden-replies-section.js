@@ -46,7 +46,7 @@ class HiddenRepliesSection extends Component {
           <div class="toggle-content" ?hidden=${!this.expanded}></div>
         </div>
       `,
-      this
+      this,
     );
 
     const toggleContent = this.querySelector(".toggle-content");

@@ -23,14 +23,14 @@ export async function getLinks({
     }
     const response = await fetch(
       `https://constellation.microcosm.blue/xrpc/blue.microcosm.links.getBacklinks?${buildQueryString(
-        query
+        query,
       )}`,
       {
         headers: {
           Accept: "application/json",
         },
         signal: controller.signal,
-      }
+      },
     );
     const data = await response.json();
     links.push(...data.records);

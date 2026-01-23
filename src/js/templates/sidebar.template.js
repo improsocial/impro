@@ -73,7 +73,7 @@ function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
             </span>
             <span class="sidebar-nav-label">${item.label}</span>
           </a>
-        `
+        `,
       )}
     </nav>
   `;

@@ -7,7 +7,7 @@ export function avatarThumbnailUrl(avatarUrl) {
   }
   return avatarUrl.replace(
     "/img/avatar/plain/",
-    "/img/avatar_thumbnail/plain/"
+    "/img/avatar_thumbnail/plain/",
   );
 }
 
@@ -103,6 +103,23 @@ export function getParentPosts(postThread) {
   return flattenParents(postThread)
     .map((parent) => parent.post)
     .filter(Boolean);
+}
+
+export function replaceTopParent(postThread, newParent) {
+  let current = postThread.parent;
+  if (!current) {
+    throw new Error("No parent found");
+  }
+  // If the immediate parent has no parent, it is the top
+  if (!current.parent) {
+    return { ...postThread, parent: newParent };
+  }
+  // Otherwise, traverse to find the parent whose parent is the top
+  while (current.parent?.parent) {
+    current = current.parent;
+  }
+  current.parent = newParent;
+  return postThread;
 }
 
 export function getReplyPosts(postThread) {

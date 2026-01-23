@@ -245,7 +245,7 @@ function mentionSuggestionsTemplate({
               <div class="mention-suggestion-handle">@${actor.handle}</div>
             </div>
           </div>
-        `
+        `,
       )}
     </div>
   `;
@@ -316,7 +316,7 @@ export class RichTextInput extends Component {
             : ""}
         </div>
       `,
-      this
+      this,
     );
 
     // Position the typeahead below the @ symbol
@@ -392,7 +392,7 @@ export class RichTextInput extends Component {
         limit: "8",
       });
       const response = await fetch(
-        `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?${queryParams.toString()}`
+        `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?${queryParams.toString()}`,
       );
       if (response.ok) {
         const data = await response.json();
@@ -413,7 +413,7 @@ export class RichTextInput extends Component {
       this.currentMentionStart = pendingMention.start;
       this.currentMentionEnd = pendingMention.end;
       const suggestions = await this.fetchMentionSuggestions(
-        pendingMention.query
+        pendingMention.query,
       );
       this.mentionSuggestions = suggestions;
     } else {
@@ -472,7 +472,7 @@ export class RichTextInput extends Component {
           text: this.text,
           facets: this.facets,
         },
-      })
+      }),
     );
   }
 
@@ -583,7 +583,7 @@ export class RichTextInput extends Component {
     this.dispatchEvent(
       new CustomEvent("input", {
         detail: { text: this.text, facets: this.facets },
-      })
+      }),
     );
   }
 
@@ -608,7 +608,7 @@ export class RichTextInput extends Component {
     this.dispatchEvent(
       new CustomEvent("input", {
         detail: { text: this.text, facets: this.facets },
-      })
+      }),
     );
   }
 
@@ -637,7 +637,7 @@ export class RichTextInput extends Component {
         } else {
           this.selectedSuggestionIndex = Math.min(
             this.selectedSuggestionIndex + 1,
-            this.mentionSuggestions.length - 1
+            this.mentionSuggestions.length - 1,
           );
         }
         this.render();
@@ -648,7 +648,7 @@ export class RichTextInput extends Component {
         } else {
           this.selectedSuggestionIndex = Math.max(
             this.selectedSuggestionIndex - 1,
-            0
+            0,
           );
         }
         this.render();
@@ -702,7 +702,7 @@ export class RichTextInput extends Component {
           text: this.text,
           facets: this.facets,
         },
-      })
+      }),
     );
   }
 }

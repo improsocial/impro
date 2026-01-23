@@ -26,6 +26,7 @@ export function postActionBarTemplate({
   onClickLike = noop,
   onClickBookmark = noop,
   onClickShowLess = noop,
+  onClickHidePost = noop,
   onClickMute = noop,
   onClickBlock = noop,
   onClickDelete = noop,
@@ -127,7 +128,7 @@ export function postActionBarTemplate({
               }
               onClickLike(post, !isLiked);
             }}
-          ></like-button>`
+          ></like-button>`,
         )}
       </div>
       <div class="post-action post-action-bookmark">
@@ -177,26 +178,38 @@ export function postActionBarTemplate({
           >
             Copy link to post
           </context-menu-item>
-          ${enableFeedFeedback && isAuthenticated
-            ? html`
-                <context-menu-item
-                  @click=${() => {
-                    onClickShowLess(post);
-                  }}
-                >
-                  Show less like this
-                </context-menu-item>
-              `
-            : null}
           ${isAuthenticated
-            ? html`<context-menu-item
+            ? html`
+                ${enableFeedFeedback
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickShowLess(post);
+                        }}
+                      >
+                        Show less like this
+                      </context-menu-item>
+                    `
+                  : null}
+                ${!post.viewer?.isHidden
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickHidePost(post);
+                        }}
+                      >
+                        Hide post for me
+                      </context-menu-item>
+                    `
+                  : null}
+                <context-menu-item
                   @click=${() => {
                     onClickMute(post.author, !post.author.viewer?.muted);
                   }}
                 >
                   ${post.author.viewer?.muted
-                    ? "Unmute Account"
-                    : "Mute Account"}
+                    ? "Unmute account"
+                    : "Mute account"}
                 </context-menu-item>
                 <context-menu-item
                   @click=${() => {
@@ -204,8 +217,8 @@ export function postActionBarTemplate({
                   }}
                 >
                   ${post.author.viewer?.blocking
-                    ? "Unblock Account"
-                    : "Block Account"}
+                    ? "Unblock account"
+                    : "Block account"}
                 </context-menu-item>
                 ${isUserPost
                   ? html` <context-menu-item
@@ -215,7 +228,8 @@ export function postActionBarTemplate({
                     >
                       Delete post
                     </context-menu-item>`
-                  : null} `
+                  : null}
+              `
             : null}
         </context-menu>
       </div>

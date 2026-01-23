@@ -22,7 +22,6 @@ t.describe("constructor", (it) => {
     const service = new ChatNotificationService(api);
     assertEquals(service.getNumNotifications(), 0);
   });
-
 });
 
 t.describe("fetchNumNotifications", (it) => {

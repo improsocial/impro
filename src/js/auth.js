@@ -42,7 +42,7 @@ function parseJwt(token) {
       atob(base64)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
+        .join(""),
     );
 
     return JSON.parse(jsonPayload);
@@ -93,7 +93,7 @@ export class BasicAuthSession {
             headers: {
               Authorization: `Bearer ${this.refreshJwt}`,
             },
-          }
+          },
         );
         if (refreshRes.ok) {
           const data = await refreshRes.json();
@@ -143,7 +143,7 @@ export class BasicAuth {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ identifier: handle, password }),
-      }
+      },
     );
     if (!res.ok) {
       throw new Error("Login failed");

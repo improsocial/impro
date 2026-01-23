@@ -114,7 +114,7 @@ export class PostInteractionHandler {
           title: "Delete this post?",
           confirmButtonStyle: "danger",
           confirmButtonText: "Delete",
-        }
+        },
       ))
     ) {
       return;
@@ -127,6 +127,22 @@ export class PostInteractionHandler {
       showToast("Failed to delete post", { error: true });
     }
     this.renderFunc();
+  }
+
+  async handleHidePost(post) {
+    try {
+      const promise = this.dataLayer.mutations.hidePost(post);
+      // Render optimistic update
+      this.renderFunc();
+      await promise;
+      // Render final update
+      this.renderFunc();
+      showToast("Post hidden");
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to hide post", { error: true });
+      this.renderFunc();
+    }
   }
 
   async handleMuteAuthor(profile, doMute) {

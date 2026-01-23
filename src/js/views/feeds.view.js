@@ -83,14 +83,14 @@ class FeedsView extends View {
                               : ""}
                           </div>
                         </div>
-                      `
+                      `,
                     )
                   : html`<div class="loading-spinner"></div>`}
               </div>
             `,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

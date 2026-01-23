@@ -47,7 +47,7 @@ class PostThreadView extends View {
       postComposerService,
       {
         renderFunc: () => renderPage(),
-      }
+      },
     );
 
     function postThreadErrorTemplate({ error }) {
@@ -94,7 +94,7 @@ class PostThreadView extends View {
           let mostLikedReply = sortBy(
             shownReplies,
             (reply) => getLikesWithoutUser(reply.post),
-            { direction: "desc" }
+            { direction: "desc" },
           )[0];
           chain.push(mostLikedReply);
           currentPost = mostLikedReply;
@@ -123,11 +123,11 @@ class PostThreadView extends View {
         (chain) => getLikesWithoutUser(chain[0].post),
         {
           direction: "desc",
-        }
+        },
       );
       // If there's a recent reply from the user, put it at the top
       const recentReplyFromUser = sortedReplyChains.find(
-        (chain) => chain[0].post.viewer?.priorityReply
+        (chain) => chain[0].post.viewer?.priorityReply,
       );
       if (recentReplyFromUser) {
         return [
@@ -192,7 +192,7 @@ class PostThreadView extends View {
 
     function postThreadRepliesTemplate({ replies, currentUser }) {
       const hiddenReplies = replies.filter(
-        (reply) => reply.post && isMutedPost(reply.post)
+        (reply) => reply.post && isMutedPost(reply.post),
       );
       const replyChains = buildReplyChains(replies, currentUser);
       return html`
@@ -205,7 +205,7 @@ class PostThreadView extends View {
                 replyChain,
                 currentUser,
                 lazyLoadImages: i > 20,
-              })
+              }),
             )}
           </div>
           ${hiddenReplies.length > 0
@@ -217,7 +217,7 @@ class PostThreadView extends View {
               postInteractionHandler,
               overrideMutedWords: true,
               lazyLoadImages: true,
-            })
+            }),
           )}
         </hidden-replies-section>
         </div>`
@@ -231,7 +231,7 @@ class PostThreadView extends View {
       return html`
         <div class="post-thread-replies-skeleton">
           ${Array.from({ length: Math.min(numReplies, 10) }).map(() =>
-            postSkeletonTemplate()
+            postSkeletonTemplate(),
           )}
         </div>
       `;
@@ -251,7 +251,7 @@ class PostThreadView extends View {
                 postInteractionHandler,
                 replyContext: i === 0 ? "root" : "parent",
                 hideMutedAccount: true,
-              })
+              }),
             )}
             ${largePostTemplate({
               post: postThread.post,
@@ -274,7 +274,7 @@ class PostThreadView extends View {
                       await handleClickReply(
                         postThread.post,
                         root,
-                        currentUser
+                        currentUser,
                       );
                     }}
                   >
@@ -371,7 +371,7 @@ class PostThreadView extends View {
               </main>`,
           })}
         </div>`,
-        root
+        root,
       );
     }
 

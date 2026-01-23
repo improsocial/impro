@@ -77,7 +77,7 @@ export class Api {
       }
       res = await this.session.fetch(
         `${this.session.serviceEndpoint}/xrpc/${path}${queryString}`,
-        fetchOptions
+        fetchOptions,
       );
     } catch (error) {
       // Handle token refresh error
@@ -318,7 +318,7 @@ export class Api {
     const batches = batch(repostUris, 5);
     for (const batch of batches) {
       const results = await Promise.allSettled(
-        batch.map((repostUri) => this.getRepost(repostUri))
+        batch.map((repostUri) => this.getRepost(repostUri)),
       );
       // Only keep successful responses. This is similar to getPosts()
       const successfulResponses = results
@@ -352,7 +352,7 @@ export class Api {
 
   async searchPosts(
     query,
-    { limit = 25, sort = "top", cursor = "", labelers = [] } = {}
+    { limit = 25, sort = "top", cursor = "", labelers = [] } = {},
   ) {
     const queryParams = { q: query, limit, sort };
     if (cursor) {
@@ -387,7 +387,7 @@ export class Api {
       filter = "posts_and_author_threads",
       includePins = false,
       labelers = [],
-    } = {}
+    } = {},
   ) {
     const res = await this.request(`app.bsky.feed.getAuthorFeed`, {
       query: { actor: did, limit, cursor, filter, includePins },

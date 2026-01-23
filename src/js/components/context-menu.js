@@ -49,7 +49,7 @@ class ContextMenu extends Component {
           ></dialog>
         </div>
       `,
-      this
+      this,
     );
 
     const dialog = this.querySelector(".context-menu");

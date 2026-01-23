@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
   <head>
     {% include "head.html" %}
@@ -164,24 +164,24 @@
       router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
       router.addRoute(
         "/profile/:handleOrDid/post/:rkey/likes",
-        () => postLikesView
+        () => postLikesView,
       );
       router.addRoute(
         "/profile/:handleOrDid/post/:rkey/quotes",
-        () => postQuotesView
+        () => postQuotesView,
       );
       router.addRoute(
         "/profile/:handleOrDid/post/:rkey/reposts",
-        () => postRepostsView
+        () => postRepostsView,
       );
       router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView);
       router.addRoute(
         "/profile/:handleOrDid/followers",
-        () => profileFollowersView
+        () => profileFollowersView,
       );
       router.addRoute(
         "/profile/:handleOrDid/following",
-        () => profileFollowingView
+        () => profileFollowingView,
       );
       router.addRoute("/profile/:handleOrDid", () => profileView);
       router.addRoute("/settings", () => settingsView);

@@ -88,7 +88,7 @@ export class PostComposerService {
     try {
       const facets = await resolveFacets(
         unresolvedFacets,
-        this.identityResolver
+        this.identityResolver,
       );
       const res = await this.dataLayer.mutations.createPost({
         postText,
@@ -105,7 +105,7 @@ export class PostComposerService {
             href="${linkToPostFromUri(res.uri)}"
             >View</a
           >
-        </div>`
+        </div>`,
       );
       return res;
     } catch (error) {

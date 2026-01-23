@@ -16,7 +16,11 @@ t.describe("postEmbedTemplate", (it) => {
         },
       ],
     };
-    const result = postEmbedTemplate({ embed, labels: [], isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
     assert(result instanceof Object);
   });
 
@@ -30,7 +34,11 @@ t.describe("postEmbedTemplate", (it) => {
         thumb: "https://example.com/thumb.jpg",
       },
     };
-    const result = postEmbedTemplate({ embed, labels: [], isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
     assert(result instanceof Object);
   });
 
@@ -44,7 +52,11 @@ t.describe("postEmbedTemplate", (it) => {
         uri: post.uri,
       },
     };
-    const result = postEmbedTemplate({ embed, labels: [], isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
     assert(result instanceof Object);
   });
 
@@ -57,7 +69,11 @@ t.describe("postEmbedTemplate", (it) => {
         blocked: true,
       },
     };
-    const result = postEmbedTemplate({ embed, labels: [], isAuthenticated: true });
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
     assert(result instanceof Object);
   });
 });

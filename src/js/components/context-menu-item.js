@@ -32,7 +32,7 @@ class ContextMenuItem extends Component {
       html`<div class="context-menu-item">
         <button ?disabled=${this.disabled}></button>
       </div> `,
-      this
+      this,
     );
     const button = this.querySelector("button");
     button.appendChild(this._children);
