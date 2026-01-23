@@ -105,6 +105,23 @@ export function getParentPosts(postThread) {
     .filter(Boolean);
 }
 
+export function replaceTopParent(postThread, newParent) {
+  let current = postThread.parent;
+  if (!current) {
+    throw new Error("No parent found");
+  }
+  // If the immediate parent has no parent, it is the top
+  if (!current.parent) {
+    return { ...postThread, parent: newParent };
+  }
+  // Otherwise, traverse to find the parent whose parent is the top
+  while (current.parent?.parent) {
+    current = current.parent;
+  }
+  current.parent = newParent;
+  return postThread;
+}
+
 export function getReplyPosts(postThread) {
   if (!postThread.replies) {
     return [];

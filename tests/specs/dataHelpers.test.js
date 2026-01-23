@@ -7,6 +7,7 @@ import {
   getQuotedPost,
   getBlockedQuote,
   createEmbedFromPost,
+  replaceTopParent,
 } from "../../src/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -220,6 +221,84 @@ t.describe("createEmbedFromPost", (it) => {
       value: {},
       uri: "minimal-uri",
     });
+  });
+});
+
+t.describe("replaceTopParent", (it) => {
+  it("should throw error when postThread has no parent", () => {
+    const postThread = { post: { uri: "post-uri" } };
+    let threw = false;
+    try {
+      replaceTopParent(postThread, { post: { uri: "new-parent" } });
+    } catch (e) {
+      threw = true;
+      assertEquals(e.message, "No parent found");
+    }
+    assert(threw, "Expected replaceTopParent to throw");
+  });
+
+  it("should replace immediate parent when it is the top", () => {
+    const postThread = {
+      post: { uri: "child-uri" },
+      parent: { post: { uri: "parent-uri" } },
+    };
+    const newParent = { post: { uri: "new-parent-uri" } };
+
+    const result = replaceTopParent(postThread, newParent);
+
+    assertEquals(result.parent, newParent);
+    assertEquals(result.post, postThread.post);
+  });
+
+  it("should return new object when immediate parent is the top", () => {
+    const postThread = {
+      post: { uri: "child-uri" },
+      parent: { post: { uri: "parent-uri" } },
+    };
+    const newParent = { post: { uri: "new-parent-uri" } };
+
+    const result = replaceTopParent(postThread, newParent);
+
+    assert(result !== postThread, "Should return a new object");
+  });
+
+  it("should replace top parent when there are multiple levels", () => {
+    const postThread = {
+      post: { uri: "child-uri" },
+      parent: {
+        post: { uri: "parent-uri" },
+        parent: {
+          post: { uri: "grandparent-uri" },
+        },
+      },
+    };
+    const newParent = { post: { uri: "new-grandparent-uri" } };
+
+    const result = replaceTopParent(postThread, newParent);
+
+    assertEquals(result.parent.parent, newParent);
+    assertEquals(result.parent.post.uri, "parent-uri");
+  });
+
+  it("should replace top parent when there are three levels", () => {
+    const postThread = {
+      post: { uri: "child-uri" },
+      parent: {
+        post: { uri: "parent-uri" },
+        parent: {
+          post: { uri: "grandparent-uri" },
+          parent: {
+            post: { uri: "great-grandparent-uri" },
+          },
+        },
+      },
+    };
+    const newParent = { post: { uri: "new-top-uri" } };
+
+    const result = replaceTopParent(postThread, newParent);
+
+    assertEquals(result.parent.parent.parent, newParent);
+    assertEquals(result.parent.parent.post.uri, "grandparent-uri");
   });
 });
 

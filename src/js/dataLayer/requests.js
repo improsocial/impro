@@ -1,6 +1,7 @@
 import { Normalizer } from "./normalizer.js";
 import {
   flattenParents,
+  replaceTopParent,
   getBlockedQuote,
   getPostUrisFromReposts,
   isBlockingUser,
@@ -116,7 +117,7 @@ export class Requests {
 
   async loadPostThread(postURI, { depth = 6 } = {}) {
     const labelers = this.requireLabelers();
-    const postThread = await this.api.getPostThread(postURI, {
+    let postThread = await this.api.getPostThread(postURI, {
       labelers,
       depth,
     });
@@ -130,9 +131,10 @@ export class Requests {
       const topParent = flattenParents(postThread)[0];
       // Special case for post thread: if a parent is blocked or missing, we need to load the parent chain ourselves
       if (topParent.$type === "app.bsky.feed.defs#blockedPost") {
-        postThread.parent = await this._loadParentChain(topParent, {
+        const loadedParent = await this._loadParentChain(topParent, {
           labelers,
         });
+        postThread = replaceTopParent(postThread, loadedParent);
       }
     }
     const totalNumReplies = postThread.post?.replyCount ?? 0;
