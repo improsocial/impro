@@ -280,4 +280,132 @@ t.describe("Patch Isolation", (it) => {
   });
 });
 
+t.describe("Preference Patches - Labeler Patches", (it) => {
+  it("should apply subscribeLabeler patch correctly", () => {
+    const patchStore = new PatchStore();
+    const labelerDid = "did:plc:testlabeler";
+
+    // Create a mock preferences object with subscribeLabeler method
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      subscribeLabeler: (did) => ({
+        ...mockPreferences,
+        _subscribedLabeler: did,
+      }),
+    };
+
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: labelerDid,
+    });
+    const result = patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(result._subscribedLabeler, labelerDid);
+  });
+
+  it("should apply unsubscribeLabeler patch correctly", () => {
+    const patchStore = new PatchStore();
+    const labelerDid = "did:plc:testlabeler";
+
+    // Create a mock preferences object with unsubscribeLabeler method
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      unsubscribeLabeler: (did) => ({
+        ...mockPreferences,
+        _unsubscribedLabeler: did,
+      }),
+    };
+
+    patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: labelerDid,
+    });
+    const result = patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(result._unsubscribedLabeler, labelerDid);
+  });
+
+  it("should apply multiple labeler patches in order", () => {
+    const patchStore = new PatchStore();
+    const labelerDid1 = "did:plc:labeler1";
+    const labelerDid2 = "did:plc:labeler2";
+
+    // Track calls in order
+    const calls = [];
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      subscribeLabeler: (did) => {
+        calls.push({ type: "subscribe", did });
+        return mockPreferences;
+      },
+      unsubscribeLabeler: (did) => {
+        calls.push({ type: "unsubscribe", did });
+        return mockPreferences;
+      },
+    };
+
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: labelerDid1,
+    });
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: labelerDid2,
+    });
+    patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: labelerDid1,
+    });
+
+    patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(calls.length, 3);
+    assertEquals(calls[0], { type: "subscribe", did: labelerDid1 });
+    assertEquals(calls[1], { type: "subscribe", did: labelerDid2 });
+    assertEquals(calls[2], { type: "unsubscribe", did: labelerDid1 });
+  });
+});
+
+t.describe("Preference Patches - Patch Management", (it) => {
+  it("should add and remove preference patches", () => {
+    const patchStore = new PatchStore();
+
+    const patchId1 = patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: "did:test1",
+    });
+    const patchId2 = patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: "did:test2",
+    });
+
+    assertEquals(patchStore._getPreferencePatches().length, 2);
+
+    patchStore.removePreferencePatch(patchId1);
+    assertEquals(patchStore._getPreferencePatches().length, 1);
+    assertEquals(
+      patchStore._getPreferencePatches()[0].body.type,
+      "unsubscribeLabeler",
+    );
+
+    patchStore.removePreferencePatch(patchId2);
+    assertEquals(patchStore._getPreferencePatches().length, 0);
+  });
+
+  it("should generate unique IDs for preference patches", () => {
+    const patchStore = new PatchStore();
+
+    const id1 = patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: "did:test1",
+    });
+    const id2 = patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: "did:test2",
+    });
+
+    assert(id1 !== id2);
+  });
+});
+
 await t.run();

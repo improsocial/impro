@@ -25,10 +25,13 @@ export function profileCardTemplate({
   isAuthenticated,
   isCurrentUser,
   profileChatStatus = null,
+  isLabeler = false,
+  isSubscribed = false,
   onClickChat = noop,
   onClickFollow = noop,
   onClickMute = noop,
   onClickBlock = noop,
+  onClickSubscribe = noop,
 }) {
   const isFollowing = profile.viewer?.following;
   const isBlocked = !!profile.viewer?.blocking;
@@ -77,6 +80,21 @@ export function profileCardTemplate({
               Unblock
             </button>`;
           }
+          if (isLabeler) {
+            return html`<button
+              @click=${() => {
+                if (!isAuthenticated) {
+                  return showSignInModal();
+                }
+                onClickSubscribe(profile, !isSubscribed);
+              }}
+              class=${classnames("rounded-button  profile-following-button", {
+                "rounded-button-primary": !isSubscribed,
+              })}
+            >
+              ${isSubscribed ? "Subscribed" : "+ Subscribe"}
+            </button>`;
+          }
           return html`<button
             @click=${() => {
               if (!isAuthenticated) {
@@ -118,6 +136,17 @@ export function profileCardTemplate({
           </context-menu-item>
           ${isAuthenticated && !isCurrentUser
             ? html`
+                ${isLabeler
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickFollow(profile, !isFollowing);
+                        }}
+                      >
+                        ${isFollowing ? "Unfollow account" : "Follow account"}
+                      </context-menu-item>
+                    `
+                  : null}
                 <context-menu-item
                   @click=${() => {
                     onClickMute(profile, !profile.viewer?.muted);

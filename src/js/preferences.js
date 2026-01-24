@@ -174,6 +174,42 @@ export class Preferences {
     return Preferences.getLabelerDidsFromPreferences(this.obj);
   }
 
+  isSubscribedToLabeler(did) {
+    const labelerPreference = Preferences.getLabelerPreference(this.obj);
+    if (!labelerPreference) {
+      return false;
+    }
+    return labelerPreference.labelers.some((labeler) => labeler.did === did);
+  }
+
+  subscribeLabeler(did) {
+    const clone = this.clone();
+    let labelerPreference = Preferences.getLabelerPreference(clone.obj);
+    if (!labelerPreference) {
+      labelerPreference = {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [],
+      };
+      clone.obj.push(labelerPreference);
+    }
+    if (!labelerPreference.labelers.some((l) => l.did === did)) {
+      labelerPreference.labelers.push({ did });
+    }
+    return clone;
+  }
+
+  unsubscribeLabeler(did) {
+    const clone = this.clone();
+    const labelerPreference = Preferences.getLabelerPreference(clone.obj);
+    if (!labelerPreference) {
+      return clone;
+    }
+    labelerPreference.labelers = labelerPreference.labelers.filter(
+      (labeler) => labeler.did !== did,
+    );
+    return clone;
+  }
+
   getPostLabels(post) {
     const labels = getPostLabels(post, this.labelerDefs);
     const displayLabels = [];

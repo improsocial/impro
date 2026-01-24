@@ -296,6 +296,186 @@ t.describe("unfollowProfile", (it) => {
   });
 });
 
+t.describe("subscribeLabeler", (it) => {
+  const testProfile = {
+    did: "did:test:labeler",
+    handle: "labeler.test",
+  };
+
+  it("should add optimistic preference patch immediately", () => {
+    let updateCalled = false;
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+        updateCalled = true;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    // Start the mutation
+    mutations.subscribeLabeler(testProfile);
+
+    // Check that patch was applied immediately (before API call completes)
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "subscribeLabeler");
+    assertEquals(patches[0].body.did, testProfile.did);
+  });
+
+  it("should remove patch after successful update", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.subscribeLabeler(testProfile);
+
+    // Check that patch was removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+
+  it("should remove patch even on error", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        subscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        throw new Error("API error");
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let errorThrown = false;
+    try {
+      await mutations.subscribeLabeler(testProfile);
+    } catch (e) {
+      errorThrown = true;
+    }
+
+    assertEquals(errorThrown, true);
+    // Patch should still be removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+});
+
+t.describe("unsubscribeLabeler", (it) => {
+  const testProfile = {
+    did: "did:test:labeler",
+    handle: "labeler.test",
+  };
+
+  it("should add optimistic preference patch immediately", () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    // Start the mutation
+    mutations.unsubscribeLabeler(testProfile);
+
+    // Check that patch was applied immediately
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "unsubscribeLabeler");
+    assertEquals(patches[0].body.did, testProfile.did);
+  });
+
+  it("should remove patch after successful update", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.unsubscribeLabeler(testProfile);
+
+    // Check that patch was removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+
+  it("should remove patch even on error", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        unsubscribeLabeler: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        throw new Error("API error");
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let errorThrown = false;
+    try {
+      await mutations.unsubscribeLabeler(testProfile);
+    } catch (e) {
+      errorThrown = true;
+    }
+
+    assertEquals(errorThrown, true);
+    // Patch should still be removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+});
+
 t.describe("Error Handling and Edge Cases", (it) => {
   it("should handle multiple mutations on same resource", async () => {
     const post = {

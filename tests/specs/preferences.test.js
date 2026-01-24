@@ -937,6 +937,174 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
   });
 });
 
+t.describe("Preferences.isSubscribedToLabeler", (it) => {
+  it("should return true when subscribed to labeler", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }, { did: "did:plc:labeler2" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.isSubscribedToLabeler("did:plc:labeler1");
+
+    assertEquals(result, true);
+  });
+
+  it("should return false when not subscribed to labeler", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.isSubscribedToLabeler("did:plc:other");
+
+    assertEquals(result, false);
+  });
+
+  it("should return false when no labeler preference exists", () => {
+    const preferences = new Preferences([], []);
+    const result = preferences.isSubscribedToLabeler("did:plc:labeler1");
+
+    assertEquals(result, false);
+  });
+});
+
+t.describe("Preferences.subscribeLabeler", (it) => {
+  it("should add labeler to existing labelers preference", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:existing" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+
+    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+    assertEquals(
+      newPreferences.isSubscribedToLabeler("did:plc:existing"),
+      true,
+    );
+  });
+
+  it("should create labelers preference if it does not exist", () => {
+    const preferences = new Preferences([], []);
+    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+
+    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+  });
+
+  it("should not add duplicate labeler", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:existing" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.subscribeLabeler("did:plc:existing");
+
+    // Get the labelers preference and check count
+    const labelerPref = Preferences.getLabelerPreference(newPreferences.obj);
+    assertEquals(labelerPref.labelers.length, 1);
+  });
+
+  it("should not modify original preferences", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:existing" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+
+    // Original should be unchanged
+    assertEquals(preferences.isSubscribedToLabeler("did:plc:new"), false);
+    // New should have the labeler
+    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+  });
+});
+
+t.describe("Preferences.unsubscribeLabeler", (it) => {
+  it("should remove labeler from labelers preference", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }, { did: "did:plc:labeler2" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
+
+    assertEquals(
+      newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
+      false,
+    );
+    assertEquals(
+      newPreferences.isSubscribedToLabeler("did:plc:labeler2"),
+      true,
+    );
+  });
+
+  it("should handle unsubscribing from non-existent labeler", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.unsubscribeLabeler(
+      "did:plc:nonexistent",
+    );
+
+    // Should not throw and should keep existing labeler
+    assertEquals(
+      newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
+      true,
+    );
+  });
+
+  it("should return clone when no labelers preference exists", () => {
+    const preferences = new Preferences([], []);
+    const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
+
+    // Should not throw and should return a clone
+    assert(newPreferences !== preferences);
+  });
+
+  it("should not modify original preferences", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }, { did: "did:plc:labeler2" }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
+
+    // Original should be unchanged
+    assertEquals(preferences.isSubscribedToLabeler("did:plc:labeler1"), true);
+    // New should have the labeler removed
+    assertEquals(
+      newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
+      false,
+    );
+  });
+});
+
 t.describe("Preferences.clone", (it) => {
   it("should create independent copy of preferences", () => {
     const obj = [

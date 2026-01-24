@@ -146,6 +146,12 @@ class ProfileView extends View {
         const authorFeedsToShow = isCurrentUser
           ? currentUserAuthorFeeds
           : defaultAuthorFeeds;
+        const isLabeler = profile.associated?.labeler;
+        let isSubscribed = false;
+        if (isLabeler) {
+          const preferences = dataLayer.selectors.getPreferences();
+          isSubscribed = preferences?.isSubscribedToLabeler(profile.did);
+        }
         return html`
           <div class="profile-container">
             ${profileCardTemplate({
@@ -154,6 +160,8 @@ class ProfileView extends View {
               isAuthenticated,
               isCurrentUser,
               profileChatStatus,
+              isLabeler,
+              isSubscribed,
               onClickChat: async (profile) => {
                 if (!profileChatStatus || !profileChatStatus.canChat) {
                   // This should never happen
@@ -170,7 +178,10 @@ class ProfileView extends View {
                 }
               },
               onClickFollow: (profile, doFollow) =>
-                profileInteractionHandler.handleFollow(profile, doFollow),
+                profileInteractionHandler.handleFollow(profile, doFollow, {
+                  // Only show success toast for labelers, aka when the follow button is in the context menu
+                  showSuccessToast: isLabeler,
+                }),
               onClickMute: (profile, doMute) =>
                 profileInteractionHandler.handleMute(profile, doMute),
               onClickBlock: async (profile, doBlock) => {
@@ -183,6 +194,8 @@ class ProfileView extends View {
                   preloadHiddenFeeds();
                 }
               },
+              onClickSubscribe: (profile, doSubscribe) =>
+                profileInteractionHandler.handleSubscribe(profile, doSubscribe),
             })}
             ${isBlocked
               ? html`<div class="feed">

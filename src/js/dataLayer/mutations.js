@@ -273,6 +273,40 @@ export class Mutations {
     }
   }
 
+  async subscribeLabeler(profile) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: profile.did,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.subscribeLabeler(profile.did);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async unsubscribeLabeler(profile) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: profile.did,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.unsubscribeLabeler(profile.did);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
   async muteProfile(profile) {
     const patchId = this.patchStore.addProfilePatch(profile.did, {
       type: "muteProfile",

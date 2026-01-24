@@ -8,7 +8,7 @@ export class ProfileInteractionHandler {
     this.renderFunc = renderFunc;
   }
 
-  async handleFollow(profile, doFollow) {
+  async handleFollow(profile, doFollow, { showSuccessToast = false } = {}) {
     if (doFollow) {
       try {
         hapticsImpactMedium();
@@ -18,9 +18,12 @@ export class ProfileInteractionHandler {
         await promise;
         // Render final update
         this.renderFunc();
+        if (showSuccessToast) {
+          showToast("Account followed");
+        }
       } catch (error) {
         console.error(error);
-        showToast("Failed to follow profile", { error: true });
+        showToast("Failed to follow account", { error: true });
         this.renderFunc();
       }
     } else {
@@ -31,9 +34,12 @@ export class ProfileInteractionHandler {
         await promise;
         // Render final update
         this.renderFunc();
+        if (showSuccessToast) {
+          showToast("Account unfollowed");
+        }
       } catch (error) {
         console.error(error);
-        showToast("Failed to unfollow profile", { error: true });
+        showToast("Failed to unfollow account", { error: true });
         this.renderFunc();
       }
     }
@@ -99,6 +105,39 @@ export class ProfileInteractionHandler {
       } catch (error) {
         console.error(error);
         showToast("Failed to unblock account", { error: true });
+        this.renderFunc();
+      }
+    }
+  }
+
+  async handleSubscribe(profile, doSubscribe) {
+    if (doSubscribe) {
+      try {
+        hapticsImpactMedium();
+        const promise = this.dataLayer.mutations.subscribeLabeler(profile);
+        // Render optimistic update
+        this.renderFunc();
+        await promise;
+        // Render final update
+        this.renderFunc();
+        showToast("Subscribed to labeler");
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to subscribe to labeler", { error: true });
+        this.renderFunc();
+      }
+    } else {
+      try {
+        const promise = this.dataLayer.mutations.unsubscribeLabeler(profile);
+        // Render optimistic update
+        this.renderFunc();
+        await promise;
+        // Render final update
+        this.renderFunc();
+        showToast("Unsubscribed from labeler");
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to unsubscribe from labeler", { error: true });
         this.renderFunc();
       }
     }

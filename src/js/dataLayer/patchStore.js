@@ -304,6 +304,10 @@ export class PatchStore {
         return preferences.pinFeed(patchBody.feedUri);
       case "unpinFeed":
         return preferences.unpinFeed(patchBody.feedUri);
+      case "subscribeLabeler":
+        return preferences.subscribeLabeler(patchBody.did);
+      case "unsubscribeLabeler":
+        return preferences.unsubscribeLabeler(patchBody.did);
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }
