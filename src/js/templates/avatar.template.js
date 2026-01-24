@@ -1,27 +1,24 @@
 import { html, keyed } from "/js/lib/lit-html.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
+import { classnames } from "/js/utils.js";
 import "/js/components/lightbox-image-group.js";
 
 // CLick actions: "link", "lightbox", "none"
 
 function avatarWrapperTemplate({ author, clickAction, children }) {
   if (clickAction === "link") {
-    // Keyed so that image elements aren't re-used
-    return keyed(
-      author.handle,
-      html` <a
-        class="avatar-link"
-        href="/profile/${author.handle}"
-        @click=${(e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          window.router.go(`/profile/${author.handle}`, {
-            transition: "slide-in",
-          });
-        }}
-        >${children}</a
-      >`,
-    );
+    return html`<a
+      class="avatar-link"
+      href="/profile/${author.handle}"
+      @click=${(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        window.router.go(`/profile/${author.handle}`, {
+          transition: "slide-in",
+        });
+      }}
+      >${children}</a
+    >`;
   } else if (clickAction === "lightbox") {
     return html`<lightbox-image-group hide-alt-text="true"
       >${children}</lightbox-image-group
@@ -37,6 +34,7 @@ export function avatarTemplate({
   lazyLoad = false,
   // lazyLoad = true,
 }) {
+  const isLabeler = author.associated?.labeler;
   const avatarUrl = author.avatar
     ? avatarThumbnailUrl(author.avatar)
     : "/img/avatar-fallback.svg";
@@ -44,13 +42,15 @@ export function avatarTemplate({
     ${avatarWrapperTemplate({
       author,
       clickAction,
-      children: html`<img
-        src="${avatarUrl}"
-        alt="${author.displayName} profile picture"
-        class="avatar-image"
-        loading=${lazyLoad ? "lazy" : "eager"}
-      />`,
+      children: keyed(
+        author.handle,
+        html`<img
+          src="${avatarUrl}"
+          alt="${author.displayName} profile picture"
+          class=${classnames("avatar-image", { "labeler-avatar": isLabeler })}
+          loading=${lazyLoad ? "lazy" : "eager"}
+        />`,
+      ),
     })}
-    </a>
   </div>`;
 }
