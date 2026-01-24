@@ -1,5 +1,5 @@
 import { html, keyed } from "/js/lib/lit-html.js";
-import { avatarThumbnailUrl } from "/js/dataHelpers.js";
+import { avatarThumbnailUrl, isLabelerProfile } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
@@ -26,7 +26,7 @@ export function avatarTemplate({
   lazyLoad = false,
   // lazyLoad = true,
 }) {
-  const isLabeler = author.associated?.labeler;
+  const isLabeler = isLabelerProfile(author);
   const avatarUrl = author.avatar
     ? avatarThumbnailUrl(author.avatar)
     : "/img/avatar-fallback.svg";

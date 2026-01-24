@@ -372,3 +372,7 @@ export function doHideAuthorOnUnauthenticated(author) {
   const authorLabels = author.labels || [];
   return authorLabels.some((label) => label.val === "!no-unauthenticated");
 }
+
+export function isLabelerProfile(profile) {
+  return profile.associated?.labeler;
+}

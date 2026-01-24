@@ -479,6 +479,15 @@ export class Selectors {
     return this.dataStore.getProfileChatStatus(profileDid);
   }
 
+  getLabelerInfo(labelerDid) {
+    return this.dataStore.getLabelerInfo(labelerDid);
+  }
+
+  getLabelerSettings(labelerDid) {
+    const preferences = this.getPreferences();
+    return preferences.getLabelerSettings(labelerDid);
+  }
+
   _markMutedWords(post) {
     // Add attributes to the post to indicate if it has a muted word.
     // Modifies the post in place.

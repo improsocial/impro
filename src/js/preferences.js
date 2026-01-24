@@ -210,6 +210,35 @@ export class Preferences {
     return clone;
   }
 
+  getContentLabelPref({ label, labelerDid }) {
+    const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
+    const matchingPref = contentLabelPrefs.find(
+      (pref) => pref.label === label && pref.labelerDid === labelerDid,
+    );
+    return matchingPref ?? null;
+  }
+
+  setContentLabelPref({ label, visibility, labelerDid }) {
+    const clone = this.clone();
+    const existingPref = clone.getContentLabelPref({ label, labelerDid });
+    if (existingPref) {
+      existingPref.visibility = visibility;
+    } else {
+      clone.obj.push({
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label,
+        labelerDid,
+        visibility,
+      });
+    }
+    return clone;
+  }
+
+  getLabelerSettings(labelerDid) {
+    const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
+    return contentLabelPrefs.filter((pref) => pref.labelerDid === labelerDid);
+  }
+
   getPostLabels(post) {
     const labels = getPostLabels(post, this.labelerDefs);
     const displayLabels = [];
@@ -343,6 +372,12 @@ export class Preferences {
     return Preferences.getPreferenceByType(
       obj,
       "app.bsky.actor.defs#labelersPref",
+    );
+  }
+
+  static getContentLabelPreferences(obj) {
+    return obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#contentLabelPref",
     );
   }
 

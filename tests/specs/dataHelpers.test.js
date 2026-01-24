@@ -8,6 +8,7 @@ import {
   getBlockedQuote,
   createEmbedFromPost,
   replaceTopParent,
+  isLabelerProfile,
 } from "../../src/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -299,6 +300,28 @@ t.describe("replaceTopParent", (it) => {
 
     assertEquals(result.parent.parent.parent, newParent);
     assertEquals(result.parent.parent.post.uri, "grandparent-uri");
+  });
+});
+
+t.describe("isLabelerProfile", (it) => {
+  it("should return true when profile has associated labeler", () => {
+    const profile = { associated: { labeler: true } };
+    assertEquals(isLabelerProfile(profile), true);
+  });
+
+  it("should return false when profile has no associated labeler", () => {
+    const profile = { associated: { labeler: false } };
+    assertEquals(isLabelerProfile(profile), false);
+  });
+
+  it("should return undefined when profile has no associated property", () => {
+    const profile = {};
+    assertEquals(isLabelerProfile(profile), undefined);
+  });
+
+  it("should return undefined when associated has no labeler property", () => {
+    const profile = { associated: {} };
+    assertEquals(isLabelerProfile(profile), undefined);
   });
 });
 

@@ -308,6 +308,12 @@ export class PatchStore {
         return preferences.subscribeLabeler(patchBody.did);
       case "unsubscribeLabeler":
         return preferences.unsubscribeLabeler(patchBody.did);
+      case "setContentLabelPref":
+        return preferences.setContentLabelPref({
+          label: patchBody.label,
+          visibility: patchBody.visibility,
+          labelerDid: patchBody.labelerDid,
+        });
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

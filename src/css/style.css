@@ -5269,3 +5269,95 @@ moderation-warning .toggle-content {
 .plain-text-page a {
   color: var(--text-link-color);
 }
+
+.labeler-settings-container {
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+.labeler-settings-loading {
+  color: var(--text-color-muted);
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.labeler-settings-header {
+  color: var(--text-color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.labeler-settings-header p {
+  margin-bottom: 12px;
+}
+
+.labeler-settings-header p:last-child {
+  margin-bottom: 0;
+}
+
+.label-preference-list {
+  background-color: var(--background-color-secondary);
+}
+
+.label-preference-row {
+  padding: 16px;
+  border-bottom: var(--hair) solid var(--generic-border-color);
+}
+
+.label-preference-row:last-child {
+  border-bottom: none;
+}
+
+.label-preference-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.label-preference-description {
+  color: var(--text-color-muted);
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.label-preference-name + .label-preference-buttons {
+  margin-top: 8px;
+}
+
+.label-preference-buttons {
+  display: flex;
+  border-radius: var(--embed-border-radius);
+  overflow: hidden;
+  border: var(--hair) solid var(--generic-border-color);
+}
+
+.label-pref-button {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: none;
+  border-right: var(--hair) solid var(--generic-border-color);
+  background-color: var(--background-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.label-pref-button:last-child {
+  border-right: none;
+}
+
+.label-pref-button:hover:not(:disabled):not(.active) {
+  background: var(--post-hover-color);
+}
+
+.label-pref-button.active {
+  background: var(--primary-button-color);
+  color: var(--primary-button-text-color);
+}
+
+.label-pref-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

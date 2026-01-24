@@ -36,6 +36,7 @@ export class DataStore extends EventEmitter {
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
     this.profileChatStatus = new Map();
+    this.labelerInfo = new Map();
   }
 
   hasCurrentUser() {
@@ -516,5 +517,21 @@ export class DataStore extends EventEmitter {
 
   clearProfileChatStatus(profileDid) {
     this.profileChatStatus.delete(profileDid);
+  }
+
+  hasLabelerInfo(labelerDid) {
+    return this.labelerInfo.has(labelerDid);
+  }
+
+  getLabelerInfo(labelerDid) {
+    return this.labelerInfo.get(labelerDid);
+  }
+
+  setLabelerInfo(labelerDid, info) {
+    this.labelerInfo.set(labelerDid, info);
+  }
+
+  clearLabelerInfo(labelerDid) {
+    this.labelerInfo.delete(labelerDid);
   }
 }

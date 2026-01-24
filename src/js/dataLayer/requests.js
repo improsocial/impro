@@ -97,6 +97,7 @@ export class Requests {
     this.enableStatus(this.loadProfileFollowers, "loadProfileFollowers");
     this.enableStatus(this.loadProfileFollows, "loadProfileFollows");
     this.enableStatus(this.loadProfileChatStatus, "loadProfileChatStatus");
+    this.enableStatus(this.loadLabelerInfo, "loadLabelerInfo");
   }
 
   requireLabelers() {
@@ -693,5 +694,10 @@ export class Requests {
   async loadProfileChatStatus(profileDid) {
     const res = await this.api.getConvoAvailability([profileDid]);
     this.dataStore.setProfileChatStatus(profileDid, res);
+  }
+
+  async loadLabelerInfo(labelerDid) {
+    const labelerInfo = await this.api.getLabeler(labelerDid);
+    this.dataStore.setLabelerInfo(labelerDid, labelerInfo);
   }
 }

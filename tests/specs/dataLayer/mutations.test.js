@@ -476,6 +476,123 @@ t.describe("unsubscribeLabeler", (it) => {
   });
 });
 
+t.describe("updateLabelerSetting", (it) => {
+  const labelerDid = "did:test:labeler";
+  const label = "nsfw";
+  const visibility = "warn";
+
+  it("should add optimistic preference patch immediately", () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    // Start the mutation
+    mutations.updateLabelerSetting({ labelerDid, label, visibility });
+
+    // Check that patch was applied immediately
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "setContentLabelPref");
+    assertEquals(patches[0].body.label, label);
+    assertEquals(patches[0].body.visibility, visibility);
+    assertEquals(patches[0].body.labelerDid, labelerDid);
+  });
+
+  it("should remove patch after successful update", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.updateLabelerSetting({ labelerDid, label, visibility });
+
+    // Check that patch was removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+
+  it("should remove patch even on error", async () => {
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        setContentLabelPref: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: async () => {
+        throw new Error("API error");
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let errorThrown = false;
+    try {
+      await mutations.updateLabelerSetting({ labelerDid, label, visibility });
+    } catch (e) {
+      errorThrown = true;
+    }
+
+    assertEquals(errorThrown, true);
+    // Patch should still be removed
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 0);
+  });
+
+  it("should call setContentLabelPref with correct parameters", async () => {
+    let setContentLabelPrefCalledWith = null;
+    const mockPreferencesProvider = {
+      requirePreferences: () => ({
+        setContentLabelPref: (params) => {
+          setContentLabelPrefCalledWith = params;
+          return Preferences.createLoggedOutPreferences();
+        },
+      }),
+      updatePreferences: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.updateLabelerSetting({ labelerDid, label, visibility });
+
+    assertEquals(setContentLabelPrefCalledWith.labelerDid, labelerDid);
+    assertEquals(setContentLabelPrefCalledWith.label, label);
+    assertEquals(setContentLabelPrefCalledWith.visibility, visibility);
+  });
+});
+
 t.describe("Error Handling and Edge Cases", (it) => {
   it("should handle multiple mutations on same resource", async () => {
     const post = {

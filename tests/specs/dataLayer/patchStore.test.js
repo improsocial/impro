@@ -408,4 +408,107 @@ t.describe("Preference Patches - Patch Management", (it) => {
   });
 });
 
+t.describe("Preference Patches - Content Label Patches", (it) => {
+  it("should apply setContentLabelPref patch correctly", () => {
+    const patchStore = new PatchStore();
+    const labelerDid = "did:plc:testlabeler";
+    const label = "nsfw";
+    const visibility = "warn";
+
+    // Create a mock preferences object with setContentLabelPref method
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      setContentLabelPref: (params) => ({
+        ...mockPreferences,
+        _contentLabelPref: params,
+      }),
+    };
+
+    patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label,
+      visibility,
+      labelerDid,
+    });
+    const result = patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(result._contentLabelPref.label, label);
+    assertEquals(result._contentLabelPref.visibility, visibility);
+    assertEquals(result._contentLabelPref.labelerDid, labelerDid);
+  });
+
+  it("should apply multiple content label patches in order", () => {
+    const patchStore = new PatchStore();
+    const labelerDid = "did:plc:testlabeler";
+
+    // Track calls in order
+    const calls = [];
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      setContentLabelPref: (params) => {
+        calls.push(params);
+        return mockPreferences;
+      },
+    };
+
+    patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label: "nsfw",
+      visibility: "warn",
+      labelerDid,
+    });
+    patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label: "gore",
+      visibility: "hide",
+      labelerDid,
+    });
+
+    patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(calls.length, 2);
+    assertEquals(calls[0].label, "nsfw");
+    assertEquals(calls[0].visibility, "warn");
+    assertEquals(calls[1].label, "gore");
+    assertEquals(calls[1].visibility, "hide");
+  });
+
+  it("should mix content label patches with labeler patches", () => {
+    const patchStore = new PatchStore();
+    const labelerDid = "did:plc:testlabeler";
+
+    const calls = [];
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      subscribeLabeler: (did) => {
+        calls.push({ type: "subscribe", did });
+        return mockPreferences;
+      },
+      setContentLabelPref: (params) => {
+        calls.push({ type: "setContentLabelPref", ...params });
+        return mockPreferences;
+      },
+    };
+
+    patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: labelerDid,
+    });
+    patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label: "nsfw",
+      visibility: "warn",
+      labelerDid,
+    });
+
+    patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(calls.length, 2);
+    assertEquals(calls[0].type, "subscribe");
+    assertEquals(calls[0].did, labelerDid);
+    assertEquals(calls[1].type, "setContentLabelPref");
+    assertEquals(calls[1].label, "nsfw");
+  });
+});
+
 await t.run();

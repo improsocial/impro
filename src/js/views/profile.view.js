@@ -1,15 +1,20 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames, wait } from "/js/utils.js";
-import { doHideAuthorOnUnauthenticated } from "/js/dataHelpers.js";
+import {
+  doHideAuthorOnUnauthenticated,
+  isLabelerProfile,
+} from "/js/dataHelpers.js";
 import { View } from "./view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
+import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { ApiError } from "/js/api.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
 import { AUTHOR_FEED_PAGE_SIZE } from "/js/config.js";
+import { showToast } from "/js/toasts.js";
 
 class ProfileView extends View {
   async render({
@@ -48,7 +53,7 @@ class ProfileView extends View {
     ];
 
     const state = {
-      currentFeedType: "posts",
+      activeTab: "posts", // will be either a feed type or "labeler-settings"
       richTextProfileDescription: null,
     };
 
@@ -72,7 +77,7 @@ class ProfileView extends View {
       },
     );
 
-    const feedScrollState = new Map();
+    const tabScrollState = new Map();
 
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
@@ -82,24 +87,45 @@ class ProfileView extends View {
       await loadAuthorFeed({ reload: true });
     }
 
-    async function handleTabClick(feed) {
-      if (feed.feedType === state.currentFeedType) {
+    async function handleTabClick(tab) {
+      if (tab === state.activeTab) {
         scrollAndReloadFeed();
         return;
       }
       // Save scroll state
-      feedScrollState.set(state.currentFeedType, window.scrollY);
-      // Switch feed
-      state.currentFeedType = feed.feedType;
+      tabScrollState.set(state.activeTab, window.scrollY);
+      // switch tab
+      state.activeTab = tab;
       renderPage();
-      // Scroll to saved scroll state
-      if (feedScrollState.has(state.currentFeedType)) {
-        window.scrollTo(0, feedScrollState.get(state.currentFeedType));
+      // Restore or reset scroll
+      if (tabScrollState.has(tab)) {
+        window.scrollTo(0, tabScrollState.get(tab));
       } else {
         window.scrollTo(0, 0);
       }
-      if (!dataLayer.hasCachedAuthorFeed(profileDid, state.currentFeedType)) {
+      // Load feed if needed
+      const isFeedTab = tab !== "labeler-settings";
+      if (isFeedTab && !dataLayer.hasCachedAuthorFeed(profileDid, tab)) {
         await loadAuthorFeed();
+      }
+    }
+
+    async function handleLabelerSettingsClick(labelerDid, label, visibility) {
+      try {
+        const promise = dataLayer.mutations.updateLabelerSetting({
+          labelerDid,
+          label,
+          visibility,
+        });
+        // Render optimistic update
+        renderPage();
+        await promise;
+        // Render final update
+        renderPage();
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to update labeler setting", { error: true });
+        renderPage();
       }
     }
 
@@ -133,7 +159,12 @@ class ProfileView extends View {
       `;
     }
 
-    function profileTemplate({ profile, currentUser = null }) {
+    function profileTemplate({
+      profile,
+      isLabeler,
+      labelerInfo,
+      currentUser = null,
+    }) {
       try {
         if (!isAuthenticated && doHideAuthorOnUnauthenticated(profile)) {
           return profileUnavailableTemplate();
@@ -146,11 +177,12 @@ class ProfileView extends View {
         const authorFeedsToShow = isCurrentUser
           ? currentUserAuthorFeeds
           : defaultAuthorFeeds;
-        const isLabeler = profile.associated?.labeler;
         let isSubscribed = false;
+        let labelerSettings = null;
         if (isLabeler) {
           const preferences = dataLayer.selectors.getPreferences();
           isSubscribed = preferences?.isSubscribedToLabeler(profile.did);
+          labelerSettings = dataLayer.selectors.getLabelerSettings(profile.did);
         }
         return html`
           <div class="profile-container">
@@ -161,6 +193,7 @@ class ProfileView extends View {
               isCurrentUser,
               profileChatStatus,
               isLabeler,
+              labelerInfo,
               isSubscribed,
               onClickChat: async (profile) => {
                 if (!profileChatStatus || !profileChatStatus.canChat) {
@@ -204,20 +237,48 @@ class ProfileView extends View {
               : html`
                   <div class="profile-tab-bar">
                     <div class="tab-bar">
+                      ${isLabeler
+                        ? html`<button
+                            class=${classnames("tab-bar-button", {
+                              active: state.activeTab === "labeler-settings",
+                            })}
+                            @click=${() => handleTabClick("labeler-settings")}
+                          >
+                            Labels
+                          </button>`
+                        : null}
                       ${authorFeedsToShow.map(
                         (feedInfo) =>
                           html`<button
                             class=${classnames("tab-bar-button", {
-                              active:
-                                state.currentFeedType === feedInfo.feedType,
+                              active: state.activeTab === feedInfo.feedType,
                             })}
-                            @click=${() => handleTabClick(feedInfo)}
+                            @click=${() => handleTabClick(feedInfo.feedType)}
                           >
                             ${feedInfo.name}
                           </button>`,
                       )}
                     </div>
                   </div>
+                  ${isLabeler
+                    ? html`<div
+                        class="labeler-settings-pane"
+                        ?hidden=${state.activeTab !== "labeler-settings"}
+                      >
+                        ${labelerSettingsTemplate({
+                          labelerInfo,
+                          profile,
+                          isSubscribed,
+                          labelerSettings,
+                          onClick: (label, visibility) =>
+                            handleLabelerSettingsClick(
+                              profile.did,
+                              label,
+                              visibility,
+                            ),
+                        })}
+                      </div>`
+                    : null}
                   ${authorFeedsToShow.map((feedInfo) => {
                     const authorFeed = dataLayer.selectors.getAuthorFeed(
                       profileDid,
@@ -225,7 +286,7 @@ class ProfileView extends View {
                     );
                     return html`<div
                       class="feed-container"
-                      ?hidden=${state.currentFeedType !== feedInfo.feedType}
+                      ?hidden=${state.activeTab !== feedInfo.feedType}
                     >
                       ${postFeedTemplate({
                         feed: authorFeed,
@@ -256,6 +317,12 @@ class ProfileView extends View {
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
       const profileRequestStatus = dataLayer.requests.getStatus("loadProfile");
+      const isLabeler = profile && isLabelerProfile(profile);
+      const labelerInfo = isLabeler
+        ? dataLayer.selectors.getLabelerInfo(profile.did)
+        : null;
+      // If labeler, require labeler info to be loaded
+      const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
       render(
         html`<div id="profile-view">
           ${mainLayoutTemplate({
@@ -286,8 +353,13 @@ class ProfileView extends View {
                     return profileErrorTemplate({
                       error: profileRequestStatus.error,
                     });
-                  } else if (profile) {
-                    return profileTemplate({ profile, currentUser });
+                  } else if (isLoaded) {
+                    return profileTemplate({
+                      profile,
+                      isLabeler,
+                      labelerInfo,
+                      currentUser,
+                    });
                   } else {
                     return profileSkeletonTemplate();
                   }
@@ -301,9 +373,12 @@ class ProfileView extends View {
     }
 
     async function loadAuthorFeed({ reload = false } = {}) {
+      if (state.activeTab === "labeler-settings") {
+        return;
+      }
       await dataLayer.requests.loadNextAuthorFeedPage(
         profileDid,
-        state.currentFeedType,
+        state.activeTab,
         {
           reload,
           limit: AUTHOR_FEED_PAGE_SIZE + 1,
@@ -342,6 +417,16 @@ class ProfileView extends View {
         await dataLayer.declarative.ensureCurrentUser();
       }
       const profile = await dataLayer.declarative.ensureProfile(profileDid);
+
+      // Set active tab and load labeler info if this is a labeler profile
+      const isLabeler = profile && isLabelerProfile(profile);
+      if (isLabeler) {
+        state.activeTab = "labeler-settings";
+        dataLayer.requests.loadLabelerInfo(profile.did).then(() => {
+          renderPage();
+        });
+      }
+
       state.richTextProfileDescription = await loadProfileDescription(profile);
       renderPage();
       if (!profile.viewer?.blocking) {

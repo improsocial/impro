@@ -280,6 +280,7 @@ export class Mutations {
     });
     const preferences = this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.subscribeLabeler(profile.did);
+
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {
@@ -297,6 +298,29 @@ export class Mutations {
     });
     const preferences = this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.unsubscribeLabeler(profile.did);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async updateLabelerSetting({ labelerDid, label, visibility }) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label,
+      visibility,
+      labelerDid,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setContentLabelPref({
+      label,
+      visibility,
+      labelerDid,
+    });
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {

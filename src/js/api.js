@@ -454,6 +454,11 @@ export class Api {
     return res.data.views;
   }
 
+  async getLabeler(labelerDid) {
+    const labelers = await this.getLabelers([labelerDid]);
+    return labelers[0];
+  }
+
   async getSession() {
     const res = await this.request("com.atproto.server.getSession", {
       method: "GET",

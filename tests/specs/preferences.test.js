@@ -1194,4 +1194,278 @@ t.describe("Preferences.getPostLabels", (it) => {
   });
 });
 
+t.describe("Preferences.getContentLabelPref", (it) => {
+  it("should return matching content label preference", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid,
+        visibility: "warn",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.getContentLabelPref({
+      label: "nsfw",
+      labelerDid,
+    });
+
+    assertEquals(result.label, "nsfw");
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelerDid, labelerDid);
+  });
+
+  it("should return null when no matching preference exists", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:plc:testlabeler",
+        visibility: "warn",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.getContentLabelPref({
+      label: "gore",
+      labelerDid: "did:plc:testlabeler",
+    });
+
+    assertEquals(result, null);
+  });
+
+  it("should match both label and labelerDid", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:plc:labeler1",
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:plc:labeler2",
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.getContentLabelPref({
+      label: "nsfw",
+      labelerDid: "did:plc:labeler2",
+    });
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelerDid, "did:plc:labeler2");
+  });
+});
+
+t.describe("Preferences.setContentLabelPref", (it) => {
+  it("should add new content label preference", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const preferences = new Preferences([], []);
+
+    const newPreferences = preferences.setContentLabelPref({
+      label: "nsfw",
+      visibility: "warn",
+      labelerDid,
+    });
+
+    const result = newPreferences.getContentLabelPref({
+      label: "nsfw",
+      labelerDid,
+    });
+    assertEquals(result.label, "nsfw");
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelerDid, labelerDid);
+  });
+
+  it("should update existing content label preference", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid,
+        visibility: "warn",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const newPreferences = preferences.setContentLabelPref({
+      label: "nsfw",
+      visibility: "hide",
+      labelerDid,
+    });
+
+    const result = newPreferences.getContentLabelPref({
+      label: "nsfw",
+      labelerDid,
+    });
+    assertEquals(result.visibility, "hide");
+  });
+
+  it("should not modify original preferences", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const preferences = new Preferences([], []);
+
+    const newPreferences = preferences.setContentLabelPref({
+      label: "nsfw",
+      visibility: "warn",
+      labelerDid,
+    });
+
+    // Original should be unchanged
+    assertEquals(
+      preferences.getContentLabelPref({ label: "nsfw", labelerDid }),
+      null,
+    );
+    // New should have the pref
+    assertEquals(
+      newPreferences.getContentLabelPref({ label: "nsfw", labelerDid }).label,
+      "nsfw",
+    );
+  });
+
+  it("should set correct $type on new preference", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const preferences = new Preferences([], []);
+
+    const newPreferences = preferences.setContentLabelPref({
+      label: "nsfw",
+      visibility: "warn",
+      labelerDid,
+    });
+
+    const prefs = Preferences.getContentLabelPreferences(newPreferences.obj);
+    assertEquals(prefs.length, 1);
+    assertEquals(prefs[0].$type, "app.bsky.actor.defs#contentLabelPref");
+  });
+});
+
+t.describe("Preferences.getLabelerSettings", (it) => {
+  it("should return all content label prefs for a labeler", () => {
+    const labelerDid = "did:plc:testlabeler";
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid,
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "gore",
+        labelerDid: labelerDid,
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.getLabelerSettings(labelerDid);
+
+    assertEquals(result.length, 2);
+    assertEquals(result[0].label, "nsfw");
+    assertEquals(result[1].label, "gore");
+  });
+
+  it("should return empty array when no settings exist", () => {
+    const preferences = new Preferences([], []);
+    const result = preferences.getLabelerSettings("did:plc:testlabeler");
+
+    assertEquals(result.length, 0);
+  });
+
+  it("should filter by labelerDid", () => {
+    const labelerDid1 = "did:plc:labeler1";
+    const labelerDid2 = "did:plc:labeler2";
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid1,
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "gore",
+        labelerDid: labelerDid2,
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const result = preferences.getLabelerSettings(labelerDid1);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0].label, "nsfw");
+    assertEquals(result[0].labelerDid, labelerDid1);
+  });
+});
+
+t.describe("Preferences.getContentLabelPreferences", (it) => {
+  it("should return all content label preferences", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:plc:labeler1",
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [],
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "gore",
+        labelerDid: "did:plc:labeler2",
+        visibility: "hide",
+      },
+    ];
+
+    const result = Preferences.getContentLabelPreferences(obj);
+
+    assertEquals(result.length, 2);
+    assertEquals(result[0].label, "nsfw");
+    assertEquals(result[1].label, "gore");
+  });
+
+  it("should return empty array when no content label preferences exist", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [],
+      },
+    ];
+
+    const result = Preferences.getContentLabelPreferences(obj);
+
+    assertEquals(result.length, 0);
+  });
+
+  it("should only return contentLabelPref type", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:plc:labeler1",
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }],
+      },
+    ];
+
+    const result = Preferences.getContentLabelPreferences(obj);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0].$type, "app.bsky.actor.defs#contentLabelPref");
+  });
+});
+
 await t.run();
