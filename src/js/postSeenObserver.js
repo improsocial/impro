@@ -58,60 +58,6 @@ function isVisible(element) {
   );
 }
 
-// export class PostSeenObserver {
-//   constructor(api, feedProxyUrl, { verbose = false } = {}) {
-//     this.verbose = verbose;
-//     this.feedProxyUrl = feedProxyUrl;
-//     this.observedElements = new Map();
-//     this.feedItemData = new Map(); // map of element -> feed item data
-//     this.seenPosts = new Set();
-//     this.interactionsDispatch = new InteractionsDispatch(api, feedProxyUrl);
-//     this.observer = new IntersectionObserver((entries) => {
-//       entries.forEach(async (entry) => {
-//         const { feedContext } = this.feedItemData.get(entry.target);
-//         if (entry.isIntersecting) {
-//           if (!this.feedItemData.has(entry.target)) {
-//             console.warn("observed element not found", entry.target);
-//             return;
-//           }
-//           const { postUri, feedContext } = this.feedItemData.get(entry.target);
-//           // Must be visible for >=1 second to be considered seen
-//           await wait(1000);
-//           if (!isVisible(entry.target)) {
-//             return;
-//           }
-//           if (!this.seenPosts.has(postUri)) {
-//             if (this.verbose) {
-//               console.debug("sending interaction seen", postUri, feedContext);
-//             }
-//             this.interactionsDispatch.sendInteraction({
-//               item: postUri,
-//               event: "app.bsky.feed.defs#interactionSeen",
-//               feedContext,
-//             });
-//             this.seenPosts.add(postUri);
-//           }
-//         }
-//       });
-//     });
-//   }
-
-//   async register(el, postUri, feedContext) {
-//     // Don't double-observe posts
-//     const existingEl = this.observedElements.get(postUri);
-//     if (existingEl) {
-//       this.observer.unobserve(existingEl);
-//       this.observedElements.delete(existingEl);
-//       this.feedItemData.delete(existingEl);
-//     }
-//     // There needs to be a delay between unobserving and observing
-//     await wait(2000);
-//     this.observedElements.set(postUri, el);
-//     this.feedItemData.set(el, { postUri, feedContext });
-//     this.observer.observe(el);
-//   }
-// }
-
 export class PostSeenObserver {
   constructor(api, feedProxyUrl, { verbose = false } = {}) {
     this.verbose = verbose;
