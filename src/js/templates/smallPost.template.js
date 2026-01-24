@@ -52,7 +52,11 @@ export function smallPostTemplate({
   const content = html`
     <div
       class="post small-post clickable"
-      @click=${() => {
+      @click=${(e) => {
+        // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+        if (e.target.closest("a")) {
+          return;
+        }
         window.router.go(linkToPost(post));
       }}
     >
@@ -94,15 +98,7 @@ export function smallPostTemplate({
             : ""}
           <div class="post-body">
             ${post.record.text
-              ? html`<div
-                  class="post-text"
-                  @click=${(e) => {
-                    // Swallow link clicks to prevent them from triggering the post click handler
-                    if (e.target.closest("a")) {
-                      e.stopPropagation();
-                    }
-                  }}
-                >
+              ? html`<div class="post-text">
                   ${richTextTemplate({
                     text: post.record.text.trimEnd(),
                     facets: post.record.facets,

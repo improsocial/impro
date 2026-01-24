@@ -1,22 +1,14 @@
 import { html, keyed } from "/js/lib/lit-html.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
+import { linkToProfile } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 
 // CLick actions: "link", "lightbox", "none"
 
 function avatarWrapperTemplate({ author, clickAction, children }) {
   if (clickAction === "link") {
-    return html`<a
-      class="avatar-link"
-      href="/profile/${author.handle}"
-      @click=${(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        window.router.go(`/profile/${author.handle}`, {
-          transition: "slide-in",
-        });
-      }}
+    return html`<a class="avatar-link" href="${linkToProfile(author.handle)}"
       >${children}</a
     >`;
   } else if (clickAction === "lightbox") {
