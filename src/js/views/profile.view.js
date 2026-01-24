@@ -174,9 +174,15 @@ class ProfileView extends View {
           profile.did,
         );
         const isCurrentUser = currentUser?.did === profile.did;
-        const authorFeedsToShow = isCurrentUser
+        let authorFeedsToShow = isCurrentUser
           ? currentUserAuthorFeeds
           : defaultAuthorFeeds;
+        // Hide media feed for labelers. TODO: prevent prefetching
+        if (isLabeler) {
+          authorFeedsToShow = authorFeedsToShow.filter(
+            (feed) => feed.feedType !== "media",
+          );
+        }
         let isSubscribed = false;
         let labelerSettings = null;
         if (isLabeler) {
