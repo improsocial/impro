@@ -234,6 +234,9 @@ class HomeView extends View {
               </header>
               <main>
                 ${feedGenerators.map((feedGenerator) => {
+                  const acceptsInteractions =
+                    feedGenerator.acceptsInteractions ||
+                    feedGenerator.uri === DISCOVER_FEED_URI;
                   const feed = dataLayer.selectors.getFeed(feedGenerator.uri);
                   const feedRequestStatus = dataLayer.requests.getStatus(
                     "loadNextFeedPage-" + feedGenerator.uri,
@@ -255,7 +258,7 @@ class HomeView extends View {
                             handleShowLess(post, feedContext, feedGenerator),
                           onClickShowMore: (post, feedContext) =>
                             handleShowMore(post, feedContext, feedGenerator),
-                          enableFeedFeedback: true,
+                          enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                         })}
                   </div>`;

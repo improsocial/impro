@@ -109,7 +109,7 @@ function feedItemTemplate({
             postInteractionHandler,
             onClickShowLess,
             onClickShowMore,
-            enableFeedFeedback: (post) => enableFeedFeedback(post, feedContext),
+            enableFeedFeedback,
           })
         : ""}
       ${postTemplate({
@@ -123,7 +123,7 @@ function feedItemTemplate({
         onClickShowMore,
         repostAuthor,
         replyToAuthor,
-        enableFeedFeedback: (post) => enableFeedFeedback(post, feedContext),
+        enableFeedFeedback,
       })}
     </div>
   `;
