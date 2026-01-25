@@ -1159,24 +1159,51 @@ t.describe("Preferences.getFollowingFeedPreference", (it) => {
   });
 });
 
-t.describe("Preferences.getPostLabels", (it) => {
-  it("should return empty array when post has no matching labels", () => {
+t.describe("Preferences.getBadgeLabels", (it) => {
+  it("should return empty array when post has no labels", () => {
     const preferences = new Preferences([], []);
     const post = { labels: [] };
-    const result = preferences.getPostLabels(post);
+    const result = preferences.getBadgeLabels(post);
 
     assertEquals(result, []);
   });
 
-  it("should return display labels for matching labelers", () => {
+  it("should return badge labels (blurs: none)", () => {
     const labelerDefs = [
       {
-        creator: { did: "did:labeler1" },
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "verified",
+              blurs: "none",
+              locales: [{ lang: "en", name: "Verified" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "verified" }],
+    };
+    const result = preferences.getBadgeLabels(post);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0].displayName, "Verified");
+  });
+
+  it("should not return content labels as badges", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
         policies: {
           labelValueDefinitions: [
             {
               identifier: "nsfw",
-              locales: [{ lang: "en", name: "NSFW Content" }],
+              blurs: "content",
+              locales: [{ lang: "en", name: "NSFW" }],
             },
           ],
         },
@@ -1187,10 +1214,272 @@ t.describe("Preferences.getPostLabels", (it) => {
     const post = {
       labels: [{ src: "did:labeler1", val: "nsfw" }],
     };
-    const result = preferences.getPostLabels(post);
+    const result = preferences.getBadgeLabels(post);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0].displayName, "NSFW Content");
+    assertEquals(result.length, 0);
+  });
+
+  it("should not return media labels as badges", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nudity",
+              blurs: "media",
+              locales: [{ lang: "en", name: "Nudity" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "nudity" }],
+    };
+    const result = preferences.getBadgeLabels(post);
+
+    assertEquals(result.length, 0);
+  });
+});
+
+t.describe("Preferences.getContentLabel", (it) => {
+  it("should return null when post has no content labels", () => {
+    const preferences = new Preferences([], []);
+    const post = { labels: [] };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result, null);
+  });
+
+  it("should return content label with visibility from preference", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nsfw",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "NSFW" }],
+            },
+          ],
+        },
+      },
+    ];
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: "did:labeler1",
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "nsfw");
+  });
+
+  it("should use defaultSetting when no preference exists", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nsfw",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "NSFW" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "warn");
+  });
+
+  it("should return most restrictive label (hide over warn)", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "label1",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Label 1" }],
+            },
+            {
+              identifier: "label2",
+              blurs: "content",
+              defaultSetting: "hide",
+              locales: [{ lang: "en", name: "Label 2" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [
+        { src: "did:labeler1", val: "label1" },
+        { src: "did:labeler1", val: "label2" },
+      ],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "label2");
+  });
+
+  it("should ignore badge labels (blurs: none)", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "verified",
+              blurs: "none",
+              locales: [{ lang: "en", name: "Verified" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "verified" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result, null);
+  });
+});
+
+t.describe("Preferences.getMediaLabel", (it) => {
+  it("should return null when post has no media labels", () => {
+    const preferences = new Preferences([], []);
+    const post = { labels: [] };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result, null);
+  });
+
+  it("should return media label with visibility from preference", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nudity",
+              blurs: "media",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Nudity" }],
+            },
+          ],
+        },
+      },
+    ];
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nudity",
+        labelerDid: "did:labeler1",
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "nudity" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "nudity");
+  });
+
+  it("should ignore content labels (blurs: content)", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nsfw",
+              blurs: "content",
+              locales: [{ lang: "en", name: "NSFW" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result, null);
+  });
+
+  it("should return most restrictive media label", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "suggestive",
+              blurs: "media",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Suggestive" }],
+            },
+            {
+              identifier: "porn",
+              blurs: "media",
+              defaultSetting: "hide",
+              locales: [{ lang: "en", name: "Porn" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [
+        { src: "did:labeler1", val: "suggestive" },
+        { src: "did:labeler1", val: "porn" },
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "porn");
   });
 });
 

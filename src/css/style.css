@@ -5028,6 +5028,16 @@ moderation-warning .top-bar {
   margin-top: 8px;
 }
 
+.post-moderation-warning-description {
+  font-size: 14px;
+  color: var(--text-color-muted);
+  line-height: 1.5;
+}
+
+.post-moderation-warning-description a {
+  color: var(--text-link-color);
+}
+
 .quoted-account-muted-warning .top-bar {
   margin-top: 8px;
   margin-bottom: 8px;

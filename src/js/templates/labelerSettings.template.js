@@ -1,37 +1,22 @@
 import { html } from "/js/lib/lit-html.js";
+import { getLabelNameAndDescription, isBadgeLabel } from "/js/dataHelpers.js";
 import { classnames, noop } from "/js/utils.js";
 
-function getLabelNameAndDescription(labelDef, preferredLang = "en") {
-  const defaultName = labelDef.identifier;
-  if (!labelDef.locales || labelDef.locales.length === 0) {
-    return { name: defaultName, description: "" };
-  }
-  const locale =
-    labelDef.locales.find((l) => l.lang === preferredLang) ||
-    labelDef.locales[0];
-  return {
-    name: locale.name || defaultName,
-    description: locale.description || "",
-  };
+function doShowWarnButton(labelDefinition) {
+  return !(
+    labelDefinition.blurs === "none" && labelDefinition.severity === "none"
+  );
 }
 
-function getWarnButtonConfig(labelDef) {
-  const blurs = labelDef.blurs || "none";
-  const severity = labelDef.severity || "none";
-  if (blurs === "content" || blurs === "media") {
-    return { showWarn: true, warnLabel: "Warn" };
+function getWarnLabel(labelDefinition) {
+  if (!isBadgeLabel(labelDefinition)) {
+    return "Warn";
   }
-  if (severity === "alert") {
-    return { showWarn: true, warnLabel: "Warn" };
-  }
-  if (severity === "inform") {
-    return { showWarn: true, warnLabel: "Show badge" };
-  }
-  return { showWarn: false, warnLabel: "" };
+  return labelDefinition.severity === "inform" ? "Show badge" : "Warn";
 }
 
-function getDefaultValue(labelDef) {
-  const defaultValue = labelDef.defaultSetting;
+function getDefaultValue(labelDefinition) {
+  const defaultValue = labelDefinition.defaultSetting;
   if (!defaultValue || !["ignore", "warn", "hide"].includes(defaultValue)) {
     return "warn";
   }
@@ -39,13 +24,13 @@ function getDefaultValue(labelDef) {
 }
 
 function labelPreferenceRowTemplate({
-  labelDef,
+  labelDefinition,
   value,
   isSubscribed,
   onClick,
 }) {
-  const { name, description } = getLabelNameAndDescription(labelDef);
-  const { showWarn, warnLabel } = getWarnButtonConfig(labelDef);
+  const { name, description } = getLabelNameAndDescription(labelDefinition);
+  const showWarnButton = doShowWarnButton(labelDefinition);
   return html`
     <div class="label-preference-row">
       <div class="label-preference-name">${name}</div>
@@ -63,7 +48,7 @@ function labelPreferenceRowTemplate({
               >
                 Off
               </button>
-              ${showWarn
+              ${showWarnButton
                 ? html`
                     <button
                       class=${classnames("label-pref-button", {
@@ -71,7 +56,7 @@ function labelPreferenceRowTemplate({
                       })}
                       @click=${() => onClick("warn")}
                     >
-                      ${warnLabel}
+                      ${getWarnLabel(labelDefinition)}
                     </button>
                   `
                 : null}
@@ -119,20 +104,20 @@ export function labelerSettingsTemplate({
         </p>
       </div>
       <div class="label-preference-list">
-        ${configurableLabels.map((labelDef) => {
+        ${configurableLabels.map((labelDefinition) => {
           const currentSetting = labelerSettings.find(
-            (pref) => pref.label === labelDef.identifier,
+            (pref) => pref.label === labelDefinition.identifier,
           );
           const value = currentSetting
             ? currentSetting.visibility
-            : getDefaultValue(labelDef);
+            : getDefaultValue(labelDefinition);
           return labelPreferenceRowTemplate({
-            labelDef,
+            labelDefinition,
             value,
             isSubscribed,
             onClick: (newValue) => {
               if (newValue !== value) {
-                onClick(labelDef.identifier, newValue);
+                onClick(labelDefinition.identifier, newValue);
               }
             },
           });

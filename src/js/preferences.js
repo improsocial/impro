@@ -1,4 +1,10 @@
-import { getPostLabels } from "/js/dataHelpers.js";
+import {
+  getPostLabels,
+  getLabelerForLabel,
+  getDefinitionForLabel,
+  isBadgeLabel,
+  getLabelNameAndDescription,
+} from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
 import { DISCOVER_FEED_URI } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
@@ -77,30 +83,6 @@ function textMatchesMutedWord(text, mutedWord, languages) {
     }
   }
   return false;
-}
-
-function getLabelerForLabel(label, labelers) {
-  const matchingLabeler = labelers.find(
-    (labeler) => labeler.creator.did === label.src,
-  );
-  return matchingLabeler ?? null;
-}
-
-function getDefinitionForLabel(label, labeler) {
-  return labeler.policies.labelValueDefinitions.find(
-    (definition) => definition.identifier === label.val,
-  );
-}
-
-function getDisplayNameForLabel(label, labeler) {
-  const matchingDefinition = getDefinitionForLabel(label, labeler);
-  if (!matchingDefinition) {
-    return null;
-  }
-  const enLocale = matchingDefinition.locales.find(
-    (locale) => locale.lang === "en",
-  );
-  return enLocale?.name || "";
 }
 
 export class Preferences {
@@ -239,19 +221,163 @@ export class Preferences {
     return contentLabelPrefs.filter((pref) => pref.labelerDid === labelerDid);
   }
 
-  getPostLabels(post) {
+  getBadgeLabels(post) {
     const labels = getPostLabels(post, this.labelerDefs);
-    const displayLabels = [];
+    const badgeLabels = [];
     for (const label of labels) {
       const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (labeler) {
-        const displayName = getDisplayNameForLabel(label, labeler);
-        if (displayName) {
-          displayLabels.push({ displayName, labeler });
+      if (!labeler) continue;
+      const labelDefinition = getDefinitionForLabel(label, labeler);
+      if (!labelDefinition || !isBadgeLabel(labelDefinition)) continue;
+      const { name: displayName } = getLabelNameAndDescription(labelDefinition);
+      badgeLabels.push({
+        displayName,
+        labeler,
+      });
+    }
+    return badgeLabels;
+  }
+
+  getContentLabel(post) {
+    const labels = getPostLabels(post, this.labelerDefs);
+    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
+    let currentLabel = null;
+    for (const label of labels) {
+      const labeler = getLabelerForLabel(label, this.labelerDefs);
+      if (!labeler) continue;
+      const labelDefinition = getDefinitionForLabel(label, labeler);
+      if (!labelDefinition || labelDefinition.blurs !== "content") continue;
+      const pref = this.getContentLabelPref({
+        label: label.val,
+        labelerDid: label.src,
+      });
+      const labelVisibility =
+        pref?.visibility ?? labelDefinition.defaultSetting ?? "ignore";
+      if (labelVisibility === "hide") {
+        return { visibility: "hide", label, labelDefinition, labeler };
+      }
+      if (labelVisibility === "warn") {
+        if (!currentLabel) {
+          currentLabel = {
+            visibility: labelVisibility,
+            label,
+            labelDefinition,
+            labeler,
+          };
         }
       }
     }
-    return displayLabels;
+    return currentLabel;
+  }
+
+  getMediaLabel(post) {
+    const labels = getPostLabels(post, this.labelerDefs);
+    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
+    let currentLabel = null;
+    for (const label of labels) {
+      const labeler = getLabelerForLabel(label, this.labelerDefs);
+      if (!labeler) continue;
+      const labelDefinition = getDefinitionForLabel(label, labeler);
+      if (!labelDefinition || labelDefinition.blurs !== "media") continue;
+      const pref = this.getContentLabelPref({
+        label: label.val,
+        labelerDid: label.src,
+      });
+      const labelVisibility =
+        pref?.visibility ?? labelDefinition.defaultSetting ?? "ignore";
+      if (labelVisibility === "hide") {
+        return { visibility: "hide", label, labelDefinition, labeler };
+      }
+      if (labelVisibility === "warn") {
+        if (!currentLabel) {
+          currentLabel = {
+            visibility: labelVisibility,
+            label,
+            labelDefinition,
+            labeler,
+          };
+        }
+      }
+    }
+    return currentLabel;
+  }
+
+  // For quoted posts (different data structure - labels on quotedPost directly)
+  quotedPostLabelVisibility(quotedPost) {
+    const labels = quotedPost.labels || [];
+    const authorLabels = quotedPost.author?.labels || [];
+    const allLabels = [...labels, ...authorLabels];
+
+    let visibility = "ignore";
+    const warnLabels = [];
+
+    for (const label of allLabels) {
+      const labeler = getLabelerForLabel(label, this.labelerDefs);
+      if (!labeler) continue;
+
+      const definition = getDefinitionForLabel(label, labeler);
+      if (!definition || definition.blurs !== "content") continue;
+
+      const pref = this.getContentLabelPref({
+        label: label.val,
+        labelerDid: label.src,
+      });
+      const labelVisibility =
+        pref?.visibility ?? definition.defaultSetting ?? "ignore";
+
+      if (labelVisibility === "hide") {
+        return { visibility: "hide", labels: [] };
+      }
+      if (labelVisibility === "warn") {
+        visibility = "warn";
+        const { name: displayName } = getLabelNameAndDescription(definition);
+        warnLabels.push({
+          displayName,
+          labeler,
+        });
+      }
+    }
+
+    return { visibility, labels: warnLabels };
+  }
+
+  // For quoted post media (blurs: "media")
+  quotedPostMediaLabelVisibility(quotedPost) {
+    const labels = quotedPost.labels || [];
+    const authorLabels = quotedPost.author?.labels || [];
+    const allLabels = [...labels, ...authorLabels];
+
+    let visibility = "ignore";
+    const warnLabels = [];
+
+    for (const label of allLabels) {
+      const labeler = getLabelerForLabel(label, this.labelerDefs);
+      if (!labeler) continue;
+
+      const definition = getDefinitionForLabel(label, labeler);
+      if (!definition || definition.blurs !== "media") continue;
+
+      const pref = this.getContentLabelPref({
+        label: label.val,
+        labelerDid: label.src,
+      });
+      const labelVisibility =
+        pref?.visibility ?? definition.defaultSetting ?? "ignore";
+
+      if (labelVisibility === "hide") {
+        return { visibility: "hide", labels: [] };
+      }
+      if (labelVisibility === "warn") {
+        visibility = "warn";
+        const { name: displayName } = getLabelNameAndDescription(definition);
+        warnLabels.push({
+          displayName,
+          labeler,
+        });
+      }
+    }
+
+    return { visibility, labels: warnLabels };
   }
 
   isPostHidden(postUri) {

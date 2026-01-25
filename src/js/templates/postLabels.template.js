@@ -1,8 +1,8 @@
 import { html } from "/js/lib/lit-html.js";
 
-export function postLabelsTemplate({ displayLabels }) {
+export function postLabelsTemplate({ badgeLabels }) {
   return html`<div class="post-labels">
-    ${displayLabels.map(({ displayName, labeler }) => {
+    ${badgeLabels.map(({ displayName, labeler }) => {
       return html`<a
         class="label-badge"
         href="/profile/${labeler.creator.handle}"

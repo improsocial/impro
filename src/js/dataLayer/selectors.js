@@ -185,6 +185,7 @@ export class Selectors {
     }
     post = this._markMutedWords(post);
     post = this._markIsHidden(post);
+    post = this._addLabels(post);
     return this.patchStore.applyPostPatches(post);
   }
 
@@ -498,11 +499,6 @@ export class Selectors {
       // NOTE: LEXICON DEVIATION
       post.viewer.hasMutedWord = true;
     }
-    const displayLabels = preferences.getPostLabels(post);
-    if (displayLabels.length > 0) {
-      // NOTE: LEXICON DEVIATION
-      post.viewer.displayLabels = displayLabels;
-    }
     // Also check for muted words in quote posts.
     const quotedPost = getQuotedPost(post);
     if (quotedPost) {
@@ -553,6 +549,57 @@ export class Selectors {
         }
       }
     }
+    return post;
+  }
+
+  _addLabels(post) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const badgeLabels = preferences.getBadgeLabels(post);
+    if (badgeLabels.length > 0) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.badgeLabels = badgeLabels;
+    }
+    const contentLabel = preferences.getContentLabel(post);
+    if (contentLabel) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.contentLabel = contentLabel;
+    }
+    const mediaLabel = preferences.getMediaLabel(post);
+    if (mediaLabel) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.mediaLabel = mediaLabel;
+    }
+
+    // Also mark quoted posts (content and media labels only, not badges)
+    const quotedPost = getQuotedPost(post);
+    if (quotedPost) {
+      const quotedContentLabel = preferences.getContentLabel(quotedPost);
+      if (quotedContentLabel) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.contentLabel = quotedContentLabel;
+      }
+      const quotedMediaLabel = preferences.getMediaLabel(quotedPost);
+      if (quotedMediaLabel) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.mediaLabel = quotedMediaLabel;
+      }
+      // Also check for nested quoted posts
+      const nestedQuotedPost = getQuotedPost(quotedPost);
+      if (nestedQuotedPost) {
+        const nestedContentLabel =
+          preferences.getContentLabel(nestedQuotedPost);
+        if (nestedContentLabel) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.contentLabel = nestedContentLabel;
+        }
+        const nestedMediaLabel = preferences.getMediaLabel(nestedQuotedPost);
+        if (nestedMediaLabel) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.mediaLabel = nestedMediaLabel;
+        }
+      }
+    }
+
     return post;
   }
 }

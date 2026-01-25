@@ -376,3 +376,39 @@ export function doHideAuthorOnUnauthenticated(author) {
 export function isLabelerProfile(profile) {
   return profile.associated?.labeler;
 }
+
+export function getLabelNameAndDescription(
+  labelDefinition,
+  preferredLang = "en",
+) {
+  const defaultName = labelDefinition.identifier;
+  if (!labelDefinition.locales || labelDefinition.locales.length === 0) {
+    return { name: defaultName, description: "" };
+  }
+  const locale =
+    labelDefinition.locales.find((l) => l.lang === preferredLang) ||
+    labelDefinition.locales[0];
+  return {
+    name: locale.name || defaultName,
+    description: locale.description || "",
+  };
+}
+
+export function getLabelerForLabel(label, labelers) {
+  const matchingLabeler = labelers.find(
+    (labeler) => labeler.creator.did === label.src,
+  );
+  return matchingLabeler ?? null;
+}
+
+export function getDefinitionForLabel(label, labeler) {
+  return labeler.policies.labelValueDefinitions.find(
+    (definition) => definition.identifier === label.val,
+  );
+}
+
+export function isBadgeLabel(labelDefinition) {
+  return !(
+    labelDefinition.blurs === "media" || labelDefinition.blurs === "content"
+  );
+}

@@ -5,6 +5,7 @@ import {
   isUnavailablePost,
   getDisplayName,
   doHideAuthorOnUnauthenticated,
+  getLabelNameAndDescription,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
@@ -88,8 +89,8 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.record.createdAt,
           })}
-          ${post.viewer?.displayLabels
-            ? postLabelsTemplate({ displayLabels: post.viewer?.displayLabels })
+          ${post.viewer?.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
             : ""}
           ${replyToAuthor
             ? html`<div class="reply-to-author">
@@ -109,7 +110,7 @@ export function smallPostTemplate({
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({
                     embed: post.embed,
-                    labels: post.labels,
+                    mediaLabel: post.viewer?.mediaLabel,
                     lazyLoadImages,
                     isAuthenticated: postInteractionHandler.isAuthenticated,
                   })}
@@ -147,6 +148,16 @@ export function smallPostTemplate({
       </div>
     </div>
   `;
+
+  const contentLabel = post.viewer?.contentLabel;
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    const { name: labelName } = getLabelNameAndDescription(
+      contentLabel.labelDefinition,
+    );
+    return html`<muted-reply-toggle label="${labelName}">
+      ${content}
+    </muted-reply-toggle>`;
+  }
   if (hideMutedAccount && post.author.viewer?.muted) {
     return html`<muted-reply-toggle label="Muted account">
       ${content}

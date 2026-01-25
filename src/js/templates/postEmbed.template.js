@@ -1,15 +1,50 @@
 import { html } from "/js/lib/lit-html.js";
-import { getRKey, doHideAuthorOnUnauthenticated } from "/js/dataHelpers.js";
+import {
+  getRKey,
+  doHideAuthorOnUnauthenticated,
+  getLabelNameAndDescription,
+} from "/js/dataHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { parseEmbedPlayerFromUrl } from "/js/lib/embed-player.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { linkToPost, linkToFeed } from "/js/navigation.js";
+import { linkToPost, linkToFeed, linkToLabeler } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
+
+function moderationWarningTemplate({ labelDefinition, labeler, children }) {
+  const { name: labelName } = getLabelNameAndDescription(labelDefinition);
+  return html`<moderation-warning
+      class="post-moderation-warning"
+      @click=${(e) => {
+        const clickedBar = !!e.target.closest(".top-bar");
+        if (clickedBar) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
+      label=${labelName}
+    >
+      ${children}
+    </moderation-warning>
+    <div class="post-moderation-warning-description">
+      Labeled by
+      <a href="${linkToLabeler(labeler)}">@${labeler.creator.handle}</a>
+    </div> `;
+}
+
+function moderationWarningWrapperTemplate({ children, mediaLabel }) {
+  return mediaLabel
+    ? moderationWarningTemplate({
+        labelDefinition: mediaLabel.labelDefinition,
+        labeler: mediaLabel.labeler,
+        children,
+      })
+    : children;
+}
 
 function blockedQuoteTemplate() {
   return html`<div class="quoted-post">Post unavailable</div>`;
@@ -79,6 +114,15 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
     isMuted = true;
     mutedLabel = "Muted Account";
   }
+  // And this has further precedence
+  const contentLabel = quotedPost.contentLabel;
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    isMuted = true;
+    const { name: labelName } = getLabelNameAndDescription(
+      contentLabel.labelDefinition,
+    );
+    mutedLabel = labelName;
+  }
   return html`<a
     class="quoted-post-link"
     @click=${(e) => {
@@ -114,7 +158,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({
                     embed: embed,
-                    labels: quotedPost.labels,
+                    mediaLabel: quotedPost.mediaLabel,
                     lazyLoadImages,
                     isAuthenticated,
                   })}
@@ -263,57 +307,6 @@ function listTemplate({ list }) {
   </div>`;
 }
 
-const ModerationLabels = {
-  NUDITY: "nudity",
-  PORN: "porn",
-  SEXUAL: "sexual",
-  SEXUAL_FIGURATIVE: "sexual-figurative",
-  GRAPHIC_MEDIA: "graphic-media",
-};
-
-const ModerationLabelDisplayNames = {
-  [ModerationLabels.NUDITY]: "Adult Content",
-  [ModerationLabels.PORN]: "Adult Content",
-  [ModerationLabels.SEXUAL]: "Adult Content",
-  [ModerationLabels.SEXUAL_FIGURATIVE]: "Sexually Suggestive (Cartoon)",
-  [ModerationLabels.GRAPHIC_MEDIA]: "Graphic Media",
-};
-
-const HIDDEN_LABELS = [
-  ModerationLabels.NUDITY,
-  ModerationLabels.PORN,
-  ModerationLabels.SEXUAL,
-  ModerationLabels.SEXUAL_FIGURATIVE,
-  ModerationLabels.GRAPHIC_MEDIA,
-];
-
-function getDisplayNameForLabel(label) {
-  return ModerationLabelDisplayNames[label.val];
-}
-
-function moderationWarningTemplate({ label, children }) {
-  return html`<moderation-warning
-    class="post-moderation-warning"
-    @click=${(e) => {
-      const clickedBar = !!e.target.closest(".top-bar");
-      if (clickedBar) {
-        e.preventDefault();
-        e.stopPropagation();
-      }
-    }}
-    label="${getDisplayNameForLabel(label)}"
-  >
-    ${children}
-  </moderation-warning>`;
-}
-
-function getWarningLabel(labels) {
-  if (!labels) {
-    return null;
-  }
-  return labels.find((label) => HIDDEN_LABELS.includes(label.val));
-}
-
 function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
@@ -348,16 +341,9 @@ function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
   }
 }
 
-function moderationWarningWrapperTemplate({ children, labels }) {
-  const warningLabel = getWarningLabel(labels);
-  return warningLabel
-    ? moderationWarningTemplate({ label: warningLabel, children })
-    : children;
-}
-
 export function postEmbedTemplate({
   embed,
-  labels,
+  mediaLabel,
   enabledEmbedTypes,
   lazyLoadImages = false,
   isAuthenticated,
@@ -376,7 +362,7 @@ export function postEmbedTemplate({
       return html`
         ${postEmbedTemplate({
           embed: embed.media,
-          labels,
+          mediaLabel,
           lazyLoadImages,
           isAuthenticated,
         })}
@@ -388,12 +374,12 @@ export function postEmbedTemplate({
       `;
     case "app.bsky.embed.video#view":
       return moderationWarningWrapperTemplate({
-        labels,
+        mediaLabel,
         children: videoTemplate({ video: embed }),
       });
     case "app.bsky.embed.images#view":
       return moderationWarningWrapperTemplate({
-        labels,
+        mediaLabel,
         children: imagesTemplate({
           images: embed.images,
           lazyLoad: lazyLoadImages,

@@ -3,6 +3,7 @@ import { assert, assertEquals } from "../testHelpers.js";
 import {
   linkToHashtag,
   linkToProfile,
+  linkToLabeler,
   linkToPost,
   linkToPostFromUri,
   linkToPostLikes,
@@ -42,6 +43,22 @@ t.describe("linkToProfile", (it) => {
   it("should return profile link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(linkToProfile(profile), "/profile/bob.bsky.social");
+  });
+});
+
+t.describe("linkToLabeler", (it) => {
+  it("should return profile link for labeler creator", () => {
+    const labeler = {
+      creator: { handle: "labeler.bsky.social", did: "did:plc:labeler" },
+    };
+    assertEquals(linkToLabeler(labeler), "/profile/labeler.bsky.social");
+  });
+
+  it("should handle labeler with different handle", () => {
+    const labeler = {
+      creator: { handle: "moderation-service.test", did: "did:plc:mod" },
+    };
+    assertEquals(linkToLabeler(labeler), "/profile/moderation-service.test");
   });
 });
 

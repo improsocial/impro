@@ -9,6 +9,10 @@ import {
   createEmbedFromPost,
   replaceTopParent,
   isLabelerProfile,
+  getLabelNameAndDescription,
+  getLabelerForLabel,
+  getDefinitionForLabel,
+  isBadgeLabel,
 } from "../../src/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -322,6 +326,164 @@ t.describe("isLabelerProfile", (it) => {
   it("should return undefined when associated has no labeler property", () => {
     const profile = { associated: {} };
     assertEquals(isLabelerProfile(profile), undefined);
+  });
+});
+
+t.describe("getLabelNameAndDescription", (it) => {
+  it("should return identifier as name when no locales", () => {
+    const labelDefinition = { identifier: "test-label" };
+    const result = getLabelNameAndDescription(labelDefinition);
+
+    assertEquals(result.name, "test-label");
+    assertEquals(result.description, "");
+  });
+
+  it("should return identifier as name when locales is empty", () => {
+    const labelDefinition = { identifier: "test-label", locales: [] };
+    const result = getLabelNameAndDescription(labelDefinition);
+
+    assertEquals(result.name, "test-label");
+    assertEquals(result.description, "");
+  });
+
+  it("should return preferred language locale", () => {
+    const labelDefinition = {
+      identifier: "test-label",
+      locales: [
+        { lang: "es", name: "Etiqueta", description: "Descripción" },
+        { lang: "en", name: "Label", description: "Description" },
+      ],
+    };
+    const result = getLabelNameAndDescription(labelDefinition, "en");
+
+    assertEquals(result.name, "Label");
+    assertEquals(result.description, "Description");
+  });
+
+  it("should fall back to first locale when preferred not found", () => {
+    const labelDefinition = {
+      identifier: "test-label",
+      locales: [
+        { lang: "es", name: "Etiqueta", description: "Descripción" },
+        { lang: "fr", name: "Étiquette", description: "La description" },
+      ],
+    };
+    const result = getLabelNameAndDescription(labelDefinition, "en");
+
+    assertEquals(result.name, "Etiqueta");
+    assertEquals(result.description, "Descripción");
+  });
+
+  it("should use identifier when locale name is missing", () => {
+    const labelDefinition = {
+      identifier: "test-label",
+      locales: [{ lang: "en", description: "Description only" }],
+    };
+    const result = getLabelNameAndDescription(labelDefinition, "en");
+
+    assertEquals(result.name, "test-label");
+    assertEquals(result.description, "Description only");
+  });
+
+  it("should default to en as preferred language", () => {
+    const labelDefinition = {
+      identifier: "test-label",
+      locales: [
+        { lang: "es", name: "Etiqueta", description: "Descripción" },
+        { lang: "en", name: "Label", description: "Description" },
+      ],
+    };
+    const result = getLabelNameAndDescription(labelDefinition);
+
+    assertEquals(result.name, "Label");
+    assertEquals(result.description, "Description");
+  });
+});
+
+t.describe("getLabelerForLabel", (it) => {
+  it("should return matching labeler by src did", () => {
+    const label = { src: "did:plc:labeler1", val: "nsfw" };
+    const labelers = [
+      { creator: { did: "did:plc:labeler1" }, policies: {} },
+      { creator: { did: "did:plc:labeler2" }, policies: {} },
+    ];
+
+    const result = getLabelerForLabel(label, labelers);
+
+    assertEquals(result.creator.did, "did:plc:labeler1");
+  });
+
+  it("should return null when no matching labeler", () => {
+    const label = { src: "did:plc:unknown", val: "nsfw" };
+    const labelers = [{ creator: { did: "did:plc:labeler1" }, policies: {} }];
+
+    const result = getLabelerForLabel(label, labelers);
+
+    assertEquals(result, null);
+  });
+
+  it("should return null when labelers is empty", () => {
+    const label = { src: "did:plc:labeler1", val: "nsfw" };
+
+    const result = getLabelerForLabel(label, []);
+
+    assertEquals(result, null);
+  });
+});
+
+t.describe("getDefinitionForLabel", (it) => {
+  it("should return matching label definition", () => {
+    const label = { src: "did:plc:labeler1", val: "nsfw" };
+    const labeler = {
+      creator: { did: "did:plc:labeler1" },
+      policies: {
+        labelValueDefinitions: [
+          { identifier: "spam", blurs: "none" },
+          { identifier: "nsfw", blurs: "media" },
+        ],
+      },
+    };
+
+    const result = getDefinitionForLabel(label, labeler);
+
+    assertEquals(result.identifier, "nsfw");
+    assertEquals(result.blurs, "media");
+  });
+
+  it("should return undefined when no matching definition", () => {
+    const label = { src: "did:plc:labeler1", val: "unknown" };
+    const labeler = {
+      creator: { did: "did:plc:labeler1" },
+      policies: {
+        labelValueDefinitions: [{ identifier: "nsfw", blurs: "media" }],
+      },
+    };
+
+    const result = getDefinitionForLabel(label, labeler);
+
+    assertEquals(result, undefined);
+  });
+});
+
+t.describe("isBadgeLabel", (it) => {
+  it("should return true when blurs is none", () => {
+    const labelDefinition = { blurs: "none" };
+    assertEquals(isBadgeLabel(labelDefinition), true);
+  });
+
+  it("should return true when blurs is undefined", () => {
+    const labelDefinition = {};
+    assertEquals(isBadgeLabel(labelDefinition), true);
+  });
+
+  it("should return false when blurs is media", () => {
+    const labelDefinition = { blurs: "media" };
+    assertEquals(isBadgeLabel(labelDefinition), false);
+  });
+
+  it("should return false when blurs is content", () => {
+    const labelDefinition = { blurs: "content" };
+    assertEquals(isBadgeLabel(labelDefinition), false);
   });
 });
 

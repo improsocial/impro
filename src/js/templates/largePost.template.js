@@ -5,6 +5,7 @@ import {
   isNotFoundPost,
   isUnavailablePost,
   doHideAuthorOnUnauthenticated,
+  getLabelNameAndDescription,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -119,8 +120,8 @@ export function largePostTemplate({
           </div>
         </div>
         ${
-          post.viewer?.displayLabels
-            ? postLabelsTemplate({ displayLabels: post.viewer?.displayLabels })
+          post.viewer?.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
             : ""
         }
         <div class="post-content-bottom">
@@ -140,7 +141,7 @@ export function largePostTemplate({
                 ? html`<div class="post-embed">
                     ${postEmbedTemplate({
                       embed: post.embed,
-                      labels: post.labels,
+                      mediaLabel: post.viewer?.mediaLabel,
                       isAuthenticated: postInteractionHandler.isAuthenticated,
                     })}
                   </div>`
@@ -187,7 +188,17 @@ export function largePostTemplate({
         </div>
       </div>
     `;
-  if (post.viewer?.hasMutedWord) {
+
+  const contentLabel = post.viewer?.contentLabel;
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    // TODO: hide hidden posts completely?
+    const { name: labelName } = getLabelNameAndDescription(
+      contentLabel.labelDefinition,
+    );
+    content = html`<moderation-warning label="${labelName}"
+      >${content}</moderation-warning
+    > `;
+  } else if (post.viewer?.hasMutedWord) {
     content = html`<moderation-warning label="Post hidden by muted word"
       >${content}</moderation-warning
     > `;

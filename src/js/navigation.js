@@ -12,6 +12,10 @@ export function linkToProfile(identifierOrProfile) {
   return `/profile/${handle}`;
 }
 
+export function linkToLabeler(labeler) {
+  return linkToProfile(labeler.creator);
+}
+
 export function linkToPost(post) {
   return `/profile/${post.author.handle}/post/${getRKey(post)}`;
 }
