@@ -18,7 +18,7 @@ class InteractionsDispatch {
     this.sentInteractions = [];
   }
 
-  sendInteraction(interaction) {
+  async sendInteraction(interaction) {
     if (
       this.sentInteractions.some((sentInteraction) =>
         shallowEqual(sentInteraction, interaction),
@@ -27,27 +27,36 @@ class InteractionsDispatch {
       console.warn("interaction already sent", interaction);
       return;
     }
-    this.queue.push(interaction);
-    this.process();
+    return new Promise((resolve, reject) => {
+      this.queue.push({ interaction, resolve, reject });
+      this.process();
+    });
   }
 
   async process() {
-    if (this.inFlight) {
-      return;
-    }
+    if (this.inFlight) return;
+    if (this.queue.length === 0) return;
     this.inFlight = true;
     await wait(BATCH_TIMEOUT);
+    const batch = this.queue;
+    this.queue = [];
     try {
-      await this.api.sendInteractions(this.queue, this.feedProxyUrl);
-      this.sentInteractions.push(...this.queue);
+      const interactions = batch.map((item) => item.interaction);
+      await this.api.sendInteractions(interactions, this.feedProxyUrl);
+      this.sentInteractions.push(...interactions);
+      batch.forEach((item) => item.resolve());
     } catch (error) {
       console.warn(
         "Failed to send interactions to feed proxy url",
         this.feedProxyUrl,
       );
+      batch.forEach((item) => item.reject(error));
     }
-    this.queue = [];
     this.inFlight = false;
+    // process next batch if there are any remaining interactions
+    if (this.queue.length > 0) {
+      this.process();
+    }
   }
 }
 
@@ -88,12 +97,16 @@ export class PostSeenObserver {
       if (this.verbose) {
         console.debug("sending interaction seen", postUri, feedContext);
       }
-      this.interactionsDispatch.sendInteraction({
-        item: postUri,
-        event: "app.bsky.feed.defs#interactionSeen",
-        feedContext,
-      });
-      this.seenPosts.add(postUri);
+      try {
+        await this.interactionsDispatch.sendInteraction({
+          item: postUri,
+          event: "app.bsky.feed.defs#interactionSeen",
+          feedContext,
+        });
+        this.seenPosts.add(postUri);
+      } catch (error) {
+        // pass
+      }
     }
   }
 
