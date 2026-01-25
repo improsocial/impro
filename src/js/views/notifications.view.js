@@ -142,15 +142,20 @@ class NotificationsView extends View {
       const displayCount = Math.min(notifications.length, maxAvatars);
       return html`
         <div class="notification-avatars">
-          ${notifications
-            .slice(0, displayCount)
-            .map(
-              (notif) => html`
-                <div class="notification-avatar">
-                  ${avatarTemplate({ author: notif.author })}
-                </div>
-              `,
-            )}
+          ${notifications.slice(0, displayCount).map(
+            (notif) => html`
+              <div
+                class="notification-avatar"
+                @click=${(e) => {
+                  // Prevent click from propagating to the notification item
+                  // so we navigate to the profile, not the post
+                  e.stopPropagation();
+                }}
+              >
+                ${avatarTemplate({ author: notif.author })}
+              </div>
+            `,
+          )}
           ${notifications.length > maxAvatars
             ? html`<div class="notification-more">
                 +${notifications.length - maxAvatars}
