@@ -207,7 +207,18 @@ export class Selectors {
     if (!searchResults) {
       return null;
     }
-    return searchResults.map((post) => this.getPost(post.uri));
+    const hydratedSearchResults = [];
+    for (const result of searchResults) {
+      const post = this.getPost(result.uri);
+      // If it's a reply, add the parent author to the record
+      if (post.record?.reply) {
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        // NOTE: LEXICON DEVIATION
+        post.record.reply.parentAuthor = parentPost.author;
+      }
+      hydratedSearchResults.push(post);
+    }
+    return hydratedSearchResults;
   }
 
   getAuthorFeed(did, feedType) {

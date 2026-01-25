@@ -297,7 +297,13 @@ export class Requests {
     });
     const searchResults = searchData.posts || [];
     if (searchResults.length > 0) {
-      this.dataStore.setPosts(searchResults);
+      // If there are posts that are replies, load the parents
+      const replyPosts = searchResults.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts.map(
+        (post) => post.record?.reply?.parent?.uri,
+      );
+      const parentPosts = await this.api.getPosts(replyParentUris);
+      this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
@@ -531,7 +537,10 @@ export class Requests {
           : requestIdOrFn;
       this.statusStore.setLoading(requestId, true);
       try {
-        return await requestMethod.apply(this, args);
+        const result = await requestMethod.apply(this, args);
+        // Clear any errors from previous requests
+        this.statusStore.setError(requestId, null);
+        return result;
       } catch (error) {
         // Only store ApiErrors
         if (error instanceof ApiError) {

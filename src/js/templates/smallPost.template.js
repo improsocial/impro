@@ -94,7 +94,7 @@ export function smallPostTemplate({
             : ""}
           ${replyToAuthor
             ? html`<div class="reply-to-author">
-                Replied to ${getDisplayName(replyToAuthor)}
+                ⤷ Replied to ${getDisplayName(replyToAuthor)}
               </div>`
             : ""}
           <div class="post-body">
