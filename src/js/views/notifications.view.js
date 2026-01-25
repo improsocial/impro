@@ -418,38 +418,7 @@ class NotificationsView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      let notifications = dataLayer.selectors.getNotifications();
-      const showLessInteractions =
-        dataLayer.selectors.getShowLessInteractions() ?? [];
-      const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item,
-      );
-      // Filter out notifications for hidden posts
-      if (notifications && hiddenPostUris.length > 0) {
-        notifications = notifications.filter((notification) => {
-          // For like/repost notifications, check the subject URI
-          if (
-            notification.reason === "like" ||
-            notification.reason === "repost" ||
-            notification.reason === "like-via-repost" ||
-            notification.reason === "repost-via-repost"
-          ) {
-            const postUri = notification.subject?.uri;
-            return postUri && !hiddenPostUris.includes(postUri);
-          }
-          // For reply/mention/quote notifications, check the post URI
-          if (
-            notification.reason === "reply" ||
-            notification.reason === "mention" ||
-            notification.reason === "quote"
-          ) {
-            const postUri = notification.post?.uri;
-            return postUri && !hiddenPostUris.includes(postUri);
-          }
-          // For other notification types, don't filter
-          return true;
-        });
-      }
+      const notifications = dataLayer.selectors.getNotifications();
       const notificationsRequestStatus =
         dataLayer.requests.getStatus("loadNotifications");
       const groupedNotifications = groupNotificationsByType(notifications);
