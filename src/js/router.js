@@ -72,6 +72,8 @@ export class Router extends EventEmitter {
   async load(path, { isBack = false } = {}) {
     // used to pause videos on page exit
     window.dispatchEvent(new CustomEvent("page-transition"));
+    // Strip query parameters for route matching (but keep full path for caching)
+    const pathname = path.split("?")[0];
     if (this.currentPage) {
       this.currentPage.dispatchEvent(new CustomEvent("page-exit"));
       this.currentPage.classList.remove("page-visible");
@@ -105,7 +107,7 @@ export class Router extends EventEmitter {
       return;
     }
     // First load of new page
-    const matchingRoute = this.match(path);
+    const matchingRoute = this.match(pathname);
     const { viewGetter, params } = matchingRoute;
     const view = await viewGetter();
 

@@ -59,6 +59,14 @@ export function linkToFeed(feedGenerator) {
   )}`;
 }
 
+export function linkToSearchPostsByProfile(profile) {
+  const searchString = `from:@${profile.handle}`;
+  const query = new URLSearchParams();
+  query.set("q", searchString);
+  query.set("tab", "posts");
+  return `/search?${query.toString()}`;
+}
+
 function getPermalinkOrigin() {
   // return window.location.origin;
   // TODO: make configurable

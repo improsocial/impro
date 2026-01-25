@@ -3,6 +3,7 @@ import {
   getPermalinkForProfile,
   linkToProfileFollowers,
   linkToProfileFollowing,
+  linkToSearchPostsByProfile,
 } from "/js/navigation.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { showToast } from "/js/toasts.js";
@@ -190,6 +191,13 @@ export function profileCardTemplate({
                       </context-menu-item>
                     `
                   : null}
+                <context-menu-item
+                  @click=${() => {
+                    router.go(linkToSearchPostsByProfile(profile));
+                  }}
+                >
+                  Search posts
+                </context-menu-item>
                 <context-menu-item
                   @click=${() => {
                     onClickMute(profile, !profile.viewer?.muted);

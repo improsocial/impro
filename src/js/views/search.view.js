@@ -304,6 +304,9 @@ class SearchView extends View {
       if (query.get("q")) {
         state.searchQuery = query.get("q");
       }
+      if (query.get("tab")) {
+        state.activeTab = query.get("tab");
+      }
       if (state.searchQuery) {
         loadSearchResults();
       }
