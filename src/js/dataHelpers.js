@@ -1,4 +1,5 @@
 import { unique } from "/js/utils.js";
+import { GLOBAL_LABELS } from "/js/config.js";
 
 export function avatarThumbnailUrl(avatarUrl) {
   if (!avatarUrl) {
@@ -411,4 +412,16 @@ export function isBadgeLabel(labelDefinition) {
   return !(
     labelDefinition.blurs === "media" || labelDefinition.blurs === "content"
   );
+}
+
+export function getDefaultLabelSetting(labelDefinition) {
+  const defaultSetting = labelDefinition.defaultSetting;
+  if (!defaultSetting || !["ignore", "warn", "hide"].includes(defaultSetting)) {
+    return "warn";
+  }
+  return defaultSetting;
+}
+
+export function getGlobalLabelDefinition(labelValue) {
+  return GLOBAL_LABELS.find((label) => label.identifier === labelValue) ?? null;
 }

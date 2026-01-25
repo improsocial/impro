@@ -4,6 +4,8 @@ import {
   getDefinitionForLabel,
   isBadgeLabel,
   getLabelNameAndDescription,
+  getGlobalLabelDefinition,
+  getDefaultLabelSetting,
 } from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
 import { DISCOVER_FEED_URI } from "/js/config.js";
@@ -200,6 +202,32 @@ export class Preferences {
     return matchingPref ?? null;
   }
 
+  getLabelVisibility(label, labelDefinition) {
+    // Non-configurable global labels always use their default
+    if (labelDefinition.configurable === false) {
+      return getDefaultLabelSetting(labelDefinition);
+    }
+    const pref = this.getContentLabelPref({
+      label: label.val,
+      labelerDid: label.src,
+    });
+    return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
+  }
+
+  getLabelDefinitionAndLabeler(label) {
+    // First check global labels
+    const globalDef = getGlobalLabelDefinition(label.val);
+    if (globalDef) {
+      return { labelDefinition: globalDef, labeler: null };
+    }
+    // Then check labeler-defined labels
+    const labeler = getLabelerForLabel(label, this.labelerDefs);
+    if (!labeler) return null;
+    const labelDefinition = getDefinitionForLabel(label, labeler);
+    if (!labelDefinition) return null;
+    return { labelDefinition, labeler };
+  }
+
   setContentLabelPref({ label, visibility, labelerDid }) {
     const clone = this.clone();
     const existingPref = clone.getContentLabelPref({ label, labelerDid });
@@ -222,7 +250,7 @@ export class Preferences {
   }
 
   getBadgeLabels(post) {
-    const labels = getPostLabels(post, this.labelerDefs);
+    const labels = getPostLabels(post);
     const badgeLabels = [];
     for (const label of labels) {
       const labeler = getLabelerForLabel(label, this.labelerDefs);
@@ -238,146 +266,37 @@ export class Preferences {
     return badgeLabels;
   }
 
-  getContentLabel(post) {
-    const labels = getPostLabels(post, this.labelerDefs);
+  _getLabelByBlurType(post, blurType) {
+    const labels = getPostLabels(post);
     // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
     let currentLabel = null;
     for (const label of labels) {
-      const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (!labeler) continue;
-      const labelDefinition = getDefinitionForLabel(label, labeler);
-      if (!labelDefinition || labelDefinition.blurs !== "content") continue;
-      const pref = this.getContentLabelPref({
-        label: label.val,
-        labelerDid: label.src,
-      });
-      const labelVisibility =
-        pref?.visibility ?? labelDefinition.defaultSetting ?? "ignore";
+      const result = this.getLabelDefinitionAndLabeler(label);
+      if (!result) continue;
+      const { labelDefinition, labeler } = result;
+      if (labelDefinition.blurs !== blurType) continue;
+      const labelVisibility = this.getLabelVisibility(label, labelDefinition);
       if (labelVisibility === "hide") {
         return { visibility: "hide", label, labelDefinition, labeler };
       }
-      if (labelVisibility === "warn") {
-        if (!currentLabel) {
-          currentLabel = {
-            visibility: labelVisibility,
-            label,
-            labelDefinition,
-            labeler,
-          };
-        }
+      if (labelVisibility === "warn" && !currentLabel) {
+        currentLabel = {
+          visibility: labelVisibility,
+          label,
+          labelDefinition,
+          labeler,
+        };
       }
     }
     return currentLabel;
+  }
+
+  getContentLabel(post) {
+    return this._getLabelByBlurType(post, "content");
   }
 
   getMediaLabel(post) {
-    const labels = getPostLabels(post, this.labelerDefs);
-    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
-    let currentLabel = null;
-    for (const label of labels) {
-      const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (!labeler) continue;
-      const labelDefinition = getDefinitionForLabel(label, labeler);
-      if (!labelDefinition || labelDefinition.blurs !== "media") continue;
-      const pref = this.getContentLabelPref({
-        label: label.val,
-        labelerDid: label.src,
-      });
-      const labelVisibility =
-        pref?.visibility ?? labelDefinition.defaultSetting ?? "ignore";
-      if (labelVisibility === "hide") {
-        return { visibility: "hide", label, labelDefinition, labeler };
-      }
-      if (labelVisibility === "warn") {
-        if (!currentLabel) {
-          currentLabel = {
-            visibility: labelVisibility,
-            label,
-            labelDefinition,
-            labeler,
-          };
-        }
-      }
-    }
-    return currentLabel;
-  }
-
-  // For quoted posts (different data structure - labels on quotedPost directly)
-  quotedPostLabelVisibility(quotedPost) {
-    const labels = quotedPost.labels || [];
-    const authorLabels = quotedPost.author?.labels || [];
-    const allLabels = [...labels, ...authorLabels];
-
-    let visibility = "ignore";
-    const warnLabels = [];
-
-    for (const label of allLabels) {
-      const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (!labeler) continue;
-
-      const definition = getDefinitionForLabel(label, labeler);
-      if (!definition || definition.blurs !== "content") continue;
-
-      const pref = this.getContentLabelPref({
-        label: label.val,
-        labelerDid: label.src,
-      });
-      const labelVisibility =
-        pref?.visibility ?? definition.defaultSetting ?? "ignore";
-
-      if (labelVisibility === "hide") {
-        return { visibility: "hide", labels: [] };
-      }
-      if (labelVisibility === "warn") {
-        visibility = "warn";
-        const { name: displayName } = getLabelNameAndDescription(definition);
-        warnLabels.push({
-          displayName,
-          labeler,
-        });
-      }
-    }
-
-    return { visibility, labels: warnLabels };
-  }
-
-  // For quoted post media (blurs: "media")
-  quotedPostMediaLabelVisibility(quotedPost) {
-    const labels = quotedPost.labels || [];
-    const authorLabels = quotedPost.author?.labels || [];
-    const allLabels = [...labels, ...authorLabels];
-
-    let visibility = "ignore";
-    const warnLabels = [];
-
-    for (const label of allLabels) {
-      const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (!labeler) continue;
-
-      const definition = getDefinitionForLabel(label, labeler);
-      if (!definition || definition.blurs !== "media") continue;
-
-      const pref = this.getContentLabelPref({
-        label: label.val,
-        labelerDid: label.src,
-      });
-      const labelVisibility =
-        pref?.visibility ?? definition.defaultSetting ?? "ignore";
-
-      if (labelVisibility === "hide") {
-        return { visibility: "hide", labels: [] };
-      }
-      if (labelVisibility === "warn") {
-        visibility = "warn";
-        const { name: displayName } = getLabelNameAndDescription(definition);
-        warnLabels.push({
-          displayName,
-          labeler,
-        });
-      }
-    }
-
-    return { visibility, labels: warnLabels };
+    return this._getLabelByBlurType(post, "media");
   }
 
   isPostHidden(postUri) {

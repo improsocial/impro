@@ -1757,4 +1757,425 @@ t.describe("Preferences.getContentLabelPreferences", (it) => {
   });
 });
 
+t.describe("Preferences.getContentLabel - global labels", (it) => {
+  it("should handle !hide global label with forced hide visibility", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      labels: [{ src: "did:plc:modservice", val: "!hide" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "!hide");
+    assertEquals(result.labeler, null);
+  });
+
+  it("should handle !warn global label with forced warn visibility", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      labels: [{ src: "did:plc:modservice", val: "!warn" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelDefinition.identifier, "!warn");
+    assertEquals(result.labeler, null);
+  });
+
+  it("should not allow user to override !hide visibility", () => {
+    // User tries to set !hide to "ignore" - should still be "hide"
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "!hide",
+        labelerDid: "did:plc:modservice",
+        visibility: "ignore",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const post = {
+      labels: [{ src: "did:plc:modservice", val: "!hide" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "hide");
+  });
+
+  it("should not allow user to override !warn visibility", () => {
+    // User tries to set !warn to "ignore" - should still be "warn"
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "!warn",
+        labelerDid: "did:plc:modservice",
+        visibility: "ignore",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const post = {
+      labels: [{ src: "did:plc:modservice", val: "!warn" }],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "warn");
+  });
+
+  it("should prefer !hide over !warn when both present", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      labels: [
+        { src: "did:plc:modservice", val: "!warn" },
+        { src: "did:plc:modservice", val: "!hide" },
+      ],
+    };
+    const result = preferences.getContentLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "!hide");
+  });
+});
+
+t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
+  it("should handle porn self-label with default hide visibility", () => {
+    const preferences = new Preferences([], []);
+    // Self-labels have src = author's DID, not a labeler's DID
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "porn" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "porn");
+    assertEquals(result.labeler, null);
+  });
+
+  it("should handle sexual self-label with default warn visibility", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "sexual" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelDefinition.identifier, "sexual");
+  });
+
+  it("should handle nudity self-label with default ignore visibility", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "nudity" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    // nudity defaults to "ignore", so should return null
+    assertEquals(result, null);
+  });
+
+  it("should handle graphic-media self-label", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "graphic-media" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelDefinition.identifier, "graphic-media");
+  });
+
+  it("should handle legacy gore label", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "gore" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelDefinition.identifier, "gore");
+  });
+
+  it("should allow user to change self-label visibility", () => {
+    // User sets porn to "warn" instead of default "hide"
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "porn",
+        labelerDid: "did:plc:author123",
+        visibility: "warn",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [{ src: "did:plc:author123", val: "porn" }],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "warn");
+  });
+
+  it("should prefer most restrictive self-label", () => {
+    const preferences = new Preferences([], []);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:author123", val: "sexual" }, // default: warn
+        { src: "did:plc:author123", val: "porn" }, // default: hide
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "porn");
+  });
+});
+
+t.describe(
+  "Preferences.getContentLabel - mixed global and custom labels",
+  (it) => {
+    it("should check both global and custom labels", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-warn",
+                blurs: "content",
+                defaultSetting: "warn",
+                locales: [{ lang: "en", name: "Custom Warning" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        labels: [{ src: "did:plc:labeler1", val: "custom-warn" }],
+      };
+      const result = preferences.getContentLabel(post);
+
+      assertEquals(result.visibility, "warn");
+      assertEquals(result.labelDefinition.identifier, "custom-warn");
+      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
+    });
+
+    it("should return global label when more restrictive than custom", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-warn",
+                blurs: "content",
+                defaultSetting: "warn",
+                locales: [{ lang: "en", name: "Custom Warning" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        labels: [
+          { src: "did:plc:labeler1", val: "custom-warn" }, // warn
+          { src: "did:plc:modservice", val: "!hide" }, // hide (global)
+        ],
+      };
+      const result = preferences.getContentLabel(post);
+
+      assertEquals(result.visibility, "hide");
+      assertEquals(result.labelDefinition.identifier, "!hide");
+      assertEquals(result.labeler, null);
+    });
+
+    it("should return custom label when more restrictive than global", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-hide",
+                blurs: "content",
+                defaultSetting: "hide",
+                locales: [{ lang: "en", name: "Custom Hide" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        labels: [
+          { src: "did:plc:modservice", val: "!warn" }, // warn (global) - processed first
+          { src: "did:plc:labeler1", val: "custom-hide" }, // hide - processed second, should win
+        ],
+      };
+      const result = preferences.getContentLabel(post);
+
+      assertEquals(result.visibility, "hide");
+      assertEquals(result.labelDefinition.identifier, "custom-hide");
+      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
+    });
+
+    it("should return first warn when no hide labels exist", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-warn",
+                blurs: "content",
+                defaultSetting: "warn",
+                locales: [{ lang: "en", name: "Custom Warning" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        labels: [
+          { src: "did:plc:modservice", val: "!warn" }, // warn (global) - first
+          { src: "did:plc:labeler1", val: "custom-warn" }, // warn (custom)
+        ],
+      };
+      const result = preferences.getContentLabel(post);
+
+      assertEquals(result.visibility, "warn");
+      // Should be the first warn encountered
+      assertEquals(result.labelDefinition.identifier, "!warn");
+    });
+  },
+);
+
+t.describe(
+  "Preferences.getMediaLabel - mixed global and custom labels",
+  (it) => {
+    it("should return global label when more restrictive than custom", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-media-warn",
+                blurs: "media",
+                defaultSetting: "warn",
+                locales: [{ lang: "en", name: "Custom Media Warning" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        author: { did: "did:plc:author123" },
+        labels: [
+          { src: "did:plc:labeler1", val: "custom-media-warn" }, // warn
+          { src: "did:plc:author123", val: "porn" }, // hide (global self-label)
+        ],
+      };
+      const result = preferences.getMediaLabel(post);
+
+      assertEquals(result.visibility, "hide");
+      assertEquals(result.labelDefinition.identifier, "porn");
+      assertEquals(result.labeler, null);
+    });
+
+    it("should return custom label when more restrictive than global", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-media-hide",
+                blurs: "media",
+                defaultSetting: "hide",
+                locales: [{ lang: "en", name: "Custom Media Hide" }],
+              },
+            ],
+          },
+        },
+      ];
+
+      const preferences = new Preferences([], labelerDefs);
+      const post = {
+        author: { did: "did:plc:author123" },
+        labels: [
+          { src: "did:plc:author123", val: "sexual" }, // warn (global self-label)
+          { src: "did:plc:labeler1", val: "custom-media-hide" }, // hide
+        ],
+      };
+      const result = preferences.getMediaLabel(post);
+
+      assertEquals(result.visibility, "hide");
+      assertEquals(result.labelDefinition.identifier, "custom-media-hide");
+      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
+    });
+
+    it("should handle mix of global self-labels and custom labels with user prefs", () => {
+      const labelerDefs = [
+        {
+          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+          policies: {
+            labelValueDefinitions: [
+              {
+                identifier: "custom-media",
+                blurs: "media",
+                defaultSetting: "warn",
+                locales: [{ lang: "en", name: "Custom Media" }],
+              },
+            ],
+          },
+        },
+      ];
+      // User sets porn to warn and custom-media to hide
+      const obj = [
+        {
+          $type: "app.bsky.actor.defs#contentLabelPref",
+          label: "porn",
+          labelerDid: "did:plc:author123",
+          visibility: "warn",
+        },
+        {
+          $type: "app.bsky.actor.defs#contentLabelPref",
+          label: "custom-media",
+          labelerDid: "did:plc:labeler1",
+          visibility: "hide",
+        },
+      ];
+
+      const preferences = new Preferences(obj, labelerDefs);
+      const post = {
+        author: { did: "did:plc:author123" },
+        labels: [
+          { src: "did:plc:author123", val: "porn" }, // user set to warn
+          { src: "did:plc:labeler1", val: "custom-media" }, // user set to hide
+        ],
+      };
+      const result = preferences.getMediaLabel(post);
+
+      assertEquals(result.visibility, "hide");
+      assertEquals(result.labelDefinition.identifier, "custom-media");
+    });
+  },
+);
+
 await t.run();

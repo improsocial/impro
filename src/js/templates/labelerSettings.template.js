@@ -1,5 +1,9 @@
 import { html } from "/js/lib/lit-html.js";
-import { getLabelNameAndDescription, isBadgeLabel } from "/js/dataHelpers.js";
+import {
+  getLabelNameAndDescription,
+  isBadgeLabel,
+  getDefaultLabelSetting,
+} from "/js/dataHelpers.js";
 import { classnames, noop } from "/js/utils.js";
 
 function doShowWarnButton(labelDefinition) {
@@ -13,14 +17,6 @@ function getWarnLabel(labelDefinition) {
     return "Warn";
   }
   return labelDefinition.severity === "inform" ? "Show badge" : "Warn";
-}
-
-function getDefaultValue(labelDefinition) {
-  const defaultValue = labelDefinition.defaultSetting;
-  if (!defaultValue || !["ignore", "warn", "hide"].includes(defaultValue)) {
-    return "warn";
-  }
-  return defaultValue;
 }
 
 function labelPreferenceRowTemplate({
@@ -110,7 +106,7 @@ export function labelerSettingsTemplate({
           );
           const value = currentSetting
             ? currentSetting.visibility
-            : getDefaultValue(labelDefinition);
+            : getDefaultLabelSetting(labelDefinition);
           return labelPreferenceRowTemplate({
             labelDefinition,
             value,

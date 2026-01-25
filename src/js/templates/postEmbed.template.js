@@ -30,10 +30,12 @@ function moderationWarningTemplate({ labelDefinition, labeler, children }) {
     >
       ${children}
     </moderation-warning>
-    <div class="post-moderation-warning-description">
-      Labeled by
-      <a href="${linkToLabeler(labeler)}">@${labeler.creator.handle}</a>
-    </div> `;
+    ${labeler
+      ? html`<div class="post-moderation-warning-description">
+          Labeled by
+          <a href="${linkToLabeler(labeler)}">@${labeler.creator.handle}</a>
+        </div>`
+      : ""} `;
 }
 
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
