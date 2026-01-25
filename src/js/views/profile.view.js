@@ -233,8 +233,12 @@ class ProfileView extends View {
                   preloadHiddenFeeds();
                 }
               },
-              onClickSubscribe: (profile, doSubscribe) =>
-                profileInteractionHandler.handleSubscribe(profile, doSubscribe),
+              onClickSubscribe: (profile, doSubscribe, labelerInfo) =>
+                profileInteractionHandler.handleSubscribe(
+                  profile,
+                  doSubscribe,
+                  labelerInfo,
+                ),
             })}
             ${isBlocked
               ? html`<div class="feed">

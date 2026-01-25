@@ -166,7 +166,7 @@ export class Preferences {
     return labelerPreference.labelers.some((labeler) => labeler.did === did);
   }
 
-  subscribeLabeler(did) {
+  subscribeLabeler(did, labelerInfo) {
     const clone = this.clone();
     let labelerPreference = Preferences.getLabelerPreference(clone.obj);
     if (!labelerPreference) {
@@ -178,6 +178,10 @@ export class Preferences {
     }
     if (!labelerPreference.labelers.some((l) => l.did === did)) {
       labelerPreference.labelers.push({ did });
+    }
+    // Add labeler definition if not already present
+    if (!clone.labelerDefs.some((l) => l.creator.did === did)) {
+      clone.labelerDefs.push(labelerInfo);
     }
     return clone;
   }
@@ -191,6 +195,8 @@ export class Preferences {
     labelerPreference.labelers = labelerPreference.labelers.filter(
       (labeler) => labeler.did !== did,
     );
+    // Remove labeler definition
+    clone.labelerDefs = clone.labelerDefs.filter((l) => l.creator.did !== did);
     return clone;
   }
 

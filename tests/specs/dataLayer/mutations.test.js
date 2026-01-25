@@ -301,6 +301,10 @@ t.describe("subscribeLabeler", (it) => {
     did: "did:test:labeler",
     handle: "labeler.test",
   };
+  const testLabelerInfo = {
+    creator: { did: "did:test:labeler" },
+    policies: { labelValueDefinitions: [] },
+  };
 
   it("should add optimistic preference patch immediately", () => {
     let updateCalled = false;
@@ -323,7 +327,7 @@ t.describe("subscribeLabeler", (it) => {
     );
 
     // Start the mutation
-    mutations.subscribeLabeler(testProfile);
+    mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
     // Check that patch was applied immediately (before API call completes)
     const patches = patchStore._getPreferencePatches();
@@ -348,7 +352,7 @@ t.describe("subscribeLabeler", (it) => {
       mockPreferencesProvider,
     );
 
-    await mutations.subscribeLabeler(testProfile);
+    await mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
     // Check that patch was removed
     const patches = patchStore._getPreferencePatches();
@@ -375,7 +379,7 @@ t.describe("subscribeLabeler", (it) => {
 
     let errorThrown = false;
     try {
-      await mutations.subscribeLabeler(testProfile);
+      await mutations.subscribeLabeler(testProfile, testLabelerInfo);
     } catch (e) {
       errorThrown = true;
     }

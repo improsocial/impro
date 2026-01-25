@@ -305,7 +305,10 @@ export class PatchStore {
       case "unpinFeed":
         return preferences.unpinFeed(patchBody.feedUri);
       case "subscribeLabeler":
-        return preferences.subscribeLabeler(patchBody.did);
+        return preferences.subscribeLabeler(
+          patchBody.did,
+          patchBody.labelerInfo,
+        );
       case "unsubscribeLabeler":
         return preferences.unsubscribeLabeler(patchBody.did);
       case "setContentLabelPref":

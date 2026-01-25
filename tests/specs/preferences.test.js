@@ -975,6 +975,11 @@ t.describe("Preferences.isSubscribedToLabeler", (it) => {
 });
 
 t.describe("Preferences.subscribeLabeler", (it) => {
+  const makeLabelerInfo = (did) => ({
+    creator: { did },
+    policies: { labelValueDefinitions: [] },
+  });
+
   it("should add labeler to existing labelers preference", () => {
     const obj = [
       {
@@ -984,7 +989,10 @@ t.describe("Preferences.subscribeLabeler", (it) => {
     ];
 
     const preferences = new Preferences(obj, []);
-    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:new",
+      makeLabelerInfo("did:plc:new"),
+    );
 
     assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
     assertEquals(
@@ -995,7 +1003,10 @@ t.describe("Preferences.subscribeLabeler", (it) => {
 
   it("should create labelers preference if it does not exist", () => {
     const preferences = new Preferences([], []);
-    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:new",
+      makeLabelerInfo("did:plc:new"),
+    );
 
     assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
   });
@@ -1008,8 +1019,13 @@ t.describe("Preferences.subscribeLabeler", (it) => {
       },
     ];
 
-    const preferences = new Preferences(obj, []);
-    const newPreferences = preferences.subscribeLabeler("did:plc:existing");
+    const preferences = new Preferences(obj, [
+      makeLabelerInfo("did:plc:existing"),
+    ]);
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:existing",
+      makeLabelerInfo("did:plc:existing"),
+    );
 
     // Get the labelers preference and check count
     const labelerPref = Preferences.getLabelerPreference(newPreferences.obj);
@@ -1025,12 +1041,44 @@ t.describe("Preferences.subscribeLabeler", (it) => {
     ];
 
     const preferences = new Preferences(obj, []);
-    const newPreferences = preferences.subscribeLabeler("did:plc:new");
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:new",
+      makeLabelerInfo("did:plc:new"),
+    );
 
     // Original should be unchanged
     assertEquals(preferences.isSubscribedToLabeler("did:plc:new"), false);
     // New should have the labeler
     assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+  });
+
+  it("should add labelerInfo to labelerDefs", () => {
+    const preferences = new Preferences([], []);
+    const labelerInfo = {
+      creator: { did: "did:plc:new" },
+      policies: { labelValueDefinitions: [] },
+    };
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:new",
+      labelerInfo,
+    );
+
+    assertEquals(newPreferences.labelerDefs.length, 1);
+    assertEquals(newPreferences.labelerDefs[0].creator.did, "did:plc:new");
+  });
+
+  it("should not add duplicate labelerInfo to labelerDefs", () => {
+    const existingLabelerInfo = {
+      creator: { did: "did:plc:existing" },
+      policies: { labelValueDefinitions: [] },
+    };
+    const preferences = new Preferences([], [existingLabelerInfo]);
+    const newPreferences = preferences.subscribeLabeler(
+      "did:plc:existing",
+      existingLabelerInfo,
+    );
+
+    assertEquals(newPreferences.labelerDefs.length, 1);
   });
 });
 
@@ -1102,6 +1150,25 @@ t.describe("Preferences.unsubscribeLabeler", (it) => {
       newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
       false,
     );
+  });
+
+  it("should remove labelerInfo from labelerDefs", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [{ did: "did:plc:labeler1" }],
+      },
+    ];
+    const labelerDefs = [
+      { creator: { did: "did:plc:labeler1" }, policies: {} },
+      { creator: { did: "did:plc:labeler2" }, policies: {} },
+    ];
+
+    const preferences = new Preferences(obj, labelerDefs);
+    const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
+
+    assertEquals(newPreferences.labelerDefs.length, 1);
+    assertEquals(newPreferences.labelerDefs[0].creator.did, "did:plc:labeler2");
   });
 });
 

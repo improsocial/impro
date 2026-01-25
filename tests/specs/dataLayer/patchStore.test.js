@@ -284,23 +284,30 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
   it("should apply subscribeLabeler patch correctly", () => {
     const patchStore = new PatchStore();
     const labelerDid = "did:plc:testlabeler";
+    const labelerInfo = {
+      creator: { did: labelerDid },
+      policies: { labelValueDefinitions: [] },
+    };
 
     // Create a mock preferences object with subscribeLabeler method
     const mockPreferences = {
       clone: () => mockPreferences,
-      subscribeLabeler: (did) => ({
+      subscribeLabeler: (did, info) => ({
         ...mockPreferences,
         _subscribedLabeler: did,
+        _labelerInfo: info,
       }),
     };
 
     patchStore.addPreferencePatch({
       type: "subscribeLabeler",
       did: labelerDid,
+      labelerInfo,
     });
     const result = patchStore.applyPreferencePatches(mockPreferences);
 
     assertEquals(result._subscribedLabeler, labelerDid);
+    assertEquals(result._labelerInfo, labelerInfo);
   });
 
   it("should apply unsubscribeLabeler patch correctly", () => {
@@ -329,13 +336,21 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
     const patchStore = new PatchStore();
     const labelerDid1 = "did:plc:labeler1";
     const labelerDid2 = "did:plc:labeler2";
+    const labelerInfo1 = {
+      creator: { did: labelerDid1 },
+      policies: { labelValueDefinitions: [] },
+    };
+    const labelerInfo2 = {
+      creator: { did: labelerDid2 },
+      policies: { labelValueDefinitions: [] },
+    };
 
     // Track calls in order
     const calls = [];
     const mockPreferences = {
       clone: () => mockPreferences,
-      subscribeLabeler: (did) => {
-        calls.push({ type: "subscribe", did });
+      subscribeLabeler: (did, info) => {
+        calls.push({ type: "subscribe", did, info });
         return mockPreferences;
       },
       unsubscribeLabeler: (did) => {
@@ -347,10 +362,12 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
     patchStore.addPreferencePatch({
       type: "subscribeLabeler",
       did: labelerDid1,
+      labelerInfo: labelerInfo1,
     });
     patchStore.addPreferencePatch({
       type: "subscribeLabeler",
       did: labelerDid2,
+      labelerInfo: labelerInfo2,
     });
     patchStore.addPreferencePatch({
       type: "unsubscribeLabeler",
@@ -360,8 +377,10 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
     patchStore.applyPreferencePatches(mockPreferences);
 
     assertEquals(calls.length, 3);
-    assertEquals(calls[0], { type: "subscribe", did: labelerDid1 });
-    assertEquals(calls[1], { type: "subscribe", did: labelerDid2 });
+    assertEquals(calls[0].type, "subscribe");
+    assertEquals(calls[0].did, labelerDid1);
+    assertEquals(calls[1].type, "subscribe");
+    assertEquals(calls[1].did, labelerDid2);
     assertEquals(calls[2], { type: "unsubscribe", did: labelerDid1 });
   });
 });
@@ -476,12 +495,16 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
   it("should mix content label patches with labeler patches", () => {
     const patchStore = new PatchStore();
     const labelerDid = "did:plc:testlabeler";
+    const labelerInfo = {
+      creator: { did: labelerDid },
+      policies: { labelValueDefinitions: [] },
+    };
 
     const calls = [];
     const mockPreferences = {
       clone: () => mockPreferences,
-      subscribeLabeler: (did) => {
-        calls.push({ type: "subscribe", did });
+      subscribeLabeler: (did, info) => {
+        calls.push({ type: "subscribe", did, info });
         return mockPreferences;
       },
       setContentLabelPref: (params) => {
@@ -493,6 +516,7 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
     patchStore.addPreferencePatch({
       type: "subscribeLabeler",
       did: labelerDid,
+      labelerInfo,
     });
     patchStore.addPreferencePatch({
       type: "setContentLabelPref",

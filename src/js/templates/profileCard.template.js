@@ -129,7 +129,7 @@ export function profileCardTemplate({
                 if (!isAuthenticated) {
                   return showSignInModal();
                 }
-                onClickSubscribe(profile, !isSubscribed);
+                onClickSubscribe(profile, !isSubscribed, labelerInfo);
               }}
               class=${classnames("rounded-button  profile-following-button", {
                 "rounded-button-primary": !isSubscribed,

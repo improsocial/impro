@@ -273,13 +273,17 @@ export class Mutations {
     }
   }
 
-  async subscribeLabeler(profile) {
+  async subscribeLabeler(profile, labelerInfo) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "subscribeLabeler",
       did: profile.did,
+      labelerInfo,
     });
     const preferences = this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.subscribeLabeler(profile.did);
+    const newPreferences = preferences.subscribeLabeler(
+      profile.did,
+      labelerInfo,
+    );
 
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);

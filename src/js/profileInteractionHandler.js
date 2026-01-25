@@ -110,11 +110,14 @@ export class ProfileInteractionHandler {
     }
   }
 
-  async handleSubscribe(profile, doSubscribe) {
+  async handleSubscribe(profile, doSubscribe, labelerInfo) {
     if (doSubscribe) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.subscribeLabeler(profile);
+        const promise = this.dataLayer.mutations.subscribeLabeler(
+          profile,
+          labelerInfo,
+        );
         // Render optimistic update
         this.renderFunc();
         await promise;
