@@ -8,6 +8,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { showToast } from "/js/toasts.js";
 
 class HomeView extends View {
   async render({
@@ -118,6 +119,15 @@ class HomeView extends View {
       //     window.scrollTo(0, lastFeedFeedbackMessageElement.offsetTop);
       //   }
       // }
+    }
+
+    async function handleShowMore(post, feedContext, feedGenerator) {
+      dataLayer.mutations.sendShowMoreInteraction(
+        post.uri,
+        feedContext,
+        getProxyUrl(feedGenerator),
+      );
+      showToast("Feedback sent to feed operator");
     }
 
     const feedScrollState = new Map();
@@ -243,6 +253,8 @@ class HomeView extends View {
                           postInteractionHandler,
                           onClickShowLess: (post, feedContext) =>
                             handleShowLess(post, feedContext, feedGenerator),
+                          onClickShowMore: (post, feedContext) =>
+                            handleShowMore(post, feedContext, feedGenerator),
                           enableFeedFeedback: true,
                           onLoadMore: () => loadCurrentFeed(),
                         })}

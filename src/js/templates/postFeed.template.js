@@ -21,6 +21,7 @@ function replyContextTemplate({
   hiddenPostUris,
   postInteractionHandler,
   onClickShowLess,
+  onClickShowMore,
   enableFeedFeedback,
 }) {
   const root = reply.root;
@@ -40,6 +41,7 @@ function replyContextTemplate({
               hiddenPostUris,
               postInteractionHandler,
               onClickShowLess,
+              onClickShowMore,
               enableFeedFeedback,
               hideMutedAccount: true,
             })}
@@ -65,6 +67,7 @@ function replyContextTemplate({
               hiddenPostUris,
               postInteractionHandler,
               onClickShowLess,
+              onClickShowMore,
               enableFeedFeedback,
               hideMutedAccount: true,
             })}
@@ -80,6 +83,7 @@ function feedItemTemplate({
   hiddenPostUris,
   postInteractionHandler,
   onClickShowLess,
+  onClickShowMore,
   enableFeedFeedback,
 }) {
   const post = feedItem.post;
@@ -104,6 +108,7 @@ function feedItemTemplate({
             hiddenPostUris,
             postInteractionHandler,
             onClickShowLess,
+            onClickShowMore,
             enableFeedFeedback: (post) => enableFeedFeedback(post, feedContext),
           })
         : ""}
@@ -115,6 +120,7 @@ function feedItemTemplate({
         replyContext: showReplyContext ? "reply" : null,
         postInteractionHandler,
         onClickShowLess,
+        onClickShowMore,
         repostAuthor,
         replyToAuthor,
         enableFeedFeedback: (post) => enableFeedFeedback(post, feedContext),
@@ -147,6 +153,7 @@ export function postFeedTemplate({
   onLoadMore,
   postInteractionHandler,
   onClickShowLess,
+  onClickShowMore,
   enableFeedFeedback = false,
   emptyMessage = null,
 }) {
@@ -187,6 +194,7 @@ export function postFeedTemplate({
                   hiddenPostUris,
                   postInteractionHandler,
                   onClickShowLess,
+                  onClickShowMore,
                   enableFeedFeedback,
                 }),
               )}

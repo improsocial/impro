@@ -15,6 +15,7 @@ export class DataStore extends EventEmitter {
     this.profileSearchResults = null;
     this.postSearchResults = null;
     this.showLessInteractions = [];
+    this.showMoreInteractions = [];
     this.notifications = null;
     this.notificationCursor = null;
     this.convoList = null;
@@ -200,6 +201,14 @@ export class DataStore extends EventEmitter {
 
   addShowLessInteraction(interaction) {
     this.showLessInteractions.push(interaction);
+  }
+
+  getShowMoreInteractions() {
+    return this.showMoreInteractions;
+  }
+
+  addShowMoreInteraction(interaction) {
+    this.showMoreInteractions.push(interaction);
   }
 
   hasUnavailablePost(uri) {

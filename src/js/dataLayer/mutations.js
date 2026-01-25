@@ -220,6 +220,23 @@ export class Mutations {
     }
   }
 
+  async sendShowMoreInteraction(postURI, feedContext, feedProxyUrl) {
+    const showMoreInteraction = {
+      item: postURI,
+      event: "app.bsky.feed.defs#requestMore",
+      feedContext,
+    };
+    // Note, we don't really need to store this interaction because we don't use it in the UI (yet).
+    // But, let's do it anyway for consistency.
+    this.dataStore.addShowMoreInteraction(showMoreInteraction);
+    try {
+      await this.api.sendInteractions([showMoreInteraction], feedProxyUrl);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async pinFeed(feedUri) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "pinFeed",

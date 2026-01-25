@@ -31,6 +31,7 @@ export function smallPostTemplate({
   repostAuthor,
   isPinned = false,
   onClickShowLess = noop,
+  onClickShowMore = noop,
   enableFeedFeedback = false,
   hideMutedAccount = false,
   overrideMutedWords = false,
@@ -132,6 +133,7 @@ export function smallPostTemplate({
               onClickBookmark: (post, doBookmark) =>
                 postInteractionHandler.handleBookmark(post, doBookmark),
               onClickShowLess,
+              onClickShowMore,
               onClickHidePost: (post) =>
                 postInteractionHandler.handleHidePost(post),
               onClickMute: (profile, doMute) =>
