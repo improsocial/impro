@@ -209,12 +209,23 @@ export class Selectors {
     }
     const hydratedSearchResults = [];
     for (const result of searchResults) {
-      const post = this.getPost(result.uri);
+      let post = this.getPost(result.uri);
       // If it's a reply, add the parent author to the record
       if (post.record?.reply) {
-        const parentPost = this.getPost(post.record.reply.parent.uri);
-        // NOTE: LEXICON DEVIATION
-        post.record.reply.parentAuthor = parentPost.author;
+        const parentPost = this.getPost(post.record.reply.parent.uri, {
+          required: true,
+        });
+        post = {
+          ...post,
+          record: {
+            ...post.record,
+            reply: {
+              ...post.record.reply,
+              // NOTE: LEXICON DEVIATION
+              parentAuthor: parentPost.author,
+            },
+          },
+        };
       }
       hydratedSearchResults.push(post);
     }
@@ -403,10 +414,28 @@ export class Selectors {
     if (!quotes) {
       return null;
     }
-    // Hydrate the posts
-    const hydratedPosts = quotes.posts.map((post) =>
-      this.getPost(post.uri, { required: true }),
-    );
+    const hydratedPosts = [];
+    for (const quote of quotes.posts) {
+      let post = this.getPost(quote.uri, { required: true });
+      // also add the parent post if it exists
+      if (post.record?.reply?.parent) {
+        const parentPost = this.getPost(post.record.reply.parent.uri, {
+          required: true,
+        });
+        post = {
+          ...post,
+          record: {
+            ...post.record,
+            reply: {
+              ...post.record.reply,
+              // NOTE: LEXICON DEVIATION
+              parentAuthor: parentPost.author,
+            },
+          },
+        };
+      }
+      hydratedPosts.push(post);
+    }
     return {
       posts: hydratedPosts,
       cursor: quotes.cursor,

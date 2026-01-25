@@ -1345,6 +1345,10 @@ body.scroll-locked header {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
+.post-list > div {
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
 .feed-end-message {
   padding-left: 16px;
   padding-right: 16px;

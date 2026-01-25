@@ -494,9 +494,14 @@ export class Requests {
     const existingQuotes = this.dataStore.getPostQuotes(postUri);
     const res = await this.api.getQuotes(postUri, { cursor });
 
-    // Save posts from quotes
-    this.dataStore.setPosts(res.posts);
-
+    // if there are posts that are replies, load the parents
+    const replyPosts = res.posts.filter((post) => post.record?.reply);
+    const replyParentUris = replyPosts.map(
+      (post) => post.record?.reply?.parent?.uri,
+    );
+    const parentPosts = await this.api.getPosts(replyParentUris);
+    // Save posts and parents
+    this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
       // Append to existing quotes
       this.dataStore.setPostQuotes(postUri, {
