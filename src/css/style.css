@@ -3610,10 +3610,10 @@ emoji-picker {
 .profile-list-item:hover {
   background: var(--post-hover-color);
 }
-
+/* 
 .profile-list-item:last-of-type {
   border-bottom: none;
-}
+} */
 
 .profile-list-item-body {
   flex: 1;
