@@ -5,112 +5,306 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 
 const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
+const BSKY_ONLY_REASON_TYPES = [
+  "tools.ozone.report.defs#reasonViolenceExtremistContent",
+];
+
+// Maps new Ozone reason types to old types for backwards compatibility
+const NEW_TO_OLD_REASONS_MAP = {
+  "tools.ozone.report.defs#reasonAppeal":
+    "com.atproto.moderation.defs#reasonAppeal",
+  "tools.ozone.report.defs#reasonOther":
+    "com.atproto.moderation.defs#reasonOther",
+  "tools.ozone.report.defs#reasonViolenceAnimal":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceThreats":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceGraphicContent":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceGlorification":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceExtremistContent":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceTrafficking":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonViolenceOther":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSexualAbuseContent":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonSexualNCII":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonSexualDeepfake":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonSexualAnimal":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonSexualUnlabeled":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonSexualOther":
+    "com.atproto.moderation.defs#reasonSexual",
+  "tools.ozone.report.defs#reasonChildSafetyCSAM":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonChildSafetyGroom":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonChildSafetyPrivacy":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonChildSafetyHarassment":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonChildSafetyOther":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonHarassmentTroll":
+    "com.atproto.moderation.defs#reasonRude",
+  "tools.ozone.report.defs#reasonHarassmentTargeted":
+    "com.atproto.moderation.defs#reasonRude",
+  "tools.ozone.report.defs#reasonHarassmentHateSpeech":
+    "com.atproto.moderation.defs#reasonRude",
+  "tools.ozone.report.defs#reasonHarassmentDoxxing":
+    "com.atproto.moderation.defs#reasonRude",
+  "tools.ozone.report.defs#reasonHarassmentOther":
+    "com.atproto.moderation.defs#reasonRude",
+  "tools.ozone.report.defs#reasonMisleadingBot":
+    "com.atproto.moderation.defs#reasonMisleading",
+  "tools.ozone.report.defs#reasonMisleadingImpersonation":
+    "com.atproto.moderation.defs#reasonMisleading",
+  "tools.ozone.report.defs#reasonMisleadingSpam":
+    "com.atproto.moderation.defs#reasonSpam",
+  "tools.ozone.report.defs#reasonMisleadingScam":
+    "com.atproto.moderation.defs#reasonMisleading",
+  "tools.ozone.report.defs#reasonMisleadingElections":
+    "com.atproto.moderation.defs#reasonMisleading",
+  "tools.ozone.report.defs#reasonMisleadingOther":
+    "com.atproto.moderation.defs#reasonMisleading",
+  "tools.ozone.report.defs#reasonRuleSiteSecurity":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonRuleProhibitedSales":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonRuleBanEvasion":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonRuleOther":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSelfHarmContent":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSelfHarmED":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSelfHarmStunts":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSelfHarmSubstances":
+    "com.atproto.moderation.defs#reasonViolation",
+  "tools.ozone.report.defs#reasonSelfHarmOther":
+    "com.atproto.moderation.defs#reasonViolation",
+};
+
 const REPORT_CATEGORIES = [
   {
     key: "misleading",
     title: "Misleading",
-    description: "Spam, impersonation, misinformation",
+    description: "Spam or other inauthentic behavior or deception",
   },
   {
     key: "sexualContent",
     title: "Adult content",
-    description: "Sexual or explicit content",
+    description: "Unlabeled, abusive, or non-consensual adult content",
   },
   {
     key: "harassmentHate",
     title: "Harassment or hate",
-    description: "Abuse, threats, discrimination",
+    description: "Abusive or discriminatory behavior",
   },
   {
     key: "violence",
     title: "Violence",
-    description: "Graphic content, threats",
+    description: "Violent or threatening content",
   },
   {
     key: "childSafety",
     title: "Child safety",
-    description: "Content endangering children",
+    description: "Harming or endangering minors",
   },
   {
     key: "selfHarm",
     title: "Self-harm",
-    description: "Self-harm or dangerous behaviors",
+    description: "Harmful or high-risk activities",
   },
   {
     key: "ruleBreaking",
     title: "Breaking site rules",
-    description: "Terms violations, security issues",
+    description: "Banned activities or security violations",
   },
-  { key: "other", title: "Other", description: "Other issues" },
+  {
+    key: "other",
+    title: "Other",
+    description: "An issue not included in these options",
+  },
 ];
 
 const REASON_TYPES_BY_CATEGORY = {
   misleading: [
-    { reasonType: "com.atproto.moderation.defs#reasonSpam", title: "Spam" },
     {
-      reasonType: "com.atproto.moderation.defs#reasonMisleading",
-      title: "Scam or fraud",
+      reasonType: "tools.ozone.report.defs#reasonMisleadingSpam",
+      title: "Spam",
     },
     {
-      reasonType: "com.atproto.moderation.defs#reasonMisleading",
+      reasonType: "tools.ozone.report.defs#reasonMisleadingScam",
+      title: "Scam",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonMisleadingBot",
+      title: "Fake account or bot",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonMisleadingImpersonation",
       title: "Impersonation",
     },
     {
-      reasonType: "com.atproto.moderation.defs#reasonOther",
+      reasonType: "tools.ozone.report.defs#reasonMisleadingElections",
+      title: "False information about elections",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonMisleadingOther",
       title: "Other misleading content",
     },
   ],
   sexualContent: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonSexual",
-      title: "Unwanted sexual content",
+      reasonType: "tools.ozone.report.defs#reasonSexualUnlabeled",
+      title: "Unlabeled adult content",
     },
-    { reasonType: "com.atproto.moderation.defs#reasonSexual", title: "Nudity" },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSexualAbuseContent",
+      title: "Adult sexual abuse content",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSexualNCII",
+      title: "Non-consensual intimate imagery",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSexualDeepfake",
+      title: "Deepfake adult content",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSexualAnimal",
+      title: "Animal sexual abuse",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSexualOther",
+      title: "Other sexual violence content",
+    },
   ],
   harassmentHate: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonRude",
-      title: "Anti-social behavior",
+      reasonType: "tools.ozone.report.defs#reasonHarassmentTroll",
+      title: "Trolling",
     },
     {
-      reasonType: "com.atproto.moderation.defs#reasonRude",
-      title: "Harassment",
+      reasonType: "tools.ozone.report.defs#reasonHarassmentTargeted",
+      title: "Targeted harassment",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonHarassmentHateSpeech",
+      title: "Hate speech",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonHarassmentDoxxing",
+      title: "Doxxing",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonHarassmentOther",
+      title: "Other harassing or hateful content",
     },
   ],
   violence: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
-      title: "Threatening violence",
+      reasonType: "tools.ozone.report.defs#reasonViolenceAnimal",
+      title: "Animal welfare",
     },
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
+      reasonType: "tools.ozone.report.defs#reasonViolenceThreats",
+      title: "Threats or incitement",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonViolenceGraphicContent",
       title: "Graphic violent content",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonViolenceGlorification",
+      title: "Glorification of violence",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonViolenceExtremistContent",
+      title: "Extremist content",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonViolenceTrafficking",
+      title: "Human trafficking",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonViolenceOther",
+      title: "Other violent content",
     },
   ],
   childSafety: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
-      title: "Child sexual abuse material",
+      reasonType: "tools.ozone.report.defs#reasonChildSafetyCSAM",
+      title: "Child Sexual Abuse Material (CSAM)",
     },
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
-      title: "Child endangerment",
+      reasonType: "tools.ozone.report.defs#reasonChildSafetyGroom",
+      title: "Grooming or predatory behavior",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonChildSafetyPrivacy",
+      title: "Privacy violation of a minor",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonChildSafetyHarassment",
+      title: "Minor harassment or bullying",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonChildSafetyOther",
+      title: "Other child safety issue",
     },
   ],
   selfHarm: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
-      title: "Self-harm or suicide",
+      reasonType: "tools.ozone.report.defs#reasonSelfHarmContent",
+      title: "Content promoting or depicting self-harm",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSelfHarmED",
+      title: "Eating disorders",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSelfHarmStunts",
+      title: "Dangerous challenges or activities",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSelfHarmSubstances",
+      title: "Dangerous substances or drug abuse",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonSelfHarmOther",
+      title: "Other dangerous content",
     },
   ],
   ruleBreaking: [
     {
-      reasonType: "com.atproto.moderation.defs#reasonViolation",
-      title: "Terms of service violation",
+      reasonType: "tools.ozone.report.defs#reasonRuleSiteSecurity",
+      title: "Hacking or system attacks",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonRuleProhibitedSales",
+      title: "Promoting or selling prohibited items or services",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonRuleBanEvasion",
+      title: "Banned user returning",
+    },
+    {
+      reasonType: "tools.ozone.report.defs#reasonRuleOther",
+      title: "Other network rule-breaking",
     },
   ],
   other: [
-    { reasonType: "com.atproto.moderation.defs#reasonOther", title: "Other" },
+    { reasonType: "tools.ozone.report.defs#reasonOther", title: "Other" },
   ],
 };
 
@@ -240,7 +434,7 @@ function reasonTypeStepTemplate({
   onSelectReasonType,
   onClearReasonType,
 }) {
-  const reasonTypes = REASON_TYPES_BY_CATEGORY[selectedCategory?.key] || [];
+  const reasonTypes = REASON_TYPES_BY_CATEGORY[selectedCategory];
   return stepTemplate({
     stepIndex: 1,
     currentStepIndex,
@@ -372,34 +566,74 @@ function submitStepTemplate({
   });
 }
 
+function labelerSupportsSubjectType(labeler, subjectType) {
+  if (!labeler.subjectTypes) {
+    return true;
+  }
+  return labeler.subjectTypes.includes(subjectType);
+}
+
+function labelerSupportsReasonType(labeler, reasonType) {
+  if (!labeler.reasonTypes) {
+    return true;
+  }
+  return labeler.reasonTypes.includes(reasonType);
+}
+
+function getLegacyReasonType(reasonType) {
+  return NEW_TO_OLD_REASONS_MAP[reasonType] || null;
+}
+
+// Returns the appropriate reason type for the labeler (falls back to old type if needed)
+function getReasonTypeForLabeler(reasonType, labeler) {
+  if (labelerSupportsReasonType(labeler, reasonType)) {
+    return reasonType;
+  } else {
+    const oldReasonType = getLegacyReasonType(reasonType);
+    if (!labelerSupportsReasonType(labeler, oldReasonType)) {
+      // this should never happen, since we only show labelers that support the reason type
+      throw new Error(
+        `Labeler ${labeler.creator.did} does not support reason type ${reasonType}`,
+      );
+    }
+    return oldReasonType;
+  }
+}
+
 function getLabelersForSelections(
   selectedCategory,
   selectedReasonType,
   labelerDefs,
   subjectType,
 ) {
-  // Handle bluesky-only categories
-  if (BSKY_ONLY_CATEGORIES.includes(selectedCategory?.key)) {
-    const bskyLabeler = labelerDefs.find((labelerDefinition) => {
-      return labelerDefinition.creator.did === BSKY_LABELER_DID;
-    });
+  // Handle bluesky-only categories and reason types
+  if (
+    BSKY_ONLY_CATEGORIES.includes(selectedCategory.key) ||
+    BSKY_ONLY_REASON_TYPES.includes(selectedReasonType.reasonType)
+  ) {
+    const bskyLabeler = labelerDefs.find(
+      (l) => l.creator.did === BSKY_LABELER_DID,
+    );
     if (!bskyLabeler) {
       throw new Error("Bluesky labeler definition not found");
     }
     return [bskyLabeler];
   }
   return labelerDefs.filter((labelerDefinition) => {
-    // Filter by supported subject type
-    const supportedSubjectTypes = labelerDefinition.subjectTypes;
-    if (supportedSubjectTypes && !supportedSubjectTypes.includes(subjectType)) {
+    if (!labelerSupportsSubjectType(labelerDefinition, subjectType)) {
       return false;
     }
-    // Filter by reason type
-    if (selectedReasonType) {
-      const supportedReasonTypes = labelerDefinition.reasonTypes;
+    if (
+      !labelerSupportsReasonType(
+        labelerDefinition,
+        selectedReasonType.reasonType,
+      )
+    ) {
+      // check legacy reason types
+      const oldReasonType = getLegacyReasonType(selectedReasonType.reasonType);
       if (
-        supportedReasonTypes &&
-        !supportedReasonTypes.includes(selectedReasonType.reasonType)
+        !oldReasonType ||
+        !labelerSupportsReasonType(labelerDefinition, oldReasonType)
       ) {
         return false;
       }
@@ -548,10 +782,14 @@ class ReportDialog extends Component {
       this.render();
     };
 
+    const reasonType = getReasonTypeForLabeler(
+      this._selectedReasonType.reasonType,
+      this._selectedLabeler,
+    );
     this.dispatchEvent(
       new CustomEvent("submit-report", {
         detail: {
-          reasonType: this._selectedReasonType.reasonType,
+          reasonType,
           labelerDid: this._selectedLabeler.creator.did,
           details: this._details,
           successCallback,
