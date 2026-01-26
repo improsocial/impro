@@ -9,6 +9,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { parseEmbedPlayerFromUrl } from "/js/lib/embed-player.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
+import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { linkToPost, linkToFeed, linkToLabeler } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
@@ -125,6 +126,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
     );
     mutedLabel = labelName;
   }
+  const postText = quotedPost.value.text?.trimEnd() || "";
   return html`<a
     class="quoted-post-link"
     @click=${(e) => {
@@ -149,13 +151,18 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
               timestamp: quotedPost.value.createdAt,
             })}
           </div>
+          ${quotedPost.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: quotedPost.badgeLabels })
+            : ""}
           <div class="quoted-post-body">
-            <div class="post-text">
-              ${richTextTemplate({
-                text: quotedPost.value.text.trimEnd(),
-                facets: quotedPost.value.facets,
-              })}
-            </div>
+            ${postText.length > 0
+              ? html`<div class="post-text">
+                  ${richTextTemplate({
+                    text: postText,
+                    facets: quotedPost.value.facets,
+                  })}
+                </div>`
+              : ""}
             ${embed && showNestedEmbed(embed)
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({

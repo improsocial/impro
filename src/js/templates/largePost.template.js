@@ -100,6 +100,7 @@ export function largePostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const postText = post.record.text?.trimEnd() || "";
   let content = html`
       <div class="post-content">
         <div class="post-content-top">
@@ -127,10 +128,10 @@ export function largePostTemplate({
         <div class="post-content-bottom">
           <div class="post-body">
             ${
-              post.record.text
+              postText.length > 0
                 ? html`<div class="post-text">
                     ${richTextTemplate({
-                      text: post.record.text.trimEnd(),
+                      text: postText,
                       facets: post.record.facets,
                     })}
                   </div>`

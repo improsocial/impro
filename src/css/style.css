@@ -1621,6 +1621,18 @@ body.scroll-locked header {
   height: 12px;
 }
 
+.quoted-post .label-badge {
+  font-size: 12px;
+  height: 20px;
+  padding: 2px 7px 3px;
+  margin-right: 2px;
+}
+
+.quoted-post .label-badge-image {
+  width: 12px;
+  height: 12px;
+}
+
 .post-skeleton .icon path {
   stroke: var(--skeleton-color);
   fill: none;

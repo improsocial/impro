@@ -51,6 +51,7 @@ export function smallPostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const postText = post.record.text?.trimEnd() || "";
   const content = html`
     <div
       class="post small-post clickable"
@@ -99,10 +100,10 @@ export function smallPostTemplate({
               </div>`
             : ""}
           <div class="post-body">
-            ${post.record.text
+            ${postText.length > 0
               ? html`<div class="post-text">
                   ${richTextTemplate({
-                    text: post.record.text.trimEnd(),
+                    text: postText,
                     facets: post.record.facets,
                   })}
                 </div>`

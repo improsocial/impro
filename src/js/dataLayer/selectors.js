@@ -610,9 +610,14 @@ export class Selectors {
       post.viewer.mediaLabel = mediaLabel;
     }
 
-    // Also mark quoted posts (content and media labels only, not badges)
+    // Also mark quoted posts
     const quotedPost = getQuotedPost(post);
     if (quotedPost) {
+      const quotedBadgeLabels = preferences.getBadgeLabels(quotedPost);
+      if (quotedBadgeLabels.length > 0) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.badgeLabels = quotedBadgeLabels;
+      }
       const quotedContentLabel = preferences.getContentLabel(quotedPost);
       if (quotedContentLabel) {
         // NOTE: LEXICON DEVIATION
@@ -626,6 +631,11 @@ export class Selectors {
       // Also check for nested quoted posts
       const nestedQuotedPost = getQuotedPost(quotedPost);
       if (nestedQuotedPost) {
+        const nestedBadgeLabels = preferences.getBadgeLabels(nestedQuotedPost);
+        if (nestedBadgeLabels.length > 0) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.badgeLabels = nestedBadgeLabels;
+        }
         const nestedContentLabel =
           preferences.getContentLabel(nestedQuotedPost);
         if (nestedContentLabel) {
