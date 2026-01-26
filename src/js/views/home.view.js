@@ -97,14 +97,13 @@ class HomeView extends View {
       },
     );
 
-    function isVisible(element) {
-      return (
-        element.getBoundingClientRect().top < window.innerHeight &&
-        element.getBoundingClientRect().bottom > 0
-      );
-    }
-
     async function handleShowLess(post, feedContext, feedGenerator) {
+      const feedItemElement = document.querySelector(
+        `.feed-item[data-post-uri="${post.uri}"]`,
+      );
+      const feedItemHeight = feedItemElement
+        ? feedItemElement.getBoundingClientRect().height
+        : null;
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
         feedContext,
@@ -112,15 +111,18 @@ class HomeView extends View {
       );
       // Render optimistic update
       renderPage();
-      // Scroll to last feed feedback message
-      // const lastFeedFeedbackMessageElement = [
-      //   ...document.querySelectorAll(".feed-feedback-message"),
-      // ].pop();
-      // if (lastFeedFeedbackMessageElement) {
-      //   if (!isVisible(lastFeedFeedbackMessageElement)) {
-      //     window.scrollTo(0, lastFeedFeedbackMessageElement.offsetTop);
-      //   }
-      // }
+      // Scroll to maintain position of feed item
+      const feedFeedbackMessageElement = document.querySelector(
+        `.feed-feedback-message[data-post-uri="${post.uri}"]`,
+      );
+      if (feedFeedbackMessageElement) {
+        const feedFeedbackMessageHeight =
+          feedFeedbackMessageElement.getBoundingClientRect().height;
+        if (feedItemHeight) {
+          const heightDelta = feedItemHeight - feedFeedbackMessageHeight;
+          window.scrollTo(0, window.scrollY - heightDelta);
+        }
+      }
     }
 
     async function handleShowMore(post, feedContext, feedGenerator) {
