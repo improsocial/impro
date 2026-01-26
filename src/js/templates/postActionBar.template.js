@@ -9,6 +9,7 @@ import { getRKey } from "/js/dataHelpers.js";
 import { showSignInModal } from "/js/modals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 import "/js/components/like-button.js";
 
 function getBlueskyLinkForPost(post) {
@@ -165,81 +166,89 @@ export function postActionBarTemplate({
           <span class="text-button-text">...</span>
         </button>
         <context-menu>
-          <context-menu-item
-            @click=${() => {
-              window.open(getBlueskyLinkForPost(post), "_blank");
-            }}
-          >
-            Open in bsky.app
-          </context-menu-item>
-          <context-menu-item
-            @click=${() => {
-              navigator.clipboard.writeText(getPermalinkForPost(post));
-              showToast("Link copied to clipboard");
-            }}
-          >
-            Copy link to post
-          </context-menu-item>
+          <context-menu-item-group>
+            <context-menu-item
+              @click=${() => {
+                window.open(getBlueskyLinkForPost(post), "_blank");
+              }}
+            >
+              Open in bsky.app
+            </context-menu-item>
+            <context-menu-item
+              @click=${() => {
+                navigator.clipboard.writeText(getPermalinkForPost(post));
+                showToast("Link copied to clipboard");
+              }}
+            >
+              Copy link to post
+            </context-menu-item>
+          </context-menu-item-group>
           ${isAuthenticated
             ? html`
                 ${enableFeedFeedback
                   ? html`
-                      <context-menu-item
-                        @click=${() => {
-                          onClickShowMore(post);
-                        }}
-                      >
-                        Show more like this
-                      </context-menu-item>
-                      <context-menu-item
-                        @click=${() => {
-                          onClickShowLess(post);
-                        }}
-                      >
-                        Show less like this
-                      </context-menu-item>
+                      <context-menu-item-group>
+                        <context-menu-item
+                          @click=${() => {
+                            onClickShowMore(post);
+                          }}
+                        >
+                          Show more like this
+                        </context-menu-item>
+                        <context-menu-item
+                          @click=${() => {
+                            onClickShowLess(post);
+                          }}
+                        >
+                          Show less like this
+                        </context-menu-item>
+                      </context-menu-item-group>
                     `
                   : null}
                 ${!post.viewer?.isHidden
                   ? html`
-                      <context-menu-item
-                        @click=${() => {
-                          onClickHidePost(post);
-                        }}
-                      >
-                        Hide post for me
-                      </context-menu-item>
+                      <context-menu-item-group>
+                        <context-menu-item
+                          @click=${() => {
+                            onClickHidePost(post);
+                          }}
+                        >
+                          Hide post for me
+                        </context-menu-item>
+                      </context-menu-item-group>
                     `
                   : null}
-                <context-menu-item
-                  @click=${() => {
-                    onClickMute(post.author, !post.author.viewer?.muted);
-                  }}
-                >
-                  ${post.author.viewer?.muted
-                    ? "Unmute account"
-                    : "Mute account"}
-                </context-menu-item>
-                <context-menu-item
-                  @click=${() => {
-                    onClickBlock(post.author, !post.author.viewer?.blocking);
-                  }}
-                >
-                  ${post.author.viewer?.blocking
-                    ? "Unblock account"
-                    : "Block account"}
-                </context-menu-item>
-                ${!isUserPost
-                  ? html`
-                      <context-menu-item
-                        @click=${() => {
-                          onClickReport(post);
-                        }}
-                      >
-                        Report post
-                      </context-menu-item>
-                    `
-                  : null}
+                <context-menu-item-group>
+                  <context-menu-item
+                    @click=${() => {
+                      onClickMute(post.author, !post.author.viewer?.muted);
+                    }}
+                  >
+                    ${post.author.viewer?.muted
+                      ? "Unmute account"
+                      : "Mute account"}
+                  </context-menu-item>
+                  <context-menu-item
+                    @click=${() => {
+                      onClickBlock(post.author, !post.author.viewer?.blocking);
+                    }}
+                  >
+                    ${post.author.viewer?.blocking
+                      ? "Unblock account"
+                      : "Block account"}
+                  </context-menu-item>
+                  ${!isUserPost
+                    ? html`
+                        <context-menu-item
+                          @click=${() => {
+                            onClickReport(post);
+                          }}
+                        >
+                          Report post
+                        </context-menu-item>
+                      `
+                    : null}
+                </context-menu-item-group>
                 ${isUserPost
                   ? html` <context-menu-item
                       @click=${() => {

@@ -14,6 +14,7 @@ import { showSignInModal } from "/js/modals.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 import "/js/components/lightbox-image-group.js";
 
 function getBlueskyLinkForProfile(profile) {
@@ -164,21 +165,23 @@ export function profileCardTemplate({
           <span>...</span>
         </button>
         <context-menu>
-          <context-menu-item
-            @click=${() => {
-              window.open(getBlueskyLinkForProfile(profile), "_blank");
-            }}
-          >
-            Open in bsky.app
-          </context-menu-item>
-          <context-menu-item
-            @click=${() => {
-              navigator.clipboard.writeText(getPermalinkForProfile(profile));
-              showToast("Link copied to clipboard");
-            }}
-          >
-            Copy link to profile
-          </context-menu-item>
+          <context-menu-item-group>
+            <context-menu-item
+              @click=${() => {
+                window.open(getBlueskyLinkForProfile(profile), "_blank");
+              }}
+            >
+              Open in bsky.app
+            </context-menu-item>
+            <context-menu-item
+              @click=${() => {
+                navigator.clipboard.writeText(getPermalinkForProfile(profile));
+                showToast("Link copied to clipboard");
+              }}
+            >
+              Copy link to profile
+            </context-menu-item>
+          </context-menu-item-group>
           ${isAuthenticated && !isCurrentUser
             ? html`
                 ${isLabeler
@@ -199,29 +202,31 @@ export function profileCardTemplate({
                 >
                   Search posts
                 </context-menu-item>
-                <context-menu-item
-                  @click=${() => {
-                    onClickMute(profile, !profile.viewer?.muted);
-                  }}
-                >
-                  ${profile.viewer?.muted ? "Unmute Account" : "Mute Account"}
-                </context-menu-item>
-                <context-menu-item
-                  @click=${() => {
-                    onClickBlock(profile, !profile.viewer?.blocking);
-                  }}
-                >
-                  ${profile.viewer?.blocking
-                    ? "Unblock Account"
-                    : "Block Account"}
-                </context-menu-item>
-                <context-menu-item
-                  @click=${() => {
-                    onClickReport(profile);
-                  }}
-                >
-                  Report account
-                </context-menu-item>
+                <context-menu-item-group>
+                  <context-menu-item
+                    @click=${() => {
+                      onClickMute(profile, !profile.viewer?.muted);
+                    }}
+                  >
+                    ${profile.viewer?.muted ? "Unmute Account" : "Mute Account"}
+                  </context-menu-item>
+                  <context-menu-item
+                    @click=${() => {
+                      onClickBlock(profile, !profile.viewer?.blocking);
+                    }}
+                  >
+                    ${profile.viewer?.blocking
+                      ? "Unblock Account"
+                      : "Block Account"}
+                  </context-menu-item>
+                  <context-menu-item
+                    @click=${() => {
+                      onClickReport(profile);
+                    }}
+                  >
+                    Report account
+                  </context-menu-item>
+                </context-menu-item-group>
               `
             : null}
         </context-menu>

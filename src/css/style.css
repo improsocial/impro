@@ -4367,7 +4367,7 @@ emoji-picker {
 .context-menu::before {
   content: "";
   position: absolute;
-  top: 7px;
+  top: 6px;
   left: 50%;
   transform: translateX(-50%);
   width: 36px;
@@ -4387,9 +4387,24 @@ context-menu-item:last-child {
   width: 100%;
 }
 
+.context-menu-item-group {
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--square-button-radius);
+  margin-bottom: 12px;
+  overflow: hidden;
+}
+
+.context-menu-item-group .context-menu-item {
+  margin-bottom: 0;
+}
+
+.context-menu-item-group context-menu-item:not(:last-child) .context-menu-item {
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
 .context-menu-item button {
   width: 100%;
-  border: none;
+  border: var(--hair) solid var(--post-border-color);
   background-color: light-dark(var(--off-white), var(--gray));
   font-size: inherit;
   text-align: left;
@@ -4398,6 +4413,11 @@ context-menu-item:last-child {
   flex: 1;
   padding: 14px;
   border-radius: var(--square-button-radius);
+}
+
+.context-menu-item-group .context-menu-item button {
+  border-radius: 0;
+  border: none;
 }
 
 .context-menu-item button[disabled] {
@@ -4430,9 +4450,17 @@ context-menu-item:last-child {
     margin-bottom: 0;
   }
 
+  .context-menu-item-group
+    context-menu-item:not(:last-child)
+    .context-menu-item {
+    border-bottom: none;
+  }
+
   .context-menu-item button {
     background-color: transparent;
     padding: 14px 16px;
+    border: none;
+    border-bottom: var(--hair) solid var(--post-border-color);
     border-radius: 0;
   }
 }
@@ -4455,8 +4483,16 @@ context-menu-item:last-child {
   }
 }
 
-post-context-menu .text-button-text {
-  font-weight: bold;
+@media (min-width: 800px) {
+  .context-menu-item-group {
+    border: none;
+    border-radius: 0;
+    margin-bottom: 0;
+  }
+
+  context-menu-item-group:not(:last-child) .context-menu-item-group {
+    border-bottom: var(--hair) solid var(--post-border-color);
+  }
 }
 
 /* Shared modal base styles */
