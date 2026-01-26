@@ -308,24 +308,6 @@ const REASON_TYPES_BY_CATEGORY = {
   ],
 };
 
-function stepIndicatorTemplate({ stepIndex, currentStepIndex }) {
-  const isActive = stepIndex === currentStepIndex;
-  const isCompleted = stepIndex < currentStepIndex;
-  return html`
-    <div
-      class="report-step-indicator ${isActive
-        ? "active"
-        : isCompleted
-          ? "completed"
-          : ""}"
-    >
-      ${isCompleted
-        ? html`<span class="checkmark">&#10003;</span>`
-        : stepIndex + 1}
-    </div>
-  `;
-}
-
 function categoryCardTemplate({ category, onClick }) {
   return html`
     <button class="report-option-card" @click=${onClick}>
@@ -378,88 +360,88 @@ function getDisplayNameForSubjectType(subjectType) {
   }
 }
 
-function stepTemplate({ stepIndex, currentStepIndex, title, children }) {
+function stepTemplate({ stepIndex, currentStepIndex, title, renderStep }) {
   const isActive = currentStepIndex === stepIndex;
   const isCompleted = currentStepIndex > stepIndex;
-
   return html`
     <div class="report-step ${isActive ? "active" : ""}">
       <div class="report-step-header">
-        ${stepIndicatorTemplate({ stepIndex, currentStepIndex })}
+        <div
+          class="report-step-indicator ${isActive
+            ? "active"
+            : isCompleted
+              ? "completed"
+              : ""}"
+        >
+          ${isCompleted
+            ? html`<span class="checkmark">&#10003;</span>`
+            : stepIndex + 1}
+        </div>
         <div class="report-step-title ${isActive ? "active" : ""}">
           ${title}
         </div>
       </div>
       ${isActive || isCompleted
-        ? html`<div class="report-step-content">${children}</div>`
+        ? html`<div class="report-step-content">
+            ${renderStep({ isActive, isCompleted })}
+          </div>`
         : null}
     </div>
   `;
 }
 
 function categoryStepTemplate({
-  currentStepIndex,
-  subjectType,
+  isCompleted,
   selectedCategory,
   onSelectCategory,
   onClearCategory,
 }) {
-  return stepTemplate({
-    stepIndex: 0,
-    currentStepIndex,
-    title: `Why should this ${getDisplayNameForSubjectType(subjectType)} be reviewed?`,
-    children:
-      selectedCategory && currentStepIndex > 0
-        ? selectedItemTemplate({
-            title: selectedCategory.title,
-            onClear: onClearCategory,
-          })
-        : html`
-            <div class="report-options">
-              ${REPORT_CATEGORIES.map((category) =>
-                categoryCardTemplate({
-                  category,
-                  onClick: () => onSelectCategory(category),
-                }),
-              )}
-            </div>
-          `,
-  });
+  if (isCompleted) {
+    return selectedItemTemplate({
+      title: selectedCategory.title,
+      onClear: onClearCategory,
+    });
+  }
+  return html`
+    <div class="report-options">
+      ${REPORT_CATEGORIES.map((category) =>
+        categoryCardTemplate({
+          category,
+          onClick: () => onSelectCategory(category),
+        }),
+      )}
+    </div>
+  `;
 }
 
 function reasonTypeStepTemplate({
-  currentStepIndex,
+  isCompleted,
   selectedCategory,
   selectedReasonType,
   onSelectReasonType,
   onClearReasonType,
 }) {
-  const reasonTypes = REASON_TYPES_BY_CATEGORY[selectedCategory];
-  return stepTemplate({
-    stepIndex: 1,
-    currentStepIndex,
-    title: "Select a reason",
-    children:
-      selectedReasonType && currentStepIndex > 1
-        ? selectedItemTemplate({
-            title: selectedReasonType.title,
-            onClear: onClearReasonType,
-          })
-        : html`
-            <div class="report-options">
-              ${reasonTypes.map((reasonType) =>
-                reasonTypeCardTemplate({
-                  reasonType,
-                  onClick: () => onSelectReasonType(reasonType),
-                }),
-              )}
-            </div>
-          `,
-  });
+  if (isCompleted) {
+    return selectedItemTemplate({
+      title: selectedReasonType.title,
+      onClear: onClearReasonType,
+    });
+  }
+  const reasonTypes = REASON_TYPES_BY_CATEGORY[selectedCategory.key];
+  return html`
+    <div class="report-options">
+      ${reasonTypes.map((reasonType) =>
+        reasonTypeCardTemplate({
+          reasonType,
+          onClick: () => onSelectReasonType(reasonType),
+        }),
+      )}
+    </div>
+  `;
 }
 
 function labelerStepTemplate({
-  currentStepIndex,
+  isCompleted,
   subjectType,
   selectedCategory,
   selectedReasonType,
@@ -468,59 +450,48 @@ function labelerStepTemplate({
   onSelectLabeler,
   onClearLabeler,
 }) {
-  let children;
-  if (selectedLabeler && currentStepIndex > 2) {
+  if (isCompleted) {
     const labelerTitle =
       selectedLabeler.creator.displayName || selectedLabeler.creator.handle;
-    children = selectedItemTemplate({
+    return selectedItemTemplate({
       title: labelerTitle,
       onClear: onClearLabeler,
     });
-  } else {
-    const labelers = getLabelersForSelections(
-      selectedCategory,
-      selectedReasonType,
-      labelerDefs,
-      subjectType,
-    );
-    if (labelers.length === 0) {
-      children = html`<div class="report-no-labelers">
-        No moderation services are available for this type of report.
-      </div>`;
-    } else {
-      // Put the Bluesky labeler first
-      const sortedLabelers = labelers.sort((a, b) => {
-        if (a.creator.did === BSKY_LABELER_DID) {
-          return -1;
-        }
-        if (b.creator.did === BSKY_LABELER_DID) {
-          return 1;
-        }
-        return 0;
-      });
-      children = html`
-        <div class="report-options">
-          ${sortedLabelers.map((labeler) =>
-            labelerCardTemplate({
-              labeler,
-              onClick: () => onSelectLabeler(labeler),
-            }),
-          )}
-        </div>
-      `;
-    }
   }
-
-  return stepTemplate({
-    stepIndex: 2,
-    currentStepIndex,
-    title: "Select moderation service",
-    children,
+  const labelers = getLabelersForSelections(
+    selectedCategory,
+    selectedReasonType,
+    labelerDefs,
+    subjectType,
+  );
+  if (labelers.length === 0) {
+    return html`<div class="report-no-labelers">
+      No moderation services are available for this type of report.
+    </div>`;
+  }
+  // Put the Bluesky labeler first
+  const sortedLabelers = labelers.sort((a, b) => {
+    if (a.creator.did === BSKY_LABELER_DID) {
+      return -1;
+    }
+    if (b.creator.did === BSKY_LABELER_DID) {
+      return 1;
+    }
+    return 0;
   });
+  return html`
+    <div class="report-options">
+      ${sortedLabelers.map((labeler) =>
+        labelerCardTemplate({
+          labeler,
+          onClick: () => onSelectLabeler(labeler),
+        }),
+      )}
+    </div>
+  `;
 }
 
 function submitStepTemplate({
-  currentStepIndex,
   selectedLabeler,
   details,
   error,
@@ -531,39 +502,34 @@ function submitStepTemplate({
   const labelerName =
     selectedLabeler?.creator.displayName || selectedLabeler?.creator.handle;
 
-  return stepTemplate({
-    stepIndex: 3,
-    currentStepIndex,
-    title: "Submit report",
-    children: html`
-      <div class="report-submit-section">
-        <p class="report-submit-info">
-          Your report will be sent to <strong>${labelerName}</strong>.
-        </p>
+  return html`
+    <div class="report-submit-section">
+      <p class="report-submit-info">
+        Your report will be sent to <strong>${labelerName}</strong>.
+      </p>
 
-        <div class="report-details-section">
-          <label for="report-details">Additional details (optional)</label>
-          <textarea
-            id="report-details"
-            class="report-details-input"
-            placeholder="Provide any additional context..."
-            maxlength="300"
-            .value=${details}
-            @input=${onDetailsInput}
-          ></textarea>
-          <div class="report-details-counter">${details.length}/300</div>
-        </div>
-        <button
-          class="rounded-button rounded-button-primary report-submit-button"
-          @click=${onSubmit}
-          ?disabled=${isSubmitting}
-        >
-          ${isSubmitting ? "Submitting..." : "Submit report"}
-        </button>
-        ${error ? html`<div class="report-error">${error}</div>` : null}
+      <div class="report-details-section">
+        <label for="report-details">Additional details (optional)</label>
+        <textarea
+          id="report-details"
+          class="report-details-input"
+          placeholder="Provide any additional context..."
+          maxlength="300"
+          .value=${details}
+          @input=${onDetailsInput}
+        ></textarea>
+        <div class="report-details-counter">${details.length}/300</div>
       </div>
-    `,
-  });
+      <button
+        class="rounded-button rounded-button-primary report-submit-button"
+        @click=${onSubmit}
+        ?disabled=${isSubmitting}
+      >
+        ${isSubmitting ? "Submitting..." : "Submit report"}
+      </button>
+      ${error ? html`<div class="report-error">${error}</div>` : null}
+    </div>
+  `;
 }
 
 function labelerSupportsSubjectType(labeler, subjectType) {
@@ -682,41 +648,64 @@ class ReportDialog extends Component {
               &times;
             </button>
             <div class="report-dialog-body">
-              ${categoryStepTemplate({
+              ${stepTemplate({
+                stepIndex: 0,
                 currentStepIndex,
-                subjectType,
-                selectedCategory: this._selectedCategory,
-                onSelectCategory: (category) => this.selectCategory(category),
-                onClearCategory: () => this.clearCategory(),
+                title: `Why should this ${getDisplayNameForSubjectType(subjectType)} be reviewed?`,
+                renderStep: ({ isCompleted }) =>
+                  categoryStepTemplate({
+                    isCompleted,
+                    selectedCategory: this._selectedCategory,
+                    onSelectCategory: (category) =>
+                      this.selectCategory(category),
+                    onClearCategory: () => this.clearCategory(),
+                  }),
               })}
-              ${reasonTypeStepTemplate({
+              ${stepTemplate({
+                stepIndex: 1,
                 currentStepIndex,
-                selectedCategory: this._selectedCategory,
-                selectedReasonType: this._selectedReasonType,
-                onSelectReasonType: (reasonType) =>
-                  this.selectReasonType(reasonType),
-                onClearReasonType: () => this.clearReasonType(),
+                title: "Select a reason",
+                renderStep: ({ isCompleted }) =>
+                  reasonTypeStepTemplate({
+                    isCompleted,
+                    selectedCategory: this._selectedCategory,
+                    selectedReasonType: this._selectedReasonType,
+                    onSelectReasonType: (reasonType) =>
+                      this.selectReasonType(reasonType),
+                    onClearReasonType: () => this.clearReasonType(),
+                  }),
               })}
-              ${labelerStepTemplate({
+              ${stepTemplate({
+                stepIndex: 2,
                 currentStepIndex,
-                subjectType,
-                selectedCategory: this._selectedCategory,
-                selectedReasonType: this._selectedReasonType,
-                selectedLabeler: this._selectedLabeler,
-                labelerDefs: this.labelerDefs,
-                onSelectLabeler: (labeler) => this.selectLabeler(labeler),
-                onClearLabeler: () => this.clearLabeler(),
+                title: "Select moderation service",
+                renderStep: ({ isCompleted }) =>
+                  labelerStepTemplate({
+                    isCompleted,
+                    subjectType,
+                    selectedCategory: this._selectedCategory,
+                    selectedReasonType: this._selectedReasonType,
+                    selectedLabeler: this._selectedLabeler,
+                    labelerDefs: this.labelerDefs,
+                    onSelectLabeler: (labeler) => this.selectLabeler(labeler),
+                    onClearLabeler: () => this.clearLabeler(),
+                  }),
               })}
-              ${submitStepTemplate({
+              ${stepTemplate({
+                stepIndex: 3,
                 currentStepIndex,
-                selectedLabeler: this._selectedLabeler,
-                details: this._details,
-                error: this._error,
-                isSubmitting: this._isSubmitting,
-                onDetailsInput: (e) => {
-                  this._details = e.target.value;
-                },
-                onSubmit: () => this.submit(),
+                title: "Submit report",
+                renderStep: () =>
+                  submitStepTemplate({
+                    selectedLabeler: this._selectedLabeler,
+                    details: this._details,
+                    error: this._error,
+                    isSubmitting: this._isSubmitting,
+                    onDetailsInput: (e) => {
+                      this._details = e.target.value;
+                    },
+                    onSubmit: () => this.submit(),
+                  }),
               })}
             </div>
           </div>
