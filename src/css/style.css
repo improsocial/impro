@@ -1345,6 +1345,10 @@ body.scroll-locked header {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
+.post-list {
+  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+}
+
 .post-list > div {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
@@ -3576,6 +3580,10 @@ emoji-picker {
 
 .profile-skeleton .profile-list-item-body {
   gap: 8px;
+}
+
+.profile-list {
+  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
 
 .profile-list-item {
