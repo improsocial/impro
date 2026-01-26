@@ -186,8 +186,7 @@ export class OAuth {
     let authUrl = null;
     try {
       authUrl = await client.getAuthorizationUrl(handle, {
-        scope:
-          "atproto include:app.bsky.authFullApp include:chat.bsky.authFullChatClient",
+        scope: "atproto transition:generic transition:chat.bsky",
         state: { loopback: isDev() },
       });
     } catch (error) {
