@@ -3,8 +3,9 @@ import { showToast } from "/js/toasts.js";
 import { noop } from "/js/utils.js";
 
 export class ProfileInteractionHandler {
-  constructor(dataLayer, { renderFunc = noop } = {}) {
+  constructor(dataLayer, reportService, { renderFunc = noop } = {}) {
     this.dataLayer = dataLayer;
+    this.reportService = reportService;
     this.renderFunc = renderFunc;
   }
 
@@ -143,6 +144,17 @@ export class ProfileInteractionHandler {
         showToast("Failed to unsubscribe from labeler", { error: true });
         this.renderFunc();
       }
+    }
+  }
+
+  async handleReport(profile) {
+    try {
+      await this.reportService.openReportDialog({
+        subject: profile,
+        subjectType: "account",
+      });
+    } catch (error) {
+      console.error(error);
     }
   }
 }

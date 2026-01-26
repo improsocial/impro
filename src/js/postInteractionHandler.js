@@ -4,9 +4,15 @@ import { noop } from "/js/utils.js";
 import { confirm } from "/js/modals.js";
 
 export class PostInteractionHandler {
-  constructor(dataLayer, postComposerService, { renderFunc = noop } = {}) {
+  constructor(
+    dataLayer,
+    postComposerService,
+    reportService,
+    { renderFunc = noop } = {},
+  ) {
     this.dataLayer = dataLayer;
     this.postComposerService = postComposerService;
+    this.reportService = reportService;
     this.isAuthenticated = dataLayer.isAuthenticated;
     this.renderFunc = renderFunc;
   }
@@ -229,6 +235,17 @@ export class PostInteractionHandler {
         quotedPost: post,
       });
       this.renderFunc();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async handleReport(post) {
+    try {
+      await this.reportService.openReportDialog({
+        subject: post,
+        subjectType: "post",
+      });
     } catch (error) {
       console.error(error);
     }

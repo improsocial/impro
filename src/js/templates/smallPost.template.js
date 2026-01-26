@@ -143,6 +143,8 @@ export function smallPostTemplate({
               onClickDelete: (post) => {
                 postInteractionHandler.handleDeletePost(post);
               },
+              onClickReport: (post) =>
+                postInteractionHandler.handleReport(post),
               enableFeedFeedback,
             })}
           </div>

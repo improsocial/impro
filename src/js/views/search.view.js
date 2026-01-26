@@ -18,6 +18,7 @@ class SearchView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -68,6 +69,7 @@ class SearchView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

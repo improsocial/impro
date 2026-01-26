@@ -182,6 +182,8 @@ export function largePostTemplate({
                   afterDelete(post);
                 }
               },
+              onClickReport: (post) =>
+                postInteractionHandler.handleReport(post),
             })}
             </div>
           </div>

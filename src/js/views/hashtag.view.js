@@ -17,6 +17,7 @@ class HashtagView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
     },
   }) {
     await requireAuth();
@@ -35,6 +36,7 @@ class HashtagView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

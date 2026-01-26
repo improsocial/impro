@@ -29,6 +29,7 @@ class PostThreadView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -45,6 +46,7 @@ class PostThreadView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

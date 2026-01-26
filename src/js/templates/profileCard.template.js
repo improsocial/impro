@@ -76,6 +76,7 @@ export function profileCardTemplate({
   onClickMute = noop,
   onClickBlock = noop,
   onClickSubscribe = noop,
+  onClickReport = noop,
 }) {
   const isFollowing = profile.viewer?.following;
   const isBlocked = !!profile.viewer?.blocking;
@@ -213,6 +214,13 @@ export function profileCardTemplate({
                   ${profile.viewer?.blocking
                     ? "Unblock Account"
                     : "Block Account"}
+                </context-menu-item>
+                <context-menu-item
+                  @click=${() => {
+                    onClickReport(profile);
+                  }}
+                >
+                  Report account
                 </context-menu-item>
               `
             : null}

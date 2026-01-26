@@ -25,6 +25,7 @@ class NotificationsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
     },
   }) {
     await requireAuth();
@@ -81,6 +82,7 @@ class NotificationsView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

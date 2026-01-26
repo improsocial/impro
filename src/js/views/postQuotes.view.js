@@ -18,6 +18,7 @@ class PostQuotesView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -34,6 +35,7 @@ class PostQuotesView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

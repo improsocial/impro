@@ -31,6 +31,7 @@ export function postActionBarTemplate({
   onClickMute = noop,
   onClickBlock = noop,
   onClickDelete = noop,
+  onClickReport = noop,
   enableFeedFeedback = false,
 }) {
   const numReplies = post.replyCount;
@@ -228,6 +229,17 @@ export function postActionBarTemplate({
                     ? "Unblock account"
                     : "Block account"}
                 </context-menu-item>
+                ${!isUserPost
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickReport(post);
+                        }}
+                      >
+                        Report post
+                      </context-menu-item>
+                    `
+                  : null}
                 ${isUserPost
                   ? html` <context-menu-item
                       @click=${() => {
