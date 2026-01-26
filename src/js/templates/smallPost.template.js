@@ -35,6 +35,7 @@ export function smallPostTemplate({
   enableFeedFeedback = false,
   hideMutedAccount = false,
   overrideMutedWords = false,
+  showReplyToLabel = false,
   replyToAuthor = null,
   lazyLoadImages = false,
 }) {
@@ -94,9 +95,10 @@ export function smallPostTemplate({
           ${post.viewer?.badgeLabels
             ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
             : ""}
-          ${replyToAuthor
+          ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied to ${getDisplayName(replyToAuthor)}
+                ⤷ Replied to
+                ${replyToAuthor ? getDisplayName(replyToAuthor) : "Unknown"}
               </div>`
             : ""}
           <div class="post-body">

@@ -212,20 +212,20 @@ export class Selectors {
       let post = this.getPost(result.uri);
       // If it's a reply, add the parent author to the record
       if (post.record?.reply) {
-        const parentPost = this.getPost(post.record.reply.parent.uri, {
-          required: true,
-        });
-        post = {
-          ...post,
-          record: {
-            ...post.record,
-            reply: {
-              ...post.record.reply,
-              // NOTE: LEXICON DEVIATION
-              parentAuthor: parentPost.author,
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
             },
-          },
-        };
+          };
+        }
       }
       hydratedSearchResults.push(post);
     }
@@ -417,22 +417,22 @@ export class Selectors {
     const hydratedPosts = [];
     for (const quote of quotes.posts) {
       let post = this.getPost(quote.uri, { required: true });
-      // also add the parent post if it exists
+      // also add the parent author if it exists
       if (post.record?.reply?.parent) {
-        const parentPost = this.getPost(post.record.reply.parent.uri, {
-          required: true,
-        });
-        post = {
-          ...post,
-          record: {
-            ...post.record,
-            reply: {
-              ...post.record.reply,
-              // NOTE: LEXICON DEVIATION
-              parentAuthor: parentPost.author,
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
             },
-          },
-        };
+          };
+        }
       }
       hydratedPosts.push(post);
     }

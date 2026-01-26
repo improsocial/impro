@@ -136,6 +136,7 @@ class SearchView extends View {
             html`<div class="feed-item" data-post-uri="${post.uri}">
               ${smallPostTemplate({
                 post,
+                showReplyToLabel: !!post.record?.reply,
                 replyToAuthor: post.record?.reply?.parentAuthor ?? null,
                 isUserPost: currentUser?.did === post.author?.did,
                 postInteractionHandler,

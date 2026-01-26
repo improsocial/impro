@@ -72,6 +72,7 @@ function replyContextTemplate({
               post: parent,
               isUserPost: parent.author?.did === currentUser?.did,
               replyContext: "parent",
+              showReplyToLabel: true,
               replyToAuthor: grandparentAuthor,
               hiddenPostUris,
               postInteractionHandler,
@@ -103,7 +104,7 @@ function feedItemTemplate({
     reason && reason.$type === "app.bsky.feed.defs#reasonRepost"
       ? reason.by
       : null;
-  const replyToAuthor = !!repostAuthor && reply ? reply.parent?.author : null;
+  const replyToAuthor = reply ? reply.parent?.author : null;
   const showReplyContext = reply && reply.parent && !repostAuthor;
   const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
   return html`
@@ -131,6 +132,7 @@ function feedItemTemplate({
         onClickShowLess,
         onClickShowMore,
         repostAuthor,
+        showReplyToLabel: !!reply,
         replyToAuthor,
         enableFeedFeedback,
       })}
