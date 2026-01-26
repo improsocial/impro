@@ -220,6 +220,23 @@ export class Mutations {
     }
   }
 
+  async sendShowMoreInteraction(postURI, feedContext, feedProxyUrl) {
+    const showMoreInteraction = {
+      item: postURI,
+      event: "app.bsky.feed.defs#requestMore",
+      feedContext,
+    };
+    // Note, we don't really need to store this interaction because we don't use it in the UI (yet).
+    // But, let's do it anyway for consistency.
+    this.dataStore.addShowMoreInteraction(showMoreInteraction);
+    try {
+      await this.api.sendInteractions([showMoreInteraction], feedProxyUrl);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async pinFeed(feedUri) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "pinFeed",
@@ -270,6 +287,68 @@ export class Mutations {
     } finally {
       // clear patch
       this.patchStore.removePostPatch(post.uri, patchId);
+    }
+  }
+
+  async subscribeLabeler(profile, labelerInfo) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "subscribeLabeler",
+      did: profile.did,
+      labelerInfo,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.subscribeLabeler(
+      profile.did,
+      labelerInfo,
+    );
+
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async unsubscribeLabeler(profile) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "unsubscribeLabeler",
+      did: profile.did,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.unsubscribeLabeler(profile.did);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async updateLabelerSetting({ labelerDid, label, visibility }) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "setContentLabelPref",
+      label,
+      visibility,
+      labelerDid,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setContentLabelPref({
+      label,
+      visibility,
+      labelerDid,
+    });
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
     }
   }
 

@@ -26,6 +26,7 @@ export function postActionBarTemplate({
   onClickLike = noop,
   onClickBookmark = noop,
   onClickShowLess = noop,
+  onClickShowMore = noop,
   onClickHidePost = noop,
   onClickMute = noop,
   onClickBlock = noop,
@@ -182,6 +183,13 @@ export function postActionBarTemplate({
             ? html`
                 ${enableFeedFeedback
                   ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickShowMore(post);
+                        }}
+                      >
+                        Show more like this
+                      </context-menu-item>
                       <context-menu-item
                         @click=${() => {
                           onClickShowLess(post);

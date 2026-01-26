@@ -55,6 +55,7 @@ class PostQuotesView extends View {
           ${quotes.map((quote) =>
             smallPostTemplate({
               post: quote,
+              replyToAuthor: quote.record?.reply?.parentAuthor,
               isUserPost: currentUser?.did === quote.author?.did,
               postInteractionHandler,
             }),

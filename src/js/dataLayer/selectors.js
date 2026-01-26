@@ -185,6 +185,7 @@ export class Selectors {
     }
     post = this._markMutedWords(post);
     post = this._markIsHidden(post);
+    post = this._addLabels(post);
     return this.patchStore.applyPostPatches(post);
   }
 
@@ -206,7 +207,29 @@ export class Selectors {
     if (!searchResults) {
       return null;
     }
-    return searchResults.map((post) => this.getPost(post.uri));
+    const hydratedSearchResults = [];
+    for (const result of searchResults) {
+      let post = this.getPost(result.uri);
+      // If it's a reply, add the parent author to the record
+      if (post.record?.reply) {
+        const parentPost = this.getPost(post.record.reply.parent.uri, {
+          required: true,
+        });
+        post = {
+          ...post,
+          record: {
+            ...post.record,
+            reply: {
+              ...post.record.reply,
+              // NOTE: LEXICON DEVIATION
+              parentAuthor: parentPost.author,
+            },
+          },
+        };
+      }
+      hydratedSearchResults.push(post);
+    }
+    return hydratedSearchResults;
   }
 
   getAuthorFeed(did, feedType) {
@@ -391,10 +414,28 @@ export class Selectors {
     if (!quotes) {
       return null;
     }
-    // Hydrate the posts
-    const hydratedPosts = quotes.posts.map((post) =>
-      this.getPost(post.uri, { required: true }),
-    );
+    const hydratedPosts = [];
+    for (const quote of quotes.posts) {
+      let post = this.getPost(quote.uri, { required: true });
+      // also add the parent post if it exists
+      if (post.record?.reply?.parent) {
+        const parentPost = this.getPost(post.record.reply.parent.uri, {
+          required: true,
+        });
+        post = {
+          ...post,
+          record: {
+            ...post.record,
+            reply: {
+              ...post.record.reply,
+              // NOTE: LEXICON DEVIATION
+              parentAuthor: parentPost.author,
+            },
+          },
+        };
+      }
+      hydratedPosts.push(post);
+    }
     return {
       posts: hydratedPosts,
       cursor: quotes.cursor,
@@ -479,6 +520,15 @@ export class Selectors {
     return this.dataStore.getProfileChatStatus(profileDid);
   }
 
+  getLabelerInfo(labelerDid) {
+    return this.dataStore.getLabelerInfo(labelerDid);
+  }
+
+  getLabelerSettings(labelerDid) {
+    const preferences = this.getPreferences();
+    return preferences.getLabelerSettings(labelerDid);
+  }
+
   _markMutedWords(post) {
     // Add attributes to the post to indicate if it has a muted word.
     // Modifies the post in place.
@@ -488,11 +538,6 @@ export class Selectors {
     if (hasMutedWord) {
       // NOTE: LEXICON DEVIATION
       post.viewer.hasMutedWord = true;
-    }
-    const displayLabels = preferences.getPostLabels(post);
-    if (displayLabels.length > 0) {
-      // NOTE: LEXICON DEVIATION
-      post.viewer.displayLabels = displayLabels;
     }
     // Also check for muted words in quote posts.
     const quotedPost = getQuotedPost(post);
@@ -544,6 +589,57 @@ export class Selectors {
         }
       }
     }
+    return post;
+  }
+
+  _addLabels(post) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const badgeLabels = preferences.getBadgeLabels(post);
+    if (badgeLabels.length > 0) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.badgeLabels = badgeLabels;
+    }
+    const contentLabel = preferences.getContentLabel(post);
+    if (contentLabel) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.contentLabel = contentLabel;
+    }
+    const mediaLabel = preferences.getMediaLabel(post);
+    if (mediaLabel) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.mediaLabel = mediaLabel;
+    }
+
+    // Also mark quoted posts (content and media labels only, not badges)
+    const quotedPost = getQuotedPost(post);
+    if (quotedPost) {
+      const quotedContentLabel = preferences.getContentLabel(quotedPost);
+      if (quotedContentLabel) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.contentLabel = quotedContentLabel;
+      }
+      const quotedMediaLabel = preferences.getMediaLabel(quotedPost);
+      if (quotedMediaLabel) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.mediaLabel = quotedMediaLabel;
+      }
+      // Also check for nested quoted posts
+      const nestedQuotedPost = getQuotedPost(quotedPost);
+      if (nestedQuotedPost) {
+        const nestedContentLabel =
+          preferences.getContentLabel(nestedQuotedPost);
+        if (nestedContentLabel) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.contentLabel = nestedContentLabel;
+        }
+        const nestedMediaLabel = preferences.getMediaLabel(nestedQuotedPost);
+        if (nestedMediaLabel) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.mediaLabel = nestedMediaLabel;
+        }
+      }
+    }
+
     return post;
   }
 }

@@ -18,7 +18,7 @@ class InteractionsDispatch {
     this.sentInteractions = [];
   }
 
-  sendInteraction(interaction) {
+  async sendInteraction(interaction) {
     if (
       this.sentInteractions.some((sentInteraction) =>
         shallowEqual(sentInteraction, interaction),
@@ -27,27 +27,36 @@ class InteractionsDispatch {
       console.warn("interaction already sent", interaction);
       return;
     }
-    this.queue.push(interaction);
-    this.process();
+    return new Promise((resolve, reject) => {
+      this.queue.push({ interaction, resolve, reject });
+      this.process();
+    });
   }
 
   async process() {
-    if (this.inFlight) {
-      return;
-    }
+    if (this.inFlight) return;
+    if (this.queue.length === 0) return;
     this.inFlight = true;
     await wait(BATCH_TIMEOUT);
+    const batch = this.queue;
+    this.queue = [];
     try {
-      await this.api.sendInteractions(this.queue, this.feedProxyUrl);
-      this.sentInteractions.push(...this.queue);
+      const interactions = batch.map((item) => item.interaction);
+      await this.api.sendInteractions(interactions, this.feedProxyUrl);
+      this.sentInteractions.push(...interactions);
+      batch.forEach((item) => item.resolve());
     } catch (error) {
       console.warn(
         "Failed to send interactions to feed proxy url",
         this.feedProxyUrl,
       );
+      batch.forEach((item) => item.reject(error));
     }
-    this.queue = [];
     this.inFlight = false;
+    // process next batch if there are any remaining interactions
+    if (this.queue.length > 0) {
+      this.process();
+    }
   }
 }
 
@@ -57,60 +66,6 @@ function isVisible(element) {
     element.getBoundingClientRect().bottom > 0
   );
 }
-
-// export class PostSeenObserver {
-//   constructor(api, feedProxyUrl, { verbose = false } = {}) {
-//     this.verbose = verbose;
-//     this.feedProxyUrl = feedProxyUrl;
-//     this.observedElements = new Map();
-//     this.feedItemData = new Map(); // map of element -> feed item data
-//     this.seenPosts = new Set();
-//     this.interactionsDispatch = new InteractionsDispatch(api, feedProxyUrl);
-//     this.observer = new IntersectionObserver((entries) => {
-//       entries.forEach(async (entry) => {
-//         const { feedContext } = this.feedItemData.get(entry.target);
-//         if (entry.isIntersecting) {
-//           if (!this.feedItemData.has(entry.target)) {
-//             console.warn("observed element not found", entry.target);
-//             return;
-//           }
-//           const { postUri, feedContext } = this.feedItemData.get(entry.target);
-//           // Must be visible for >=1 second to be considered seen
-//           await wait(1000);
-//           if (!isVisible(entry.target)) {
-//             return;
-//           }
-//           if (!this.seenPosts.has(postUri)) {
-//             if (this.verbose) {
-//               console.debug("sending interaction seen", postUri, feedContext);
-//             }
-//             this.interactionsDispatch.sendInteraction({
-//               item: postUri,
-//               event: "app.bsky.feed.defs#interactionSeen",
-//               feedContext,
-//             });
-//             this.seenPosts.add(postUri);
-//           }
-//         }
-//       });
-//     });
-//   }
-
-//   async register(el, postUri, feedContext) {
-//     // Don't double-observe posts
-//     const existingEl = this.observedElements.get(postUri);
-//     if (existingEl) {
-//       this.observer.unobserve(existingEl);
-//       this.observedElements.delete(existingEl);
-//       this.feedItemData.delete(existingEl);
-//     }
-//     // There needs to be a delay between unobserving and observing
-//     await wait(2000);
-//     this.observedElements.set(postUri, el);
-//     this.feedItemData.set(el, { postUri, feedContext });
-//     this.observer.observe(el);
-//   }
-// }
 
 export class PostSeenObserver {
   constructor(api, feedProxyUrl, { verbose = false } = {}) {
@@ -142,12 +97,16 @@ export class PostSeenObserver {
       if (this.verbose) {
         console.debug("sending interaction seen", postUri, feedContext);
       }
-      this.interactionsDispatch.sendInteraction({
-        item: postUri,
-        event: "app.bsky.feed.defs#interactionSeen",
-        feedContext,
-      });
-      this.seenPosts.add(postUri);
+      try {
+        await this.interactionsDispatch.sendInteraction({
+          item: postUri,
+          event: "app.bsky.feed.defs#interactionSeen",
+          feedContext,
+        });
+        this.seenPosts.add(postUri);
+      } catch (error) {
+        // pass
+      }
     }
   }
 

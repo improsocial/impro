@@ -3,6 +3,7 @@ import {
   getPermalinkForProfile,
   linkToProfileFollowers,
   linkToProfileFollowing,
+  linkToSearchPostsByProfile,
 } from "/js/navigation.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { showToast } from "/js/toasts.js";
@@ -19,16 +20,62 @@ function getBlueskyLinkForProfile(profile) {
   return `https://bsky.app/profile/${profile.handle}`;
 }
 
+function profileStatsTemplate({ profile }) {
+  return html` <div class="profile-stats">
+    <a href="${linkToProfileFollowers(profile)}" class="profile-stat">
+      <strong>${formatLargeNumber(profile.followersCount)}</strong>
+      followers
+    </a>
+    <a href="${linkToProfileFollowing(profile)}" class="profile-stat">
+      <strong>${formatLargeNumber(profile.followsCount)}</strong>
+      following
+    </a>
+    <span class="profile-stat">
+      <strong>${formatLargeNumber(profile.postsCount)}</strong> posts
+    </span>
+  </div>`;
+}
+
+function profileDescriptionTemplate({
+  isLabeler,
+  isBlocked,
+  profile,
+  richTextProfileDescription,
+  labelerInfo,
+}) {
+  if (isBlocked) {
+    return html`<div>
+      <div class="profile-blocked-badge">User Blocked</div>
+    </div>`;
+  }
+  return html`
+    ${!isLabeler ? profileStatsTemplate({ profile }) : null}
+    ${richTextProfileDescription
+      ? html`<div class="profile-description">
+          ${richTextTemplate({
+            text: richTextProfileDescription.text,
+            facets: richTextProfileDescription.facets,
+          })}
+        </div>`
+      : ""}
+    <!-- TODO: Add like button -->
+  `;
+}
+
 export function profileCardTemplate({
   profile,
   richTextProfileDescription,
   isAuthenticated,
   isCurrentUser,
   profileChatStatus = null,
+  isLabeler = false,
+  labelerInfo = null,
+  isSubscribed = false,
   onClickChat = noop,
   onClickFollow = noop,
   onClickMute = noop,
   onClickBlock = noop,
+  onClickSubscribe = noop,
 }) {
   const isFollowing = profile.viewer?.following;
   const isBlocked = !!profile.viewer?.blocking;
@@ -77,6 +124,21 @@ export function profileCardTemplate({
               Unblock
             </button>`;
           }
+          if (isLabeler) {
+            return html`<button
+              @click=${() => {
+                if (!isAuthenticated) {
+                  return showSignInModal();
+                }
+                onClickSubscribe(profile, !isSubscribed, labelerInfo);
+              }}
+              class=${classnames("rounded-button  profile-following-button", {
+                "rounded-button-primary": !isSubscribed,
+              })}
+            >
+              ${isSubscribed ? "Subscribed" : "+ Subscribe"}
+            </button>`;
+          }
           return html`<button
             @click=${() => {
               if (!isAuthenticated) {
@@ -118,6 +180,24 @@ export function profileCardTemplate({
           </context-menu-item>
           ${isAuthenticated && !isCurrentUser
             ? html`
+                ${isLabeler
+                  ? html`
+                      <context-menu-item
+                        @click=${() => {
+                          onClickFollow(profile, !isFollowing);
+                        }}
+                      >
+                        ${isFollowing ? "Unfollow account" : "Follow account"}
+                      </context-menu-item>
+                    `
+                  : null}
+                <context-menu-item
+                  @click=${() => {
+                    router.go(linkToSearchPostsByProfile(profile));
+                  }}
+                >
+                  Search posts
+                </context-menu-item>
                 <context-menu-item
                   @click=${() => {
                     onClickMute(profile, !profile.viewer?.muted);
@@ -148,30 +228,12 @@ export function profileCardTemplate({
         </div>
       </div>
     </div>
-    ${isBlocked
-      ? html`<div><div class="profile-blocked-badge">User Blocked</div></div>`
-      : html`
-          <div class="profile-stats">
-            <a href="${linkToProfileFollowers(profile)}" class="profile-stat">
-              <strong>${formatLargeNumber(profile.followersCount)}</strong>
-              followers
-            </a>
-            <a href="${linkToProfileFollowing(profile)}" class="profile-stat">
-              <strong>${formatLargeNumber(profile.followsCount)}</strong>
-              following
-            </a>
-            <span class="profile-stat">
-              <strong>${formatLargeNumber(profile.postsCount)}</strong> posts
-            </span>
-          </div>
-          ${richTextProfileDescription
-            ? html`<div class="profile-description">
-                ${richTextTemplate({
-                  text: richTextProfileDescription.text,
-                  facets: richTextProfileDescription.facets,
-                })}
-              </div>`
-            : ""}
-        `}
+    ${profileDescriptionTemplate({
+      isBlocked,
+      isLabeler,
+      labelerInfo,
+      profile,
+      richTextProfileDescription,
+    })}
   </div>`;
 }

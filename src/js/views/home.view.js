@@ -8,6 +8,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { showToast } from "/js/toasts.js";
 
 class HomeView extends View {
   async render({
@@ -120,6 +121,15 @@ class HomeView extends View {
       // }
     }
 
+    async function handleShowMore(post, feedContext, feedGenerator) {
+      dataLayer.mutations.sendShowMoreInteraction(
+        post.uri,
+        feedContext,
+        getProxyUrl(feedGenerator),
+      );
+      showToast("Feedback sent to feed operator");
+    }
+
     const feedScrollState = new Map();
 
     async function scrollAndReloadFeed() {
@@ -224,6 +234,9 @@ class HomeView extends View {
               </header>
               <main>
                 ${feedGenerators.map((feedGenerator) => {
+                  const acceptsInteractions =
+                    feedGenerator.acceptsInteractions ||
+                    feedGenerator.uri === DISCOVER_FEED_URI;
                   const feed = dataLayer.selectors.getFeed(feedGenerator.uri);
                   const feedRequestStatus = dataLayer.requests.getStatus(
                     "loadNextFeedPage-" + feedGenerator.uri,
@@ -243,7 +256,9 @@ class HomeView extends View {
                           postInteractionHandler,
                           onClickShowLess: (post, feedContext) =>
                             handleShowLess(post, feedContext, feedGenerator),
-                          enableFeedFeedback: true,
+                          onClickShowMore: (post, feedContext) =>
+                            handleShowMore(post, feedContext, feedGenerator),
+                          enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                         })}
                   </div>`;

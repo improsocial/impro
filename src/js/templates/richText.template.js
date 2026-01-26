@@ -38,8 +38,8 @@ function textPartTemplate({ text }) {
 
 function facetOverlaps(facet1, facet2) {
   return (
-    facet1.index.byteStart <= facet2.index.byteEnd &&
-    facet1.index.byteEnd >= facet2.index.byteStart
+    facet1.index.byteStart < facet2.index.byteEnd &&
+    facet1.index.byteEnd > facet2.index.byteStart
   );
 }
 

@@ -12,6 +12,10 @@ export function linkToProfile(identifierOrProfile) {
   return `/profile/${handle}`;
 }
 
+export function linkToLabeler(labeler) {
+  return linkToProfile(labeler.creator);
+}
+
 export function linkToPost(post) {
   return `/profile/${post.author.handle}/post/${getRKey(post)}`;
 }
@@ -53,6 +57,14 @@ export function linkToFeed(feedGenerator) {
   return `/profile/${feedGenerator.creator.handle}/feed/${getRKey(
     feedGenerator,
   )}`;
+}
+
+export function linkToSearchPostsByProfile(profile) {
+  const searchString = `from:@${profile.handle}`;
+  const query = new URLSearchParams();
+  query.set("q", searchString);
+  query.set("tab", "posts");
+  return `/search?${query.toString()}`;
 }
 
 function getPermalinkOrigin() {

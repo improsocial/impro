@@ -153,4 +153,63 @@ t.describe("Event Handling", (it) => {
   });
 });
 
+t.describe("Labeler Info Management", (it) => {
+  const labelerDid = "did:plc:testlabeler";
+  const testLabelerInfo = {
+    uri: "at://did:plc:testlabeler/app.bsky.labeler.service/self",
+    creator: { did: labelerDid, handle: "labeler.test" },
+    policies: {
+      labelValueDefinitions: [
+        { identifier: "nsfw", locales: [{ lang: "en", name: "NSFW" }] },
+      ],
+    },
+  };
+
+  it("should set and get labeler info", () => {
+    const dataStore = new DataStore();
+    dataStore.setLabelerInfo(labelerDid, testLabelerInfo);
+    assertEquals(dataStore.getLabelerInfo(labelerDid), testLabelerInfo);
+  });
+
+  it("should check if labeler info exists", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasLabelerInfo(labelerDid), false);
+    dataStore.setLabelerInfo(labelerDid, testLabelerInfo);
+    assertEquals(dataStore.hasLabelerInfo(labelerDid), true);
+  });
+
+  it("should return undefined for non-existent labeler info", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.getLabelerInfo(labelerDid), undefined);
+  });
+
+  it("should clear labeler info", () => {
+    const dataStore = new DataStore();
+    dataStore.setLabelerInfo(labelerDid, testLabelerInfo);
+    assertEquals(dataStore.hasLabelerInfo(labelerDid), true);
+
+    dataStore.clearLabelerInfo(labelerDid);
+    assertEquals(dataStore.hasLabelerInfo(labelerDid), false);
+    assertEquals(dataStore.getLabelerInfo(labelerDid), undefined);
+  });
+
+  it("should handle multiple labelers independently", () => {
+    const dataStore = new DataStore();
+    const labeler1Did = "did:plc:labeler1";
+    const labeler2Did = "did:plc:labeler2";
+    const labeler1Info = { ...testLabelerInfo, creator: { did: labeler1Did } };
+    const labeler2Info = { ...testLabelerInfo, creator: { did: labeler2Did } };
+
+    dataStore.setLabelerInfo(labeler1Did, labeler1Info);
+    dataStore.setLabelerInfo(labeler2Did, labeler2Info);
+
+    assertEquals(dataStore.getLabelerInfo(labeler1Did), labeler1Info);
+    assertEquals(dataStore.getLabelerInfo(labeler2Did), labeler2Info);
+
+    dataStore.clearLabelerInfo(labeler1Did);
+    assertEquals(dataStore.hasLabelerInfo(labeler1Did), false);
+    assertEquals(dataStore.hasLabelerInfo(labeler2Did), true);
+  });
+});
+
 await t.run();

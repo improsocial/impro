@@ -5,6 +5,7 @@ import {
   isUnavailablePost,
   getDisplayName,
   doHideAuthorOnUnauthenticated,
+  getLabelNameAndDescription,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
@@ -30,6 +31,7 @@ export function smallPostTemplate({
   repostAuthor,
   isPinned = false,
   onClickShowLess = noop,
+  onClickShowMore = noop,
   enableFeedFeedback = false,
   hideMutedAccount = false,
   overrideMutedWords = false,
@@ -52,7 +54,11 @@ export function smallPostTemplate({
   const content = html`
     <div
       class="post small-post clickable"
-      @click=${() => {
+      @click=${(e) => {
+        // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+        if (e.target.closest("a")) {
+          return;
+        }
         window.router.go(linkToPost(post));
       }}
     >
@@ -84,25 +90,17 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.record.createdAt,
           })}
-          ${post.viewer?.displayLabels
-            ? postLabelsTemplate({ displayLabels: post.viewer?.displayLabels })
+          ${post.viewer?.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
             : ""}
           ${replyToAuthor
             ? html`<div class="reply-to-author">
-                Replied to ${getDisplayName(replyToAuthor)}
+                ⤷ Replied to ${getDisplayName(replyToAuthor)}
               </div>`
             : ""}
           <div class="post-body">
             ${post.record.text
-              ? html`<div
-                  class="post-text"
-                  @click=${(e) => {
-                    // Swallow link clicks to prevent them from triggering the post click handler
-                    if (e.target.closest("a")) {
-                      e.stopPropagation();
-                    }
-                  }}
-                >
+              ? html`<div class="post-text">
                   ${richTextTemplate({
                     text: post.record.text.trimEnd(),
                     facets: post.record.facets,
@@ -113,7 +111,7 @@ export function smallPostTemplate({
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({
                     embed: post.embed,
-                    labels: post.labels,
+                    mediaLabel: post.viewer?.mediaLabel,
                     lazyLoadImages,
                     isAuthenticated: postInteractionHandler.isAuthenticated,
                   })}
@@ -135,6 +133,7 @@ export function smallPostTemplate({
               onClickBookmark: (post, doBookmark) =>
                 postInteractionHandler.handleBookmark(post, doBookmark),
               onClickShowLess,
+              onClickShowMore,
               onClickHidePost: (post) =>
                 postInteractionHandler.handleHidePost(post),
               onClickMute: (profile, doMute) =>
@@ -151,6 +150,16 @@ export function smallPostTemplate({
       </div>
     </div>
   `;
+
+  const contentLabel = post.viewer?.contentLabel;
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    const { name: labelName } = getLabelNameAndDescription(
+      contentLabel.labelDefinition,
+    );
+    return html`<muted-reply-toggle label="${labelName}">
+      ${content}
+    </muted-reply-toggle>`;
+  }
   if (hideMutedAccount && post.author.viewer?.muted) {
     return html`<muted-reply-toggle label="Muted account">
       ${content}

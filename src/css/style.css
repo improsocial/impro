@@ -123,6 +123,7 @@ html {
   --message-input-border-radius: 24px;
   --reaction-palette-border-radius: 30px;
   --avatar-border-radius: 50%;
+  --labeler-avatar-border-radius: 12px;
   --circular-button-border-radius: 50%;
   --pill-button-border-radius: 999px;
   --label-badge-border-radius: 999px;
@@ -713,6 +714,10 @@ input[type="color"]::-moz-color-swatch {
   flex-shrink: 0;
   background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
+}
+
+.avatar-image.labeler-avatar {
+  border-radius: var(--labeler-avatar-border-radius);
 }
 
 .avatar-link {
@@ -1337,6 +1342,10 @@ body.scroll-locked header {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+.post-list > div {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
@@ -2628,6 +2637,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 }
 
 .notification-preview-text {
+  word-break: break-word;
   margin-bottom: 8px;
 }
 
@@ -5022,6 +5032,16 @@ moderation-warning .top-bar {
   margin-top: 8px;
 }
 
+.post-moderation-warning-description {
+  font-size: 14px;
+  color: var(--text-color-muted);
+  line-height: 1.5;
+}
+
+.post-moderation-warning-description a {
+  color: var(--text-link-color);
+}
+
 .quoted-account-muted-warning .top-bar {
   margin-top: 8px;
   margin-bottom: 8px;
@@ -5262,4 +5282,96 @@ moderation-warning .toggle-content {
 
 .plain-text-page a {
   color: var(--text-link-color);
+}
+
+.labeler-settings-container {
+  padding: 16px;
+  padding-bottom: 80px;
+}
+
+.labeler-settings-loading {
+  color: var(--text-color-muted);
+  text-align: center;
+  padding: 32px 16px;
+}
+
+.labeler-settings-header {
+  color: var(--text-color-muted);
+  font-size: 14px;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.labeler-settings-header p {
+  margin-bottom: 12px;
+}
+
+.labeler-settings-header p:last-child {
+  margin-bottom: 0;
+}
+
+.label-preference-list {
+  background-color: var(--background-color-secondary);
+}
+
+.label-preference-row {
+  padding: 16px;
+  border-bottom: var(--hair) solid var(--generic-border-color);
+}
+
+.label-preference-row:last-child {
+  border-bottom: none;
+}
+
+.label-preference-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.label-preference-description {
+  color: var(--text-color-muted);
+  font-size: 14px;
+  line-height: 1.4;
+  margin-bottom: 12px;
+}
+
+.label-preference-name + .label-preference-buttons {
+  margin-top: 8px;
+}
+
+.label-preference-buttons {
+  display: flex;
+  border-radius: var(--embed-border-radius);
+  overflow: hidden;
+  border: var(--hair) solid var(--generic-border-color);
+}
+
+.label-pref-button {
+  flex: 1;
+  padding: 10px 12px;
+  font-size: 14px;
+  border: none;
+  border-right: var(--hair) solid var(--generic-border-color);
+  background-color: var(--background-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.label-pref-button:last-child {
+  border-right: none;
+}
+
+.label-pref-button:hover:not(:disabled):not(.active) {
+  background: var(--post-hover-color);
+}
+
+.label-pref-button.active {
+  background: var(--primary-button-color);
+  color: var(--primary-button-text-color);
+}
+
+.label-pref-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

@@ -97,6 +97,7 @@ export class Requests {
     this.enableStatus(this.loadProfileFollowers, "loadProfileFollowers");
     this.enableStatus(this.loadProfileFollows, "loadProfileFollows");
     this.enableStatus(this.loadProfileChatStatus, "loadProfileChatStatus");
+    this.enableStatus(this.loadLabelerInfo, "loadLabelerInfo");
   }
 
   requireLabelers() {
@@ -193,9 +194,16 @@ export class Requests {
       const missingReplies = await this.api.getPosts(urisToLoad, {
         labelers,
       });
-      const repliesToAdd = missingReplies.filter(
-        (post) => !isBlockingUser(post),
-      );
+      let repliesToAdd = missingReplies.filter((post) => !isBlockingUser(post));
+      // Add an attribute indicating that this was a blocked reply
+      // we use this to put in the hidden section on the post thread view
+      repliesToAdd = repliesToAdd.map((post) => {
+        return {
+          ...post,
+          // NOTE: LEXICON DEVIATION
+          isBlockedReply: true,
+        };
+      });
       this.dataStore.setPosts(repliesToAdd);
       loadedReplies.push(
         ...repliesToAdd.map((post) => {
@@ -289,7 +297,13 @@ export class Requests {
     });
     const searchResults = searchData.posts || [];
     if (searchResults.length > 0) {
-      this.dataStore.setPosts(searchResults);
+      // If there are posts that are replies, load the parents
+      const replyPosts = searchResults.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts.map(
+        (post) => post.record?.reply?.parent?.uri,
+      );
+      const parentPosts = await this.api.getPosts(replyParentUris);
+      this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
@@ -480,9 +494,14 @@ export class Requests {
     const existingQuotes = this.dataStore.getPostQuotes(postUri);
     const res = await this.api.getQuotes(postUri, { cursor });
 
-    // Save posts from quotes
-    this.dataStore.setPosts(res.posts);
-
+    // if there are posts that are replies, load the parents
+    const replyPosts = res.posts.filter((post) => post.record?.reply);
+    const replyParentUris = replyPosts.map(
+      (post) => post.record?.reply?.parent?.uri,
+    );
+    const parentPosts = await this.api.getPosts(replyParentUris);
+    // Save posts and parents
+    this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
       // Append to existing quotes
       this.dataStore.setPostQuotes(postUri, {
@@ -523,7 +542,10 @@ export class Requests {
           : requestIdOrFn;
       this.statusStore.setLoading(requestId, true);
       try {
-        return await requestMethod.apply(this, args);
+        const result = await requestMethod.apply(this, args);
+        // Clear any errors from previous requests
+        this.statusStore.setError(requestId, null);
+        return result;
       } catch (error) {
         // Only store ApiErrors
         if (error instanceof ApiError) {
@@ -686,5 +708,10 @@ export class Requests {
   async loadProfileChatStatus(profileDid) {
     const res = await this.api.getConvoAvailability([profileDid]);
     this.dataStore.setProfileChatStatus(profileDid, res);
+  }
+
+  async loadLabelerInfo(labelerDid) {
+    const labelerInfo = await this.api.getLabeler(labelerDid);
+    this.dataStore.setLabelerInfo(labelerDid, labelerInfo);
   }
 }

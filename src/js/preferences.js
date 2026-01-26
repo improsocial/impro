@@ -1,4 +1,12 @@
-import { getPostLabels } from "/js/dataHelpers.js";
+import {
+  getPostLabels,
+  getLabelerForLabel,
+  getDefinitionForLabel,
+  isBadgeLabel,
+  getLabelNameAndDescription,
+  getGlobalLabelDefinition,
+  getDefaultLabelSetting,
+} from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
 import { DISCOVER_FEED_URI } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
@@ -79,30 +87,6 @@ function textMatchesMutedWord(text, mutedWord, languages) {
   return false;
 }
 
-function getLabelerForLabel(label, labelers) {
-  const matchingLabeler = labelers.find(
-    (labeler) => labeler.creator.did === label.src,
-  );
-  return matchingLabeler ?? null;
-}
-
-function getDefinitionForLabel(label, labeler) {
-  return labeler.policies.labelValueDefinitions.find(
-    (definition) => definition.identifier === label.val,
-  );
-}
-
-function getDisplayNameForLabel(label, labeler) {
-  const matchingDefinition = getDefinitionForLabel(label, labeler);
-  if (!matchingDefinition) {
-    return null;
-  }
-  const enLocale = matchingDefinition.locales.find(
-    (locale) => locale.lang === "en",
-  );
-  return enLocale?.name || "";
-}
-
 export class Preferences {
   constructor(obj, labelerDefs) {
     this.obj = obj;
@@ -174,19 +158,151 @@ export class Preferences {
     return Preferences.getLabelerDidsFromPreferences(this.obj);
   }
 
-  getPostLabels(post) {
-    const labels = getPostLabels(post, this.labelerDefs);
-    const displayLabels = [];
+  isSubscribedToLabeler(did) {
+    const labelerPreference = Preferences.getLabelerPreference(this.obj);
+    if (!labelerPreference) {
+      return false;
+    }
+    return labelerPreference.labelers.some((labeler) => labeler.did === did);
+  }
+
+  subscribeLabeler(did, labelerInfo) {
+    const clone = this.clone();
+    let labelerPreference = Preferences.getLabelerPreference(clone.obj);
+    if (!labelerPreference) {
+      labelerPreference = {
+        $type: "app.bsky.actor.defs#labelersPref",
+        labelers: [],
+      };
+      clone.obj.push(labelerPreference);
+    }
+    if (!labelerPreference.labelers.some((l) => l.did === did)) {
+      labelerPreference.labelers.push({ did });
+    }
+    // Add labeler definition if not already present
+    if (!clone.labelerDefs.some((l) => l.creator.did === did)) {
+      clone.labelerDefs.push(labelerInfo);
+    }
+    return clone;
+  }
+
+  unsubscribeLabeler(did) {
+    const clone = this.clone();
+    const labelerPreference = Preferences.getLabelerPreference(clone.obj);
+    if (!labelerPreference) {
+      return clone;
+    }
+    labelerPreference.labelers = labelerPreference.labelers.filter(
+      (labeler) => labeler.did !== did,
+    );
+    // Remove labeler definition
+    clone.labelerDefs = clone.labelerDefs.filter((l) => l.creator.did !== did);
+    return clone;
+  }
+
+  getContentLabelPref({ label, labelerDid }) {
+    const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
+    const matchingPref = contentLabelPrefs.find(
+      (pref) => pref.label === label && pref.labelerDid === labelerDid,
+    );
+    return matchingPref ?? null;
+  }
+
+  getLabelVisibility(label, labelDefinition) {
+    // Non-configurable global labels always use their default
+    if (labelDefinition.configurable === false) {
+      return getDefaultLabelSetting(labelDefinition);
+    }
+    const pref = this.getContentLabelPref({
+      label: label.val,
+      labelerDid: label.src,
+    });
+    return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
+  }
+
+  getLabelDefinitionAndLabeler(label) {
+    // First check global labels
+    const globalDef = getGlobalLabelDefinition(label.val);
+    if (globalDef) {
+      return { labelDefinition: globalDef, labeler: null };
+    }
+    // Then check labeler-defined labels
+    const labeler = getLabelerForLabel(label, this.labelerDefs);
+    if (!labeler) return null;
+    const labelDefinition = getDefinitionForLabel(label, labeler);
+    if (!labelDefinition) return null;
+    return { labelDefinition, labeler };
+  }
+
+  setContentLabelPref({ label, visibility, labelerDid }) {
+    const clone = this.clone();
+    const existingPref = clone.getContentLabelPref({ label, labelerDid });
+    if (existingPref) {
+      existingPref.visibility = visibility;
+    } else {
+      clone.obj.push({
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label,
+        labelerDid,
+        visibility,
+      });
+    }
+    return clone;
+  }
+
+  getLabelerSettings(labelerDid) {
+    const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
+    return contentLabelPrefs.filter((pref) => pref.labelerDid === labelerDid);
+  }
+
+  getBadgeLabels(post) {
+    const labels = getPostLabels(post);
+    const badgeLabels = [];
     for (const label of labels) {
       const labeler = getLabelerForLabel(label, this.labelerDefs);
-      if (labeler) {
-        const displayName = getDisplayNameForLabel(label, labeler);
-        if (displayName) {
-          displayLabels.push({ displayName, labeler });
-        }
+      if (!labeler) continue;
+      const labelDefinition = getDefinitionForLabel(label, labeler);
+      if (!labelDefinition || !isBadgeLabel(labelDefinition)) continue;
+      const { name: displayName } = getLabelNameAndDescription(labelDefinition);
+      badgeLabels.push({
+        displayName,
+        labeler,
+      });
+    }
+    return badgeLabels;
+  }
+
+  _getLabelByBlurType(post, blurType) {
+    const labels = getPostLabels(post);
+    // Get label with the most restrictive visibility: "ignore" < "warn" < "hide"
+    let currentLabel = null;
+    for (const label of labels) {
+      const result = this.getLabelDefinitionAndLabeler(label);
+      if (!result) continue;
+      const { labelDefinition, labeler } = result;
+      if (labelDefinition.blurs !== blurType) continue;
+      const labelVisibility = this.getLabelVisibility(label, labelDefinition);
+      if (labelVisibility === "hide") {
+        return { visibility: "hide", label, labelDefinition, labeler };
+      }
+      if (labelVisibility === "warn" && !currentLabel) {
+        currentLabel = {
+          visibility: labelVisibility,
+          label,
+          labelDefinition,
+          labeler,
+        };
       }
     }
-    return displayLabels;
+    return currentLabel;
+  }
+
+  getContentLabel(post) {
+    return this._getLabelByBlurType(post, "content");
+  }
+
+  getMediaLabel(post) {
+    return this._getLabelByBlurType(post, "media");
   }
 
   isPostHidden(postUri) {
@@ -307,6 +423,12 @@ export class Preferences {
     return Preferences.getPreferenceByType(
       obj,
       "app.bsky.actor.defs#labelersPref",
+    );
+  }
+
+  static getContentLabelPreferences(obj) {
+    return obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#contentLabelPref",
     );
   }
 

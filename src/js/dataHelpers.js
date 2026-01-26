@@ -1,4 +1,5 @@
 import { unique } from "/js/utils.js";
+import { GLOBAL_LABELS } from "/js/config.js";
 
 export function avatarThumbnailUrl(avatarUrl) {
   if (!avatarUrl) {
@@ -371,4 +372,56 @@ export function getLastInteractionTimestamp(convo) {
 export function doHideAuthorOnUnauthenticated(author) {
   const authorLabels = author.labels || [];
   return authorLabels.some((label) => label.val === "!no-unauthenticated");
+}
+
+export function isLabelerProfile(profile) {
+  return profile.associated?.labeler;
+}
+
+export function getLabelNameAndDescription(
+  labelDefinition,
+  preferredLang = "en",
+) {
+  const defaultName = labelDefinition.identifier;
+  if (!labelDefinition.locales || labelDefinition.locales.length === 0) {
+    return { name: defaultName, description: "" };
+  }
+  const locale =
+    labelDefinition.locales.find((l) => l.lang === preferredLang) ||
+    labelDefinition.locales[0];
+  return {
+    name: locale.name || defaultName,
+    description: locale.description || "",
+  };
+}
+
+export function getLabelerForLabel(label, labelers) {
+  const matchingLabeler = labelers.find(
+    (labeler) => labeler.creator.did === label.src,
+  );
+  return matchingLabeler ?? null;
+}
+
+export function getDefinitionForLabel(label, labeler) {
+  return labeler.policies.labelValueDefinitions.find(
+    (definition) => definition.identifier === label.val,
+  );
+}
+
+export function isBadgeLabel(labelDefinition) {
+  return !(
+    labelDefinition.blurs === "media" || labelDefinition.blurs === "content"
+  );
+}
+
+export function getDefaultLabelSetting(labelDefinition) {
+  const defaultSetting = labelDefinition.defaultSetting;
+  if (!defaultSetting || !["ignore", "warn", "hide"].includes(defaultSetting)) {
+    return "warn";
+  }
+  return defaultSetting;
+}
+
+export function getGlobalLabelDefinition(labelValue) {
+  return GLOBAL_LABELS.find((label) => label.identifier === labelValue) ?? null;
 }

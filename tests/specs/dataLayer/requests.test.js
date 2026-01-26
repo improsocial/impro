@@ -275,4 +275,86 @@ t.describe("loadProfile", (it) => {
   });
 });
 
+t.describe("loadLabelerInfo", (it) => {
+  const labelerDid = "did:plc:testlabeler";
+
+  it("should load and store labeler info", async () => {
+    const mockLabelerInfo = {
+      uri: `at://${labelerDid}/app.bsky.labeler.service/self`,
+      creator: { did: labelerDid, handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          { identifier: "nsfw", locales: [{ lang: "en", name: "NSFW" }] },
+        ],
+      },
+    };
+
+    const mockApi = {
+      getLabeler: async () => mockLabelerInfo,
+    };
+
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
+
+    await requests.loadLabelerInfo(labelerDid);
+
+    assertEquals(dataStore.getLabelerInfo(labelerDid), mockLabelerInfo);
+  });
+
+  it("should call api.getLabeler with correct DID", async () => {
+    let calledWithDid = null;
+    const mockApi = {
+      getLabeler: async (did) => {
+        calledWithDid = did;
+        return { creator: { did } };
+      },
+    };
+
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
+
+    await requests.loadLabelerInfo(labelerDid);
+
+    assertEquals(calledWithDid, labelerDid);
+  });
+
+  it("should overwrite existing labeler info on reload", async () => {
+    const initialInfo = {
+      creator: { did: labelerDid, handle: "old.handle" },
+      policies: { labelValueDefinitions: [] },
+    };
+    const updatedInfo = {
+      creator: { did: labelerDid, handle: "new.handle" },
+      policies: {
+        labelValueDefinitions: [{ identifier: "test" }],
+      },
+    };
+
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+
+    let currentInfo = initialInfo;
+    const mockApi = {
+      getLabeler: async () => currentInfo,
+    };
+
+    const requests = new Requests(mockApi, dataStore, mockPreferencesProvider);
+
+    await requests.loadLabelerInfo(labelerDid);
+    assertEquals(dataStore.getLabelerInfo(labelerDid), initialInfo);
+
+    currentInfo = updatedInfo;
+    await requests.loadLabelerInfo(labelerDid);
+    assertEquals(dataStore.getLabelerInfo(labelerDid), updatedInfo);
+  });
+});
+
 await t.run();

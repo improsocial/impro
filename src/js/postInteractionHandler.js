@@ -130,6 +130,14 @@ export class PostInteractionHandler {
   }
 
   async handleHidePost(post) {
+    if (
+      !(await confirm("This post will be hidden from feeds and threads.", {
+        title: "Hide this post?",
+        confirmButtonText: "Hide",
+      }))
+    ) {
+      return;
+    }
     try {
       const promise = this.dataLayer.mutations.hidePost(post);
       // Render optimistic update

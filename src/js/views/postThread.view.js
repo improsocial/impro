@@ -74,7 +74,12 @@ class PostThreadView extends View {
       if (!post) {
         return false;
       }
-      if (isBlockedPost(post) || isNotFoundPost(post) || isMutedPost(post)) {
+      if (
+        isBlockedPost(post) ||
+        isNotFoundPost(post) ||
+        isMutedPost(post) ||
+        post.isBlockedReply
+      ) {
         return false;
       }
       return true;
@@ -111,32 +116,42 @@ class PostThreadView extends View {
       return !!post.viewer?.like ? likeCount - 1 : likeCount;
     }
 
-    function buildReplyChains(replies, currentUser) {
+    function buildReplyChains(replies, postAuthor) {
       const replyChains = [];
       for (const reply of replies) {
         if (doShowReply(reply)) {
           replyChains.push(buildReplyChain(reply));
         }
       }
-      const sortedReplyChains = sortBy(
+      let sortedReplyChains = sortBy(
         replyChains,
         (chain) => getLikesWithoutUser(chain[0].post),
         {
           direction: "desc",
         },
       );
+      // Put replies by the post author first
+      if (postAuthor) {
+        sortedReplyChains = [
+          ...sortedReplyChains.filter(
+            (chain) => chain[0].post.author?.did === postAuthor.did,
+          ),
+          ...sortedReplyChains.filter(
+            (chain) => chain[0].post.author?.did !== postAuthor.did,
+          ),
+        ];
+      }
       // If there's a recent reply from the user, put it at the top
       const recentReplyFromUser = sortedReplyChains.find(
         (chain) => chain[0].post.viewer?.priorityReply,
       );
       if (recentReplyFromUser) {
-        return [
+        sortedReplyChains = [
           recentReplyFromUser,
           ...sortedReplyChains.filter((chain) => chain !== recentReplyFromUser),
         ];
-      } else {
-        return sortedReplyChains;
       }
+      return sortedReplyChains;
     }
 
     function getReplyContext(replyIndex, numReplies) {
@@ -190,11 +205,26 @@ class PostThreadView extends View {
       renderPage();
     }
 
-    function postThreadRepliesTemplate({ replies, currentUser }) {
-      const hiddenReplies = replies.filter(
-        (reply) => reply.post && isMutedPost(reply.post),
+    // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
+    function doPutReplyInHiddenSection(reply) {
+      if (!reply.post) {
+        return false;
+      }
+      if (isMutedPost(reply.post)) {
+        return true;
+      }
+      // If the post author blocked the replier, put the reply in the hidden section
+      if (reply.post.isBlockedReply) {
+        return true;
+      }
+      return false;
+    }
+
+    function postThreadRepliesTemplate({ replies, postAuthor, currentUser }) {
+      const hiddenSectionReplies = replies.filter((reply) =>
+        doPutReplyInHiddenSection(reply),
       );
-      const replyChains = buildReplyChains(replies, currentUser);
+      const replyChains = buildReplyChains(replies, postAuthor);
       return html`
         <div class="post-thread-replies">
           <div class="post-thread-reply-chains">
@@ -208,9 +238,9 @@ class PostThreadView extends View {
               }),
             )}
           </div>
-          ${hiddenReplies.length > 0
+          ${hiddenSectionReplies.length > 0
             ? html`<hidden-replies-section>
-          ${hiddenReplies.map((reply) =>
+          ${hiddenSectionReplies.map((reply) =>
             smallPostTemplate({
               post: reply.post,
               isUserPost: currentUser?.did === reply.post?.author?.did,
@@ -242,6 +272,7 @@ class PostThreadView extends View {
         const parents = flattenParents(postThread);
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
+        const postAuthor = postThread.post?.author;
         return html`
           <div class="post-thread">
             ${parents.map((parent, i) =>
@@ -294,6 +325,7 @@ class PostThreadView extends View {
               if (replies) {
                 return postThreadRepliesTemplate({
                   replies,
+                  postAuthor,
                   currentUser,
                 });
               }

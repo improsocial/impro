@@ -500,4 +500,153 @@ t.describe("Integration with DataStore and PatchStore", (it) => {
   });
 });
 
+t.describe("getLabelerInfo", (it) => {
+  const labelerDid = "did:plc:testlabeler";
+  const testLabelerInfo = {
+    uri: `at://${labelerDid}/app.bsky.labeler.service/self`,
+    creator: { did: labelerDid, handle: "labeler.test" },
+    policies: {
+      labelValueDefinitions: [
+        { identifier: "nsfw", locales: [{ lang: "en", name: "NSFW" }] },
+      ],
+    },
+  };
+
+  it("should return labeler info from dataStore", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    dataStore.setLabelerInfo(labelerDid, testLabelerInfo);
+
+    const result = selectors.getLabelerInfo(labelerDid);
+    assertEquals(result, testLabelerInfo);
+  });
+
+  it("should return undefined when labeler info does not exist", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const result = selectors.getLabelerInfo(labelerDid);
+    assertEquals(result, undefined);
+  });
+});
+
+t.describe("getLabelerSettings", (it) => {
+  const labelerDid = "did:plc:testlabeler";
+
+  it("should return labeler settings from preferences", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+
+    const contentLabelPrefs = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid,
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "gore",
+        labelerDid: labelerDid,
+        visibility: "hide",
+      },
+    ];
+
+    const mockPreferences = new Preferences(contentLabelPrefs, []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => mockPreferences,
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const result = selectors.getLabelerSettings(labelerDid);
+
+    assertEquals(result.length, 2);
+    assertEquals(result[0].label, "nsfw");
+    assertEquals(result[0].visibility, "warn");
+    assertEquals(result[1].label, "gore");
+    assertEquals(result[1].visibility, "hide");
+  });
+
+  it("should return empty array when no labeler settings exist", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+
+    const mockPreferences = new Preferences([], []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => mockPreferences,
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const result = selectors.getLabelerSettings(labelerDid);
+    assertEquals(result.length, 0);
+  });
+
+  it("should only return settings for the specified labeler", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+
+    const otherLabelerDid = "did:plc:otherlabeler";
+    const contentLabelPrefs = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nsfw",
+        labelerDid: labelerDid,
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "spam",
+        labelerDid: otherLabelerDid,
+        visibility: "hide",
+      },
+    ];
+
+    const mockPreferences = new Preferences(contentLabelPrefs, []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => mockPreferences,
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const result = selectors.getLabelerSettings(labelerDid);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0].label, "nsfw");
+    assertEquals(result[0].labelerDid, labelerDid);
+  });
+});
+
 await t.run();

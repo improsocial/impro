@@ -134,6 +134,7 @@ class SearchView extends View {
             html`<div class="feed-item" data-post-uri="${post.uri}">
               ${smallPostTemplate({
                 post,
+                replyToAuthor: post.record?.reply?.parentAuthor ?? null,
                 isUserPost: currentUser?.did === post.author?.did,
                 postInteractionHandler,
               })}
@@ -202,6 +203,8 @@ class SearchView extends View {
                   <input
                     class="search-input"
                     type="search"
+                    autocapitalize="none"
+                    autocomplete="off"
                     placeholder=${isAuthenticated
                       ? "Search for users and posts"
                       : "Search for users"}
@@ -300,6 +303,9 @@ class SearchView extends View {
       const query = new URLSearchParams(window.location.search);
       if (query.get("q")) {
         state.searchQuery = query.get("q");
+      }
+      if (query.get("tab")) {
+        state.activeTab = query.get("tab");
       }
       if (state.searchQuery) {
         loadSearchResults();
