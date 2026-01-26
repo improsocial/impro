@@ -385,13 +385,7 @@ export class OauthClient {
     });
   }
 
-  async getAuthorizationUrl(
-    handle,
-    {
-      scope = "atproto include:app.bsky.authFullApp include:chat.bsky.authFullChatClient",
-      state = {},
-    } = {},
-  ) {
+  async getAuthorizationUrl(handle, { scope = "atproto", state = {} } = {}) {
     const did = await resolveHandle(handle);
     if (!did) {
       throw new HandleNotFoundError("DID not found for handle");
