@@ -388,7 +388,7 @@ export class OauthClient {
   async getAuthorizationUrl(
     handle,
     {
-      scope = "atproto transition:generic transition:chat.bsky",
+      scope = "atproto include:app.bsky.authFullApp include:chat.bsky.authFullChatClient",
       state = {},
     } = {},
   ) {
