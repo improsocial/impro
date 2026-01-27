@@ -126,10 +126,10 @@
             !window.location.pathname.includes("notifications")
           ) {
             const loadedNotifications = dataLayer.selectors.getNotifications();
-            // Only preload if there are no notifications loaded, or if the previously (pre)loaded notifications were not read.
+            // Only preload if there are no notifications loaded
             if (
-              !loadedNotifications ||
-              loadedNotifications.some((notification) => !notification.isRead)
+              !loadedNotifications
+              // || loadedNotifications.some((notification) => !notification.isRead)
             ) {
               dataLayer.requests.loadNotifications({
                 limit: NOTIFICATIONS_PAGE_SIZE,
