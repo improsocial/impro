@@ -531,3 +531,7 @@ export const GLOBAL_LABELS = [
 export function getGlobalLabelDefinition(labelValue) {
   return GLOBAL_LABELS.find((label) => label.identifier === labelValue) ?? null;
 }
+
+export function isPinnedPost(feedItem) {
+  return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
+}
