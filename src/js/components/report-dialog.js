@@ -2,8 +2,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { BSKY_LABELER_DID } from "/js/config.js";
 
-const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
 const BSKY_ONLY_REASON_TYPES = [
   "tools.ozone.report.defs#reasonViolenceExtremistContent",

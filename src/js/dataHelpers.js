@@ -532,6 +532,10 @@ export function getGlobalLabelDefinition(labelValue) {
   return GLOBAL_LABELS.find((label) => label.identifier === labelValue) ?? null;
 }
 
+export function isGlobalLabel(labelValue) {
+  return GLOBAL_LABELS.some((label) => label.identifier === labelValue);
+}
+
 export function isPinnedPost(feedItem) {
   return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
 }
