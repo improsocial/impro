@@ -16,6 +16,7 @@ import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
+import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import {
   linkToPostLikes,
   linkToPostQuotes,
@@ -195,12 +196,12 @@ export function largePostTemplate({
   const contentLabel = post.viewer?.contentLabel;
   if (contentLabel && contentLabel.visibility !== "ignore") {
     // TODO: hide hidden posts completely?
-    const { name: labelName } = getLabelNameAndDescription(
-      contentLabel.labelDefinition,
-    );
-    content = html`<moderation-warning label="${labelName}"
-      >${content}</moderation-warning
-    > `;
+    content = moderationWarningTemplate({
+      post,
+      labelDefinition: contentLabel.labelDefinition,
+      labeler: contentLabel.labeler,
+      children: content,
+    });
   } else if (post.viewer?.hasMutedWord) {
     content = html`<moderation-warning label="Post hidden by muted word"
       >${content}</moderation-warning

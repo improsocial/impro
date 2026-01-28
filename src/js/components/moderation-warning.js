@@ -7,6 +7,8 @@ class ModerationWarning extends Component {
       return;
     }
     this.label = this.getAttribute("label");
+    this.labelerLink = this.getAttribute("labelerLink");
+    this.labelerName = this.getAttribute("labelerName");
     this.expanded = false;
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
@@ -37,6 +39,17 @@ class ModerationWarning extends Component {
           </label>
         </div>
         <div class="toggle-content" ?hidden=${!this.expanded}></div>
+        ${this.labelerName
+          ? html`<div
+              class="post-moderation-warning-description"
+              ?hidden=${this.expanded}
+            >
+              Labeled by
+              ${this.labelerLink
+                ? html`<a href="${this.labelerLink}">${this.labelerName}</a>`
+                : this.labelerName}
+            </div>`
+          : ""}
       `,
       this,
     );

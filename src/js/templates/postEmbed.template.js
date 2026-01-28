@@ -10,34 +10,12 @@ import { richTextTemplate } from "/js/templates/richText.template.js";
 import { parseEmbedPlayerFromUrl } from "/js/lib/embed-player.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
-import { linkToPost, linkToFeed, linkToLabeler } from "/js/navigation.js";
+import { linkToPost, linkToFeed } from "/js/navigation.js";
+import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
-
-function moderationWarningTemplate({ labelDefinition, labeler, children }) {
-  const { name: labelName } = getLabelNameAndDescription(labelDefinition);
-  return html`<moderation-warning
-      class="post-moderation-warning"
-      @click=${(e) => {
-        const clickedBar = !!e.target.closest(".top-bar");
-        if (clickedBar) {
-          e.preventDefault();
-          e.stopPropagation();
-        }
-      }}
-      label=${labelName}
-    >
-      ${children}
-    </moderation-warning>
-    ${labeler
-      ? html`<div class="post-moderation-warning-description">
-          Labeled by
-          <a href="${linkToLabeler(labeler)}">@${labeler.creator.handle}</a>
-        </div>`
-      : ""} `;
-}
 
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
   return mediaLabel
