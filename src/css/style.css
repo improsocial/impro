@@ -1138,6 +1138,10 @@ body.scroll-locked header {
   }
 }
 
+.sidebar-spacer {
+  flex: 1;
+}
+
 .sidebar-footer {
   margin-top: auto;
   padding: 16px 20px;
@@ -1223,6 +1227,7 @@ body.scroll-locked header {
   width: fit-content;
   margin-left: 16px;
   margin-top: 6px;
+  white-space: nowrap;
 }
 
 .footer-nav {
