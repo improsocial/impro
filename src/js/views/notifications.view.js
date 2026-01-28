@@ -209,7 +209,7 @@ class NotificationsView extends View {
     function subscribedPostNotificationTemplate({ notificationGroup }) {
       const { notifications } = notificationGroup;
       const firstNotif = notifications[0];
-      const post = firstNotif; // is looks like this has the post data, so let's just use it like a post...
+      const post = notificationGroup.subject;
       const timeAgo = displayRelativeTime(firstNotif.indexedAt);
       const isUnread = !firstNotif.isRead;
       const profileLink = linkToProfile(post.author);

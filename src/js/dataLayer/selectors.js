@@ -332,6 +332,14 @@ export class Selectors {
           parentPost,
         };
       }
+      if (notification.reason === "subscribed-post") {
+        const post = this.getPost(notification.uri);
+        return {
+          ...notification,
+          // NOTE: LEXICON DEVIATION
+          reasonSubject: post,
+        };
+      }
       return notification;
     });
   }
