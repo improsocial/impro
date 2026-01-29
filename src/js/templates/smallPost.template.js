@@ -97,8 +97,10 @@ export function smallPostTemplate({
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied to
-                ${replyToAuthor ? getDisplayName(replyToAuthor) : "Unknown"}
+                ⤷ Replied
+                ${replyToAuthor
+                  ? html`to ${getDisplayName(replyToAuthor)}`
+                  : ""}
               </div>`
             : ""}
           <div class="post-body">

@@ -81,12 +81,10 @@ export class Selectors {
           parent = this.getPost(parent.uri, { required: true });
         }
         const hydratedReply = {
+          ...reply,
           root,
           parent,
         };
-        if (reply.grandparentAuthor) {
-          hydratedReply.grandparentAuthor = reply.grandparentAuthor;
-        }
         hydratedFeedItem.reply = hydratedReply;
       }
       hydratedFeedItems.push(hydratedFeedItem);
@@ -252,6 +250,7 @@ export class Selectors {
       // app.bsky.feed.defs#reasonRepost
       if (feedItem.reply) {
         hydratedFeedItem.reply = {
+          ...feedItem.reply,
           root: this.getPost(feedItem.reply.root.uri),
           parent: this.getPost(feedItem.reply.parent.uri),
         };
@@ -308,11 +307,9 @@ export class Selectors {
         notification.reason === "like-via-repost" ||
         notification.reason === "repost-via-repost"
       ) {
-        const repost = this.dataStore.getRepost(notification.reasonSubject);
+        const postUri = notification.record.subject.uri;
         // If it was not found, create an unavailable post.
-        const subject = repost
-          ? this.getPost(getPostUriFromRepost(repost))
-          : createUnavailablePost("no-uri");
+        const subject = this.getPost(postUri) ?? createUnavailablePost(postUri);
         return {
           ...notification,
           subject,
