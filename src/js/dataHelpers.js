@@ -273,28 +273,16 @@ export function getPostUrisFromNotifications(notifications) {
       }
     } else if (notification.reason === "subscribed-post") {
       postUris.push(notification.uri);
+    } else if (
+      notification.reason === "like-via-repost" ||
+      notification.reason === "repost-via-repost"
+    ) {
+      // Note, this is a post uri, not a repost uri.
+      // That way, if we delete the repost, the post will still be available to display / navigate to.
+      postUris.push(notification.record.subject.uri);
     }
   }
   return unique(postUris);
-}
-
-export function getRepostUrisFromNotifications(notifications) {
-  const repostUris = [];
-  for (const notification of notifications) {
-    if (notification.reason === "like-via-repost") {
-      repostUris.push(notification.reasonSubject);
-    }
-    if (notification.reason === "repost-via-repost") {
-      repostUris.push(notification.reasonSubject);
-    }
-  }
-  return unique(repostUris);
-}
-
-export function getPostAndRepostUrisFromNotifications(notifications) {
-  const postUris = getPostUrisFromNotifications(notifications);
-  const repostUris = getRepostUrisFromNotifications(notifications);
-  return { postUris, repostUris };
 }
 
 export function getPostUriFromRepost(repost) {

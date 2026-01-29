@@ -6,7 +6,7 @@ import {
   getPostUrisFromReposts,
   isBlockingUser,
   createUnavailablePost,
-  getPostAndRepostUrisFromNotifications,
+  getPostUrisFromNotifications,
   buildUri,
 } from "/js/dataHelpers.js";
 import { getLinks } from "/js/constellation.js";
@@ -380,22 +380,10 @@ export class Requests {
     }
     const res = await this.api.getNotifications({ cursor, limit });
     // Get associated posts
-    const { postUris, repostUris } = getPostAndRepostUrisFromNotifications(
-      res.notifications,
-    );
+    const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris);
       this.dataStore.setPosts(fetchedPosts);
-    }
-    if (repostUris.length > 0) {
-      const fetchedReposts = await this.api.getReposts(repostUris);
-      this.dataStore.setReposts(fetchedReposts);
-      // Also fetch the posts for the reposts
-      const repostPostUris = getPostUrisFromReposts(fetchedReposts);
-      if (repostPostUris.length > 0) {
-        const fetchedPosts = await this.api.getPosts(repostPostUris);
-        this.dataStore.setPosts(fetchedPosts);
-      }
     }
     const previousCursor = this.dataStore.getNotificationCursor();
     // If the req cursor matches the previous cursor, append
