@@ -186,7 +186,7 @@ export class OAuth {
     let authUrl = null;
     try {
       authUrl = await client.getAuthorizationUrl(handle, {
-        scope: "atproto transition:generic transition:chat.bsky",
+        scope: window.env.oauthScopes,
         state: { loopback: isDev() },
       });
     } catch (error) {
