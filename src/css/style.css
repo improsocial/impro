@@ -1449,8 +1449,8 @@ body.scroll-locked header {
   min-width: 0;
 }
 
-.post-content-right .post-body {
-  margin-top: 8px;
+.post-content-right .post-body > .post-text {
+  margin-top: 5px;
 }
 
 .post-header-text {
@@ -2146,8 +2146,8 @@ like-button {
   flex-shrink: 0;
 }
 
-.quoted-post-body {
-  margin-top: 8px;
+.quoted-post-body > .post-text {
+  margin-top: 5px;
 }
 
 .feed-generator-embed {
