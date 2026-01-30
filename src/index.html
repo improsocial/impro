@@ -126,11 +126,10 @@
             !window.location.pathname.includes("notifications")
           ) {
             const loadedNotifications = dataLayer.selectors.getNotifications();
+            const { loading: notificationsLoading } =
+              dataLayer.requests.getStatus("loadNotifications");
             // Only preload if there are no notifications loaded
-            if (
-              !loadedNotifications
-              // || loadedNotifications.some((notification) => !notification.isRead)
-            ) {
+            if (!loadedNotifications && !notificationsLoading) {
               dataLayer.requests.loadNotifications({
                 limit: NOTIFICATIONS_PAGE_SIZE,
                 reload: true,

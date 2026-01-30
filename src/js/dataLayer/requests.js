@@ -3,7 +3,6 @@ import {
   flattenParents,
   replaceTopParent,
   getBlockedQuote,
-  getPostUrisFromReposts,
   isBlockingUser,
   createUnavailablePost,
   getPostUrisFromNotifications,
@@ -387,24 +386,20 @@ export class Requests {
     }
     const previousCursor = this.dataStore.getNotificationCursor();
     // If the req cursor matches the previous cursor, append
-    console.debug("loadNotifications", {
-      cursor,
-      previousCursor,
-      reload,
-      res,
-      existingNotifications: this.dataStore.getNotifications(),
-    });
-    if (previousCursor && previousCursor === cursor && !reload) {
-      console.debug("Appending to existing notifications");
-      const existingNotifications = this.dataStore.getNotifications() ?? [];
-      this.dataStore.setNotifications([
-        ...existingNotifications,
-        ...res.notifications,
-      ]);
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingNotifications = this.dataStore.getNotifications() ?? [];
+        this.dataStore.setNotifications([
+          ...existingNotifications,
+          ...res.notifications,
+        ]);
+      } else {
+        console.warn("cursor mismatch, discarding response", {
+          previousCursor,
+          cursor,
+        });
+      }
     } else {
-      console.debug("Setting new notifications", {
-        notifications: res.notifications,
-      });
       this.dataStore.setNotifications(res.notifications);
     }
     this.dataStore.setNotificationCursor(res.cursor);
@@ -422,9 +417,16 @@ export class Requests {
       this.dataStore.setConvo(convo.id, convo);
     }
     // If the req cursor matches the previous cursor, append
-    if (previousCursor && previousCursor === cursor && !reload) {
-      const existingConvos = this.dataStore.getConvoList() ?? [];
-      this.dataStore.setConvoList([...existingConvos, ...res.convos]);
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingConvos = this.dataStore.getConvoList() ?? [];
+        this.dataStore.setConvoList([...existingConvos, ...res.convos]);
+      } else {
+        console.warn("cursor mismatch, discarding response", {
+          previousCursor,
+          cursor,
+        });
+      }
     } else {
       this.dataStore.setConvoList(res.convos);
     }
