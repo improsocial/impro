@@ -104,9 +104,12 @@ function feedItemTemplate({
     reason && reason.$type === "app.bsky.feed.defs#reasonRepost"
       ? reason.by
       : null;
-  // If the post has a reply, but the feed item doesn't have a reply, show the reply-to label (with an empty author)
-  // This only happens in the hashtag feed right afaik.
+  // If the post has a reply, but the feed item doesn't have a reply, show the reply-to label
   const showReplyToLabel = post.record?.reply && !reply;
+  let replyToAuthor = null;
+  if (showReplyToLabel) {
+    replyToAuthor = post.record?.reply?.parentAuthor || null;
+  }
   const showReplyContext = reply && reply.parent && !repostAuthor;
   const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
   return html`
@@ -135,6 +138,7 @@ function feedItemTemplate({
         onClickShowMore,
         repostAuthor,
         showReplyToLabel,
+        replyToAuthor,
         enableFeedFeedback,
       })}
     </div>

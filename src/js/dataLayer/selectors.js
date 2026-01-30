@@ -503,8 +503,26 @@ export class Selectors {
     }
     const hydratedBookmarksFeed = [];
     for (const bookmark of bookmarks.feed) {
+      let post = this.getPost(bookmark.post.uri);
+      // If it's a reply, add the parent author to the record
+      if (post?.record?.reply?.parent) {
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
+            },
+          };
+        }
+      }
       hydratedBookmarksFeed.push({
-        post: this.getPost(bookmark.post.uri),
+        post,
       });
     }
     return {

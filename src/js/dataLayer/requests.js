@@ -299,9 +299,9 @@ export class Requests {
     if (searchResults.length > 0) {
       // If there are posts that are replies, load the parents
       const replyPosts = searchResults.filter((post) => post.record?.reply);
-      const replyParentUris = replyPosts.map(
-        (post) => post.record?.reply?.parent?.uri,
-      );
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
       const parentPosts = await this.api.getPosts(replyParentUris);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
@@ -484,9 +484,9 @@ export class Requests {
 
     // if there are posts that are replies, load the parents
     const replyPosts = res.posts.filter((post) => post.record?.reply);
-    const replyParentUris = replyPosts.map(
-      (post) => post.record?.reply?.parent?.uri,
-    );
+    const replyParentUris = replyPosts
+      .map((post) => post.record?.reply?.parent?.uri)
+      .filter(Boolean);
     const parentPosts = await this.api.getPosts(replyParentUris);
     // Save posts and parents
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
@@ -634,7 +634,13 @@ export class Requests {
 
     // Save posts to the store
     if (posts.length > 0) {
-      this.dataStore.setPosts(posts);
+      // If there are posts that are replies, load the parents
+      const replyPosts = posts.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
+      const parentPosts = await this.api.getPosts(replyParentUris);
+      this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
