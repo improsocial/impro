@@ -329,7 +329,7 @@ class NotificationsView extends View {
           ${smallPostTemplate({
             post,
             isUserPost: currentUser?.did === post.author?.did,
-            showReplyToLabel: true,
+            showReplyToLabel: !!replyToAuthor,
             replyToAuthor,
             postInteractionHandler,
             overrideMutedWords: true,
