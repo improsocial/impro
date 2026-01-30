@@ -8,7 +8,7 @@ export default {
     .toString()
     .trim(),
   gitCommit: () => execSync("git rev-parse --short=8 HEAD").toString().trim(),
-  hostName: process.env.HOST_NAME ?? "impro.social",
+  hostName: process.env.HOST_NAME ?? "dev.impro.social",
   environment: process.env.ENVIRONMENT ?? "development",
   oauthScopes: OAUTH_SCOPES,
 };

@@ -387,13 +387,24 @@ export class Requests {
     }
     const previousCursor = this.dataStore.getNotificationCursor();
     // If the req cursor matches the previous cursor, append
+    console.debug("loadNotifications", {
+      cursor,
+      previousCursor,
+      reload,
+      res,
+      existingNotifications: this.dataStore.getNotifications(),
+    });
     if (previousCursor && previousCursor === cursor && !reload) {
+      console.debug("Appending to existing notifications");
       const existingNotifications = this.dataStore.getNotifications() ?? [];
       this.dataStore.setNotifications([
         ...existingNotifications,
         ...res.notifications,
       ]);
     } else {
+      console.debug("Setting new notifications", {
+        notifications: res.notifications,
+      });
       this.dataStore.setNotifications(res.notifications);
     }
     this.dataStore.setNotificationCursor(res.cursor);
