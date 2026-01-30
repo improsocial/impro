@@ -98,12 +98,6 @@ class HomeView extends View {
     );
 
     async function handleShowLess(post, feedContext, feedGenerator) {
-      const feedItemElement = document.querySelector(
-        `.feed-item[data-post-uri="${post.uri}"]`,
-      );
-      const feedItemHeight = feedItemElement
-        ? feedItemElement.getBoundingClientRect().height
-        : null;
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
         feedContext,
@@ -111,17 +105,12 @@ class HomeView extends View {
       );
       // Render optimistic update
       renderPage();
-      // Scroll to maintain position of feed item
+      // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
       const feedFeedbackMessageElement = document.querySelector(
         `.feed-feedback-message[data-post-uri="${post.uri}"]`,
       );
       if (feedFeedbackMessageElement) {
-        const feedFeedbackMessageHeight =
-          feedFeedbackMessageElement.getBoundingClientRect().height;
-        if (feedItemHeight) {
-          const heightDelta = feedItemHeight - feedFeedbackMessageHeight;
-          window.scrollTo(0, window.scrollY - heightDelta);
-        }
+        feedFeedbackMessageElement.scrollIntoView();
       }
     }
 
