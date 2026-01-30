@@ -131,7 +131,7 @@ export function getReplyPosts(postThread) {
 
 export function getReplyRootFromPost(post) {
   // If the post is not a reply, return the post itself
-  return post.record.reply?.root ?? { uri: post.uri, cid: post.cid };
+  return post.record?.reply?.root ?? { uri: post.uri, cid: post.cid };
 }
 
 export function getNestedReplyPosts(postThread) {
