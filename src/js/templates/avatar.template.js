@@ -20,6 +20,16 @@ function avatarWrapperTemplate({ author, clickAction, children }) {
   }
 }
 
+function getAvatarUrl(author, isLabeler) {
+  if (author.avatar) {
+    return avatarThumbnailUrl(author.avatar);
+  } else if (isLabeler) {
+    return "/img/labeler-avatar-fallback.svg";
+  } else {
+    return "/img/avatar-fallback.svg";
+  }
+}
+
 export function avatarTemplate({
   author,
   clickAction = "link",
@@ -27,9 +37,7 @@ export function avatarTemplate({
   // lazyLoad = true,
 }) {
   const isLabeler = isLabelerProfile(author);
-  const avatarUrl = author.avatar
-    ? avatarThumbnailUrl(author.avatar)
-    : "/img/avatar-fallback.svg";
+  const avatarUrl = getAvatarUrl(author, isLabeler);
   return html`<div class="avatar">
     ${avatarWrapperTemplate({
       author,
