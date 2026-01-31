@@ -18,6 +18,7 @@ class PostQuotesView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -34,6 +35,7 @@ class PostQuotesView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },
@@ -55,6 +57,7 @@ class PostQuotesView extends View {
           ${quotes.map((quote) =>
             smallPostTemplate({
               post: quote,
+              showReplyToLabel: !!quote.record?.reply,
               replyToAuthor: quote.record?.reply?.parentAuthor,
               isUserPost: currentUser?.did === quote.author?.did,
               postInteractionHandler,

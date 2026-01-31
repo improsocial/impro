@@ -13,6 +13,7 @@ const postInteractionHandler = {
   handleMuteAuthor: noop,
   handleBlockAuthor: noop,
   handleDeletePost: noop,
+  handleReport: noop,
 };
 
 const t = new TestSuite("largePostTemplate");

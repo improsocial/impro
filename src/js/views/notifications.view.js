@@ -25,6 +25,7 @@ class NotificationsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
     },
   }) {
     await requireAuth();
@@ -81,6 +82,7 @@ class NotificationsView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },
@@ -207,7 +209,7 @@ class NotificationsView extends View {
     function subscribedPostNotificationTemplate({ notificationGroup }) {
       const { notifications } = notificationGroup;
       const firstNotif = notifications[0];
-      const post = firstNotif; // is looks like this has the post data, so let's just use it like a post...
+      const post = notificationGroup.subject;
       const timeAgo = displayRelativeTime(firstNotif.indexedAt);
       const isUnread = !firstNotif.isRead;
       const profileLink = linkToProfile(post.author);
@@ -327,6 +329,7 @@ class NotificationsView extends View {
           ${smallPostTemplate({
             post,
             isUserPost: currentUser?.did === post.author?.did,
+            showReplyToLabel: !!replyToAuthor,
             replyToAuthor,
             postInteractionHandler,
             overrideMutedWords: true,

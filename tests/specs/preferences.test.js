@@ -1460,7 +1460,7 @@ t.describe("Preferences.getMediaLabel", (it) => {
         policies: {
           labelValueDefinitions: [
             {
-              identifier: "nudity",
+              identifier: "nudity_custom",
               blurs: "media",
               defaultSetting: "warn",
               locales: [{ lang: "en", name: "Nudity" }],
@@ -1472,7 +1472,7 @@ t.describe("Preferences.getMediaLabel", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#contentLabelPref",
-        label: "nudity",
+        label: "nudity_custom",
         labelerDid: "did:labeler1",
         visibility: "hide",
       },
@@ -1480,12 +1480,12 @@ t.describe("Preferences.getMediaLabel", (it) => {
 
     const preferences = new Preferences(obj, labelerDefs);
     const post = {
-      labels: [{ src: "did:labeler1", val: "nudity" }],
+      labels: [{ src: "did:labeler1", val: "nudity_custom" }],
     };
     const result = preferences.getMediaLabel(post);
 
     assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "nudity");
+    assertEquals(result.labelDefinition.identifier, "nudity_custom");
   });
 
   it("should ignore content labels (blurs: content)", () => {
@@ -1968,12 +1968,12 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
   });
 
   it("should allow user to change self-label visibility", () => {
-    // User sets porn to "warn" instead of default "hide"
+    // User sets porn to "warn" instead of default "hide" on the global labeler
     const obj = [
       {
         $type: "app.bsky.actor.defs#contentLabelPref",
         label: "porn",
-        labelerDid: "did:plc:author123",
+        labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
         visibility: "warn",
       },
     ];
@@ -2218,7 +2218,7 @@ t.describe(
         {
           $type: "app.bsky.actor.defs#contentLabelPref",
           label: "porn",
-          labelerDid: "did:plc:author123",
+          labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
           visibility: "warn",
         },
         {

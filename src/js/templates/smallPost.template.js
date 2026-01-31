@@ -35,6 +35,7 @@ export function smallPostTemplate({
   enableFeedFeedback = false,
   hideMutedAccount = false,
   overrideMutedWords = false,
+  showReplyToLabel = false,
   replyToAuthor = null,
   lazyLoadImages = false,
 }) {
@@ -51,6 +52,7 @@ export function smallPostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const postText = post.record.text?.trimEnd() || "";
   const content = html`
     <div
       class="post small-post clickable"
@@ -93,16 +95,19 @@ export function smallPostTemplate({
           ${post.viewer?.badgeLabels
             ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
             : ""}
-          ${replyToAuthor
+          ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied to ${getDisplayName(replyToAuthor)}
+                ⤷ Replied
+                ${replyToAuthor
+                  ? html`to ${getDisplayName(replyToAuthor)}`
+                  : ""}
               </div>`
             : ""}
           <div class="post-body">
-            ${post.record.text
+            ${postText.length > 0
               ? html`<div class="post-text">
                   ${richTextTemplate({
-                    text: post.record.text.trimEnd(),
+                    text: postText,
                     facets: post.record.facets,
                   })}
                 </div>`
@@ -143,6 +148,8 @@ export function smallPostTemplate({
               onClickDelete: (post) => {
                 postInteractionHandler.handleDeletePost(post);
               },
+              onClickReport: (post) =>
+                postInteractionHandler.handleReport(post),
               enableFeedFeedback,
             })}
           </div>

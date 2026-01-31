@@ -19,6 +19,7 @@ class HomeView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -90,17 +91,11 @@ class HomeView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },
     );
-
-    function isVisible(element) {
-      return (
-        element.getBoundingClientRect().top < window.innerHeight &&
-        element.getBoundingClientRect().bottom > 0
-      );
-    }
 
     async function handleShowLess(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowLessInteraction(
@@ -110,15 +105,13 @@ class HomeView extends View {
       );
       // Render optimistic update
       renderPage();
-      // Scroll to last feed feedback message
-      // const lastFeedFeedbackMessageElement = [
-      //   ...document.querySelectorAll(".feed-feedback-message"),
-      // ].pop();
-      // if (lastFeedFeedbackMessageElement) {
-      //   if (!isVisible(lastFeedFeedbackMessageElement)) {
-      //     window.scrollTo(0, lastFeedFeedbackMessageElement.offsetTop);
-      //   }
-      // }
+      // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
+      const feedFeedbackMessageElement = document.querySelector(
+        `.feed-feedback-message[data-post-uri="${post.uri}"]`,
+      );
+      if (feedFeedbackMessageElement) {
+        feedFeedbackMessageElement.scrollIntoView();
+      }
     }
 
     async function handleShowMore(post, feedContext, feedGenerator) {

@@ -16,6 +16,7 @@ import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
+import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import {
   linkToPostLikes,
   linkToPostQuotes,
@@ -100,6 +101,7 @@ export function largePostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const postText = post.record.text?.trimEnd() || "";
   let content = html`
       <div class="post-content">
         <div class="post-content-top">
@@ -127,10 +129,10 @@ export function largePostTemplate({
         <div class="post-content-bottom">
           <div class="post-body">
             ${
-              post.record.text
+              postText.length > 0
                 ? html`<div class="post-text">
                     ${richTextTemplate({
-                      text: post.record.text.trimEnd(),
+                      text: postText,
                       facets: post.record.facets,
                     })}
                   </div>`
@@ -182,6 +184,8 @@ export function largePostTemplate({
                   afterDelete(post);
                 }
               },
+              onClickReport: (post) =>
+                postInteractionHandler.handleReport(post),
             })}
             </div>
           </div>
@@ -192,12 +196,12 @@ export function largePostTemplate({
   const contentLabel = post.viewer?.contentLabel;
   if (contentLabel && contentLabel.visibility !== "ignore") {
     // TODO: hide hidden posts completely?
-    const { name: labelName } = getLabelNameAndDescription(
-      contentLabel.labelDefinition,
-    );
-    content = html`<moderation-warning label="${labelName}"
-      >${content}</moderation-warning
-    > `;
+    content = moderationWarningTemplate({
+      post,
+      labelDefinition: contentLabel.labelDefinition,
+      labeler: contentLabel.labeler,
+      children: content,
+    });
   } else if (post.viewer?.hasMutedWord) {
     content = html`<moderation-warning label="Post hidden by muted word"
       >${content}</moderation-warning

@@ -1,5 +1,4 @@
 import { unique } from "/js/utils.js";
-import { GLOBAL_LABELS } from "/js/config.js";
 
 export function avatarThumbnailUrl(avatarUrl) {
   if (!avatarUrl) {
@@ -132,7 +131,7 @@ export function getReplyPosts(postThread) {
 
 export function getReplyRootFromPost(post) {
   // If the post is not a reply, return the post itself
-  return post.record.reply?.root ?? { uri: post.uri, cid: post.cid };
+  return post.record?.reply?.root ?? { uri: post.uri, cid: post.cid };
 }
 
 export function getNestedReplyPosts(postThread) {
@@ -274,28 +273,16 @@ export function getPostUrisFromNotifications(notifications) {
       }
     } else if (notification.reason === "subscribed-post") {
       postUris.push(notification.uri);
+    } else if (
+      notification.reason === "like-via-repost" ||
+      notification.reason === "repost-via-repost"
+    ) {
+      // Note, this is a post uri, not a repost uri.
+      // That way, if we delete the repost, the post will still be available to display / navigate to.
+      postUris.push(notification.record.subject.uri);
     }
   }
   return unique(postUris);
-}
-
-export function getRepostUrisFromNotifications(notifications) {
-  const repostUris = [];
-  for (const notification of notifications) {
-    if (notification.reason === "like-via-repost") {
-      repostUris.push(notification.reasonSubject);
-    }
-    if (notification.reason === "repost-via-repost") {
-      repostUris.push(notification.reasonSubject);
-    }
-  }
-  return unique(repostUris);
-}
-
-export function getPostAndRepostUrisFromNotifications(notifications) {
-  const postUris = getPostUrisFromNotifications(notifications);
-  const repostUris = getRepostUrisFromNotifications(notifications);
-  return { postUris, repostUris };
 }
 
 export function getPostUriFromRepost(repost) {
@@ -422,6 +409,121 @@ export function getDefaultLabelSetting(labelDefinition) {
   return defaultSetting;
 }
 
+// https://docs.bsky.app/docs/advanced-guides/moderation
+export const GLOBAL_LABELS = [
+  {
+    identifier: "!hide",
+    configurable: false,
+    defaultSetting: "hide",
+    blurs: "content",
+    severity: "alert",
+    locales: [
+      {
+        lang: "en",
+        name: "Content Hidden",
+        description: "This content has been hidden by the moderators.",
+      },
+    ],
+  },
+  {
+    identifier: "!warn",
+    configurable: false,
+    defaultSetting: "warn",
+    blurs: "content",
+    severity: "alert",
+    locales: [
+      {
+        lang: "en",
+        name: "Content Warning",
+        description:
+          "This content has received a general warning from moderators.",
+      },
+    ],
+  },
+  // Self-label values (users can apply to their own content)
+  {
+    identifier: "porn",
+    configurable: true,
+    defaultSetting: "hide",
+    blurs: "media",
+    severity: "none",
+    adultOnly: true,
+    locales: [
+      {
+        lang: "en",
+        name: "Adult Content",
+        description: "Explicit sexual images.",
+      },
+    ],
+  },
+  {
+    identifier: "sexual",
+    configurable: true,
+    defaultSetting: "warn",
+    blurs: "media",
+    severity: "none",
+    adultOnly: true,
+    locales: [
+      {
+        lang: "en",
+        name: "Sexually Suggestive",
+        description: "Does not include nudity.",
+      },
+    ],
+  },
+  {
+    identifier: "nudity",
+    configurable: true,
+    defaultSetting: "ignore",
+    blurs: "media",
+    severity: "none",
+    locales: [
+      {
+        lang: "en",
+        name: "Non-sexual Nudity",
+        description: "E.g. artistic nudes.",
+      },
+    ],
+  },
+  {
+    identifier: "graphic-media",
+    configurable: true,
+    defaultSetting: "warn",
+    blurs: "media",
+    severity: "none",
+    locales: [
+      {
+        lang: "en",
+        name: "Graphic Media",
+        description: "Explicit or potentially disturbing media.",
+      },
+    ],
+  },
+  // Legacy label (maps to graphic-media)
+  {
+    identifier: "gore",
+    configurable: true,
+    defaultSetting: "warn",
+    blurs: "media",
+    severity: "none",
+    locales: [
+      {
+        lang: "en",
+        name: "Graphic Media",
+        description: "Explicit or potentially disturbing media.",
+      },
+    ],
+  },
+];
+
 export function getGlobalLabelDefinition(labelValue) {
   return GLOBAL_LABELS.find((label) => label.identifier === labelValue) ?? null;
+}
+
+export function isGlobalLabel(labelValue) {
+  return GLOBAL_LABELS.some((label) => label.identifier === labelValue);
+}
+
+export function isPinnedPost(feedItem) {
+  return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
 }

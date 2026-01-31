@@ -88,7 +88,13 @@ function filterReposts(feed) {
 }
 
 function filterReplies(feed) {
-  const filteredFeedItems = feed.feed.filter((item) => !item.reply);
+  const filteredFeedItems = feed.feed.filter((item) => {
+    // Allow reposts to be replies
+    if (isRepost(item)) {
+      return true;
+    }
+    return !item.reply;
+  });
   return {
     feed: filteredFeedItems,
     cursor: feed.cursor,
@@ -96,9 +102,13 @@ function filterReplies(feed) {
 }
 
 function filterQuotePosts(feed) {
-  const filteredFeedItems = feed.feed.filter(
-    (item) => !getQuotedPost(item.post),
-  );
+  const filteredFeedItems = feed.feed.filter((item) => {
+    // Allow reposts to be quoted posts
+    if (isRepost(item)) {
+      return true;
+    }
+    return !getQuotedPost(item.post);
+  });
   return {
     feed: filteredFeedItems,
     cursor: feed.cursor,

@@ -839,4 +839,23 @@ export class Api {
     });
     return res.data.blob;
   }
+
+  async createModerationReport({ reasonType, reason, subject, labelerDid }) {
+    const body = {
+      reasonType,
+      subject,
+    };
+    // Reason is optional
+    if (reason) {
+      body.reason = reason;
+    }
+    const res = await this.request("com.atproto.moderation.createReport", {
+      method: "POST",
+      body,
+      headers: {
+        "atproto-proxy": `${labelerDid}#atproto_labeler`,
+      },
+    });
+    return res.data;
+  }
 }

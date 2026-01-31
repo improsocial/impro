@@ -47,6 +47,7 @@
       import { NotificationService } from "/js/notificationService.js";
       import { ChatNotificationService } from "/js/chatNotificationService.js";
       import { PostComposerService } from "/js/postComposerService.js";
+      import { ReportService } from "/js/reportService.js";
       import { hapticsImpactLight } from "/js/haptics.js";
       import { isNative, wait } from "/js/utils.js";
       import {
@@ -75,6 +76,8 @@
       const session = await auth.getSession();
       const api = new Api(session ?? null);
       const dataLayer = new DataLayer(api);
+      // put dataLayer on window for easy access in dev tools
+      window.dataLayer = dataLayer;
       const identityResolver = new IdentityResolver();
       const notificationService = session ? new NotificationService(api) : null;
       const chatNotificationService = session
@@ -83,6 +86,7 @@
       const postComposerService = session
         ? new PostComposerService(dataLayer, identityResolver)
         : null;
+      const reportService = session ? new ReportService(dataLayer) : null;
 
       // Precache author DIDs when data is set in the data store.
       // This will save us from needing to resolve handles when navigating between pages.
@@ -122,11 +126,10 @@
             !window.location.pathname.includes("notifications")
           ) {
             const loadedNotifications = dataLayer.selectors.getNotifications();
-            // Only preload if there are no notifications loaded, or if the previously (pre)loaded notifications were not read.
-            if (
-              !loadedNotifications ||
-              loadedNotifications.some((notification) => !notification.isRead)
-            ) {
+            const { loading: notificationsLoading } =
+              dataLayer.requests.getStatus("loadNotifications");
+            // Only preload if there are no notifications loaded
+            if (!loadedNotifications && !notificationsLoading) {
               dataLayer.requests.loadNotifications({
                 limit: NOTIFICATIONS_PAGE_SIZE,
                 reload: true,
@@ -148,6 +151,7 @@
         notificationService,
         chatNotificationService,
         postComposerService,
+        reportService,
       };
 
       const router = new Router();

@@ -3,10 +3,9 @@ import {
   flattenParents,
   replaceTopParent,
   getBlockedQuote,
-  getPostUrisFromReposts,
   isBlockingUser,
   createUnavailablePost,
-  getPostAndRepostUrisFromNotifications,
+  getPostUrisFromNotifications,
   buildUri,
 } from "/js/dataHelpers.js";
 import { getLinks } from "/js/constellation.js";
@@ -299,9 +298,9 @@ export class Requests {
     if (searchResults.length > 0) {
       // If there are posts that are replies, load the parents
       const replyPosts = searchResults.filter((post) => post.record?.reply);
-      const replyParentUris = replyPosts.map(
-        (post) => post.record?.reply?.parent?.uri,
-      );
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
       const parentPosts = await this.api.getPosts(replyParentUris);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
@@ -380,31 +379,26 @@ export class Requests {
     }
     const res = await this.api.getNotifications({ cursor, limit });
     // Get associated posts
-    const { postUris, repostUris } = getPostAndRepostUrisFromNotifications(
-      res.notifications,
-    );
+    const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris);
       this.dataStore.setPosts(fetchedPosts);
     }
-    if (repostUris.length > 0) {
-      const fetchedReposts = await this.api.getReposts(repostUris);
-      this.dataStore.setReposts(fetchedReposts);
-      // Also fetch the posts for the reposts
-      const repostPostUris = getPostUrisFromReposts(fetchedReposts);
-      if (repostPostUris.length > 0) {
-        const fetchedPosts = await this.api.getPosts(repostPostUris);
-        this.dataStore.setPosts(fetchedPosts);
-      }
-    }
     const previousCursor = this.dataStore.getNotificationCursor();
     // If the req cursor matches the previous cursor, append
-    if (previousCursor && previousCursor === cursor && !reload) {
-      const existingNotifications = this.dataStore.getNotifications() ?? [];
-      this.dataStore.setNotifications([
-        ...existingNotifications,
-        ...res.notifications,
-      ]);
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingNotifications = this.dataStore.getNotifications() ?? [];
+        this.dataStore.setNotifications([
+          ...existingNotifications,
+          ...res.notifications,
+        ]);
+      } else {
+        console.warn("cursor mismatch, discarding response", {
+          previousCursor,
+          cursor,
+        });
+      }
     } else {
       this.dataStore.setNotifications(res.notifications);
     }
@@ -423,9 +417,16 @@ export class Requests {
       this.dataStore.setConvo(convo.id, convo);
     }
     // If the req cursor matches the previous cursor, append
-    if (previousCursor && previousCursor === cursor && !reload) {
-      const existingConvos = this.dataStore.getConvoList() ?? [];
-      this.dataStore.setConvoList([...existingConvos, ...res.convos]);
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingConvos = this.dataStore.getConvoList() ?? [];
+        this.dataStore.setConvoList([...existingConvos, ...res.convos]);
+      } else {
+        console.warn("cursor mismatch, discarding response", {
+          previousCursor,
+          cursor,
+        });
+      }
     } else {
       this.dataStore.setConvoList(res.convos);
     }
@@ -496,9 +497,9 @@ export class Requests {
 
     // if there are posts that are replies, load the parents
     const replyPosts = res.posts.filter((post) => post.record?.reply);
-    const replyParentUris = replyPosts.map(
-      (post) => post.record?.reply?.parent?.uri,
-    );
+    const replyParentUris = replyPosts
+      .map((post) => post.record?.reply?.parent?.uri)
+      .filter(Boolean);
     const parentPosts = await this.api.getPosts(replyParentUris);
     // Save posts and parents
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
@@ -646,7 +647,13 @@ export class Requests {
 
     // Save posts to the store
     if (posts.length > 0) {
-      this.dataStore.setPosts(posts);
+      // If there are posts that are replies, load the parents
+      const replyPosts = posts.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
+      const parentPosts = await this.api.getPosts(replyParentUris);
+      this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);

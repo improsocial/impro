@@ -6,9 +6,10 @@ import {
   getLabelNameAndDescription,
   getGlobalLabelDefinition,
   getDefaultLabelSetting,
+  isGlobalLabel,
 } from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
-import { DISCOVER_FEED_URI } from "/js/config.js";
+import { DISCOVER_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
 
 function getContentTextFromEmbed(embed) {
@@ -215,7 +216,7 @@ export class Preferences {
     }
     const pref = this.getContentLabelPref({
       label: label.val,
-      labelerDid: label.src,
+      labelerDid: isGlobalLabel(label.val) ? BSKY_LABELER_DID : label.src,
     });
     return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
   }

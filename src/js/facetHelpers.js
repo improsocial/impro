@@ -93,20 +93,22 @@ function getUnresolvedMentions(text) {
 
 async function resolveMentions(mentions, identityResolver) {
   const resolvedMentions = [];
-  for (const mention of mentions) {
-    let did = null;
-    try {
-      did = await identityResolver.resolveHandle(mention.features[0].handle);
-    } catch (error) {
-      // if we can't resolve the mention, just leave it out
-    }
-    if (did) {
-      resolvedMentions.push({
-        ...mention,
-        features: [{ $type: "app.bsky.richtext.facet#mention", did }],
-      });
-    }
-  }
+  await Promise.all(
+    mentions.map(async (mention) => {
+      let did = null;
+      try {
+        did = await identityResolver.resolveHandle(mention.features[0].handle);
+      } catch (error) {
+        // if we can't resolve the mention, just leave it out
+      }
+      if (did) {
+        resolvedMentions.push({
+          ...mention,
+          features: [{ $type: "app.bsky.richtext.facet#mention", did }],
+        });
+      }
+    }),
+  );
   return resolvedMentions;
 }
 

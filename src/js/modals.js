@@ -10,7 +10,7 @@ export async function showSignInModal() {
     render(
       html`
         <div class="modal-dialog-content">
-          <h2 class="modal-dialog-title modal-dialog-title-large">Impro</h2>
+          <h2 class="modal-dialog-title modal-dialog-title-large">Sign in</h2>
           <p class="modal-dialog-message">Sign in to join the conversation!</p>
           <a
             href="/login"
@@ -19,7 +19,7 @@ export async function showSignInModal() {
               signInModal.close();
             }}
           >
-            Sign In
+            Okay
           </a>
         </div>
       `,

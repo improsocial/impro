@@ -186,6 +186,7 @@ export class OAuth {
     let authUrl = null;
     try {
       authUrl = await client.getAuthorizationUrl(handle, {
+        scope: window.env.oauthScopes,
         state: { loopback: isDev() },
       });
     } catch (error) {

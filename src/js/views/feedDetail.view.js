@@ -21,6 +21,7 @@ class FeedDetailView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
     },
   }) {
     await requireAuth();
@@ -38,6 +39,7 @@ class FeedDetailView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

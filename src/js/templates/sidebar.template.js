@@ -111,6 +111,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       >
         About
       </button>
+      <div class="sidebar-spacer"></div>
       <div class="sidebar-footer">
         <a href="/tos.html" class="sidebar-text-link" data-external="true"
           >Terms</a
@@ -262,11 +263,12 @@ export function sidebarTemplate({
             ${editIconTemplate()} <span>New Post</span>
           </button>`
         : ""}
+      <div class="sidebar-spacer"></div>
       <div class="sidebar-footer">
         <a
           href="https://github.com/improsocial/impro/issues"
           class="sidebar-text-link"
-          >Report a bug
+          >Bug report
         </a>
       </div>
     </animated-sidebar>

@@ -1,4 +1,4 @@
-import { parseUri, createNotFoundPost } from "/js/dataHelpers.js";
+import { parseUri, createNotFoundPost, isPinnedPost } from "/js/dataHelpers.js";
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 
@@ -504,8 +504,20 @@ export class Mutations {
     const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
     const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
     if (authorFeed) {
+      // If there's a pinned post, insert the new post after it
+      const newFeed = [];
+      const pinnedPost = authorFeed.feed.find((feedItem) =>
+        isPinnedPost(feedItem),
+      );
+      if (pinnedPost) {
+        newFeed.push(pinnedPost);
+      }
+      newFeed.push({ post });
+      newFeed.push(
+        ...authorFeed.feed.filter((feedItem) => !isPinnedPost(feedItem)),
+      );
       this.dataStore.setAuthorFeed(authorFeedURI, {
-        feed: [{ post }, ...authorFeed.feed],
+        feed: newFeed,
         cursor: authorFeed.cursor,
       });
     }

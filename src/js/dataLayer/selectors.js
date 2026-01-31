@@ -81,12 +81,10 @@ export class Selectors {
           parent = this.getPost(parent.uri, { required: true });
         }
         const hydratedReply = {
+          ...reply,
           root,
           parent,
         };
-        if (reply.grandparentAuthor) {
-          hydratedReply.grandparentAuthor = reply.grandparentAuthor;
-        }
         hydratedFeedItem.reply = hydratedReply;
       }
       hydratedFeedItems.push(hydratedFeedItem);
@@ -212,20 +210,20 @@ export class Selectors {
       let post = this.getPost(result.uri);
       // If it's a reply, add the parent author to the record
       if (post.record?.reply) {
-        const parentPost = this.getPost(post.record.reply.parent.uri, {
-          required: true,
-        });
-        post = {
-          ...post,
-          record: {
-            ...post.record,
-            reply: {
-              ...post.record.reply,
-              // NOTE: LEXICON DEVIATION
-              parentAuthor: parentPost.author,
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
             },
-          },
-        };
+          };
+        }
       }
       hydratedSearchResults.push(post);
     }
@@ -252,6 +250,7 @@ export class Selectors {
       // app.bsky.feed.defs#reasonRepost
       if (feedItem.reply) {
         hydratedFeedItem.reply = {
+          ...feedItem.reply,
           root: this.getPost(feedItem.reply.root.uri),
           parent: this.getPost(feedItem.reply.parent.uri),
         };
@@ -308,11 +307,9 @@ export class Selectors {
         notification.reason === "like-via-repost" ||
         notification.reason === "repost-via-repost"
       ) {
-        const repost = this.dataStore.getRepost(notification.reasonSubject);
+        const postUri = notification.record.subject.uri;
         // If it was not found, create an unavailable post.
-        const subject = repost
-          ? this.getPost(getPostUriFromRepost(repost))
-          : createUnavailablePost("no-uri");
+        const subject = this.getPost(postUri) ?? createUnavailablePost(postUri);
         return {
           ...notification,
           subject,
@@ -330,6 +327,14 @@ export class Selectors {
           ...notification,
           post: replyPost,
           parentPost,
+        };
+      }
+      if (notification.reason === "subscribed-post") {
+        const post = this.getPost(notification.uri);
+        return {
+          ...notification,
+          // NOTE: LEXICON DEVIATION
+          reasonSubject: post,
         };
       }
       return notification;
@@ -417,22 +422,22 @@ export class Selectors {
     const hydratedPosts = [];
     for (const quote of quotes.posts) {
       let post = this.getPost(quote.uri, { required: true });
-      // also add the parent post if it exists
+      // also add the parent author if it exists
       if (post.record?.reply?.parent) {
-        const parentPost = this.getPost(post.record.reply.parent.uri, {
-          required: true,
-        });
-        post = {
-          ...post,
-          record: {
-            ...post.record,
-            reply: {
-              ...post.record.reply,
-              // NOTE: LEXICON DEVIATION
-              parentAuthor: parentPost.author,
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
             },
-          },
-        };
+          };
+        }
       }
       hydratedPosts.push(post);
     }
@@ -498,8 +503,26 @@ export class Selectors {
     }
     const hydratedBookmarksFeed = [];
     for (const bookmark of bookmarks.feed) {
+      let post = this.getPost(bookmark.post.uri);
+      // If it's a reply, add the parent author to the record
+      if (post?.record?.reply?.parent) {
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
+            },
+          };
+        }
+      }
       hydratedBookmarksFeed.push({
-        post: this.getPost(bookmark.post.uri),
+        post,
       });
     }
     return {
@@ -610,9 +633,14 @@ export class Selectors {
       post.viewer.mediaLabel = mediaLabel;
     }
 
-    // Also mark quoted posts (content and media labels only, not badges)
+    // Also mark quoted posts
     const quotedPost = getQuotedPost(post);
     if (quotedPost) {
+      const quotedBadgeLabels = preferences.getBadgeLabels(quotedPost);
+      if (quotedBadgeLabels.length > 0) {
+        // NOTE: LEXICON DEVIATION
+        quotedPost.badgeLabels = quotedBadgeLabels;
+      }
       const quotedContentLabel = preferences.getContentLabel(quotedPost);
       if (quotedContentLabel) {
         // NOTE: LEXICON DEVIATION
@@ -626,6 +654,11 @@ export class Selectors {
       // Also check for nested quoted posts
       const nestedQuotedPost = getQuotedPost(quotedPost);
       if (nestedQuotedPost) {
+        const nestedBadgeLabels = preferences.getBadgeLabels(nestedQuotedPost);
+        if (nestedBadgeLabels.length > 0) {
+          // NOTE: LEXICON DEVIATION
+          nestedQuotedPost.badgeLabels = nestedBadgeLabels;
+        }
         const nestedContentLabel =
           preferences.getContentLabel(nestedQuotedPost);
         if (nestedContentLabel) {

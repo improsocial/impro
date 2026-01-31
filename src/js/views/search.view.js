@@ -18,6 +18,7 @@ class SearchView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -68,6 +69,7 @@ class SearchView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },
@@ -134,6 +136,7 @@ class SearchView extends View {
             html`<div class="feed-item" data-post-uri="${post.uri}">
               ${smallPostTemplate({
                 post,
+                showReplyToLabel: !!post.record?.reply,
                 replyToAuthor: post.record?.reply?.parentAuthor ?? null,
                 isUserPost: currentUser?.did === post.author?.did,
                 postInteractionHandler,

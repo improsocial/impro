@@ -15,6 +15,7 @@ class BookmarksView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
     },
   }) {
     await requireAuth();
@@ -22,6 +23,7 @@ class BookmarksView extends View {
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },

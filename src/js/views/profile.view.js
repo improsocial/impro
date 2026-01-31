@@ -26,6 +26,7 @@ class ProfileView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      reportService,
       isAuthenticated,
     },
   }) {
@@ -65,13 +66,18 @@ class ProfileView extends View {
       profileDid = await identityResolver.resolveHandle(handleOrDid);
     }
 
-    const profileInteractionHandler = new ProfileInteractionHandler(dataLayer, {
-      renderFunc: () => renderPage(),
-    });
+    const profileInteractionHandler = new ProfileInteractionHandler(
+      dataLayer,
+      reportService,
+      {
+        renderFunc: () => renderPage(),
+      },
+    );
 
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
+      reportService,
       {
         renderFunc: () => renderPage(),
       },
@@ -239,6 +245,8 @@ class ProfileView extends View {
                   doSubscribe,
                   labelerInfo,
                 ),
+              onClickReport: (profile) =>
+                profileInteractionHandler.handleReport(profile),
             })}
             ${isBlocked
               ? html`<div class="feed">
