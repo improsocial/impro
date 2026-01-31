@@ -5554,18 +5554,19 @@ moderation-warning .toggle-content {
   flex-shrink: 0;
 }
 
-.report-step-indicator.active {
+.report-step-indicator.active,
+.report-step-indicator.completed {
   background-color: var(--highlight-color);
   color: var(--white);
 }
 
-.report-step-indicator.completed {
-  background-color: var(--green);
-  color: var(--white);
+.report-step-indicator .check-icon {
+  width: 16px;
+  height: 16px;
 }
 
-.report-step-indicator .checkmark {
-  font-size: 16px;
+.check-icon path {
+  stroke-width: 3.2;
 }
 
 .report-step-title {
