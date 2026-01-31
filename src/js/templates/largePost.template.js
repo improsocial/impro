@@ -5,7 +5,6 @@ import {
   isNotFoundPost,
   isUnavailablePost,
   doHideAuthorOnUnauthenticated,
-  getLabelNameAndDescription,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -87,6 +86,7 @@ export function largePostTemplate({
   onClickReply = noop,
   replyContext,
   afterDelete = null,
+  afterHide = null,
 }) {
   if (isBlockedPost(post)) {
     return blockedPostTemplate();
@@ -172,8 +172,12 @@ export function largePostTemplate({
                 postInteractionHandler.handleQuotePost(post),
               onClickBookmark: (post, doBookmark) =>
                 postInteractionHandler.handleBookmark(post, doBookmark),
-              onClickHidePost: (post) =>
-                postInteractionHandler.handleHidePost(post),
+              onClickHidePost: async (post) => {
+                await postInteractionHandler.handleHidePost(post);
+                if (afterHide) {
+                  afterHide(post);
+                }
+              },
               onClickMute: (profile, doMute) =>
                 postInteractionHandler.handleMuteAuthor(profile, doMute),
               onClickBlock: (profile, doBlock) =>
