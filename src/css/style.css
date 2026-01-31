@@ -1089,8 +1089,8 @@ body.scroll-locked header {
 }
 
 .sidebar-nav-icon .status-badge {
-  top: 3px;
-  left: 13px;
+  top: 0;
+  left: 12px;
 }
 
 .sidebar-nav-label {
@@ -1282,7 +1282,7 @@ body.scroll-locked header {
 }
 
 .footer-nav-item .status-badge {
-  top: 11px;
+  top: 10px;
   left: 27px;
 }
 
@@ -1328,7 +1328,8 @@ body.scroll-locked header {
   align-items: center;
   justify-content: center;
   padding: 1px 4px;
-  min-width: 17px;
+  min-width: 20px;
+  border: 1px solid var(--white);
 }
 
 .feed {
