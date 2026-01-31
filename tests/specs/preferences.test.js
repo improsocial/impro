@@ -1258,7 +1258,8 @@ t.describe("Preferences.getBadgeLabels", (it) => {
     const result = preferences.getBadgeLabels(post);
 
     assertEquals(result.length, 1);
-    assertEquals(result[0].displayName, "Verified");
+    assertEquals(result[0].labelDefinition.identifier, "verified");
+    assertEquals(result[0].labeler.creator.did, "did:labeler1");
   });
 
   it("should not return content labels as badges", () => {

@@ -264,9 +264,9 @@ export class Preferences {
       if (!labeler) continue;
       const labelDefinition = getDefinitionForLabel(label, labeler);
       if (!labelDefinition || !isBadgeLabel(labelDefinition)) continue;
-      const { name: displayName } = getLabelNameAndDescription(labelDefinition);
       badgeLabels.push({
-        displayName,
+        label,
+        labelDefinition,
         labeler,
       });
     }

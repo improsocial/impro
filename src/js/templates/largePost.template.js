@@ -102,6 +102,12 @@ export function largePostTemplate({
     return unavailablePostTemplate();
   }
   const postText = post.record.text?.trimEnd() || "";
+  const badgeLabels = post.viewer?.badgeLabels ?? [];
+  const contentLabel = post.viewer?.contentLabel;
+  // Instead of hiding, add the content label to the badge labels
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    badgeLabels.push(contentLabel);
+  }
   let content = html`
       <div class="post-content">
         <div class="post-content-top">
@@ -197,16 +203,7 @@ export function largePostTemplate({
       </div>
     `;
 
-  const contentLabel = post.viewer?.contentLabel;
-  if (contentLabel && contentLabel.visibility !== "ignore") {
-    // TODO: hide hidden posts completely?
-    content = moderationWarningTemplate({
-      post,
-      labelDefinition: contentLabel.labelDefinition,
-      labeler: contentLabel.labeler,
-      children: content,
-    });
-  } else if (post.viewer?.hasMutedWord) {
+  if (post.viewer?.hasMutedWord) {
     content = html`<moderation-warning label="Post hidden by muted word"
       >${content}</moderation-warning
     > `;
