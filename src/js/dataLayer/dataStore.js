@@ -13,7 +13,9 @@ export class DataStore extends EventEmitter {
     this.profiles = new Map();
     this.authorFeeds = new Map();
     this.profileSearchResults = null;
+    this.latestProfileSearchRequestTime = null;
     this.postSearchResults = null;
+    this.latestPostSearchRequestTime = null;
     this.showLessInteractions = [];
     this.showMoreInteractions = [];
     this.notifications = null;
@@ -163,6 +165,14 @@ export class DataStore extends EventEmitter {
     this.profileSearchResults = null;
   }
 
+  getLatestProfileSearchRequestTime() {
+    return this.latestProfileSearchRequestTime;
+  }
+
+  setLatestProfileSearchRequestTime(requestTime) {
+    this.latestProfileSearchRequestTime = requestTime;
+  }
+
   hasPostSearchResults() {
     return this.postSearchResults !== null;
   }
@@ -177,6 +187,14 @@ export class DataStore extends EventEmitter {
 
   clearPostSearchResults() {
     this.postSearchResults = null;
+  }
+
+  getLatestPostSearchRequestTime() {
+    return this.latestPostSearchRequestTime;
+  }
+
+  setLatestPostSearchRequestTime(requestTime) {
+    this.latestPostSearchRequestTime = requestTime;
   }
 
   hasAuthorFeed(feedURI) {

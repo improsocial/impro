@@ -43,7 +43,7 @@ class SearchView extends View {
 
       requests.push(
         dataLayer.requests.loadProfileSearch(normalizedQuery, {
-          limit: 10,
+          limit: 25,
         }),
       );
 
