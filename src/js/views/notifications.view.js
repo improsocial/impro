@@ -12,7 +12,11 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { getImagesFromPost, isUnavailablePost } from "/js/dataHelpers.js";
+import {
+  getImagesFromPost,
+  getVideoFromPost,
+  isUnavailablePost,
+} from "/js/dataHelpers.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
@@ -46,11 +50,11 @@ class NotificationsView extends View {
           ? post.record.text
           : null;
 
-      // Get images from the post embed
       const images = getImagesFromPost(post);
+      const video = getVideoFromPost(post);
 
-      if (postPreview === null && images.length === 0) {
-        return "";
+      if (postPreview === null && images.length === 0 && video === null) {
+        return null;
       }
 
       return html`
@@ -72,6 +76,14 @@ class NotificationsView extends View {
                         />
                       `,
                     )}
+                </div>
+              `
+            : ""}
+          ${video
+            ? html`
+                <div class="notification-preview-video">
+                  <img src="${video.thumbnail}" alt="${video.alt || ""}" />
+                  <div class="video-preview-play-button"></div>
                 </div>
               `
             : ""}

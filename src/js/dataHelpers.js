@@ -305,6 +305,18 @@ export function getImagesFromPost(post) {
   return [];
 }
 
+export function getVideoFromPost(post) {
+  if (post?.embed?.$type === "app.bsky.embed.video#view") {
+    return post.embed;
+  }
+  if (post?.embed?.$type === "app.bsky.embed.recordWithMedia#view") {
+    if (post.embed.media?.$type === "app.bsky.embed.video#view") {
+      return post.embed.media;
+    }
+  }
+  return null;
+}
+
 export function getDisplayName(profile) {
   if (profile.displayName) {
     return profile.displayName;

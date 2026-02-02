@@ -2709,6 +2709,49 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   border: var(--hair) solid var(--post-border-color);
 }
 
+.notification-preview-video {
+  position: relative;
+  display: inline-block;
+  height: 100px;
+  aspect-ratio: 1;
+  margin-top: 8px;
+}
+
+.notification-preview-video:first-child {
+  margin-top: 0;
+}
+
+.notification-preview-video img {
+  height: 100%;
+  width: 100%;
+  object-fit: cover;
+  border-radius: var(--square-button-radius);
+  background-color: var(--generic-border-color);
+  border: var(--hair) solid var(--post-border-color);
+}
+
+.notification-preview-video .video-preview-play-button {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 32px;
+  height: 32px;
+  background-color: rgba(0, 0, 0, 0.6);
+  border-radius: 50%;
+}
+
+.notification-preview-video .video-preview-play-button::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 55%;
+  transform: translate(-50%, -50%);
+  border-style: solid;
+  border-width: 6px 0 6px 10px;
+  border-color: transparent transparent transparent white;
+}
+
 .notification-reply-wrapper {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
