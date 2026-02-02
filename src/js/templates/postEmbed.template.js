@@ -82,7 +82,11 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
     return html`<div class="quoted-post">Post not found</div>`;
   }
   // only supports one embed for now
-  const embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
+  let embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
+  // if the nested embed is a recordWithMedia, just show the media and not the quoted post
+  if (embed?.$type === "app.bsky.embed.recordWithMedia#view") {
+    embed = embed.media;
+  }
   // Mute if necessary.
   let isMuted = false;
   let mutedLabel = null;
