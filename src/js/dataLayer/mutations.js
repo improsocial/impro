@@ -179,6 +179,14 @@ export class Mutations {
         viewer: { ...post.viewer, bookmarked: true },
         bookmarkCount: post.bookmarkCount + 1,
       });
+      // If the bookmarks feed is loaded, add the post to it.
+      const bookmarks = this.dataStore.getBookmarks();
+      if (bookmarks) {
+        this.dataStore.setBookmarks({
+          feed: [{ post: { ...post } }, ...bookmarks.feed],
+          cursor: bookmarks.cursor,
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -201,6 +209,14 @@ export class Mutations {
         viewer: { ...post.viewer, bookmarked: false },
         bookmarkCount: post.bookmarkCount - 1,
       });
+      // If the bookmarks feed is loaded, remove the post from it.
+      const bookmarks = this.dataStore.getBookmarks();
+      if (bookmarks) {
+        this.dataStore.setBookmarks({
+          feed: bookmarks.feed.filter((item) => item.post?.uri !== post.uri),
+          cursor: bookmarks.cursor,
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
