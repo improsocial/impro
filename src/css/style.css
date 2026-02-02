@@ -1475,6 +1475,7 @@ body.scroll-locked header {
   text-overflow: ellipsis;
   white-space: nowrap;
   font-weight: bold;
+  line-height: 1.2em;
 }
 
 .post-username {
