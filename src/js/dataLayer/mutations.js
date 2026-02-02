@@ -1,4 +1,8 @@
-import { parseUri, createNotFoundPost, isPinnedPost } from "/js/dataHelpers.js";
+import {
+  parseUri,
+  createNotFoundPost,
+  addFeedItemToFeed,
+} from "/js/dataHelpers.js";
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 
@@ -91,6 +95,28 @@ export class Mutations {
         viewer: { ...post.viewer, repost: repost.uri },
         repostCount: post.repostCount + 1,
       });
+      // If the current user's author feed is loaded, add the repost to it.
+      const currentUser = this.dataStore.getCurrentUser();
+      if (currentUser) {
+        const authorFeedURI = `${currentUser.did}-posts`;
+        const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+        if (authorFeed) {
+          const newFeedItem = {
+            post: post,
+            reason: {
+              $type: "app.bsky.feed.defs#reasonRepost",
+              by: currentUser,
+              uri: repost.uri,
+              cid: repost.cid,
+              indexedAt: new Date().toISOString(),
+            },
+          };
+          this.dataStore.setAuthorFeed(authorFeedURI, {
+            feed: addFeedItemToFeed(newFeedItem, authorFeed.feed),
+            cursor: authorFeed.cursor,
+          });
+        }
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -111,6 +137,26 @@ export class Mutations {
         viewer: { ...post.viewer, repost: null },
         repostCount: post.repostCount - 1,
       });
+      // If the current user's author feed is loaded, remove the repost from it.
+      const currentUser = this.dataStore.getCurrentUser();
+      if (currentUser) {
+        const authorFeedURI = `${currentUser.did}-posts`;
+        const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+        if (authorFeed) {
+          this.dataStore.setAuthorFeed(authorFeedURI, {
+            feed: authorFeed.feed.filter((feedItem) => {
+              if (
+                feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
+                feedItem.reason?.uri === post.viewer.repost
+              ) {
+                return false;
+              }
+              return true;
+            }),
+            cursor: authorFeed.cursor,
+          });
+        }
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -504,20 +550,8 @@ export class Mutations {
     const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
     const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
     if (authorFeed) {
-      // If there's a pinned post, insert the new post after it
-      const newFeed = [];
-      const pinnedPost = authorFeed.feed.find((feedItem) =>
-        isPinnedPost(feedItem),
-      );
-      if (pinnedPost) {
-        newFeed.push(pinnedPost);
-      }
-      newFeed.push({ post });
-      newFeed.push(
-        ...authorFeed.feed.filter((feedItem) => !isPinnedPost(feedItem)),
-      );
       this.dataStore.setAuthorFeed(authorFeedURI, {
-        feed: newFeed,
+        feed: addFeedItemToFeed({ post }, authorFeed.feed),
         cursor: authorFeed.cursor,
       });
     }

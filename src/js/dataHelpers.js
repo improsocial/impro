@@ -527,3 +527,15 @@ export function isGlobalLabel(labelValue) {
 export function isPinnedPost(feedItem) {
   return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
 }
+
+// Adds a feed item to the beginning of a feed, preserving pinned post position.
+export function addFeedItemToFeed(feedItem, feed) {
+  const newFeed = [];
+  const pinnedPost = feed.find((item) => isPinnedPost(item));
+  if (pinnedPost) {
+    newFeed.push(pinnedPost);
+  }
+  newFeed.push(feedItem);
+  newFeed.push(...feed.filter((item) => !isPinnedPost(item)));
+  return newFeed;
+}
