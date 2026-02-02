@@ -201,11 +201,18 @@ export class Preferences {
     return clone;
   }
 
-  getContentLabelPref({ label, labelerDid }) {
+  getContentLabelPref({ label, labelerDid = null }) {
     const contentLabelPrefs = Preferences.getContentLabelPreferences(this.obj);
-    const matchingPref = contentLabelPrefs.find(
-      (pref) => pref.label === label && pref.labelerDid === labelerDid,
-    );
+    const matchingPref = contentLabelPrefs.find((pref) => {
+      // Global label preferences have no labelerDid
+      if (labelerDid && pref.labelerDid !== labelerDid) {
+        return false;
+      }
+      if (pref.label !== label) {
+        return false;
+      }
+      return true;
+    });
     return matchingPref ?? null;
   }
 
@@ -216,7 +223,7 @@ export class Preferences {
     }
     const pref = this.getContentLabelPref({
       label: label.val,
-      labelerDid: isGlobalLabel(label.val) ? BSKY_LABELER_DID : label.src,
+      labelerDid: isGlobalLabel(label.val) ? null : label.src,
     });
     return pref?.visibility ?? getDefaultLabelSetting(labelDefinition);
   }
