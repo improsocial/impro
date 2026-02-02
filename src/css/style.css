@@ -106,6 +106,7 @@ html {
   --tag-border-radius: 4px;
   --list-avatar-border-radius: 4px;
   --icon-button-border-radius: 4px;
+  --feed-feedback-inner-border-radius: 6px;
   --text-input-border-radius: 6px;
   --moderation-warning-border-radius: 6px;
   --blocked-post-radius: 6px;
@@ -1370,9 +1371,17 @@ body.scroll-locked header {
 }
 
 .feed-feedback-message {
-  padding: 12px 16px;
-  background: light-dark(var(--lightest-gray), var(--mid-gray));
+  font-size: 13px;
   color: var(--text-color-muted);
+  padding: 8px;
+  background: light-dark(var(--lightest-gray), var(--mid-gray));
+}
+
+.feed-feedback-message-inner {
+  padding: 12px 16px;
+  background: var(--background-color);
+  border-radius: var(--feed-feedback-inner-border-radius);
+  border: var(--hair) solid var(--post-border-color);
 }
 
 .feed-loading-indicator {

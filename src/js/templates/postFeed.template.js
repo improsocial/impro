@@ -7,7 +7,9 @@ function feedFeedbackMessageTemplate({ post }) {
   // Attach post URI, we use it to maintain scroll position when feedback is sent
   return html`
     <div class="feed-feedback-message" data-post-uri="${post.uri}">
-      Your feedback has been sent to the feed operator.
+      <div class="feed-feedback-message-inner">
+        Your feedback has been sent to the feed operator.
+      </div>
     </div>
   `;
 }
