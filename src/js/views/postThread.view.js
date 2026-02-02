@@ -290,6 +290,10 @@ class PostThreadView extends View {
               post: postThread.post,
               isUserPost: currentUser?.did === postThread.post?.author?.did,
               postInteractionHandler,
+              afterHide: () => {
+                // if the main post is hidden, go back to the previous page
+                router.back();
+              },
               afterDelete: () => {
                 // if the main post is deleted, go back to the previous page
                 router.back();

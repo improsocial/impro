@@ -213,7 +213,7 @@ export function postActionBarTemplate({
                             onClickHidePost(post);
                           }}
                         >
-                          Hide post for me
+                          Hide ${post.record?.reply ? "reply" : "post"} for me
                         </context-menu-item>
                       </context-menu-item-group>
                     `

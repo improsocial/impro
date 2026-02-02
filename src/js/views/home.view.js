@@ -88,6 +88,16 @@ class HomeView extends View {
       sidebar.open();
     }
 
+    // When supported, replace with: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoViewIfNeeded
+    function scrollIntoViewIfNeeded(element) {
+      const isVisible =
+        element.getBoundingClientRect().top < window.innerHeight &&
+        element.getBoundingClientRect().bottom > 0;
+      if (!isVisible) {
+        element.scrollIntoView();
+      }
+    }
+
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
@@ -110,7 +120,7 @@ class HomeView extends View {
         `.feed-feedback-message[data-post-uri="${post.uri}"]`,
       );
       if (feedFeedbackMessageElement) {
-        feedFeedbackMessageElement.scrollIntoView();
+        scrollIntoViewIfNeeded(feedFeedbackMessageElement);
       }
     }
 

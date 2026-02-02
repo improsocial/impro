@@ -271,15 +271,21 @@ export class Requests {
   }
 
   async loadProfileSearch(query, { limit = 10 } = {}) {
-    const labelers = this.requireLabelers();
     if (!query) {
       this.dataStore.clearProfileSearchResults();
       return;
     }
+    const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    this.dataStore.setLatestProfileSearchRequestTime(requestTime);
     const searchResults = await this.api.searchProfiles(query, {
       limit,
       labelers,
     });
+    // Handle race conditions between requests
+    if (requestTime !== this.dataStore.getLatestProfileSearchRequestTime()) {
+      return;
+    }
     this.dataStore.setProfileSearchResults(searchResults);
   }
 
@@ -289,11 +295,16 @@ export class Requests {
       return;
     }
     const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    this.dataStore.setLatestPostSearchRequestTime(requestTime);
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
       labelers,
     });
+    if (requestTime !== this.dataStore.getLatestPostSearchRequestTime()) {
+      return;
+    }
     const searchResults = searchData.posts || [];
     if (searchResults.length > 0) {
       // If there are posts that are replies, load the parents

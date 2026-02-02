@@ -2,6 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
@@ -373,9 +374,7 @@ function stepTemplate({ stepIndex, currentStepIndex, title, renderStep }) {
               ? "completed"
               : ""}"
         >
-          ${isCompleted
-            ? html`<span class="checkmark">&#10003;</span>`
-            : stepIndex + 1}
+          ${isCompleted ? checkIconTemplate() : stepIndex + 1}
         </div>
         <div class="report-step-title ${isActive ? "active" : ""}">
           ${title}
