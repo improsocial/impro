@@ -144,20 +144,15 @@ class NotificationsView extends View {
       const displayCount = Math.min(notifications.length, maxAvatars);
       return html`
         <div class="notification-avatars">
-          ${notifications.slice(0, displayCount).map(
-            (notif) => html`
-              <div
-                class="notification-avatar"
-                @click=${(e) => {
-                  // Prevent click from propagating to the notification item
-                  // so we navigate to the profile, not the post
-                  e.stopPropagation();
-                }}
-              >
-                ${avatarTemplate({ author: notif.author })}
-              </div>
-            `,
-          )}
+          ${notifications
+            .slice(0, displayCount)
+            .map(
+              (notif) => html`
+                <div class="notification-avatar">
+                  ${avatarTemplate({ author: notif.author })}
+                </div>
+              `,
+            )}
           ${notifications.length > maxAvatars
             ? html`<div class="notification-more">
                 +${notifications.length - maxAvatars}
@@ -215,7 +210,11 @@ class NotificationsView extends View {
       const profileLink = linkToProfile(post.author);
       return html`
         <div
-          @click=${() => {
+          @click=${(e) => {
+            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+            if (e.target.closest("a")) {
+              return;
+            }
             if (isUnavailablePost(post)) {
               return;
             }
@@ -232,10 +231,7 @@ class NotificationsView extends View {
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
               New post from
-              <a
-                class="notification-profile-link"
-                href="${profileLink}"
-                @click=${(e) => e.stopPropagation()}
+              <a class="notification-profile-link" href="${profileLink}"
                 >${post.author.displayName ?? post.author.handle}</a
               >
               <span class="notification-time">· ${timeAgo}</span>
@@ -257,7 +253,11 @@ class NotificationsView extends View {
 
       return html`
         <div
-          @click=${() => {
+          @click=${(e) => {
+            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+            if (e.target.closest("a")) {
+              return;
+            }
             if (isUnavailablePost(likedPost)) {
               return;
             }
@@ -294,7 +294,11 @@ class NotificationsView extends View {
       const repostedPost = firstNotif.subject;
       return html`
         <div
-          @click=${() => {
+          @click=${(e) => {
+            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+            if (e.target.closest("a")) {
+              return;
+            }
             if (isUnavailablePost(repostedPost)) {
               return;
             }
