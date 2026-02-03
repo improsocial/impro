@@ -40,9 +40,17 @@ class PublicSession {
 }
 
 export class Api {
-  constructor(session) {
+  constructor(
+    session,
+    {
+      bskyAppViewServiceDid = "did:web:api.bsky.app#bsky_appview",
+      chatAppViewServiceDid = "did:web:api.bsky.chat#bsky_chat",
+    } = {},
+  ) {
     this.isAuthenticated = !!session;
     this.session = session ?? new PublicSession();
+    this.bskyAppViewServiceDid = bskyAppViewServiceDid;
+    this.chatAppViewServiceDid = chatAppViewServiceDid;
   }
   async request(path, options = {}) {
     const {
@@ -170,7 +178,7 @@ export class Api {
         cid: post.cid,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
@@ -184,7 +192,7 @@ export class Api {
         uri: post.uri,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
@@ -229,7 +237,7 @@ export class Api {
       },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.thread;
@@ -244,7 +252,7 @@ export class Api {
       },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -254,7 +262,7 @@ export class Api {
     const res = await this.request(`app.bsky.feed.getFeedGenerator`, {
       query: { feed: feedURI },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.view; // note- returning the view object.
@@ -264,7 +272,7 @@ export class Api {
     const res = await this.request(`app.bsky.feed.getFeedGenerators`, {
       query: { feeds: feedURIs },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.feeds;
@@ -275,7 +283,7 @@ export class Api {
       query: { limit, cursor },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -289,7 +297,7 @@ export class Api {
         query: { uris: batch },
         headers: {
           "atproto-accept-labelers": labelers.join(","),
-          "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+          "atproto-proxy": this.bskyAppViewServiceDid,
         },
       });
       posts.push(...res.data.posts);
@@ -339,7 +347,7 @@ export class Api {
     const res = await this.request(`app.bsky.actor.getProfile`, {
       query: { actor: did },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -353,7 +361,7 @@ export class Api {
       },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.actors;
@@ -371,7 +379,7 @@ export class Api {
       query: queryParams,
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -402,7 +410,7 @@ export class Api {
       query: { actor: did, limit, cursor, filter, includePins },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -417,7 +425,7 @@ export class Api {
       query,
       headers: {
         "atproto-accept-labelers": labelers.join(","),
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -426,7 +434,7 @@ export class Api {
   async getPreferences() {
     const res = await this.request(`app.bsky.actor.getPreferences`, {
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.preferences;
@@ -437,7 +445,7 @@ export class Api {
       method: "POST",
       body: { preferences: preferencesObj },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
@@ -448,7 +456,7 @@ export class Api {
     const res = await this.request(`app.bsky.labeler.getServices`, {
       query: { dids: labelerDids, detailed: true },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.views;
@@ -469,7 +477,7 @@ export class Api {
   async getNumNotifications() {
     const res = await this.request("app.bsky.notification.getUnreadCount", {
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data.count;
@@ -479,7 +487,7 @@ export class Api {
     const res = await this.request("app.bsky.notification.listNotifications", {
       query: { cursor: cursor ?? "", limit },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -490,7 +498,7 @@ export class Api {
       method: "POST",
       body: { seenAt: getCurrentTimestamp() },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
@@ -507,7 +515,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.listConvos", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -517,7 +525,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.getConvo", {
       query: { convoId },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -531,7 +539,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.getMessages", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -548,7 +556,7 @@ export class Api {
         },
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -561,7 +569,7 @@ export class Api {
         convoId,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -574,7 +582,7 @@ export class Api {
         convoId,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -584,7 +592,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.getConvoAvailability", {
       query: { members: memberDids },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -594,7 +602,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.getConvoForMembers", {
       query: { members: memberDids },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -604,7 +612,7 @@ export class Api {
     const res = await this.request("chat.bsky.convo.getLog", {
       query: { cursor },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data;
@@ -617,7 +625,7 @@ export class Api {
         convoId,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
   }
@@ -631,7 +639,7 @@ export class Api {
         value: emoji,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data.message;
@@ -646,7 +654,7 @@ export class Api {
         value: emoji,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.chat#bsky_chat",
+        "atproto-proxy": this.chatAppViewServiceDid,
       },
     });
     return res.data.message;
@@ -660,7 +668,7 @@ export class Api {
     const res = await this.request("app.bsky.feed.getLikes", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -674,7 +682,7 @@ export class Api {
     const res = await this.request("app.bsky.feed.getQuotes", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -688,7 +696,7 @@ export class Api {
     const res = await this.request("app.bsky.feed.getRepostedBy", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -702,7 +710,7 @@ export class Api {
     const res = await this.request("app.bsky.bookmark.getBookmarks", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -716,7 +724,7 @@ export class Api {
     const res = await this.request("app.bsky.graph.getFollowers", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -730,7 +738,7 @@ export class Api {
     const res = await this.request("app.bsky.graph.getFollows", {
       query,
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
@@ -743,7 +751,7 @@ export class Api {
         actor: did,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
@@ -757,7 +765,7 @@ export class Api {
         actor: did,
       },
       headers: {
-        "atproto-proxy": "did:web:api.bsky.app#bsky_appview",
+        "atproto-proxy": this.bskyAppViewServiceDid,
       },
       parseJson: false,
     });
