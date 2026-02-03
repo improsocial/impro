@@ -70,6 +70,7 @@ export function profileCardTemplate({
   isCurrentUser,
   profileChatStatus = null,
   isLabeler = false,
+  showSubscribeButton = false,
   labelerInfo = null,
   isSubscribed = false,
   onClickChat = noop,
@@ -102,7 +103,7 @@ export function profileCardTemplate({
           author: profile,
           clickAction: "lightbox",
         })}
-        ${!isCurrentUser && isAuthenticated
+        ${!isCurrentUser && !isLabeler && isAuthenticated
           ? html`<button
               class="rounded-button chat-button"
               ?disabled=${!canChat}
@@ -127,19 +128,23 @@ export function profileCardTemplate({
             </button>`;
           }
           if (isLabeler) {
-            return html`<button
-              @click=${() => {
-                if (!isAuthenticated) {
-                  return showSignInModal();
-                }
-                onClickSubscribe(profile, !isSubscribed, labelerInfo);
-              }}
-              class=${classnames("rounded-button  profile-following-button", {
-                "rounded-button-primary": !isSubscribed,
-              })}
-            >
-              ${isSubscribed ? "Subscribed" : "+ Subscribe"}
-            </button>`;
+            if (showSubscribeButton) {
+              return html`<button
+                @click=${() => {
+                  if (!isAuthenticated) {
+                    return showSignInModal();
+                  }
+                  onClickSubscribe(profile, !isSubscribed, labelerInfo);
+                }}
+                class=${classnames("rounded-button  profile-following-button", {
+                  "rounded-button-primary": !isSubscribed,
+                })}
+              >
+                ${isSubscribed ? "Subscribed" : "+ Subscribe"}
+              </button>`;
+            } else {
+              return null;
+            }
           }
           return html`<button
             @click=${() => {

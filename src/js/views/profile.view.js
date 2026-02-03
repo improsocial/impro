@@ -13,7 +13,7 @@ import { ApiError } from "/js/api.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
-import { AUTHOR_FEED_PAGE_SIZE } from "/js/config.js";
+import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 
 class ProfileView extends View {
@@ -189,11 +189,14 @@ class ProfileView extends View {
             (feed) => feed.feedType !== "media",
           );
         }
+        let isDefaultLabeler = profile.did === BSKY_LABELER_DID;
         let isSubscribed = false;
         let labelerSettings = null;
         if (isLabeler) {
           const preferences = dataLayer.selectors.getPreferences();
-          isSubscribed = preferences?.isSubscribedToLabeler(profile.did);
+          isSubscribed = isDefaultLabeler
+            ? true
+            : preferences?.isSubscribedToLabeler(profile.did);
           labelerSettings = dataLayer.selectors.getLabelerSettings(profile.did);
         }
         return html`
@@ -205,6 +208,7 @@ class ProfileView extends View {
               isCurrentUser,
               profileChatStatus,
               isLabeler,
+              showSubscribeButton: !isDefaultLabeler,
               labelerInfo,
               isSubscribed,
               onClickChat: async (profile) => {
