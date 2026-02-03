@@ -4988,8 +4988,8 @@ img[data-lightbox] {
   color: white;
   background: rgba(0, 0, 0, 0.5);
   border: none;
-  width: 48px;
-  height: 48px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--icon-button-border-radius);
   display: flex;
   align-items: center;
@@ -5017,12 +5017,13 @@ img[data-lightbox] {
 }
 
 .lightbox-nav .icon {
-  width: 32px;
-  height: 32px;
+  width: 24px;
+  height: 24px;
 }
 
 .lightbox-nav .icon path {
-  stroke: white;
+  stroke: var(--white);
+  stroke-width: 3;
 }
 
 .settings-section {
