@@ -10,8 +10,8 @@ export function repostIconTemplate() {
   >
     <path
       d="M 12 23
-               V 20
-               Q 12 15, 17 15
+               V 19
+               Q 12 15, 16 15
                H 43"
       stroke-width="2.5"
       stroke-linecap="round"
@@ -25,8 +25,8 @@ export function repostIconTemplate() {
     />
     <path
       d="M 43 28
-               V 31
-               Q 43 36, 38 36
+               V 32
+               Q 43 36, 39 36
                H 12"
       stroke-width="2.5"
       stroke-linecap="round"
