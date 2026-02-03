@@ -155,3 +155,13 @@ export function getTagsFromFacets(facets) {
     (facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag",
   );
 }
+
+export function clampFacetIndex(facet, { byteStart, byteEnd }) {
+  return {
+    ...facet,
+    index: {
+      byteStart: Math.max(facet.index.byteStart, byteStart),
+      byteEnd: Math.min(facet.index.byteEnd, byteEnd),
+    },
+  };
+}

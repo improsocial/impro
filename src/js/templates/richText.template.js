@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { sliceByByte, sortBy, getByteLength, sanitizeUri } from "/js/utils.js";
+import { clampFacetIndex } from "/js/facetHelpers.js";
 import { linkToHashtag, linkToProfile } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
@@ -80,10 +81,18 @@ function richTextLineTemplate({ text, facets, byteOffset }) {
 export function richTextTemplate({ text, facets = [] }) {
   const lines = text.split("\n");
   const divs = [];
+  // If facets are longer than the overall byte length of the text, clamp them to fit
+  const textByteLength = getByteLength(text);
+  const clampedFacets = facets.map((facet) =>
+    clampFacetIndex(facet, {
+      byteStart: 0,
+      byteEnd: textByteLength,
+    }),
+  );
   let byteOffset = 0;
   for (const line of lines) {
     const lineByteLength = getByteLength(line);
-    const facetsForLine = facets.filter(
+    const facetsForLine = clampedFacets.filter(
       (facet) =>
         facet.index.byteStart >= byteOffset &&
         facet.index.byteEnd <= byteOffset + lineByteLength,
