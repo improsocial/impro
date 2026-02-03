@@ -127,11 +127,7 @@ export function largePostTemplate({
             })}
           </div>
         </div>
-        ${
-          post.viewer?.badgeLabels
-            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
-            : ""
-        }
+        ${badgeLabels.length > 0 ? postLabelsTemplate({ badgeLabels }) : ""}
         <div class="post-content-bottom">
           <div class="post-body">
             ${
@@ -212,5 +208,7 @@ export function largePostTemplate({
       >${content}</moderation-warning
     > `;
   }
-  return html`<div class="post large-post">${content}</div>`;
+  return html`<div class="post large-post" data-testid="large-post">
+    ${content}
+  </div>`;
 }

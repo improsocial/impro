@@ -20,8 +20,21 @@ import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
+import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/muted-reply-toggle.js";
+
+function contentWarningTemplate({ contentLabel, children }) {
+  if (contentLabel && contentLabel.visibility !== "ignore") {
+    return moderationWarningTemplate({
+      className: "post-content-warning",
+      labelDefinition: contentLabel.labelDefinition,
+      labeler: contentLabel.labeler,
+      children,
+    });
+  }
+  return children;
+}
 
 export function smallPostTemplate({
   post,
@@ -29,6 +42,7 @@ export function smallPostTemplate({
   postInteractionHandler,
   replyContext,
   repostAuthor,
+  ignoreContentWarning = false,
   isPinned = false,
   onClickShowLess = noop,
   onClickShowMore = noop,
@@ -56,6 +70,7 @@ export function smallPostTemplate({
   const content = html`
     <div
       class="post small-post clickable"
+      data-testid="small-post"
       @click=${(e) => {
         // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
         if (e.target.closest("a")) {
@@ -80,10 +95,12 @@ export function smallPostTemplate({
         </div>
         <div class="post-content-right">
           ${isPinned
-            ? html`<div class="pinned-label">${pinIconTemplate()} Pinned</div>`
+            ? html`<div class="pinned-label" data-testid="pinned-label">
+                ${pinIconTemplate()} Pinned
+              </div>`
             : ""}
           ${repostAuthor
-            ? html`<div class="repost-label">
+            ? html`<div class="repost-label" data-testid="repost-label">
                 ${repostIconTemplate()} Reposted by
                 ${getDisplayName(repostAuthor)}
               </div>`
@@ -103,70 +120,66 @@ export function smallPostTemplate({
                   : ""}
               </div>`
             : ""}
-          <div class="post-body">
-            ${postText.length > 0
-              ? html`<div class="post-text">
-                  ${richTextTemplate({
-                    text: postText,
-                    facets: post.record.facets,
-                  })}
-                </div>`
-              : ""}
-            ${post.embed
-              ? html`<div class="post-embed">
-                  ${postEmbedTemplate({
-                    embed: post.embed,
-                    mediaLabel: post.viewer?.mediaLabel,
-                    lazyLoadImages,
-                    isAuthenticated: postInteractionHandler.isAuthenticated,
-                  })}
-                </div>`
-              : null}
-            ${postActionBarTemplate({
-              post,
-              isUserPost,
-              isAuthenticated: postInteractionHandler.isAuthenticated,
-              onClickReply: () => {
-                window.router.go(linkToPost(post));
-              },
-              onClickLike: (post, doLike) =>
-                postInteractionHandler.handleLike(post, doLike),
-              onClickRepost: (post, doRepost) =>
-                postInteractionHandler.handleRepost(post, doRepost),
-              onClickQuotePost: (post) =>
-                postInteractionHandler.handleQuotePost(post),
-              onClickBookmark: (post, doBookmark) =>
-                postInteractionHandler.handleBookmark(post, doBookmark),
-              onClickShowLess,
-              onClickShowMore,
-              onClickHidePost: (post) =>
-                postInteractionHandler.handleHidePost(post),
-              onClickMute: (profile, doMute) =>
-                postInteractionHandler.handleMuteAuthor(profile, doMute),
-              onClickBlock: (profile, doBlock) =>
-                postInteractionHandler.handleBlockAuthor(profile, doBlock),
-              onClickDelete: (post) => {
-                postInteractionHandler.handleDeletePost(post);
-              },
-              onClickReport: (post) =>
-                postInteractionHandler.handleReport(post),
-              enableFeedFeedback,
-            })}
-          </div>
+          ${contentWarningTemplate({
+            contentLabel: ignoreContentWarning
+              ? null
+              : post.viewer?.contentLabel,
+            children: html` <div class="post-body">
+              ${postText.length > 0
+                ? html`<div class="post-text">
+                    ${richTextTemplate({
+                      text: postText,
+                      facets: post.record.facets,
+                    })}
+                  </div>`
+                : ""}
+              ${post.embed
+                ? html`<div class="post-embed">
+                    ${postEmbedTemplate({
+                      embed: post.embed,
+                      mediaLabel: post.viewer?.mediaLabel,
+                      lazyLoadImages,
+                      isAuthenticated: postInteractionHandler.isAuthenticated,
+                    })}
+                  </div>`
+                : null}
+              ${postActionBarTemplate({
+                post,
+                isUserPost,
+                isAuthenticated: postInteractionHandler.isAuthenticated,
+                onClickReply: () => {
+                  window.router.go(linkToPost(post));
+                },
+                onClickLike: (post, doLike) =>
+                  postInteractionHandler.handleLike(post, doLike),
+                onClickRepost: (post, doRepost) =>
+                  postInteractionHandler.handleRepost(post, doRepost),
+                onClickQuotePost: (post) =>
+                  postInteractionHandler.handleQuotePost(post),
+                onClickBookmark: (post, doBookmark) =>
+                  postInteractionHandler.handleBookmark(post, doBookmark),
+                onClickShowLess,
+                onClickShowMore,
+                onClickHidePost: (post) =>
+                  postInteractionHandler.handleHidePost(post),
+                onClickMute: (profile, doMute) =>
+                  postInteractionHandler.handleMuteAuthor(profile, doMute),
+                onClickBlock: (profile, doBlock) =>
+                  postInteractionHandler.handleBlockAuthor(profile, doBlock),
+                onClickDelete: (post) => {
+                  postInteractionHandler.handleDeletePost(post);
+                },
+                onClickReport: (post) =>
+                  postInteractionHandler.handleReport(post),
+                enableFeedFeedback,
+              })}
+            </div>`,
+          })}
         </div>
       </div>
     </div>
   `;
 
-  const contentLabel = post.viewer?.contentLabel;
-  if (contentLabel && contentLabel.visibility !== "ignore") {
-    const { name: labelName } = getLabelNameAndDescription(
-      contentLabel.labelDefinition,
-    );
-    return html`<muted-reply-toggle label="${labelName}">
-      ${content}
-    </muted-reply-toggle>`;
-  }
   if (hideMutedAccount && post.author.viewer?.muted) {
     return html`<muted-reply-toggle label="Muted account">
       ${content}

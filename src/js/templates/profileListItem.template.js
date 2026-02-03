@@ -9,18 +9,31 @@ export function profileListItemTemplate({ actor }) {
     class="profile-list-item"
   >
     ${avatarTemplate({ author: actor })}
-    <div class="profile-list-item-body">
+    <div class="profile-list-item-body" data-testid="profile-list-item-body">
       <a class="profile-list-item-name" href="${linkToProfile(actor.handle)}">
-        <span class="profile-list-item-display-name"> ${displayName} </span>
+        <span
+          class="profile-list-item-display-name"
+          data-testid="profile-list-item-display-name"
+        >
+          ${displayName}
+        </span>
       </a>
-      <div class="profile-list-item-handle">@${actor.handle}</div>
+      <div
+        class="profile-list-item-handle"
+        data-testid="profile-list-item-handle"
+      >
+        @${actor.handle}
+      </div>
     </div>
   </div>`;
 }
 
 export function profileListItemSkeletonTemplate() {
   return html`<div class="profile-list-item profile-skeleton">
-    <div class="skeleton-avatar skeleton-animate"></div>
+    <div
+      class="skeleton-avatar skeleton-animate"
+      data-testid="skeleton-avatar"
+    ></div>
     <div class="profile-list-item-body">
       <div class="skeleton-line-short skeleton-animate"></div>
       <div class="skeleton-line-shorter skeleton-animate"></div>

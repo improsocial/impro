@@ -147,13 +147,17 @@ export function classnames(...defs) {
   let classname = "";
   for (const def of defs) {
     if (typeof def === "string") {
-      classname += def + " ";
+      if (def.length > 0) {
+        classname += def + " ";
+      }
     } else if (typeof def === "object") {
       classname +=
         Object.entries(def)
           .filter(([_, value]) => value)
           .map(([key]) => key)
           .join(" ") + " ";
+    } else if (def === null || def === undefined) {
+      continue;
     } else {
       throw new Error("Invalid classname definition");
     }

@@ -6,7 +6,7 @@ You can try it out here: https://impro.social
 
 ## Differences from main client
 
-Impro aims to have feature parity with the core functionality of the Bluesky web app. (For TBD features, see [planned features](#planned-features)). However, there are some differences in behavior:
+Impro aims to have feature parity with the core functionality of the Bluesky web app. (For TBD features, see [planned features](https://github.com/improsocial/impro/issues?q=state%3Aopen%20label%3A%22planned%20feature%22)). However, there are some differences in functionality:
 
 ### Less restrictive blocking
 
@@ -58,15 +58,3 @@ npm run bundle:lit-html
 ## AI Disclosure
 
 The core of Impro is human-designed and human-written, but some views and components were generated using Claude Code. The project owner has reviewed the generated code and takes full responsibility for its accuracy and completeness.
-
-## Planned features
-
-The following features are required for Impro's goal of feature parity with the Bluesky web app:
-
-- Muted word management
-- Profile editing
-- Tenor GIF picker
-- Video upload
-- List and starter pack management
-
-Further features will be added on an as-requested basis.

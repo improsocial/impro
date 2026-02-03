@@ -12,7 +12,7 @@ import { formatNumNotifications } from "/js/utils.js";
 function footerNavItemTemplate({ item, active }) {
   return html`${item.icon({ filled: active })}
   ${item.badge
-    ? html`<div class="status-badge">
+    ? html`<div class="status-badge" data-testid="status-badge">
         <div class="status-badge-text">${item.badge}</div>
       </div>`
     : null} `;
@@ -20,9 +20,15 @@ function footerNavItemTemplate({ item, active }) {
 
 function loggedOutFooterTemplate() {
   return html`
-    <footer class="footer-nav logged-out-footer">
+    <footer
+      class="footer-nav logged-out-footer"
+      data-testid="logged-out-footer"
+    >
       <a href="/"><h2>IMPRO</h2></a>
-      <a href="/login" class="square-button primary-button login-button"
+      <a
+        href="/login"
+        class="square-button primary-button login-button"
+        data-testid="login-button"
         >Sign in</a
       >
     </footer>
@@ -80,7 +86,7 @@ export function footerTemplate({
   ];
 
   return html`
-    <footer class="footer-nav">
+    <footer class="footer-nav" data-testid="footer-nav">
       <nav>
         ${menuItems.map((item) => {
           const active = activeNavItem === item.id;
@@ -89,6 +95,7 @@ export function footerTemplate({
               active,
             })}
             href=${item.url}
+            data-testid="footer-nav-${item.id}"
             ?disabled=${item.disabled}
             @click=${(e) => {
               // tap active item to scroll to top
@@ -109,7 +116,7 @@ export function footerTemplate({
         })}
       </nav>
       <!-- This adds a background color to the bottom of the footer when it's raised -->
-      <div class="footer-nav-safe-area"></div>
+      <div class="footer-nav-safe-area" data-testid="footer-safe-area"></div>
     </footer>
   `;
 }

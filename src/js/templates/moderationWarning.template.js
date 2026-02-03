@@ -1,8 +1,10 @@
 import { html } from "/js/lib/lit-html.js";
 import { getLabelNameAndDescription } from "/js/dataHelpers.js";
-import { linkToLabeler, linkToProfile } from "/js/navigation.js";
+import { linkToLabeler } from "/js/navigation.js";
+import { classnames } from "/js/utils.js";
 
 export function moderationWarningTemplate({
+  className = "",
   labelDefinition,
   labeler,
   children,
@@ -14,7 +16,7 @@ export function moderationWarningTemplate({
     : "the post author";
   const labelerLink = labeler ? linkToLabeler(labeler) : null;
   return html`<moderation-warning
-    class="post-moderation-warning"
+    class=${classnames("post-moderation-warning", className)}
     @click=${(e) => {
       const clickedBar = !!e.target.closest(".top-bar");
       if (clickedBar) {

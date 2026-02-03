@@ -279,6 +279,7 @@ export class DataStore extends EventEmitter {
 
   setNotifications(notifications) {
     this.notifications = notifications;
+    this.emit("setNotifications", notifications);
   }
 
   clearNotifications() {

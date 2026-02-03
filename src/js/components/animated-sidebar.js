@@ -13,10 +13,6 @@ class AnimatedSidebar extends Component {
     this.innerHTML = "";
     this.render();
     this._initialized = true;
-
-    // window.addEventListener("page-transition", () => {
-    //   this.close();
-    // });
   }
 
   render() {

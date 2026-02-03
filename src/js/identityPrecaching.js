@@ -63,4 +63,21 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
       identityResolver.setDidForHandle(searchResult.handle, searchResult.did);
     }
   });
+
+  // Precache author DIDs from notifications
+  dataLayer.dataStore.on("setNotifications", (notifications) => {
+    for (const notification of notifications) {
+      try {
+        if (notification.author) {
+          identityResolver.setDidForHandle(
+            notification.author.handle,
+            notification.author.did,
+          );
+        }
+      } catch (error) {
+        console.error("error when setting DID from notification", notification);
+        console.error(error);
+      }
+    }
+  });
 }

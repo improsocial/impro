@@ -1,6 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { assert, assertEquals } from "../../testHelpers.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
+import { render } from "/js/lib/lit-html.js";
 
 const t = new TestSuite("profileCardTemplate");
 
@@ -24,7 +25,33 @@ t.describe("profileCardTemplate", (it) => {
       profile: mockProfile,
       onClickFollow: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='profile-name']")
+        .textContent.trim(),
+      "Test User",
+    );
+  });
+
+  it("should render profile card with not following state", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='follow-button']")
+        .textContent.trim(),
+      "+ Follow",
+    );
   });
 
   it("should render profile card with following state", () => {
@@ -36,7 +63,31 @@ t.describe("profileCardTemplate", (it) => {
       profile,
       onClickFollow: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='follow-button']")
+        .textContent.trim(),
+      "Following",
+    );
+  });
+
+  it("should not render followedBy indicator when not followed by", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='follows-you-badge']"),
+      null,
+    );
   });
 
   it("should render profile card with followedBy indicator", () => {
@@ -48,7 +99,61 @@ t.describe("profileCardTemplate", (it) => {
       profile,
       onClickFollow: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='follows-you-badge']") !== null,
+    );
+  });
+
+  it("should call onClickFollow when follow button clicked", () => {
+    let followCallArgs = null;
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const onClickFollow = (p, shouldFollow) => {
+      followCallArgs = { profile: p, shouldFollow };
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      onClickFollow,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const followButton = container.querySelector(
+      "[data-testid='follow-button']",
+    );
+    followButton.click();
+    assert(followCallArgs !== null);
+    assertEquals(followCallArgs.profile, profile);
+    assertEquals(followCallArgs.shouldFollow, true);
+  });
+
+  it("should call onClickFollow with false when unfollow button clicked", () => {
+    let followCallArgs = null;
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const onClickFollow = (p, shouldFollow) => {
+      followCallArgs = { profile: p, shouldFollow };
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      onClickFollow,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const followButton = container.querySelector(
+      "[data-testid='follow-button']",
+    );
+    followButton.click();
+    assert(followCallArgs !== null);
+    assertEquals(followCallArgs.profile, profile);
+    assertEquals(followCallArgs.shouldFollow, false);
   });
 });
 
@@ -61,11 +166,19 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: false,
       isAuthenticated: true,
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='subscribe-button']")
+        .textContent.trim(),
+      "+ Subscribe",
+    );
   });
 
   it("should render subscribed button for labeler profile when subscribed", () => {
@@ -76,11 +189,19 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: true,
       isAuthenticated: true,
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='subscribe-button']")
+        .textContent.trim(),
+      "Subscribed",
+    );
   });
 
   it("should render follow button for labeler in context menu", () => {
@@ -97,7 +218,35 @@ t.describe("profileCardTemplate - labeler support", (it) => {
       onClickFollow: () => {},
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='context-menu-follow']") !== null,
+    );
+  });
+
+  it("should render unfollow button for labeler in context menu when following", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isLabeler: true,
+      isSubscribed: false,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickFollow: () => {},
+      onClickSubscribe: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='context-menu-follow']")
+        .textContent.trim(),
+      "Unfollow account",
+    );
   });
 
   it("should call onClickSubscribe when subscribe button clicked for labeler", () => {
@@ -112,13 +261,20 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: false,
       isAuthenticated: true,
       onClickSubscribe,
     });
-    // Template rendered successfully with callback
-    assert(result instanceof Object);
-    assert(subscribeCallArgs === null); // Not called until button is clicked
+    const container = document.createElement("div");
+    render(result, container);
+    const subscribeButton = container.querySelector(
+      "[data-testid='subscribe-button']",
+    );
+    subscribeButton.click();
+    assert(subscribeCallArgs !== null);
+    assertEquals(subscribeCallArgs.profile, profile);
+    assertEquals(subscribeCallArgs.shouldSubscribe, true);
   });
 });
 
@@ -134,7 +290,9 @@ t.describe("profileCardTemplate - blocked profile", (it) => {
       isCurrentUser: false,
       onClickBlock: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector("[data-testid='unblock-button']") !== null);
   });
 
   it("should show blocked badge and hide stats for blocked profile", () => {
@@ -148,7 +306,32 @@ t.describe("profileCardTemplate - blocked profile", (it) => {
       isCurrentUser: false,
       onClickBlock: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector("[data-testid='blocked-badge']") !== null);
+    assertEquals(
+      container.querySelector("[data-testid='profile-stats']"),
+      null,
+    );
+  });
+
+  it("should hide followedBy badge for blocked profile", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: true, blocking: "block-uri" },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickBlock: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='follows-you-badge']"),
+      null,
+    );
   });
 });
 
@@ -163,7 +346,9 @@ t.describe("profileCardTemplate - authentication states", (it) => {
       isAuthenticated: false,
       isCurrentUser: false,
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
   });
 
   it("should not render interaction buttons for current user", () => {
@@ -176,7 +361,45 @@ t.describe("profileCardTemplate - authentication states", (it) => {
       isAuthenticated: true,
       isCurrentUser: true,
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
+    assertEquals(
+      container.querySelector("[data-testid='follow-button']"),
+      null,
+    );
+  });
+
+  it("should render chat button for authenticated user viewing other profile", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickChat: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector("[data-testid='chat-button']") !== null);
+  });
+
+  it("should render stats for non-blocked profile", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector("[data-testid='profile-stats']") !== null);
   });
 });
 
@@ -200,12 +423,20 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: true,
       isAuthenticated: true,
       labelerInfo: mockLabelerInfo,
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='subscribe-button']")
+        .textContent.trim(),
+      "Subscribed",
+    );
   });
 
   it("should render labeler profile without labelerInfo", () => {
@@ -216,12 +447,20 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: false,
       isAuthenticated: true,
       labelerInfo: null,
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='subscribe-button']")
+        .textContent.trim(),
+      "+ Subscribe",
+    );
   });
 
   it("should render non-labeler profile with labelerInfo set to null", () => {
@@ -235,7 +474,14 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
       labelerInfo: null,
       onClickFollow: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='follow-button']")
+        .textContent.trim(),
+      "+ Follow",
+    );
   });
 
   it("should render labeler profile with empty policies", () => {
@@ -250,12 +496,20 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     const result = profileCardTemplate({
       profile,
       isLabeler: true,
+      showSubscribeButton: true,
       isSubscribed: true,
       isAuthenticated: true,
       labelerInfo: emptyLabelerInfo,
       onClickSubscribe: () => {},
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='subscribe-button']")
+        .textContent.trim(),
+      "Subscribed",
+    );
   });
 });
 

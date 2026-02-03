@@ -28,15 +28,21 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
 }
 
 function blockedQuoteTemplate() {
-  return html`<div class="quoted-post">Post unavailable</div>`;
+  return html`<div class="quoted-post" data-testid="blocked-quote">
+    Post unavailable
+  </div>`;
 }
 
 function removedQuoteTemplate() {
-  return html`<div class="quoted-post">Removed by author</div>`;
+  return html`<div class="quoted-post" data-testid="removed-quote">
+    Removed by author
+  </div>`;
 }
 
 function notFoundQuoteTemplate() {
-  return html`<div class="quoted-post">Deleted</div>`;
+  return html`<div class="quoted-post" data-testid="not-found-quote">
+    Deleted
+  </div>`;
 }
 
 function mutedWrapperTemplate({ isMuted, label, children }) {
@@ -82,7 +88,11 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
     return html`<div class="quoted-post">Post not found</div>`;
   }
   // only supports one embed for now
-  const embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
+  let embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
+  // if the nested embed is a recordWithMedia, just show the media and not the quoted post
+  if (embed?.$type === "app.bsky.embed.recordWithMedia#view") {
+    embed = embed.media;
+  }
   // Mute if necessary.
   let isMuted = false;
   let mutedLabel = null;
@@ -161,6 +171,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
 function imagesTemplate({ images, lazyLoad = false }) {
   return html`<lightbox-image-group
     class="post-images num-images-${images.length}"
+    data-testid="post-images"
   >
     ${images.map(
       (image) =>

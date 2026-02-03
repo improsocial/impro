@@ -1,15 +1,126 @@
 import { Component, getChildrenFragment } from "./component.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { chevronLeftIconTemplate } from "../templates/icons/chevronLeft.template.js";
+import { chevronRightIconTemplate } from "../templates/icons/chevronRight.template.js";
 
-function getSharedContainer(id) {
-  let container = document.getElementById(id);
-  if (!container) {
-    container = document.createElement("div");
-    container.id = id;
-    document.body.appendChild(container);
+class LightboxDialog extends Component {
+  connectedCallback() {
+    if (this._initialized) {
+      return;
+    }
+    this.innerHTML = "";
+    this.hideAltText = !!this.getAttribute("hide-alt-text");
+    this.currentIndex = this.currentIndex || 0;
+    this.images = this.images || [];
+    this.isOpen = false;
+    this.render();
+    this._initialized = true;
   }
-  return container;
+
+  render() {
+    if (!this.isOpen) {
+      this.innerHTML = "";
+      return;
+    }
+    const currentImg = this.images[this.currentIndex];
+    const src = currentImg.src;
+    const alt = currentImg.alt;
+    const hasMultiple = this.images.length > 1;
+
+    render(
+      html`
+        <div
+          class="lightbox"
+          style="display: flex;"
+          @click=${(e) => {
+            if (e.target.classList.contains("lightbox")) {
+              this.close();
+            }
+          }}
+        >
+          <div
+            class="lightbox-close"
+            @click=${(e) => {
+              e.stopPropagation();
+              this.close();
+            }}
+          >
+            ×
+          </div>
+          ${hasMultiple
+            ? html`
+                <button
+                  class="lightbox-nav lightbox-nav-prev"
+                  @click=${(e) => {
+                    e.stopPropagation();
+                    this.navigate(-1);
+                  }}
+                  ?disabled=${this.currentIndex === 0}
+                >
+                  ${chevronLeftIconTemplate()}
+                </button>
+              `
+            : ""}
+          <img src=${src} alt=${alt} />
+          ${hasMultiple
+            ? html`
+                <button
+                  class="lightbox-nav lightbox-nav-next"
+                  @click=${(e) => {
+                    e.stopPropagation();
+                    this.navigate(1);
+                  }}
+                  ?disabled=${this.currentIndex === this.images.length - 1}
+                >
+                  ${chevronRightIconTemplate()}
+                </button>
+              `
+            : ""}
+          ${alt && !this.hideAltText
+            ? html`<p class="lightbox-alt-text">${alt}</p>`
+            : ""}
+        </div>
+      `,
+      this,
+    );
+  }
+
+  open() {
+    document.body.style.overflow = "hidden";
+    this.isOpen = true;
+    this.handleKeyDown = this.handleKeyDown.bind(this);
+    document.addEventListener("keydown", this.handleKeyDown);
+    this.render();
+  }
+
+  close() {
+    document.body.style.overflow = "";
+    document.removeEventListener("keydown", this.handleKeyDown);
+    this.isOpen = false;
+    this.render();
+    this.dispatchEvent(new Event("close"));
+  }
+
+  navigate(steps) {
+    const newIndex = this.currentIndex + steps;
+    if (newIndex >= 0 && newIndex < this.images.length) {
+      this.currentIndex = newIndex;
+      this.render();
+    }
+  }
+
+  handleKeyDown(e) {
+    if (e.key === "Escape") {
+      this.close();
+    } else if (e.key === "ArrowLeft") {
+      this.navigate(-1);
+    } else if (e.key === "ArrowRight") {
+      this.navigate(1);
+    }
+  }
 }
+
+LightboxDialog.register();
 
 class LightboxImageGroup extends Component {
   connectedCallback() {
@@ -24,7 +135,6 @@ class LightboxImageGroup extends Component {
   }
 
   render() {
-    // Show lightbox on image click
     const images = this._children.querySelectorAll("img");
     images.forEach((img) => {
       img.addEventListener("click", (e) => {
@@ -33,62 +143,23 @@ class LightboxImageGroup extends Component {
         this.showLightbox(img);
       });
     });
-    // Render children
     this.appendChild(this._children);
   }
 
-  // TODO: navigate between images within the group
   showLightbox(img) {
-    const src = img.src;
-    const alt = img.alt;
-
-    const lightboxContainer = getSharedContainer("lightbox-container");
-
-    // Helper to close the lightbox and clean up
-    const closeBox = () => {
-      document.body.style.overflow = ""; // Restore scrolling
-      render(html``, lightboxContainer);
-      document.removeEventListener("keydown", onKeyDown);
-    };
-
-    // Keydown handler for Escape
-    const onKeyDown = (e) => {
-      if (e.key === "Escape") {
-        closeBox();
-      }
-    };
-
-    render(
-      html`
-        <div
-          class="lightbox"
-          style="display: flex;"
-          @click=${(e) => {
-            if (e.target.classList.contains("lightbox")) {
-              closeBox();
-            }
-          }}
-        >
-          <div
-            class="lightbox-close"
-            @click=${(e) => {
-              e.stopPropagation();
-              closeBox();
-            }}
-          >
-            ×
-          </div>
-          <img src=${src} alt=${alt} />
-          ${alt && !this.hideAltText
-            ? html`<p class="lightbox-alt-text">${alt}</p>`
-            : ""}
-        </div>
-      `,
-      lightboxContainer,
-    );
-
-    document.body.style.overflow = "hidden"; // Prevent background scrolling
-    document.addEventListener("keydown", onKeyDown);
+    const images = Array.from(this.querySelectorAll("img"));
+    const initialIndex = images.indexOf(img);
+    const lightboxDialog = document.createElement("lightbox-dialog");
+    lightboxDialog.images = images;
+    lightboxDialog.currentIndex = initialIndex;
+    if (this.hideAltText) {
+      lightboxDialog.setAttribute("hide-alt-text", "");
+    }
+    lightboxDialog.addEventListener("close", () => {
+      lightboxDialog.remove();
+    });
+    document.body.appendChild(lightboxDialog);
+    lightboxDialog.open();
   }
 }
 

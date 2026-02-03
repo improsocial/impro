@@ -13,6 +13,7 @@ import {
   getLabelerForLabel,
   getDefinitionForLabel,
   isBadgeLabel,
+  addFeedItemToFeed,
 } from "../../src/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -484,6 +485,76 @@ t.describe("isBadgeLabel", (it) => {
   it("should return false when blurs is content", () => {
     const labelDefinition = { blurs: "content" };
     assertEquals(isBadgeLabel(labelDefinition), false);
+  });
+});
+
+t.describe("addFeedItemToFeed", (it) => {
+  it("should add item to empty feed", () => {
+    const feedItem = { post: { uri: "post-1" } };
+    const result = addFeedItemToFeed(feedItem, []);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0], feedItem);
+  });
+
+  it("should add item to beginning of feed without pinned post", () => {
+    const existingItem = { post: { uri: "post-1" } };
+    const newItem = { post: { uri: "post-2" } };
+
+    const result = addFeedItemToFeed(newItem, [existingItem]);
+
+    assertEquals(result.length, 2);
+    assertEquals(result[0], newItem);
+    assertEquals(result[1], existingItem);
+  });
+
+  it("should add item after pinned post", () => {
+    const pinnedItem = {
+      post: { uri: "pinned-post" },
+      reason: { $type: "app.bsky.feed.defs#reasonPin" },
+    };
+    const existingItem = { post: { uri: "post-1" } };
+    const newItem = { post: { uri: "post-2" } };
+
+    const result = addFeedItemToFeed(newItem, [pinnedItem, existingItem]);
+
+    assertEquals(result.length, 3);
+    assertEquals(result[0], pinnedItem);
+    assertEquals(result[1], newItem);
+    assertEquals(result[2], existingItem);
+  });
+
+  it("should handle pinned post not at first position", () => {
+    const pinnedItem = {
+      post: { uri: "pinned-post" },
+      reason: { $type: "app.bsky.feed.defs#reasonPin" },
+    };
+    const existingItem = { post: { uri: "post-1" } };
+    const newItem = { post: { uri: "post-2" } };
+
+    const result = addFeedItemToFeed(newItem, [existingItem, pinnedItem]);
+
+    assertEquals(result.length, 3);
+    assertEquals(result[0], pinnedItem);
+    assertEquals(result[1], newItem);
+    assertEquals(result[2], existingItem);
+  });
+
+  it("should handle repost feed items", () => {
+    const repostItem = {
+      post: { uri: "post-1" },
+      reason: {
+        $type: "app.bsky.feed.defs#reasonRepost",
+        by: { did: "did:plc:123" },
+        uri: "at://did:plc:123/app.bsky.feed.repost/abc",
+        indexedAt: "2024-01-01T00:00:00Z",
+      },
+    };
+
+    const result = addFeedItemToFeed(repostItem, []);
+
+    assertEquals(result.length, 1);
+    assertEquals(result[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
   });
 });
 

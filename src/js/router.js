@@ -70,7 +70,7 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isBack = false } = {}) {
-    // used to pause videos on page exit
+    // used to pause videos on page exit, among other things
     window.dispatchEvent(new CustomEvent("page-transition"));
     // Strip query parameters for route matching (but keep full path for caching)
     const pathname = path.split("?")[0];

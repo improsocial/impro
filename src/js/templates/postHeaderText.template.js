@@ -11,18 +11,25 @@ export function postHeaderTextTemplate({
 }) {
   return html`<div class="post-header-text">
     ${enableProfileLink
-      ? html`<a href="${linkToProfile(author.handle)}" class="post-name"
+      ? html`<a
+          href="${linkToProfile(author.handle)}"
+          class="post-name"
+          data-testid="post-author-name"
           >${author.displayName || author.handle}</a
         >`
-      : html`<span class="post-name"
+      : html`<span class="post-name" data-testid="post-author-name"
           >${author.displayName || author.handle}</span
         >`}
     ${includeHandle
-      ? html`<span class="post-username">@${author.handle}</span>`
+      ? html`<span class="post-username" data-testid="post-author-handle"
+          >@${author.handle}</span
+        >`
       : ""}
     ${includeTime
       ? html`<span class="post-separator">·</span
-          ><span class="post-time">${displayRelativeTime(timestamp)}</span>`
+          ><span class="post-time" data-testid="post-time"
+            >${displayRelativeTime(timestamp)}</span
+          >`
       : ""}
   </div>`;
 }

@@ -28,18 +28,24 @@ function labelPreferenceRowTemplate({
   const { name, description } = getLabelNameAndDescription(labelDefinition);
   const showWarnButton = doShowWarnButton(labelDefinition);
   return html`
-    <div class="label-preference-row">
-      <div class="label-preference-name">${name}</div>
+    <div class="label-preference-row" data-testid="label-preference-row">
+      <div class="label-preference-name" data-testid="label-preference-name">
+        ${name}
+      </div>
       ${description
         ? html`<div class="label-preference-description">${description}</div>`
         : null}
       ${isSubscribed
         ? html`
-            <div class="label-preference-buttons">
+            <div
+              class="label-preference-buttons"
+              data-testid="label-preference-buttons"
+            >
               <button
                 class=${classnames("label-pref-button", {
                   active: value === "ignore",
                 })}
+                data-testid="label-pref-button"
                 @click=${() => onClick("ignore")}
               >
                 Off
@@ -50,6 +56,7 @@ function labelPreferenceRowTemplate({
                       class=${classnames("label-pref-button", {
                         active: value === "warn",
                       })}
+                      data-testid="label-pref-button"
                       @click=${() => onClick("warn")}
                     >
                       ${getWarnLabel(labelDefinition)}
@@ -60,6 +67,7 @@ function labelPreferenceRowTemplate({
                 class=${classnames("label-pref-button", {
                   active: value === "hide",
                 })}
+                data-testid="label-pref-button"
                 @click=${() => onClick("hide")}
               >
                 Hide
@@ -85,7 +93,10 @@ export function labelerSettingsTemplate({
   if (configurableLabels.length === 0) {
     return html`
       <div class="labeler-settings-container">
-        <div class="labeler-settings-header">
+        <div
+          class="labeler-settings-header"
+          data-testid="labeler-settings-header"
+        >
           <p>This labeler has no configurable labels.</p>
         </div>
       </div>
@@ -93,13 +104,16 @@ export function labelerSettingsTemplate({
   }
   return html`
     <div class="labeler-settings-container">
-      <div class="labeler-settings-header">
+      <div
+        class="labeler-settings-header"
+        data-testid="labeler-settings-header"
+      >
         <p>
           Labels are annotations on users and content. They can be used to hide,
           warn, and categorize the network.
         </p>
       </div>
-      <div class="label-preference-list">
+      <div class="label-preference-list" data-testid="label-preference-list">
         ${configurableLabels.map((labelDefinition) => {
           const currentSetting = labelerSettings.find(
             (pref) => pref.label === labelDefinition.identifier,

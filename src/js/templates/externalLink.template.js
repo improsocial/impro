@@ -12,7 +12,7 @@ export function externalLinkTemplate({
   image,
   lazyLoadImages,
 }) {
-  return html`<div class="external-link">
+  return html`<div class="external-link" data-testid="external-link">
     <a
       href="${sanitizeUri(url)}"
       target="_blank"
@@ -28,12 +28,21 @@ export function externalLinkTemplate({
             />`
           : ""}
         <div class="external-link-text">
-          <div class="external-link-title">${title || url}</div>
+          <div class="external-link-title" data-testid="external-link-title">
+            ${title || url}
+          </div>
           ${description
-            ? html`<div class="external-link-description">${description}</div>`
+            ? html`<div
+                class="external-link-description"
+                data-testid="external-link-description"
+              >
+                ${description}
+              </div>`
             : ""}
           <hr />
-          <span class="external-link-uri">${getDomainFromUri(url)}</span>
+          <span class="external-link-uri" data-testid="external-link-domain"
+            >${getDomainFromUri(url)}</span
+          >
         </div>
       </div>
     </a>
