@@ -4,7 +4,7 @@ import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 
 export function postSkeletonTemplate() {
-  return html`<div class="post-skeleton">
+  return html`<div class="post-skeleton" data-testid="post-skeleton">
     <div class="skeleton-left">
       <div class="skeleton-avatar skeleton-animate"></div>
     </div>

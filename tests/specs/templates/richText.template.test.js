@@ -1,6 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { assert, assertEquals } from "../../testHelpers.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
+import { render } from "/js/lib/lit-html.js";
 
 const t = new TestSuite("richTextTemplate");
 
@@ -10,7 +11,11 @@ t.describe("richTextTemplate", (it) => {
       text: "Hello world",
       facets: [],
     });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert(richText !== null);
+    assert(richText.textContent.includes("Hello world"));
   });
 
   it("should render text with link facet", () => {
@@ -27,7 +32,12 @@ t.describe("richTextTemplate", (it) => {
       },
     ];
     const result = richTextTemplate({ text, facets });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assert(link.getAttribute("href").startsWith("https://example.com"));
+    assertEquals(link.textContent, "example.com");
   });
 
   it("should render text with mention facet", () => {
@@ -44,7 +54,12 @@ t.describe("richTextTemplate", (it) => {
       },
     ];
     const result = richTextTemplate({ text, facets });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assert(link.getAttribute("href").includes("did:plc:123"));
+    assertEquals(link.textContent, "@user");
   });
 
   it("should render text with tag facet", () => {
@@ -61,7 +76,12 @@ t.describe("richTextTemplate", (it) => {
       },
     ];
     const result = richTextTemplate({ text, facets });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assert(link.getAttribute("href").includes("world"));
+    assertEquals(link.textContent, "#world");
   });
 
   it("should render text with multiple facets", () => {
@@ -87,7 +107,29 @@ t.describe("richTextTemplate", (it) => {
       },
     ];
     const result = richTextTemplate({ text, facets });
-    assert(result instanceof Object);
+    const container = document.createElement("div");
+    render(result, container);
+    const links = container.querySelectorAll("a");
+    assertEquals(links.length, 2);
+  });
+
+  it("should render multiline text with separate divs", () => {
+    const text = "Line one\nLine two\nLine three";
+    const result = richTextTemplate({ text, facets: [] });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    const divs = richText.querySelectorAll("div");
+    assertEquals(divs.length, 3);
+  });
+
+  it("should render empty line as br element", () => {
+    const text = "Line one\n\nLine three";
+    const result = richTextTemplate({ text, facets: [] });
+    const container = document.createElement("div");
+    render(result, container);
+    const br = container.querySelector("br");
+    assert(br !== null);
   });
 });
 

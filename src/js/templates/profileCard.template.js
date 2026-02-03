@@ -22,7 +22,7 @@ function getBlueskyLinkForProfile(profile) {
 }
 
 function profileStatsTemplate({ profile }) {
-  return html` <div class="profile-stats">
+  return html` <div class="profile-stats" data-testid="profile-stats">
     <a href="${linkToProfileFollowers(profile)}" class="profile-stat">
       <strong>${formatLargeNumber(profile.followersCount)}</strong>
       followers
@@ -46,7 +46,9 @@ function profileDescriptionTemplate({
 }) {
   if (isBlocked) {
     return html`<div>
-      <div class="profile-blocked-badge">User Blocked</div>
+      <div class="profile-blocked-badge" data-testid="blocked-badge">
+        User Blocked
+      </div>
     </div>`;
   }
   return html`
@@ -106,6 +108,7 @@ export function profileCardTemplate({
         ${!isCurrentUser && !isLabeler && isAuthenticated
           ? html`<button
               class="rounded-button chat-button"
+              data-testid="chat-button"
               ?disabled=${!canChat}
               title="Go to chat"
               @click=${() => {
@@ -123,6 +126,7 @@ export function profileCardTemplate({
             return html`<button
               @click=${() => onClickBlock(profile, false)}
               class="rounded-button profile-following-button"
+              data-testid="unblock-button"
             >
               Unblock
             </button>`;
@@ -139,6 +143,7 @@ export function profileCardTemplate({
                 class=${classnames("rounded-button  profile-following-button", {
                   "rounded-button-primary": !isSubscribed,
                 })}
+                data-testid="subscribe-button"
               >
                 ${isSubscribed ? "Subscribed" : "+ Subscribe"}
               </button>`;
@@ -156,6 +161,7 @@ export function profileCardTemplate({
             class=${classnames("rounded-button  profile-following-button", {
               "rounded-button-primary": !isFollowing,
             })}
+            data-testid="follow-button"
           >
             ${isFollowing ? "Following" : "+ Follow"}
           </button>`;
@@ -192,6 +198,7 @@ export function profileCardTemplate({
                 ${isLabeler
                   ? html`
                       <context-menu-item
+                        data-testid="context-menu-follow"
                         @click=${() => {
                           onClickFollow(profile, !isFollowing);
                         }}
@@ -237,10 +244,17 @@ export function profileCardTemplate({
         </context-menu>
       </div>
       <div class="profile-info">
-        <h1 class="profile-name">${getDisplayName(profile)}</h1>
+        <h1 class="profile-name" data-testid="profile-name">
+          ${getDisplayName(profile)}
+        </h1>
         <div class="profile-handle-row">
           ${profile.viewer?.followedBy && !isBlocked
-            ? html`<div class="profile-follows-you">Follows you</div>`
+            ? html`<div
+                class="profile-follows-you"
+                data-testid="follows-you-badge"
+              >
+                Follows you
+              </div>`
             : ""}
           <div class="profile-handle">@${profile.handle}</div>
         </div>

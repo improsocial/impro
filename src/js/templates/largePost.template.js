@@ -208,5 +208,7 @@ export function largePostTemplate({
       >${content}</moderation-warning
     > `;
   }
-  return html`<div class="post large-post">${content}</div>`;
+  return html`<div class="post large-post" data-testid="large-post">
+    ${content}
+  </div>`;
 }

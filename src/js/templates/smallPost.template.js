@@ -70,6 +70,7 @@ export function smallPostTemplate({
   const content = html`
     <div
       class="post small-post clickable"
+      data-testid="small-post"
       @click=${(e) => {
         // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
         if (e.target.closest("a")) {
@@ -94,10 +95,12 @@ export function smallPostTemplate({
         </div>
         <div class="post-content-right">
           ${isPinned
-            ? html`<div class="pinned-label">${pinIconTemplate()} Pinned</div>`
+            ? html`<div class="pinned-label" data-testid="pinned-label">
+                ${pinIconTemplate()} Pinned
+              </div>`
             : ""}
           ${repostAuthor
-            ? html`<div class="repost-label">
+            ? html`<div class="repost-label" data-testid="repost-label">
                 ${repostIconTemplate()} Reposted by
                 ${getDisplayName(repostAuthor)}
               </div>`

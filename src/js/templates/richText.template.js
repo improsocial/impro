@@ -103,5 +103,5 @@ export function richTextTemplate({ text, facets = [] }) {
     byteOffset += lineByteLength + 1; // +1 for the newline character
   }
   // prettier-ignore
-  return html`<div class="rich-text">${divs}</div>`;
+  return html`<div class="rich-text" data-testid="rich-text">${divs}</div>`;
 }

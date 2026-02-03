@@ -38,7 +38,7 @@ export function avatarTemplate({
 }) {
   const isLabeler = isLabelerProfile(author);
   const avatarUrl = getAvatarUrl(author, isLabeler);
-  return html`<div class="avatar">
+  return html`<div class="avatar" data-testid="avatar">
     ${avatarWrapperTemplate({
       author,
       clickAction,
@@ -48,6 +48,7 @@ export function avatarTemplate({
           src="${avatarUrl}"
           alt="${author.displayName} profile picture"
           class=${classnames("avatar-image", { "labeler-avatar": isLabeler })}
+          data-testid="avatar-image"
           loading=${lazyLoad ? "lazy" : "eager"}
         />`,
       ),

@@ -53,6 +53,7 @@ export function postActionBarTemplate({
       <div class="post-action">
         <button
           class="post-action-button"
+          data-testid="reply-button"
           @click=${() => {
             if (!isAuthenticated) {
               return showSignInModal();
@@ -62,7 +63,7 @@ export function postActionBarTemplate({
         >
           <div class="post-action-icon">${replyIconTemplate()}</div>
           ${numReplies > 0
-            ? html`<span class="post-action-count"
+            ? html`<span class="post-action-count" data-testid="reply-count"
                 >${formatLargeNumber(numReplies)}</span
               >`
             : null}
@@ -73,6 +74,7 @@ export function postActionBarTemplate({
           class=${classnames("post-action-button post-action-repost", {
             reposted: isReposted,
           })}
+          data-testid="repost-button"
           @click=${function (e) {
             e.stopPropagation();
             if (!isAuthenticated) {
@@ -84,7 +86,7 @@ export function postActionBarTemplate({
         >
           <div class="post-action-icon">${repostIconTemplate()}</div>
           ${numReposts > 0
-            ? html`<span class="post-action-count"
+            ? html`<span class="post-action-count" data-testid="repost-count"
                 >${formatLargeNumber(numReposts)}</span
               >`
             : null}
@@ -139,6 +141,7 @@ export function postActionBarTemplate({
           class="post-action-button ${classnames({
             bookmarked: isBookmarked,
           })}"
+          data-testid="bookmark-button"
           @click=${(e) => {
             e.stopPropagation();
             if (!isAuthenticated) {

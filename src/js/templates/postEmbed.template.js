@@ -28,15 +28,21 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
 }
 
 function blockedQuoteTemplate() {
-  return html`<div class="quoted-post">Post unavailable</div>`;
+  return html`<div class="quoted-post" data-testid="blocked-quote">
+    Post unavailable
+  </div>`;
 }
 
 function removedQuoteTemplate() {
-  return html`<div class="quoted-post">Removed by author</div>`;
+  return html`<div class="quoted-post" data-testid="removed-quote">
+    Removed by author
+  </div>`;
 }
 
 function notFoundQuoteTemplate() {
-  return html`<div class="quoted-post">Deleted</div>`;
+  return html`<div class="quoted-post" data-testid="not-found-quote">
+    Deleted
+  </div>`;
 }
 
 function mutedWrapperTemplate({ isMuted, label, children }) {
@@ -165,6 +171,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
 function imagesTemplate({ images, lazyLoad = false }) {
   return html`<lightbox-image-group
     class="post-images num-images-${images.length}"
+    data-testid="post-images"
   >
     ${images.map(
       (image) =>
