@@ -405,10 +405,13 @@ export class Requests {
           ...res.notifications,
         ]);
       } else {
-        console.warn("cursor mismatch, discarding response", {
-          previousCursor,
-          cursor,
-        });
+        console.warn(
+          "loadNotifications: cursor mismatch, discarding response",
+          {
+            previousCursor,
+            cursor,
+          },
+        );
       }
     } else {
       this.dataStore.setNotifications(res.notifications);
@@ -433,7 +436,7 @@ export class Requests {
         const existingConvos = this.dataStore.getConvoList() ?? [];
         this.dataStore.setConvoList([...existingConvos, ...res.convos]);
       } else {
-        console.warn("cursor mismatch, discarding response", {
+        console.warn("loadConvoList: cursor mismatch, discarding response", {
           previousCursor,
           cursor,
         });
