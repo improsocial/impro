@@ -40,7 +40,9 @@ export function mainLayoutTemplate({
             })
           : ""}
       </div>
-      <div class="view-column-center">${children}</div>
+      <div class="view-column-center" data-testid="view-column-center">
+        ${children}
+      </div>
       <div class="view-column-right"></div>
     </div>
     ${footerTemplate({
@@ -54,6 +56,7 @@ export function mainLayoutTemplate({
     ${currentUser && showFloatingComposeButton
       ? html`<button
           class="floating-compose-button"
+          data-testid="floating-compose-button"
           @click=${() => onClickComposeButton()}
         >
           ${editIconTemplate()}

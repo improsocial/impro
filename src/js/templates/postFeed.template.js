@@ -6,7 +6,11 @@ import { linkToPost } from "/js/navigation.js";
 function feedFeedbackMessageTemplate({ post }) {
   // Attach post URI, we use it to maintain scroll position when feedback is sent
   return html`
-    <div class="feed-feedback-message" data-post-uri="${post.uri}">
+    <div
+      class="feed-feedback-message"
+      data-testid="feed-feedback-message"
+      data-post-uri="${post.uri}"
+    >
       <div class="feed-feedback-message-inner">
         Your feedback has been sent to the feed operator.
       </div>
@@ -173,7 +177,9 @@ export function postFeedTemplate({
   }
   if (feed.feed.length === 0) {
     return html`<div class="feed">
-      <div class="feed-end-message">${emptyMessage ?? "Feed is empty."}</div>
+      <div class="feed-end-message" data-testid="feed-end-message">
+        ${emptyMessage ?? "Feed is empty."}
+      </div>
     </div>`;
   }
   const hasMore = !!feed.cursor;
@@ -188,11 +194,12 @@ export function postFeedTemplate({
           }
         }}
       >
-        <div class="feed">
+        <div class="feed" data-testid="feed">
           ${feed.feed.map((feedItem, i) => {
             // data attributes are used by post seen observer
             const content = html`<div
               class="feed-item"
+              data-testid="feed-item"
               data-feed-context="${feedItem.feedContext}"
               data-post-uri="${feedItem.post.uri}"
               data-feed-generator-uri="${feedGenerator?.uri ?? ""}"
@@ -215,10 +222,18 @@ export function postFeedTemplate({
             }
             // if it's the last item, add a loading indicator
             const endingElement = hasMore
-              ? html`<div class="feed-loading-indicator">
+              ? html`<div
+                  class="feed-loading-indicator"
+                  data-testid="feed-loading-indicator"
+                >
                   <div class="loading-spinner"></div>
                 </div>`
-              : html`<div class="feed-end-message">End of feed</div>`;
+              : html`<div
+                  class="feed-end-message"
+                  data-testid="feed-end-message"
+                >
+                  End of feed
+                </div>`;
             return html`<div>${content}${endingElement}</div>`;
           })}
         </div>

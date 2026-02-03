@@ -18,10 +18,12 @@ export function textHeaderTemplate({
     className: "text-header",
     children: html`
       ${avatarTemplate ? avatarTemplate() : ""}
-      <div class="header-title-container">
-        <span class="header-title">${title}</span>
+      <div class="header-title-container" data-testid="header-title-container">
+        <span class="header-title" data-testid="header-title">${title}</span>
         ${subtitle
-          ? html`<span class="header-subtitle">${subtitle}</span>`
+          ? html`<span class="header-subtitle" data-testid="header-subtitle"
+              >${subtitle}</span
+            >`
           : ""}
       </div>
     `,

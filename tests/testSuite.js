@@ -10,7 +10,7 @@ export class TestSuite {
 
   describe(namespace, callback) {
     const it = (name, fn) => {
-      this.tests.push({ name: `${namespace} - ${name}`, fn });
+      this.tests.push({ name: `${namespace} > ${name}`, fn });
     };
     callback(it);
   }
@@ -19,7 +19,7 @@ export class TestSuite {
     const results = [];
     console.info(`Running test suite "${this.suiteName}"...`);
     for (const test of this.tests) {
-      console.info(`   ${this.suiteName} - ${test.name}`);
+      console.info(`   ${this.suiteName} > ${test.name}`);
       try {
         await test.fn();
         console.info("   ✅ Passed");

@@ -156,6 +156,8 @@ export function classnames(...defs) {
           .filter(([_, value]) => value)
           .map(([key]) => key)
           .join(" ") + " ";
+    } else if (def === null || def === undefined) {
+      continue;
     } else {
       throw new Error("Invalid classname definition");
     }

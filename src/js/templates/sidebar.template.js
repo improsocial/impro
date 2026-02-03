@@ -39,7 +39,7 @@ function showAboutModal() {
 
 function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
   return html`
-    <nav class="sidebar-nav">
+    <nav class="sidebar-nav" data-testid="sidebar-nav">
       ${menuItems.map(
         (item) => html`
           <a
@@ -47,6 +47,7 @@ function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
             class=${classnames("sidebar-nav-item", {
               disabled: item.disabled,
             })}
+            data-testid="sidebar-nav-${item.id}"
             @click=${function (e) {
               // Handle active item click
               if (activeNavItem === item.id) {
@@ -66,7 +67,7 @@ function sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem }) {
             <span class="sidebar-nav-icon"
               >${item.icon({ filled: activeNavItem === item.id })}
               ${item.badge
-                ? html`<div class="status-badge">
+                ? html`<div class="status-badge" data-testid="status-badge">
                     <div class="status-badge-text">${item.badge}</div>
                   </div>`
                 : ""}
@@ -95,16 +96,23 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
     },
   ];
   return html`
-    <animated-sidebar class="logged-out-sidebar">
+    <animated-sidebar
+      class="logged-out-sidebar"
+      data-testid="logged-out-sidebar"
+    >
       <div class="sidebar-header">
         <a href="/" class="sidebar-title"><h1>IMPRO</h1></a>
       </div>
       ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
-      <a href="/login" class="square-button primary-button login-button"
+      <a
+        href="/login"
+        class="square-button primary-button login-button"
+        data-testid="login-button"
         >Sign in</a
       >
       <button
         class="sidebar-about-link sidebar-text-link"
+        data-testid="sidebar-about-link"
         @click=${() => {
           showAboutModal();
         }}
@@ -112,7 +120,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
         About
       </button>
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" data-testid="sidebar-footer">
         <a href="/tos.html" class="sidebar-text-link" data-external="true"
           >Terms</a
         >
@@ -203,21 +211,24 @@ export function sidebarTemplate({
   return html`
     <animated-sidebar>
       <!-- Profile Section -->
-      <div class="sidebar-profile">
+      <div class="sidebar-profile" data-testid="sidebar-profile">
         <div class="sidebar-profile-avatar">
           ${currentUser
             ? html`${avatarTemplate({ author: currentUser })}`
             : html`<div class="avatar-placeholder"></div>`}
         </div>
         <div class="sidebar-profile-info">
-          <div class="sidebar-profile-name">
+          <div class="sidebar-profile-name" data-testid="sidebar-profile-name">
             ${displayName || html`<span>&nbsp;</span>`}
           </div>
-          <div class="sidebar-profile-handle">
+          <div
+            class="sidebar-profile-handle"
+            data-testid="sidebar-profile-handle"
+          >
             ${handle || html`<span>&nbsp;</span>`}
           </div>
         </div>
-        <div class="sidebar-profile-stats">
+        <div class="sidebar-profile-stats" data-testid="sidebar-profile-stats">
           <a
             href="${currentUser ? linkToProfileFollowers(currentUser) : "#"}"
             @click=${(e) => {
@@ -258,13 +269,14 @@ export function sidebarTemplate({
       ${onClickComposeButton
         ? html`<button
             class="sidebar-compose-button"
+            data-testid="sidebar-compose-button"
             @click=${() => onClickComposeButton()}
           >
             ${editIconTemplate()} <span>New Post</span>
           </button>`
         : ""}
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-footer">
+      <div class="sidebar-footer" data-testid="sidebar-footer">
         <a
           href="https://github.com/improsocial/impro/issues"
           class="sidebar-text-link"
