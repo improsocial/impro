@@ -147,7 +147,9 @@ export function classnames(...defs) {
   let classname = "";
   for (const def of defs) {
     if (typeof def === "string") {
-      classname += def + " ";
+      if (def.length > 0) {
+        classname += def + " ";
+      }
     } else if (typeof def === "object") {
       classname +=
         Object.entries(def)

@@ -5201,6 +5201,10 @@ moderation-warning .top-bar {
   color: var(--text-link-color);
 }
 
+.post-content-warning .post-moderation-warning-description {
+  margin-bottom: 8px;
+}
+
 .quoted-account-muted-warning .top-bar {
   margin-top: 8px;
   margin-bottom: 8px;

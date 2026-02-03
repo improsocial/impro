@@ -127,11 +127,7 @@ export function largePostTemplate({
             })}
           </div>
         </div>
-        ${
-          post.viewer?.badgeLabels
-            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
-            : ""
-        }
+        ${badgeLabels.length > 0 ? postLabelsTemplate({ badgeLabels }) : ""}
         <div class="post-content-bottom">
           <div class="post-body">
             ${

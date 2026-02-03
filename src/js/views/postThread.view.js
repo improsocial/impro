@@ -71,6 +71,13 @@ class PostThreadView extends View {
       }
     }
 
+    function replyHasContentLabel(reply) {
+      return (
+        reply.post.viewer?.contentLabel &&
+        reply.post.viewer?.contentLabel.visibility !== "ignore"
+      );
+    }
+
     function doShowReply(reply) {
       const post = reply.post;
       if (!post) {
@@ -80,7 +87,8 @@ class PostThreadView extends View {
         isBlockedPost(post) ||
         isNotFoundPost(post) ||
         isMutedPost(post) ||
-        post.isBlockedReply
+        post.isBlockedReply ||
+        replyHasContentLabel(reply)
       ) {
         return false;
       }
@@ -208,11 +216,12 @@ class PostThreadView extends View {
     }
 
     // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
+    // Things shown here will also need to be filtered out from the reply chain separately.
     function doPutReplyInHiddenSection(reply) {
       if (!reply.post) {
         return false;
       }
-      if (isMutedPost(reply.post)) {
+      if (isMutedPost(reply.post) || replyHasContentLabel(reply)) {
         return true;
       }
       // If the post author blocked the replier, put the reply in the hidden section
@@ -247,6 +256,7 @@ class PostThreadView extends View {
               post: reply.post,
               isUserPost: currentUser?.did === reply.post?.author?.did,
               postInteractionHandler,
+              ignoreContentWarning: true,
               overrideMutedWords: true,
               lazyLoadImages: true,
             }),
