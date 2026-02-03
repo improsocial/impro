@@ -1,5 +1,7 @@
 import { Component, getChildrenFragment } from "./component.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { chevronLeftIconTemplate } from "../templates/icons/chevronLeft.template.js";
+import { chevronRightIconTemplate } from "../templates/icons/chevronRight.template.js";
 
 function getSharedContainer(id) {
   let container = document.getElementById(id);
@@ -37,56 +39,100 @@ class LightboxImageGroup extends Component {
     this.appendChild(this._children);
   }
 
-  // TODO: navigate between images within the group
   showLightbox(img) {
-    const src = img.src;
-    const alt = img.alt;
-
+    const images = Array.from(this.querySelectorAll("img"));
+    let currentIndex = images.indexOf(img);
     const lightboxContainer = getSharedContainer("lightbox-container");
 
-    // Helper to close the lightbox and clean up
-    const closeBox = () => {
+    function renderLightbox() {
+      const currentImg = images[currentIndex];
+      const src = currentImg.src;
+      const alt = currentImg.alt;
+      const hasMultiple = images.length > 1;
+
+      render(
+        html`
+          <div
+            class="lightbox"
+            style="display: flex;"
+            @click=${(e) => {
+              if (e.target.classList.contains("lightbox")) {
+                closeLightbox();
+              }
+            }}
+          >
+            <div
+              class="lightbox-close"
+              @click=${(e) => {
+                e.stopPropagation();
+                closeLightbox();
+              }}
+            >
+              ×
+            </div>
+            ${hasMultiple
+              ? html`
+                  <button
+                    class="lightbox-nav lightbox-nav-prev"
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      navigate(-1);
+                    }}
+                    ?disabled=${currentIndex === 0}
+                  >
+                    ${chevronLeftIconTemplate()}
+                  </button>
+                `
+              : ""}
+            <img src=${src} alt=${alt} />
+            ${hasMultiple
+              ? html`
+                  <button
+                    class="lightbox-nav lightbox-nav-next"
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      navigate(1);
+                    }}
+                    ?disabled=${currentIndex === images.length - 1}
+                  >
+                    ${chevronRightIconTemplate()}
+                  </button>
+                `
+              : ""}
+            ${alt && !this.hideAltText
+              ? html`<p class="lightbox-alt-text">${alt}</p>`
+              : ""}
+          </div>
+        `,
+        lightboxContainer,
+      );
+    }
+
+    function navigate(steps) {
+      const newIndex = currentIndex + steps;
+      if (newIndex >= 0 && newIndex < images.length) {
+        currentIndex = newIndex;
+        renderLightbox();
+      }
+    }
+
+    function closeLightbox() {
       document.body.style.overflow = ""; // Restore scrolling
       render(html``, lightboxContainer);
       document.removeEventListener("keydown", onKeyDown);
-    };
+    }
 
-    // Keydown handler for Escape
-    const onKeyDown = (e) => {
+    function onKeyDown(e) {
       if (e.key === "Escape") {
-        closeBox();
+        closeLightbox();
+      } else if (e.key === "ArrowLeft") {
+        navigate(-1);
+      } else if (e.key === "ArrowRight") {
+        navigate(1);
       }
-    };
+    }
 
-    render(
-      html`
-        <div
-          class="lightbox"
-          style="display: flex;"
-          @click=${(e) => {
-            if (e.target.classList.contains("lightbox")) {
-              closeBox();
-            }
-          }}
-        >
-          <div
-            class="lightbox-close"
-            @click=${(e) => {
-              e.stopPropagation();
-              closeBox();
-            }}
-          >
-            ×
-          </div>
-          <img src=${src} alt=${alt} />
-          ${alt && !this.hideAltText
-            ? html`<p class="lightbox-alt-text">${alt}</p>`
-            : ""}
-        </div>
-      `,
-      lightboxContainer,
-    );
-
+    renderLightbox();
     document.body.style.overflow = "hidden"; // Prevent background scrolling
     document.addEventListener("keydown", onKeyDown);
   }

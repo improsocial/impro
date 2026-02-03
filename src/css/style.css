@@ -4981,6 +4981,50 @@ img[data-lightbox] {
   z-index: var(--lightbox-close-z-index);
 }
 
+.lightbox-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  color: white;
+  background: rgba(0, 0, 0, 0.5);
+  border: none;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--icon-button-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: var(--lightbox-close-z-index);
+  transition: background 0.2s ease;
+}
+
+.lightbox-nav:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+.lightbox-nav:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.lightbox-nav-prev {
+  left: 20px;
+}
+
+.lightbox-nav-next {
+  right: 20px;
+}
+
+.lightbox-nav .icon {
+  width: 32px;
+  height: 32px;
+}
+
+.lightbox-nav .icon path {
+  stroke: white;
+}
+
 .settings-section {
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
