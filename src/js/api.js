@@ -103,7 +103,8 @@ export class Api {
     }
     let data = null;
     if (parseJson) {
-      data = await res.json();
+      // If body was already consumed by the oauth library, use that
+      data = res.data ?? (await res.json());
     }
     res.data = data;
     if (!res.ok) {
