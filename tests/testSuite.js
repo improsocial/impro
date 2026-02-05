@@ -2,6 +2,11 @@ export class TestSuite {
   constructor(suiteName) {
     this.suiteName = suiteName;
     this.tests = [];
+    this._beforeEach = null;
+  }
+
+  beforeEach(fn) {
+    this._beforeEach = fn;
   }
 
   test(name, fn) {
@@ -21,6 +26,9 @@ export class TestSuite {
     for (const test of this.tests) {
       console.info(`   ${this.suiteName} > ${test.name}`);
       try {
+        if (this._beforeEach) {
+          await this._beforeEach();
+        }
         await test.fn();
         console.info("   ✅ Passed");
         results.push({ name: test.name, success: true });
