@@ -2157,7 +2157,8 @@ like-button {
   min-width: 0;
 }
 
-.quoted-post-header .post-header-text .post-name {
+.quoted-post-header .post-header-text .post-separator,
+.quoted-post-header .post-header-text .post-time {
   flex-shrink: 0;
 }
 
