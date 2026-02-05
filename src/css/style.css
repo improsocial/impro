@@ -1806,6 +1806,10 @@ like-button {
   left: 2px;
 }
 
+.post-action-button.like-button .post-action-count {
+  left: 1px;
+}
+
 .like-button.liked .heart-icon path {
   stroke: var(--like-color);
   fill: var(--like-color);
