@@ -89,6 +89,24 @@ t.describe("postActionBarTemplate", (it) => {
     assertEquals(repostCount.textContent.trim(), "10");
   });
 
+  it("should include quote posts in repost count", () => {
+    const postWithRepostsAndQuotes = {
+      ...post,
+      repostCount: 5,
+      quoteCount: 3,
+    };
+    const result = postActionBarTemplate({
+      post: postWithRepostsAndQuotes,
+      isAuthenticated: true,
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const repostCount = container.querySelector("[data-testid='repost-count']");
+    assert(repostCount !== null);
+    assertEquals(repostCount.textContent.trim(), "8");
+  });
+
   it("should not show repost count when post has no reposts", () => {
     const postWithNoReposts = {
       ...post,

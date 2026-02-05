@@ -36,7 +36,7 @@ export function postActionBarTemplate({
   enableFeedFeedback = false,
 }) {
   const numReplies = post.replyCount;
-  const numReposts = post.repostCount;
+  const numReposts = post.repostCount + post.quoteCount;
   const isReposted = !!post.viewer?.repost;
   const numLikes = post.likeCount;
   const isLiked = !!post.viewer?.like;
