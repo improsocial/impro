@@ -35,15 +35,17 @@ class ProfileView extends View {
         feedType: "posts",
         name: "Posts",
       },
-      {
-        feedType: "replies",
-        name: "Replies",
-      },
+      isAuthenticated
+        ? {
+            feedType: "replies",
+            name: "Replies",
+          }
+        : null,
       {
         feedType: "media",
         name: "Media",
       },
-    ];
+    ].filter(Boolean);
 
     const currentUserAuthorFeeds = [
       ...defaultAuthorFeeds,
