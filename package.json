@@ -10,7 +10,8 @@
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "format": "pretty-quick --staged",
     "test": "npm run test:unit",
-    "test:unit": "node tests/runTests.js",
+    "test:unit": "node tests/unit/runTests.js",
+    "test:e2e": "npx playwright test",
     "prepare": "husky"
   },
   "license": "MIT",
@@ -18,6 +19,7 @@
     "@11ty/eleventy": "^3.1.2",
     "@capacitor/cli": "^7.0.0",
     "@import-maps/resolve": "^2.0.0",
+    "@playwright/test": "^1.58.1",
     "dotenv": "^17.2.2",
     "es-module-lexer": "^1.4.1",
     "esbuild": "^0.25.10",

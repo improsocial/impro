@@ -4,7 +4,7 @@ import {
   filterFollowingFeed,
   filterAlgorithmicFeed,
   filterAuthorFeed,
-} from "../../src/js/feedFilters.js";
+} from "/js/feedFilters.js";
 
 const t = new TestSuite("feedFilters");
 

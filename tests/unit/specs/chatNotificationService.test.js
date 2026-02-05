@@ -1,6 +1,6 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals, mock } from "../testHelpers.js";
-import { ChatNotificationService } from "../../src/js/chatNotificationService.js";
+import { ChatNotificationService } from "/js/chatNotificationService.js";
 
 const t = new TestSuite("chatNotificationService");
 

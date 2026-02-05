@@ -1,7 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { Preferences } from "../../../src/js/preferences.js";
-import { PreferencesProvider } from "../../../src/js/dataLayer/preferencesProvider.js";
+import { Preferences } from "/js/preferences.js";
+import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 
 const t = new TestSuite("PreferencesProvider");
 

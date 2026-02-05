@@ -1,6 +1,6 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
-import { Preferences } from "../../src/js/preferences.js";
+import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Preferences");
 

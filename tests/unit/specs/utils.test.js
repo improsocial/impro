@@ -8,7 +8,7 @@ import {
   formatFullTimestamp,
   classnames,
   deepClone,
-} from "../../src/js/utils.js";
+} from "/js/utils.js";
 
 const t = new TestSuite("utils");
 

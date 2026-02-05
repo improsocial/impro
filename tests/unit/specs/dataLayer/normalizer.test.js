@@ -1,6 +1,6 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { Normalizer } from "../../../src/js/dataLayer/normalizer.js";
+import { Normalizer } from "/js/dataLayer/normalizer.js";
 
 const t = new TestSuite("Normalizer");
 

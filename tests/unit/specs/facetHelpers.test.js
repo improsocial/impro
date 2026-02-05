@@ -5,7 +5,7 @@ import {
   resolveFacets,
   getFacetsFromText,
   getTagsFromFacets,
-} from "../../src/js/facetHelpers.js";
+} from "/js/facetHelpers.js";
 
 const t = new TestSuite("facetHelpers");
 

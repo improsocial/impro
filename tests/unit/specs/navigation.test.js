@@ -14,7 +14,7 @@ import {
   linkToFeed,
   getPermalinkForPost,
   getPermalinkForProfile,
-} from "../../src/js/navigation.js";
+} from "/js/navigation.js";
 
 const t = new TestSuite("navigation");
 

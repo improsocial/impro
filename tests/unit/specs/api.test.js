@@ -1,6 +1,6 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
-import { Api, ApiError } from "../../src/js/api.js";
+import { Api, ApiError } from "/js/api.js";
 
 const t = new TestSuite("Api");
 

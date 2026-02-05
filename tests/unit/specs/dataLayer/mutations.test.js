@@ -1,9 +1,9 @@
 import { TestSuite } from "../../testSuite.js";
 import { assertEquals } from "../../testHelpers.js";
-import { Mutations } from "../../../src/js/dataLayer/mutations.js";
-import { DataStore } from "../../../src/js/dataLayer/dataStore.js";
-import { PatchStore } from "../../../src/js/dataLayer/patchStore.js";
-import { Preferences } from "../../../src/js/preferences.js";
+import { Mutations } from "/js/dataLayer/mutations.js";
+import { DataStore } from "/js/dataLayer/dataStore.js";
+import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Mutations");
 

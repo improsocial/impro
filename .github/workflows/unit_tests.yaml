@@ -14,4 +14,5 @@ jobs:
           node-version: "24.x"
       - run: npm install
       - run: npm run build
-      - run: npm test
+      - run: npm test:unit
+      - run: npm test:e2e

@@ -14,7 +14,7 @@ import {
   getDefinitionForLabel,
   isBadgeLabel,
   addFeedItemToFeed,
-} from "../../src/js/dataHelpers.js";
+} from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
 

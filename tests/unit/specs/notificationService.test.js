@@ -1,6 +1,6 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals, mock } from "../testHelpers.js";
-import { NotificationService } from "../../src/js/notificationService.js";
+import { NotificationService } from "/js/notificationService.js";
 
 const t = new TestSuite("notificationService");
 
