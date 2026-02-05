@@ -1,4 +1,4 @@
-name: Unit Tests
+name: E2E Tests
 
 on: [push]
 
@@ -12,4 +12,5 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "24.x"
-      - run: npm install run test:unit
+      - run: npm install
+      - run: npm run test:e2e
