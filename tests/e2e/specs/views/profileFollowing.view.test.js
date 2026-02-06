@@ -80,6 +80,51 @@ test.describe("Profile following view", () => {
     );
   });
 
+  test("should load more followed profiles when scrolling to the bottom", async ({
+    page,
+  }) => {
+    const follows = [];
+    for (let i = 1; i <= 60; i++) {
+      follows.push(
+        createProfile({
+          did: `did:plc:following${i}`,
+          handle: `following${i}.bsky.social`,
+          displayName: `Following ${i}`,
+        }),
+      );
+    }
+
+    const manyFollowsProfile = createProfile({
+      did: "did:plc:profileuser1",
+      handle: "profileuser.bsky.social",
+      displayName: "Profile User",
+      followsCount: 60,
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(manyFollowsProfile);
+    mockServer.addProfileFollows(manyFollowsProfile.did, follows);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${manyFollowsProfile.did}/following`);
+
+    const view = page.locator("#profile-following-view");
+    const items = view.locator(".profile-list-item");
+
+    // Wait for initial batch to load
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    const initialCount = await items.count();
+    expect(initialCount).toBeLessThan(60);
+
+    // Scroll to bottom to trigger infinite scroll
+    await items.last().scrollIntoViewIfNeeded();
+
+    // Verify more followed profiles loaded
+    await expect(items).toHaveCount(60, { timeout: 10000 });
+    await expect(view).toContainText("Following 60");
+  });
+
   test("should display error state when following list fails to load", async ({
     page,
   }) => {

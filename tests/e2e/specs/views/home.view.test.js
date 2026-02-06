@@ -933,4 +933,103 @@ test.describe("Home view", () => {
       await expect(view).not.toContainText("This should be hidden");
     });
   });
+
+  test.describe("Show Less / Show More feedback", () => {
+    test("should send Show Less interaction and show feedback message", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/myfeed",
+        displayName: "My Feed",
+        creatorHandle: "creator1.bsky.social",
+      });
+      feed.acceptsInteractions = true;
+      const feedPost = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "A post from custom feed",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addFeedGenerators([feed]);
+      mockServer.setPinnedFeeds([feed.uri]);
+      mockServer.addFeedItems(feed.uri, [feedPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await view.locator(".tab-bar-button", { hasText: "My Feed" }).click();
+
+      const visibleFeed = view.locator(".feed-container:not([hidden])");
+      await expect(
+        visibleFeed.locator('[data-testid="feed-item"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+
+      const feedItem = visibleFeed.locator('[data-testid="feed-item"]');
+      const sendInteractionsRequest = page.waitForRequest((req) =>
+        req.url().includes("app.bsky.feed.sendInteractions"),
+      );
+      await feedItem.locator(".text-button").click();
+      await page
+        .locator("context-menu-item", { hasText: "Show less like this" })
+        .click();
+
+      await sendInteractionsRequest;
+      await expect(
+        visibleFeed.locator('[data-testid="feed-feedback-message"]'),
+      ).toContainText("Your feedback has been sent to the feed operator.", {
+        timeout: 10000,
+      });
+    });
+
+    test("should send Show More interaction and show toast", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feed = createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/myfeed",
+        displayName: "My Feed",
+        creatorHandle: "creator1.bsky.social",
+      });
+      feed.acceptsInteractions = true;
+      const feedPost = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "A post from custom feed",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addFeedGenerators([feed]);
+      mockServer.setPinnedFeeds([feed.uri]);
+      mockServer.addFeedItems(feed.uri, [feedPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await view.locator(".tab-bar-button", { hasText: "My Feed" }).click();
+
+      const visibleFeed = view.locator(".feed-container:not([hidden])");
+      await expect(
+        visibleFeed.locator('[data-testid="feed-item"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+
+      const feedItem = visibleFeed.locator('[data-testid="feed-item"]');
+      const sendInteractionsRequest = page.waitForRequest((req) =>
+        req.url().includes("app.bsky.feed.sendInteractions"),
+      );
+      await feedItem.locator(".text-button").click();
+      await page
+        .locator("context-menu-item", { hasText: "Show more like this" })
+        .click();
+
+      await sendInteractionsRequest;
+      await expect(page.locator(".toast")).toContainText(
+        "Feedback sent to feed operator",
+        { timeout: 10000 },
+      );
+    });
+  });
 });

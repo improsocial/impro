@@ -8,6 +8,7 @@ export class MockServer {
     this.convos = [];
     this.convoMessages = new Map();
     this.createRecordCounter = 0;
+    this.interactionPayloads = [];
     this.blobCounter = 0;
     this.messageCounter = 0;
     this.typeaheadProfiles = [];
@@ -238,30 +239,50 @@ export class MockServer {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ count: 0 }),
+        body: JSON.stringify({
+          count: this.notifications.filter((n) => !n.isRead).length,
+        }),
       }),
     );
 
     await page.route(
       "**/xrpc/app.bsky.notification.listNotifications*",
-      (route) =>
-        route.fulfill({
+      (route) => {
+        const url = new URL(route.request().url());
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+
+        let notifications, nextCursor;
+        if (limit) {
+          notifications = this.notifications.slice(offset, offset + limit);
+          nextCursor =
+            offset + limit < this.notifications.length
+              ? String(offset + limit)
+              : "";
+        } else {
+          notifications = this.notifications;
+          nextCursor = this.notificationCursor || "";
+        }
+
+        return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({
-            notifications: this.notifications,
-            cursor: this.notificationCursor,
-          }),
-        }),
+          body: JSON.stringify({ notifications, cursor: nextCursor }),
+        });
+      },
     );
 
-    await page.route("**/xrpc/app.bsky.notification.updateSeen*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.notification.updateSeen*", (route) => {
+      for (const notification of this.notifications) {
+        notification.isRead = true;
+      }
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: "{}",
-      }),
-    );
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.feed.getPosts*", (route) => {
       const url = new URL(route.request().url());
@@ -276,13 +297,19 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) => {
+      const url = new URL(route.request().url());
+      const readState = url.searchParams.get("readState");
+      let convos = this.convos;
+      if (readState === "unread") {
+        convos = convos.filter((c) => c.unreadCount > 0);
+      }
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ convos: this.convos }),
-      }),
-    );
+        body: JSON.stringify({ convos }),
+      });
+    });
 
     await page.route("**/xrpc/chat.bsky.convo.getConvo*", (route) => {
       const url = new URL(route.request().url());
@@ -366,13 +393,19 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.updateRead*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.updateRead*", (route) => {
+      const body = route.request().postDataJSON();
+      const convoId = body?.convoId;
+      const convo = this.convos.find((c) => c.id === convoId);
+      if (convo) {
+        convo.unreadCount = 0;
+      }
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: "{}",
-      }),
-    );
+        body: JSON.stringify({ convo: convo || {} }),
+      });
+    });
 
     await page.route("**/xrpc/chat.bsky.convo.getLog*", (route) =>
       route.fulfill({
@@ -382,21 +415,28 @@ export class MockServer {
       }),
     );
 
-    await page.route("**/xrpc/chat.bsky.convo.acceptConvo*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.acceptConvo*", (route) => {
+      const body = route.request().postDataJSON();
+      const convo = this.convos.find((c) => c.id === body?.convoId);
+      if (convo) {
+        convo.status = "accepted";
+      }
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ rev: "rev-accepted" }),
-      }),
-    );
+      });
+    });
 
-    await page.route("**/xrpc/chat.bsky.convo.leaveConvo*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.leaveConvo*", (route) => {
+      const body = route.request().postDataJSON();
+      this.convos = this.convos.filter((c) => c.id !== body?.convoId);
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ rev: "rev-left" }),
-      }),
-    );
+      });
+    });
 
     await page.route(
       "**/xrpc/chat.bsky.convo.getConvoAvailability*",
@@ -412,6 +452,40 @@ export class MockServer {
         });
       },
     );
+
+    await page.route("**/xrpc/chat.bsky.convo.getConvoForMembers*", (route) => {
+      const url = new URL(route.request().url());
+      const members = url.searchParams.getAll("members");
+      const otherDid = members.find((m) => m !== userProfile.did);
+      // Find existing convo with this member
+      const existingConvo = this.convos.find((c) =>
+        c.members.some((m) => m.did === otherDid),
+      );
+      if (existingConvo) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ convo: existingConvo }),
+        });
+      }
+      // Create a new convo
+      const profile = this.profiles.get(otherDid);
+      const newConvo = {
+        id: `convo-new-${++this.messageCounter}`,
+        rev: `rev-new-${this.messageCounter}`,
+        members: [userProfile, profile || { did: otherDid }],
+        status: "accepted",
+        unreadCount: 0,
+        lastMessage: undefined,
+      };
+      this.convos.push(newConvo);
+      this.convoMessages.set(newConvo.id, []);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ convo: newConvo }),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.graph.muteActor*", (route) => {
       const body = route.request().postDataJSON();
@@ -444,13 +518,27 @@ export class MockServer {
     await page.route("**/xrpc/app.bsky.feed.getActorLikes*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
-      const posts = this.authorFeeds.get(`${actor}-likes`) || [];
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allPosts = this.authorFeeds.get(`${actor}-likes`) || [];
+
+      let posts, nextCursor;
+      if (limit) {
+        posts = allPosts.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allPosts.length ? String(offset + limit) : "";
+      } else {
+        posts = allPosts;
+        nextCursor = "";
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           feed: posts.map((post) => ({ post })),
-          cursor: "",
+          cursor: nextCursor,
         }),
       });
     });
@@ -459,13 +547,27 @@ export class MockServer {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
       const filter = url.searchParams.get("filter") || "";
-      const posts = this.authorFeeds.get(`${actor}-${filter}`) || [];
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allPosts = this.authorFeeds.get(`${actor}-${filter}`) || [];
+
+      let posts, nextCursor;
+      if (limit) {
+        posts = allPosts.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allPosts.length ? String(offset + limit) : "";
+      } else {
+        posts = allPosts;
+        nextCursor = "";
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           feed: posts.map((post) => ({ post })),
-          cursor: "",
+          cursor: nextCursor,
         }),
       });
     });
@@ -540,16 +642,30 @@ export class MockServer {
       }),
     );
 
-    await page.route("**/xrpc/app.bsky.feed.searchPosts*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.feed.searchPosts*", (route) => {
+      const url = new URL(route.request().url());
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      let posts, nextCursor;
+      if (limit) {
+        posts = this.searchPosts.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < this.searchPosts.length
+            ? String(offset + limit)
+            : "";
+      } else {
+        posts = this.searchPosts;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          posts: this.searchPosts,
-          cursor: "",
-        }),
-      }),
-    );
+        body: JSON.stringify({ posts, cursor: nextCursor }),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) => {
       const url = new URL(route.request().url());
@@ -691,22 +807,50 @@ export class MockServer {
     await page.route("**/xrpc/app.bsky.graph.getFollowers*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
-      const followers = this.profileFollowers.get(actor) || [];
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allFollowers = this.profileFollowers.get(actor) || [];
+
+      let followers, nextCursor;
+      if (limit) {
+        followers = allFollowers.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allFollowers.length ? String(offset + limit) : "";
+      } else {
+        followers = allFollowers;
+        nextCursor = "";
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ followers, cursor: "" }),
+        body: JSON.stringify({ followers, cursor: nextCursor }),
       });
     });
 
     await page.route("**/xrpc/app.bsky.graph.getFollows*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
-      const follows = this.profileFollows.get(actor) || [];
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allFollows = this.profileFollows.get(actor) || [];
+
+      let follows, nextCursor;
+      if (limit) {
+        follows = allFollows.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allFollows.length ? String(offset + limit) : "";
+      } else {
+        follows = allFollows;
+        nextCursor = "";
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ follows, cursor: "" }),
+        body: JSON.stringify({ follows, cursor: nextCursor }),
       });
     });
 
@@ -1068,6 +1212,16 @@ export class MockServer {
         });
       },
     );
+
+    await page.route("**/xrpc/app.bsky.feed.sendInteractions*", (route) => {
+      const body = route.request().postDataJSON();
+      this.interactionPayloads.push(body);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
 
     await page.route("**/xrpc/com.atproto.repo.uploadBlob*", (route) =>
       route.fulfill({
