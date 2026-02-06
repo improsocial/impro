@@ -11,6 +11,7 @@ export class MockServer {
     this.pinnedFeedUris = [];
     this.savedFeedUris = [];
     this.searchPosts = [];
+    this.timelinePosts = [];
   }
 
   addBookmarks(bookmarks) {
@@ -34,6 +35,10 @@ export class MockServer {
 
   setSavedFeeds(feedUris) {
     this.savedFeedUris = feedUris;
+  }
+
+  addTimelinePosts(posts) {
+    this.timelinePosts.push(...posts);
   }
 
   addSearchPosts(posts) {
@@ -225,6 +230,17 @@ export class MockServer {
         contentType: "application/json",
         body: JSON.stringify({
           posts: this.searchPosts,
+          cursor: "",
+        }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          feed: this.timelinePosts.map((post) => ({ post })),
           cursor: "",
         }),
       }),

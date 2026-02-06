@@ -46,6 +46,14 @@ test.describe("Pin feed flow", () => {
     await expect(feedsView).toContainText("Following");
     await expect(feedsView).toContainText("Trending");
     await expect(feedsView).toContainText("by @creator1.bsky.social");
+
+    // Navigate to home — pinned feed should appear as a tab
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    const tabs = homeView.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(1)).toContainText("Trending");
   });
 
   test("should remove feed from feeds index after unpinning from feed detail", async ({
@@ -87,5 +95,12 @@ test.describe("Pin feed flow", () => {
     });
     await expect(feedsView).toContainText("Following");
     await expect(feedsView).not.toContainText("Trending");
+
+    // Navigate to home — unpinned feed should not appear as a tab
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    const tabs = homeView.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(1, { timeout: 10000 });
+    await expect(tabs.nth(0)).toContainText("Following");
   });
 });
