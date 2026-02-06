@@ -1,3 +1,4 @@
+import { createPost } from "./factories.js";
 import { userProfile } from "./fixtures.js";
 
 export class MockServer {
@@ -6,6 +7,7 @@ export class MockServer {
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
+    this.createRecordCounter = 0;
     this.messageCounter = 0;
     this.feedGenerators = [];
     this.feeds = new Map();
@@ -17,8 +19,12 @@ export class MockServer {
     this.postQuotes = new Map();
     this.postReposts = new Map();
     this.postThreads = new Map();
+    this.profileFollowers = new Map();
+    this.profileFollows = new Map();
+    this.profiles = new Map();
     this.savedFeedUris = [];
     this.searchPosts = [];
+    this.searchProfiles = [];
     this.timelinePosts = [];
   }
 
@@ -57,6 +63,10 @@ export class MockServer {
     this.searchPosts.push(...posts);
   }
 
+  addSearchProfiles(profiles) {
+    this.searchProfiles.push(...profiles);
+  }
+
   addNotifications(notifications, { cursor } = {}) {
     this.notifications.push(...notifications);
     this.notificationCursor = cursor;
@@ -80,6 +90,18 @@ export class MockServer {
 
   setPostThread(postUri, thread) {
     this.postThreads.set(postUri, thread);
+  }
+
+  addProfileFollowers(did, followers) {
+    this.profileFollowers.set(did, followers);
+  }
+
+  addProfileFollows(did, follows) {
+    this.profileFollows.set(did, follows);
+  }
+
+  addProfile(profile) {
+    this.profiles.set(profile.did, profile);
   }
 
   addConvos(convos) {
@@ -314,13 +336,16 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const profile = this.profiles.get(actor) || userProfile;
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify(userProfile),
-      }),
-    );
+        body: JSON.stringify(profile),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.bookmark.getBookmarks*", (route) =>
       route.fulfill({
@@ -328,6 +353,17 @@ export class MockServer {
         contentType: "application/json",
         body: JSON.stringify({
           bookmarks: this.bookmarks.map((post) => ({ item: post })),
+        }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          actors: this.searchProfiles,
+          cursor: "",
         }),
       }),
     );
@@ -455,6 +491,28 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.getFollowers*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const followers = this.profileFollowers.get(actor) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ followers, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.getFollows*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const follows = this.profileFollows.get(actor) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ follows, cursor: "" }),
+      });
+    });
+
     await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
       const url = new URL(route.request().url());
       const handle = url.searchParams.get("handle");
@@ -475,6 +533,40 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ did }),
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) => {
+      const body = route.request().postDataJSON();
+      const collection = body?.collection;
+      const rkey = `rkey-${++this.createRecordCounter}`;
+      const uri = `at://${userProfile.did}/${collection}/${rkey}`;
+      const cid = `bafyrei${rkey}`;
+
+      if (collection === "app.bsky.feed.post") {
+        const record = body?.record;
+        const post = createPost({
+          uri,
+          text: record?.text || "",
+          authorHandle: userProfile.handle,
+          authorDisplayName: userProfile.displayName,
+        });
+        this.posts.push(post);
+        const isReply = !!record?.reply;
+        const feedKey = `${userProfile.did}-posts_and_author_threads`;
+        const existing = this.authorFeeds.get(feedKey) || [];
+        this.authorFeeds.set(feedKey, [post, ...existing]);
+        if (!isReply) {
+          const noRepliesKey = `${userProfile.did}-posts_no_replies`;
+          const existingNoReplies = this.authorFeeds.get(noRepliesKey) || [];
+          this.authorFeeds.set(noRepliesKey, [post, ...existingNoReplies]);
+        }
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ uri, cid }),
       });
     });
 

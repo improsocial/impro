@@ -1,0 +1,82 @@
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
+import { createProfile } from "../../factories.js";
+
+const profileUser = createProfile({
+  did: "did:plc:profileuser1",
+  handle: "profileuser.bsky.social",
+  displayName: "Profile User",
+  followsCount: 3,
+});
+
+const alice = createProfile({
+  did: "did:plc:alice1",
+  handle: "alice.bsky.social",
+  displayName: "Alice",
+});
+
+const bob = createProfile({
+  did: "did:plc:bob1",
+  handle: "bob.bsky.social",
+  displayName: "Bob",
+});
+
+const charlie = createProfile({
+  did: "did:plc:charlie1",
+  handle: "charlie.bsky.social",
+  displayName: "Charlie",
+});
+
+test.describe("Profile following view", () => {
+  test("should display header and followed profiles", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    mockServer.addProfileFollows(profileUser.did, [alice, bob, charlie]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/following`);
+
+    const view = page.locator("#profile-following-view");
+    await expect(view.locator('[data-testid="header-title"]')).toContainText(
+      "Profile User",
+      { timeout: 10000 },
+    );
+
+    await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
+      "3 following",
+      { timeout: 10000 },
+    );
+
+    await expect(view.locator(".profile-list-item")).toHaveCount(3, {
+      timeout: 10000,
+    });
+
+    await expect(view).toContainText("Alice");
+    await expect(view).toContainText("Bob");
+    await expect(view).toContainText("Charlie");
+  });
+
+  test("should display empty state when not following anyone", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/following`);
+
+    const view = page.locator("#profile-following-view");
+    await expect(view.locator('[data-testid="header-title"]')).toContainText(
+      "Profile User",
+      { timeout: 10000 },
+    );
+
+    await expect(view.locator(".search-status-message")).toContainText(
+      "Not following anyone yet.",
+      { timeout: 10000 },
+    );
+  });
+});
