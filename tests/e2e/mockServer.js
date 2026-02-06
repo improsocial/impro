@@ -6,10 +6,38 @@ export class MockServer {
     this.convos = [];
     this.convoMessages = new Map();
     this.messageCounter = 0;
+    this.feedGenerators = [];
+    this.feeds = new Map();
+    this.pinnedFeedUris = [];
+    this.savedFeedUris = [];
+    this.searchPosts = [];
   }
 
   addBookmarks(bookmarks) {
     this.bookmarks.push(...bookmarks);
+  }
+
+  addFeedGenerators(feedGenerators) {
+    this.feedGenerators.push(...feedGenerators);
+  }
+
+  addFeedItems(feedUri, posts) {
+    this.feeds.set(
+      feedUri,
+      posts.map((post) => ({ post })),
+    );
+  }
+
+  setPinnedFeeds(feedUris) {
+    this.pinnedFeedUris = feedUris;
+  }
+
+  setSavedFeeds(feedUris) {
+    this.savedFeedUris = feedUris;
+  }
+
+  addSearchPosts(posts) {
+    this.searchPosts.push(...posts);
   }
 
   addConvos(convos) {
@@ -41,7 +69,33 @@ export class MockServer {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ preferences: [] }),
+        body: JSON.stringify({
+          preferences: [
+            {
+              $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+              items: [
+                {
+                  type: "timeline",
+                  value: "following",
+                  pinned: true,
+                  id: "timeline-following",
+                },
+                ...this.pinnedFeedUris.map((uri) => ({
+                  type: "feed",
+                  value: uri,
+                  pinned: true,
+                  id: uri,
+                })),
+                ...this.savedFeedUris.map((uri) => ({
+                  type: "feed",
+                  value: uri,
+                  pinned: false,
+                  id: uri,
+                })),
+              ],
+            },
+          ],
+        }),
       }),
     );
 
@@ -164,5 +218,86 @@ export class MockServer {
         }),
       }),
     );
+
+    await page.route("**/xrpc/app.bsky.feed.searchPosts*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          posts: this.searchPosts,
+          cursor: "",
+        }),
+      }),
+    );
+
+    // Order matters: Playwright checks routes in LIFO order, so register
+    // the most general pattern first (checked last) and most specific last.
+    await page.route("**/xrpc/app.bsky.feed.getFeed*", (route) => {
+      const url = new URL(route.request().url());
+      const feedUri = url.searchParams.get("feed");
+      const feed = this.feeds.get(feedUri) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ feed, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getFeedGenerator*", (route) => {
+      const url = new URL(route.request().url());
+      const feedUri = url.searchParams.get("feed");
+      const generator = this.feedGenerators.find((g) => g.uri === feedUri);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ view: generator || {} }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getFeedGenerators*", (route) => {
+      const url = new URL(route.request().url());
+      const feedUris = url.searchParams.getAll("feeds");
+      const feeds = feedUris.map(
+        (uri) => this.feedGenerators.find((g) => g.uri === uri) || {},
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ feeds }),
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
+      const url = new URL(route.request().url());
+      const handle = url.searchParams.get("handle");
+      const generator = this.feedGenerators.find(
+        (g) => g.creator.handle === handle,
+      );
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ did: generator?.creator?.did || "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.actor.putPreferences*", (route) => {
+      const body = route.request().postDataJSON();
+      const savedFeedsPref = body?.preferences?.find(
+        (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
+      );
+      if (savedFeedsPref) {
+        this.pinnedFeedUris = savedFeedsPref.items
+          .filter((item) => item.type === "feed" && item.pinned)
+          .map((item) => item.value);
+        this.savedFeedUris = savedFeedsPref.items
+          .filter((item) => item.type === "feed" && !item.pinned)
+          .map((item) => item.value);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
   }
 }

@@ -51,6 +51,31 @@ export function createProfile({ did, handle, displayName }) {
   };
 }
 
+export function createFeedGenerator({ uri, displayName, creatorHandle }) {
+  const creatorDid = uri.split("/")[2];
+  return {
+    uri,
+    cid: "bafyreitest" + uri.split("/").pop(),
+    did: `did:web:feed.${creatorHandle}`,
+    creator: {
+      did: creatorDid,
+      handle: creatorHandle,
+      displayName: creatorHandle.split(".")[0],
+      avatar: "",
+      viewer: { muted: false, blockedBy: false },
+      labels: [],
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    displayName,
+    description: "",
+    avatar: "",
+    likeCount: 10,
+    indexedAt: "2025-01-01T00:00:00.000Z",
+    labels: [],
+    viewer: {},
+  };
+}
+
 export function createPost({ uri, text, authorHandle, authorDisplayName }) {
   const did = uri.split("/")[2];
   return {
