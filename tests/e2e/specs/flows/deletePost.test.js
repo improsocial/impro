@@ -42,7 +42,7 @@ test.describe("Delete post flow", () => {
     await page.locator("context-menu-item", { hasText: "Delete post" }).click();
 
     // Confirm deletion if a confirmation dialog appears
-    const confirmButton = page.locator("button", { hasText: "Delete" });
+    const confirmButton = page.locator("button.confirm-button");
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();
 
@@ -88,7 +88,7 @@ test.describe("Delete post flow", () => {
     await page.locator("context-menu-item", { hasText: "Delete post" }).click();
 
     // Confirm deletion if a confirmation dialog appears
-    const confirmButton = page.locator("button", { hasText: "Delete" });
+    const confirmButton = page.locator("button.confirm-button");
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();
 
