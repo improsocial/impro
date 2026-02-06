@@ -2,6 +2,7 @@ import { userProfile } from "./fixtures.js";
 
 export class MockServer {
   constructor() {
+    this.authorFeeds = new Map();
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
@@ -19,6 +20,10 @@ export class MockServer {
     this.savedFeedUris = [];
     this.searchPosts = [];
     this.timelinePosts = [];
+  }
+
+  addAuthorFeedPosts(did, filter, posts) {
+    this.authorFeeds.set(`${did}-${filter}`, posts);
   }
 
   addBookmarks(bookmarks) {
@@ -279,6 +284,35 @@ export class MockServer {
         body: JSON.stringify({ rev: "rev-left" }),
       }),
     );
+
+    await page.route("**/xrpc/app.bsky.feed.getActorLikes*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const posts = this.authorFeeds.get(`${actor}-likes`) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          feed: posts.map((post) => ({ post })),
+          cursor: "",
+        }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getAuthorFeed*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const filter = url.searchParams.get("filter") || "";
+      const posts = this.authorFeeds.get(`${actor}-${filter}`) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          feed: posts.map((post) => ({ post })),
+          cursor: "",
+        }),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) =>
       route.fulfill({

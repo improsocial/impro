@@ -10,8 +10,8 @@ const post = createPost({
   text: "Original post",
   authorHandle: "author1.bsky.social",
   authorDisplayName: "Author One",
+  quoteCount: 2,
 });
-post.quoteCount = 2;
 
 const quotePost1 = createPost({
   uri: "at://did:plc:quoter1/app.bsky.feed.post/quote1",
@@ -62,8 +62,8 @@ test.describe("Post quotes view", () => {
       text: "Original post",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      quoteCount: 1,
     });
-    singleQuotePost.quoteCount = 1;
 
     const mockServer = new MockServer();
     mockServer.addPosts([singleQuotePost]);

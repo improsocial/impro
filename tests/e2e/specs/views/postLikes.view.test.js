@@ -10,8 +10,8 @@ const post = createPost({
   text: "A popular post",
   authorHandle: "author1.bsky.social",
   authorDisplayName: "Author One",
+  likeCount: 3,
 });
-post.likeCount = 3;
 
 const alice = createProfile({
   did: "did:plc:alice1",
@@ -73,8 +73,8 @@ test.describe("Post likes view", () => {
       text: "A post with one like",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      likeCount: 1,
     });
-    singleLikePost.likeCount = 1;
 
     const mockServer = new MockServer();
     mockServer.addPosts([singleLikePost]);

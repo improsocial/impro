@@ -39,15 +39,27 @@ export function createMessage({ id, text, senderDid, sentAt }) {
   };
 }
 
-export function createProfile({ did, handle, displayName }) {
+export function createProfile({
+  did,
+  handle,
+  displayName,
+  description,
+  followersCount,
+  followsCount,
+  postsCount,
+}) {
   return {
     did,
     handle,
     displayName,
+    description: description || "",
     avatar: "",
     viewer: { muted: false, blockedBy: false },
     labels: [],
     createdAt: "2025-01-01T00:00:00.000Z",
+    ...(followersCount !== undefined ? { followersCount } : {}),
+    ...(followsCount !== undefined ? { followsCount } : {}),
+    ...(postsCount !== undefined ? { postsCount } : {}),
   };
 }
 
@@ -98,7 +110,19 @@ export function createNotification({
   };
 }
 
-export function createPost({ uri, text, authorHandle, authorDisplayName }) {
+export function createPost({
+  uri,
+  text,
+  authorHandle,
+  authorDisplayName,
+  replyCount = 0,
+  repostCount = 0,
+  likeCount = 5,
+  quoteCount = 0,
+  reply,
+  embed,
+  recordEmbed,
+}) {
   const did = uri.split("/")[2];
   return {
     uri,
@@ -117,11 +141,14 @@ export function createPost({ uri, text, authorHandle, authorDisplayName }) {
       text,
       createdAt: "2025-01-01T00:00:00.000Z",
       langs: ["en"],
+      ...(reply ? { reply } : {}),
+      ...(recordEmbed ? { embed: recordEmbed } : {}),
     },
-    replyCount: 0,
-    repostCount: 0,
-    likeCount: 5,
-    quoteCount: 0,
+    replyCount,
+    repostCount,
+    likeCount,
+    quoteCount,
+    ...(embed ? { embed } : {}),
     indexedAt: "2025-01-01T00:00:00.000Z",
     viewer: {},
     labels: [],

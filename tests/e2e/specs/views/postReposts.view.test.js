@@ -10,8 +10,8 @@ const post = createPost({
   text: "A viral post",
   authorHandle: "author1.bsky.social",
   authorDisplayName: "Author One",
+  repostCount: 3,
 });
-post.repostCount = 3;
 
 const alice = createProfile({
   did: "did:plc:alice1",
@@ -69,8 +69,8 @@ test.describe("Post reposts view", () => {
       text: "A post with one repost",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      repostCount: 1,
     });
-    singleRepostPost.repostCount = 1;
 
     const mockServer = new MockServer();
     mockServer.addPosts([singleRepostPost]);

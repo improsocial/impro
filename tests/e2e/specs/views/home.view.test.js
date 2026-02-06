@@ -179,6 +179,118 @@ test.describe("Home view", () => {
     );
   });
 
+  test("should like a post when clicking the like button", async ({ page }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Post to like",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      likeCount: 3,
+    });
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: "at://did:plc:testuser123/app.bsky.feed.like/like1",
+          cid: "bafyreilike1",
+        }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const feedItem = view.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator("like-button").click();
+
+    await expect(feedItem.locator("like-button .liked")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should repost a post when clicking repost in the context menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Post to repost",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      repostCount: 2,
+    });
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: "at://did:plc:testuser123/app.bsky.feed.repost/repost1",
+          cid: "bafyreirepost1",
+        }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const feedItem = view.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator('[data-testid="repost-button"]').click();
+    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+
+    await expect(
+      feedItem.locator('[data-testid="repost-button"].reposted'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should bookmark a post when clicking the bookmark button", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Post to bookmark",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      }),
+    );
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const feedItem = view.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator('[data-testid="bookmark-button"]').click();
+
+    await expect(
+      feedItem.locator('[data-testid="bookmark-button"].bookmarked'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
   test("should display empty state when Following feed has no posts", async ({
     page,
   }) => {

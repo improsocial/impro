@@ -380,21 +380,21 @@ test.describe("Notifications view", () => {
       text: "Check out these photos",
       authorHandle: "testuser.bsky.social",
       authorDisplayName: "Test User",
+      recordEmbed: {
+        $type: "app.bsky.embed.images",
+        images: [
+          { alt: "Photo 1", image: { ref: "img1" } },
+          { alt: "Photo 2", image: { ref: "img2" } },
+        ],
+      },
+      embed: {
+        $type: "app.bsky.embed.images#view",
+        images: [
+          { thumb: "http://localhost/img1.jpg", alt: "Photo 1" },
+          { thumb: "http://localhost/img2.jpg", alt: "Photo 2" },
+        ],
+      },
     });
-    postWithImages.record.embed = {
-      $type: "app.bsky.embed.images",
-      images: [
-        { alt: "Photo 1", image: { ref: "img1" } },
-        { alt: "Photo 2", image: { ref: "img2" } },
-      ],
-    };
-    postWithImages.embed = {
-      $type: "app.bsky.embed.images#view",
-      images: [
-        { thumb: "http://localhost/img1.jpg", alt: "Photo 1" },
-        { thumb: "http://localhost/img2.jpg", alt: "Photo 2" },
-      ],
-    };
 
     const mockServer = new MockServer();
     mockServer.addPosts([postWithImages]);

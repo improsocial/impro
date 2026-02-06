@@ -46,11 +46,11 @@ test.describe("Post thread view", () => {
       text: "This is a reply",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: parentPost.uri, cid: parentPost.cid },
+        root: { uri: parentPost.uri, cid: parentPost.cid },
+      },
     });
-    childPost.record.reply = {
-      parent: { uri: parentPost.uri, cid: parentPost.cid },
-      root: { uri: parentPost.uri, cid: parentPost.cid },
-    };
 
     const mockServer = new MockServer();
     mockServer.addPosts([childPost, parentPost]);
@@ -88,24 +88,24 @@ test.describe("Post thread view", () => {
       text: "Post with replies",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      replyCount: 2,
     });
-    postWithReplies.replyCount = 2;
 
     const reply1 = createPost({
       uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
       text: "First reply",
       authorHandle: "replier1.bsky.social",
       authorDisplayName: "Replier One",
+      likeCount: 10,
     });
-    reply1.likeCount = 10;
 
     const reply2 = createPost({
       uri: "at://did:plc:replier2/app.bsky.feed.post/reply2",
       text: "Second reply",
       authorHandle: "replier2.bsky.social",
       authorDisplayName: "Replier Two",
+      likeCount: 5,
     });
-    reply2.likeCount = 5;
 
     const mockServer = new MockServer();
     mockServer.addPosts([postWithReplies, reply1, reply2]);
@@ -164,10 +164,10 @@ test.describe("Post thread view", () => {
       text: "Popular post",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      likeCount: 42,
+      repostCount: 10,
+      quoteCount: 3,
     });
-    postWithCounts.likeCount = 42;
-    postWithCounts.repostCount = 10;
-    postWithCounts.quoteCount = 3;
 
     const mockServer = new MockServer();
     mockServer.addPosts([postWithCounts]);
@@ -183,5 +183,238 @@ test.describe("Post thread view", () => {
     await expect(largePost).toContainText("likes");
     await expect(largePost).toContainText("10");
     await expect(largePost).toContainText("reposts");
+  });
+
+  test("should like the main post when clicking the like button", async ({
+    page,
+  }) => {
+    const post = createPost({
+      uri: postUri,
+      text: "Post to like",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      likeCount: 3,
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: "at://did:plc:testuser123/app.bsky.feed.like/like1",
+          cid: "bafyreilike1",
+        }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    await largePost.locator("like-button").click();
+
+    await expect(largePost.locator("like-button .liked")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should repost the main post when clicking repost in the context menu", async ({
+    page,
+  }) => {
+    const post = createPost({
+      uri: postUri,
+      text: "Post to repost",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      repostCount: 2,
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: "at://did:plc:testuser123/app.bsky.feed.repost/repost1",
+          cid: "bafyreirepost1",
+        }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    await largePost.locator('[data-testid="repost-button"]').click();
+    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+
+    await expect(
+      largePost.locator('[data-testid="repost-button"].reposted'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should bookmark the main post when clicking the bookmark button", async ({
+    page,
+  }) => {
+    const post = createPost({
+      uri: postUri,
+      text: "Post to bookmark",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    await largePost.locator('[data-testid="bookmark-button"]').click();
+
+    await expect(
+      largePost.locator('[data-testid="bookmark-button"].bookmarked'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should navigate to reply thread when clicking a reply", async ({
+    page,
+  }) => {
+    const postWithReplies = createPost({
+      uri: postUri,
+      text: "Main post",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      replyCount: 1,
+    });
+
+    const reply = createPost({
+      uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+      text: "A reply to click",
+      authorHandle: "replier1.bsky.social",
+      authorDisplayName: "Replier One",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([postWithReplies, reply]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: postWithReplies,
+      parent: null,
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: reply,
+          replies: [],
+        },
+      ],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view).toContainText("A reply to click", { timeout: 10000 });
+
+    await view.locator('[data-testid="small-post"]').click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/replier1\.bsky\.social\/post\/reply1/,
+      {
+        timeout: 10000,
+      },
+    );
+  });
+
+  test("should post a reply via the reply prompt", async ({ page }) => {
+    const post = createPost({
+      uri: postUri,
+      text: "Post to reply to",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+
+    const createdReply = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/newreply1",
+      text: "My reply text",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    // Mock the createRecord call for posting the reply
+    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: createdReply.uri,
+          cid: createdReply.cid,
+        }),
+      }),
+    );
+
+    // After creating, the app fetches the full post via getPosts.
+    // The mock server already handles getPosts, so add the reply to the pool.
+    mockServer.addPosts([createdReply]);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator(".post-thread-reply-prompt")).toContainText(
+      "Write your reply",
+      { timeout: 10000 },
+    );
+
+    // Click the reply prompt to open the composer
+    await view.locator(".post-thread-reply-prompt").click();
+
+    // Type into the composer's rich text input
+    const composer = page.locator("post-composer");
+    await expect(composer.locator("dialog")).toBeVisible({ timeout: 10000 });
+    await composer
+      .locator("rich-text-input [contenteditable]")
+      .fill("My reply text");
+
+    // Click the Reply button to send
+    await composer
+      .locator("button.rounded-button-primary", { hasText: "Reply" })
+      .click();
+
+    // The composer should close and the reply should appear in the thread
+    await expect(composer.locator("dialog")).not.toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view).toContainText("My reply text", { timeout: 10000 });
   });
 });
