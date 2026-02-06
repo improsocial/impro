@@ -457,4 +457,293 @@ test.describe("Notifications view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should navigate to post thread when clicking like notification", async ({
+    page,
+  }) => {
+    const likedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/navlike1",
+      text: "Post to navigate to",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([likedPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "like",
+        author: alice,
+        reasonSubject: likedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/testuser\.bsky\.social\/post\/navlike1/,
+    );
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to profile when clicking follow notification", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(alice);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.locator(".notification-avatar a").click();
+
+    await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/);
+    await expect(page.locator("#profile-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to post thread when clicking repost notification", async ({
+    page,
+  }) => {
+    const repostedPost = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/navrepost1",
+      text: "Post that was reposted",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([repostedPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "repost",
+        author: alice,
+        reasonSubject: repostedPost.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/testuser\.bsky\.social\/post\/navrepost1/,
+    );
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to thread when clicking quote notification", async ({
+    page,
+  }) => {
+    const quotePostUri = "at://did:plc:alice1/app.bsky.feed.post/navquote1";
+    const quotedPostUri =
+      "at://did:plc:testuser123/app.bsky.feed.post/navquoted1";
+
+    const quotePost = createPost({
+      uri: quotePostUri,
+      text: "Adding my thoughts on this",
+      authorHandle: "alice.bsky.social",
+      authorDisplayName: "Alice",
+      recordEmbed: {
+        $type: "app.bsky.embed.record",
+        record: { uri: quotedPostUri, cid: "bafyquoted" },
+      },
+    });
+
+    const quotedPost = createPost({
+      uri: quotedPostUri,
+      text: "Original post being quoted",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([quotePost, quotedPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "quote",
+        author: alice,
+        uri: quotePostUri,
+        reasonSubject: quotedPostUri,
+        record: {
+          $type: "app.bsky.feed.post",
+          text: "Adding my thoughts on this",
+          embed: {
+            $type: "app.bsky.embed.record",
+            record: { uri: quotedPostUri, cid: "bafyquoted" },
+          },
+          createdAt: new Date().toISOString(),
+        },
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    await expect(view).toContainText("Adding my thoughts on this", {
+      timeout: 10000,
+    });
+    await view.locator(".small-post").click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/alice\.bsky\.social\/post\/navquote1/,
+    );
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to thread when clicking mention notification", async ({
+    page,
+  }) => {
+    const mentionPostUri = "at://did:plc:bob1/app.bsky.feed.post/navmention1";
+
+    const mentionPost = createPost({
+      uri: mentionPostUri,
+      text: "Hey @testuser.bsky.social check this out",
+      authorHandle: "bob.bsky.social",
+      authorDisplayName: "Bob",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([mentionPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "mention",
+        author: bob,
+        uri: mentionPostUri,
+        record: {
+          $type: "app.bsky.feed.post",
+          text: "Hey @testuser.bsky.social check this out",
+          facets: [
+            {
+              index: { byteStart: 4, byteEnd: 28 },
+              features: [
+                {
+                  $type: "app.bsky.richtext.facet#mention",
+                  did: "did:plc:testuser123",
+                },
+              ],
+            },
+          ],
+          createdAt: new Date().toISOString(),
+        },
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    await expect(view).toContainText("check this out", {
+      timeout: 10000,
+    });
+    await view.locator(".small-post").click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/bob\.bsky\.social\/post\/navmention1/,
+    );
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should navigate to thread when clicking reply notification", async ({
+    page,
+  }) => {
+    const replyPostUri = "at://did:plc:alice1/app.bsky.feed.post/navreply1";
+    const parentPostUri =
+      "at://did:plc:testuser123/app.bsky.feed.post/navparent1";
+
+    const replyPost = createPost({
+      uri: replyPostUri,
+      text: "Interesting thought!",
+      authorHandle: "alice.bsky.social",
+      authorDisplayName: "Alice",
+    });
+    replyPost.record.reply = {
+      parent: { uri: parentPostUri, cid: "bafyparent" },
+      root: { uri: parentPostUri, cid: "bafyroot" },
+    };
+
+    const parentPost = createPost({
+      uri: parentPostUri,
+      text: "Original post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([replyPost, parentPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "reply",
+        author: alice,
+        uri: replyPostUri,
+        reasonSubject: parentPostUri,
+        record: {
+          $type: "app.bsky.feed.post",
+          text: "Interesting thought!",
+          reply: {
+            parent: { uri: parentPostUri, cid: "bafyparent" },
+            root: { uri: parentPostUri, cid: "bafyroot" },
+          },
+          createdAt: new Date().toISOString(),
+        },
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    await expect(view).toContainText("Interesting thought!", {
+      timeout: 10000,
+    });
+    await view.locator(".small-post").click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/alice\.bsky\.social\/post\/navreply1/,
+    );
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
 });

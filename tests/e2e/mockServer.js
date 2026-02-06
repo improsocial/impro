@@ -285,6 +285,42 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/chat.bsky.convo.addReaction*", (route) => {
+      const body = route.request().postDataJSON();
+      const { convoId, messageId, value } = body || {};
+      const messages = this.convoMessages.get(convoId) || [];
+      const message = messages.find((m) => m.id === messageId);
+      if (message) {
+        message.reactions.push({
+          createdAt: new Date().toISOString(),
+          sender: { did: userProfile.did },
+          value,
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ message: message || {} }),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.convo.removeReaction*", (route) => {
+      const body = route.request().postDataJSON();
+      const { convoId, messageId, value } = body || {};
+      const messages = this.convoMessages.get(convoId) || [];
+      const message = messages.find((m) => m.id === messageId);
+      if (message) {
+        message.reactions = message.reactions.filter(
+          (r) => !(r.value === value && r.sender.did === userProfile.did),
+        );
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ message: message || {} }),
+      });
+    });
+
     await page.route("**/xrpc/chat.bsky.convo.updateRead*", (route) =>
       route.fulfill({
         status: 200,
@@ -442,16 +478,33 @@ export class MockServer {
       }),
     );
 
-    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) => {
+      const url = new URL(route.request().url());
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      let posts, nextCursor;
+      if (limit) {
+        posts = this.timelinePosts.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < this.timelinePosts.length
+            ? String(offset + limit)
+            : "";
+      } else {
+        posts = this.timelinePosts;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
-          feed: this.timelinePosts.map((post) => ({ post })),
-          cursor: "",
+          feed: posts.map((post) => ({ post })),
+          cursor: nextCursor,
         }),
-      }),
-    );
+      });
+    });
 
     // Order matters: Playwright checks routes in LIFO order, so register
     // the most general pattern first (checked last) and most specific last.
@@ -591,7 +644,11 @@ export class MockServer {
       const generator = this.feedGenerators.find(
         (g) => g.creator.handle === handle,
       );
-      const did = postAuthor?.did || generator?.creator?.did;
+      const profileEntry = [...this.profiles.values()].find(
+        (p) => p.handle === handle,
+      );
+      const did =
+        postAuthor?.did || generator?.creator?.did || profileEntry?.did;
       if (!did) {
         return route.fulfill({
           status: 404,

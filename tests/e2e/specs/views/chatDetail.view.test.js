@@ -159,6 +159,119 @@ test.describe("Chat detail view", () => {
     ).toContainText("Chats", { timeout: 10000 });
   });
 
+  test("should add emoji reaction to a message", async ({ page }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const messageBubble = chatDetailView.locator(".message-bubble");
+    await expect(messageBubble).toHaveCount(1, { timeout: 10000 });
+
+    // Long-press to open reaction palette
+    const messageEl = chatDetailView.locator(".message").first();
+    const box = await messageEl.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+
+    // Reaction palette should appear
+    await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // Click the thumbs up emoji
+    await chatDetailView.locator(".reaction-palette-button").first().click();
+
+    // Reaction bubble should appear on the message
+    await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(1, {
+      timeout: 5000,
+    });
+    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("👍");
+
+    // Palette should close
+    await expect(chatDetailView.locator(".reaction-palette")).toHaveCount(0);
+  });
+
+  test("should remove own emoji reaction from a message", async ({ page }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    // Pre-populate with the current user's reaction
+    messages[0].reactions = [
+      {
+        createdAt: "2025-01-15T12:05:00.000Z",
+        sender: { did: userProfile.did },
+        value: "👍",
+      },
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    // Verify the reaction bubble is shown and marked as own
+    await expect(chatDetailView.locator(".reaction-bubble-own")).toHaveCount(
+      1,
+      {
+        timeout: 5000,
+      },
+    );
+    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("👍");
+
+    // Click the own reaction bubble to remove it
+    await chatDetailView.locator(".reaction-bubble-own").click();
+
+    // Reaction bubble should disappear
+    await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(0, {
+      timeout: 5000,
+    });
+  });
+
   test("should show empty state when there are no messages", async ({
     page,
   }) => {

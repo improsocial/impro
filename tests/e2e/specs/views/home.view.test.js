@@ -261,6 +261,45 @@ test.describe("Home view", () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
+  test("should load more posts when scrolling to the bottom", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const posts = [];
+    for (let i = 1; i <= 60; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+          text: `Timeline post ${i}`,
+          authorHandle: `author${i}.bsky.social`,
+          authorDisplayName: `Author ${i}`,
+        }),
+      );
+    }
+    mockServer.addTimelinePosts(posts);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41, {
+      timeout: 10000,
+    });
+
+    // Scroll the last feed item into view to trigger infinite scroll
+    await view
+      .locator('[data-testid="feed-item"]')
+      .last()
+      .scrollIntoViewIfNeeded();
+
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(60, {
+      timeout: 10000,
+    });
+    await expect(view).toContainText("Timeline post 42");
+    await expect(view).toContainText("Timeline post 60");
+  });
+
   test("should display empty state when Following feed has no posts", async ({
     page,
   }) => {
