@@ -1,4 +1,4 @@
-import { test, expect } from "../base.js";
+import { test, expect } from "../../base.js";
 
 test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {

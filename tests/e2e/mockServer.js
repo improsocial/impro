@@ -5,6 +5,7 @@ export class MockServer {
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
+    this.messageCounter = 0;
   }
 
   addBookmarks(bookmarks) {
@@ -12,6 +13,11 @@ export class MockServer {
   }
 
   addConvos(convos) {
+    for (const convo of convos) {
+      if (!this.convoMessages.has(convo.id)) {
+        this.convoMessages.set(convo.id, []);
+      }
+    }
     this.convos.push(...convos);
   }
 
@@ -85,19 +91,29 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.sendMessage*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.sendMessage*", (route) => {
+      const body = route.request().postDataJSON();
+      const msgId = ++this.messageCounter;
+      const sentMessage = {
+        id: `msg-sent-${msgId}`,
+        rev: `rev-sent-${msgId}`,
+        text: body?.message?.text || "",
+        sender: { did: userProfile.did },
+        sentAt: new Date().toISOString(),
+      };
+      const convo = this.convos.find((c) => c.id === body?.convoId);
+      if (convo) {
+        convo.lastMessage = {
+          $type: "chat.bsky.convo.defs#messageView",
+          ...sentMessage,
+        };
+      }
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          id: "msg-sent-1",
-          rev: "rev-sent-1",
-          text: "",
-          sender: { did: userProfile.did },
-          sentAt: new Date().toISOString(),
-        }),
-      }),
-    );
+        body: JSON.stringify(sentMessage),
+      });
+    });
 
     await page.route("**/xrpc/chat.bsky.convo.updateRead*", (route) =>
       route.fulfill({

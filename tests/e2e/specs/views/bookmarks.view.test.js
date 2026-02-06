@@ -1,7 +1,7 @@
-import { test, expect } from "../base.js";
-import { login } from "../helpers.js";
-import { MockServer } from "../mockServer.js";
-import { createPost } from "../factories.js";
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
+import { createPost } from "../../factories.js";
 
 test.describe("Bookmarks view", () => {
   test("should display saved posts header and bookmarked posts", async ({

@@ -1,7 +1,7 @@
-import { test, expect } from "../base.js";
-import { login } from "../helpers.js";
-import { MockServer } from "../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../factories.js";
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
+import { createConvo, createMessage, createProfile } from "../../factories.js";
 
 test.describe("Chat view", () => {
   test("should display Chats header and conversation list", async ({
@@ -89,6 +89,82 @@ test.describe("Chat view", () => {
     });
     await expect(chatView).toContainText("Alice");
     await expect(chatView).toContainText("Bob");
+  });
+
+  test("should navigate to conversation detail when clicking a conversation", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+      lastMessage: createMessage({
+        id: "msg-1",
+        text: "Hey, how are you?",
+        senderDid: alice.did,
+      }),
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".convo-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await chatView.locator(".convo-item").first().click();
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Alice", { timeout: 10000 });
+  });
+
+  test("should navigate to chat requests when clicking the banner", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const requester = createProfile({
+      did: "did:plc:requester1",
+      handle: "requester.bsky.social",
+      displayName: "Requester",
+    });
+    const requestConvo = createConvo({
+      id: "convo-req-1",
+      otherMember: requester,
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-1",
+        text: "Hi there!",
+        senderDid: requester.did,
+      }),
+    });
+    mockServer.addConvos([requestConvo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await chatView.locator(".chat-requests-banner").click();
+
+    const requestsView = page.locator("#chat-requests-view");
+    await expect(
+      requestsView.locator('[data-testid="header-title"]'),
+    ).toContainText("Chat requests", { timeout: 10000 });
+    await expect(requestsView.locator(".chat-request-item")).toHaveCount(1);
   });
 
   test("should show chat requests banner when requests exist", async ({
