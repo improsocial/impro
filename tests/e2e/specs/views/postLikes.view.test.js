@@ -118,4 +118,60 @@ test.describe("Post likes view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should display error state when likes fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    // Override getLikes to return error
+    await page.route("**/xrpc/app.bsky.feed.getLikes*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123/likes");
+
+    const view = page.locator("#post-likes-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error loading likes",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should display list of users who liked the post", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addPosts([post]);
+      mockServer.addPostLikes(postUri, [
+        { actor: alice, createdAt: "2025-01-15T12:00:00.000Z" },
+        { actor: bob, createdAt: "2025-01-15T13:00:00.000Z" },
+        { actor: charlie, createdAt: "2025-01-15T14:00:00.000Z" },
+      ]);
+      await mockServer.setup(page);
+
+      await page.goto("/profile/author1.bsky.social/post/abc123/likes");
+
+      const view = page.locator("#post-likes-view");
+      await expect(view.locator('[data-testid="header-title"]')).toContainText(
+        "Liked by",
+        { timeout: 10000 },
+      );
+
+      await expect(view.locator(".profile-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Alice");
+      await expect(view).toContainText("Bob");
+      await expect(view).toContainText("Charlie");
+    });
+  });
 });

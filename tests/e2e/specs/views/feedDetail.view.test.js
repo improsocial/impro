@@ -198,4 +198,14 @@ test.describe("Feed Detail view", () => {
       timeout: 10000,
     });
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

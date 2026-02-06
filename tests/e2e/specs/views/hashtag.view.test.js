@@ -119,4 +119,14 @@ test.describe("Hashtag view", () => {
       hashtagView.locator('[data-testid="feed-end-message"]'),
     ).toBeVisible({ timeout: 10000 });
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/hashtag/test");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

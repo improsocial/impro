@@ -310,4 +310,38 @@ test.describe("Search view", () => {
       /\/profile\/author1\.bsky\.social\/post\/clickme1/,
     );
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should allow searching profiles and posts without authentication", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const profile1 = createProfile({
+        did: "did:plc:profile1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const profile2 = createProfile({
+        did: "did:plc:profile2",
+        handle: "alicia.bsky.social",
+        displayName: "Alicia",
+      });
+      mockServer.addSearchProfiles([profile1, profile2]);
+      await mockServer.setup(page);
+
+      await page.goto("/search?q=ali");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator(".profile-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Alice");
+      await expect(view).toContainText("Alicia");
+
+      // Posts tab should be hidden for logged-out users
+      await expect(
+        view.locator(".tab-bar-button", { hasText: "Posts" }),
+      ).not.toBeVisible();
+    });
+  });
 });

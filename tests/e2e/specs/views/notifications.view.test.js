@@ -746,4 +746,41 @@ test.describe("Notifications view", () => {
       timeout: 10000,
     });
   });
+
+  test("should display error state when notifications fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    // Override listNotifications to return error
+    await page.route(
+      "**/xrpc/app.bsky.notification.listNotifications*",
+      (route) =>
+        route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        }),
+    );
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "There was an error loading notifications.",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/notifications");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

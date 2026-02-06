@@ -440,7 +440,14 @@ class ProfileView extends View {
       if (isAuthenticated) {
         await dataLayer.declarative.ensureCurrentUser();
       }
-      const profile = await dataLayer.declarative.ensureProfile(profileDid);
+
+      let profile;
+      try {
+        profile = await dataLayer.declarative.ensureProfile(profileDid);
+      } catch {
+        renderPage();
+        return;
+      }
 
       // Set active tab and load labeler info if this is a labeler profile
       const isLabeler = profile && isLabelerProfile(profile);

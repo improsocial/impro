@@ -301,4 +301,14 @@ test.describe("Chat detail view", () => {
       { timeout: 10000 },
     );
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/messages/some-convo");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

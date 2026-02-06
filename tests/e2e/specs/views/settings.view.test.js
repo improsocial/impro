@@ -84,4 +84,14 @@ test.describe("Settings view", () => {
     await expect(footer).toContainText("Privacy Policy");
     await expect(footer).toContainText("GitHub");
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/settings");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

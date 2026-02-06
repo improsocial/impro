@@ -79,4 +79,40 @@ test.describe("Profile following view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should display error state when following list fails to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    await mockServer.setup(page);
+
+    // Override getFollows to return error
+    await page.route("**/xrpc/app.bsky.graph.getFollows*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/following`);
+
+    const view = page.locator("#profile-following-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error loading following",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/profile/someone.bsky.social/following");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

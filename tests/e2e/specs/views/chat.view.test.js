@@ -200,4 +200,39 @@ test.describe("Chat view", () => {
       "Chat requests",
     );
   });
+
+  test("should display error state when conversations fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    // Override listConvos to return error
+    await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".error-state")).toContainText(
+      "There was an error loading conversations.",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/messages");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

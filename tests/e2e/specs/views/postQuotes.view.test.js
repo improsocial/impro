@@ -105,4 +105,53 @@ test.describe("Post quotes view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should display error state when quotes fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    // Override getQuotes to return error
+    await page.route("**/xrpc/app.bsky.feed.getQuotes*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
+
+    const view = page.locator("#post-quotes-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error loading quotes",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should display list of quote posts", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addPosts([post]);
+      mockServer.addPostQuotes(postUri, [quotePost1, quotePost2]);
+      await mockServer.setup(page);
+
+      await page.goto("/profile/author1.bsky.social/post/abc123/quotes");
+
+      const view = page.locator("#post-quotes-view");
+      await expect(view.locator('[data-testid="header-title"]')).toContainText(
+        "Quotes",
+        { timeout: 10000 },
+      );
+
+      await expect(view.locator('[data-testid="small-post"]')).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Great take on this topic!");
+      await expect(view).toContainText("Interesting perspective here");
+    });
+  });
 });

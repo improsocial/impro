@@ -112,4 +112,30 @@ test.describe("Post reposts view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should display error state when reposts fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    await mockServer.setup(page);
+
+    // Override getRepostedBy to return error
+    await page.route("**/xrpc/app.bsky.feed.getRepostedBy*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123/reposts");
+
+    const view = page.locator("#post-reposts-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error loading reposts",
+      { timeout: 10000 },
+    );
+  });
 });

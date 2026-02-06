@@ -368,6 +368,34 @@ export class MockServer {
       },
     );
 
+    await page.route("**/xrpc/app.bsky.graph.muteActor*", (route) => {
+      const body = route.request().postDataJSON();
+      const actor = body?.actor;
+      const profile = this.profiles.get(actor);
+      if (profile) {
+        profile.viewer = { ...profile.viewer, muted: true };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.unmuteActor*", (route) => {
+      const body = route.request().postDataJSON();
+      const actor = body?.actor;
+      const profile = this.profiles.get(actor);
+      if (profile) {
+        profile.viewer = { ...profile.viewer, muted: false };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.feed.getActorLikes*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
@@ -484,15 +512,23 @@ export class MockServer {
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
 
+      const blockedDids = new Set();
+      for (const [did, profile] of this.profiles) {
+        if (profile.viewer?.blocking || profile.viewer?.muted) {
+          blockedDids.add(did);
+        }
+      }
+      const allPosts = this.timelinePosts.filter(
+        (post) => !blockedDids.has(post.author?.did),
+      );
+
       let posts, nextCursor;
       if (limit) {
-        posts = this.timelinePosts.slice(offset, offset + limit);
+        posts = allPosts.slice(offset, offset + limit);
         nextCursor =
-          offset + limit < this.timelinePosts.length
-            ? String(offset + limit)
-            : "";
+          offset + limit < allPosts.length ? String(offset + limit) : "";
       } else {
-        posts = this.timelinePosts;
+        posts = allPosts;
         nextCursor = "";
       }
 
@@ -676,6 +712,80 @@ export class MockServer {
         );
       }
 
+      if (collection === "app.bsky.feed.repost") {
+        const allPosts = [
+          ...this.timelinePosts,
+          ...this.bookmarks,
+          ...this.searchPosts,
+          ...this.posts,
+        ];
+        for (const post of allPosts) {
+          if (
+            post.viewer?.repost &&
+            post.viewer.repost.split("/").pop() === rkey
+          ) {
+            delete post.viewer.repost;
+            post.repostCount = Math.max(0, (post.repostCount || 0) - 1);
+            const feedKey = `${userProfile.did}-posts_and_author_threads`;
+            const existing = this.authorFeeds.get(feedKey) || [];
+            this.authorFeeds.set(
+              feedKey,
+              existing.filter((p) => p !== post),
+            );
+            break;
+          }
+        }
+      }
+
+      if (collection === "app.bsky.graph.follow") {
+        for (const [did, profile] of this.profiles) {
+          if (
+            profile.viewer?.following &&
+            profile.viewer.following.split("/").pop() === rkey
+          ) {
+            profile.viewer = { ...profile.viewer, following: undefined };
+            if (
+              profile.followersCount !== undefined &&
+              profile.followersCount > 0
+            ) {
+              profile.followersCount--;
+            }
+            const follows = this.profileFollows.get(userProfile.did) || [];
+            this.profileFollows.set(
+              userProfile.did,
+              follows.filter((p) => p.did !== did),
+            );
+            break;
+          }
+        }
+      }
+
+      if (collection === "app.bsky.graph.block") {
+        for (const [, profile] of this.profiles) {
+          if (
+            profile.viewer?.blocking &&
+            profile.viewer.blocking.split("/").pop() === rkey
+          ) {
+            profile.viewer = { ...profile.viewer, blocking: undefined };
+            break;
+          }
+        }
+      }
+
+      if (collection === "app.bsky.feed.post") {
+        const postUri = `at://${userProfile.did}/${collection}/${rkey}`;
+        this.timelinePosts = this.timelinePosts.filter(
+          (p) => p.uri !== postUri,
+        );
+        this.posts = this.posts.filter((p) => p.uri !== postUri);
+        for (const [key, posts] of this.authorFeeds) {
+          this.authorFeeds.set(
+            key,
+            posts.filter((p) => p.uri !== postUri),
+          );
+        }
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -692,14 +802,76 @@ export class MockServer {
 
       if (collection === "app.bsky.feed.post") {
         const record = body?.record;
+        let embed;
+        let quotedPostUri;
+
+        if (record?.embed?.$type === "app.bsky.embed.record") {
+          quotedPostUri = record.embed.record.uri;
+          const allQuotePosts = [
+            ...this.timelinePosts,
+            ...this.bookmarks,
+            ...this.searchPosts,
+            ...this.posts,
+          ];
+          const quotedPost = allQuotePosts.find((p) => p.uri === quotedPostUri);
+          if (quotedPost) {
+            embed = {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                $type: "app.bsky.embed.record#viewRecord",
+                uri: quotedPost.uri,
+                cid: quotedPost.cid,
+                author: quotedPost.author,
+                value: quotedPost.record,
+                indexedAt: quotedPost.indexedAt,
+                labels: [],
+                embeds: [],
+              },
+            };
+            quotedPost.quoteCount = (quotedPost.quoteCount || 0) + 1;
+          }
+        }
+
         const post = createPost({
           uri,
           text: record?.text || "",
           authorHandle: userProfile.handle,
           authorDisplayName: userProfile.displayName,
+          embed,
         });
         this.posts.push(post);
+
+        if (quotedPostUri) {
+          const existingQuotes = this.postQuotes.get(quotedPostUri) || [];
+          existingQuotes.push(post);
+          this.postQuotes.set(quotedPostUri, existingQuotes);
+        }
+
         const isReply = !!record?.reply;
+
+        if (isReply) {
+          const parentUri = record.reply.parent.uri;
+          const allReplyPosts = [
+            ...this.timelinePosts,
+            ...this.bookmarks,
+            ...this.searchPosts,
+            ...this.posts,
+          ];
+          const parentPost = allReplyPosts.find((p) => p.uri === parentUri);
+          if (parentPost) {
+            parentPost.replyCount = (parentPost.replyCount || 0) + 1;
+          }
+          const thread = this.postThreads.get(parentUri);
+          if (thread) {
+            thread.replies = thread.replies || [];
+            thread.replies.push({
+              $type: "app.bsky.feed.defs#threadViewPost",
+              post,
+              replies: [],
+            });
+          }
+        }
+
         const feedKey = `${userProfile.did}-posts_and_author_threads`;
         const existing = this.authorFeeds.get(feedKey) || [];
         this.authorFeeds.set(feedKey, [post, ...existing]);
@@ -724,6 +896,48 @@ export class MockServer {
           const feedKey = `${userProfile.did}-likes`;
           const existing = this.authorFeeds.get(feedKey) || [];
           this.authorFeeds.set(feedKey, [...existing, post]);
+        }
+      }
+
+      if (collection === "app.bsky.feed.repost") {
+        const subjectUri = body?.record?.subject?.uri;
+        const allPosts = [
+          ...this.timelinePosts,
+          ...this.bookmarks,
+          ...this.searchPosts,
+          ...this.posts,
+        ];
+        const post = allPosts.find((p) => p.uri === subjectUri);
+        if (post) {
+          post.viewer.repost = uri;
+          post.repostCount = (post.repostCount || 0) + 1;
+          const feedKey = `${userProfile.did}-posts_and_author_threads`;
+          const existing = this.authorFeeds.get(feedKey) || [];
+          this.authorFeeds.set(feedKey, [post, ...existing]);
+        }
+      }
+
+      if (collection === "app.bsky.graph.follow") {
+        const subjectDid = body?.record?.subject;
+        const profile = this.profiles.get(subjectDid);
+        if (profile) {
+          profile.viewer = { ...profile.viewer, following: uri };
+          if (profile.followersCount !== undefined) {
+            profile.followersCount++;
+          }
+          const follows = this.profileFollows.get(userProfile.did) || [];
+          if (!follows.find((p) => p.did === subjectDid)) {
+            follows.push(profile);
+            this.profileFollows.set(userProfile.did, follows);
+          }
+        }
+      }
+
+      if (collection === "app.bsky.graph.block") {
+        const subjectDid = body?.record?.subject;
+        const profile = this.profiles.get(subjectDid);
+        if (profile) {
+          profile.viewer = { ...profile.viewer, blocking: uri };
         }
       }
 

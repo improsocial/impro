@@ -94,4 +94,14 @@ test.describe("Feeds view", () => {
 
     await expect(feedsView).toContainText("Following");
   });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/feeds");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

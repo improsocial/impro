@@ -412,4 +412,155 @@ test.describe("Profile view", () => {
       menu.locator("context-menu-item", { hasText: "Report account" }),
     ).toBeVisible();
   });
+
+  test("should display generic error when profile fails to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    // Override getProfile to return 500 for a specific actor
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      if (actor === "did:plc:erroruser") {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "InternalServerError" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/profile/did:plc:erroruser");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "There was an error loading the profile.",
+      { timeout: 10000 },
+    );
+  });
+
+  test("should display invalid handle error for malformed handles", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    // Override getProfile to return 400 with invalid handle message
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      if (actor === "did:plc:invaliduser") {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidRequest",
+            message: "Error: actor must be a valid did or a handle",
+          }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/profile/did:plc:invaliduser");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error: Invalid handle",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should display Posts and Media tabs only (no Replies or Likes)", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
+        "Posts",
+      );
+      await expect(tabBar.locator(".tab-bar-button").nth(1)).toContainText(
+        "Media",
+      );
+    });
+
+    test("should hide follow/block/mute actions", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+        "Other User",
+        { timeout: 10000 },
+      );
+
+      // Chat button should be hidden for logged-out users
+      await expect(
+        view.locator('[data-testid="chat-button"]'),
+      ).not.toBeVisible();
+
+      // Open context menu — should only have non-authenticated items
+      await view.locator(".ellipsis-button").click();
+
+      const menu = view.locator("context-menu");
+      await expect(menu.locator("context-menu-item")).toHaveCount(2, {
+        timeout: 5000,
+      });
+      await expect(
+        menu.locator("context-menu-item", { hasText: "Open in bsky.app" }),
+      ).toBeVisible();
+      await expect(
+        menu.locator("context-menu-item", { hasText: "Copy link to profile" }),
+      ).toBeVisible();
+    });
+
+    test('should show "Sign-In Required" for profiles that restrict logged-out access', async ({
+      page,
+    }) => {
+      const restrictedUser = {
+        ...otherUser,
+        labels: [
+          {
+            src: otherUser.did,
+            uri: `at://${otherUser.did}/app.bsky.actor.profile/self`,
+            val: "!no-unauthenticated",
+            cts: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(restrictedUser);
+      await mockServer.setup(page);
+
+      await page.goto(`/profile/${restrictedUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator(".error-state h1")).toContainText(
+        "Sign-In Required",
+        { timeout: 10000 },
+      );
+      await expect(view.locator(".error-state p")).toContainText(
+        "This account has requested that users sign in to view their profile.",
+      );
+    });
+  });
 });

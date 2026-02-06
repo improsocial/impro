@@ -191,4 +191,39 @@ test.describe("Chat requests view", () => {
       { timeout: 10000 },
     );
   });
+
+  test("should display error state when chat requests fail to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    // Override listConvos to return error
+    await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const requestsView = page.locator("#chat-requests-view");
+    await expect(requestsView.locator(".error-state")).toContainText(
+      "There was an error loading chat requests.",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should redirect to /login when not authenticated", async ({
+      page,
+    }) => {
+      await page.goto("/messages/inbox");
+
+      await expect(page).toHaveURL("/login", { timeout: 10000 });
+    });
+  });
 });

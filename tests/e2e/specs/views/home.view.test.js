@@ -319,4 +319,104 @@ test.describe("Home view", () => {
       timeout: 10000,
     });
   });
+
+  test("should display error state when feed server fails", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/broken",
+      displayName: "Broken Feed",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    await mockServer.setup(page);
+
+    // Override getFeed to return error (fallback for getFeedGenerator* routes)
+    await page.route("**/xrpc/app.bsky.feed.getFeed*", (route) => {
+      if (route.request().url().includes("getFeedGenerator")) {
+        return route.fallback();
+      }
+      return route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      });
+    });
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await view.locator(".tab-bar-button", { hasText: "Broken Feed" }).click();
+
+    await expect(view.locator(".error-state")).toContainText(
+      "An issue occurred when contacting the feed server.",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    const discoverFeedUri =
+      "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
+
+    test("should show discover/public feed instead of following feed", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+      const post = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "A public discover post",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addFeedGenerators([discoverFeed]);
+      mockServer.addFeedItems(discoverFeedUri, [post]);
+      await mockServer.setup(page);
+
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      const tabs = view.locator(".tab-bar-button");
+      await expect(tabs).toHaveCount(1, { timeout: 10000 });
+      await expect(tabs.first()).toContainText("Discover");
+
+      await expect(view).toContainText("A public discover post", {
+        timeout: 10000,
+      });
+    });
+
+    test("should hide logged-in-only UI (compose button, feed switcher)", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+      mockServer.addFeedGenerators([discoverFeed]);
+      await mockServer.setup(page);
+
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await expect(view.locator(".tab-bar-button")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await expect(
+        page.locator('[data-testid="floating-compose-button"]'),
+      ).not.toBeVisible();
+      await expect(
+        page.locator('[data-testid="sidebar-compose-button"]'),
+      ).not.toBeVisible();
+    });
+  });
 });

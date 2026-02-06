@@ -364,4 +364,115 @@ test.describe("Post thread view", () => {
     });
     await expect(view).toContainText("My reply text", { timeout: 10000 });
   });
+
+  test("should display 'Post not found' for 404 errors", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([mainPost]);
+    await mockServer.setup(page);
+
+    // Override getPostThread to return 400 NotFound
+    await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) =>
+      route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "NotFound", message: "Post not found" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator(".error-state")).toContainText("Post not found", {
+      timeout: 10000,
+    });
+  });
+
+  test("should display 'Error loading thread' for server errors", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([mainPost]);
+    await mockServer.setup(page);
+
+    // Override getPostThread to return 500
+    await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator(".error-state")).toContainText(
+      "Error loading thread",
+      { timeout: 10000 },
+    );
+  });
+
+  test.describe("Logged-out behavior", () => {
+    test("should render thread and replies publicly", async ({ page }) => {
+      const postWithReplies = createPost({
+        uri: postUri,
+        text: "This is a public post",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount: 1,
+      });
+
+      const reply = createPost({
+        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+        text: "A public reply",
+        authorHandle: "replier1.bsky.social",
+        authorDisplayName: "Replier One",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([postWithReplies, reply]);
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: postWithReplies,
+        parent: null,
+        replies: [
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: reply,
+            replies: [],
+          },
+        ],
+      });
+      await mockServer.setup(page);
+
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This is a public post");
+      await expect(view).toContainText("A public reply", { timeout: 10000 });
+    });
+
+    test("should hide reply composer and interaction buttons", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addPosts([mainPost]);
+      await mockServer.setup(page);
+
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      // Reply composer should be hidden for logged-out users
+      await expect(view.locator(".post-thread-reply-prompt")).not.toBeVisible();
+    });
+  });
 });
