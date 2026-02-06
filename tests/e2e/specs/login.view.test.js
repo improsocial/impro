@@ -1,6 +1,6 @@
 import { test, expect } from "../base.js";
 
-test.describe("Login page", () => {
+test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {
     await page.goto("/login");
 
