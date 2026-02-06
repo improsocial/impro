@@ -9,6 +9,7 @@ import {
   isGlobalLabel,
 } from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
+import { generateTid } from "/js/atproto.js";
 import { DISCOVER_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
 

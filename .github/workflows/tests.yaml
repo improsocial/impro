@@ -1,0 +1,27 @@
+name: Tests
+
+on: [push]
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+      - run: npm install
+      - run: npm run test:unit
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24.x"
+      - run: npm install
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:e2e

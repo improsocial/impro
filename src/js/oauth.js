@@ -1,5 +1,6 @@
 import {
   resolveHandle,
+  didDocReferencesHandle,
   resolveDid,
   getServiceEndpointFromDidDoc,
 } from "/js/atproto.js";
@@ -388,11 +389,15 @@ export class OauthClient {
   async getAuthorizationUrl(handle, { scope = "atproto", state = {} } = {}) {
     const did = await resolveHandle(handle);
     if (!did) {
-      throw new HandleNotFoundError("DID not found for handle");
+      throw new HandleNotFoundError("DID not found for handle: " + handle);
     }
     const didDoc = await resolveDid(did);
+    if (!didDocReferencesHandle(didDoc, handle)) {
+      throw new Error(
+        `DID doc for ${did} does not reference handle: ${handle}`,
+      );
+    }
     const serviceEndpoint = getServiceEndpointFromDidDoc(didDoc);
-
     const resourceMetadata = await fetchResourceServerMetadata(serviceEndpoint);
     if (
       !resourceMetadata.authorization_servers ||

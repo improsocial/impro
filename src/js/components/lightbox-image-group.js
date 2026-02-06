@@ -9,7 +9,7 @@ class LightboxDialog extends Component {
       return;
     }
     this.innerHTML = "";
-    this.hideAltText = !!this.getAttribute("hide-alt-text");
+    this.hideAltText = this.getAttribute("hide-alt-text") === "true";
     this.currentIndex = this.currentIndex || 0;
     this.images = this.images || [];
     this.isOpen = false;
@@ -127,7 +127,7 @@ class LightboxImageGroup extends Component {
     if (this._initialized) {
       return;
     }
-    this.hideAltText = !!this.getAttribute("hide-alt-text");
+    this.hideAltText = this.getAttribute("hide-alt-text") === "true";
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
     this.render();
@@ -153,7 +153,7 @@ class LightboxImageGroup extends Component {
     lightboxDialog.images = images;
     lightboxDialog.currentIndex = initialIndex;
     if (this.hideAltText) {
-      lightboxDialog.setAttribute("hide-alt-text", "");
+      lightboxDialog.setAttribute("hide-alt-text", "true");
     }
     lightboxDialog.addEventListener("close", () => {
       lightboxDialog.remove();

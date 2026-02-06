@@ -35,15 +35,17 @@ class ProfileView extends View {
         feedType: "posts",
         name: "Posts",
       },
-      {
-        feedType: "replies",
-        name: "Replies",
-      },
+      isAuthenticated
+        ? {
+            feedType: "replies",
+            name: "Replies",
+          }
+        : null,
       {
         feedType: "media",
         name: "Media",
       },
-    ];
+    ].filter(Boolean);
 
     const currentUserAuthorFeeds = [
       ...defaultAuthorFeeds,
@@ -175,7 +177,8 @@ class ProfileView extends View {
         if (!isAuthenticated && doHideAuthorOnUnauthenticated(profile)) {
           return profileUnavailableTemplate();
         }
-        const isBlocked = !!profile.viewer?.blocking;
+        const isBlocking = !!profile.viewer?.blocking;
+        const isBlockedBy = !!profile.viewer?.blockedBy;
         const profileChatStatus = dataLayer.selectors.getProfileChatStatus(
           profile.did,
         );
@@ -252,7 +255,7 @@ class ProfileView extends View {
               onClickReport: (profile) =>
                 profileInteractionHandler.handleReport(profile),
             })}
-            ${isBlocked
+            ${isBlocking || isBlockedBy
               ? html`<div class="feed">
                   <div class="feed-end-message">Posts hidden</div>
                 </div>`
@@ -438,7 +441,14 @@ class ProfileView extends View {
       if (isAuthenticated) {
         await dataLayer.declarative.ensureCurrentUser();
       }
-      const profile = await dataLayer.declarative.ensureProfile(profileDid);
+
+      let profile;
+      try {
+        profile = await dataLayer.declarative.ensureProfile(profileDid);
+      } catch {
+        renderPage();
+        return;
+      }
 
       // Set active tab and load labeler info if this is a labeler profile
       const isLabeler = profile && isLabelerProfile(profile);
@@ -451,7 +461,7 @@ class ProfileView extends View {
 
       state.richTextProfileDescription = await loadProfileDescription(profile);
       renderPage();
-      if (!profile.viewer?.blocking) {
+      if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
         loadAuthorFeed();
         preloadHiddenFeeds();
       }

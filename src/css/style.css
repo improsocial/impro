@@ -1806,6 +1806,10 @@ like-button {
   left: 2px;
 }
 
+.post-action-button.like-button .post-action-count {
+  left: 1px;
+}
+
 .like-button.liked .heart-icon path {
   stroke: var(--like-color);
   fill: var(--like-color);
@@ -2153,7 +2157,8 @@ like-button {
   min-width: 0;
 }
 
-.quoted-post-header .post-header-text .post-name {
+.quoted-post-header .post-header-text .post-separator,
+.quoted-post-header .post-header-text .post-time {
   flex-shrink: 0;
 }
 
@@ -2669,6 +2674,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 }
 
 .notification-preview-text {
+  white-space: pre-wrap;
   word-break: break-word;
   margin-bottom: 8px;
 }

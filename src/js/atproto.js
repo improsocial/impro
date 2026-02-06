@@ -10,6 +10,12 @@ export function getServiceEndpointFromDidDoc(didDoc) {
   return service.serviceEndpoint;
 }
 
+export function didDocReferencesHandle(didDoc, handle) {
+  const atHandle = "at://" + handle;
+  const aliases = didDoc.alsoKnownAs ?? [];
+  return aliases.includes(atHandle);
+}
+
 export async function resolveHandle(handle) {
   const params = new URLSearchParams({
     handle,
@@ -37,17 +43,16 @@ export async function resolveDid(did) {
   }
 }
 
-async function getServiceEndpointForDid(did) {
-  const didDoc = await resolveDid(did);
-  return getServiceEndpointFromDidDoc(didDoc);
-}
-
 export async function getServiceEndpointForHandle(handle) {
   const did = await resolveHandle(handle);
   if (!did) {
-    return null;
+    throw new HandleNotFoundError("DID not found for handle: " + handle);
   }
-  return getServiceEndpointForDid(did);
+  const didDoc = await resolveDid(did);
+  if (!didDocReferencesHandle(didDoc, handle)) {
+    throw new Error(`DID doc for ${did} does not reference handle: ${handle}`);
+  }
+  return getServiceEndpointFromDidDoc(didDoc);
 }
 
 export class IdentityResolver {

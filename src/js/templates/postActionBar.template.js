@@ -188,79 +188,95 @@ export function postActionBarTemplate({
           </context-menu-item-group>
           ${isAuthenticated
             ? html`
-                ${enableFeedFeedback
-                  ? html`
-                      <context-menu-item-group>
-                        <context-menu-item
-                          @click=${() => {
-                            onClickShowMore(post);
-                          }}
-                        >
-                          Show more like this
-                        </context-menu-item>
-                        <context-menu-item
-                          @click=${() => {
-                            onClickShowLess(post);
-                          }}
-                        >
-                          Show less like this
-                        </context-menu-item>
-                      </context-menu-item-group>
-                    `
-                  : null}
-                ${!post.viewer?.isHidden
-                  ? html`
-                      <context-menu-item-group>
-                        <context-menu-item
-                          @click=${() => {
-                            onClickHidePost(post);
-                          }}
-                        >
-                          Hide ${post.record?.reply ? "reply" : "post"} for me
-                        </context-menu-item>
-                      </context-menu-item-group>
-                    `
-                  : null}
-                <context-menu-item-group>
-                  <context-menu-item
-                    @click=${() => {
-                      onClickMute(post.author, !post.author.viewer?.muted);
-                    }}
-                  >
-                    ${post.author.viewer?.muted
-                      ? "Unmute account"
-                      : "Mute account"}
-                  </context-menu-item>
-                  <context-menu-item
-                    @click=${() => {
-                      onClickBlock(post.author, !post.author.viewer?.blocking);
-                    }}
-                  >
-                    ${post.author.viewer?.blocking
-                      ? "Unblock account"
-                      : "Block account"}
-                  </context-menu-item>
-                  ${!isUserPost
+                ${
+                  enableFeedFeedback
                     ? html`
-                        <context-menu-item
-                          @click=${() => {
-                            onClickReport(post);
-                          }}
-                        >
-                          Report post
-                        </context-menu-item>
+                        <context-menu-item-group>
+                          <context-menu-item
+                            @click=${() => {
+                              onClickShowMore(post);
+                            }}
+                          >
+                            Show more like this
+                          </context-menu-item>
+                          <context-menu-item
+                            @click=${() => {
+                              onClickShowLess(post);
+                            }}
+                          >
+                            Show less like this
+                          </context-menu-item>
+                        </context-menu-item-group>
                       `
-                    : null}
+                    : null
+                }
+                  ${
+                    !isUserPost
+                      ? html`
+                          ${!post.viewer?.isHidden
+                            ? html`
+                                <context-menu-item-group>
+                                  <context-menu-item
+                                    @click=${() => {
+                                      onClickHidePost(post);
+                                    }}
+                                  >
+                                    Hide
+                                    ${post.record?.reply ? "reply" : "post"} for
+                                    me
+                                  </context-menu-item>
+                                </context-menu-item-group>
+                              `
+                            : null}
+                          <context-menu-item-group>
+                            <context-menu-item
+                              @click=${() => {
+                                onClickMute(
+                                  post.author,
+                                  !post.author.viewer?.muted,
+                                );
+                              }}
+                            >
+                              ${post.author.viewer?.muted
+                                ? "Unmute account"
+                                : "Mute account"}
+                            </context-menu-item>
+                            <context-menu-item
+                              @click=${() => {
+                                onClickBlock(
+                                  post.author,
+                                  !post.author.viewer?.blocking,
+                                );
+                              }}
+                            >
+                              ${post.author.viewer?.blocking
+                                ? "Unblock account"
+                                : "Block account"}
+                            </context-menu-item>
+
+                            <context-menu-item
+                              @click=${() => {
+                                onClickReport(post);
+                              }}
+                            >
+                              Report post
+                            </context-menu-item>
+                          </context-menu-item-group>
+                        `
+                      : null
+                  }
                 </context-menu-item-group>
-                ${isUserPost
-                  ? html` <context-menu-item
-                      @click=${() => {
-                        onClickDelete(post);
-                      }}
-                    >
-                      Delete post
-                    </context-menu-item>`
-                  : null}
+                ${
+                  isUserPost
+                    ? html` <context-menu-item
+                        @click=${() => {
+                          onClickDelete(post);
+                        }}
+                      >
+                        Delete post
+                      </context-menu-item>`
+                    : null
+                }
               `
             : null}
         </context-menu>

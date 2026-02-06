@@ -1,0 +1,38 @@
+import { test, expect } from "../../base.js";
+import { MockServer } from "../../mockServer.js";
+
+test.describe("Login view", () => {
+  test("should display the login form", async ({ page }) => {
+    await page.goto("/login");
+
+    const loginView = page.locator("#login-view");
+    await expect(
+      loginView.getByRole("heading", { name: "Sign in" }),
+    ).toBeVisible();
+    await expect(loginView.locator("h2")).toContainText("IMPRO");
+
+    const handleInput = page.locator('input[name="handle"]');
+    await expect(handleInput).toBeVisible();
+    await expect(handleInput).toHaveAttribute(
+      "placeholder",
+      "example.bsky.social",
+    );
+
+    await expect(page.getByRole("button", { name: "Next" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
+  });
+
+  test("should show error for invalid username", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await page.goto("/login");
+
+    await page.locator('input[name="handle"]').fill("invalid.test");
+    await page.getByRole("button", { name: "Next" }).click();
+
+    await expect(page.locator(".error-message")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+});

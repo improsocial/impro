@@ -78,7 +78,7 @@ function replyContextTemplate({
               post: parent,
               isUserPost: parent.author?.did === currentUser?.did,
               replyContext: "parent",
-              showReplyToLabel: !!grandparentAuthor,
+              showReplyToLabel: !!grandparentAuthor && showViewMoreLink,
               replyToAuthor: grandparentAuthor,
               hiddenPostUris,
               postInteractionHandler,
