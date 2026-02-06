@@ -214,6 +214,48 @@ test.describe("Profile view", () => {
     await expect(view).toContainText("Second post by other user");
   });
 
+  test("should load more posts when scrolling to the bottom of profile feed", async ({
+    page,
+  }) => {
+    const posts = [];
+    for (let i = 1; i <= 60; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:otheruser1/app.bsky.feed.post/profilepost${i}`,
+          text: `Profile post ${i}`,
+          authorHandle: otherUser.handle,
+          authorDisplayName: otherUser.displayName,
+        }),
+      );
+    }
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    mockServer.addAuthorFeedPosts(
+      otherUser.did,
+      "posts_and_author_threads",
+      posts,
+    );
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    const items = view.locator('[data-testid="feed-item"]');
+
+    // Wait for initial batch to load
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    const initialCount = await items.count();
+    expect(initialCount).toBeLessThan(60);
+
+    // Scroll to bottom to trigger infinite scroll
+    await items.last().scrollIntoViewIfNeeded();
+
+    // Verify more posts loaded
+    await expect(items).toHaveCount(60, { timeout: 10000 });
+    await expect(view).toContainText("Profile post 60");
+  });
+
   test("should show empty feed message when there are no posts", async ({
     page,
   }) => {

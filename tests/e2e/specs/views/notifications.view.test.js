@@ -747,6 +747,60 @@ test.describe("Notifications view", () => {
     });
   });
 
+  test("should load more notifications when scrolling to the bottom", async ({
+    page,
+  }) => {
+    // Use like notifications with unique reasonSubjects so they are not grouped
+    const likedPosts = [];
+    const notifications = [];
+    for (let i = 1; i <= 60; i++) {
+      const post = createPost({
+        uri: `at://did:plc:testuser123/app.bsky.feed.post/notifpost${i}`,
+        text: `Notification post ${i}`,
+        authorHandle: "testuser.bsky.social",
+        authorDisplayName: "Test User",
+      });
+      likedPosts.push(post);
+
+      const author = createProfile({
+        did: `did:plc:liker${i}`,
+        handle: `liker${i}.bsky.social`,
+        displayName: `Liker ${i}`,
+      });
+      notifications.push(
+        createNotification({
+          reason: "like",
+          author,
+          reasonSubject: post.uri,
+          indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+        }),
+      );
+    }
+
+    const mockServer = new MockServer();
+    mockServer.addPosts(likedPosts);
+    mockServer.addNotifications(notifications);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+
+    // Wait for initial batch to load
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    const initialCount = await items.count();
+    expect(initialCount).toBeLessThan(60);
+
+    // Scroll to bottom to trigger infinite scroll
+    await items.last().scrollIntoViewIfNeeded();
+
+    // Verify more notifications loaded
+    await expect(items).toHaveCount(60, { timeout: 10000 });
+    await expect(view).toContainText("Liker 60");
+  });
+
   test("should display error state when notifications fail to load", async ({
     page,
   }) => {
