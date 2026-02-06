@@ -55,9 +55,10 @@ test.describe("Repost flow", () => {
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
       repostCount: 3,
+      viewer: {
+        repost: "at://did:plc:testuser123/app.bsky.feed.repost/repost1",
+      },
     });
-    post.viewer.repost =
-      "at://did:plc:testuser123/app.bsky.feed.repost/repost1";
     mockServer.addTimelinePosts([post]);
     mockServer.addAuthorFeedPosts(userProfile.did, "posts_and_author_threads", [
       post,

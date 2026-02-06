@@ -2,7 +2,11 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { userProfile } from "../../fixtures.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createProfile } from "../../factories.js";
+import {
+  createPost,
+  createProfile,
+  createLabelerView,
+} from "../../factories.js";
 
 const otherUser = createProfile({
   did: "did:plc:otheruser1",
@@ -12,6 +16,68 @@ const otherUser = createProfile({
   followsCount: 45,
   postsCount: 87,
   description: "Hello, I'm a test user!",
+});
+
+const labelerUser = createProfile({
+  did: "did:plc:labeler123",
+  handle: "testlabeler.bsky.social",
+  displayName: "Test Labeler",
+  followersCount: 500,
+  followsCount: 10,
+  postsCount: 0,
+  description: "A test labeler service",
+  associated: { labeler: true },
+});
+
+const labelerView = createLabelerView({
+  did: "did:plc:labeler123",
+  handle: "testlabeler.bsky.social",
+  displayName: "Test Labeler",
+  creator: labelerUser,
+  labelDefinitions: [
+    {
+      identifier: "custom-label",
+      severity: "alert",
+      blurs: "content",
+      defaultSetting: "warn",
+      adultOnly: false,
+      locales: [
+        {
+          lang: "en",
+          name: "Custom Label",
+          description: "This is a custom content label",
+        },
+      ],
+    },
+    {
+      identifier: "badge-label",
+      severity: "inform",
+      blurs: "none",
+      defaultSetting: "warn",
+      adultOnly: false,
+      locales: [
+        {
+          lang: "en",
+          name: "Badge Label",
+          description: "This is a badge-type label",
+        },
+      ],
+    },
+    {
+      identifier: "!system-label",
+      severity: "alert",
+      blurs: "content",
+      defaultSetting: "hide",
+      adultOnly: false,
+      locales: [
+        {
+          lang: "en",
+          name: "System Label",
+          description: "This is a non-configurable system label",
+        },
+      ],
+    },
+  ],
 });
 
 test.describe("Profile view", () => {
@@ -309,7 +375,7 @@ test.describe("Profile view", () => {
 
     const view = page.locator("#profile-view");
     await expect(view.locator('[data-testid="blocked-badge"]')).toContainText(
-      "User Blocked",
+      "You are blocking this user",
       { timeout: 10000 },
     );
     await expect(view.locator(".feed-end-message")).toContainText(
@@ -657,6 +723,391 @@ test.describe("Profile view", () => {
       "Error: Invalid handle",
       { timeout: 10000 },
     );
+  });
+
+  test("should display 'Blocked by User' badge and hide feed when viewer.blockedBy is true", async ({
+    page,
+  }) => {
+    const blockedByUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        blockedBy: true,
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(blockedByUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${blockedByUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(
+      view.locator('[data-testid="blocked-by-badge"]'),
+    ).toContainText("This user is blocking you", { timeout: 10000 });
+    await expect(view.locator(".feed-end-message")).toContainText(
+      "Posts hidden",
+    );
+    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(
+      view.locator('[data-testid="follow-button"]'),
+    ).not.toBeVisible();
+    await expect(
+      view.locator('[data-testid="unblock-button"]'),
+    ).not.toBeVisible();
+    await expect(view.locator('[data-testid="chat-button"]')).not.toBeVisible();
+    await expect(
+      view.locator('[data-testid="profile-stats"]'),
+    ).not.toBeVisible();
+    await expect(view.locator(".profile-description")).not.toBeVisible();
+  });
+
+  test.describe("Labeler profiles", () => {
+    test("should show '+ Subscribe' button on a labeler profile", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator('[data-testid="subscribe-button"]'),
+      ).toContainText("+ Subscribe", { timeout: 10000 });
+    });
+
+    test("should show 'Labels' tab and 'Subscribed' button when subscribed to a labeler", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
+                  {
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
+                  },
+                ],
+              },
+              {
+                $type: "app.bsky.actor.defs#labelersPref",
+                labelers: [{ did: "did:plc:labeler123" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Labels" }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await expect(
+        view.locator('[data-testid="subscribe-button"]'),
+      ).toContainText("Subscribed");
+    });
+
+    test("should list configurable labels in the labeler settings tab", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
+                  {
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
+                  },
+                ],
+              },
+              {
+                $type: "app.bsky.actor.defs#labelersPref",
+                labelers: [{ did: "did:plc:labeler123" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator('[data-testid="label-preference-row"]'),
+      ).toHaveCount(2, { timeout: 10000 });
+
+      await expect(
+        view.locator('[data-testid="label-preference-name"]').nth(0),
+      ).toContainText("Custom Label");
+      await expect(
+        view.locator('[data-testid="label-preference-name"]').nth(1),
+      ).toContainText("Badge Label");
+    });
+
+    test("should show Off/Warn/Hide toggle buttons, with 'Show badge' for badge labels", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
+                  {
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
+                  },
+                ],
+              },
+              {
+                $type: "app.bsky.actor.defs#labelersPref",
+                labelers: [{ did: "did:plc:labeler123" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const rows = view.locator('[data-testid="label-preference-row"]');
+      await expect(rows).toHaveCount(2, { timeout: 10000 });
+
+      // First row: custom-label (blurs: "content", severity: "alert")
+      // Should show Off, Warn, Hide
+      const firstRowButtons = rows
+        .nth(0)
+        .locator('[data-testid="label-pref-button"]');
+      await expect(firstRowButtons).toHaveCount(3);
+      await expect(firstRowButtons.nth(0)).toContainText("Off");
+      await expect(firstRowButtons.nth(1)).toContainText("Warn");
+      await expect(firstRowButtons.nth(2)).toContainText("Hide");
+
+      // Second row: badge-label (blurs: "none", severity: "inform")
+      // isBadgeLabel = true, severity = "inform", so Warn text is "Show badge"
+      const secondRowButtons = rows
+        .nth(1)
+        .locator('[data-testid="label-pref-button"]');
+      await expect(secondRowButtons).toHaveCount(3);
+      await expect(secondRowButtons.nth(0)).toContainText("Off");
+      await expect(secondRowButtons.nth(1)).toContainText("Show badge");
+      await expect(secondRowButtons.nth(2)).toContainText("Hide");
+    });
+
+    test("should show label descriptions for each configurable label", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
+                  {
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
+                  },
+                ],
+              },
+              {
+                $type: "app.bsky.actor.defs#labelersPref",
+                labelers: [{ did: "did:plc:labeler123" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const rows = view.locator('[data-testid="label-preference-row"]');
+      await expect(rows).toHaveCount(2, { timeout: 10000 });
+
+      await expect(
+        rows.nth(0).locator(".label-preference-description"),
+      ).toContainText("This is a custom content label");
+      await expect(
+        rows.nth(1).locator(".label-preference-description"),
+      ).toContainText("This is a badge-type label");
+    });
+
+    test("should not show non-configurable labels (prefixed with !) in settings", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      await page.route("**/xrpc/app.bsky.actor.getPreferences*", (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            preferences: [
+              {
+                $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+                items: [
+                  {
+                    type: "timeline",
+                    value: "following",
+                    pinned: true,
+                    id: "timeline-following",
+                  },
+                ],
+              },
+              {
+                $type: "app.bsky.actor.defs#labelersPref",
+                labelers: [{ did: "did:plc:labeler123" }],
+              },
+            ],
+          }),
+        }),
+      );
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const rows = view.locator('[data-testid="label-preference-row"]');
+      // Only 2 configurable labels shown (custom-label and badge-label)
+      // !system-label is filtered out
+      await expect(rows).toHaveCount(2, { timeout: 10000 });
+
+      const labelList = view.locator('[data-testid="label-preference-list"]');
+      await expect(labelList).not.toContainText("System Label");
+    });
   });
 
   test.describe("Logged-out behavior", () => {

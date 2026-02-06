@@ -48,8 +48,8 @@ test.describe("Bookmarks view", () => {
       text: "Post to unbookmark",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      viewer: { bookmarked: true },
     });
-    post.viewer.bookmarked = true;
     mockServer.addBookmarks([post]);
     await mockServer.setup(page);
 

@@ -14,8 +14,8 @@ test.describe("Like post flow", () => {
       text: "Post worth liking",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      likeCount: 3,
     });
-    post.likeCount = 3;
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
 
@@ -59,9 +59,10 @@ test.describe("Like post flow", () => {
       text: "Post to unlike",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      viewer: {
+        like: "at://did:plc:testuser123/app.bsky.feed.like/like1",
+      },
     });
-    post.likeCount = 5;
-    post.viewer.like = "at://did:plc:testuser123/app.bsky.feed.like/like1";
     mockServer.addTimelinePosts([post]);
     mockServer.addAuthorFeedPosts(userProfile.did, "likes", [post]);
     await mockServer.setup(page);

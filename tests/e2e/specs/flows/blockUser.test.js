@@ -51,7 +51,7 @@ test.describe("Block user flow", () => {
     // Wait for the profile to show blocked state
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("User Blocked", { timeout: 10000 });
+    ).toContainText("You are blocking this user", { timeout: 10000 });
     await expect(
       profileView.locator('[data-testid="unblock-button"]'),
     ).toContainText("Unblock");
@@ -66,7 +66,7 @@ test.describe("Block user flow", () => {
     await page.goto(`/profile/${otherUser.did}`);
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("User Blocked", { timeout: 10000 });
+    ).toContainText("You are blocking this user", { timeout: 10000 });
   });
 
   test("should block a user from a post context menu and filter their posts", async ({
@@ -121,7 +121,7 @@ test.describe("Block user flow", () => {
     const profileView = page.locator("#profile-view");
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("User Blocked", { timeout: 10000 });
+    ).toContainText("You are blocking this user", { timeout: 10000 });
     await expect(
       profileView.locator('[data-testid="unblock-button"]'),
     ).toContainText("Unblock");
@@ -138,11 +138,10 @@ test.describe("Block user flow", () => {
       followersCount: 10,
       followsCount: 5,
       postsCount: 3,
+      viewer: {
+        blocking: "at://did:plc:testuser123/app.bsky.graph.block/block1",
+      },
     });
-    blockedUser.viewer = {
-      ...blockedUser.viewer,
-      blocking: "at://did:plc:testuser123/app.bsky.graph.block/block1",
-    };
     const post = createPost({
       uri: "at://did:plc:otheruser1/app.bsky.feed.post/post1",
       text: "Post from blocked user",
@@ -167,7 +166,7 @@ test.describe("Block user flow", () => {
     const profileView = page.locator("#profile-view");
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
-    ).toContainText("User Blocked", { timeout: 10000 });
+    ).toContainText("You are blocking this user", { timeout: 10000 });
 
     await profileView.locator('[data-testid="unblock-button"]').click();
 

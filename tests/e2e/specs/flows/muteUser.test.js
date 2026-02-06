@@ -133,11 +133,8 @@ test.describe("Mute user flow", () => {
       followersCount: 10,
       followsCount: 5,
       postsCount: 3,
+      viewer: { muted: true },
     });
-    mutedUser.viewer = {
-      ...mutedUser.viewer,
-      muted: true,
-    };
     const post = createPost({
       uri: "at://did:plc:otheruser1/app.bsky.feed.post/post1",
       text: "Post from muted user",

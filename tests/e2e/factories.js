@@ -47,6 +47,8 @@ export function createProfile({
   followersCount,
   followsCount,
   postsCount,
+  associated,
+  viewer,
 }) {
   return {
     did,
@@ -54,9 +56,10 @@ export function createProfile({
     displayName,
     description: description || "",
     avatar: "",
-    viewer: { muted: false, blockedBy: false },
+    viewer: { muted: false, blockedBy: false, ...viewer },
     labels: [],
     createdAt: "2025-01-01T00:00:00.000Z",
+    ...(associated ? { associated } : {}),
     ...(followersCount !== undefined ? { followersCount } : {}),
     ...(followsCount !== undefined ? { followsCount } : {}),
     ...(postsCount !== undefined ? { postsCount } : {}),
@@ -110,6 +113,32 @@ export function createNotification({
   };
 }
 
+export function createLabelerView({
+  did,
+  handle,
+  displayName,
+  labelDefinitions = [],
+  creator,
+}) {
+  return {
+    uri: `at://${did}/app.bsky.labeler.service/self`,
+    cid: `bafyreilabeler${did.split(":").pop()}`,
+    creator: creator || {
+      did,
+      handle,
+      displayName,
+      avatar: "",
+      viewer: { muted: false, blockedBy: false },
+      labels: [],
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    policies: {
+      labelValueDefinitions: labelDefinitions,
+    },
+    labels: [],
+  };
+}
+
 export function createPost({
   uri,
   text,
@@ -122,6 +151,8 @@ export function createPost({
   reply,
   embed,
   recordEmbed,
+  labels,
+  viewer,
 }) {
   const did = uri.split("/")[2];
   return {
@@ -150,7 +181,7 @@ export function createPost({
     quoteCount,
     ...(embed ? { embed } : {}),
     indexedAt: "2025-01-01T00:00:00.000Z",
-    viewer: {},
-    labels: [],
+    viewer: { ...viewer },
+    labels: labels || [],
   };
 }

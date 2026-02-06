@@ -298,8 +298,11 @@ test.describe("Create post flow", () => {
     // Typeahead should close after selection
     await expect(typeahead).not.toBeVisible({ timeout: 5000 });
 
-    // Continue typing a hashtag
-    await richTextInput.type(" loves #testing ");
+    // Wait for cursor repositioning after mention selection (uses setTimeout)
+    await page.waitForTimeout(50);
+
+    // Continue typing a hashtag (use keyboard to avoid refocusing the element)
+    await page.keyboard.type(" loves #testing ");
 
     // Click Post
     await composer

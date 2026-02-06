@@ -49,8 +49,8 @@ test.describe("Bookmark post flow", () => {
       text: "Post to remove",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
+      viewer: { bookmarked: true },
     });
-    post.viewer.bookmarked = true;
     mockServer.addTimelinePosts([post]);
     mockServer.addBookmarks([post]);
     await mockServer.setup(page);

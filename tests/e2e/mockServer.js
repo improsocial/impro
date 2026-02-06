@@ -14,7 +14,10 @@ export class MockServer {
     this.externalLinkCards = new Map();
     this.feedGenerators = [];
     this.feeds = new Map();
+    this.hiddenPostUris = [];
+    this.labelerSubscriptions = [];
     this.labelerViews = [bskyLabeler];
+    this.contentLabelPrefs = [];
     this.notifications = [];
     this.notificationCursor = undefined;
     this.pinnedFeedUris = [];
@@ -43,6 +46,10 @@ export class MockServer {
 
   addFeedGenerators(feedGenerators) {
     this.feedGenerators.push(...feedGenerators);
+  }
+
+  addLabelerSubscription(did) {
+    this.labelerSubscriptions.push(did);
   }
 
   addLabelerViews(views) {
@@ -187,18 +194,45 @@ export class MockServer {
                 })),
               ],
             },
+            ...(this.hiddenPostUris.length > 0
+              ? [
+                  {
+                    $type: "app.bsky.actor.defs#improHiddenPostsPref",
+                    items: this.hiddenPostUris,
+                  },
+                ]
+              : []),
+            ...(this.labelerSubscriptions.length > 0
+              ? [
+                  {
+                    $type: "app.bsky.actor.defs#labelersPref",
+                    labelers: this.labelerSubscriptions.map((did) => ({
+                      did,
+                    })),
+                  },
+                ]
+              : []),
+            ...this.contentLabelPrefs,
           ],
         }),
       }),
     );
 
-    await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+      const url = new URL(route.request().url());
+      const requestedDids = url.searchParams.getAll("dids");
+      const views =
+        requestedDids.length > 0
+          ? this.labelerViews.filter((v) =>
+              requestedDids.includes(v.creator.did),
+            )
+          : this.labelerViews;
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ views: this.labelerViews }),
-      }),
-    );
+        body: JSON.stringify({ views }),
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.notification.getUnreadCount*", (route) =>
       route.fulfill({
@@ -992,6 +1026,23 @@ export class MockServer {
           .filter((item) => item.type === "feed" && !item.pinned)
           .map((item) => item.value);
       }
+      const hiddenPostsPref = body?.preferences?.find(
+        (p) => p.$type === "app.bsky.actor.defs#improHiddenPostsPref",
+      );
+      if (hiddenPostsPref) {
+        this.hiddenPostUris = hiddenPostsPref.items || [];
+      }
+      const labelersPref = body?.preferences?.find(
+        (p) => p.$type === "app.bsky.actor.defs#labelersPref",
+      );
+      if (labelersPref) {
+        this.labelerSubscriptions = labelersPref.labelers.map((l) => l.did);
+      } else {
+        this.labelerSubscriptions = [];
+      }
+      this.contentLabelPrefs = (body?.preferences || []).filter(
+        (p) => p.$type === "app.bsky.actor.defs#contentLabelPref",
+      );
       return route.fulfill({
         status: 200,
         contentType: "application/json",

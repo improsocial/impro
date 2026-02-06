@@ -177,7 +177,8 @@ class ProfileView extends View {
         if (!isAuthenticated && doHideAuthorOnUnauthenticated(profile)) {
           return profileUnavailableTemplate();
         }
-        const isBlocked = !!profile.viewer?.blocking;
+        const isBlocking = !!profile.viewer?.blocking;
+        const isBlockedBy = !!profile.viewer?.blockedBy;
         const profileChatStatus = dataLayer.selectors.getProfileChatStatus(
           profile.did,
         );
@@ -254,7 +255,7 @@ class ProfileView extends View {
               onClickReport: (profile) =>
                 profileInteractionHandler.handleReport(profile),
             })}
-            ${isBlocked
+            ${isBlocking || isBlockedBy
               ? html`<div class="feed">
                   <div class="feed-end-message">Posts hidden</div>
                 </div>`
@@ -460,7 +461,7 @@ class ProfileView extends View {
 
       state.richTextProfileDescription = await loadProfileDescription(profile);
       renderPage();
-      if (!profile.viewer?.blocking) {
+      if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
         loadAuthorFeed();
         preloadHiddenFeeds();
       }

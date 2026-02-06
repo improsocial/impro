@@ -39,15 +39,23 @@ function profileStatsTemplate({ profile }) {
 
 function profileDescriptionTemplate({
   isLabeler,
-  isBlocked,
+  isBlocking,
+  isBlockedBy,
   profile,
   richTextProfileDescription,
   labelerInfo,
 }) {
-  if (isBlocked) {
+  if (isBlocking) {
     return html`<div>
       <div class="profile-blocked-badge" data-testid="blocked-badge">
-        User Blocked
+        You are blocking this user
+      </div>
+    </div>`;
+  }
+  if (isBlockedBy) {
+    return html`<div>
+      <div class="profile-blocked-badge" data-testid="blocked-by-badge">
+        This user is blocking you
       </div>
     </div>`;
   }
@@ -83,7 +91,8 @@ export function profileCardTemplate({
   onClickReport = noop,
 }) {
   const isFollowing = profile.viewer?.following;
-  const isBlocked = !!profile.viewer?.blocking;
+  const isBlocking = !!profile.viewer?.blocking;
+  const isBlockedBy = !!profile.viewer?.blockedBy;
   const canChat = profileChatStatus?.canChat || !!profileChatStatus?.convo;
   return html`<div class="profile-card">
     <div class="profile-banner-container">
@@ -105,7 +114,7 @@ export function profileCardTemplate({
           author: profile,
           clickAction: "lightbox",
         })}
-        ${!isCurrentUser && !isLabeler && isAuthenticated
+        ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
           ? html`<button
               class="rounded-button chat-button"
               data-testid="chat-button"
@@ -122,7 +131,10 @@ export function profileCardTemplate({
           if (isCurrentUser) {
             return null;
           }
-          if (isBlocked) {
+          if (isBlockedBy && !isBlocking) {
+            return null;
+          }
+          if (isBlocking) {
             return html`<button
               @click=${() => onClickBlock(profile, false)}
               class="rounded-button profile-following-button"
@@ -248,7 +260,7 @@ export function profileCardTemplate({
           ${getDisplayName(profile)}
         </h1>
         <div class="profile-handle-row">
-          ${profile.viewer?.followedBy && !isBlocked
+          ${profile.viewer?.followedBy && !isBlocking && !isBlockedBy
             ? html`<div
                 class="profile-follows-you"
                 data-testid="follows-you-badge"
@@ -261,7 +273,8 @@ export function profileCardTemplate({
       </div>
     </div>
     ${profileDescriptionTemplate({
-      isBlocked,
+      isBlocking,
+      isBlockedBy,
       isLabeler,
       labelerInfo,
       profile,

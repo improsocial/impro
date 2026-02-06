@@ -67,11 +67,10 @@ test.describe("Follow/Unfollow flow", () => {
       followersCount: 121,
       followsCount: 45,
       postsCount: 87,
+      viewer: {
+        following: "at://did:plc:testuser123/app.bsky.graph.follow/follow1",
+      },
     });
-    otherUser.viewer = {
-      ...otherUser.viewer,
-      following: "at://did:plc:testuser123/app.bsky.graph.follow/follow1",
-    };
     mockServer.addProfile(otherUser);
     mockServer.addProfileFollows(userProfile.did, [otherUser]);
     await mockServer.setup(page);
