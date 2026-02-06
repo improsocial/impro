@@ -200,17 +200,6 @@ test.describe("Post thread view", () => {
     mockServer.addPosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: "at://did:plc:testuser123/app.bsky.feed.like/like1",
-          cid: "bafyreilike1",
-        }),
-      }),
-    );
-
     await login(page);
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
@@ -240,17 +229,6 @@ test.describe("Post thread view", () => {
     mockServer.addPosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: "at://did:plc:testuser123/app.bsky.feed.repost/repost1",
-          cid: "bafyreirepost1",
-        }),
-      }),
-    );
-
     await login(page);
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
@@ -279,14 +257,6 @@ test.describe("Post thread view", () => {
     const mockServer = new MockServer();
     mockServer.addPosts([post]);
     await mockServer.setup(page);
-
-    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      }),
-    );
 
     await login(page);
     await page.goto("/profile/author1.bsky.social/post/abc123");
@@ -360,32 +330,9 @@ test.describe("Post thread view", () => {
       authorDisplayName: "Author One",
     });
 
-    const createdReply = createPost({
-      uri: "at://did:plc:testuser123/app.bsky.feed.post/newreply1",
-      text: "My reply text",
-      authorHandle: "testuser.bsky.social",
-      authorDisplayName: "Test User",
-    });
-
     const mockServer = new MockServer();
     mockServer.addPosts([post]);
     await mockServer.setup(page);
-
-    // Mock the createRecord call for posting the reply
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: createdReply.uri,
-          cid: createdReply.cid,
-        }),
-      }),
-    );
-
-    // After creating, the app fetches the full post via getPosts.
-    // The mock server already handles getPosts, so add the reply to the pool.
-    mockServer.addPosts([createdReply]);
 
     await login(page);
     await page.goto("/profile/author1.bsky.social/post/abc123");

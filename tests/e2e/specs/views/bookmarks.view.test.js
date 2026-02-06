@@ -53,10 +53,6 @@ test.describe("Bookmarks view", () => {
     mockServer.addBookmarks([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/app.bsky.bookmark.deleteBookmark*", (route) =>
-      route.fulfill({ status: 200 }),
-    );
-
     await login(page);
     await page.goto("/bookmarks");
 

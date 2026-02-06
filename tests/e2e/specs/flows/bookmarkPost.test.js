@@ -17,16 +17,6 @@ test.describe("Bookmark post flow", () => {
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) => {
-      post.viewer.bookmarked = true;
-      mockServer.bookmarks.push(post);
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      });
-    });
-
     await login(page);
     await page.goto("/");
 
@@ -64,11 +54,6 @@ test.describe("Bookmark post flow", () => {
     mockServer.addTimelinePosts([post]);
     mockServer.addBookmarks([post]);
     await mockServer.setup(page);
-
-    await page.route("**/xrpc/app.bsky.bookmark.deleteBookmark*", (route) => {
-      mockServer.bookmarks.splice(0);
-      return route.fulfill({ status: 200 });
-    });
 
     await login(page);
 

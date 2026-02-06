@@ -191,17 +191,6 @@ test.describe("Home view", () => {
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: "at://did:plc:testuser123/app.bsky.feed.like/like1",
-          cid: "bafyreilike1",
-        }),
-      }),
-    );
-
     await login(page);
     await page.goto("/");
 
@@ -230,17 +219,6 @@ test.describe("Home view", () => {
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: "at://did:plc:testuser123/app.bsky.feed.repost/repost1",
-          cid: "bafyreirepost1",
-        }),
-      }),
-    );
-
     await login(page);
     await page.goto("/");
 
@@ -268,14 +246,6 @@ test.describe("Home view", () => {
     });
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
-
-    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      }),
-    );
 
     await login(page);
     await page.goto("/");

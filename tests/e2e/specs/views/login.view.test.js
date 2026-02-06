@@ -1,4 +1,5 @@
 import { test, expect } from "../../base.js";
+import { MockServer } from "../../mockServer.js";
 
 test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {
@@ -22,16 +23,8 @@ test.describe("Login view", () => {
   });
 
   test("should show error for invalid username", async ({ page }) => {
-    // Intercept the handle resolution request to simulate an invalid handle
-    await page.route("**/.well-known/atproto-did*", (route) =>
-      route.fulfill({ status: 404, body: "Not Found" }),
-    );
-    await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) =>
-      route.fulfill({
-        status: 400,
-        body: JSON.stringify({ error: "InvalidHandle" }),
-      }),
-    );
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
 
     await page.goto("/login");
 

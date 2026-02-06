@@ -19,19 +19,6 @@ test.describe("Like post flow", () => {
     mockServer.addTimelinePosts([post]);
     await mockServer.setup(page);
 
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) => {
-      post.viewer.like = "at://did:plc:testuser123/app.bsky.feed.like/like1";
-      mockServer.authorFeeds.set(`${userProfile.did}-likes`, [post]);
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          uri: post.viewer.like,
-          cid: "bafyreilike1",
-        }),
-      });
-    });
-
     await login(page);
     await page.goto("/");
 
@@ -78,15 +65,6 @@ test.describe("Like post flow", () => {
     mockServer.addTimelinePosts([post]);
     mockServer.addAuthorFeedPosts(userProfile.did, "likes", [post]);
     await mockServer.setup(page);
-
-    await page.route("**/xrpc/com.atproto.repo.deleteRecord*", (route) => {
-      mockServer.authorFeeds.set(`${userProfile.did}-likes`, []);
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      });
-    });
 
     await login(page);
 

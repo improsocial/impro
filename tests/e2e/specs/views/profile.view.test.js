@@ -14,23 +14,11 @@ const otherUser = createProfile({
   description: "Hello, I'm a test user!",
 });
 
-function setupConvoAvailabilityRoute(page, { canChat = false } = {}) {
-  return page.route("**/xrpc/chat.bsky.convo.getConvoAvailability*", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({ canChat }),
-    }),
-  );
-}
-
 test.describe("Profile view", () => {
   test("should display profile name, handle, and stats", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -57,8 +45,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -82,8 +68,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(followingUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${followingUser.did}`);
 
@@ -99,8 +83,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -124,8 +106,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(followedUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${followedUser.did}`);
 
@@ -157,8 +137,6 @@ test.describe("Profile view", () => {
       post2,
     ]);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -176,8 +154,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -191,8 +167,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -218,8 +192,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 
@@ -306,9 +278,8 @@ test.describe("Profile view", () => {
 
   test("should show chat button for other users", async ({ page }) => {
     const mockServer = new MockServer();
-    mockServer.addProfile(otherUser);
+    mockServer.addProfile({ ...otherUser, canChat: true });
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page, { canChat: true });
 
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
@@ -333,8 +304,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(blockedUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${blockedUser.did}`);
 
@@ -370,8 +339,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(blockedFollower);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${blockedFollower.did}`);
 
@@ -396,8 +363,6 @@ test.describe("Profile view", () => {
     mockServer.addProfile(otherUser);
     mockServer.addPosts([post]);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.handle}`);
 
@@ -412,8 +377,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);
     await mockServer.setup(page);
-    await setupConvoAvailabilityRoute(page);
-
     await login(page);
     await page.goto(`/profile/${otherUser.did}`);
 

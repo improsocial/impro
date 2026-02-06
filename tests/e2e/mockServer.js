@@ -1,5 +1,5 @@
 import { createPost } from "./factories.js";
-import { userProfile } from "./fixtures.js";
+import { bskyLabeler, userProfile } from "./fixtures.js";
 
 export class MockServer {
   constructor() {
@@ -11,11 +11,13 @@ export class MockServer {
     this.messageCounter = 0;
     this.feedGenerators = [];
     this.feeds = new Map();
+    this.labelerViews = [bskyLabeler];
     this.notifications = [];
     this.notificationCursor = undefined;
     this.pinnedFeedUris = [];
     this.posts = [];
     this.postLikes = new Map();
+    this.reportPayloads = [];
     this.postQuotes = new Map();
     this.postReposts = new Map();
     this.postThreads = new Map();
@@ -38,6 +40,10 @@ export class MockServer {
 
   addFeedGenerators(feedGenerators) {
     this.feedGenerators.push(...feedGenerators);
+  }
+
+  addLabelerViews(views) {
+    this.labelerViews.push(...views);
   }
 
   addFeedItems(feedUri, posts) {
@@ -118,6 +124,10 @@ export class MockServer {
   }
 
   async setup(page) {
+    await page.route("**/.well-known/atproto-did*", (route) =>
+      route.fulfill({ status: 404, body: "Not Found" }),
+    );
+
     await page.route("**/xrpc/blue.microcosm.links.getBacklinks*", (route) =>
       route.fulfill({
         status: 200,
@@ -175,7 +185,7 @@ export class MockServer {
       route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ views: [] }),
+        body: JSON.stringify({ views: this.labelerViews }),
       }),
     );
 
@@ -307,6 +317,21 @@ export class MockServer {
       }),
     );
 
+    await page.route(
+      "**/xrpc/chat.bsky.convo.getConvoAvailability*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const members = url.searchParams.getAll("members");
+        const otherDid = members.find((m) => m !== userProfile.did);
+        const profile = this.profiles.get(otherDid);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ canChat: profile?.canChat ?? false }),
+        });
+      },
+    );
+
     await page.route("**/xrpc/app.bsky.feed.getActorLikes*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
@@ -356,6 +381,44 @@ export class MockServer {
         }),
       }),
     );
+
+    await page.route("**/xrpc/app.bsky.bookmark.createBookmark*", (route) => {
+      const body = route.request().postDataJSON();
+      const postUri = body?.uri;
+      const allPosts = [
+        ...this.timelinePosts,
+        ...this.bookmarks,
+        ...this.searchPosts,
+        ...this.posts,
+      ];
+      const post = allPosts.find((p) => p.uri === postUri);
+      if (post) {
+        post.viewer.bookmarked = true;
+        if (!this.bookmarks.includes(post)) {
+          this.bookmarks.push(post);
+        }
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.bookmark.deleteBookmark*", (route) => {
+      const body = route.request().postDataJSON();
+      const postUri = body?.uri;
+      const idx = this.bookmarks.findIndex((p) => p.uri === postUri);
+      if (idx !== -1) {
+        this.bookmarks[idx].viewer.bookmarked = false;
+        this.bookmarks.splice(idx, 1);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
 
     await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) =>
       route.fulfill({
@@ -528,11 +591,38 @@ export class MockServer {
       const generator = this.feedGenerators.find(
         (g) => g.creator.handle === handle,
       );
-      const did = postAuthor?.did || generator?.creator?.did || "";
+      const did = postAuthor?.did || generator?.creator?.did;
+      if (!did) {
+        return route.fulfill({
+          status: 404,
+          body: JSON.stringify({ error: "NotFound" }),
+        });
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ did }),
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.repo.deleteRecord*", (route) => {
+      const body = route.request().postDataJSON();
+      const collection = body?.collection;
+      const rkey = body?.rkey;
+
+      if (collection === "app.bsky.feed.like") {
+        const feedKey = `${userProfile.did}-likes`;
+        const likes = this.authorFeeds.get(feedKey) || [];
+        this.authorFeeds.set(
+          feedKey,
+          likes.filter((p) => p.viewer?.like?.split("/").pop() !== rkey),
+        );
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
       });
     });
 
@@ -563,6 +653,23 @@ export class MockServer {
         }
       }
 
+      if (collection === "app.bsky.feed.like") {
+        const subjectUri = body?.record?.subject?.uri;
+        const allPosts = [
+          ...this.timelinePosts,
+          ...this.bookmarks,
+          ...this.searchPosts,
+          ...this.posts,
+        ];
+        const post = allPosts.find((p) => p.uri === subjectUri);
+        if (post) {
+          post.viewer.like = uri;
+          const feedKey = `${userProfile.did}-likes`;
+          const existing = this.authorFeeds.get(feedKey) || [];
+          this.authorFeeds.set(feedKey, [...existing, post]);
+        }
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -589,5 +696,24 @@ export class MockServer {
         body: "{}",
       });
     });
+
+    await page.route(
+      "**/xrpc/com.atproto.moderation.createReport*",
+      (route) => {
+        const body = route.request().postDataJSON();
+        this.reportPayloads.push(body);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id: this.reportPayloads.length,
+            reasonType: body?.reasonType,
+            subject: body?.subject,
+            reportedBy: userProfile.did,
+            createdAt: new Date().toISOString(),
+          }),
+        });
+      },
+    );
   }
 }
