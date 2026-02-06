@@ -8,7 +8,14 @@ export class MockServer {
     this.messageCounter = 0;
     this.feedGenerators = [];
     this.feeds = new Map();
+    this.notifications = [];
+    this.notificationCursor = undefined;
     this.pinnedFeedUris = [];
+    this.posts = [];
+    this.postLikes = new Map();
+    this.postQuotes = new Map();
+    this.postReposts = new Map();
+    this.postThreads = new Map();
     this.savedFeedUris = [];
     this.searchPosts = [];
     this.timelinePosts = [];
@@ -45,6 +52,31 @@ export class MockServer {
     this.searchPosts.push(...posts);
   }
 
+  addNotifications(notifications, { cursor } = {}) {
+    this.notifications.push(...notifications);
+    this.notificationCursor = cursor;
+  }
+
+  addPosts(posts) {
+    this.posts.push(...posts);
+  }
+
+  addPostLikes(postUri, likes) {
+    this.postLikes.set(postUri, likes);
+  }
+
+  addPostQuotes(postUri, quotes) {
+    this.postQuotes.set(postUri, quotes);
+  }
+
+  addPostReposts(postUri, reposts) {
+    this.postReposts.set(postUri, reposts);
+  }
+
+  setPostThread(postUri, thread) {
+    this.postThreads.set(postUri, thread);
+  }
+
   addConvos(convos) {
     for (const convo of convos) {
       if (!this.convoMessages.has(convo.id)) {
@@ -59,6 +91,14 @@ export class MockServer {
   }
 
   async setup(page) {
+    await page.route("**/xrpc/blue.microcosm.links.getBacklinks*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ records: [], cursor: "" }),
+      }),
+    );
+
     await page.route("**/xrpc/com.atproto.server.getSession*", (route) =>
       route.fulfill({
         status: 200,
@@ -119,6 +159,40 @@ export class MockServer {
         body: JSON.stringify({ count: 0 }),
       }),
     );
+
+    await page.route(
+      "**/xrpc/app.bsky.notification.listNotifications*",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            notifications: this.notifications,
+            cursor: this.notificationCursor,
+          }),
+        }),
+    );
+
+    await page.route("**/xrpc/app.bsky.notification.updateSeen*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.feed.getPosts*", (route) => {
+      const url = new URL(route.request().url());
+      const uris = url.searchParams.getAll("uris");
+      const posts = uris
+        .map((uri) => this.posts.find((p) => p.uri === uri))
+        .filter(Boolean);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ posts }),
+      });
+    });
 
     await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) =>
       route.fulfill({
@@ -283,16 +357,90 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getLikes*", (route) => {
       const url = new URL(route.request().url());
-      const handle = url.searchParams.get("handle");
-      const generator = this.feedGenerators.find(
-        (g) => g.creator.handle === handle,
-      );
+      const uri = url.searchParams.get("uri");
+      const likes = this.postLikes.get(uri) || [];
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ did: generator?.creator?.did || "" }),
+        body: JSON.stringify({ likes, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getQuotes*", (route) => {
+      const url = new URL(route.request().url());
+      const uri = url.searchParams.get("uri");
+      const posts = this.postQuotes.get(uri) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ posts, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getRepostedBy*", (route) => {
+      const url = new URL(route.request().url());
+      const uri = url.searchParams.get("uri");
+      const repostedBy = this.postReposts.get(uri) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ repostedBy, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) => {
+      const url = new URL(route.request().url());
+      const uri = url.searchParams.get("uri");
+      const customThread = this.postThreads.get(uri);
+      if (customThread) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ thread: customThread }),
+        });
+      }
+      const allPosts = [
+        ...this.timelinePosts,
+        ...this.bookmarks,
+        ...this.searchPosts,
+        ...this.posts,
+      ];
+      const post = allPosts.find((p) => p.uri === uri);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          thread: {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: post || {},
+            replies: [],
+          },
+        }),
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
+      const url = new URL(route.request().url());
+      const handle = url.searchParams.get("handle");
+      const allPosts = [
+        ...this.timelinePosts,
+        ...this.bookmarks,
+        ...this.searchPosts,
+        ...this.posts,
+      ];
+      const postAuthor = allPosts.find(
+        (p) => p.author?.handle === handle,
+      )?.author;
+      const generator = this.feedGenerators.find(
+        (g) => g.creator.handle === handle,
+      );
+      const did = postAuthor?.did || generator?.creator?.did || "";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ did }),
       });
     });
 

@@ -76,6 +76,28 @@ export function createFeedGenerator({ uri, displayName, creatorHandle }) {
   };
 }
 
+export function createNotification({
+  reason,
+  author,
+  reasonSubject,
+  uri,
+  isRead = false,
+  indexedAt = "2025-01-15T12:00:00.000Z",
+  record,
+}) {
+  return {
+    uri: uri || `at://${author.did}/app.bsky.feed.like/notif-${Date.now()}`,
+    cid: "bafyreinotif" + Math.random().toString(36).slice(2),
+    author,
+    reason,
+    reasonSubject: reasonSubject || "",
+    record: record || {},
+    isRead,
+    indexedAt,
+    labels: [],
+  };
+}
+
 export function createPost({ uri, text, authorHandle, authorDisplayName }) {
   const did = uri.split("/")[2];
   return {

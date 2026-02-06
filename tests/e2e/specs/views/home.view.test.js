@@ -148,6 +148,37 @@ test.describe("Home view", () => {
     await expect(view.locator('[data-testid="bookmark-button"]')).toBeVisible();
   });
 
+  test("should navigate to post thread view when clicking a post", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Click me to see the thread",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await view.locator('[data-testid="small-post"]').click();
+
+    const threadView = page.locator("#post-detail-view");
+    await expect(threadView).toBeVisible({ timeout: 10000 });
+    await expect(threadView).toContainText("Click me to see the thread");
+    await expect(page).toHaveURL(
+      /\/profile\/author1\.bsky\.social\/post\/post1/,
+    );
+  });
+
   test("should display empty state when Following feed has no posts", async ({
     page,
   }) => {
