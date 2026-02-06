@@ -8,7 +8,10 @@ export class MockServer {
     this.convos = [];
     this.convoMessages = new Map();
     this.createRecordCounter = 0;
+    this.blobCounter = 0;
     this.messageCounter = 0;
+    this.typeaheadProfiles = [];
+    this.externalLinkCards = new Map();
     this.feedGenerators = [];
     this.feeds = new Map();
     this.labelerViews = [bskyLabeler];
@@ -71,6 +74,14 @@ export class MockServer {
 
   addSearchProfiles(profiles) {
     this.searchProfiles.push(...profiles);
+  }
+
+  addTypeaheadProfiles(profiles) {
+    this.typeaheadProfiles.push(...profiles);
+  }
+
+  setExternalLinkCard(url, meta) {
+    this.externalLinkCards.set(url, meta);
   }
 
   addNotifications(notifications, { cursor } = {}) {
@@ -804,9 +815,29 @@ export class MockServer {
         const record = body?.record;
         let embed;
         let quotedPostUri;
+        const recordEmbed = record?.embed;
 
-        if (record?.embed?.$type === "app.bsky.embed.record") {
-          quotedPostUri = record.embed.record.uri;
+        if (recordEmbed?.$type === "app.bsky.embed.images") {
+          embed = {
+            $type: "app.bsky.embed.images#view",
+            images: recordEmbed.images.map((img) => ({
+              thumb: "",
+              fullsize: "",
+              alt: img.alt || "",
+              aspectRatio: img.aspectRatio,
+            })),
+          };
+        } else if (recordEmbed?.$type === "app.bsky.embed.external") {
+          embed = {
+            $type: "app.bsky.embed.external#view",
+            external: {
+              uri: recordEmbed.external.uri,
+              title: recordEmbed.external.title || "",
+              description: recordEmbed.external.description || "",
+            },
+          };
+        } else if (recordEmbed?.$type === "app.bsky.embed.record") {
+          quotedPostUri = recordEmbed.record.uri;
           const allQuotePosts = [
             ...this.timelinePosts,
             ...this.bookmarks,
@@ -983,6 +1014,49 @@ export class MockServer {
             reportedBy: userProfile.did,
             createdAt: new Date().toISOString(),
           }),
+        });
+      },
+    );
+
+    await page.route("**/xrpc/com.atproto.repo.uploadBlob*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          blob: {
+            $type: "blob",
+            ref: { $link: `bafkreimockblob${++this.blobCounter}` },
+            mimeType: "image/jpeg",
+            size: 50000,
+          },
+        }),
+      }),
+    );
+
+    await page.route(
+      (url) => url.toString().includes("cardyb.bsky.app/v1/extract"),
+      (route) => {
+        const url = new URL(route.request().url());
+        const targetUrl = url.searchParams.get("url");
+        const meta = this.externalLinkCards.get(targetUrl) || {
+          title: targetUrl,
+          description: "",
+        };
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(meta),
+        });
+      },
+    );
+
+    await page.route(
+      "**/xrpc/app.bsky.actor.searchActorsTypeahead*",
+      (route) => {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ actors: this.typeaheadProfiles }),
         });
       },
     );

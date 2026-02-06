@@ -351,6 +351,83 @@ test.describe("Profile view", () => {
     ).not.toBeVisible();
   });
 
+  test("should hide profile stats when profile is blocked", async ({
+    page,
+  }) => {
+    const blockedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        blocking: "at://did:plc:testuser123/app.bsky.graph.block/abc",
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(blockedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${blockedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="profile-stats"]'),
+    ).not.toBeVisible();
+  });
+
+  test("should hide profile description when profile is blocked", async ({
+    page,
+  }) => {
+    const blockedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        blocking: "at://did:plc:testuser123/app.bsky.graph.block/abc",
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(blockedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${blockedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator(".profile-description")).not.toBeVisible();
+  });
+
+  test("should hide tab bar and show 'Posts hidden' for blocked profiles", async ({
+    page,
+  }) => {
+    const blockedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        blocking: "at://did:plc:testuser123/app.bsky.graph.block/abc",
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(blockedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${blockedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(view.locator(".feed-end-message")).toContainText(
+      "Posts hidden",
+    );
+  });
+
   test("should navigate to profile by handle", async ({ page }) => {
     const post = createPost({
       uri: "at://did:plc:otheruser1/app.bsky.feed.post/post1",
@@ -411,6 +488,112 @@ test.describe("Profile view", () => {
     await expect(
       menu.locator("context-menu-item", { hasText: "Report account" }),
     ).toBeVisible();
+  });
+
+  test("should show 'Unmute Account' in context menu for muted profiles", async ({
+    page,
+  }) => {
+    const mutedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        muted: true,
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(mutedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${mutedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+
+    const menu = view.locator("context-menu");
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Unmute Account" }),
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      menu.locator("context-menu-item", { hasText: /^Mute Account$/ }),
+    ).not.toBeVisible();
+  });
+
+  test("should show 'Unblock Account' in context menu for blocked profiles", async ({
+    page,
+  }) => {
+    const blockedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        blocking: "at://did:plc:testuser123/app.bsky.graph.block/abc",
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(blockedUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${blockedUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".ellipsis-button").click();
+
+    const menu = view.locator("context-menu");
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Unblock Account" }),
+    ).toBeVisible({ timeout: 5000 });
+    await expect(
+      menu.locator("context-menu-item", { hasText: /^Block Account$/ }),
+    ).not.toBeVisible();
+  });
+
+  test("should not show moderation actions on own profile context menu", async ({
+    page,
+  }) => {
+    const currentUserProfile = {
+      ...userProfile,
+      followersCount: 10,
+      followsCount: 5,
+      postsCount: 20,
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(currentUserProfile);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${userProfile.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Test User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+
+    const menu = view.locator("context-menu");
+    await expect(menu.locator("context-menu-item")).toHaveCount(2, {
+      timeout: 5000,
+    });
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Mute Account" }),
+    ).not.toBeVisible();
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Block Account" }),
+    ).not.toBeVisible();
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Report account" }),
+    ).not.toBeVisible();
   });
 
   test("should display generic error when profile fails to load", async ({
