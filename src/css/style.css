@@ -1330,7 +1330,7 @@ body.scroll-locked header {
   justify-content: center;
   padding: 1px 4px;
   min-width: 20px;
-  border: 1px solid var(--white);
+  border: 1px solid var(--background-color);
 }
 
 .feed {
