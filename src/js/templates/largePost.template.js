@@ -15,7 +15,6 @@ import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
-import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import {
   linkToPostLikes,
   linkToPostQuotes,

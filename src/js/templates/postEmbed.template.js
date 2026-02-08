@@ -22,6 +22,7 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
     ? moderationWarningTemplate({
         labelDefinition: mediaLabel.labelDefinition,
         labeler: mediaLabel.labeler,
+        isAuthorLabel: false,
         children,
       })
     : children;
@@ -113,6 +114,10 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
       contentLabel.labelDefinition,
     );
     mutedLabel = labelName;
+    const isAuthorLabel = contentLabel.label.uri === quotedPost?.author?.did;
+    if (isAuthorLabel) {
+      mutedLabel += " (Account)";
+    }
   }
   const postText = quotedPost.value.text?.trimEnd() || "";
   return html`<a
