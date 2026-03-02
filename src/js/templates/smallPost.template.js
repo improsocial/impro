@@ -111,8 +111,8 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.record.createdAt,
           })}
-          ${post.viewer?.badgeLabels
-            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
+          ${post.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: post.badgeLabels })
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
@@ -124,9 +124,7 @@ export function smallPostTemplate({
             : ""}
           ${contentWarningTemplate({
             post,
-            contentLabel: ignoreContentWarning
-              ? null
-              : post.viewer?.contentLabel,
+            contentLabel: ignoreContentWarning ? null : post.contentLabel,
             children: html` <div class="post-body">
               ${postText.length > 0
                 ? html`<div class="post-text">
@@ -140,7 +138,7 @@ export function smallPostTemplate({
                 ? html`<div class="post-embed">
                     ${postEmbedTemplate({
                       embed: post.embed,
-                      mediaLabel: post.viewer?.mediaLabel,
+                      mediaLabel: post.mediaLabel,
                       lazyLoadImages,
                       isAuthenticated: postInteractionHandler.isAuthenticated,
                     })}

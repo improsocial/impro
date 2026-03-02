@@ -418,6 +418,50 @@ test.describe("Home view", () => {
         page.locator('[data-testid="sidebar-compose-button"]'),
       ).not.toBeVisible();
     });
+
+    test("should render a post with a label", async ({ page }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+
+      const postUri = "at://did:plc:author1/app.bsky.feed.post/labeled1";
+      const post = createPost({
+        uri: postUri,
+        text: "This post has a label",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        loggedOut: true,
+        labels: [
+          {
+            val: "misleading",
+            src: "did:plc:customlabeler1",
+            uri: postUri,
+            cts: "2025-01-01T00:00:00.000Z",
+          },
+          {
+            val: "porn",
+            src: "did:plc:ar7c4by46qjdydhdevvrndac",
+            uri: postUri,
+            cts: "2025-01-01T00:00:00.000Z",
+          },
+        ],
+      });
+
+      mockServer.addFeedGenerators([discoverFeed]);
+      mockServer.addFeedItems(discoverFeedUri, [post]);
+      await mockServer.setup(page);
+
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This post has a label");
+    });
   });
 
   test.describe("Content moderation labels", () => {

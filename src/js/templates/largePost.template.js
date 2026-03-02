@@ -101,8 +101,8 @@ export function largePostTemplate({
     return unavailablePostTemplate();
   }
   const postText = post.record.text?.trimEnd() || "";
-  const badgeLabels = post.viewer?.badgeLabels ?? [];
-  const contentLabel = post.viewer?.contentLabel;
+  const badgeLabels = post.badgeLabels ?? [];
+  const contentLabel = post.contentLabel;
   // Instead of hiding, add the content label to the badge labels
   if (contentLabel && contentLabel.visibility !== "ignore") {
     badgeLabels.push(contentLabel);
@@ -144,7 +144,7 @@ export function largePostTemplate({
                 ? html`<div class="post-embed">
                     ${postEmbedTemplate({
                       embed: post.embed,
-                      mediaLabel: post.viewer?.mediaLabel,
+                      mediaLabel: post.mediaLabel,
                       isAuthenticated: postInteractionHandler.isAuthenticated,
                     })}
                   </div>`

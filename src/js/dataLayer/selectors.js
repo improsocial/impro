@@ -620,17 +620,17 @@ export class Selectors {
     const badgeLabels = preferences.getBadgeLabels(post);
     if (badgeLabels.length > 0) {
       // NOTE: LEXICON DEVIATION
-      post.viewer.badgeLabels = badgeLabels;
+      post.badgeLabels = badgeLabels;
     }
     const contentLabel = preferences.getContentLabel(post);
     if (contentLabel) {
       // NOTE: LEXICON DEVIATION
-      post.viewer.contentLabel = contentLabel;
+      post.contentLabel = contentLabel;
     }
     const mediaLabel = preferences.getMediaLabel(post);
     if (mediaLabel) {
       // NOTE: LEXICON DEVIATION
-      post.viewer.mediaLabel = mediaLabel;
+      post.mediaLabel = mediaLabel;
     }
 
     // Also mark quoted posts
