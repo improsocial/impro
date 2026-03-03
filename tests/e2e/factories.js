@@ -153,6 +153,7 @@ export function createPost({
   recordEmbed,
   labels,
   viewer,
+  loggedOut = false,
 }) {
   const did = uri.split("/")[2];
   return {
@@ -163,7 +164,7 @@ export function createPost({
       handle: authorHandle,
       displayName: authorDisplayName,
       avatar: "",
-      viewer: { muted: false, blockedBy: false },
+      ...(loggedOut ? {} : { viewer: { muted: false, blockedBy: false } }),
       labels: [],
       createdAt: "2025-01-01T00:00:00.000Z",
     },
@@ -181,7 +182,7 @@ export function createPost({
     quoteCount,
     ...(embed ? { embed } : {}),
     indexedAt: "2025-01-01T00:00:00.000Z",
-    viewer: { ...viewer },
+    ...(loggedOut ? {} : { viewer: { ...viewer } }),
     labels: labels || [],
   };
 }

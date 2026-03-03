@@ -73,8 +73,8 @@ class PostThreadView extends View {
 
     function replyHasContentLabel(reply) {
       return (
-        reply.post.viewer?.contentLabel &&
-        reply.post.viewer?.contentLabel.visibility !== "ignore"
+        reply.post.contentLabel &&
+        reply.post.contentLabel.visibility !== "ignore"
       );
     }
 

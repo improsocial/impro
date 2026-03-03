@@ -244,7 +244,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
       createFeedItem({
         post: {
           uri: "at://did:plc:test/app.bsky.feed.post/1",
-          viewer: { contentLabel: { visibility: "hide" } },
+          contentLabel: { visibility: "hide" },
         },
       }),
       createFeedItem({
@@ -347,7 +347,7 @@ t.describe("filterAlgorithmicFeed - content label filtering", (it) => {
       createFeedItem({
         post: {
           uri: "at://did:plc:test/app.bsky.feed.post/1",
-          viewer: { contentLabel: { visibility: "hide" } },
+          contentLabel: { visibility: "hide" },
         },
       }),
       createFeedItem({
@@ -368,7 +368,7 @@ t.describe("filterAuthorFeed - content label filtering", (it) => {
       createFeedItem({
         post: {
           uri: "at://did:plc:test/app.bsky.feed.post/1",
-          viewer: { contentLabel: { visibility: "hide" } },
+          contentLabel: { visibility: "hide" },
         },
       }),
       createFeedItem({

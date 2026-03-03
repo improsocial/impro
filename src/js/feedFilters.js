@@ -220,7 +220,7 @@ function filterHiddenPosts(feed) {
 
 function filterContentLabeledPosts(feed) {
   const filteredFeedItems = feed.feed.filter((item) => {
-    const contentLabel = item.post.viewer?.contentLabel;
+    const contentLabel = item.post.contentLabel;
     if (contentLabel?.visibility === "hide") {
       return false;
     }

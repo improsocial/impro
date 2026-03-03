@@ -5,11 +5,15 @@ import { classnames } from "/js/utils.js";
 
 export function moderationWarningTemplate({
   className = "",
+  isAuthorLabel,
   labelDefinition,
   labeler,
   children,
 }) {
-  const { name: labelName } = getLabelNameAndDescription(labelDefinition);
+  let { name: labelName } = getLabelNameAndDescription(labelDefinition);
+  if (isAuthorLabel) {
+    labelName += " (Account)";
+  }
   // If no labeler, the labeler is the author of the post
   const labelerName = labeler
     ? "@" + labeler.creator.handle

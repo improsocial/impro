@@ -24,12 +24,14 @@ import { moderationWarningTemplate } from "/js/templates/moderationWarning.templ
 import "/js/components/lightbox-image-group.js";
 import "/js/components/muted-reply-toggle.js";
 
-function contentWarningTemplate({ contentLabel, children }) {
+function contentWarningTemplate({ post, contentLabel, children }) {
   if (contentLabel && contentLabel.visibility !== "ignore") {
+    const isAuthorLabel = contentLabel.label.uri === post?.author?.did;
     return moderationWarningTemplate({
       className: "post-content-warning",
       labelDefinition: contentLabel.labelDefinition,
       labeler: contentLabel.labeler,
+      isAuthorLabel,
       children,
     });
   }
@@ -109,8 +111,8 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.record.createdAt,
           })}
-          ${post.viewer?.badgeLabels
-            ? postLabelsTemplate({ badgeLabels: post.viewer?.badgeLabels })
+          ${post.badgeLabels
+            ? postLabelsTemplate({ badgeLabels: post.badgeLabels })
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
@@ -121,9 +123,8 @@ export function smallPostTemplate({
               </div>`
             : ""}
           ${contentWarningTemplate({
-            contentLabel: ignoreContentWarning
-              ? null
-              : post.viewer?.contentLabel,
+            post,
+            contentLabel: ignoreContentWarning ? null : post.contentLabel,
             children: html` <div class="post-body">
               ${postText.length > 0
                 ? html`<div class="post-text">
@@ -137,7 +138,7 @@ export function smallPostTemplate({
                 ? html`<div class="post-embed">
                     ${postEmbedTemplate({
                       embed: post.embed,
-                      mediaLabel: post.viewer?.mediaLabel,
+                      mediaLabel: post.mediaLabel,
                       lazyLoadImages,
                       isAuthenticated: postInteractionHandler.isAuthenticated,
                     })}
