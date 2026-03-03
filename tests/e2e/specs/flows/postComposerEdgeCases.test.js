@@ -331,4 +331,108 @@ test.describe("Post Composer Edge Cases", () => {
     // The mention should be inserted in the text
     await expect(richTextInput).toContainText("@bob.bsky.social");
   });
+
+  test("closing external link preview while preview image is loading does not throw", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const linkUrl = "https://example.com/article";
+    mockServer.setExternalLinkCard(linkUrl, {
+      title: "Example Article",
+      description: "An interesting article",
+      image: "https://example.com/preview-image.jpg",
+    });
+    await mockServer.setup(page);
+
+    let resolveImageRoute;
+    await page.route("**/preview-image.jpg", (route) => {
+      resolveImageRoute = () =>
+        route.fulfill({
+          status: 200,
+          contentType: "image/jpeg",
+          body: Buffer.from(pngBase64, "base64"),
+        });
+    });
+
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error));
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type(linkUrl + " ");
+
+    const linkPreview = composer.locator('[data-testid="external-link"]');
+    await expect(linkPreview).toBeVisible({ timeout: 10000 });
+    await expect(linkPreview).toContainText("Example Article");
+
+    await composer.locator(".embed-preview-close-button").click();
+    await expect(linkPreview).not.toBeVisible();
+
+    resolveImageRoute();
+    await page.waitForTimeout(500);
+
+    expect(pageErrors).toHaveLength(0);
+  });
+
+  test("closing external link preview while metadata is loading does not throw", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const linkUrl = "https://example.com/slow-article";
+    await mockServer.setup(page);
+
+    let resolveCardybRoute;
+    await page.route(
+      (url) => url.toString().includes("cardyb.bsky.app/v1/extract"),
+      (route) => {
+        resolveCardybRoute = () =>
+          route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              title: "Slow Article",
+              description: "Takes a while to load",
+            }),
+          });
+      },
+    );
+
+    const pageErrors = [];
+    page.on("pageerror", (error) => pageErrors.push(error));
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type(linkUrl + " ");
+
+    const linkPreview = composer.locator('[data-testid="external-link"]');
+    await expect(linkPreview).toBeVisible({ timeout: 10000 });
+
+    await composer.locator(".embed-preview-close-button").click();
+    await expect(linkPreview).not.toBeVisible();
+
+    resolveCardybRoute();
+    await page.waitForTimeout(500);
+
+    expect(pageErrors).toHaveLength(0);
+  });
 });

@@ -481,6 +481,8 @@ class PostComposer extends Component {
     }
     if (res && res.ok) {
       const data = await res.json();
+      // preview may have been closed while metadata was loading
+      if (!this._externalLinkEmbedData) return;
       if (data.title) {
         this._externalLinkEmbedData.title = data.title;
       }
@@ -494,7 +496,8 @@ class PostComposer extends Component {
         try {
           imageRes = await fetch(data.image);
         } catch (error) {}
-        if (imageRes && imageRes.ok) {
+        // preview may have been closed while the image was loading
+        if (imageRes && imageRes.ok && this._externalLinkEmbedData) {
           this._externalLinkEmbedData.image = data.image;
           this.render();
         }
