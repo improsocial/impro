@@ -12,7 +12,7 @@ export function tabBarTemplate({ tabs, activeTab, onTabClick }) {
             })}
             @click=${() => onTabClick(tab.value)}
           >
-            ${tab.label}
+            <span class="tab-bar-button-label">${tab.label}</span>
           </button>`,
       )}
     </div>

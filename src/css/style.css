@@ -834,14 +834,9 @@ body.scroll-locked header {
   color: var(--text-color);
 }
 
-.tab-bar .tab-bar-button.active:after {
-  content: "";
-  position: absolute;
-  background-color: var(--tab-bar-button-active-color);
-  height: 3px;
-  bottom: 0;
-  left: 16px;
-  right: 16px;
+.tab-bar .tab-bar-button.active .tab-bar-button-label {
+  border-bottom: 3px solid var(--tab-bar-button-active-color);
+  padding-bottom: 11px;
 }
 
 @media (min-width: 800px) {
