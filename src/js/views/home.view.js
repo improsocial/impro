@@ -3,8 +3,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
-import { classnames } from "/js/utils.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
+import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
@@ -143,15 +143,15 @@ class HomeView extends View {
       await loadCurrentFeed({ reload: true });
     }
 
-    async function handleTabClick(feed) {
-      if (feed.uri === persistedState.currentFeedUri) {
+    async function handleTabClick(feedUri) {
+      if (feedUri === persistedState.currentFeedUri) {
         scrollAndReloadFeed();
         return;
       }
       // Save scroll state
       feedScrollState.set(persistedState.currentFeedUri, window.scrollY);
       // Switch feed
-      persistedState.currentFeedUri = feed.uri;
+      persistedState.currentFeedUri = feedUri;
       renderPage();
       scrollActiveTabIntoView({ behavior: "smooth" });
       // Scroll to saved scroll state
@@ -217,21 +217,14 @@ class HomeView extends View {
                 </div>
                 <div class="header-row">
                   <div class="tab-bar-horizontal-scroll-container">
-                    <div class="tab-bar">
-                      ${feedGenerators.map(
-                        (feedGenerator) =>
-                          html`<button
-                            class=${classnames("tab-bar-button", {
-                              active:
-                                persistedState.currentFeedUri ===
-                                feedGenerator.uri,
-                            })}
-                            @click=${() => handleTabClick(feedGenerator)}
-                          >
-                            ${feedGenerator.displayName}
-                          </button>`,
-                      )}
-                    </div>
+                    ${tabBarTemplate({
+                      tabs: feedGenerators.map((fg) => ({
+                        value: fg.uri,
+                        label: fg.displayName,
+                      })),
+                      activeTab: persistedState.currentFeedUri,
+                      onTabClick: handleTabClick,
+                    })}
                   </div>
                 </div>
               </header>

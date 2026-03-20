@@ -6,7 +6,7 @@ import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { displayRelativeTime, batch, classnames } from "/js/utils.js";
+import { displayRelativeTime, batch } from "/js/utils.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
@@ -18,6 +18,7 @@ import {
   isUnavailablePost,
 } from "/js/dataHelpers.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
+import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -503,26 +504,15 @@ class NotificationsView extends View {
                 title: "Notifications",
                 showLoadingSpinner: isLoading,
                 leftButton: "menu",
-                bottomItemTemplate: () => html`
-                  <div class="tab-bar">
-                    <button
-                      class=${classnames("tab-bar-button", {
-                        active: activeTab === "all",
-                      })}
-                      @click=${() => handleTabClick("all")}
-                    >
-                      All
-                    </button>
-                    <button
-                      class=${classnames("tab-bar-button", {
-                        active: activeTab === "mentions",
-                      })}
-                      @click=${() => handleTabClick("mentions")}
-                    >
-                      Mentions
-                    </button>
-                  </div>
-                `,
+                bottomItemTemplate: () =>
+                  tabBarTemplate({
+                    tabs: [
+                      { value: "all", label: "All" },
+                      { value: "mentions", label: "Mentions" },
+                    ],
+                    activeTab,
+                    onTabClick: handleTabClick,
+                  }),
               })}
               <main class="notifications-main" ?hidden=${activeTab !== "all"}>
                 ${(() => {

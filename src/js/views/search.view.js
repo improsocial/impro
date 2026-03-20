@@ -9,6 +9,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 
 class SearchView extends View {
   async render({
@@ -225,30 +226,16 @@ class SearchView extends View {
                       `
                     : ""}
                   ${showResults
-                    ? html`
-                        <div class="tab-bar">
-                          <button
-                            class=${classnames("tab-bar-button", {
-                              active: state.activeTab === "profiles",
-                            })}
-                            @click=${() => handleTabChange("profiles")}
-                          >
-                            Profiles
-                          </button>
-                          ${isAuthenticated
-                            ? html`
-                                <button
-                                  class=${classnames("tab-bar-button", {
-                                    active: state.activeTab === "posts",
-                                  })}
-                                  @click=${() => handleTabChange("posts")}
-                                >
-                                  Posts
-                                </button>
-                              `
-                            : ""}
-                        </div>
-                      `
+                    ? tabBarTemplate({
+                        tabs: [
+                          { value: "profiles", label: "Profiles" },
+                          ...(isAuthenticated
+                            ? [{ value: "posts", label: "Posts" }]
+                            : []),
+                        ],
+                        activeTab: state.activeTab,
+                        onTabClick: handleTabChange,
+                      })
                     : ""}
                 </div>
                 <div class="search-results-container">
