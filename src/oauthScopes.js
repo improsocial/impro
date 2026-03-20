@@ -115,7 +115,7 @@ const BSKY_OAUTH_REPO_SCOPES = [
   "repo:app.bsky.notification.declaration",
 ];
 
-export const CHAT_OAUTH_RPC_SCOPES = [
+const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.actor.deleteAccount",
   "rpc:chat.bsky.convo.acceptConvo",
   "rpc:chat.bsky.convo.addReaction",
@@ -137,11 +137,17 @@ export const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.updateRead",
 ];
 
-export const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
+const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
+
+const ATPROTO_OAUTH_RPC_SCOPES = ["rpc:com.atproto.moderation.createReport"];
 
 function buildOauthScopesString() {
   let scopesString = "atproto blob:*/*";
-  for (let scope of [...BSKY_OAUTH_RPC_SCOPES, ...CHAT_OAUTH_RPC_SCOPES]) {
+  for (let scope of [
+    ...BSKY_OAUTH_RPC_SCOPES,
+    ...CHAT_OAUTH_RPC_SCOPES,
+    ...ATPROTO_OAUTH_RPC_SCOPES,
+  ]) {
     scopesString += " " + scope + "?aud=*";
   }
   for (let scope of [...BSKY_OAUTH_REPO_SCOPES, ...CHAT_OAUTH_REPO_SCOPES]) {

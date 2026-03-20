@@ -9,14 +9,10 @@ import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { showToast } from "/js/toasts.js";
+import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 
-const SUPPORTED_QUOTE_POST_DOMAINS = [
-  "bsky.app",
-  "impro.social",
-  "dev.impro.social",
-];
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const QUOTE_POST_PATHNAME_PATTERN =
   /^\/profile\/[a-zA-Z0-9.-]+\/post\/[a-zA-Z0-9.-]+$/;
@@ -25,7 +21,7 @@ function isQuotePostLink(url) {
   try {
     const parsedUrl = new URL(url);
     return (
-      SUPPORTED_QUOTE_POST_DOMAINS.includes(parsedUrl.hostname) &&
+      IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname) &&
       QUOTE_POST_PATHNAME_PATTERN.test(parsedUrl.pathname)
     );
   } catch (error) {
@@ -481,6 +477,8 @@ class PostComposer extends Component {
     }
     if (res && res.ok) {
       const data = await res.json();
+      // preview may have been closed while metadata was loading
+      if (!this._externalLinkEmbedData) return;
       if (data.title) {
         this._externalLinkEmbedData.title = data.title;
       }
@@ -494,7 +492,8 @@ class PostComposer extends Component {
         try {
           imageRes = await fetch(data.image);
         } catch (error) {}
-        if (imageRes && imageRes.ok) {
+        // preview may have been closed while the image was loading
+        if (imageRes && imageRes.ok && this._externalLinkEmbedData) {
           this._externalLinkEmbedData.image = data.image;
           this.render();
         }

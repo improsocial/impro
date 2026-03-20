@@ -72,7 +72,7 @@ test.describe("Reply flow", () => {
       text: "Post with reply count",
       authorHandle: "author1.bsky.social",
       authorDisplayName: "Author One",
-      replyCount: 3,
+      replyCount: 0,
     });
     mockServer.addPosts([post]);
     mockServer.addTimelinePosts([post]);

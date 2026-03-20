@@ -1267,3 +1267,26 @@ export class MockServer {
     );
   }
 }
+
+export class MockConstellation {
+  constructor() {
+    this.backlinks = new Map();
+  }
+
+  setBacklinks(subject, records) {
+    this.backlinks.set(subject, records);
+  }
+
+  async setup(page) {
+    await page.route("**/xrpc/blue.microcosm.links.getBacklinks*", (route) => {
+      const url = new URL(route.request().url());
+      const subject = url.searchParams.get("subject");
+      const records = this.backlinks.get(subject) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ records, cursor: "" }),
+      });
+    });
+  }
+}

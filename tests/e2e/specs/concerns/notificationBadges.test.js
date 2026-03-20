@@ -209,6 +209,47 @@ test.describe("Notification and Chat Badges", () => {
     ).toContainText("1", { timeout: 15000 });
   });
 
+  test("should show 30+ when there are 30 or more unread notifications", async ({
+    page,
+  }) => {
+    const post = createPost({
+      uri: "at://did:plc:testuser123/app.bsky.feed.post/badge30plus",
+      text: "Badge overflow test post",
+      authorHandle: "testuser.bsky.social",
+      authorDisplayName: "Test User",
+    });
+
+    const notifications = Array.from({ length: 30 }, (_, index) =>
+      createNotification({
+        reason: "like",
+        author: createProfile({
+          did: `did:plc:liker${index}`,
+          handle: `liker${index}.bsky.social`,
+          displayName: `Liker ${index}`,
+        }),
+        reasonSubject: post.uri,
+        isRead: false,
+        indexedAt: new Date().toISOString(),
+      }),
+    );
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    mockServer.addNotifications(notifications);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
+
+    const badge = page.locator(
+      '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+    );
+    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge).toContainText("30+");
+  });
+
   test.describe("Footer badges (mobile)", () => {
     test.use({ viewport: { width: 375, height: 667 } });
 

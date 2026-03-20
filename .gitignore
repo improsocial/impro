@@ -4,3 +4,4 @@ build
 .context
 tests/e2e/.results
 CLAUDE.md
+.claude

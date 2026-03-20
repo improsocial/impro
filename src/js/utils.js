@@ -197,7 +197,7 @@ export function throttle(fn, delay = 250) {
 }
 
 export function formatNumNotifications(numNotifications) {
-  if (numNotifications > 30) {
+  if (numNotifications >= 30) {
     return "30+";
   }
   return numNotifications;

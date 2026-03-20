@@ -56,7 +56,10 @@
         dispatchNativeRefreshEnded,
       } from "/js/nativeRefresh.js";
       import { getQuotedPost } from "/js/dataHelpers.js";
-      import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
+      import {
+        NOTIFICATIONS_PAGE_SIZE,
+        IN_APP_LINK_DOMAINS,
+      } from "/js/config.js";
       import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 
       // Dev tools
@@ -222,11 +225,16 @@
         }
         if (anchor.href.startsWith("/")) {
           e.preventDefault();
-          router.go(anchor.href);
-        } else if (anchor.href.startsWith(window.location.origin)) {
-          const relativePath = anchor.href.slice(window.location.origin.length);
-          e.preventDefault();
-          router.go(relativePath);
+          return router.go(anchor.href);
+        }
+        const parsedUrl = new URL(anchor.href);
+        if (IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
+          const relativePath = parsedUrl.pathname;
+          // Only intercept in-app links if there's a match in the router
+          if (router.hasRoute(relativePath)) {
+            e.preventDefault();
+            router.go(relativePath);
+          }
         }
       });
 

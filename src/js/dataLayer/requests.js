@@ -7,6 +7,7 @@ import {
   createUnavailablePost,
   getPostUrisFromNotifications,
   buildUri,
+  parseUri,
 } from "/js/dataHelpers.js";
 import { getLinks } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
@@ -21,6 +22,14 @@ async function getReplyUrisForPostFromBacklinks(post) {
   return backlinks.map(({ did, collection, rkey }) =>
     buildUri({ repo: did, collection, rkey }),
   );
+}
+
+async function getPostsInThreadFromBacklinks(rootUri) {
+  return await getLinks({
+    subject: rootUri,
+    source: "app.bsky.feed.post:reply.root.uri",
+    timeout: 2000,
+  });
 }
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer
@@ -131,8 +140,11 @@ export class Requests {
       const topParent = flattenParents(postThread)[0];
       // Special case for post thread: if a parent is blocked or missing, we need to load the parent chain ourselves
       if (topParent.$type === "app.bsky.feed.defs#blockedPost") {
+        const rootUri =
+          postThread.post?.record?.reply?.root?.uri ?? postThread.post?.uri;
         const loadedParent = await this._loadParentChain(topParent, {
           labelers,
+          rootUri,
         });
         postThread = replaceTopParent(postThread, loadedParent);
       }
@@ -160,9 +172,104 @@ export class Requests {
     this.dataStore.setPost(postURI, post);
   }
 
-  async _loadParentChain(parent, { labelers = [] } = {}) {
-    // Load the parent chain recursively. This might be a bit slow if there's a string of blocked posts.
-    return await this.loadPostThread(parent.uri, { depth: 0, labelers });
+  async _loadParentChain(blockedParent, { labelers = [], rootUri } = {}) {
+    if (!rootUri || isBlockingUser(blockedParent)) {
+      return await this.loadPostThread(blockedParent.uri, {
+        depth: 0,
+        labelers,
+      });
+    }
+
+    let backlinks;
+    try {
+      backlinks = await getPostsInThreadFromBacklinks(rootUri);
+    } catch (error) {
+      if (error.name === "AbortError") {
+        return await this.loadPostThread(blockedParent.uri, {
+          depth: 0,
+          labelers,
+        });
+      }
+      throw error;
+    }
+
+    const loadedPostsByUri = new Map();
+    const loadedAuthorDids = new Set();
+    let currentBlocked = blockedParent;
+
+    while (
+      currentBlocked?.$type === "app.bsky.feed.defs#blockedPost" &&
+      !isBlockingUser(currentBlocked)
+    ) {
+      const authorDid = currentBlocked.author?.did;
+      if (!authorDid || loadedAuthorDids.has(authorDid)) break;
+      loadedAuthorDids.add(authorDid);
+
+      const authorUris = backlinks
+        .filter((backlink) => backlink.did === authorDid)
+        .map(({ did, collection, rkey }) =>
+          buildUri({ repo: did, collection, rkey }),
+        );
+
+      if (authorUris.length === 0) break;
+
+      const posts = await this.api.getPosts(authorUris, { labelers });
+      for (const post of posts) {
+        loadedPostsByUri.set(post.uri, post);
+      }
+      this.dataStore.setPosts(posts);
+
+      // Walk up from the current blocked post to find the next unresolved parent
+      let uri = currentBlocked.uri;
+      currentBlocked = null;
+      while (uri) {
+        const post = loadedPostsByUri.get(uri);
+        if (!post) break;
+        const parentUri = post.record?.reply?.parent?.uri;
+        if (!parentUri) break;
+        if (loadedPostsByUri.has(parentUri)) {
+          uri = parentUri;
+          continue;
+        }
+        // Parent not loaded — might be by another blocked author
+        const parentDid = parseUri(parentUri).repo;
+        if (parentDid && !loadedAuthorDids.has(parentDid)) {
+          currentBlocked = {
+            $type: "app.bsky.feed.defs#blockedPost",
+            uri: parentUri,
+            author: { did: parentDid },
+          };
+        }
+        break;
+      }
+    }
+
+    if (loadedPostsByUri.size === 0) {
+      return await this.loadPostThread(blockedParent.uri, {
+        depth: 0,
+        labelers,
+      });
+    }
+
+    return this._buildThreadChain(blockedParent.uri, loadedPostsByUri);
+  }
+
+  _buildThreadChain(startUri, postsByUri) {
+    const post = postsByUri.get(startUri);
+    if (!post) return null;
+
+    const parentUri = post.record?.reply?.parent?.uri;
+    let parent = null;
+    if (parentUri && postsByUri.has(parentUri)) {
+      parent = this._buildThreadChain(parentUri, postsByUri);
+    }
+
+    return {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post,
+      parent,
+      replies: [],
+    };
   }
 
   async _loadBlockedReplies(postThread, { labelers = [] } = {}) {

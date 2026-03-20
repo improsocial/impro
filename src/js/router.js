@@ -69,6 +69,10 @@ export class Router extends EventEmitter {
     return { route: null, viewGetter: this.notFoundView, params: {} };
   }
 
+  hasRoute(path) {
+    return this.match(path).route !== null;
+  }
+
   async load(path, { isBack = false } = {}) {
     // used to pause videos on page exit, among other things
     window.dispatchEvent(new CustomEvent("page-transition"));

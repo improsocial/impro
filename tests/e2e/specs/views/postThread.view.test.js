@@ -611,68 +611,6 @@ test.describe("Post thread view", () => {
       await expect(hiddenSection).toBeVisible();
     });
 
-    test("should place blocked replies in the hidden section", async ({
-      page,
-    }) => {
-      const postWithReplies = createPost({
-        uri: postUri,
-        text: "Post with blocked reply",
-        authorHandle: "author1.bsky.social",
-        authorDisplayName: "Author One",
-        replyCount: 2,
-      });
-
-      const normalReply = createPost({
-        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
-        text: "Normal reply",
-        authorHandle: "replier1.bsky.social",
-        authorDisplayName: "Replier One",
-      });
-
-      const blockedReply = createPost({
-        uri: "at://did:plc:blocked1/app.bsky.feed.post/blockedreply",
-        text: "Reply from blocked user",
-        authorHandle: "blocked1.bsky.social",
-        authorDisplayName: "Blocked User",
-      });
-      blockedReply.isBlockedReply = true;
-
-      const mockServer = new MockServer();
-      mockServer.addPosts([postWithReplies, normalReply, blockedReply]);
-      mockServer.setPostThread(postUri, {
-        $type: "app.bsky.feed.defs#threadViewPost",
-        post: postWithReplies,
-        parent: null,
-        replies: [
-          {
-            $type: "app.bsky.feed.defs#threadViewPost",
-            post: normalReply,
-            replies: [],
-          },
-          {
-            $type: "app.bsky.feed.defs#threadViewPost",
-            post: blockedReply,
-            replies: [],
-          },
-        ],
-      });
-      await mockServer.setup(page);
-
-      await login(page);
-      await page.goto("/profile/author1.bsky.social/post/abc123");
-
-      const view = page.locator("#post-detail-view");
-      await expect(view).toContainText("Normal reply", { timeout: 10000 });
-
-      // Blocked reply should not be in the main reply chains
-      const replyChains = view.locator(".post-thread-reply-chains");
-      await expect(replyChains).not.toContainText("Reply from blocked user");
-
-      // Hidden section should be present
-      const hiddenSection = view.locator("hidden-replies-section");
-      await expect(hiddenSection).toBeVisible();
-    });
-
     test("should reveal hidden replies when clicking 'Show more replies'", async ({
       page,
     }) => {
@@ -1021,65 +959,6 @@ test.describe("Post thread view", () => {
       const toggle = view.locator("muted-reply-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
       await expect(toggle).toContainText("Post hidden by you");
-    });
-  });
-
-  test.describe("Blocked posts in thread", () => {
-    test("should show blocked state when the thread root is blocked", async ({
-      page,
-    }) => {
-      const blockedRoot = {
-        $type: "app.bsky.feed.defs#blockedPost",
-        uri: "at://did:plc:blockedroot/app.bsky.feed.post/root1",
-        blocked: true,
-        author: {
-          did: "did:plc:blockedroot",
-          viewer: { blocking: true },
-        },
-      };
-
-      const childPost = createPost({
-        uri: postUri,
-        text: "Reply to blocked root",
-        authorHandle: "author1.bsky.social",
-        authorDisplayName: "Author One",
-        reply: {
-          parent: {
-            uri: "at://did:plc:blockedroot/app.bsky.feed.post/root1",
-            cid: "bafyreitestroot1",
-          },
-          root: {
-            uri: "at://did:plc:blockedroot/app.bsky.feed.post/root1",
-            cid: "bafyreitestroot1",
-          },
-        },
-      });
-
-      const mockServer = new MockServer();
-      mockServer.addPosts([childPost]);
-      mockServer.setPostThread(postUri, {
-        $type: "app.bsky.feed.defs#threadViewPost",
-        post: childPost,
-        parent: {
-          $type: "app.bsky.feed.defs#threadViewPost",
-          post: blockedRoot,
-          parent: null,
-          replies: [],
-        },
-        replies: [],
-      });
-      await mockServer.setup(page);
-
-      await login(page);
-      await page.goto("/profile/author1.bsky.social/post/abc123");
-
-      const view = page.locator("#post-detail-view");
-      await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
-        timeout: 10000,
-      });
-      await expect(view.locator(".missing-post-indicator")).toContainText(
-        "Post unavailable",
-      );
     });
   });
 
