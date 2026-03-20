@@ -837,4 +837,205 @@ test.describe("Notifications view", () => {
       await expect(page).toHaveURL("/login", { timeout: 10000 });
     });
   });
+
+  test.describe("Mentions tab", () => {
+    test("should render All and Mentions tab buttons", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
+        "All",
+        { timeout: 10000 },
+      );
+      await expect(tabBar.locator(".tab-bar-button").nth(1)).toContainText(
+        "Mentions",
+      );
+    });
+
+    test("should show All tab as active by default", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveClass(
+        /active/,
+        { timeout: 10000 },
+      );
+      await expect(tabBar.locator(".tab-bar-button").nth(1)).not.toHaveClass(
+        /active/,
+      );
+    });
+
+    test("should show only reply/mention/quote notifications in Mentions tab", async ({
+      page,
+    }) => {
+      const mentionPostUri = "at://did:plc:bob1/app.bsky.feed.post/mention1";
+      const replyPostUri = "at://did:plc:alice1/app.bsky.feed.post/reply1";
+
+      const mentionPost = createPost({
+        uri: mentionPostUri,
+        text: "Hey @testuser check this out",
+        authorHandle: "bob.bsky.social",
+        authorDisplayName: "Bob",
+      });
+      const replyPost = createPost({
+        uri: replyPostUri,
+        text: "Great point indeed",
+        authorHandle: "alice.bsky.social",
+        authorDisplayName: "Alice",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([mentionPost, replyPost]);
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+        createNotification({
+          reason: "mention",
+          author: bob,
+          uri: mentionPostUri,
+          record: {
+            $type: "app.bsky.feed.post",
+            text: "Hey @testuser check this out",
+            createdAt: new Date().toISOString(),
+          },
+          indexedAt: new Date().toISOString(),
+        }),
+        createNotification({
+          reason: "reply",
+          author: alice,
+          uri: replyPostUri,
+          record: {
+            $type: "app.bsky.feed.post",
+            text: "Great point indeed",
+            createdAt: new Date().toISOString(),
+          },
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      // Confirm All tab has all 3 items (follow + 2 posts rendered as one each)
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      // Switch to Mentions tab
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      const activePanel = view.locator("main.notifications-main:not([hidden])");
+
+      // Only the mention and reply posts should appear — follow should not
+      await expect(activePanel.locator(".small-post")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(activePanel).toContainText("Hey @testuser check this out");
+      await expect(activePanel).toContainText("Great point indeed");
+      await expect(activePanel).not.toContainText("followed you");
+    });
+
+    test("should show empty state in Mentions tab when there are no mentions", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+        createNotification({
+          reason: "like",
+          author: bob,
+          reasonSubject: "at://did:plc:testuser123/app.bsky.feed.post/post1",
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".tab-bar-button").nth(0)).toBeVisible({
+        timeout: 10000,
+      });
+
+      await view.locator(".tab-bar-button").nth(1).click();
+
+      const activePanel = view.locator("main.notifications-main:not([hidden])");
+      await expect(activePanel.locator(".feed-end-message")).toContainText(
+        "No notifications yet!",
+        { timeout: 10000 },
+      );
+    });
+
+    test("should show all notification types when switching back to All tab", async ({
+      page,
+    }) => {
+      const mentionPostUri = "at://did:plc:bob1/app.bsky.feed.post/mention2";
+      const mentionPost = createPost({
+        uri: mentionPostUri,
+        text: "A mention post",
+        authorHandle: "bob.bsky.social",
+        authorDisplayName: "Bob",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([mentionPost]);
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+        createNotification({
+          reason: "mention",
+          author: bob,
+          uri: mentionPostUri,
+          record: {
+            $type: "app.bsky.feed.post",
+            text: "A mention post",
+            createdAt: new Date().toISOString(),
+          },
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".tab-bar-button").nth(0)).toBeVisible({
+        timeout: 10000,
+      });
+
+      // Switch to Mentions then back to All
+      await view.locator(".tab-bar-button").nth(1).click();
+      await expect(view).toContainText("A mention post", { timeout: 10000 });
+
+      await view.locator(".tab-bar-button").nth(0).click();
+
+      // Both follow and mention should be visible again
+      await expect(view).toContainText("followed you", { timeout: 10000 });
+      await expect(view).toContainText("A mention post");
+    });
+  });
 });

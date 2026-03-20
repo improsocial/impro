@@ -8,6 +8,7 @@ export function headerTemplate({
   leftButton = "back",
   onClickMenuButton = null,
   rightItemTemplate = null,
+  bottomItemTemplate = null,
   children,
 } = {}) {
   return html`<header
@@ -37,6 +38,9 @@ export function headerTemplate({
     ${rightItemTemplate
       ? html`<div class="header-spacer"></div>
           ${rightItemTemplate()}`
+      : ""}
+    ${bottomItemTemplate
+      ? html`<div class="bottom-item">${bottomItemTemplate()}</div>`
       : ""}
   </header>`;
 }

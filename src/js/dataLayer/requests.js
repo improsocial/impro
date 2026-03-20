@@ -93,6 +93,10 @@ export class Requests {
     this.enableStatus(this.loadProfileSearch, "loadProfileSearch");
     this.enableStatus(this.loadPostSearch, "loadPostSearch");
     this.enableStatus(this.loadNotifications, "loadNotifications");
+    this.enableStatus(
+      this.loadMentionNotifications,
+      "loadMentionNotifications",
+    );
     this.enableStatus(this.loadConvoList, "loadConvoList");
     this.enableStatus(this.loadConvo, "loadConvo");
     this.enableStatus(this.loadConvoMessages, "loadConvoMessages");
@@ -524,6 +528,43 @@ export class Requests {
       this.dataStore.setNotifications(res.notifications);
     }
     this.dataStore.setNotificationCursor(res.cursor);
+  }
+
+  async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
+    const MENTION_REASONS = ["mention", "reply", "quote"];
+    let cursor = this.dataStore.getMentionNotificationCursor() ?? "";
+    if (reload) {
+      cursor = "";
+    }
+    const res = await this.api.getNotifications({
+      cursor,
+      limit,
+      reasons: MENTION_REASONS,
+    });
+    const postUris = getPostUrisFromNotifications(res.notifications);
+    if (postUris.length > 0) {
+      const fetchedPosts = await this.api.getPosts(postUris);
+      this.dataStore.setPosts(fetchedPosts);
+    }
+    const previousCursor = this.dataStore.getMentionNotificationCursor();
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingNotifications =
+          this.dataStore.getMentionNotifications() ?? [];
+        this.dataStore.setMentionNotifications([
+          ...existingNotifications,
+          ...res.notifications,
+        ]);
+      } else {
+        console.warn(
+          "loadMentionNotifications: cursor mismatch, discarding response",
+          { previousCursor, cursor },
+        );
+      }
+    } else {
+      this.dataStore.setMentionNotifications(res.notifications);
+    }
+    this.dataStore.setMentionNotificationCursor(res.cursor);
   }
 
   async loadConvoList({ reload = false, limit = 30 } = {}) {

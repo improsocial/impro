@@ -345,6 +345,35 @@ export class Selectors {
     return this.dataStore.getNotificationCursor();
   }
 
+  getMentionNotifications() {
+    const notifications = this.dataStore.getMentionNotifications();
+    if (!notifications) {
+      return null;
+    }
+
+    return notifications.map((notification) => {
+      if (
+        notification.reason === "reply" ||
+        notification.reason === "mention" ||
+        notification.reason === "quote"
+      ) {
+        const replyPost = this.getPost(notification.uri);
+        const parentPostUri = notification.record?.reply?.parent?.uri;
+        const parentPost = parentPostUri ? this.getPost(parentPostUri) : null;
+        return {
+          ...notification,
+          post: replyPost,
+          parentPost,
+        };
+      }
+      return notification;
+    });
+  }
+
+  getMentionNotificationCursor() {
+    return this.dataStore.getMentionNotificationCursor();
+  }
+
   getConvoList() {
     const convoList = this.dataStore.getConvoList();
     if (!convoList) {

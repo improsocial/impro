@@ -762,6 +762,7 @@ body.scroll-locked header {
 .text-header {
   display: flex;
   flex-direction: row;
+  flex-wrap: wrap;
   align-items: center;
   padding: 8px;
   min-height: 48px;
@@ -793,6 +794,10 @@ body.scroll-locked header {
 
 .text-header .loading-spinner {
   margin-right: 8px;
+}
+
+.text-header .bottom-item {
+  flex-basis: 100%;
 }
 
 .text-header .menu-button {
@@ -5877,4 +5882,20 @@ moderation-warning .toggle-content {
 
 .report-no-labelers {
   text-align: center;
+}
+
+#notifications-view header {
+  padding-bottom: 0;
+}
+
+#notifications-view header .bottom-item {
+  padding-top: 8px;
+}
+
+#notifications-view header .tab-bar {
+  width: 100%;
+}
+
+#notifications-view header .tab-bar-button {
+  flex: 1;
 }

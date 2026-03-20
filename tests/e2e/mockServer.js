@@ -252,16 +252,22 @@ export class MockServer {
         const cursor = url.searchParams.get("cursor") || "";
         const limit = parseInt(url.searchParams.get("limit") || "0", 10);
         const offset = cursor ? parseInt(cursor, 10) : 0;
+        const reasons = url.searchParams.getAll("reasons");
+
+        const filteredNotifications =
+          reasons.length > 0
+            ? this.notifications.filter((n) => reasons.includes(n.reason))
+            : this.notifications;
 
         let notifications, nextCursor;
         if (limit) {
-          notifications = this.notifications.slice(offset, offset + limit);
+          notifications = filteredNotifications.slice(offset, offset + limit);
           nextCursor =
-            offset + limit < this.notifications.length
+            offset + limit < filteredNotifications.length
               ? String(offset + limit)
               : "";
         } else {
-          notifications = this.notifications;
+          notifications = filteredNotifications;
           nextCursor = this.notificationCursor || "";
         }
 

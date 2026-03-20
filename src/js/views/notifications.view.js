@@ -6,7 +6,7 @@ import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { displayRelativeTime, batch } from "/js/utils.js";
+import { displayRelativeTime, batch, classnames } from "/js/utils.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
@@ -406,6 +406,7 @@ class NotificationsView extends View {
       groupedNotifications,
       hasMore,
       currentUser,
+      loadMore,
     }) {
       if (groupedNotifications.length === 0) {
         return html`<div class="feed-end-message">
@@ -417,7 +418,7 @@ class NotificationsView extends View {
           <infinite-scroll-container
             @load-more=${async (e) => {
               if (hasMore) {
-                await loadNotifications();
+                await loadMore();
                 e.detail.resume();
               }
             }}
@@ -436,6 +437,21 @@ class NotificationsView extends View {
       }
     }
 
+    let activeTab = "all";
+
+    async function handleTabClick(tab) {
+      if (tab === activeTab) return;
+      activeTab = tab;
+      renderPage();
+      window.scrollTo(0, 0);
+      if (
+        tab === "mentions" &&
+        !dataLayer.selectors.getMentionNotifications()
+      ) {
+        await loadMentionNotifications({ reload: true });
+      }
+    }
+
     async function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
@@ -448,6 +464,22 @@ class NotificationsView extends View {
       const groupedNotifications = groupNotificationsByType(notifications);
       const cursor = dataLayer.selectors.getNotificationCursor();
       const hasMore = !!cursor;
+
+      const mentionNotifications =
+        dataLayer.selectors.getMentionNotifications();
+      const mentionNotificationsRequestStatus = dataLayer.requests.getStatus(
+        "loadMentionNotifications",
+      );
+      const groupedMentionNotifications =
+        groupNotificationsByType(mentionNotifications);
+      const mentionCursor = dataLayer.selectors.getMentionNotificationCursor();
+      const mentionHasMore = !!mentionCursor;
+
+      const isLoading =
+        activeTab === "all"
+          ? notificationsRequestStatus.loading && !!notifications
+          : mentionNotificationsRequestStatus.loading && !!mentionNotifications;
+
       render(
         html`<div id="notifications-view">
           ${mainLayoutTemplate({
@@ -457,7 +489,11 @@ class NotificationsView extends View {
             activeNavItem: "notifications",
             onClickActiveNavItem: async () => {
               window.scrollTo(0, 0);
-              await loadNotifications({ reload: true });
+              if (activeTab === "all") {
+                await loadNotifications({ reload: true });
+              } else {
+                await loadMentionNotifications({ reload: true });
+              }
             },
             showFloatingComposeButton: true,
             onClickComposeButton: () =>
@@ -465,12 +501,30 @@ class NotificationsView extends View {
             children: html`
               ${textHeaderTemplate({
                 title: "Notifications",
-                showLoadingSpinner:
-                  notificationsRequestStatus.loading && !!notifications,
+                showLoadingSpinner: isLoading,
                 leftButton: "menu",
-                onClickMenuButton: handleMenuClick,
+                bottomItemTemplate: () => html`
+                  <div class="tab-bar">
+                    <button
+                      class=${classnames("tab-bar-button", {
+                        active: activeTab === "all",
+                      })}
+                      @click=${() => handleTabClick("all")}
+                    >
+                      All
+                    </button>
+                    <button
+                      class=${classnames("tab-bar-button", {
+                        active: activeTab === "mentions",
+                      })}
+                      @click=${() => handleTabClick("mentions")}
+                    >
+                      Mentions
+                    </button>
+                  </div>
+                `,
               })}
-              <main class="notifications-main">
+              <main class="notifications-main" ?hidden=${activeTab !== "all"}>
                 ${(() => {
                   if (notificationsRequestStatus.error) {
                     return notificationsErrorTemplate({
@@ -481,9 +535,33 @@ class NotificationsView extends View {
                       groupedNotifications,
                       currentUser,
                       hasMore,
+                      loadMore: loadNotifications,
                     });
                   } else {
                     return notificationsSkeletonTemplate();
+                  }
+                })()}
+              </main>
+              <main
+                class="notifications-main"
+                ?hidden=${activeTab !== "mentions"}
+              >
+                ${(() => {
+                  if (mentionNotificationsRequestStatus.error) {
+                    return notificationsErrorTemplate({
+                      error: mentionNotificationsRequestStatus.error,
+                    });
+                  } else if (groupedMentionNotifications) {
+                    return notificationsTemplate({
+                      groupedNotifications: groupedMentionNotifications,
+                      currentUser,
+                      hasMore: mentionHasMore,
+                      loadMore: loadMentionNotifications,
+                    });
+                  } else if (activeTab === "mentions") {
+                    return notificationsSkeletonTemplate();
+                  } else {
+                    return "";
                   }
                 })()}
               </main>
@@ -505,6 +583,16 @@ class NotificationsView extends View {
       renderPage();
       // can be called async
       notificationService.markNotificationsAsRead();
+    }
+
+    async function loadMentionNotifications({ reload = false } = {}) {
+      const loadingPromise = dataLayer.requests.loadMentionNotifications({
+        reload,
+        limit: NOTIFICATIONS_PAGE_SIZE,
+      });
+      renderPage();
+      await loadingPromise;
+      renderPage();
     }
 
     root.addEventListener("page-enter", async () => {
