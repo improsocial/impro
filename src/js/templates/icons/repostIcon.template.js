@@ -9,7 +9,7 @@ export function repostIconTemplate() {
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M 12 23
+      d="M 12 25
                V 19
                Q 12 15, 16 15
                H 43"
@@ -24,7 +24,7 @@ export function repostIconTemplate() {
       stroke-linejoin="round"
     />
     <path
-      d="M 43 28
+      d="M 43 26
                V 32
                Q 43 36, 39 36
                H 12"
