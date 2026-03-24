@@ -484,9 +484,13 @@ export class Api {
     return res.data.count;
   }
 
-  async getNotifications({ cursor, limit = 31 } = {}) {
+  async getNotifications({ cursor, limit = 31, reasons } = {}) {
+    const query = { cursor: cursor ?? "", limit };
+    if (reasons?.length) {
+      query.reasons = reasons;
+    }
     const res = await this.request("app.bsky.notification.listNotifications", {
-      query: { cursor: cursor ?? "", limit },
+      query,
       headers: {
         "atproto-proxy": this.bskyAppViewServiceDid,
       },

@@ -3,8 +3,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { requireAuth } from "/js/auth.js";
-import { classnames } from "/js/utils.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
+import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 
@@ -98,19 +98,11 @@ class HashtagView extends View {
             children: html` <main>
               ${textHeaderTemplate({ title: `#${hashtag}` })}
               <div class="hashtag-tab-bar-container">
-                <div class="tab-bar">
-                  ${sortOptions.map(
-                    (sort) =>
-                      html`<button
-                        class=${classnames("tab-bar-button", {
-                          active: state.currentSort === sort.value,
-                        })}
-                        @click=${() => handleTabClick(sort.value)}
-                      >
-                        ${sort.label}
-                      </button>`,
-                  )}
-                </div>
+                ${tabBarTemplate({
+                  tabs: sortOptions,
+                  activeTab: state.currentSort,
+                  onTabClick: handleTabClick,
+                })}
               </div>
               ${sortOptions.map((sort) => {
                 const feed = dataLayer.selectors.getHashtagFeed(

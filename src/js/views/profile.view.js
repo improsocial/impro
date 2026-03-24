@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { classnames, wait } from "/js/utils.js";
+import { wait } from "/js/utils.js";
 import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
@@ -15,6 +15,7 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
+import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 
 class ProfileView extends View {
   async render({
@@ -261,29 +262,19 @@ class ProfileView extends View {
                 </div>`
               : html`
                   <div class="profile-tab-bar">
-                    <div class="tab-bar">
-                      ${isLabeler
-                        ? html`<button
-                            class=${classnames("tab-bar-button", {
-                              active: state.activeTab === "labeler-settings",
-                            })}
-                            @click=${() => handleTabClick("labeler-settings")}
-                          >
-                            Labels
-                          </button>`
-                        : null}
-                      ${authorFeedsToShow.map(
-                        (feedInfo) =>
-                          html`<button
-                            class=${classnames("tab-bar-button", {
-                              active: state.activeTab === feedInfo.feedType,
-                            })}
-                            @click=${() => handleTabClick(feedInfo.feedType)}
-                          >
-                            ${feedInfo.name}
-                          </button>`,
-                      )}
-                    </div>
+                    ${tabBarTemplate({
+                      tabs: [
+                        ...(isLabeler
+                          ? [{ value: "labeler-settings", label: "Labels" }]
+                          : []),
+                        ...authorFeedsToShow.map((feedInfo) => ({
+                          value: feedInfo.feedType,
+                          label: feedInfo.name,
+                        })),
+                      ],
+                      activeTab: state.activeTab,
+                      onTabClick: handleTabClick,
+                    })}
                   </div>
                   ${isLabeler
                     ? html`<div

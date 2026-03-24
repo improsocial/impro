@@ -9,12 +9,14 @@ export function textHeaderTemplate({
   leftButton = "back",
   onClickMenuButton = null,
   rightItemTemplate = null,
+  bottomItemTemplate = null,
 } = {}) {
   return headerTemplate({
     showLoadingSpinner,
     leftButton,
     onClickMenuButton,
     rightItemTemplate,
+    bottomItemTemplate,
     className: "text-header",
     children: html`
       ${avatarTemplate ? avatarTemplate() : ""}

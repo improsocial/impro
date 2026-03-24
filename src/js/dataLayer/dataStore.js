@@ -20,6 +20,8 @@ export class DataStore extends EventEmitter {
     this.showMoreInteractions = [];
     this.notifications = null;
     this.notificationCursor = null;
+    this.mentionNotifications = null;
+    this.mentionNotificationCursor = null;
     this.convoList = null;
     this.convoListCursor = null;
     // Note- we separate convos from the convo list because the convo list is
@@ -300,6 +302,26 @@ export class DataStore extends EventEmitter {
 
   clearNotificationCursor() {
     this.notificationCursor = null;
+  }
+
+  getMentionNotifications() {
+    return this.mentionNotifications;
+  }
+
+  setMentionNotifications(notifications) {
+    this.mentionNotifications = notifications;
+  }
+
+  clearMentionNotifications() {
+    this.mentionNotifications = null;
+  }
+
+  getMentionNotificationCursor() {
+    return this.mentionNotificationCursor;
+  }
+
+  setMentionNotificationCursor(cursor) {
+    this.mentionNotificationCursor = cursor;
   }
 
   hasConvoList() {
