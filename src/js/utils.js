@@ -235,3 +235,84 @@ export function sanitizeUri(uri) {
   }
   return "";
 }
+
+// Claude wrote this
+export function enableDragToDismiss(
+  target,
+  {
+    eventSource = target,
+    confirmDismiss = () => true,
+    onClose,
+    allowUpwardStretch = false,
+    ignoreTouchTarget = () => false,
+  } = {},
+) {
+  if (window.matchMedia("(min-width: 800px)").matches) return null;
+
+  const DISMISS_THRESHOLD = 50;
+  const RESISTANCE_FACTOR = 0.6;
+
+  const dragState = {
+    startY: 0,
+    currentY: 0,
+    isDragging: false,
+    initialHeight: 0,
+  };
+
+  const handleTouchStart = (e) => {
+    if (ignoreTouchTarget(e.target)) return;
+
+    dragState.startY = e.touches[0].clientY;
+    dragState.currentY = dragState.startY;
+    dragState.isDragging = true;
+    dragState.initialHeight = target.getBoundingClientRect().height;
+
+    target.style.transition = "none";
+  };
+
+  const handleTouchMove = (e) => {
+    if (!dragState.isDragging) return;
+
+    dragState.currentY = e.touches[0].clientY;
+    const deltaY = dragState.currentY - dragState.startY;
+
+    e.preventDefault();
+
+    if (deltaY > 0) {
+      const adjustedDelta = deltaY * RESISTANCE_FACTOR;
+      target.style.transform = `translateY(${adjustedDelta}px)`;
+    } else if (allowUpwardStretch) {
+      const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
+      target.style.height = `${dragState.initialHeight + adjustedDelta}px`;
+    }
+  };
+
+  const handleTouchEnd = async () => {
+    if (!dragState.isDragging) return;
+
+    const deltaY = dragState.currentY - dragState.startY;
+    target.style.transition = allowUpwardStretch
+      ? "transform 0.15s ease-out, height 0.15s ease-out"
+      : "transform 0.15s ease-out";
+
+    if (deltaY > DISMISS_THRESHOLD && (await confirmDismiss())) {
+      target.style.transform = "translateY(100%)";
+      onClose();
+    } else {
+      target.style.transform = "";
+      if (allowUpwardStretch) target.style.height = "";
+    }
+
+    dragState.isDragging = false;
+  };
+
+  eventSource.addEventListener("touchstart", handleTouchStart, {
+    passive: false,
+  });
+  eventSource.addEventListener("touchmove", handleTouchMove, {
+    passive: false,
+  });
+  eventSource.addEventListener("touchend", handleTouchEnd);
+
+  return dragState;
+}
