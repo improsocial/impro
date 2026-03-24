@@ -314,5 +314,14 @@ export function enableDragToDismiss(
   });
   eventSource.addEventListener("touchend", handleTouchEnd);
 
+  dragState.cleanup = () => {
+    eventSource.removeEventListener("touchstart", handleTouchStart);
+    eventSource.removeEventListener("touchmove", handleTouchMove);
+    eventSource.removeEventListener("touchend", handleTouchEnd);
+    target.style.transform = "";
+    target.style.transition = "";
+    target.style.height = "";
+  };
+
   return dragState;
 }

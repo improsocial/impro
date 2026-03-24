@@ -804,8 +804,7 @@ class ReportDialog extends Component {
     const dialog = this.querySelector(".report-dialog");
 
     if (this._dragState) {
-      dialog.style.transform = "";
-      dialog.style.transition = "";
+      this._dragState.cleanup();
       this._dragState = null;
     }
 

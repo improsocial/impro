@@ -99,11 +99,8 @@ class ContextMenu extends Component {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".context-menu");
 
-    // Clean up drag state
     if (this._dragState) {
-      dialog.style.transform = "";
-      dialog.style.transition = "";
-      dialog.style.height = "";
+      this._dragState.cleanup();
       this._dragState = null;
     }
 
