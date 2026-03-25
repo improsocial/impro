@@ -507,7 +507,7 @@ class PostComposer extends Component {
     dialog.showModal();
 
     // Setup mobile swipe-to-dismiss
-    this._dragState = enableDragToDismiss(dialog, {
+    enableDragToDismiss(dialog, {
       confirmDismiss: () => this.confirmClose(),
       onClose: () => this.close(),
       ignoreTouchTarget: (el) =>
@@ -531,12 +531,6 @@ class PostComposer extends Component {
   close() {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".post-composer");
-
-    if (this._dragState) {
-      this._dragState.cleanup();
-      this._dragState = null;
-    }
-
     dialog.close();
     this.dispatchEvent(new CustomEvent("post-composer-closed"));
   }

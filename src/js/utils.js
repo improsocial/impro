@@ -249,6 +249,10 @@ export function enableDragToDismiss(
 ) {
   if (window.matchMedia("(min-width: 800px)").matches) return null;
 
+  if (target.__dragToDismiss) {
+    target.__dragToDismiss.cleanup();
+  }
+
   const DISMISS_THRESHOLD = 50;
   const RESISTANCE_FACTOR = 0.6;
 
@@ -315,6 +319,7 @@ export function enableDragToDismiss(
   eventSource.addEventListener("touchend", handleTouchEnd);
 
   dragState.cleanup = () => {
+    delete target.__dragToDismiss;
     eventSource.removeEventListener("touchstart", handleTouchStart);
     eventSource.removeEventListener("touchmove", handleTouchMove);
     eventSource.removeEventListener("touchend", handleTouchEnd);
@@ -322,6 +327,8 @@ export function enableDragToDismiss(
     target.style.transition = "";
     target.style.height = "";
   };
+
+  target.__dragToDismiss = dragState;
 
   return dragState;
 }

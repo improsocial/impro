@@ -87,7 +87,7 @@ class ContextMenu extends Component {
     this.render();
 
     // Setup mobile swipe-to-dismiss
-    this._dragState = enableDragToDismiss(dialog, {
+    enableDragToDismiss(this.querySelector(".context-menu"), {
       eventSource: this.querySelector(".context-menu-container"),
       onClose: () => this.close(),
       allowUpwardStretch: true,
@@ -98,12 +98,6 @@ class ContextMenu extends Component {
   close() {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".context-menu");
-
-    if (this._dragState) {
-      this._dragState.cleanup();
-      this._dragState = null;
-    }
-
     dialog.close();
     this.isOpen = false;
     this.render();

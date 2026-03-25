@@ -793,7 +793,7 @@ class ReportDialog extends Component {
     const dialog = this.querySelector(".report-dialog");
     dialog.showModal();
 
-    this._dragState = enableDragToDismiss(dialog, {
+    enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       ignoreTouchTarget: (el) => el.tagName === "BUTTON" || el.tagName === "TEXTAREA",
     });
@@ -802,12 +802,6 @@ class ReportDialog extends Component {
   close() {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".report-dialog");
-
-    if (this._dragState) {
-      this._dragState.cleanup();
-      this._dragState = null;
-    }
-
     dialog.close();
     this.dispatchEvent(new CustomEvent("report-dialog-closed"));
   }
