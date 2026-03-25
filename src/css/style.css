@@ -5589,6 +5589,24 @@ moderation-warning .toggle-content {
   }
 }
 
+.report-dialog::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 36px;
+  height: 4px;
+  background-color: var(--light-gray);
+  border-radius: 2px;
+}
+
+@media (min-width: 800px) {
+  .report-dialog::before {
+    display: none;
+  }
+}
+
 .report-dialog::backdrop {
   background-color: rgba(0, 0, 0, 0.6);
   animation: fade-in 0.2s ease-out;
@@ -5599,10 +5617,12 @@ moderation-warning .toggle-content {
   flex-direction: column;
   height: 100%;
   max-height: calc(100vh - 16px);
+  padding-top: 16px;
 }
 
 @media (min-width: 800px) {
   .report-dialog-content {
+    padding-top: 0;
     max-height: 80vh;
   }
 }
