@@ -15,7 +15,6 @@ import {
   getQuotedPost,
   getLastInteractionTimestamp,
   markBlockedQuoteNotFound,
-  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
 
@@ -42,23 +41,6 @@ export class Selectors {
     let feed = this.dataStore.getFeed(feedURI);
     if (!feed) {
       return null;
-    }
-    // If unauthenticated, filter out posts that are hidden for unauthenticated users.
-    if (!this.isAuthenticated) {
-      feed.feed = feed.feed.filter((feedItem) => {
-        const author = feedItem?.post?.author;
-        if (author && doHideAuthorOnUnauthenticated(author)) {
-          return false;
-        }
-        const quotedPost = getQuotedPost(feedItem.post);
-        if (
-          quotedPost?.author &&
-          doHideAuthorOnUnauthenticated(quotedPost.author)
-        ) {
-          return false;
-        }
-        return true;
-      });
     }
     // Hydrate
     const hydratedFeedItems = [];
@@ -96,9 +78,9 @@ export class Selectors {
     if (feedURI === "following") {
       const currentUser = this.getCurrentUser();
       const preferences = this.getPreferences();
-      return filterFollowingFeed(hydratedFeed, currentUser, preferences);
+      return filterFollowingFeed(hydratedFeed, currentUser, preferences, this.isAuthenticated);
     } else {
-      return filterAlgorithmicFeed(hydratedFeed);
+      return filterAlgorithmicFeed(hydratedFeed, this.isAuthenticated);
     }
   }
 
@@ -264,7 +246,7 @@ export class Selectors {
     if (feedType === "replies") {
       hydratedFeed = this.filterAuthorRepliesFeed(hydratedFeed);
     }
-    return filterAuthorFeed(hydratedFeed);
+    return filterAuthorFeed(hydratedFeed, this.isAuthenticated);
   }
 
   filterAuthorRepliesFeed(feed) {

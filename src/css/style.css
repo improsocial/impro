@@ -1919,7 +1919,7 @@ like-button {
   display: flex;
   flex-direction: row;
   gap: 4px;
-  left: -1px;
+  left: -2px;
 }
 
 .post-action-count .count-current {

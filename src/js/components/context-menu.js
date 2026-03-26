@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { classnames } from "/js/utils.js";
+import { classnames, enableDragToDismiss } from "/js/utils.js";
 import { Component, getChildrenFragment } from "./component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { hapticsImpactLight } from "/js/haptics.js";
@@ -87,7 +87,12 @@ class ContextMenu extends Component {
     this.render();
 
     // Setup mobile swipe-to-dismiss
-    this.setupMobileDragToDismiss(dialog);
+    this._dragState = enableDragToDismiss(dialog, {
+      eventSource: this.querySelector(".context-menu-container"),
+      onClose: () => this.close(),
+      allowUpwardStretch: true,
+      ignoreTouchTarget: (el) => el.tagName === "BUTTON" || el.tagName === "A",
+    });
   }
 
   close() {
@@ -107,92 +112,6 @@ class ContextMenu extends Component {
     this.render();
   }
 
-  // Claude wrote this
-  setupMobileDragToDismiss(dialog) {
-    // Only enable on mobile
-    if (window.matchMedia("(min-width: 800px)").matches) return;
-
-    const DISMISS_THRESHOLD = 50; // pixels to drag before dismissing
-    const RESISTANCE_FACTOR = 0.6; // how much resistance to apply as you drag
-
-    let dragState = {
-      startY: 0,
-      currentY: 0,
-      isDragging: false,
-      initialHeight: 0,
-    };
-
-    this._dragState = dragState;
-
-    const container = this.querySelector(".context-menu-container");
-
-    const handleTouchStart = (e) => {
-      // Only start drag from the dialog itself, not from interactive elements
-      if (e.target.tagName === "BUTTON" || e.target.tagName === "A") return;
-
-      dragState.startY = e.touches[0].clientY;
-      dragState.currentY = dragState.startY;
-      dragState.isDragging = true;
-      dragState.initialHeight = dialog.getBoundingClientRect().height;
-
-      // Remove any existing transitions for immediate response
-      dialog.style.transition = "none";
-    };
-
-    const handleTouchMove = (e) => {
-      if (!dragState.isDragging) return;
-
-      dragState.currentY = e.touches[0].clientY;
-      const deltaY = dragState.currentY - dragState.startY;
-
-      e.preventDefault();
-
-      if (deltaY > 0) {
-        // Dragging down - translate the whole menu
-        const adjustedDelta = deltaY * RESISTANCE_FACTOR;
-        dialog.style.transform = `translateY(${adjustedDelta}px)`;
-      } else {
-        // Dragging up - stretch the element taller with rubber band
-        const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
-
-        // Calculate the stretched height based on initial height + stretch amount
-        const newHeight = dragState.initialHeight + adjustedDelta;
-
-        // Expand upward by increasing height (no transform needed, bottom stays at 0)
-        dialog.style.height = `${newHeight}px`;
-      }
-    };
-
-    const handleTouchEnd = () => {
-      if (!dragState.isDragging) return;
-
-      const deltaY = dragState.currentY - dragState.startY;
-
-      // Add transition for snap-back or dismiss animation
-      dialog.style.transition =
-        "transform 0.15s ease-out, height 0.15s ease-out";
-
-      if (deltaY > DISMISS_THRESHOLD) {
-        // Dismiss - animate out and close (only if dragged down)
-        dialog.style.transform = "translateY(100%)";
-        this.close();
-      } else {
-        // Snap back to original position (for both up and down drags)
-        dialog.style.transform = "";
-        dialog.style.height = "";
-      }
-
-      dragState.isDragging = false;
-    };
-
-    container.addEventListener("touchstart", handleTouchStart, {
-      passive: false,
-    });
-    container.addEventListener("touchmove", handleTouchMove, {
-      passive: false,
-    });
-    container.addEventListener("touchend", handleTouchEnd);
-  }
 }
 
 ContextMenu.register();

@@ -462,6 +462,54 @@ test.describe("Home view", () => {
       });
       await expect(view).toContainText("This post has a label");
     });
+
+    test("should filter out posts from !no-unauthenticated authors", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+      const restrictedPost = createPost({
+        uri: "at://did:plc:private1/app.bsky.feed.post/post1",
+        text: "This post should be hidden",
+        authorHandle: "private.bsky.social",
+        authorDisplayName: "Private User",
+        loggedOut: true,
+      });
+      const visiblePost = createPost({
+        uri: "at://did:plc:author2/app.bsky.feed.post/post2",
+        text: "This post should be visible",
+        authorHandle: "author2.bsky.social",
+        authorDisplayName: "Author Two",
+        loggedOut: true,
+      });
+
+      // Give the restricted post's author the !no-unauthenticated label
+      restrictedPost.author.labels = [
+        {
+          val: "!no-unauthenticated",
+          src: "did:plc:private1",
+          uri: "at://did:plc:private1/app.bsky.actor.profile/self",
+          cts: "2025-01-01T00:00:00.000Z",
+        },
+      ];
+
+      mockServer.addFeedGenerators([discoverFeed]);
+      mockServer.addFeedItems(discoverFeedUri, [restrictedPost, visiblePost]);
+      await mockServer.setup(page);
+
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This post should be visible");
+      await expect(view).not.toContainText("This post should be hidden");
+    });
   });
 
   test.describe("Content moderation labels", () => {

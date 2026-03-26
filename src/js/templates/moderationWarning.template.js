@@ -15,9 +15,7 @@ export function moderationWarningTemplate({
     labelName += " (Account)";
   }
   // If no labeler, the labeler is the author of the post
-  const labelerName = labeler
-    ? "@" + labeler.creator.handle
-    : "the post author";
+  const labelerName = labeler ? "@" + labeler.creator.handle : "the author.";
   const labelerLink = labeler ? linkToLabeler(labeler) : null;
   return html`<moderation-warning
     class=${classnames("post-moderation-warning", className)}

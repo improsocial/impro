@@ -1208,6 +1208,52 @@ test.describe("Profile view", () => {
       ).toBeVisible();
     });
 
+    test("should filter out posts from !no-unauthenticated authors in profile feed", async ({
+      page,
+    }) => {
+      const restrictedPost = createPost({
+        uri: "at://did:plc:private1/app.bsky.feed.post/post1",
+        text: "This post should be hidden",
+        authorHandle: "private.bsky.social",
+        authorDisplayName: "Private User",
+        loggedOut: true,
+      });
+      const visiblePost = createPost({
+        uri: "at://did:plc:otheruser1/app.bsky.feed.post/post2",
+        text: "This post should be visible",
+        authorHandle: otherUser.handle,
+        authorDisplayName: otherUser.displayName,
+        loggedOut: true,
+      });
+
+      // Give the restricted post's author the !no-unauthenticated label
+      restrictedPost.author.labels = [
+        {
+          val: "!no-unauthenticated",
+          src: "did:plc:private1",
+          uri: "at://did:plc:private1/app.bsky.actor.profile/self",
+          cts: "2025-01-01T00:00:00.000Z",
+        },
+      ];
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      mockServer.addAuthorFeedPosts(otherUser.did, "posts_and_author_threads", [
+        restrictedPost,
+        visiblePost,
+      ]);
+      await mockServer.setup(page);
+
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("This post should be visible");
+      await expect(view).not.toContainText("This post should be hidden");
+    });
+
     test('should show "Sign-In Required" for profiles that restrict logged-out access', async ({
       page,
     }) => {

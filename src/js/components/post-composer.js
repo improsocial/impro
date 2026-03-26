@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { classnames } from "/js/utils.js";
+import { classnames, enableDragToDismiss } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
@@ -507,7 +507,15 @@ class PostComposer extends Component {
     dialog.showModal();
 
     // Setup mobile swipe-to-dismiss
-    this.setupMobileDragToDismiss(dialog);
+    this._dragState = enableDragToDismiss(dialog, {
+      confirmDismiss: () => this.confirmClose(),
+      onClose: () => this.close(),
+      ignoreTouchTarget: (el) =>
+        el.tagName === "BUTTON" ||
+        el.tagName === "TEXTAREA" ||
+        el.isContentEditable ||
+        !!el.closest("[contenteditable]"),
+    });
 
     // focus on the textarea
     requestAnimationFrame(() => {
@@ -561,85 +569,6 @@ class PostComposer extends Component {
         },
       }),
     );
-  }
-
-  // Claude wrote this
-  setupMobileDragToDismiss(dialog) {
-    // Only enable on mobile
-    if (window.matchMedia("(min-width: 800px)").matches) return;
-
-    const DISMISS_THRESHOLD = 50; // pixels to drag before dismissing
-    const RESISTANCE_FACTOR = 0.6; // how much resistance to apply as you drag
-
-    let dragState = {
-      startY: 0,
-      currentY: 0,
-      isDragging: false,
-    };
-
-    this._dragState = dragState;
-
-    const handleTouchStart = (e) => {
-      // Only start drag from non-interactive elements
-      if (
-        e.target.tagName === "BUTTON" ||
-        e.target.tagName === "TEXTAREA" ||
-        e.target.isContentEditable ||
-        e.target.closest("[contenteditable]")
-      ) {
-        return;
-      }
-
-      dragState.startY = e.touches[0].clientY;
-      dragState.currentY = dragState.startY;
-      dragState.isDragging = true;
-
-      // Remove any existing transitions for immediate response
-      dialog.style.transition = "none";
-    };
-
-    const handleTouchMove = (e) => {
-      if (!dragState.isDragging) return;
-
-      dragState.currentY = e.touches[0].clientY;
-      const deltaY = dragState.currentY - dragState.startY;
-
-      e.preventDefault();
-
-      if (deltaY > 0) {
-        // Dragging down - translate the whole menu
-        const adjustedDelta = deltaY * RESISTANCE_FACTOR;
-        dialog.style.transform = `translateY(${adjustedDelta}px)`;
-      }
-    };
-
-    const handleTouchEnd = async () => {
-      if (!dragState.isDragging) return;
-
-      const deltaY = dragState.currentY - dragState.startY;
-
-      // Add transition for snap-back or dismiss animation
-      dialog.style.transition = "transform 0.15s ease-out";
-
-      if (deltaY > DISMISS_THRESHOLD && (await this.confirmClose())) {
-        // Dismiss - animate out and close
-        dialog.style.transform = "translateY(100%)";
-        this.close();
-      } else {
-        // Snap back to original position
-        dialog.style.transform = "";
-      }
-
-      dragState.isDragging = false;
-    };
-
-    dialog.addEventListener("touchstart", handleTouchStart, {
-      passive: false,
-    });
-    dialog.addEventListener("touchmove", handleTouchMove, {
-      passive: false,
-    });
-    dialog.addEventListener("touchend", handleTouchEnd);
   }
 
   confirmClose() {

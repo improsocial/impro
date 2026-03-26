@@ -10,6 +10,7 @@ import {
   isBlockedPost,
   isNotFoundPost,
   isUnavailablePost,
+  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 
 function filterByFollowing(feed, currentUser) {
@@ -200,6 +201,26 @@ function filterEmptyPosts(feed) {
   };
 }
 
+function filterUnauthorizedPosts(feed, isAuthenticated) {
+  if (isAuthenticated) {
+    return feed;
+  }
+  const filteredFeedItems = feed.feed.filter((item) => {
+    if (item.post.author && doHideAuthorOnUnauthenticated(item.post.author)) {
+      return false;
+    }
+    const quotedPost = getQuotedPost(item.post);
+    if (quotedPost?.author && doHideAuthorOnUnauthenticated(quotedPost.author)) {
+      return false;
+    }
+    return true;
+  });
+  return {
+    feed: filteredFeedItems,
+    cursor: feed.cursor,
+  };
+}
+
 function filterHiddenPosts(feed) {
   const filteredFeedItems = feed.feed.filter((item) => {
     if (item.post.viewer?.isHidden) {
@@ -236,7 +257,7 @@ function filterContentLabeledPosts(feed) {
   };
 }
 
-export function filterFollowingFeed(feed, currentUser, preferences) {
+export function filterFollowingFeed(feed, currentUser, preferences, isAuthenticated) {
   const followingFeedPreference = preferences.getFollowingFeedPreference();
   let filteredFeed = filterByFollowing(feed, currentUser);
   if (followingFeedPreference?.hideReposts) {
@@ -255,10 +276,11 @@ export function filterFollowingFeed(feed, currentUser, preferences) {
   filteredFeed = filterEmptyPosts(filteredFeed);
   filteredFeed = filterHiddenPosts(filteredFeed);
   filteredFeed = filterContentLabeledPosts(filteredFeed);
+  filteredFeed = filterUnauthorizedPosts(filteredFeed, isAuthenticated);
   return filteredFeed;
 }
 
-export function filterAlgorithmicFeed(feed) {
+export function filterAlgorithmicFeed(feed, isAuthenticated) {
   let filteredFeed = filterBlockedQuotes(feed);
   filteredFeed = dedupeFeed(filteredFeed);
   filteredFeed = filterMutedQuotes(filteredFeed);
@@ -266,13 +288,15 @@ export function filterAlgorithmicFeed(feed) {
   filteredFeed = filterEmptyPosts(filteredFeed);
   filteredFeed = filterHiddenPosts(filteredFeed);
   filteredFeed = filterContentLabeledPosts(filteredFeed);
+  filteredFeed = filterUnauthorizedPosts(filteredFeed, isAuthenticated);
   return filteredFeed;
 }
 
-export function filterAuthorFeed(feed) {
+export function filterAuthorFeed(feed, isAuthenticated) {
   let filteredFeed = dedupeFeed(feed);
   filteredFeed = filterEmptyPosts(filteredFeed);
   filteredFeed = filterHiddenPosts(filteredFeed);
   filteredFeed = filterContentLabeledPosts(filteredFeed);
+  filteredFeed = filterUnauthorizedPosts(filteredFeed, isAuthenticated);
   return filteredFeed;
 }

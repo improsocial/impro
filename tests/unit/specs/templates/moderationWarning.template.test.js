@@ -82,7 +82,7 @@ t.describe("moderationWarningTemplate", (it) => {
 });
 
 t.describe("moderationWarningTemplate - no labeler", (it) => {
-  it("should show 'the post author' when labeler is null", () => {
+  it("should show 'the author.' when labeler is null", () => {
     const result = moderationWarningTemplate({
       labelDefinition: mockLabelDefinition,
       labeler: null,
@@ -91,7 +91,7 @@ t.describe("moderationWarningTemplate - no labeler", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const warning = container.querySelector("moderation-warning");
-    assertEquals(warning.getAttribute("labelerName"), "the post author");
+    assertEquals(warning.getAttribute("labelerName"), "the author.");
   });
 
   it("should have null labelerLink when labeler is null", () => {

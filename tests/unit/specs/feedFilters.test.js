@@ -66,7 +66,7 @@ t.describe("filterFollowingFeed", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 2);
     assertEquals(result.cursor, "test-cursor");
@@ -86,7 +86,7 @@ t.describe("filterFollowingFeed", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReposts: true });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -105,7 +105,7 @@ t.describe("filterFollowingFeed", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReposts: false });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 2);
   });
@@ -127,7 +127,7 @@ t.describe("filterFollowingFeed", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences({ hideReplies: true });
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -145,7 +145,7 @@ t.describe("filterFollowingFeed", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 2);
   });
@@ -159,7 +159,7 @@ t.describe("filterFollowingFeed", (it) => {
     const feed = createFeed(items);
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, null, preferences);
+    const result = filterFollowingFeed(feed, null, preferences, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -174,7 +174,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
     ];
     const feed = createFeed(items);
 
-    const result = filterAlgorithmicFeed(feed);
+    const result = filterAlgorithmicFeed(feed, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -182,7 +182,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "my-cursor");
 
-    const result = filterAlgorithmicFeed(feed);
+    const result = filterAlgorithmicFeed(feed, true);
 
     assertEquals(result.cursor, "my-cursor");
   });
@@ -190,7 +190,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
   it("should handle empty feed", () => {
     const feed = createFeed([]);
 
-    const result = filterAlgorithmicFeed(feed);
+    const result = filterAlgorithmicFeed(feed, true);
 
     assertEquals(result.feed.length, 0);
   });
@@ -205,7 +205,7 @@ t.describe("filterAuthorFeed", (it) => {
     ];
     const feed = createFeed(items);
 
-    const result = filterAuthorFeed(feed);
+    const result = filterAuthorFeed(feed, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -224,7 +224,7 @@ t.describe("filterAuthorFeed", (it) => {
     ];
     const feed = createFeed(items);
 
-    const result = filterAuthorFeed(feed);
+    const result = filterAuthorFeed(feed, true);
 
     assertEquals(result.feed.length, 3);
   });
@@ -232,7 +232,7 @@ t.describe("filterAuthorFeed", (it) => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "author-cursor");
 
-    const result = filterAuthorFeed(feed);
+    const result = filterAuthorFeed(feed, true);
 
     assertEquals(result.cursor, "author-cursor");
   });
@@ -255,7 +255,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 1);
     assertEquals(
@@ -280,7 +280,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 2);
   });
@@ -307,7 +307,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 1);
     assertEquals(
@@ -335,7 +335,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
     const currentUser = createCurrentUser();
     const preferences = createPreferences();
 
-    const result = filterFollowingFeed(feed, currentUser, preferences);
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -356,7 +356,7 @@ t.describe("filterAlgorithmicFeed - content label filtering", (it) => {
     ];
     const feed = createFeed(items);
 
-    const result = filterAlgorithmicFeed(feed);
+    const result = filterAlgorithmicFeed(feed, true);
 
     assertEquals(result.feed.length, 1);
   });
@@ -377,9 +377,226 @@ t.describe("filterAuthorFeed - content label filtering", (it) => {
     ];
     const feed = createFeed(items);
 
-    const result = filterAuthorFeed(feed);
+    const result = filterAuthorFeed(feed, true);
 
     assertEquals(result.feed.length, 1);
+  });
+});
+
+t.describe("filterFollowingFeed - unauthorized filtering", (it) => {
+  it("should filter posts from no-unauthenticated authors when not authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+    const preferences = createPreferences();
+
+    const result = filterFollowingFeed(feed, null, preferences, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should keep posts from no-unauthenticated authors when authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+    const currentUser = createCurrentUser();
+    const preferences = createPreferences();
+
+    const result = filterFollowingFeed(feed, currentUser, preferences, true);
+
+    assertEquals(result.feed.length, 1);
+  });
+
+  it("should filter posts quoting a no-unauthenticated author when not authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              uri: "at://did:plc:private/app.bsky.feed.post/quoted",
+              author: {
+                did: "did:plc:private",
+                handle: "private.test",
+                labels: [{ val: "!no-unauthenticated" }],
+              },
+            },
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+    const preferences = createPreferences();
+
+    const result = filterFollowingFeed(feed, null, preferences, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+});
+
+t.describe("filterAlgorithmicFeed - unauthorized filtering", (it) => {
+  it("should filter posts from no-unauthenticated authors when not authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAlgorithmicFeed(feed, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should keep posts from no-unauthenticated authors when authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAlgorithmicFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+  });
+});
+
+t.describe("filterAuthorFeed - unauthorized filtering", (it) => {
+  it("should filter posts from no-unauthenticated authors when not authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should keep posts from no-unauthenticated authors when authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+  });
+
+  it("should filter posts quoting a no-unauthenticated author when not authenticated", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              uri: "at://did:plc:private/app.bsky.feed.post/quoted",
+              author: {
+                did: "did:plc:private",
+                handle: "private.test",
+                labels: [{ val: "!no-unauthenticated" }],
+              },
+            },
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
   });
 });
 
