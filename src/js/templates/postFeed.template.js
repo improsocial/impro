@@ -110,7 +110,8 @@ function feedItemTemplate({
     reason && reason.$type === "app.bsky.feed.defs#reasonRepost"
       ? reason.by
       : null;
-  const showReplyContext = !!reply?.parent && !repostAuthor;
+  const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
+  const showReplyContext = !!reply?.parent && !repostAuthor && !isPinned;
   // If the post has a parent but reply context isn't shown, show the reply-to label
   const showReplyToLabel = !!post.record?.reply && !showReplyContext;
   let replyToAuthor = null;
@@ -118,7 +119,6 @@ function feedItemTemplate({
     replyToAuthor =
       reply?.parent?.author || post.record?.reply?.parentAuthor || null;
   }
-  const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
   return html`
     <div>
       ${showReplyContext
