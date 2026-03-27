@@ -30,6 +30,8 @@ class SearchView extends View {
       searchQuery: "",
     };
 
+    const tabScrollState = new Map();
+
     async function loadSearchResults() {
       const normalizedQuery = state.searchQuery.trim();
 
@@ -98,8 +100,14 @@ class SearchView extends View {
     }
 
     function handleTabChange(tab) {
+      tabScrollState.set(state.activeTab, window.scrollY);
       state.activeTab = tab;
       renderPage();
+      if (tabScrollState.has(tab)) {
+        window.scrollTo(0, tabScrollState.get(tab));
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
 
     function profileResultTemplate({ profile }) {
@@ -417,7 +425,9 @@ class SearchView extends View {
       }
     });
 
-    root.addEventListener("page-restore", () => {
+    root.addEventListener("page-restore", (event) => {
+      const scrollY = event.detail?.scrollY ?? 0;
+      window.scrollTo(0, scrollY);
       renderPage();
     });
 
