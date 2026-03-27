@@ -505,6 +505,118 @@ test.describe("Search view", () => {
     await expect(page).toHaveURL(/\/search/);
   });
 
+  test.describe("Pagination", () => {
+    test("should paginate profile results", async ({ page }) => {
+      const mockServer = new MockServer();
+      const profiles = [];
+      for (let i = 0; i < 30; i++) {
+        profiles.push(
+          createProfile({
+            did: `did:plc:profile${i}`,
+            handle: `user${i}.bsky.social`,
+            displayName: `User ${i}`,
+          }),
+        );
+      }
+      mockServer.addSearchProfiles(profiles);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=user");
+
+      const view = page.locator("#search-view");
+      // All 30 profiles should load across multiple pages
+      await expect(view.locator(".profile-list-item")).toHaveCount(30, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("User 0");
+      await expect(view).toContainText("User 29");
+    });
+
+    test("should paginate post results", async ({ page }) => {
+      const mockServer = new MockServer();
+      const posts = [];
+      for (let i = 0; i < 30; i++) {
+        posts.push(
+          createPost({
+            uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+            text: `Search result post ${i}`,
+            authorHandle: `author${i}.bsky.social`,
+            authorDisplayName: `Author ${i}`,
+          }),
+        );
+      }
+      mockServer.addSearchPosts(posts);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=result&tab=posts");
+
+      const view = page.locator("#search-view");
+      // All 30 posts should load across multiple pages
+      await expect(view.locator("[data-post-uri]")).toHaveCount(30, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Search result post 0");
+      await expect(view).toContainText("Search result post 29");
+    });
+
+    test("should paginate feed results", async ({ page }) => {
+      const mockServer = new MockServer();
+      const feeds = [];
+      for (let i = 0; i < 20; i++) {
+        feeds.push(
+          createFeedGenerator({
+            uri: `at://did:plc:creator${i}/app.bsky.feed.generator/feed${i}`,
+            displayName: `Feed ${i}`,
+            creatorHandle: `creator${i}.bsky.social`,
+          }),
+        );
+      }
+      mockServer.addSearchFeedGenerators(feeds);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=feed&tab=feeds");
+
+      const view = page.locator("#search-view");
+      // All 20 feeds should load across multiple pages
+      await expect(view.locator(".feeds-list-item")).toHaveCount(20, {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Feed 0");
+      await expect(view).toContainText("Feed 19");
+    });
+
+    test("should not show loading spinner when there are no more results", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const profiles = [];
+      for (let i = 0; i < 3; i++) {
+        profiles.push(
+          createProfile({
+            did: `did:plc:profile${i}`,
+            handle: `user${i}.bsky.social`,
+            displayName: `User ${i}`,
+          }),
+        );
+      }
+      mockServer.addSearchProfiles(profiles);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=user");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator(".profile-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      await expect(view.locator(".feed-loading-indicator")).not.toBeVisible();
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should allow searching profiles and posts without authentication", async ({
       page,

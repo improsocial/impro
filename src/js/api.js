@@ -279,17 +279,21 @@ export class Api {
     return res.data.feeds;
   }
 
-  async searchFeedGenerators(query, { limit = 15 } = {}) {
+  async searchFeedGenerators(query, { limit = 15, cursor = "" } = {}) {
+    const queryParams = { limit, query };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
     const res = await this.request(
       `app.bsky.unspecced.getPopularFeedGenerators`,
       {
-        query: { limit, query },
+        query: queryParams,
         headers: {
           "atproto-proxy": this.bskyAppViewServiceDid,
         },
       },
     );
-    return res.data.feeds;
+    return res.data;
   }
 
   async getFollowingFeed({ limit = 31, cursor = "", labelers = [] } = {}) {
@@ -367,18 +371,19 @@ export class Api {
     return res.data;
   }
 
-  async searchProfiles(query, { limit = 10, labelers = [] } = {}) {
+  async searchProfiles(query, { limit = 10, cursor = "", labelers = [] } = {}) {
+    const queryParams = { q: query, limit };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
     const res = await this.request(`app.bsky.actor.searchActors`, {
-      query: {
-        q: query,
-        limit,
-      },
+      query: queryParams,
       headers: {
         "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
-    return res.data.actors;
+    return res.data;
   }
 
   async searchPosts(

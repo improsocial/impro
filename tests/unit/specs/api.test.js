@@ -560,7 +560,7 @@ t.describe("searchProfiles", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.actor.searchActors"));
     assert(url.includes("q=test"));
-    assertEquals(result.length, 2);
+    assertEquals(result.actors.length, 2);
   });
 });
 

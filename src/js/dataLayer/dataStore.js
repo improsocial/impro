@@ -178,6 +178,10 @@ export class DataStore extends EventEmitter {
     this.profileSearchResults = null;
   }
 
+  getProfileSearchCursor() {
+    return this.profileSearchResults?.cursor ?? null;
+  }
+
   getLatestProfileSearchRequestTime() {
     return this.latestProfileSearchRequestTime;
   }
@@ -202,6 +206,10 @@ export class DataStore extends EventEmitter {
     this.postSearchResults = null;
   }
 
+  getPostSearchCursor() {
+    return this.postSearchResults?.cursor ?? null;
+  }
+
   getLatestPostSearchRequestTime() {
     return this.latestPostSearchRequestTime;
   }
@@ -224,6 +232,10 @@ export class DataStore extends EventEmitter {
 
   clearFeedSearchResults() {
     this.feedSearchResults = null;
+  }
+
+  getFeedSearchCursor() {
+    return this.feedSearchResults?.cursor ?? null;
   }
 
   getLatestFeedSearchRequestTime() {

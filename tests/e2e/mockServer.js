@@ -660,27 +660,57 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) => {
+      const url = new URL(route.request().url());
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      let actors, nextCursor;
+      if (limit) {
+        actors = this.searchProfiles.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < this.searchProfiles.length
+            ? String(offset + limit)
+            : "";
+      } else {
+        actors = this.searchProfiles;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({
-          actors: this.searchProfiles,
-          cursor: "",
-        }),
-      }),
-    );
+        body: JSON.stringify({ actors, cursor: nextCursor }),
+      });
+    });
 
     await page.route(
       "**/xrpc/app.bsky.unspecced.getPopularFeedGenerators*",
-      (route) =>
-        route.fulfill({
+      (route) => {
+        const url = new URL(route.request().url());
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+
+        let feeds, nextCursor;
+        if (limit) {
+          feeds = this.searchFeedGenerators.slice(offset, offset + limit);
+          nextCursor =
+            offset + limit < this.searchFeedGenerators.length
+              ? String(offset + limit)
+              : "";
+        } else {
+          feeds = this.searchFeedGenerators;
+          nextCursor = "";
+        }
+
+        return route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify({
-            feeds: this.searchFeedGenerators,
-          }),
-        }),
+          body: JSON.stringify({ feeds, cursor: nextCursor }),
+        });
+      },
     );
 
     await page.route("**/xrpc/app.bsky.feed.searchPosts*", (route) => {

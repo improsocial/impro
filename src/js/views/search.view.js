@@ -76,6 +76,36 @@ class SearchView extends View {
       }
     }
 
+    async function loadMoreProfiles() {
+      const cursor = dataLayer.selectors.getProfileSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadProfileSearch(state.searchQuery.trim(), {
+        limit: 25,
+        cursor,
+      });
+      renderPage();
+    }
+
+    async function loadMorePosts() {
+      const cursor = dataLayer.selectors.getPostSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadPostSearch(state.searchQuery.trim(), {
+        limit: 25,
+        cursor,
+      });
+      renderPage();
+    }
+
+    async function loadMoreFeeds() {
+      const cursor = dataLayer.selectors.getFeedSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadFeedSearch(state.searchQuery.trim(), {
+        limit: 15,
+        cursor,
+      });
+      renderPage();
+    }
+
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
@@ -134,6 +164,7 @@ class SearchView extends View {
     function postSearchResultsTemplate({
       status,
       postSearchResults,
+      postSearchHasMore,
       currentUser,
     }) {
       if (!postSearchResults && status.loading) {
@@ -148,25 +179,45 @@ class SearchView extends View {
       if (!postSearchResults || postSearchResults.length === 0) {
         return html`<div class="search-status-message">No posts found.</div>`;
       }
-      return html` <div
-        class=${classnames("loading-area", { loading: status.loading })}
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (postSearchHasMore) {
+            await loadMorePosts();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!postSearchHasMore}
       >
-        ${postSearchResults.map(
-          (post) =>
-            html`<div class="feed-item" data-post-uri="${post.uri}">
-              ${smallPostTemplate({
-                post,
-                showReplyToLabel: !!post.record?.reply,
-                replyToAuthor: post.record?.reply?.parentAuthor ?? null,
-                isUserPost: currentUser?.did === post.author?.did,
-                postInteractionHandler,
-              })}
-            </div>`,
-        )}
-      </div>`;
+        <div
+          class=${classnames("loading-area", { loading: status.loading })}
+        >
+          ${postSearchResults.map(
+            (post) =>
+              html`<div class="feed-item" data-post-uri="${post.uri}">
+                ${smallPostTemplate({
+                  post,
+                  showReplyToLabel: !!post.record?.reply,
+                  replyToAuthor: post.record?.reply?.parentAuthor ?? null,
+                  isUserPost: currentUser?.did === post.author?.did,
+                  postInteractionHandler,
+                })}
+              </div>`,
+          )}
+          ${postSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
     }
 
-    function profileSearchResultsTemplate({ status, profileSearchResults }) {
+    function profileSearchResultsTemplate({
+      status,
+      profileSearchResults,
+      profileSearchHasMore,
+    }) {
       if (!profileSearchResults && status.loading) {
         return html`<div class="search-status-message">
           Searching profiles…
@@ -183,20 +234,37 @@ class SearchView extends View {
           No profiles found.
         </div>`;
       }
-      return html`<div
-        class=${classnames("profile-list loading-area", {
-          loading: status.loading,
-        })}
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (profileSearchHasMore) {
+            await loadMoreProfiles();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!profileSearchHasMore}
       >
-        ${profileSearchResults.map((profile) =>
-          profileResultTemplate({ profile }),
-        )}
-      </div>`;
+        <div
+          class=${classnames("profile-list loading-area", {
+            loading: status.loading,
+          })}
+        >
+          ${profileSearchResults.map((profile) =>
+            profileResultTemplate({ profile }),
+          )}
+          ${profileSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
     }
 
     function feedSearchResultsTemplate({
       status,
       feedSearchResults,
+      feedSearchHasMore,
       preferences,
     }) {
       if (!feedSearchResults && status.loading) {
@@ -211,67 +279,83 @@ class SearchView extends View {
       if (!feedSearchResults || feedSearchResults.length === 0) {
         return html`<div class="search-status-message">No feeds found.</div>`;
       }
-      return html`<div
-        class=${classnames("feeds-list loading-area", {
-          loading: status.loading,
-        })}
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (feedSearchHasMore) {
+            await loadMoreFeeds();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!feedSearchHasMore}
       >
-        ${feedSearchResults.map((feedGenerator) => {
-          const isPinned = preferences.isFeedPinned(feedGenerator.uri);
-          return html`
-            <div
-              class="feeds-list-item clickable"
-              @click=${() => window.router.go(linkToFeed(feedGenerator))}
-            >
-              <div class="feeds-list-item-avatar">
-                ${feedGenerator.avatar
-                  ? html`<img
-                      src=${feedGenerator.avatar}
-                      alt=${feedGenerator.displayName}
-                      class="feed-avatar"
-                    />`
-                  : html`<img
-                      src="/img/list-avatar-fallback.svg"
-                      alt=${feedGenerator.displayName}
-                      class="feed-avatar"
-                    />`}
-              </div>
-              <div class="feeds-list-item-content">
-                <div class="feeds-list-item-title">
-                  ${feedGenerator.displayName}
+        <div
+          class=${classnames("feeds-list loading-area", {
+            loading: status.loading,
+          })}
+        >
+          ${feedSearchResults.map((feedGenerator) => {
+            const isPinned = preferences.isFeedPinned(feedGenerator.uri);
+            return html`
+              <div
+                class="feeds-list-item clickable"
+                @click=${() => window.router.go(linkToFeed(feedGenerator))}
+              >
+                <div class="feeds-list-item-avatar">
+                  ${feedGenerator.avatar
+                    ? html`<img
+                        src=${feedGenerator.avatar}
+                        alt=${feedGenerator.displayName}
+                        class="feed-avatar"
+                      />`
+                    : html`<img
+                        src="/img/list-avatar-fallback.svg"
+                        alt=${feedGenerator.displayName}
+                        class="feed-avatar"
+                      />`}
                 </div>
-                ${feedGenerator.creator
-                  ? html`<div class="feeds-list-item-creator">
-                      by @${feedGenerator.creator.handle}
-                    </div>`
-                  : ""}
-                ${feedGenerator.description
-                  ? // prettier-ignore
-                    html`<div class="feeds-list-item-description">${feedGenerator.description}</div>`
-                  : ""}
+                <div class="feeds-list-item-content">
+                  <div class="feeds-list-item-title">
+                    ${feedGenerator.displayName}
+                  </div>
+                  ${feedGenerator.creator
+                    ? html`<div class="feeds-list-item-creator">
+                        by @${feedGenerator.creator.handle}
+                      </div>`
+                    : ""}
+                  ${feedGenerator.description
+                    ? // prettier-ignore
+                      html`<div class="feeds-list-item-description">${feedGenerator.description}</div>`
+                    : ""}
+                </div>
+                <div class="feeds-list-item-actions">
+                  <button
+                    class=${classnames("rounded-button pin-feed-button", {
+                      "rounded-button-primary": !isPinned,
+                      pinned: isPinned,
+                    })}
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      feedInteractionHandler.handlePinFeed(
+                        feedGenerator.uri,
+                        !isPinned,
+                      );
+                    }}
+                  >
+                    ${isPinned ? "" : pinIconTemplate({ filled: false })}
+                    ${isPinned ? "Unpin feed" : "Pin feed"}
+                  </button>
+                </div>
               </div>
-              <div class="feeds-list-item-actions">
-                <button
-                  class=${classnames("rounded-button pin-feed-button", {
-                    "rounded-button-primary": !isPinned,
-                    pinned: isPinned,
-                  })}
-                  @click=${(e) => {
-                    e.stopPropagation();
-                    feedInteractionHandler.handlePinFeed(
-                      feedGenerator.uri,
-                      !isPinned,
-                    );
-                  }}
-                >
-                  ${isPinned ? "" : pinIconTemplate({ filled: false })}
-                  ${isPinned ? "Unpin feed" : "Pin feed"}
-                </button>
-              </div>
-            </div>
-          `;
-        })}
-      </div>`;
+            `;
+          })}
+          ${feedSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
     }
 
     function renderPage() {
@@ -289,6 +373,10 @@ class SearchView extends View {
       const profileSearchResults =
         dataLayer.selectors.getProfileSearchResults();
       const feedSearchResults = dataLayer.selectors.getFeedSearchResults();
+      const postSearchHasMore = !!dataLayer.selectors.getPostSearchCursor();
+      const profileSearchHasMore =
+        !!dataLayer.selectors.getProfileSearchCursor();
+      const feedSearchHasMore = !!dataLayer.selectors.getFeedSearchCursor();
       const preferences = dataLayer.selectors.getPreferences();
 
       render(
@@ -357,6 +445,7 @@ class SearchView extends View {
                               ${postSearchResultsTemplate({
                                 status: postStatus,
                                 postSearchResults,
+                                postSearchHasMore,
                                 currentUser,
                               })}
                             </div>
@@ -369,6 +458,7 @@ class SearchView extends View {
                               ${profileSearchResultsTemplate({
                                 status: profileStatus,
                                 profileSearchResults,
+                                profileSearchHasMore,
                               })}
                             </div>
                           </div>
@@ -380,6 +470,7 @@ class SearchView extends View {
                               ${feedSearchResultsTemplate({
                                 status: feedStatus,
                                 feedSearchResults,
+                                feedSearchHasMore,
                                 preferences,
                               })}
                             </div>

@@ -179,22 +179,33 @@ export class Selectors {
   }
 
   getProfileSearchResults() {
-    return this.dataStore.getProfileSearchResults();
+    const data = this.dataStore.getProfileSearchResults();
+    if (!data) return null;
+    return data.actors;
+  }
+
+  getProfileSearchCursor() {
+    return this.dataStore.getProfileSearchCursor();
   }
 
   getFeedSearchResults() {
-    return this.dataStore.getFeedSearchResults();
+    const data = this.dataStore.getFeedSearchResults();
+    if (!data) return null;
+    return data.feeds;
+  }
+
+  getFeedSearchCursor() {
+    return this.dataStore.getFeedSearchCursor();
   }
 
   getPostSearchResults() {
-    const searchResults = this.dataStore.getPostSearchResults();
-    if (!searchResults) {
+    const data = this.dataStore.getPostSearchResults();
+    if (!data) {
       return null;
     }
     const hydratedSearchResults = [];
-    for (const result of searchResults) {
+    for (const result of data.posts) {
       let post = this.getPost(result.uri);
-      // If it's a reply, add the parent author to the record
       if (post.record?.reply) {
         const parentPost = this.getPost(post.record.reply.parent.uri);
         if (parentPost) {
@@ -214,6 +225,10 @@ export class Selectors {
       hydratedSearchResults.push(post);
     }
     return hydratedSearchResults;
+  }
+
+  getPostSearchCursor() {
+    return this.dataStore.getPostSearchCursor();
   }
 
   getAuthorFeed(did, feedType) {
