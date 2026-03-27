@@ -38,6 +38,7 @@ export class DataStore extends EventEmitter {
     this.postQuotes = new Map();
     this.postReposts = new Map();
     this.feedGenerators = new Map();
+    this.actorFeeds = new Map();
     this.hashtagFeeds = new Map();
     this.pinnedFeedGenerators = null;
     this.bookmarks = null;
@@ -518,6 +519,22 @@ export class DataStore extends EventEmitter {
 
   clearFeedGenerator(feedUri) {
     this.feedGenerators.delete(feedUri);
+  }
+
+  hasActorFeeds(did) {
+    return this.actorFeeds.has(did);
+  }
+
+  getActorFeeds(did) {
+    return this.actorFeeds.get(did);
+  }
+
+  setActorFeeds(did, actorFeeds) {
+    this.actorFeeds.set(did, actorFeeds);
+  }
+
+  clearActorFeeds(did) {
+    this.actorFeeds.delete(did);
   }
 
   hasHashtagFeed(hashtagKey) {

@@ -32,6 +32,7 @@ export class MockServer {
     this.profileFollows = new Map();
     this.profiles = new Map();
     this.savedFeedUris = [];
+    this.actorFeeds = new Map();
     this.searchFeedGenerators = [];
     this.searchPosts = [];
     this.searchProfiles = [];
@@ -44,6 +45,11 @@ export class MockServer {
 
   addBookmarks(bookmarks) {
     this.bookmarks.push(...bookmarks);
+  }
+
+  addActorFeeds(did, feedGenerators) {
+    const existing = this.actorFeeds.get(did) || [];
+    this.actorFeeds.set(did, [...existing, ...feedGenerators]);
   }
 
   addFeedGenerators(feedGenerators) {
@@ -702,6 +708,34 @@ export class MockServer {
               : "";
         } else {
           feeds = this.searchFeedGenerators;
+          nextCursor = "";
+        }
+
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ feeds, cursor: nextCursor }),
+        });
+      },
+    );
+
+    await page.route(
+      "**/xrpc/app.bsky.feed.getActorFeeds*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const actor = url.searchParams.get("actor") || "";
+        const cursor = url.searchParams.get("cursor") || "";
+        const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+        const offset = cursor ? parseInt(cursor, 10) : 0;
+        const allFeeds = this.actorFeeds.get(actor) || [];
+
+        let feeds, nextCursor;
+        if (limit) {
+          feeds = allFeeds.slice(offset, offset + limit);
+          nextCursor =
+            offset + limit < allFeeds.length ? String(offset + limit) : "";
+        } else {
+          feeds = allFeeds;
           nextCursor = "";
         }
 

@@ -16,6 +16,7 @@ import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 
 class ProfileView extends View {
   async render({
@@ -98,7 +99,11 @@ class ProfileView extends View {
 
     async function handleTabClick(tab) {
       if (tab === state.activeTab) {
-        scrollAndReloadFeed();
+        if (tab === "feeds") {
+          scrollAndReloadActorFeeds();
+        } else {
+          scrollAndReloadFeed();
+        }
         return;
       }
       // Save scroll state
@@ -113,9 +118,15 @@ class ProfileView extends View {
         window.scrollTo(0, 0);
       }
       // Load feed if needed
-      const isFeedTab = tab !== "labeler-settings";
-      if (isFeedTab && !dataLayer.hasCachedAuthorFeed(profileDid, tab)) {
-        await loadAuthorFeed();
+      if (tab === "feeds") {
+        if (!dataLayer.selectors.getActorFeeds(profileDid)) {
+          await loadActorFeeds();
+        }
+      } else {
+        const isFeedTab = tab !== "labeler-settings";
+        if (isFeedTab && !dataLayer.hasCachedAuthorFeed(profileDid, tab)) {
+          await loadAuthorFeed();
+        }
       }
     }
 
@@ -136,6 +147,38 @@ class ProfileView extends View {
         showToast("Failed to update labeler setting", { error: true });
         renderPage();
       }
+    }
+
+    function actorFeedsTemplate({ actorFeeds, onLoadMore }) {
+      if (!actorFeeds) {
+        return html`<div class="feeds-list">
+          <div class="loading-spinner"></div>
+        </div>`;
+      }
+      if (actorFeeds.feeds.length === 0) {
+        return html`<div class="feeds-list">
+          <div class="feed-end-message">No custom feeds.</div>
+        </div>`;
+      }
+      const hasMore = !!actorFeeds.cursor;
+      return html`
+        <infinite-scroll-container
+          lookahead="2500px"
+          @load-more=${async (e) => {
+            if (hasMore && onLoadMore) {
+              await onLoadMore();
+              e.detail.resume();
+            }
+          }}
+        >
+          <div class="feeds-list">
+            ${actorFeeds.feeds.map((feedGenerator) =>
+              feedGeneratorListItemTemplate({ feedGenerator }),
+            )}
+            ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
+          </div>
+        </infinite-scroll-container>
+      `;
     }
 
     function profileErrorTemplate({ error }) {
@@ -193,6 +236,13 @@ class ProfileView extends View {
             (feed) => feed.feedType !== "media",
           );
         }
+        const feedGenCount = profile.associated?.feedgens || 0;
+        if (feedGenCount > 0) {
+          authorFeedsToShow = [
+            ...authorFeedsToShow,
+            { feedType: "feeds", name: "Feeds" },
+          ];
+        }
         let isDefaultLabeler = profile.did === BSKY_LABELER_DID;
         let isSubscribed = false;
         let labelerSettings = null;
@@ -215,7 +265,8 @@ class ProfileView extends View {
               showSubscribeButton: !isDefaultLabeler,
               labelerInfo,
               isSubscribed,
-              activitySubscription: profile.viewer?.activitySubscription ?? null,
+              activitySubscription:
+                profile.viewer?.activitySubscription ?? null,
               onClickPostNotifications: (profile) =>
                 profileInteractionHandler.handlePostNotificationSubscription(
                   profile,
@@ -301,6 +352,19 @@ class ProfileView extends View {
                       </div>`
                     : null}
                   ${authorFeedsToShow.map((feedInfo) => {
+                    if (feedInfo.feedType === "feeds") {
+                      const actorFeeds =
+                        dataLayer.selectors.getActorFeeds(profileDid);
+                      return html`<div
+                        class="feed-container"
+                        ?hidden=${state.activeTab !== "feeds"}
+                      >
+                        ${actorFeedsTemplate({
+                          actorFeeds,
+                          onLoadMore: () => loadActorFeeds(),
+                        })}
+                      </div>`;
+                    }
                     const authorFeed = dataLayer.selectors.getAuthorFeed(
                       profileDid,
                       feedInfo.feedType,
@@ -394,7 +458,10 @@ class ProfileView extends View {
     }
 
     async function loadAuthorFeed({ reload = false } = {}) {
-      if (state.activeTab === "labeler-settings") {
+      if (
+        state.activeTab === "labeler-settings" ||
+        state.activeTab === "feeds"
+      ) {
         return;
       }
       await dataLayer.requests.loadNextAuthorFeedPage(
@@ -406,6 +473,18 @@ class ProfileView extends View {
         },
       );
       renderPage();
+    }
+
+    async function loadActorFeeds({ reload = false } = {}) {
+      await dataLayer.requests.loadActorFeeds(profileDid, { reload });
+      renderPage();
+    }
+
+    async function scrollAndReloadActorFeeds() {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      await loadActorFeeds({ reload: true });
     }
 
     async function preloadHiddenFeeds() {

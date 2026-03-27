@@ -485,6 +485,10 @@ export class Selectors {
     return this.dataStore.getFeedGenerator(feedUri);
   }
 
+  getActorFeeds(did) {
+    return this.dataStore.getActorFeeds(did);
+  }
+
   getHashtagFeed(hashtag, sort) {
     const hashtagKey = `${hashtag}-${sort}`;
     const feed = this.dataStore.getHashtagFeed(hashtagKey);

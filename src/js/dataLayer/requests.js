@@ -800,6 +800,32 @@ export class Requests {
     this.dataStore.setPinnedFeedGenerators(feedGenerators);
   }
 
+  async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.getActorFeeds(did);
+    let cursor = existing ? existing.cursor : "";
+    if (reload) {
+      cursor = "";
+    }
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const data = await this.api.getActorFeeds(did, { limit, cursor });
+    for (const feed of data.feeds) {
+      this.dataStore.setFeedGenerator(feed.uri, feed);
+    }
+    if (reload || !existing) {
+      this.dataStore.setActorFeeds(did, {
+        feeds: data.feeds,
+        cursor: data.cursor ?? null,
+      });
+    } else {
+      this.dataStore.setActorFeeds(did, {
+        feeds: [...existing.feeds, ...data.feeds],
+        cursor: data.cursor ?? null,
+      });
+    }
+  }
+
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();

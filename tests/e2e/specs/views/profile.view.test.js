@@ -5,6 +5,7 @@ import { MockServer } from "../../mockServer.js";
 import {
   createPost,
   createProfile,
+  createFeedGenerator,
   createLabelerView,
 } from "../../factories.js";
 
@@ -1676,6 +1677,180 @@ test.describe("Profile view", () => {
       await expect(view.locator(".error-state p")).toContainText(
         "This account has requested that users sign in to view their profile.",
       );
+    });
+  });
+
+  test.describe("Feeds tab", () => {
+    const userWithFeeds = createProfile({
+      did: "did:plc:feedcreator1",
+      handle: "feedcreator.bsky.social",
+      displayName: "Feed Creator",
+      followersCount: 200,
+      followsCount: 50,
+      postsCount: 100,
+      associated: { feedgens: 2 },
+    });
+
+    const feed1 = createFeedGenerator({
+      uri: "at://did:plc:feedcreator1/app.bsky.feed.generator/trending",
+      displayName: "Trending Topics",
+      creatorHandle: "feedcreator.bsky.social",
+    });
+
+    const feed2 = createFeedGenerator({
+      uri: "at://did:plc:feedcreator1/app.bsky.feed.generator/science",
+      displayName: "Science Feed",
+      creatorHandle: "feedcreator.bsky.social",
+    });
+
+    test("should show Feeds tab when profile has feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show Feeds tab when profile has no feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).not.toBeVisible();
+    });
+
+    test("should display feed generators when Feeds tab is clicked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+      await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
+        "Feeds",
+      );
+
+      const feedsList = view.locator(".feeds-list");
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(feedsList).toContainText("Trending Topics");
+      await expect(feedsList).toContainText("Science Feed");
+      await expect(feedsList).toContainText("by @feedcreator.bsky.social");
+    });
+
+    test("should navigate to feed detail when clicking a feed generator", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1]);
+      mockServer.addFeedGenerators([feed1]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+
+      const feedsList = view.locator(".feeds-list");
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await feedsList
+        .locator(".feeds-list-item", { hasText: "Trending Topics" })
+        .click();
+
+      await expect(page).toHaveURL(
+        "/profile/feedcreator.bsky.social/feed/trending",
+        { timeout: 10000 },
+      );
+
+      const detailView = page.locator("#feed-detail-view");
+      await expect(
+        detailView.locator('[data-testid="header-title"]'),
+      ).toContainText("Trending Topics", { timeout: 10000 });
+    });
+
+    test("should show Feeds tab on own profile when user has feed generators", async ({
+      page,
+    }) => {
+      const currentUserWithFeeds = {
+        ...userProfile,
+        associated: { feedgens: 1 },
+      };
+      const userFeed = createFeedGenerator({
+        uri: `at://${userProfile.did}/app.bsky.feed.generator/myfeed`,
+        displayName: "My Custom Feed",
+        creatorHandle: userProfile.handle,
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(currentUserWithFeeds);
+      mockServer.addActorFeeds(userProfile.did, [userFeed]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show Feeds tab on own profile when user has no feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).not.toBeVisible();
     });
   });
 });
