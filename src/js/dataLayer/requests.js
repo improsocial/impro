@@ -447,6 +447,10 @@ export class Requests {
     if (requestTime !== this.dataStore.getLatestFeedSearchRequestTime()) {
       return;
     }
+    // Store feed generators for faster navigation
+    for (const searchResult of searchResults) {
+      this.dataStore.setFeedGenerator(searchResult.uri, searchResult);
+    }
     this.dataStore.setFeedSearchResults(searchResults);
   }
 
