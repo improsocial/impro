@@ -75,7 +75,7 @@ test.describe("Blocked posts in post thread", () => {
         timeout: 10000,
       });
       await expect(view.locator(".missing-post-indicator")).toContainText(
-        "Post unavailable",
+        "Blocked",
       );
     });
 
