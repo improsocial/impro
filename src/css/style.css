@@ -895,11 +895,15 @@ body.scroll-locked header {
   color: var(--text-color);
 }
 
-.tab-bar .tab-bar-button.active .tab-bar-button-label {
+.tab-bar .tab-bar-button .tab-bar-button-label {
   display: inline-block;
   min-width: 3em;
-  border-bottom: 3px solid var(--tab-bar-button-active-color);
+  border-bottom: 3px solid transparent;
   padding-bottom: 11px;
+}
+
+.tab-bar .tab-bar-button.active .tab-bar-button-label {
+  border-bottom-color: var(--tab-bar-button-active-color);
 }
 
 @media (min-width: 800px) {
