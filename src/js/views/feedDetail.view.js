@@ -81,6 +81,7 @@ class FeedDetailView extends View {
             numNotifications,
             numChatNotifications,
             currentUser,
+            showSidebarOverlay: false,
             activeNavItem: null,
             children: html`${textHeaderTemplate({
                 title: feedName,

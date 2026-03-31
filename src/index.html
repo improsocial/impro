@@ -230,7 +230,11 @@
           return router.go(anchor.href);
         }
         const parsedUrl = new URL(anchor.href);
-        if (IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
+        const currentHostname = window.location.hostname;
+        if (
+          currentHostname === parsedUrl.hostname ||
+          IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
+        ) {
           const relativePath = parsedUrl.pathname;
           // Only intercept in-app links if there's a match in the router
           if (router.hasRoute(relativePath)) {
