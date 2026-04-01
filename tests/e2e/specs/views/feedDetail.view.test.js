@@ -199,6 +199,100 @@ test.describe("Feed Detail view", () => {
     });
   });
 
+  test("should open context menu with feed actions", async ({ page }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    await expect(view.locator(".feed-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".feed-menu-button").click();
+
+    const menu = view.locator("context-menu");
+    await expect(menu.locator("context-menu-item")).toHaveCount(2, {
+      timeout: 5000,
+    });
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Open in bsky.app" }),
+    ).toBeVisible();
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Copy link to feed" }),
+    ).toBeVisible();
+  });
+
+  test("should open bsky.app link when 'Open in bsky.app' is clicked", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    await expect(view.locator(".feed-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    const popupPromise = page.waitForEvent("popup");
+    await view.locator(".feed-menu-button").click();
+    await view
+      .locator("context-menu-item", { hasText: "Open in bsky.app" })
+      .click();
+
+    const popup = await popupPromise;
+    expect(popup.url()).toBe(
+      "https://bsky.app/profile/creator1.bsky.social/feed/trending",
+    );
+  });
+
+  test("should copy feed link when 'Copy link to feed' is clicked", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/feed/trending");
+
+    const view = page.locator("#feed-detail-view");
+    await expect(view.locator(".feed-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".feed-menu-button").click();
+    await view
+      .locator("context-menu-item", { hasText: "Copy link to feed" })
+      .click();
+
+    await expect(page.locator(".toast")).toContainText(
+      "Link copied to clipboard",
+    );
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

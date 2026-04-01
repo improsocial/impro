@@ -75,7 +75,7 @@ test.describe("Blocked posts in post thread", () => {
         timeout: 10000,
       });
       await expect(view.locator(".missing-post-indicator")).toContainText(
-        "Post unavailable",
+        "Blocked",
       );
     });
 
@@ -151,7 +151,7 @@ test.describe("Blocked posts in post thread", () => {
           timeout: 10000,
         });
         await expect(view.locator(".missing-post-indicator")).toContainText(
-          "Post unavailable",
+          "Blocked",
         );
         // The chain is severed at the blocked post so grandparent is not reachable
         await expect(view).not.toContainText("Grandparent post");
@@ -254,7 +254,7 @@ test.describe("Blocked posts in post thread", () => {
         });
         // Blocked post shown as unavailable
         await expect(view.locator(".missing-post-indicator")).toContainText(
-          "Post unavailable",
+          "Blocked",
         );
         // Root is not reachable past the blocked post
         await expect(view).not.toContainText("Root of the conversation");

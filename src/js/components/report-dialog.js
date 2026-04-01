@@ -526,6 +526,7 @@ function submitStepTemplate({
         ?disabled=${isSubmitting}
       >
         ${isSubmitting ? "Submitting..." : "Submit report"}
+        ${isSubmitting ? html`<div class="loading-spinner"></div>` : ""}
       </button>
       ${error ? html`<div class="report-error">${error}</div>` : null}
     </div>
@@ -632,7 +633,7 @@ class ReportDialog extends Component {
     render(
       html`
         <dialog
-          class="report-dialog"
+          class="bottom-sheet report-dialog"
           @click=${(e) => {
             if (e.target.tagName === "DIALOG") {
               this.close();
@@ -793,22 +794,16 @@ class ReportDialog extends Component {
     const dialog = this.querySelector(".report-dialog");
     dialog.showModal();
 
-    this._dragState = enableDragToDismiss(dialog, {
+    enableDragToDismiss(dialog, {
       onClose: () => this.close(),
-      ignoreTouchTarget: (el) => el.tagName === "BUTTON" || el.tagName === "TEXTAREA",
+      ignoreTouchTarget: (el) =>
+        el.tagName === "BUTTON" || el.tagName === "TEXTAREA",
     });
   }
 
   close() {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".report-dialog");
-
-    if (this._dragState) {
-      dialog.style.transform = "";
-      dialog.style.transition = "";
-      this._dragState = null;
-    }
-
     dialog.close();
     this.dispatchEvent(new CustomEvent("report-dialog-closed"));
   }

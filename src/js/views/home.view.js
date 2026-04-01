@@ -331,10 +331,19 @@ class HomeView extends View {
         });
 
       // Ensure current user before loading feed to prevent flash of unfiltered feed
+      let currentUser = null;
       if (isAuthenticated) {
-        await dataLayer.declarative.ensureCurrentUser();
+        currentUser = await dataLayer.declarative.ensureCurrentUser();
         renderPage();
       }
+
+      // If /intent/compose, open the post composer and redirect to root
+      const url = new URL(window.location);
+      if (url.pathname === "/intent/compose" && currentUser) {
+        postComposerService.composePost({ currentUser });
+        window.history.replaceState(null, "", "/");
+      }
+
       await loadCurrentFeed();
     });
 

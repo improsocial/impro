@@ -5,6 +5,7 @@ import {
   createNotification,
   createPost,
   createProfile,
+  createTid,
 } from "../../factories.js";
 
 const alice = createProfile({
@@ -205,6 +206,86 @@ test.describe("Notifications view", () => {
     await expect(item).toContainText("1 other");
     await expect(item).toContainText("followed you");
     await expect(item.locator(".notification-avatar")).toHaveCount(2);
+  });
+
+  test("should display 'followed you back' for a follow-back notification", async ({
+    page,
+  }) => {
+    const yourFollowRkey = createTid("2025-01-10T00:00:00.000Z");
+    const followBackAuthor = createProfile({
+      ...alice,
+      viewer: {
+        ...alice.viewer,
+        following: `at://did:plc:testuser123/app.bsky.graph.follow/${yourFollowRkey}`,
+      },
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: followBackAuthor,
+        indexedAt: "2025-01-15T00:00:00.000Z",
+        record: {
+          $type: "app.bsky.graph.follow",
+          subject: "did:plc:testuser123",
+          createdAt: "2025-01-15T00:00:00.000Z",
+        },
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("followed you back");
+  });
+
+  test("should not group follow-back notifications with regular follows", async ({
+    page,
+  }) => {
+    const yourFollowRkey = createTid("2025-01-10T00:00:00.000Z");
+    const followBackAuthor = createProfile({
+      ...alice,
+      viewer: {
+        ...alice.viewer,
+        following: `at://did:plc:testuser123/app.bsky.graph.follow/${yourFollowRkey}`,
+      },
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: followBackAuthor,
+        indexedAt: "2025-01-15T00:00:00.000Z",
+        record: {
+          $type: "app.bsky.graph.follow",
+          subject: "did:plc:testuser123",
+          createdAt: "2025-01-15T00:00:00.000Z",
+        },
+      }),
+      createNotification({
+        reason: "follow",
+        author: bob,
+        indexedAt: "2025-01-15T00:00:00.000Z",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(2, { timeout: 10000 });
+    await expect(items.nth(0)).toContainText("followed you back");
+    await expect(items.nth(1)).toContainText("followed you");
+    await expect(items.nth(1)).not.toContainText("followed you back");
   });
 
   test("should display a reply notification as a post", async ({ page }) => {

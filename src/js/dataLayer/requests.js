@@ -92,6 +92,7 @@ export class Requests {
     this.enableStatus(this.loadNextAuthorFeedPage, "loadNextAuthorFeedPage");
     this.enableStatus(this.loadProfileSearch, "loadProfileSearch");
     this.enableStatus(this.loadPostSearch, "loadPostSearch");
+    this.enableStatus(this.loadFeedSearch, "loadFeedSearch");
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
       this.loadMentionNotifications,
@@ -381,7 +382,7 @@ export class Requests {
     this.dataStore.setProfile(did, profile);
   }
 
-  async loadProfileSearch(query, { limit = 10 } = {}) {
+  async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
     if (!query) {
       this.dataStore.clearProfileSearchResults();
       return;
@@ -389,18 +390,26 @@ export class Requests {
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
     this.dataStore.setLatestProfileSearchRequestTime(requestTime);
-    const searchResults = await this.api.searchProfiles(query, {
+    const searchData = await this.api.searchProfiles(query, {
       limit,
+      cursor,
       labelers,
     });
-    // Handle race conditions between requests
     if (requestTime !== this.dataStore.getLatestProfileSearchRequestTime()) {
       return;
     }
-    this.dataStore.setProfileSearchResults(searchResults);
+    const existingResults = this.dataStore.getProfileSearchResults();
+    if (existingResults && cursor) {
+      this.dataStore.setProfileSearchResults({
+        actors: [...existingResults.actors, ...searchData.actors],
+        cursor: searchData.cursor,
+      });
+    } else {
+      this.dataStore.setProfileSearchResults(searchData);
+    }
   }
 
-  async loadPostSearch(query, { limit = 25, sort = "top" } = {}) {
+  async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
     if (!query) {
       this.dataStore.clearPostSearchResults();
       return;
@@ -411,6 +420,7 @@ export class Requests {
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
+      cursor,
       labelers,
     });
     if (requestTime !== this.dataStore.getLatestPostSearchRequestTime()) {
@@ -430,7 +440,50 @@ export class Requests {
         await this._loadBlockedPosts(blockedPostUris);
       }
     }
-    this.dataStore.setPostSearchResults(searchResults);
+    const existingResults = this.dataStore.getPostSearchResults();
+    if (existingResults && cursor) {
+      this.dataStore.setPostSearchResults({
+        posts: [...existingResults.posts, ...searchResults],
+        cursor: searchData.cursor,
+      });
+    } else {
+      this.dataStore.setPostSearchResults({
+        posts: searchResults,
+        cursor: searchData.cursor,
+      });
+    }
+  }
+
+  async loadFeedSearch(query, { limit = 15, cursor = "" } = {}) {
+    if (!query) {
+      this.dataStore.clearFeedSearchResults();
+      return;
+    }
+    const requestTime = Date.now();
+    this.dataStore.setLatestFeedSearchRequestTime(requestTime);
+    const searchData = await this.api.searchFeedGenerators(query, {
+      limit,
+      cursor,
+    });
+    if (requestTime !== this.dataStore.getLatestFeedSearchRequestTime()) {
+      return;
+    }
+    const feeds = searchData.feeds || [];
+    for (const feed of feeds) {
+      this.dataStore.setFeedGenerator(feed.uri, feed);
+    }
+    const existingResults = this.dataStore.getFeedSearchResults();
+    if (existingResults && cursor) {
+      this.dataStore.setFeedSearchResults({
+        feeds: [...existingResults.feeds, ...feeds],
+        cursor: searchData.cursor,
+      });
+    } else {
+      this.dataStore.setFeedSearchResults({
+        feeds,
+        cursor: searchData.cursor,
+      });
+    }
   }
 
   async loadNextAuthorFeedPage(
@@ -745,6 +798,32 @@ export class Requests {
       this.dataStore.setFeedGenerator(feedGenerator.uri, feedGenerator);
     }
     this.dataStore.setPinnedFeedGenerators(feedGenerators);
+  }
+
+  async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.getActorFeeds(did);
+    let cursor = existing ? existing.cursor : "";
+    if (reload) {
+      cursor = "";
+    }
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const data = await this.api.getActorFeeds(did, { limit, cursor });
+    for (const feed of data.feeds) {
+      this.dataStore.setFeedGenerator(feed.uri, feed);
+    }
+    if (reload || !existing) {
+      this.dataStore.setActorFeeds(did, {
+        feeds: data.feeds,
+        cursor: data.cursor ?? null,
+      });
+    } else {
+      this.dataStore.setActorFeeds(did, {
+        feeds: [...existing.feeds, ...data.feeds],
+        cursor: data.cursor ?? null,
+      });
+    }
   }
 
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {

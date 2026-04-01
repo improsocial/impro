@@ -6,9 +6,11 @@ import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames, debounce } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { linkToProfile } from "/js/navigation.js";
+import { linkToProfile, linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 
 class SearchView extends View {
@@ -27,6 +29,8 @@ class SearchView extends View {
       activeTab: "profiles",
       searchQuery: "",
     };
+
+    const tabScrollState = new Map();
 
     async function loadSearchResults() {
       const normalizedQuery = state.searchQuery.trim();
@@ -54,6 +58,11 @@ class SearchView extends View {
             limit: 25,
           }),
         );
+        requests.push(
+          dataLayer.requests.loadFeedSearch(normalizedQuery, {
+            limit: 15,
+          }),
+        );
       }
 
       renderPage();
@@ -67,6 +76,36 @@ class SearchView extends View {
       }
     }
 
+    async function loadMoreProfiles() {
+      const cursor = dataLayer.selectors.getProfileSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadProfileSearch(state.searchQuery.trim(), {
+        limit: 25,
+        cursor,
+      });
+      renderPage();
+    }
+
+    async function loadMorePosts() {
+      const cursor = dataLayer.selectors.getPostSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadPostSearch(state.searchQuery.trim(), {
+        limit: 25,
+        cursor,
+      });
+      renderPage();
+    }
+
+    async function loadMoreFeeds() {
+      const cursor = dataLayer.selectors.getFeedSearchCursor();
+      if (!cursor) return;
+      await dataLayer.requests.loadFeedSearch(state.searchQuery.trim(), {
+        limit: 15,
+        cursor,
+      });
+      renderPage();
+    }
+
     const postInteractionHandler = new PostInteractionHandler(
       dataLayer,
       postComposerService,
@@ -75,6 +114,10 @@ class SearchView extends View {
         renderFunc: () => renderPage(),
       },
     );
+
+    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
+      renderFunc: () => renderPage(),
+    });
 
     const handleSearchInput = debounce((value) => {
       state.searchQuery = value;
@@ -87,8 +130,14 @@ class SearchView extends View {
     }
 
     function handleTabChange(tab) {
+      tabScrollState.set(state.activeTab, window.scrollY);
       state.activeTab = tab;
       renderPage();
+      if (tabScrollState.has(tab)) {
+        window.scrollTo(0, tabScrollState.get(tab));
+      } else {
+        window.scrollTo(0, 0);
+      }
     }
 
     function profileResultTemplate({ profile }) {
@@ -99,14 +148,11 @@ class SearchView extends View {
       >
         ${avatarTemplate({ author: profile })}
         <div class="profile-list-item-body">
-          <a
-            class="profile-list-item-name"
-            href="${linkToProfile(profile.handle)}"
-          >
+          <div class="profile-list-item-name">
             <span class="profile-list-item-display-name">
               ${displayName || profile.handle}
             </span>
-          </a>
+          </div>
           <div class="profile-list-item-handle">@${profile.handle}</div>
         </div>
       </div>`;
@@ -115,6 +161,7 @@ class SearchView extends View {
     function postSearchResultsTemplate({
       status,
       postSearchResults,
+      postSearchHasMore,
       currentUser,
     }) {
       if (!postSearchResults && status.loading) {
@@ -129,25 +176,43 @@ class SearchView extends View {
       if (!postSearchResults || postSearchResults.length === 0) {
         return html`<div class="search-status-message">No posts found.</div>`;
       }
-      return html` <div
-        class=${classnames("loading-area", { loading: status.loading })}
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (postSearchHasMore) {
+            await loadMorePosts();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!postSearchHasMore}
       >
-        ${postSearchResults.map(
-          (post) =>
-            html`<div class="feed-item" data-post-uri="${post.uri}">
-              ${smallPostTemplate({
-                post,
-                showReplyToLabel: !!post.record?.reply,
-                replyToAuthor: post.record?.reply?.parentAuthor ?? null,
-                isUserPost: currentUser?.did === post.author?.did,
-                postInteractionHandler,
-              })}
-            </div>`,
-        )}
-      </div>`;
+        <div class=${classnames("loading-area", { loading: status.loading })}>
+          ${postSearchResults.map(
+            (post) =>
+              html`<div class="feed-item" data-post-uri="${post.uri}">
+                ${smallPostTemplate({
+                  post,
+                  showReplyToLabel: !!post.record?.reply,
+                  replyToAuthor: post.record?.reply?.parentAuthor ?? null,
+                  isUserPost: currentUser?.did === post.author?.did,
+                  postInteractionHandler,
+                })}
+              </div>`,
+          )}
+          ${postSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
     }
 
-    function profileSearchResultsTemplate({ status, profileSearchResults }) {
+    function profileSearchResultsTemplate({
+      status,
+      profileSearchResults,
+      profileSearchHasMore,
+    }) {
       if (!profileSearchResults && status.loading) {
         return html`<div class="search-status-message">
           Searching profiles…
@@ -164,15 +229,128 @@ class SearchView extends View {
           No profiles found.
         </div>`;
       }
-      return html`<div
-        class=${classnames("profile-list loading-area", {
-          loading: status.loading,
-        })}
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (profileSearchHasMore) {
+            await loadMoreProfiles();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!profileSearchHasMore}
       >
-        ${profileSearchResults.map((profile) =>
-          profileResultTemplate({ profile }),
-        )}
-      </div>`;
+        <div
+          class=${classnames("profile-list loading-area", {
+            loading: status.loading,
+          })}
+        >
+          ${profileSearchResults.map((profile) =>
+            profileResultTemplate({ profile }),
+          )}
+          ${profileSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
+    }
+
+    function feedSearchResultsTemplate({
+      status,
+      feedSearchResults,
+      feedSearchHasMore,
+      preferences,
+    }) {
+      if (!feedSearchResults && status.loading) {
+        return html`<div class="search-status-message">Searching feeds…</div>`;
+      }
+      if (status.error) {
+        return html`<div class="search-status-message error">
+          Failed to search feeds
+          ${status.error.message ? html`(${status.error.message})` : ""}.
+        </div>`;
+      }
+      if (!feedSearchResults || feedSearchResults.length === 0) {
+        return html`<div class="search-status-message">No feeds found.</div>`;
+      }
+      return html`<infinite-scroll-container
+        lookahead="2500px"
+        @load-more=${async (event) => {
+          if (feedSearchHasMore) {
+            await loadMoreFeeds();
+            event.detail.resume();
+          }
+        }}
+        ?disabled=${!feedSearchHasMore}
+      >
+        <div
+          class=${classnames("feeds-list loading-area", {
+            loading: status.loading,
+          })}
+        >
+          ${feedSearchResults.map((feedGenerator) => {
+            const isPinned = preferences.isFeedPinned(feedGenerator.uri);
+            return html`
+              <div
+                class="feeds-list-item clickable"
+                @click=${() => window.router.go(linkToFeed(feedGenerator))}
+              >
+                <div class="feeds-list-item-avatar">
+                  ${feedGenerator.avatar
+                    ? html`<img
+                        src=${feedGenerator.avatar}
+                        alt=${feedGenerator.displayName}
+                        class="feed-avatar"
+                      />`
+                    : html`<img
+                        src="/img/list-avatar-fallback.svg"
+                        alt=${feedGenerator.displayName}
+                        class="feed-avatar"
+                      />`}
+                </div>
+                <div class="feeds-list-item-content">
+                  <div class="feeds-list-item-title">
+                    ${feedGenerator.displayName}
+                  </div>
+                  ${feedGenerator.creator
+                    ? html`<div class="feeds-list-item-creator">
+                        by @${feedGenerator.creator.handle}
+                      </div>`
+                    : ""}
+                  ${feedGenerator.description
+                    ? // prettier-ignore
+                      html`<div class="feeds-list-item-description">${feedGenerator.description}</div>`
+                    : ""}
+                </div>
+                <div class="feeds-list-item-actions">
+                  <button
+                    class=${classnames("rounded-button pin-feed-button", {
+                      "rounded-button-primary": !isPinned,
+                      pinned: isPinned,
+                    })}
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      feedInteractionHandler.handlePinFeed(
+                        feedGenerator.uri,
+                        !isPinned,
+                      );
+                    }}
+                  >
+                    ${isPinned ? "" : pinIconTemplate({ filled: false })}
+                    ${isPinned ? "Unpin feed" : "Pin feed"}
+                  </button>
+                </div>
+              </div>
+            `;
+          })}
+          ${feedSearchHasMore
+            ? html`<div class="feed-loading-indicator">
+                <div class="loading-spinner"></div>
+              </div>`
+            : ""}
+        </div>
+      </infinite-scroll-container>`;
     }
 
     function renderPage() {
@@ -185,9 +363,16 @@ class SearchView extends View {
       const showResults = normalizedQuery.length > 0;
       const postStatus = dataLayer.requests.getStatus("loadPostSearch");
       const profileStatus = dataLayer.requests.getStatus("loadProfileSearch");
+      const feedStatus = dataLayer.requests.getStatus("loadFeedSearch");
       const postSearchResults = dataLayer.selectors.getPostSearchResults();
       const profileSearchResults =
         dataLayer.selectors.getProfileSearchResults();
+      const feedSearchResults = dataLayer.selectors.getFeedSearchResults();
+      const postSearchHasMore = !!dataLayer.selectors.getPostSearchCursor();
+      const profileSearchHasMore =
+        !!dataLayer.selectors.getProfileSearchCursor();
+      const feedSearchHasMore = !!dataLayer.selectors.getFeedSearchCursor();
+      const preferences = dataLayer.selectors.getPreferences();
 
       render(
         html`<div id="search-view">
@@ -210,7 +395,7 @@ class SearchView extends View {
                     autocapitalize="none"
                     autocomplete="off"
                     placeholder=${isAuthenticated
-                      ? "Search for users and posts"
+                      ? "Search for users, posts, and feeds"
                       : "Search for users"}
                     .value=${state.searchQuery}
                     @input=${(event) => handleSearchInput(event.target.value)}
@@ -230,7 +415,10 @@ class SearchView extends View {
                         tabs: [
                           { value: "profiles", label: "Profiles" },
                           ...(isAuthenticated
-                            ? [{ value: "posts", label: "Posts" }]
+                            ? [
+                                { value: "posts", label: "Posts" },
+                                { value: "feeds", label: "Feeds" },
+                              ]
                             : []),
                         ],
                         activeTab: state.activeTab,
@@ -252,6 +440,7 @@ class SearchView extends View {
                               ${postSearchResultsTemplate({
                                 status: postStatus,
                                 postSearchResults,
+                                postSearchHasMore,
                                 currentUser,
                               })}
                             </div>
@@ -264,6 +453,20 @@ class SearchView extends View {
                               ${profileSearchResultsTemplate({
                                 status: profileStatus,
                                 profileSearchResults,
+                                profileSearchHasMore,
+                              })}
+                            </div>
+                          </div>
+                          <div
+                            class="search-tab-panel"
+                            ?hidden=${state.activeTab !== "feeds"}
+                          >
+                            <div class="search-results-panel">
+                              ${feedSearchResultsTemplate({
+                                status: feedStatus,
+                                feedSearchResults,
+                                feedSearchHasMore,
+                                preferences,
                               })}
                             </div>
                           </div>
@@ -275,7 +478,7 @@ class SearchView extends View {
                         </div>
                         <div class="search-placeholder-text">
                           ${isAuthenticated
-                            ? "Start typing to search for users and posts."
+                            ? "Start typing to search for users, posts, and feeds."
                             : html`Start typing to search for users.<br />Sign
                                 in to search for posts.`}
                         </div>
@@ -308,7 +511,9 @@ class SearchView extends View {
       }
     });
 
-    root.addEventListener("page-restore", () => {
+    root.addEventListener("page-restore", (event) => {
+      const scrollY = event.detail?.scrollY ?? 0;
+      window.scrollTo(0, scrollY);
       renderPage();
     });
 

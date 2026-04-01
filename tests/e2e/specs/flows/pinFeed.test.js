@@ -56,6 +56,96 @@ test.describe("Pin feed flow", () => {
     await expect(tabs.nth(1)).toContainText("Trending");
   });
 
+  test("should show feed in feeds index after pinning from search results", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.addSearchFeedGenerators([feed]);
+    mockServer.setSavedFeeds([feed.uri]);
+    await mockServer.setup(page);
+
+    await login(page);
+
+    // Navigate to search and switch to Feeds tab
+    await page.goto("/search?q=trending&tab=feeds");
+    const view = page.locator("#search-view");
+    await expect(view.locator(".feeds-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    // Pin the feed from search results
+    await view.locator(".pin-feed-button").click();
+    await expect(view.locator(".pin-feed-button.pinned")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Navigate to feeds index — pinned feed should appear
+    await page.goto("/feeds");
+    const feedsView = page.locator("#feeds-view");
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    await expect(feedsView).toContainText("Trending");
+
+    // Navigate to home — pinned feed should appear as a tab
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    const tabs = homeView.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(1)).toContainText("Trending");
+  });
+
+  test("should remove feed from feeds index after unpinning from search results", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.addSearchFeedGenerators([feed]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    await mockServer.setup(page);
+
+    await login(page);
+
+    // Navigate to search and switch to Feeds tab
+    await page.goto("/search?q=trending&tab=feeds");
+    const view = page.locator("#search-view");
+    await expect(view.locator(".pin-feed-button.pinned")).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Unpin the feed from search results
+    await view.locator(".pin-feed-button").click();
+    await expect(view.locator(".pin-feed-button.pinned")).toHaveCount(0);
+
+    // Navigate to feeds index — unpinned feed should be gone
+    await page.goto("/feeds");
+    const feedsView = page.locator("#feeds-view");
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(feedsView).toContainText("Following");
+    await expect(feedsView).not.toContainText("Trending");
+
+    // Navigate to home — unpinned feed should not appear as a tab
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    const tabs = homeView.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(1, { timeout: 10000 });
+    await expect(tabs.nth(0)).toContainText("Following");
+  });
+
   test("should remove feed from feeds index after unpinning from feed detail", async ({
     page,
   }) => {

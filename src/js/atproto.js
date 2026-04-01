@@ -79,6 +79,19 @@ const TID_ALPHABET = "234567abcdefghijklmnopqrstuvwxyz";
 
 let lastTimestamp = 0n;
 
+// Will return null if the rkey is not a TID.
+export function getTimestampFromRkey(rkey) {
+  const noDashes = rkey.replaceAll("-", "");
+  if (noDashes.length !== 13) {
+    return null;
+  }
+  let value = 0;
+  for (const c of noDashes.slice(0, 11)) {
+    value = value * 32 + TID_ALPHABET.indexOf(c);
+  }
+  return value;
+}
+
 export function generateTid() {
   const nowMicroseconds = BigInt(Date.now()) * 1000n;
   const timestamp =

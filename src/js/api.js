@@ -279,6 +279,37 @@ export class Api {
     return res.data.feeds;
   }
 
+  async getActorFeeds(did, { limit = 50, cursor = "" } = {}) {
+    const query = { actor: did, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.feed.getActorFeeds`, {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async searchFeedGenerators(query, { limit = 15, cursor = "" } = {}) {
+    const queryParams = { limit, query };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
+    const res = await this.request(
+      `app.bsky.unspecced.getPopularFeedGenerators`,
+      {
+        query: queryParams,
+        headers: {
+          "atproto-proxy": this.bskyAppViewServiceDid,
+        },
+      },
+    );
+    return res.data;
+  }
+
   async getFollowingFeed({ limit = 31, cursor = "", labelers = [] } = {}) {
     const res = await this.request(`app.bsky.feed.getTimeline`, {
       query: { limit, cursor },
@@ -354,18 +385,19 @@ export class Api {
     return res.data;
   }
 
-  async searchProfiles(query, { limit = 10, labelers = [] } = {}) {
+  async searchProfiles(query, { limit = 10, cursor = "", labelers = [] } = {}) {
+    const queryParams = { q: query, limit };
+    if (cursor) {
+      queryParams.cursor = cursor;
+    }
     const res = await this.request(`app.bsky.actor.searchActors`, {
-      query: {
-        q: query,
-        limit,
-      },
+      query: queryParams,
       headers: {
         "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
-    return res.data.actors;
+    return res.data;
   }
 
   async searchPosts(
@@ -746,6 +778,23 @@ export class Api {
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
+    return res.data;
+  }
+
+  async putActivitySubscription(did, activitySubscription) {
+    const res = await this.request(
+      "app.bsky.notification.putActivitySubscription",
+      {
+        method: "POST",
+        body: {
+          subject: did,
+          activitySubscription,
+        },
+        headers: {
+          "atproto-proxy": this.bskyAppViewServiceDid,
+        },
+      },
+    );
     return res.data;
   }
 

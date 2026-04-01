@@ -7,6 +7,7 @@ import {
   getQuotedPost,
   getBlockedQuote,
   createEmbedFromPost,
+  embedViewRecordToPostView,
   replaceTopParent,
   isLabelerProfile,
   getLabelNameAndDescription,
@@ -227,6 +228,102 @@ t.describe("createEmbedFromPost", (it) => {
       value: {},
       uri: "minimal-uri",
     });
+  });
+});
+
+t.describe("embedViewRecordToPostView", (it) => {
+  it("should convert a ViewRecord to a PostView", () => {
+    const viewRecord = {
+      uri: "at://did:plc:123/app.bsky.feed.post/abc",
+      cid: "cid123",
+      author: { did: "did:plc:123", handle: "test.user" },
+      value: { text: "Hello world", createdAt: "2024-01-01" },
+      embeds: [{ $type: "app.bsky.embed.images#view", images: [] }],
+      labels: [{ val: "test" }],
+      likeCount: 5,
+      replyCount: 2,
+      repostCount: 1,
+      quoteCount: 3,
+      indexedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const result = embedViewRecordToPostView(viewRecord);
+
+    assertEquals(result, {
+      uri: "at://did:plc:123/app.bsky.feed.post/abc",
+      cid: "cid123",
+      author: { did: "did:plc:123", handle: "test.user" },
+      record: { text: "Hello world", createdAt: "2024-01-01" },
+      embed: { $type: "app.bsky.embed.images#view", images: [] },
+      labels: [{ val: "test" }],
+      likeCount: 5,
+      replyCount: 2,
+      repostCount: 1,
+      quoteCount: 3,
+      indexedAt: "2024-01-01T00:00:00Z",
+    });
+  });
+
+  it("should map value to record and embeds[0] to embed", () => {
+    const viewRecord = {
+      uri: "test-uri",
+      cid: "test-cid",
+      author: {},
+      value: { text: "test" },
+      embeds: [{ $type: "embed1" }, { $type: "embed2" }],
+      indexedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const result = embedViewRecordToPostView(viewRecord);
+
+    assertEquals(result.record, viewRecord.value);
+    assertEquals(result.embed, viewRecord.embeds[0]);
+  });
+
+  it("should handle missing embeds", () => {
+    const viewRecord = {
+      uri: "test-uri",
+      cid: "test-cid",
+      author: {},
+      value: { text: "test" },
+      indexedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const result = embedViewRecordToPostView(viewRecord);
+
+    assertEquals(result.embed, undefined);
+  });
+
+  it("should handle empty embeds array", () => {
+    const viewRecord = {
+      uri: "test-uri",
+      cid: "test-cid",
+      author: {},
+      value: { text: "test" },
+      embeds: [],
+      indexedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const result = embedViewRecordToPostView(viewRecord);
+
+    assertEquals(result.embed, undefined);
+  });
+
+  it("should handle missing optional count fields", () => {
+    const viewRecord = {
+      uri: "test-uri",
+      cid: "test-cid",
+      author: {},
+      value: {},
+      indexedAt: "2024-01-01T00:00:00Z",
+    };
+
+    const result = embedViewRecordToPostView(viewRecord);
+
+    assertEquals(result.likeCount, undefined);
+    assertEquals(result.replyCount, undefined);
+    assertEquals(result.repostCount, undefined);
+    assertEquals(result.quoteCount, undefined);
   });
 });
 

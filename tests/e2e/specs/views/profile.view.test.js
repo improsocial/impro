@@ -5,6 +5,7 @@ import { MockServer } from "../../mockServer.js";
 import {
   createPost,
   createProfile,
+  createFeedGenerator,
   createLabelerView,
 } from "../../factories.js";
 
@@ -690,9 +691,12 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = view.locator("context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(2, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(3, {
       timeout: 5000,
     });
+    await expect(
+      menu.locator("context-menu-item", { hasText: "Search posts" }),
+    ).toBeVisible();
     await expect(
       menu.locator("context-menu-item", { hasText: "Mute Account" }),
     ).not.toBeVisible();
@@ -702,6 +706,69 @@ test.describe("Profile view", () => {
     await expect(
       menu.locator("context-menu-item", { hasText: "Report account" }),
     ).not.toBeVisible();
+  });
+
+  test("should navigate to search page when clicking 'Search posts' on another user's profile", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+
+    const menu = view.locator("context-menu");
+    await menu
+      .locator("context-menu-item", { hasText: "Search posts" })
+      .click();
+
+    await expect(page).toHaveURL(
+      /\/search\?q=from%3A%40otheruser\.bsky\.social&tab=posts/,
+      { timeout: 10000 },
+    );
+  });
+
+  test("should navigate to search page when clicking 'Search posts' on own profile", async ({
+    page,
+  }) => {
+    const currentUserProfile = {
+      ...userProfile,
+      followersCount: 10,
+      followsCount: 5,
+      postsCount: 20,
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(currentUserProfile);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${userProfile.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Test User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+
+    const menu = view.locator("context-menu");
+    await menu
+      .locator("context-menu-item", { hasText: "Search posts" })
+      .click();
+
+    await expect(page).toHaveURL(
+      /\/search\?q=from%3A%40testuser\.bsky\.social&tab=posts/,
+      { timeout: 10000 },
+    );
   });
 
   test("should display generic error when profile fails to load", async ({
@@ -803,6 +870,355 @@ test.describe("Profile view", () => {
       view.locator('[data-testid="profile-stats"]'),
     ).not.toBeVisible();
     await expect(view.locator(".profile-description")).not.toBeVisible();
+  });
+
+  test.describe("Post notification subscription", () => {
+    test("should show bell button on other user's profile", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show bell button on own profile", async ({ page }) => {
+      const currentUserProfile = {
+        ...userProfile,
+        followersCount: 10,
+        followsCount: 5,
+        postsCount: 20,
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(currentUserProfile);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+        "Test User",
+        { timeout: 10000 },
+      );
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).not.toBeVisible();
+    });
+
+    test("should not show bell button on blocked-by profile", async ({
+      page,
+    }) => {
+      const blockedByUser = {
+        ...otherUser,
+        viewer: { ...otherUser.viewer, blockedBy: true },
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(blockedByUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${blockedByUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator('[data-testid="blocked-by-badge"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).not.toBeVisible();
+    });
+
+    test("should show outline bell icon when not subscribed", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const bellButton = view.locator(
+        '[data-testid="post-notifications-button"]',
+      );
+      await expect(bellButton).toBeVisible({ timeout: 10000 });
+      await expect(
+        bellButton.locator(".notifications-icon:not(.filled)"),
+      ).toBeVisible();
+    });
+
+    test("should show filled bell icon when subscribed", async ({ page }) => {
+      const subscribedUser = {
+        ...otherUser,
+        viewer: {
+          ...otherUser.viewer,
+          activitySubscription: { post: true, reply: false },
+        },
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(subscribedUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${subscribedUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const bellButton = view.locator(
+        '[data-testid="post-notifications-button"]',
+      );
+      await expect(bellButton).toBeVisible({ timeout: 10000 });
+      await expect(
+        bellButton.locator(".notifications-icon.filled"),
+      ).toBeVisible();
+    });
+
+    test("should open post notifications dialog when bell button is clicked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      const dialog = page.locator(".post-notifications-dialog");
+      await expect(dialog).toBeVisible();
+      await expect(
+        page.locator(".post-notifications-dialog-title"),
+      ).toContainText("Keep me posted");
+      await expect(
+        page.locator(".post-notifications-dialog-subtitle"),
+      ).toContainText("Get notified of this account's activity");
+    });
+
+    test("should show Posts and Replies toggles in dialog", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      await expect(page.locator('[data-testid="toggle-posts"]')).toBeVisible();
+      await expect(
+        page.locator('[data-testid="toggle-replies"]'),
+      ).toBeVisible();
+    });
+
+    test("should have save button disabled when no changes are made", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      await expect(
+        page.locator('[data-testid="save-subscription-button"]'),
+      ).toBeDisabled();
+    });
+
+    test("should enable save button after toggling Posts on", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      await page
+        .locator('[data-testid="toggle-posts"] .toggle-switch-track')
+        .click();
+
+      await expect(
+        page.locator('[data-testid="save-subscription-button"]'),
+      ).toBeEnabled();
+    });
+
+    test("should auto-disable Replies when Posts is toggled off", async ({
+      page,
+    }) => {
+      const subscribedUser = {
+        ...otherUser,
+        viewer: {
+          ...otherUser.viewer,
+          activitySubscription: { post: true, reply: true },
+        },
+      };
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(subscribedUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${subscribedUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      // Both toggles should be checked initially
+      const postsToggle = page.locator('[data-testid="toggle-posts"]');
+      const repliesToggle = page.locator('[data-testid="toggle-replies"]');
+      await expect(postsToggle).toHaveAttribute("checked", "");
+      await expect(repliesToggle).toHaveAttribute("checked", "");
+
+      // Turn off Posts
+      await postsToggle.locator(".toggle-switch-track").click();
+
+      // Both should now be unchecked
+      await expect(postsToggle).not.toHaveAttribute("checked", "");
+      await expect(repliesToggle).not.toHaveAttribute("checked", "");
+    });
+
+    test("should auto-enable Posts when Replies is toggled on", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      // Initially both are off
+      const postsToggle = page.locator('[data-testid="toggle-posts"]');
+      const repliesToggle = page.locator('[data-testid="toggle-replies"]');
+      await expect(postsToggle).not.toHaveAttribute("checked", "");
+      await expect(repliesToggle).not.toHaveAttribute("checked", "");
+
+      // Toggle Replies on — should auto-enable Posts
+      await repliesToggle.locator(".toggle-switch-track").click();
+
+      await expect(postsToggle).toHaveAttribute("checked", "");
+      await expect(repliesToggle).toHaveAttribute("checked", "");
+    });
+
+    test("should close dialog and update bell icon after saving subscription", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      // Toggle Posts on
+      await page
+        .locator('[data-testid="toggle-posts"] .toggle-switch-track')
+        .click();
+
+      // Save
+      await page.locator('[data-testid="save-subscription-button"]').click();
+
+      // Dialog should close
+      await expect(
+        page.locator(".post-notifications-dialog"),
+      ).not.toBeVisible();
+
+      // Bell icon should now be filled
+      const bellButton = view.locator(
+        '[data-testid="post-notifications-button"]',
+      );
+      await expect(
+        bellButton.locator(".notifications-icon.filled"),
+      ).toBeVisible();
+    });
+
+    test("should close dialog when close button is clicked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await view
+        .locator('[data-testid="post-notifications-button"]')
+        .click({ timeout: 10000 });
+
+      await expect(page.locator(".post-notifications-dialog")).toBeVisible();
+
+      await page.locator(".post-notifications-dialog-close").click();
+
+      await expect(
+        page.locator(".post-notifications-dialog"),
+      ).not.toBeVisible();
+    });
+
+    test("should not show bell button when logged out", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+        "Other User",
+        { timeout: 10000 },
+      );
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).not.toBeVisible();
+    });
+  });
+
+  test("should navigate to user profile on /profile", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+
+    await page.goto("/profile");
+
+    const profileView = page.locator("#profile-view");
+    await expect(profileView).toBeVisible({ timeout: 10000 });
+
+    await expect(
+      profileView.locator('[data-testid="profile-name"]'),
+    ).toContainText(userProfile.displayName, { timeout: 10000 });
   });
 
   test.describe("Labeler profiles", () => {
@@ -1283,6 +1699,180 @@ test.describe("Profile view", () => {
       await expect(view.locator(".error-state p")).toContainText(
         "This account has requested that users sign in to view their profile.",
       );
+    });
+  });
+
+  test.describe("Feeds tab", () => {
+    const userWithFeeds = createProfile({
+      did: "did:plc:feedcreator1",
+      handle: "feedcreator.bsky.social",
+      displayName: "Feed Creator",
+      followersCount: 200,
+      followsCount: 50,
+      postsCount: 100,
+      associated: { feedgens: 2 },
+    });
+
+    const feed1 = createFeedGenerator({
+      uri: "at://did:plc:feedcreator1/app.bsky.feed.generator/trending",
+      displayName: "Trending Topics",
+      creatorHandle: "feedcreator.bsky.social",
+    });
+
+    const feed2 = createFeedGenerator({
+      uri: "at://did:plc:feedcreator1/app.bsky.feed.generator/science",
+      displayName: "Science Feed",
+      creatorHandle: "feedcreator.bsky.social",
+    });
+
+    test("should show Feeds tab when profile has feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show Feeds tab when profile has no feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).not.toBeVisible();
+    });
+
+    test("should display feed generators when Feeds tab is clicked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+      await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
+        "Feeds",
+      );
+
+      const feedsList = view.locator(".feeds-list");
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(feedsList).toContainText("Trending Topics");
+      await expect(feedsList).toContainText("Science Feed");
+      await expect(feedsList).toContainText("by @feedcreator.bsky.social");
+    });
+
+    test("should navigate to feed detail when clicking a feed generator", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1]);
+      mockServer.addFeedGenerators([feed1]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+
+      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+
+      const feedsList = view.locator(".feeds-list");
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await feedsList
+        .locator(".feeds-list-item", { hasText: "Trending Topics" })
+        .click();
+
+      await expect(page).toHaveURL(
+        "/profile/feedcreator.bsky.social/feed/trending",
+        { timeout: 10000 },
+      );
+
+      const detailView = page.locator("#feed-detail-view");
+      await expect(
+        detailView.locator('[data-testid="header-title"]'),
+      ).toContainText("Trending Topics", { timeout: 10000 });
+    });
+
+    test("should show Feeds tab on own profile when user has feed generators", async ({
+      page,
+    }) => {
+      const currentUserWithFeeds = {
+        ...userProfile,
+        associated: { feedgens: 1 },
+      };
+      const userFeed = createFeedGenerator({
+        uri: `at://${userProfile.did}/app.bsky.feed.generator/myfeed`,
+        displayName: "My Custom Feed",
+        creatorHandle: userProfile.handle,
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(currentUserWithFeeds);
+      mockServer.addActorFeeds(userProfile.did, [userFeed]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show Feeds tab on own profile when user has no feed generators", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+      ).not.toBeVisible();
     });
   });
 });

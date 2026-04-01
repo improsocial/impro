@@ -87,6 +87,138 @@ t.describe("Post Management", (it) => {
   // Skipping async event test - requires callback support
 });
 
+t.describe("Quoted Post Caching", (it) => {
+  it("should cache quoted posts when setting posts with record embeds", () => {
+    const dataStore = new DataStore();
+    const quotedPostUri = "at://did:plc:456/app.bsky.feed.post/quoted";
+    const post = {
+      uri: "at://did:plc:123/app.bsky.feed.post/main",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewRecord",
+          uri: quotedPostUri,
+          cid: "cid-quoted",
+          author: { did: "did:plc:456", handle: "quoted.user" },
+          value: { text: "I am quoted" },
+          embeds: [],
+          labels: [],
+          likeCount: 10,
+          replyCount: 1,
+          repostCount: 2,
+          quoteCount: 0,
+          indexedAt: "2024-01-01T00:00:00Z",
+        },
+      },
+    };
+
+    dataStore.setPosts([post]);
+
+    assertEquals(dataStore.hasPost(quotedPostUri), true);
+    const cached = dataStore.getPost(quotedPostUri);
+    assertEquals(cached.uri, quotedPostUri);
+    assertEquals(cached.record, post.embed.record.value);
+    assertEquals(cached.author.handle, "quoted.user");
+    assertEquals(cached.likeCount, 10);
+  });
+
+  it("should cache quoted posts from recordWithMedia embeds", () => {
+    const dataStore = new DataStore();
+    const quotedPostUri = "at://did:plc:456/app.bsky.feed.post/quoted";
+    const post = {
+      uri: "at://did:plc:123/app.bsky.feed.post/main",
+      embed: {
+        $type: "app.bsky.embed.recordWithMedia#view",
+        media: { $type: "app.bsky.embed.images#view", images: [] },
+        record: {
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            uri: quotedPostUri,
+            cid: "cid-quoted",
+            author: { did: "did:plc:456" },
+            value: { text: "Quoted with media" },
+            indexedAt: "2024-01-01T00:00:00Z",
+          },
+        },
+      },
+    };
+
+    dataStore.setPosts([post]);
+
+    assertEquals(dataStore.hasPost(quotedPostUri), true);
+    assertEquals(
+      dataStore.getPost(quotedPostUri).record.text,
+      "Quoted with media",
+    );
+  });
+
+  it("should not overwrite an existing post with quoted post data", () => {
+    const dataStore = new DataStore();
+    const quotedPostUri = "at://did:plc:456/app.bsky.feed.post/quoted";
+    const existingPost = {
+      uri: quotedPostUri,
+      author: { did: "did:plc:456" },
+      record: { text: "I am quoted" },
+      viewer: { like: "at://did:plc:123/app.bsky.feed.like/abc" },
+    };
+    dataStore.setPost(quotedPostUri, existingPost);
+
+    const postWithQuote = {
+      uri: "at://did:plc:123/app.bsky.feed.post/main",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewRecord",
+          uri: quotedPostUri,
+          cid: "cid-quoted",
+          author: { did: "did:plc:456" },
+          value: { text: "I am quoted" },
+          indexedAt: "2024-01-01T00:00:00Z",
+        },
+      },
+    };
+
+    dataStore.setPosts([postWithQuote]);
+
+    const cached = dataStore.getPost(quotedPostUri);
+    assertEquals(cached.viewer.like, "at://did:plc:123/app.bsky.feed.like/abc");
+  });
+
+  it("should not cache blocked or non-viewRecord quoted posts", () => {
+    const dataStore = new DataStore();
+    const post = {
+      uri: "at://did:plc:123/app.bsky.feed.post/main",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "at://did:plc:456/app.bsky.feed.post/blocked",
+        },
+      },
+    };
+
+    dataStore.setPosts([post]);
+
+    assertEquals(
+      dataStore.hasPost("at://did:plc:456/app.bsky.feed.post/blocked"),
+      false,
+    );
+  });
+
+  it("should not cache when post has no embed", () => {
+    const dataStore = new DataStore();
+    const post = {
+      uri: "at://did:plc:123/app.bsky.feed.post/main",
+      record: { text: "No embed" },
+    };
+
+    dataStore.setPosts([post]);
+
+    assertEquals(dataStore.hasPost(post.uri), true);
+    assertEquals(dataStore.getAllPosts().length, 1);
+  });
+});
+
 t.describe("PostThread Management", (it) => {
   const postURI = "at://did:test/app.bsky.feed.post/thread";
   const testPostThread = {

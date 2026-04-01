@@ -1,10 +1,9 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { classnames } from "/js/utils.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
-import { linkToFeed } from "/js/navigation.js";
+import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 
 class FeedsView extends View {
   async render({
@@ -47,43 +46,25 @@ class FeedsView extends View {
               <div class="feeds-list-header">Pinned Feeds</div>
               <div class="feeds-list">
                 ${pinnedFeedGenerators
-                  ? pinnedFeedGenerators.map(
-                      (feedGenerator) => html`
-                        <div
-                          class=${classnames("feeds-list-item", {
-                            clickable: feedGenerator.uri !== "following",
-                          })}
-                          @click=${() => {
-                            if (feedGenerator.uri !== "following") {
-                              window.router.go(linkToFeed(feedGenerator));
-                            }
-                          }}
-                        >
-                          <div class="feeds-list-item-avatar">
-                            ${feedGenerator.avatar
-                              ? html`<img
-                                  src=${feedGenerator.avatar}
-                                  alt=${feedGenerator.displayName}
-                                  class="feed-avatar"
-                                />`
-                              : html`<img
+                  ? pinnedFeedGenerators.map((feedGenerator) =>
+                      feedGenerator.uri === "following"
+                        ? html`
+                            <div class="feeds-list-item">
+                              <div class="feeds-list-item-avatar">
+                                <img
                                   src="/img/list-avatar-fallback.svg"
                                   alt=${feedGenerator.displayName}
                                   class="feed-avatar"
-                                />`}
-                          </div>
-                          <div class="feeds-list-item-content">
-                            <div class="feeds-list-item-title">
-                              ${feedGenerator.displayName}
+                                />
+                              </div>
+                              <div class="feeds-list-item-content">
+                                <div class="feeds-list-item-title">
+                                  ${feedGenerator.displayName}
+                                </div>
+                              </div>
                             </div>
-                            ${feedGenerator.creator
-                              ? html`<div class="feeds-list-item-creator">
-                                  by @${feedGenerator.creator.handle}
-                                </div>`
-                              : ""}
-                          </div>
-                        </div>
-                      `,
+                          `
+                        : feedGeneratorListItemTemplate({ feedGenerator }),
                     )
                   : html`<div class="loading-spinner"></div>`}
               </div>

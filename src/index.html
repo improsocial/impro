@@ -159,6 +159,7 @@
 
       const router = new Router();
       router.addRoute("/", () => homeView);
+      router.addRoute("/intent/compose", () => homeView);
       router.addRoute("/login", () => loginView);
       router.addRoute("/notifications", () => notificationsView);
       router.addRoute("/messages/inbox", () => chatRequestsView);
@@ -191,6 +192,7 @@
         () => profileFollowingView,
       );
       router.addRoute("/profile/:handleOrDid", () => profileView);
+      router.addRoute("/profile", () => profileView); // current user profile
       router.addRoute("/settings", () => settingsView);
       router.addRoute("/settings/appearance", () => settingsAppearanceView);
       router.setNotFoundView(() => notFoundView);
@@ -228,7 +230,11 @@
           return router.go(anchor.href);
         }
         const parsedUrl = new URL(anchor.href);
-        if (IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
+        const currentHostname = window.location.hostname;
+        if (
+          currentHostname === parsedUrl.hostname ||
+          IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
+        ) {
           const relativePath = parsedUrl.pathname;
           // Only intercept in-app links if there's a match in the router
           if (router.hasRoute(relativePath)) {

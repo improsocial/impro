@@ -210,7 +210,10 @@ function filterUnauthorizedPosts(feed, isAuthenticated) {
       return false;
     }
     const quotedPost = getQuotedPost(item.post);
-    if (quotedPost?.author && doHideAuthorOnUnauthenticated(quotedPost.author)) {
+    if (
+      quotedPost?.author &&
+      doHideAuthorOnUnauthenticated(quotedPost.author)
+    ) {
       return false;
     }
     return true;
@@ -257,7 +260,12 @@ function filterContentLabeledPosts(feed) {
   };
 }
 
-export function filterFollowingFeed(feed, currentUser, preferences, isAuthenticated) {
+export function filterFollowingFeed(
+  feed,
+  currentUser,
+  preferences,
+  isAuthenticated,
+) {
   const followingFeedPreference = preferences.getFollowingFeedPreference();
   let filteredFeed = filterByFollowing(feed, currentUser);
   if (followingFeedPreference?.hideReposts) {

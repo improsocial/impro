@@ -249,7 +249,11 @@ export function enableDragToDismiss(
 ) {
   if (window.matchMedia("(min-width: 800px)").matches) return null;
 
-  const DISMISS_THRESHOLD = 50;
+  if (target.__dragToDismiss) {
+    target.__dragToDismiss.cleanup();
+  }
+
+  const DISMISS_THRESHOLD = 75;
   const RESISTANCE_FACTOR = 0.6;
 
   const dragState = {
@@ -313,6 +317,18 @@ export function enableDragToDismiss(
     passive: false,
   });
   eventSource.addEventListener("touchend", handleTouchEnd);
+
+  dragState.cleanup = () => {
+    delete target.__dragToDismiss;
+    eventSource.removeEventListener("touchstart", handleTouchStart);
+    eventSource.removeEventListener("touchmove", handleTouchMove);
+    eventSource.removeEventListener("touchend", handleTouchEnd);
+    target.style.transform = "";
+    target.style.transition = "";
+    target.style.height = "";
+  };
+
+  target.__dragToDismiss = dragState;
 
   return dragState;
 }

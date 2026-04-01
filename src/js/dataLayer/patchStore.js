@@ -208,6 +208,14 @@ export class PatchStore {
             blocking: null,
           },
         };
+      case "updatePostNotificationSubscription":
+        return {
+          ...profile,
+          viewer: {
+            ...profile.viewer,
+            activitySubscription: patchBody.activitySubscription,
+          },
+        };
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

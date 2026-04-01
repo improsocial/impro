@@ -135,6 +135,59 @@ t.describe("Preferences.getPinnedFeeds", (it) => {
   });
 });
 
+t.describe("Preferences.isFeedPinned", (it) => {
+  it("should return true for a pinned feed", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [
+          { id: "1", value: "feed1", pinned: true },
+          { id: "2", value: "feed2", pinned: false },
+        ],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+
+    assert(preferences.isFeedPinned("feed1"));
+  });
+
+  it("should return false for an unpinned feed", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [
+          { id: "1", value: "feed1", pinned: true },
+          { id: "2", value: "feed2", pinned: false },
+        ],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+
+    assert(!preferences.isFeedPinned("feed2"));
+  });
+
+  it("should return false for a feed not in preferences", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [{ id: "1", value: "feed1", pinned: true }],
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+
+    assert(!preferences.isFeedPinned("nonexistent"));
+  });
+
+  it("should return false when no saved feeds preference exists", () => {
+    const preferences = new Preferences([], []);
+
+    assert(!preferences.isFeedPinned("feed1"));
+  });
+});
+
 t.describe("Preferences.unpinFeed", (it) => {
   it("should return new preferences with feed unpinned", () => {
     const obj = [

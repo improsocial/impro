@@ -8,8 +8,12 @@ import "/js/components/infinite-scroll-container.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 
 class FeedDetailView extends View {
   async render({
@@ -45,33 +49,9 @@ class FeedDetailView extends View {
       },
     );
 
-    async function handleClickPinFeed(doPin) {
-      if (doPin) {
-        try {
-          const promise = dataLayer.mutations.pinFeed(feedUri);
-          renderPage();
-          await promise;
-          renderPage();
-          showToast("Feed pinned");
-        } catch (error) {
-          console.error(error);
-          showToast("Failed to pin feed", { error: true });
-          renderPage();
-        }
-      } else {
-        try {
-          const promise = dataLayer.mutations.unpinFeed(feedUri);
-          renderPage();
-          await promise;
-          renderPage();
-          showToast("Feed unpinned");
-        } catch (error) {
-          console.error(error);
-          showToast("Failed to unpin feed", { error: true });
-          renderPage();
-        }
-      }
-    }
+    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
+      renderFunc: () => renderPage(),
+    });
 
     async function renderPage() {
       const showLessInteractions =
@@ -89,8 +69,7 @@ class FeedDetailView extends View {
       const feedAuthor = feedGenerator?.creator;
       const feedAuthorHandle = feedAuthor?.handle;
       const preferences = dataLayer.selectors.getPreferences();
-      const pinnedFeeds = preferences.getPinnedFeeds();
-      const isPinned = pinnedFeeds.some((feed) => feed.value === feedUri);
+      const isPinned = preferences.isFeedPinned(feedUri);
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({
@@ -102,17 +81,51 @@ class FeedDetailView extends View {
             numNotifications,
             numChatNotifications,
             currentUser,
+            showSidebarOverlay: false,
             activeNavItem: null,
             children: html`${textHeaderTemplate({
                 title: feedName,
                 subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
                 rightItemTemplate: () => {
+                  const feedLink = `https://bsky.app/profile/${feedAuthorHandle || handleOrDid}/feed/${rkey}`;
                   return html`<button
-                    class=${classnames("pin-feed-button", { pinned: isPinned })}
-                    @click=${() => handleClickPinFeed(!isPinned)}
-                  >
-                    ${pinIconTemplate({ filled: isPinned })}
-                  </button>`;
+                      class="feed-menu-button"
+                      @click=${function (e) {
+                        const contextMenu = this.nextElementSibling;
+                        contextMenu.open(e.clientX, e.clientY);
+                      }}
+                    >
+                      <span>...</span>
+                    </button>
+                    <context-menu>
+                      <context-menu-item
+                        @click=${() => {
+                          window.open(feedLink, "_blank");
+                        }}
+                      >
+                        Open in bsky.app
+                      </context-menu-item>
+                      <context-menu-item
+                        @click=${() => {
+                          navigator.clipboard.writeText(feedLink);
+                          showToast("Link copied to clipboard");
+                        }}
+                      >
+                        Copy link to feed
+                      </context-menu-item>
+                    </context-menu>
+                    <button
+                      class=${classnames("pin-feed-button", {
+                        pinned: isPinned,
+                      })}
+                      @click=${() =>
+                        feedInteractionHandler.handlePinFeed(
+                          feedUri,
+                          !isPinned,
+                        )}
+                    >
+                      ${pinIconTemplate({ filled: isPinned })}
+                    </button>`;
                 },
               })}
               <main>

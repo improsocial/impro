@@ -109,7 +109,7 @@ t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("unavailable"));
+    assert(container.textContent.includes("Blocked"));
   });
 
   it("should render not found post template for not found post", () => {

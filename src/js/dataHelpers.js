@@ -73,6 +73,22 @@ export function isMutedPost(post) {
   return post.author?.viewer?.muted || post.viewer?.hasMutedWord;
 }
 
+export function embedViewRecordToPostView(viewRecord) {
+  return {
+    uri: viewRecord.uri,
+    cid: viewRecord.cid,
+    author: viewRecord.author,
+    record: viewRecord.value,
+    embed: viewRecord.embeds?.[0],
+    labels: viewRecord.labels,
+    likeCount: viewRecord.likeCount,
+    replyCount: viewRecord.replyCount,
+    repostCount: viewRecord.repostCount,
+    quoteCount: viewRecord.quoteCount,
+    indexedAt: viewRecord.indexedAt,
+  };
+}
+
 export function createEmbedFromPost(post) {
   return {
     $type: "app.bsky.embed.record#viewRecord",

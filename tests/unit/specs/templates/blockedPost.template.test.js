@@ -6,13 +6,13 @@ import { render } from "/js/lib/lit-html.js";
 const t = new TestSuite("blockedPostTemplate");
 
 t.describe("blockedPostTemplate", (it) => {
-  it("should display 'Post unavailable' text", () => {
+  it("should display 'Blocked' text", () => {
     const result = blockedPostTemplate();
     const container = document.createElement("div");
     render(result, container);
     const indicator = container.querySelector(".missing-post-indicator");
     assert(indicator !== null);
-    assert(indicator.textContent.includes("Post unavailable"));
+    assert(indicator.textContent.includes("Blocked"));
   });
 });
 

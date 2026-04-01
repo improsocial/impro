@@ -36,7 +36,7 @@ class ContextMenu extends Component {
           }}
         >
           <dialog
-            class="context-menu"
+            class="bottom-sheet context-menu"
             @click=${(e) => {
               // close the dialog if the user clicks outside of it
               if (e.target.tagName === "DIALOG") {
@@ -87,7 +87,7 @@ class ContextMenu extends Component {
     this.render();
 
     // Setup mobile swipe-to-dismiss
-    this._dragState = enableDragToDismiss(dialog, {
+    enableDragToDismiss(this.querySelector(".context-menu"), {
       eventSource: this.querySelector(".context-menu-container"),
       onClose: () => this.close(),
       allowUpwardStretch: true,
@@ -98,20 +98,10 @@ class ContextMenu extends Component {
   close() {
     this.scrollLock.unlock();
     const dialog = this.querySelector(".context-menu");
-
-    // Clean up drag state
-    if (this._dragState) {
-      dialog.style.transform = "";
-      dialog.style.transition = "";
-      dialog.style.height = "";
-      this._dragState = null;
-    }
-
     dialog.close();
     this.isOpen = false;
     this.render();
   }
-
 }
 
 ContextMenu.register();

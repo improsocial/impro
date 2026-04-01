@@ -1,4 +1,5 @@
 import { EventEmitter } from "/js/eventEmitter.js";
+import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.
 export class DataStore extends EventEmitter {
@@ -16,6 +17,8 @@ export class DataStore extends EventEmitter {
     this.latestProfileSearchRequestTime = null;
     this.postSearchResults = null;
     this.latestPostSearchRequestTime = null;
+    this.feedSearchResults = null;
+    this.latestFeedSearchRequestTime = null;
     this.showLessInteractions = [];
     this.showMoreInteractions = [];
     this.notifications = null;
@@ -35,6 +38,7 @@ export class DataStore extends EventEmitter {
     this.postQuotes = new Map();
     this.postReposts = new Map();
     this.feedGenerators = new Map();
+    this.actorFeeds = new Map();
     this.hashtagFeeds = new Map();
     this.pinnedFeedGenerators = null;
     this.bookmarks = null;
@@ -107,6 +111,14 @@ export class DataStore extends EventEmitter {
   setPost(postURI, post) {
     this.posts.set(postURI, post);
     this.emit("setPost", post);
+    // Also store quoted post if it exists
+    const quotedPost = getQuotedPost(post);
+    if (
+      quotedPost?.$type === "app.bsky.embed.record#viewRecord" &&
+      !this.hasPost(quotedPost.uri)
+    ) {
+      this.setPost(quotedPost.uri, embedViewRecordToPostView(quotedPost));
+    }
   }
 
   clearPost(postURI) {
@@ -167,6 +179,10 @@ export class DataStore extends EventEmitter {
     this.profileSearchResults = null;
   }
 
+  getProfileSearchCursor() {
+    return this.profileSearchResults?.cursor ?? null;
+  }
+
   getLatestProfileSearchRequestTime() {
     return this.latestProfileSearchRequestTime;
   }
@@ -191,12 +207,44 @@ export class DataStore extends EventEmitter {
     this.postSearchResults = null;
   }
 
+  getPostSearchCursor() {
+    return this.postSearchResults?.cursor ?? null;
+  }
+
   getLatestPostSearchRequestTime() {
     return this.latestPostSearchRequestTime;
   }
 
   setLatestPostSearchRequestTime(requestTime) {
     this.latestPostSearchRequestTime = requestTime;
+  }
+
+  hasFeedSearchResults() {
+    return this.feedSearchResults !== null;
+  }
+
+  getFeedSearchResults() {
+    return this.feedSearchResults;
+  }
+
+  setFeedSearchResults(feedSearchResults) {
+    this.feedSearchResults = feedSearchResults;
+  }
+
+  clearFeedSearchResults() {
+    this.feedSearchResults = null;
+  }
+
+  getFeedSearchCursor() {
+    return this.feedSearchResults?.cursor ?? null;
+  }
+
+  getLatestFeedSearchRequestTime() {
+    return this.latestFeedSearchRequestTime;
+  }
+
+  setLatestFeedSearchRequestTime(requestTime) {
+    this.latestFeedSearchRequestTime = requestTime;
   }
 
   hasAuthorFeed(feedURI) {
@@ -471,6 +519,22 @@ export class DataStore extends EventEmitter {
 
   clearFeedGenerator(feedUri) {
     this.feedGenerators.delete(feedUri);
+  }
+
+  hasActorFeeds(did) {
+    return this.actorFeeds.has(did);
+  }
+
+  getActorFeeds(did) {
+    return this.actorFeeds.get(did);
+  }
+
+  setActorFeeds(did, actorFeeds) {
+    this.actorFeeds.set(did, actorFeeds);
+  }
+
+  clearActorFeeds(did) {
+    this.actorFeeds.delete(did);
   }
 
   hasHashtagFeed(hashtagKey) {

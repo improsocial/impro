@@ -156,6 +156,10 @@ export class Preferences {
     return savedFeedsPreference.items.filter((item) => item.pinned);
   }
 
+  isFeedPinned(feedUri) {
+    return this.getPinnedFeeds().some((feed) => feed.value === feedUri);
+  }
+
   getLabelerDids() {
     return Preferences.getLabelerDidsFromPreferences(this.obj);
   }

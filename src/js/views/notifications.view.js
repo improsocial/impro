@@ -16,7 +16,9 @@ import {
   getImagesFromPost,
   getVideoFromPost,
   isUnavailablePost,
+  parseUri,
 } from "/js/dataHelpers.js";
+import { getTimestampFromRkey } from "/js/atproto.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
@@ -114,12 +116,29 @@ class NotificationsView extends View {
       "repost-via-repost",
     ];
 
+    // Check if you're following the author of the notification,
+    // and the notification was created after you followed them.
+    function isFollowBackNotification(notification) {
+      if (notification.reason !== "follow") return false;
+      const viewerFollowing = notification.author?.viewer?.following;
+      if (!viewerFollowing) return false;
+      const { rkey: followingRkey } = parseUri(viewerFollowing);
+      const followingTimestamp = getTimestampFromRkey(followingRkey);
+      if (followingTimestamp === null) return false;
+      const followedTimestamp =
+        new Date(notification.record?.createdAt).getTime() * 1000;
+      return followedTimestamp > followingTimestamp;
+    }
+
     function groupNotificationsForBatch(notifications) {
       const notificationGroups = [];
 
       notifications.forEach((notification) => {
-        const type = notification.reason;
+        const reason = notification.reason;
         const subject = notification.reasonSubject;
+
+        const isFollowBackNotif = isFollowBackNotification(notification);
+        const type = isFollowBackNotif ? "follow-back" : reason;
 
         const existingGroup = notificationGroups.find(
           (group) => group.type === type && group.subject === subject,
@@ -207,7 +226,10 @@ class NotificationsView extends View {
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
               ${notificationProfileNamesTemplate({ notificationGroup })}
-              followed you <span class="notification-time">· ${timeAgo}</span>
+              ${notificationGroup.type === "follow-back"
+                ? "followed you back"
+                : "followed you"}
+              <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
         </div>
@@ -357,7 +379,7 @@ class NotificationsView extends View {
 
     function notificationGroupTemplate({ notificationGroup, currentUser }) {
       const { type } = notificationGroup;
-      if (type === "follow") {
+      if (type === "follow" || type === "follow-back") {
         return followNotificationTemplate({ notificationGroup });
       }
       if (type === "like") {

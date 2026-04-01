@@ -59,7 +59,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
 
   // Precache author DIDs when profiles are set in the data store
   dataLayer.dataStore.on("setProfileSearchResults", (profileSearchResults) => {
-    for (const searchResult of profileSearchResults) {
+    for (const searchResult of profileSearchResults.actors) {
       identityResolver.setDidForHandle(searchResult.handle, searchResult.did);
     }
   });

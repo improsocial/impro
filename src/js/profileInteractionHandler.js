@@ -1,12 +1,14 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { noop } from "/js/utils.js";
+import "/js/components/post-notifications-dialog.js";
 
 export class ProfileInteractionHandler {
   constructor(dataLayer, reportService, { renderFunc = noop } = {}) {
     this.dataLayer = dataLayer;
     this.reportService = reportService;
     this.renderFunc = renderFunc;
+    this._postNotificationsDialog = null;
   }
 
   async handleFollow(profile, doFollow, { showSuccessToast = false } = {}) {
@@ -145,6 +147,72 @@ export class ProfileInteractionHandler {
         this.renderFunc();
       }
     }
+  }
+
+  async handlePostNotificationSubscription(profile) {
+    if (this._postNotificationsDialog !== null) {
+      return;
+    }
+    return new Promise((resolve) => {
+      this._postNotificationsDialog = document.createElement(
+        "post-notifications-dialog",
+      );
+      this._postNotificationsDialog.profile = profile;
+      this._postNotificationsDialog.activitySubscription =
+        profile.viewer?.activitySubscription ?? null;
+
+      this._postNotificationsDialog.addEventListener(
+        "save-subscription",
+        async (event) => {
+          const { activitySubscription, successCallback, errorCallback } =
+            event.detail;
+          try {
+            hapticsImpactMedium();
+            const promise =
+              this.dataLayer.mutations.updatePostNotificationSubscription(
+                profile,
+                activitySubscription,
+              );
+            this.renderFunc();
+            await promise;
+            this.renderFunc();
+            const initialSub = profile.viewer?.activitySubscription;
+            const wasSubscribed = initialSub?.post || initialSub?.reply;
+            if (!activitySubscription.post && !activitySubscription.reply) {
+              showToast(
+                `You will no longer receive notifications for @${profile.handle}`,
+              );
+            } else if (!wasSubscribed) {
+              showToast(
+                `You'll start receiving notifications for @${profile.handle}!`,
+              );
+            } else {
+              showToast("Changes saved");
+            }
+            successCallback();
+            resolve();
+          } catch (error) {
+            console.error(error);
+            showToast("Failed to save notification preferences", {
+              error: true,
+            });
+            errorCallback(error.message || "An unexpected error occurred.");
+            this.renderFunc();
+          }
+        },
+      );
+
+      this._postNotificationsDialog.addEventListener("dialog-closed", () => {
+        if (this._postNotificationsDialog) {
+          this._postNotificationsDialog.remove();
+          this._postNotificationsDialog = null;
+        }
+        resolve();
+      });
+
+      document.body.appendChild(this._postNotificationsDialog);
+      this._postNotificationsDialog.open();
+    });
   }
 
   async handleReport(profile) {

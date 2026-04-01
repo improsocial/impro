@@ -495,6 +495,25 @@ export class Mutations {
     }
   }
 
+  async updatePostNotificationSubscription(profile, activitySubscription) {
+    const patchId = this.patchStore.addProfilePatch(profile.did, {
+      type: "updatePostNotificationSubscription",
+      activitySubscription,
+    });
+    try {
+      await this.api.putActivitySubscription(profile.did, activitySubscription);
+      this.dataStore.setProfile(profile.did, {
+        ...profile,
+        viewer: { ...profile.viewer, activitySubscription },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removeProfilePatch(profile.did, patchId);
+    }
+  }
+
   async unblockProfile(profile) {
     const patchId = this.patchStore.addProfilePatch(profile.did, {
       type: "unblockProfile",
