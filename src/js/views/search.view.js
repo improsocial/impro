@@ -394,6 +394,7 @@ class SearchView extends View {
                     type="search"
                     autocapitalize="none"
                     autocomplete="off"
+                    autocorrect="off"
                     placeholder=${isAuthenticated
                       ? "Search for users, posts, and feeds"
                       : "Search for users"}
