@@ -117,6 +117,31 @@ t.describe("getPostThread", (it) => {
     assertEquals(result, null);
   });
 
+  it("should return null when postThreadOther does not exist", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const rawThread = {
+      post: { uri: postURI },
+      replies: [],
+    };
+
+    dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPost(postURI, { uri: postURI });
+
+    const result = selectors.getPostThread(postURI);
+    assertEquals(result, null);
+  });
+
   it("should hydrate and return a simple post thread", () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore();
@@ -138,6 +163,7 @@ t.describe("getPostThread", (it) => {
     const mainPost = { uri: postURI, content: "Main thread post" };
 
     dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, []);
     dataStore.setPost(postURI, mainPost);
 
     const result = selectors.getPostThread(postURI);
@@ -176,6 +202,7 @@ t.describe("getPostThread", (it) => {
     const replyPost = { uri: "reply1", content: "Reply post" };
 
     dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, []);
     dataStore.setPost(postURI, mainPost);
     dataStore.setPost("reply1", replyPost);
 
@@ -215,6 +242,7 @@ t.describe("getPostThread", (it) => {
     const parentPost = { uri: "parent1", content: "Parent post" };
 
     dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, []);
     dataStore.setPost(postURI, mainPost);
     dataStore.setPost("parent1", parentPost);
 
@@ -253,6 +281,7 @@ t.describe("getPostThread", (it) => {
     };
 
     dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, []);
     dataStore.setPost(postURI, mainPost);
     patchStore.addPostPatch(postURI, { type: "addLike" });
 
@@ -260,6 +289,93 @@ t.describe("getPostThread", (it) => {
 
     assertEquals(result.post.likeCount, 6);
     assertEquals(result.post.viewer.like, "fake like");
+  });
+
+  it("should mark replies as isHidden when their URI is in postThreadOther", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const rawThread = {
+      post: { uri: postURI },
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: "reply1" },
+          replies: [],
+        },
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: "reply2" },
+          replies: [],
+        },
+      ],
+    };
+
+    const mainPost = { uri: postURI, content: "Main post" };
+    const replyPost1 = { uri: "reply1", content: "Hidden reply" };
+    const replyPost2 = { uri: "reply2", content: "Normal reply" };
+
+    dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, [{ uri: "reply1" }]);
+    dataStore.setPost(postURI, mainPost);
+    dataStore.setPost("reply1", replyPost1);
+    dataStore.setPost("reply2", replyPost2);
+
+    const result = selectors.getPostThread(postURI);
+
+    assertEquals(result.replies[0].post.isHidden, true);
+    assertEquals(result.replies[1].post.isHidden, undefined);
+  });
+
+  it("should mark nested replies as isHidden when their URI is in postThreadOther", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const rawThread = {
+      post: { uri: postURI },
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: "reply1" },
+          replies: [
+            {
+              $type: "app.bsky.feed.defs#threadViewPost",
+              post: { uri: "nested1" },
+              replies: [],
+            },
+          ],
+        },
+      ],
+    };
+
+    dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, [{ uri: "nested1" }]);
+    dataStore.setPost(postURI, { uri: postURI });
+    dataStore.setPost("reply1", { uri: "reply1" });
+    dataStore.setPost("nested1", { uri: "nested1" });
+
+    const result = selectors.getPostThread(postURI);
+
+    assertEquals(result.replies[0].post.isHidden, undefined);
+    assertEquals(result.replies[0].replies[0].post.isHidden, true);
   });
 
   it("should preserve non-threadViewPost replies unchanged", () => {
@@ -288,6 +404,7 @@ t.describe("getPostThread", (it) => {
     const mainPost = { uri: postURI, content: "Main post" };
 
     dataStore.setPostThread(postURI, rawThread);
+    dataStore.setPostThreadOther(postURI, []);
     dataStore.setPost(postURI, mainPost);
 
     const result = selectors.getPostThread(postURI);

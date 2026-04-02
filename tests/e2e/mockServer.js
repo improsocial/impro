@@ -28,6 +28,7 @@ export class MockServer {
     this.reportPayloads = [];
     this.postQuotes = new Map();
     this.postReposts = new Map();
+    this.postThreadOthers = new Map();
     this.postThreads = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
@@ -127,6 +128,10 @@ export class MockServer {
 
   setPostThread(postUri, thread) {
     this.postThreads.set(postUri, thread);
+  }
+
+  setPostThreadOther(postUri, threadOther) {
+    this.postThreadOthers.set(postUri, threadOther);
   }
 
   addProfileFollowers(did, followers) {
@@ -914,6 +919,20 @@ export class MockServer {
         }),
       });
     });
+
+    await page.route(
+      "**/xrpc/app.bsky.unspecced.getPostThreadOtherV2*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const anchor = url.searchParams.get("anchor");
+        const customThreadOther = this.postThreadOthers.get(anchor);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ thread: customThreadOther || [] }),
+        });
+      },
+    );
 
     await page.route("**/xrpc/app.bsky.graph.getFollowers*", (route) => {
       const url = new URL(route.request().url());

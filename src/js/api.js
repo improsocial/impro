@@ -244,6 +244,16 @@ export class Api {
     return res.data.thread;
   }
 
+  async getPostThreadOther(postUri, { labelers = [] } = {}) {
+    const res = await this.request(`app.bsky.unspecced.getPostThreadOtherV2`, {
+      query: { anchor: postUri },
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+      },
+    });
+    return res.data.thread;
+  }
+
   async getFeed(feedURI, { limit = 31, cursor = "", labelers = [] } = {}) {
     const res = await this.request(`app.bsky.feed.getFeed`, {
       query: {

@@ -390,6 +390,38 @@ t.describe("getPostThread", (it) => {
   });
 });
 
+t.describe("getPostThreadOther", (it) => {
+  it("should fetch post thread other with correct query params", async () => {
+    const session = createMockSession({ thread: [] });
+    const api = new Api(session);
+
+    await api.getPostThreadOther("at://did:plc:author/app.bsky.feed.post/abc");
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.unspecced.getPostThreadOtherV2"));
+    assert(
+      url.includes(
+        "anchor=at%3A%2F%2Fdid%3Aplc%3Aauthor%2Fapp.bsky.feed.post%2Fabc",
+      ),
+    );
+  });
+
+  it("should include labelers header when provided", async () => {
+    const session = createMockSession({ thread: [] });
+    const api = new Api(session);
+
+    await api.getPostThreadOther("at://did:plc:author/app.bsky.feed.post/abc", {
+      labelers: ["did:plc:labeler1", "did:plc:labeler2"],
+    });
+
+    const { options } = session.getLastFetchOptions();
+    assertEquals(
+      options.headers["atproto-accept-labelers"],
+      "did:plc:labeler1,did:plc:labeler2",
+    );
+  });
+});
+
 t.describe("getFeed", (it) => {
   it("should fetch feed with correct query params", async () => {
     const session = createMockSession({ feed: [], cursor: "nextcursor" });

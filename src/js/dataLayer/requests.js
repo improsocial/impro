@@ -131,10 +131,15 @@ export class Requests {
 
   async loadPostThread(postURI, { depth = 6 } = {}) {
     const labelers = this.requireLabelers();
-    let postThread = await this.api.getPostThread(postURI, {
-      labelers,
-      depth,
-    });
+    let [postThread, postThreadOther] = await Promise.all([
+      this.api.getPostThread(postURI, {
+        labelers,
+        depth,
+      }),
+      this.api.getPostThreadOther(postURI, {
+        labelers,
+      }),
+    ]);
     // Save posts
     const postsToSave = this.normalizer.getPostsFromPostThread(postThread);
     this.dataStore.setPosts(postsToSave);
@@ -167,6 +172,7 @@ export class Requests {
     }
     // Save post thread
     this.dataStore.setPostThread(postURI, postThread);
+    this.dataStore.setPostThreadOther(postURI, postThreadOther);
     // Note - this return value is used by loadParentChain
     return postThread;
   }
