@@ -261,6 +261,9 @@ class SettingsMutedWordsView extends View {
                     data-testid="muted-word-input"
                     type="text"
                     name="word"
+                    autocapitalize="none"
+                    autocomplete="off"
+                    autocorrect="off"
                     placeholder="Enter a word or tag"
                     @input=${(e) => {
                       if (state.error) {
