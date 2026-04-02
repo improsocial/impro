@@ -492,7 +492,10 @@ class ProfileView extends View {
     }
 
     async function preloadHiddenFeeds() {
-      for (const feed of defaultAuthorFeeds) {
+      const feedsToPreload = defaultAuthorFeeds.filter(
+        (feed) => feed.feedType !== state.activeTab,
+      );
+      for (const feed of feedsToPreload) {
         await dataLayer.requests.loadNextAuthorFeedPage(
           profileDid,
           feed.feedType,
