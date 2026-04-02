@@ -204,6 +204,311 @@ t.describe("filterAuthorFeed", (it) => {
 
     assertEquals(result.cursor, "author-cursor");
   });
+
+  it("should handle empty feed", () => {
+    const feed = createFeed([]);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 0);
+  });
+
+  it("should pass through regular posts unmodified", () => {
+    const items = [
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 2);
+  });
+
+  it("should filter out blocked posts", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          $type: "app.bsky.feed.defs#blockedPost",
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out not-found posts", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          $type: "app.bsky.feed.defs#notFoundPost",
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out unavailable posts", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          $type: "social.impro.feed.defs#unavailablePost",
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out items with blocked reply parent", () => {
+    const items = [
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
+        reply: {
+          parent: {
+            $type: "app.bsky.feed.defs#blockedPost",
+            uri: "at://blocked",
+          },
+          root: createPost(),
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out items with not-found reply root", () => {
+    const items = [
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
+        reply: {
+          parent: createPost(),
+          root: {
+            $type: "app.bsky.feed.defs#notFoundPost",
+            uri: "at://notfound",
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out posts hidden by viewer", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          viewer: { isHidden: true },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should filter out posts with hidden quoted post", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              uri: "at://did:plc:other/app.bsky.feed.post/quoted",
+              isHidden: true,
+            },
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should keep posts where viewer.isHidden is false", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          viewer: { isHidden: false },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+  });
+
+  it("should filter out posts with content label hide on quoted post", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          embed: {
+            $type: "app.bsky.embed.record#view",
+            record: {
+              uri: "at://did:plc:other/app.bsky.feed.post/quoted",
+              contentLabel: { visibility: "hide" },
+            },
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/2" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/2",
+    );
+  });
+
+  it("should keep posts with content label warn", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/1",
+          contentLabel: { visibility: "warn" },
+        },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, true);
+
+    assertEquals(result.feed.length, 1);
+  });
+
+  it("should apply all filters together", () => {
+    const items = [
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/blocked",
+          $type: "app.bsky.feed.defs#blockedPost",
+        },
+      }),
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/hidden",
+          viewer: { isHidden: true },
+        },
+      }),
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/labeled",
+          contentLabel: { visibility: "hide" },
+        },
+      }),
+      createFeedItem({
+        post: {
+          uri: "at://did:plc:test/app.bsky.feed.post/unauth",
+          author: {
+            did: "did:plc:private",
+            handle: "private.test",
+            labels: [{ val: "!no-unauthenticated" }],
+          },
+        },
+      }),
+      createFeedItem({
+        post: { uri: "at://did:plc:test/app.bsky.feed.post/ok" },
+      }),
+    ];
+    const feed = createFeed(items);
+
+    const result = filterAuthorFeed(feed, false);
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(
+      result.feed[0].post.uri,
+      "at://did:plc:test/app.bsky.feed.post/ok",
+    );
+  });
 });
 
 t.describe("filterFollowingFeed - content label filtering", (it) => {
