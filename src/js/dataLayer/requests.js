@@ -81,7 +81,6 @@ export class Requests {
     this.statusStore = new StatusStore();
 
     this.enableStatus(this.loadCurrentUser, "loadCurrentUser");
-    this.enableStatus(this.loadPreferences, "loadPreferences");
     this.enableStatus(this.loadPostThread, "loadPostThread");
     this.enableStatus(this.loadPost, "loadPost");
     this.enableStatus(
@@ -122,11 +121,6 @@ export class Requests {
     const session = await this.api.getSession();
     const profile = await this.api.getProfile(session.did);
     this.dataStore.setCurrentUser(profile);
-  }
-
-  async loadPreferences() {
-    const preferences = await this.api.getPreferences();
-    this.dataStore.setPreferences(preferences);
   }
 
   async loadPostThread(postURI, { depth = 6 } = {}) {

@@ -6,6 +6,7 @@ const t = new TestSuite("DataLayer");
 
 function createMockApi(options = {}) {
   return {
+    getProfile: async (did) => options.profiles?.[did] ?? null,
     isAuthenticated: options.isAuthenticated ?? false,
     getPreferences: async () => options.preferences ?? [],
     getLabelers: async () => options.labelers ?? [],
@@ -175,15 +176,20 @@ t.describe("component integration", (it) => {
   });
 
   it("should pass selectors and requests to declarative", async () => {
-    const mockApi = createMockApi({ isAuthenticated: false });
+    const mockApi = createMockApi({
+      isAuthenticated: false,
+      profiles: {
+        "did:test:user": { did: "did:test:user", handle: "test.user" },
+      },
+    });
     const dataLayer = new DataLayer(mockApi);
 
     // Initialize preferences first
     await dataLayer.initializePreferences();
 
     // Verify declarative can access selectors
-    const preferences = await dataLayer.declarative.ensurePreferences();
-    assert(preferences !== null);
+    const profile = await dataLayer.declarative.ensureProfile("did:test:user");
+    assert(profile !== null);
   });
 });
 

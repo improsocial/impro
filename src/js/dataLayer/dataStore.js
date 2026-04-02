@@ -6,7 +6,6 @@ export class DataStore extends EventEmitter {
   constructor() {
     super();
     this.currentUser = null;
-    this.preferences = null;
     this.feeds = new Map();
     this.posts = new Map();
     this.reposts = new Map();
@@ -63,22 +62,6 @@ export class DataStore extends EventEmitter {
 
   clearCurrentUser() {
     this.currentUser = null;
-  }
-
-  hasPreferences() {
-    return this.preferences !== null;
-  }
-
-  getPreferences() {
-    return this.preferences;
-  }
-
-  setPreferences(preferences) {
-    this.preferences = preferences;
-  }
-
-  clearPreferences() {
-    this.preferences = null;
   }
 
   hasFeed(feedURI) {
