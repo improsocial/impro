@@ -887,7 +887,8 @@ export class Requests {
       cursor = "";
     }
 
-    const res = await this.api.getBookmarks({ limit, cursor });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getBookmarks({ limit, cursor, labelers });
 
     // Extract posts from bookmarks array: [{item: post, ...}]
     const posts = res.bookmarks.map((bookmark) => bookmark.item);
@@ -899,7 +900,9 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris);
+      const parentPosts = await this.api.getPosts(replyParentUris, {
+        labelers,
+      });
       this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {

@@ -749,7 +749,7 @@ export class Api {
     return res.data;
   }
 
-  async getBookmarks({ limit = 31, cursor } = {}) {
+  async getBookmarks({ limit = 31, cursor, labelers = [] } = {}) {
     const query = { limit };
     if (cursor) {
       query.cursor = cursor;
@@ -757,6 +757,7 @@ export class Api {
     const res = await this.request("app.bsky.bookmark.getBookmarks", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
