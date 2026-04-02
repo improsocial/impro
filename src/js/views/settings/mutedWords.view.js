@@ -225,7 +225,7 @@ class SettingsMutedWordsView extends View {
             >
               ${isRemoving
                 ? html`<div class="loading-spinner"></div>`
-                : "\u00d7"}
+                : html`<span>×</span>`}
             </button>
           </div>
         </div>

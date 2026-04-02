@@ -5479,6 +5479,11 @@ img[data-lightbox] {
   line-height: 1;
 }
 
+.muted-word-delete-button span {
+  position: relative;
+  top: -1px;
+}
+
 .muted-word-empty {
   padding: 12px 16px;
   margin: 0 16px 16px;
