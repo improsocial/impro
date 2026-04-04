@@ -116,11 +116,11 @@ function filterQuotePosts(feed) {
   };
 }
 
-function dedupeFeed(feed) {
+function dedupeFeed(feed, { includeReposts = true } = {}) {
   const rootUris = new Set();
   const dedupedFeedItems = [];
   for (const item of feed.feed) {
-    if (isRepost(item)) {
+    if (isRepost(item) && !includeReposts) {
       dedupedFeedItems.push(item);
       continue;
     }
@@ -315,7 +315,7 @@ export function filterAlgorithmicFeed(feed, isAuthenticated) {
 }
 
 export function filterAuthorFeed(feed, isAuthenticated) {
-  let filteredFeed = dedupeFeed(feed);
+  let filteredFeed = dedupeFeed(feed, { includeReposts: false });
   filteredFeed = filterEmptyPosts(filteredFeed);
   filteredFeed = filterHiddenPosts(filteredFeed);
   filteredFeed = filterContentLabeledPosts(filteredFeed);
