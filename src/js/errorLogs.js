@@ -21,14 +21,14 @@ export function enableErrorLogs() {
     errorLog.style.display = "block";
     const errorDiv = document.createElement("div");
     errorDiv.style.padding = "15px";
-    errorDiv.innerHTML = `${e.message} at <br>${e.filename}:${e.lineno} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
+    errorDiv.innerText = `${e.message} at <br>${e.filename}:${e.lineno} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
     errorLog.appendChild(errorDiv);
   });
   window.addEventListener("unhandledrejection", (e) => {
     errorLog.style.display = "block";
     const rejectDiv = document.createElement("div");
     rejectDiv.style.padding = "15px";
-    rejectDiv.innerHTML = `Promise rejection: ${e.reason} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
+    rejectDiv.innerText = `Promise rejection: ${e.reason} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
     errorLog.appendChild(rejectDiv);
   });
 
@@ -37,7 +37,7 @@ export function enableErrorLogs() {
     errorLog.style.display = "block";
     const errorDiv = document.createElement("div");
     errorDiv.style.padding = "15px";
-    errorDiv.innerHTML = `${args.join(
+    errorDiv.innerText = `${args.join(
       " ",
     )} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
     errorLog.appendChild(errorDiv);

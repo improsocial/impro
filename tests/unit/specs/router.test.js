@@ -94,6 +94,27 @@ t.describe("matchPath (static method)", (it) => {
     const params = Router.matchPath("/john/profile", "/:name/profile");
     assertEquals(params, { name: "john" });
   });
+
+  it("should decode percent-encoded path parameters", () => {
+    const params = Router.matchPath("/hashtag/hello%20world", "/hashtag/:tag");
+    assertEquals(params, { tag: "hello world" });
+  });
+
+  it("should decode encoded slashes in parameters", () => {
+    const params = Router.matchPath(
+      "/profile/alice%2Fevil/post/abc123",
+      "/profile/:handle/post/:rkey",
+    );
+    assertEquals(params, { handle: "alice/evil", rkey: "abc123" });
+  });
+
+  it("should preserve colons in DID parameters", () => {
+    const params = Router.matchPath(
+      "/profile/did:plc:abc123/post/key456",
+      "/profile/:handle/post/:rkey",
+    );
+    assertEquals(params, { handle: "did:plc:abc123", rkey: "key456" });
+  });
 });
 
 t.describe("match", (it) => {

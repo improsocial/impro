@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { classnames, enableDragToDismiss } from "/js/utils.js";
+import { classnames, enableDragToDismiss, sanitizeUri } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
@@ -490,7 +490,7 @@ class PostComposer extends Component {
         // only show image if it can be loaded
         let imageRes = null;
         try {
-          imageRes = await fetch(data.image);
+          imageRes = await fetch(sanitizeUri(data.image));
         } catch (error) {}
         // preview may have been closed while the image was loading
         if (imageRes && imageRes.ok && this._externalLinkEmbedData) {

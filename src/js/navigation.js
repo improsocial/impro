@@ -1,7 +1,11 @@
 import { getRKey, parseUri } from "/js/dataHelpers.js";
 
+function encodePathSegment(segment) {
+  return encodeURIComponent(segment).replace(/%3A/g, ":").replace(/%40/g, "@");
+}
+
 export function linkToHashtag(hashtag) {
-  return `/hashtag/${hashtag}`;
+  return `/hashtag/${encodePathSegment(hashtag)}`;
 }
 
 export function linkToProfile(identifierOrProfile) {
@@ -9,7 +13,7 @@ export function linkToProfile(identifierOrProfile) {
   if (typeof identifierOrProfile === "object") {
     handle = identifierOrProfile.handle;
   }
-  return `/profile/${handle}`;
+  return `/profile/${encodePathSegment(handle)}`;
 }
 
 export function linkToLabeler(labeler) {
@@ -17,24 +21,24 @@ export function linkToLabeler(labeler) {
 }
 
 export function linkToPost(post) {
-  return `/profile/${post.author.handle}/post/${getRKey(post)}`;
+  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}`;
 }
 
 export function linkToPostFromUri(postUri) {
   const { repo, rkey } = parseUri(postUri);
-  return `/profile/${repo}/post/${rkey}`;
+  return `/profile/${encodePathSegment(repo)}/post/${encodePathSegment(rkey)}`;
 }
 
 export function linkToPostLikes(post) {
-  return `/profile/${post.author.handle}/post/${getRKey(post)}/likes`;
+  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/likes`;
 }
 
 export function linkToPostQuotes(post) {
-  return `/profile/${post.author.handle}/post/${getRKey(post)}/quotes`;
+  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/quotes`;
 }
 
 export function linkToPostReposts(post) {
-  return `/profile/${post.author.handle}/post/${getRKey(post)}/reposts`;
+  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/reposts`;
 }
 
 export function linkToProfileFollowers(handleOrProfile) {
@@ -42,7 +46,7 @@ export function linkToProfileFollowers(handleOrProfile) {
   if (typeof handleOrProfile === "object") {
     handle = handleOrProfile.handle;
   }
-  return `/profile/${handle}/followers`;
+  return `/profile/${encodePathSegment(handle)}/followers`;
 }
 
 export function linkToProfileFollowing(handleOrProfile) {
@@ -50,12 +54,12 @@ export function linkToProfileFollowing(handleOrProfile) {
   if (typeof handleOrProfile === "object") {
     handle = handleOrProfile.handle;
   }
-  return `/profile/${handle}/following`;
+  return `/profile/${encodePathSegment(handle)}/following`;
 }
 
 export function linkToFeed(feedGenerator) {
-  return `/profile/${feedGenerator.creator.handle}/feed/${getRKey(
-    feedGenerator,
+  return `/profile/${encodePathSegment(feedGenerator.creator.handle)}/feed/${encodePathSegment(
+    getRKey(feedGenerator),
   )}`;
 }
 

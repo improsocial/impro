@@ -47,7 +47,7 @@ export class Router extends EventEmitter {
     const params = {};
     for (let i = 0; i < routeParts.length; i++) {
       if (routeParts[i].startsWith(":")) {
-        params[routeParts[i].slice(1)] = pathParts[i];
+        params[routeParts[i].slice(1)] = decodeURIComponent(pathParts[i]);
       } else {
         if (pathParts[i] !== routeParts[i]) {
           return null;
