@@ -55,6 +55,44 @@ t.describe("profileListItemTemplate", (it) => {
   });
 });
 
+t.describe("profileListItemTemplate - verification badge", (it) => {
+  it("should render verification badge for verified actor", () => {
+    const verifiedActor = {
+      ...mockActor,
+      verification: { verifiedStatus: "valid", trustedVerifierStatus: "none" },
+    };
+    const result = profileListItemTemplate({ actor: verifiedActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(".verification-badge");
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Verified");
+  });
+
+  it("should not render verification badge for non-verified actor", () => {
+    const result = profileListItemTemplate({ actor: mockActor });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".verification-badge"), null);
+  });
+
+  it("should render verifier badge for trusted verifier actor", () => {
+    const verifierActor = {
+      ...mockActor,
+      verification: {
+        verifiedStatus: "none",
+        trustedVerifierStatus: "valid",
+      },
+    };
+    const result = profileListItemTemplate({ actor: verifierActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(".verification-badge");
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+  });
+});
+
 t.describe("profileListItemTemplate - no display name", (it) => {
   it("should use handle as display name when displayName is missing", () => {
     const actorWithoutDisplayName = {

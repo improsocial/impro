@@ -13,6 +13,7 @@ import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon
 import { formatLargeNumber, classnames, noop, sortBy } from "/js/utils.js";
 import { showSignInModal } from "/js/modals.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -286,7 +287,7 @@ export function profileCardTemplate({
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">
-          ${getDisplayName(profile)}
+          ${getDisplayName(profile)}${verificationBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
           ${profile.viewer?.followedBy && !isBlocking && !isBlockedBy

@@ -118,6 +118,51 @@ t.describe("postHeaderTextTemplate", (it) => {
     );
     assertEquals(nameElement.tagName.toLowerCase(), "span");
   });
+
+  it("should render verification badge for verified author", () => {
+    const verifiedAuthor = {
+      ...post.author,
+      verification: { verifiedStatus: "valid", trustedVerifierStatus: "none" },
+    };
+    const result = postHeaderTextTemplate({
+      author: verifiedAuthor,
+      timestamp: post.indexedAt,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(".verification-badge");
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Verified");
+  });
+
+  it("should not render verification badge for non-verified author", () => {
+    const result = postHeaderTextTemplate({
+      author: post.author,
+      timestamp: post.indexedAt,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".verification-badge"), null);
+  });
+
+  it("should render verifier badge for trusted verifier author", () => {
+    const verifierAuthor = {
+      ...post.author,
+      verification: {
+        verifiedStatus: "none",
+        trustedVerifierStatus: "valid",
+      },
+    };
+    const result = postHeaderTextTemplate({
+      author: verifierAuthor,
+      timestamp: post.indexedAt,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(".verification-badge");
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+  });
 });
 
 await t.run();

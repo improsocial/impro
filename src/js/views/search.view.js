@@ -12,6 +12,7 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 
 class SearchView extends View {
   async render({
@@ -150,7 +151,9 @@ class SearchView extends View {
         <div class="profile-list-item-body">
           <div class="profile-list-item-name">
             <span class="profile-list-item-display-name">
-              ${displayName || profile.handle}
+              ${displayName || profile.handle}${verificationBadgeTemplate({
+                profile,
+              })}
             </span>
           </div>
           <div class="profile-list-item-handle">@${profile.handle}</div>

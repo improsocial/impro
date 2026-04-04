@@ -3605,6 +3605,36 @@ emoji-picker {
   line-height: 1.2;
 }
 
+.verification-badge {
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+  margin-left: 1px;
+  margin-bottom: -1px;
+  flex-shrink: 0;
+  color: var(--highlight-color);
+}
+
+.verification-badge svg {
+  width: 12px;
+  height: 12px;
+}
+
+.profile-info .verification-badge {
+  margin-left: 6px;
+  margin-bottom: 2px;
+}
+
+.profile-list-item .verification-badge {
+  margin-left: 4px;
+  margin-bottom: 1px;
+}
+
+.profile-name .verification-badge svg {
+  width: 18px;
+  height: 18px;
+}
+
 .profile-handle {
   color: var(--text-color-muted);
   font-size: 15px;

@@ -1,6 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { displayRelativeTime } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 
 export function postHeaderTextTemplate({
   author,
@@ -19,7 +20,7 @@ export function postHeaderTextTemplate({
         >`
       : html`<span class="post-name" data-testid="post-author-name"
           >${author.displayName || author.handle}</span
-        >`}
+        >`}${verificationBadgeTemplate({ profile: author })}
     ${includeHandle
       ? html`<span class="post-username" data-testid="post-author-handle"
           >@${author.handle}</span
