@@ -20,13 +20,27 @@ function avatarWrapperTemplate({ author, clickAction, children }) {
   }
 }
 
-function getAvatarUrl(author, isLabeler) {
-  if (author.avatar) {
-    return avatarThumbnailUrl(author.avatar);
-  } else if (isLabeler) {
+function getAvatarFallbackUrl(isLabeler) {
+  if (isLabeler) {
     return "/img/labeler-avatar-fallback.svg";
   } else {
     return "/img/avatar-fallback.svg";
+  }
+}
+
+function getAvataThumbnailUrl(author, isLabeler) {
+  if (author.avatar) {
+    return avatarThumbnailUrl(author.avatar);
+  } else {
+    return getAvatarFallbackUrl(isLabeler);
+  }
+}
+
+function getAvatarFullSizeUrl(author, isLabeler) {
+  if (author.avatar) {
+    return author.avatar;
+  } else {
+    return getAvatarFallbackUrl(isLabeler);
   }
 }
 
@@ -37,7 +51,8 @@ export function avatarTemplate({
   // lazyLoad = true,
 }) {
   const isLabeler = isLabelerProfile(author);
-  const avatarUrl = getAvatarUrl(author, isLabeler);
+  const avatarThumbnailUrl = getAvataThumbnailUrl(author, isLabeler);
+  const avatarFullSizeUrl = getAvatarFullSizeUrl(author, isLabeler);
   return html`<div class="avatar" data-testid="avatar">
     ${avatarWrapperTemplate({
       author,
@@ -45,10 +60,11 @@ export function avatarTemplate({
       children: keyed(
         author.handle,
         html`<img
-          src="${avatarUrl}"
+          src="${avatarThumbnailUrl}"
           alt="${author.displayName} profile picture"
           class=${classnames("avatar-image", { "labeler-avatar": isLabeler })}
           data-testid="avatar-image"
+          data-lightbox-src="${avatarFullSizeUrl}"
           loading=${lazyLoad ? "lazy" : "eager"}
         />`,
       ),
