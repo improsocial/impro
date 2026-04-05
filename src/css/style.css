@@ -2114,6 +2114,7 @@ like-button {
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--video-border-radius);
   overflow: hidden;
+  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
 .alt-indicator {
