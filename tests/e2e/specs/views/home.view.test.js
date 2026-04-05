@@ -511,6 +511,42 @@ test.describe("Home view", () => {
       await expect(view).toContainText("This post should be visible");
       await expect(view).not.toContainText("This post should be hidden");
     });
+
+    test("should show sign-in modal when clicking a post action button", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const discoverFeed = createFeedGenerator({
+        uri: discoverFeedUri,
+        displayName: "Discover",
+        creatorHandle: "bsky.app",
+      });
+      const post = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "A post to interact with",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addFeedGenerators([discoverFeed]);
+      mockServer.addFeedItems(discoverFeedUri, [post]);
+      await mockServer.setup(page);
+
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      await expect(view).toContainText("A post to interact with", {
+        timeout: 10000,
+      });
+
+      const replyButton = view.locator('[data-testid="reply-button"]').first();
+      await replyButton.click();
+
+      const modal = page.locator("dialog.modal-dialog");
+      await expect(modal).toBeVisible();
+      await expect(modal).toContainText("Sign in");
+      await expect(modal).toContainText("Sign in to join the conversation!");
+      await expect(modal.locator("a")).toHaveAttribute("href", "/login");
+    });
   });
 
   test.describe("Content moderation labels", () => {
