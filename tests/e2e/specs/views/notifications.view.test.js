@@ -1117,4 +1117,381 @@ test.describe("Notifications view", () => {
       await expect(view).toContainText("A mention post");
     });
   });
+
+  test("should display a feedgen-like notification", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "feedgen-like",
+        author: alice,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.feed.generator/myfeed1",
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("liked your custom feed");
+  });
+
+  test("should group multiple feedgen-like notifications", async ({ page }) => {
+    const feedUri = "at://did:plc:testuser123/app.bsky.feed.generator/myfeed1";
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "feedgen-like",
+        author: alice,
+        reasonSubject: feedUri,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "feedgen-like",
+        author: bob,
+        reasonSubject: feedUri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("1 other");
+    await expect(item).toContainText("liked your custom feed");
+    await expect(item.locator(".notification-avatar")).toHaveCount(2);
+  });
+
+  test("should navigate to feed when clicking feedgen-like notification", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "feedgen-like",
+        author: alice,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.feed.generator/myfeed1",
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/did:plc:testuser123\/feed\/myfeed1/,
+    );
+  });
+
+  test("should display a starterpack-joined notification", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "starterpack-joined",
+        author: bob,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.graph.starterpack/mypack1",
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Bob");
+    await expect(item).toContainText("signed up with your starter pack");
+  });
+
+  test("should group multiple starterpack-joined notifications", async ({
+    page,
+  }) => {
+    const packUri =
+      "at://did:plc:testuser123/app.bsky.graph.starterpack/mypack1";
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "starterpack-joined",
+        author: alice,
+        reasonSubject: packUri,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "starterpack-joined",
+        author: bob,
+        reasonSubject: packUri,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "starterpack-joined",
+        author: charlie,
+        reasonSubject: packUri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("2 others");
+    await expect(item).toContainText("signed up with your starter pack");
+    await expect(item.locator(".notification-avatar")).toHaveCount(3);
+  });
+
+  test("should navigate to starter pack when clicking starterpack-joined notification", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "starterpack-joined",
+        author: bob,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.graph.starterpack/mypack1",
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.click();
+
+    await expect(page).toHaveURL(
+      /\/profile\/did:plc:testuser123\/starter-pack\/mypack1/,
+    );
+  });
+
+  test("should display a verified notification", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "verified",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("verified you");
+  });
+
+  test("should group multiple verified notifications", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "verified",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "verified",
+        author: bob,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("1 other");
+    await expect(item).toContainText("verified you");
+    await expect(item.locator(".notification-avatar")).toHaveCount(2);
+  });
+
+  test("should display an unverified notification", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "unverified",
+        author: bob,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Bob");
+    await expect(item).toContainText("removed their verification from your");
+  });
+
+  test("should display plural 'verifications' for grouped unverified notifications", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "unverified",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+      createNotification({
+        reason: "unverified",
+        author: bob,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Alice");
+    await expect(item).toContainText("1 other");
+    await expect(item).toContainText(
+      "removed their verifications from your account",
+    );
+  });
+
+  test("should display a contact-match notification", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(charlie);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "contact-match",
+        author: charlie,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item).toContainText("Your contact");
+    await expect(item).toContainText("Charlie");
+    await expect(item).toContainText("is on Bluesky");
+  });
+
+  test("should navigate to profile when clicking contact-match notification", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(charlie);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "contact-match",
+        author: charlie,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await item.click();
+
+    await expect(page).toHaveURL(/\/profile\/charlie\.bsky\.social/);
+    await expect(page.locator("#profile-view")).toBeVisible({
+      timeout: 10000,
+    });
+  });
+
+  test("should display all new notification types together", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "feedgen-like",
+        author: alice,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.feed.generator/myfeed1",
+        indexedAt: "2025-01-15T15:00:00.000Z",
+      }),
+      createNotification({
+        reason: "starterpack-joined",
+        author: bob,
+        reasonSubject:
+          "at://did:plc:testuser123/app.bsky.graph.starterpack/mypack1",
+        indexedAt: "2025-01-15T14:00:00.000Z",
+      }),
+      createNotification({
+        reason: "verified",
+        author: charlie,
+        indexedAt: "2025-01-15T13:00:00.000Z",
+      }),
+      createNotification({
+        reason: "unverified",
+        author: alice,
+        indexedAt: "2025-01-15T12:00:00.000Z",
+      }),
+      createNotification({
+        reason: "contact-match",
+        author: bob,
+        indexedAt: "2025-01-15T11:00:00.000Z",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+    await expect(items).toHaveCount(5, { timeout: 10000 });
+    await expect(items.nth(0)).toContainText("liked your custom feed");
+    await expect(items.nth(1)).toContainText(
+      "signed up with your starter pack",
+    );
+    await expect(items.nth(2)).toContainText("verified you");
+    await expect(items.nth(3)).toContainText("removed their verification");
+    await expect(items.nth(4)).toContainText("is on Bluesky");
+  });
 });

@@ -20,6 +20,8 @@ import {
 } from "/js/dataHelpers.js";
 import { getTimestampFromRkey } from "/js/atproto.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
+import { verifiedCheckIconTemplate } from "/js/templates/icons/verifiedCheckIcon.template.js";
+import { contactsIconTemplate } from "/js/templates/icons/contactsIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
@@ -114,6 +116,10 @@ class NotificationsView extends View {
       "repost",
       "like-via-repost",
       "repost-via-repost",
+      "feedgen-like",
+      "starterpack-joined",
+      "verified",
+      "unverified",
     ];
 
     // Check if you're following the author of the notification,
@@ -405,6 +411,156 @@ class NotificationsView extends View {
       `;
     }
 
+    function feedgenLikeNotificationTemplate({ notificationGroup }) {
+      const { notifications } = notificationGroup;
+      const firstNotif = notifications[0];
+      const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+      const isUnread = !firstNotif.isRead;
+      const subjectUri = notificationGroup.subject;
+      const { repo, rkey } = subjectUri ? parseUri(subjectUri) : {};
+      const subjectLink = repo && rkey ? `/profile/${repo}/feed/${rkey}` : null;
+
+      return html`
+        <div
+          @click=${(e) => {
+            if (e.target.closest("a") || !subjectLink) return;
+            window.router.go(subjectLink);
+          }}
+          class="notification-item ${subjectLink
+            ? "notification-item-clickable"
+            : ""} ${isUnread ? "unread" : ""}"
+        >
+          <div class="notification-icon">${heartIconTemplate()}</div>
+          <div class="notification-content">
+            ${notificationAvatarsTemplate({ notifications })}
+            <div class="notification-text">
+              ${notificationProfileNamesTemplate({ notificationGroup })} liked
+              your custom feed
+              <span class="notification-time">· ${timeAgo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function starterpackJoinedNotificationTemplate({ notificationGroup }) {
+      const { notifications } = notificationGroup;
+      const firstNotif = notifications[0];
+      const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+      const isUnread = !firstNotif.isRead;
+      const subjectUri = notificationGroup.subject;
+      const { repo, rkey } = subjectUri ? parseUri(subjectUri) : {};
+      const subjectLink =
+        repo && rkey ? `/profile/${repo}/starter-pack/${rkey}` : null;
+
+      return html`
+        <div
+          @click=${(e) => {
+            if (e.target.closest("a") || !subjectLink) return;
+            window.router.go(subjectLink);
+          }}
+          class="notification-item ${subjectLink
+            ? "notification-item-clickable"
+            : ""} ${isUnread ? "unread" : ""}"
+        >
+          <div class="notification-icon">
+            ${userIconTemplate({ filled: true })}
+          </div>
+          <div class="notification-content">
+            ${notificationAvatarsTemplate({ notifications })}
+            <div class="notification-text">
+              ${notificationProfileNamesTemplate({ notificationGroup })} signed
+              up with your starter pack
+              <span class="notification-time">· ${timeAgo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function verifiedNotificationTemplate({ notificationGroup }) {
+      const { notifications } = notificationGroup;
+      const firstNotif = notifications[0];
+      const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+      const isUnread = !firstNotif.isRead;
+
+      return html`
+        <div class="notification-item ${isUnread ? "unread" : ""}">
+          <div class="notification-icon verified-icon">
+            ${verifiedCheckIconTemplate()}
+          </div>
+          <div class="notification-content">
+            ${notificationAvatarsTemplate({ notifications })}
+            <div class="notification-text">
+              ${notificationProfileNamesTemplate({ notificationGroup })}
+              verified you
+              <span class="notification-time">· ${timeAgo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function unverifiedNotificationTemplate({ notificationGroup }) {
+      const { notifications } = notificationGroup;
+      const firstNotif = notifications[0];
+      const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+      const isUnread = !firstNotif.isRead;
+      const otherCount = notifications.length - 1;
+
+      return html`
+        <div class="notification-item ${isUnread ? "unread" : ""}">
+          <div class="notification-icon unverified-icon">
+            ${verifiedCheckIconTemplate()}
+          </div>
+          <div class="notification-content">
+            ${notificationAvatarsTemplate({ notifications })}
+            <div class="notification-text">
+              ${notificationProfileNamesTemplate({ notificationGroup })} removed
+              their ${otherCount > 0 ? "verifications" : "verification"} from
+              your account
+              <span class="notification-time">· ${timeAgo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function contactMatchNotificationTemplate({ notificationGroup }) {
+      const { notifications } = notificationGroup;
+      const firstNotif = notifications[0];
+      const timeAgo = displayRelativeTime(firstNotif.indexedAt);
+      const isUnread = !firstNotif.isRead;
+      const displayName =
+        firstNotif.author.displayName || firstNotif.author.handle;
+      const profileLink = linkToProfile(firstNotif.author);
+
+      return html`
+        <div
+          @click=${(e) => {
+            if (e.target.closest("a")) return;
+            window.router.go(profileLink);
+          }}
+          class="notification-item notification-item-clickable ${isUnread
+            ? "unread"
+            : ""}"
+        >
+          <div class="notification-icon">${contactsIconTemplate()}</div>
+          <div class="notification-content">
+            ${notificationAvatarsTemplate({ notifications })}
+            <div class="notification-text">
+              Your contact
+              <a class="notification-profile-link" href="${profileLink}"
+                >${displayName}</a
+              >
+              is on Bluesky
+              <span class="notification-time">· ${timeAgo}</span>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
     function notificationGroupTemplate({ notificationGroup, currentUser }) {
       const { type } = notificationGroup;
       if (type === "follow" || type === "follow-back") {
@@ -433,6 +589,21 @@ class NotificationsView extends View {
       }
       if (type === "subscribed-post") {
         return subscribedPostNotificationTemplate({ notificationGroup });
+      }
+      if (type === "feedgen-like") {
+        return feedgenLikeNotificationTemplate({ notificationGroup });
+      }
+      if (type === "starterpack-joined") {
+        return starterpackJoinedNotificationTemplate({ notificationGroup });
+      }
+      if (type === "verified") {
+        return verifiedNotificationTemplate({ notificationGroup });
+      }
+      if (type === "unverified") {
+        return unverifiedNotificationTemplate({ notificationGroup });
+      }
+      if (type === "contact-match") {
+        return contactMatchNotificationTemplate({ notificationGroup });
       }
       return html`<div class="notification-item">
         Unknown notification type: ${type}

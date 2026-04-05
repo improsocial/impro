@@ -2701,6 +2701,18 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   fill: none;
 }
 
+.notification-icon.verified-icon svg {
+  color: var(--highlight-color);
+}
+
+.notification-icon.unverified-icon svg {
+  color: var(--text-color-muted);
+}
+
+.notification-icon .contacts-icon {
+  color: var(--highlight-color);
+}
+
 .notification-content {
   flex: 1;
   min-width: 0;
