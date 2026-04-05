@@ -1545,7 +1545,8 @@ body.scroll-locked header {
 
 .post-name {
   display: inline-block;
-  max-width: 100%;
+  flex-shrink: 0;
+  max-width: 70%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1554,6 +1555,7 @@ body.scroll-locked header {
 }
 
 .post-username {
+  flex-shrink: 10;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
