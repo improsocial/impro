@@ -1,3 +1,5 @@
+import { html, render } from "/js/lib/lit-html.js";
+
 export function enableErrorLogs() {
   const errorLog = document.createElement("div");
   errorLog.id = "error-log";
@@ -17,30 +19,35 @@ export function enableErrorLogs() {
 `;
   document.body.appendChild(errorLog);
 
-  window.addEventListener("error", (e) => {
+  const entryStyle = "padding:15px;";
+  const buttonStyle =
+    "color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;";
+
+  function showMessage(message) {
     errorLog.style.display = "block";
-    const errorDiv = document.createElement("div");
-    errorDiv.style.padding = "15px";
-    errorDiv.innerText = `${e.message} at <br>${e.filename}:${e.lineno} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
-    errorLog.appendChild(errorDiv);
+    const entry = document.createElement("div");
+    errorLog.appendChild(entry);
+    render(
+      html`
+        <div style=${entryStyle}>
+          ${message}
+          <button style=${buttonStyle} @click=${() => entry.remove()}>✕</button>
+        </div>
+      `,
+      entry,
+    );
+  }
+
+  window.addEventListener("error", (event) => {
+    showMessage(`${event.message} at ${event.filename}:${event.lineno}`);
   });
-  window.addEventListener("unhandledrejection", (e) => {
-    errorLog.style.display = "block";
-    const rejectDiv = document.createElement("div");
-    rejectDiv.style.padding = "15px";
-    rejectDiv.innerText = `Promise rejection: ${e.reason} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
-    errorLog.appendChild(rejectDiv);
+  window.addEventListener("unhandledrejection", (event) => {
+    showMessage(`Promise rejection: ${String(event.reason)}`);
   });
 
   const consoleError = console.error;
   console.error = (...args) => {
-    errorLog.style.display = "block";
-    const errorDiv = document.createElement("div");
-    errorDiv.style.padding = "15px";
-    errorDiv.innerText = `${args.join(
-      " ",
-    )} <button style="color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;" onclick="this.parentNode.remove()">✕</button>`;
-    errorLog.appendChild(errorDiv);
+    showMessage(args.join(" "));
     consoleError(...args);
   };
 }
