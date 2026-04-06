@@ -1,7 +1,9 @@
 import { Preferences } from "/js/preferences.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
-export class PreferencesProvider {
+export class PreferencesProvider extends EventEmitter {
   constructor(api) {
+    super();
     this.api = api;
     this._preferences = null;
   }
@@ -15,18 +17,23 @@ export class PreferencesProvider {
 
   async fetchPreferences() {
     if (!this.api.isAuthenticated) {
-      this._preferences = Preferences.createLoggedOutPreferences();
+      this._setPreferences(Preferences.createLoggedOutPreferences());
       return;
     }
     const preferencesObj = await this.api.getPreferences();
     const labelerDids =
       Preferences.getLabelerDidsFromPreferences(preferencesObj);
     const labelerDefs = await this.api.getLabelers(labelerDids);
-    this._preferences = new Preferences(preferencesObj, labelerDefs);
+    this._setPreferences(new Preferences(preferencesObj, labelerDefs));
   }
 
   async updatePreferences(preferences) {
     await this.api.updatePreferences(preferences.obj);
+    this._setPreferences(preferences);
+  }
+
+  _setPreferences(preferences) {
     this._preferences = preferences;
+    this.emit("setPreferences", preferences);
   }
 }

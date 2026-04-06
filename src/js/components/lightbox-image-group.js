@@ -23,7 +23,7 @@ class LightboxDialog extends Component {
       return;
     }
     const currentImg = this.images[this.currentIndex];
-    const src = currentImg.src;
+    const src = currentImg.dataset.lightboxSrc ?? currentImg.src;
     const alt = currentImg.alt;
     const hasMultiple = this.images.length > 1;
 

@@ -1,6 +1,7 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
+import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { getAuth, requireAuth } from "/js/auth.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -25,6 +26,12 @@ class SettingsView extends View {
         icon: eyeIconTemplate,
         label: "Appearance",
         url: "/settings/appearance",
+        enabled: true,
+      },
+      {
+        icon: mutedWordIconTemplate,
+        label: "Muted words",
+        url: "/settings/muted-words",
         enabled: true,
       },
     ];

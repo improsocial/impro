@@ -116,10 +116,14 @@ function filterQuotePosts(feed) {
   };
 }
 
-function dedupeFeed(feed) {
+function dedupeFeed(feed, { includeReposts = true } = {}) {
   const rootUris = new Set();
   const dedupedFeedItems = [];
   for (const item of feed.feed) {
+    if (isRepost(item) && !includeReposts) {
+      dedupedFeedItems.push(item);
+      continue;
+    }
     const rootUri = getRootUri(item);
     if (rootUris.has(rootUri)) {
       continue;
@@ -242,14 +246,24 @@ function filterHiddenPosts(feed) {
   };
 }
 
+function hasHiddenBadgeLabel(post) {
+  return post?.badgeLabels?.some((badge) => badge.visibility === "hide");
+}
+
 function filterContentLabeledPosts(feed) {
   const filteredFeedItems = feed.feed.filter((item) => {
     const contentLabel = item.post.contentLabel;
     if (contentLabel?.visibility === "hide") {
       return false;
     }
+    if (hasHiddenBadgeLabel(item.post)) {
+      return false;
+    }
     const quotedPost = getQuotedPost(item.post);
     if (quotedPost?.contentLabel?.visibility === "hide") {
+      return false;
+    }
+    if (hasHiddenBadgeLabel(quotedPost)) {
       return false;
     }
     return true;
@@ -301,7 +315,7 @@ export function filterAlgorithmicFeed(feed, isAuthenticated) {
 }
 
 export function filterAuthorFeed(feed, isAuthenticated) {
-  let filteredFeed = dedupeFeed(feed);
+  let filteredFeed = dedupeFeed(feed, { includeReposts: false });
   filteredFeed = filterEmptyPosts(filteredFeed);
   filteredFeed = filterHiddenPosts(filteredFeed);
   filteredFeed = filterContentLabeledPosts(filteredFeed);

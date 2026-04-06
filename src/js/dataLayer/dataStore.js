@@ -6,11 +6,11 @@ export class DataStore extends EventEmitter {
   constructor() {
     super();
     this.currentUser = null;
-    this.preferences = null;
     this.feeds = new Map();
     this.posts = new Map();
     this.reposts = new Map();
     this.postThreads = new Map();
+    this.postThreadOthers = new Map();
     this.profiles = new Map();
     this.authorFeeds = new Map();
     this.profileSearchResults = null;
@@ -62,22 +62,6 @@ export class DataStore extends EventEmitter {
 
   clearCurrentUser() {
     this.currentUser = null;
-  }
-
-  hasPreferences() {
-    return this.preferences !== null;
-  }
-
-  getPreferences() {
-    return this.preferences;
-  }
-
-  setPreferences(preferences) {
-    this.preferences = preferences;
-  }
-
-  clearPreferences() {
-    this.preferences = null;
   }
 
   hasFeed(feedURI) {
@@ -144,6 +128,22 @@ export class DataStore extends EventEmitter {
 
   clearPostThread(postURI) {
     this.postThreads.delete(postURI);
+  }
+
+  hasPostThreadOther(postURI) {
+    return this.postThreadOthers.has(postURI);
+  }
+
+  getPostThreadOther(postURI) {
+    return this.postThreadOthers.get(postURI);
+  }
+
+  setPostThreadOther(postURI, postThreadOther) {
+    this.postThreadOthers.set(postURI, postThreadOther);
+  }
+
+  clearPostThreadOther(postURI) {
+    this.postThreadOthers.delete(postURI);
   }
 
   hasProfile(did) {

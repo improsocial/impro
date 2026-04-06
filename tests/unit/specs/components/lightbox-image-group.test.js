@@ -4,6 +4,13 @@ import "/js/components/lightbox-image-group.js";
 
 const t = new TestSuite("LightboxImageGroup");
 
+function createTestImage(src, alt) {
+  const img = document.createElement("img");
+  img.src = src;
+  img.alt = alt;
+  return img;
+}
+
 t.beforeEach(() => {
   document.body.innerHTML = "";
 });
@@ -17,7 +24,7 @@ t.describe("LightboxDialog - rendering", (it) => {
 
   it("should render lightbox when open", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     const lightbox = element.querySelector(".lightbox");
@@ -26,7 +33,7 @@ t.describe("LightboxDialog - rendering", (it) => {
 
   it("should render close button", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     const closeBtn = element.querySelector(".lightbox-close");
@@ -35,7 +42,7 @@ t.describe("LightboxDialog - rendering", (it) => {
 
   it("should render image with correct src", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test image" }];
+    element.images = [createTestImage("test.jpg", "Test image")];
     document.body.appendChild(element);
     element.open();
     const img = element.querySelector("img");
@@ -43,9 +50,29 @@ t.describe("LightboxDialog - rendering", (it) => {
     assert(img.src.includes("test.jpg"));
   });
 
+  it("should use data-lightbox-src when available", () => {
+    const element = document.createElement("lightbox-dialog");
+    const image = createTestImage("thumbnail.jpg", "Test image");
+    image.dataset.lightboxSrc = "fullsize.jpg";
+    element.images = [image];
+    document.body.appendChild(element);
+    element.open();
+    const img = element.querySelector("img");
+    assert(img.src.includes("fullsize.jpg"));
+  });
+
+  it("should fall back to src when data-lightbox-src is not set", () => {
+    const element = document.createElement("lightbox-dialog");
+    element.images = [createTestImage("thumbnail.jpg", "Test image")];
+    document.body.appendChild(element);
+    element.open();
+    const img = element.querySelector("img");
+    assert(img.src.includes("thumbnail.jpg"));
+  });
+
   it("should render alt text when available", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test alt text" }];
+    element.images = [createTestImage("test.jpg", "Test alt text")];
     document.body.appendChild(element);
     element.open();
     const altText = element.querySelector(".lightbox-alt-text");
@@ -56,7 +83,7 @@ t.describe("LightboxDialog - rendering", (it) => {
   it("should hide alt text when hide-alt-text attribute is set", () => {
     const element = document.createElement("lightbox-dialog");
     element.setAttribute("hide-alt-text", "true");
-    element.images = [{ src: "test.jpg", alt: "Test alt text" }];
+    element.images = [createTestImage("test.jpg", "Test alt text")];
     document.body.appendChild(element);
     element.open();
     const altText = element.querySelector(".lightbox-alt-text");
@@ -67,7 +94,7 @@ t.describe("LightboxDialog - rendering", (it) => {
 t.describe("LightboxDialog - navigation", (it) => {
   it("should not show nav buttons with single image", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     const navButtons = element.querySelectorAll(".lightbox-nav");
@@ -77,8 +104,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should show nav buttons with multiple images", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     document.body.appendChild(element);
     element.open();
@@ -89,8 +116,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should disable prev button on first image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 0;
     document.body.appendChild(element);
@@ -102,8 +129,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should disable next button on last image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 1;
     document.body.appendChild(element);
@@ -115,8 +142,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should navigate to next image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 0;
     document.body.appendChild(element);
@@ -128,8 +155,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should navigate to previous image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 1;
     document.body.appendChild(element);
@@ -141,8 +168,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should not navigate past first image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 0;
     document.body.appendChild(element);
@@ -154,8 +181,8 @@ t.describe("LightboxDialog - navigation", (it) => {
   it("should not navigate past last image", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 1;
     document.body.appendChild(element);
@@ -168,7 +195,7 @@ t.describe("LightboxDialog - navigation", (it) => {
 t.describe("LightboxDialog - open/close", (it) => {
   it("should set isOpen to true when open() is called", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     assertEquals(element.isOpen, true);
@@ -176,7 +203,7 @@ t.describe("LightboxDialog - open/close", (it) => {
 
   it("should set isOpen to false when close() is called", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     element.close();
@@ -185,7 +212,7 @@ t.describe("LightboxDialog - open/close", (it) => {
 
   it("should dispatch close event when close() is called", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
 
@@ -200,7 +227,7 @@ t.describe("LightboxDialog - open/close", (it) => {
 
   it("should set body overflow to hidden when opened", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     assertEquals(document.body.style.overflow, "hidden");
@@ -208,7 +235,7 @@ t.describe("LightboxDialog - open/close", (it) => {
 
   it("should restore body overflow when closed", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
     element.close();
@@ -219,7 +246,7 @@ t.describe("LightboxDialog - open/close", (it) => {
 t.describe("LightboxDialog - keyboard navigation", (it) => {
   it("should close on Escape key", () => {
     const element = document.createElement("lightbox-dialog");
-    element.images = [{ src: "test.jpg", alt: "Test" }];
+    element.images = [createTestImage("test.jpg", "Test")];
     document.body.appendChild(element);
     element.open();
 
@@ -230,8 +257,8 @@ t.describe("LightboxDialog - keyboard navigation", (it) => {
   it("should navigate left on ArrowLeft key", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 1;
     document.body.appendChild(element);
@@ -244,8 +271,8 @@ t.describe("LightboxDialog - keyboard navigation", (it) => {
   it("should navigate right on ArrowRight key", () => {
     const element = document.createElement("lightbox-dialog");
     element.images = [
-      { src: "test1.jpg", alt: "Test 1" },
-      { src: "test2.jpg", alt: "Test 2" },
+      createTestImage("test1.jpg", "Test 1"),
+      createTestImage("test2.jpg", "Test 2"),
     ];
     element.currentIndex = 0;
     document.body.appendChild(element);

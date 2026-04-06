@@ -12,6 +12,8 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
+import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 
 class SearchView extends View {
   async render({
@@ -150,7 +152,9 @@ class SearchView extends View {
         <div class="profile-list-item-body">
           <div class="profile-list-item-name">
             <span class="profile-list-item-display-name">
-              ${displayName || profile.handle}
+              ${displayName || profile.handle}${verificationBadgeTemplate({
+                profile,
+              })}${automatedAccountBadgeTemplate({ profile })}
             </span>
           </div>
           <div class="profile-list-item-handle">@${profile.handle}</div>
@@ -186,7 +190,7 @@ class SearchView extends View {
         }}
         ?disabled=${!postSearchHasMore}
       >
-        <div class=${classnames("loading-area", { loading: status.loading })}>
+        <div>
           ${postSearchResults.map(
             (post) =>
               html`<div class="feed-item" data-post-uri="${post.uri}">
@@ -239,11 +243,7 @@ class SearchView extends View {
         }}
         ?disabled=${!profileSearchHasMore}
       >
-        <div
-          class=${classnames("profile-list loading-area", {
-            loading: status.loading,
-          })}
-        >
+        <div class="profile-list">
           ${profileSearchResults.map((profile) =>
             profileResultTemplate({ profile }),
           )}
@@ -284,11 +284,7 @@ class SearchView extends View {
         }}
         ?disabled=${!feedSearchHasMore}
       >
-        <div
-          class=${classnames("feeds-list loading-area", {
-            loading: status.loading,
-          })}
-        >
+        <div class="feeds-list">
           ${feedSearchResults.map((feedGenerator) => {
             const isPinned = preferences.isFeedPinned(feedGenerator.uri);
             return html`
@@ -394,6 +390,7 @@ class SearchView extends View {
                     type="search"
                     autocapitalize="none"
                     autocomplete="off"
+                    autocorrect="off"
                     placeholder=${isAuthenticated
                       ? "Search for users, posts, and feeds"
                       : "Search for users"}

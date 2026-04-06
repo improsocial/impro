@@ -22,7 +22,6 @@ function createMockSelectors(data = {}) {
 function createMockRequests(loadResults = {}) {
   return {
     loadCurrentUser: async () => loadResults.currentUser,
-    loadPreferences: async () => loadResults.preferences,
     loadProfile: async (did) => loadResults.profiles?.[did],
     loadPostThread: async (uri) => loadResults.postThreads?.[uri],
     loadPost: async (uri) => loadResults.posts?.[uri],
@@ -89,63 +88,6 @@ t.describe("ensureCurrentUser", (it) => {
 
     assert(error !== null);
     assertEquals(error.message, "Current user not found");
-  });
-});
-
-t.describe("ensurePreferences", (it) => {
-  it("should return existing preferences without loading", async () => {
-    const preferences = { theme: "dark" };
-    let loadCalled = false;
-
-    const selectors = createMockSelectors({ preferences });
-    const requests = {
-      loadPreferences: async () => {
-        loadCalled = true;
-      },
-    };
-
-    const declarative = new Declarative(selectors, requests);
-    const result = await declarative.ensurePreferences();
-
-    assertEquals(result, preferences);
-    assertEquals(loadCalled, false);
-  });
-
-  it("should load preferences when not in cache", async () => {
-    const preferences = { theme: "dark" };
-    let callCount = 0;
-
-    const selectors = {
-      getPreferences: () => {
-        callCount++;
-        return callCount > 1 ? preferences : null;
-      },
-    };
-    const requests = {
-      loadPreferences: async () => {},
-    };
-
-    const declarative = new Declarative(selectors, requests);
-    const result = await declarative.ensurePreferences();
-
-    assertEquals(result, preferences);
-  });
-
-  it("should throw when preferences not found after loading", async () => {
-    const selectors = createMockSelectors({});
-    const requests = createMockRequests({});
-
-    const declarative = new Declarative(selectors, requests);
-
-    let error = null;
-    try {
-      await declarative.ensurePreferences();
-    } catch (e) {
-      error = e;
-    }
-
-    assert(error !== null);
-    assertEquals(error.message, "Preferences not found");
   });
 });
 

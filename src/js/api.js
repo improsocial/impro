@@ -244,6 +244,16 @@ export class Api {
     return res.data.thread;
   }
 
+  async getPostThreadOther(postUri, { labelers = [] } = {}) {
+    const res = await this.request(`app.bsky.unspecced.getPostThreadOtherV2`, {
+      query: { anchor: postUri },
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+      },
+    });
+    return res.data.thread;
+  }
+
   async getFeed(feedURI, { limit = 31, cursor = "", labelers = [] } = {}) {
     const res = await this.request(`app.bsky.feed.getFeed`, {
       query: {
@@ -375,10 +385,11 @@ export class Api {
     return reposts;
   }
 
-  async getProfile(did) {
+  async getProfile(did, { labelers = [] } = {}) {
     const res = await this.request(`app.bsky.actor.getProfile`, {
       query: { actor: did },
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
@@ -516,7 +527,7 @@ export class Api {
     return res.data.count;
   }
 
-  async getNotifications({ cursor, limit = 31, reasons } = {}) {
+  async getNotifications({ cursor, limit = 31, reasons, labelers = [] } = {}) {
     const query = { cursor: cursor ?? "", limit };
     if (reasons?.length) {
       query.reasons = reasons;
@@ -524,6 +535,7 @@ export class Api {
     const res = await this.request("app.bsky.notification.listNotifications", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
@@ -697,7 +709,7 @@ export class Api {
     return res.data.message;
   }
 
-  async getLikes(postUri, { limit = 50, cursor } = {}) {
+  async getLikes(postUri, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { uri: postUri, limit };
     if (cursor) {
       query.cursor = cursor;
@@ -705,13 +717,14 @@ export class Api {
     const res = await this.request("app.bsky.feed.getLikes", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
   }
 
-  async getQuotes(postUri, { limit = 50, cursor } = {}) {
+  async getQuotes(postUri, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { uri: postUri, limit };
     if (cursor) {
       query.cursor = cursor;
@@ -719,13 +732,14 @@ export class Api {
     const res = await this.request("app.bsky.feed.getQuotes", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
   }
 
-  async getRepostedBy(postUri, { limit = 50, cursor } = {}) {
+  async getRepostedBy(postUri, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { uri: postUri, limit };
     if (cursor) {
       query.cursor = cursor;
@@ -733,13 +747,14 @@ export class Api {
     const res = await this.request("app.bsky.feed.getRepostedBy", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
   }
 
-  async getBookmarks({ limit = 31, cursor } = {}) {
+  async getBookmarks({ limit = 31, cursor, labelers = [] } = {}) {
     const query = { limit };
     if (cursor) {
       query.cursor = cursor;
@@ -747,13 +762,14 @@ export class Api {
     const res = await this.request("app.bsky.bookmark.getBookmarks", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
   }
 
-  async getFollowers(actor, { limit = 50, cursor } = {}) {
+  async getFollowers(actor, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { actor, limit };
     if (cursor) {
       query.cursor = cursor;
@@ -761,13 +777,14 @@ export class Api {
     const res = await this.request("app.bsky.graph.getFollowers", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
     return res.data;
   }
 
-  async getFollows(actor, { limit = 50, cursor } = {}) {
+  async getFollows(actor, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { actor, limit };
     if (cursor) {
       query.cursor = cursor;
@@ -775,6 +792,7 @@ export class Api {
     const res = await this.request("app.bsky.graph.getFollows", {
       query,
       headers: {
+        "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });

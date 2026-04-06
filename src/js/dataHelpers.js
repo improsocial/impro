@@ -90,12 +90,16 @@ export function embedViewRecordToPostView(viewRecord) {
 }
 
 export function createEmbedFromPost(post) {
-  return {
+  const embed = {
     $type: "app.bsky.embed.record#viewRecord",
     author: { ...post.author },
     value: { ...post.record },
     uri: post.uri,
   };
+  if (post.embed) {
+    embed.embeds = [post.embed];
+  }
+  return embed;
 }
 
 export function createThreadViewPostFromPost(post) {
@@ -333,9 +337,23 @@ export function getVideoFromPost(post) {
   return null;
 }
 
+const CHECK_MARKS_RE = /[\u2705\u2713\u2714\u2611]/gu;
+const CONTROL_CHARS_RE =
+  /[\u0000-\u001F\u007F-\u009F\u061C\u200E\u200F\u202A-\u202E\u2066-\u2069]/g;
+const MULTIPLE_SPACES_RE = /[\s][\s\u200B]+/g;
+
+// Strip out invalid characters to match behavior of social-app
+function sanitizeDisplayName(displayName) {
+  return displayName
+    .replace(CHECK_MARKS_RE, "")
+    .replace(CONTROL_CHARS_RE, "")
+    .replace(MULTIPLE_SPACES_RE, " ")
+    .trim();
+}
+
 export function getDisplayName(profile) {
   if (profile.displayName) {
-    return profile.displayName;
+    return sanitizeDisplayName(profile.displayName);
   }
   if (profile.handle === "missing.invalid") {
     return "Deleted Account";
@@ -387,6 +405,11 @@ export function getLastInteractionTimestamp(convo) {
 export function doHideAuthorOnUnauthenticated(author) {
   const authorLabels = author.labels || [];
   return authorLabels.some((label) => label.val === "!no-unauthenticated");
+}
+
+export function isAutomatedAccount(profile) {
+  const labels = profile?.labels || [];
+  return labels.some((label) => label.val === "bot");
 }
 
 export function isLabelerProfile(profile) {

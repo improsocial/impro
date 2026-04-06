@@ -8,6 +8,9 @@ import {
   formatFullTimestamp,
   classnames,
   deepClone,
+  differenceInMinutes,
+  differenceInHours,
+  differenceInDays,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -299,6 +302,88 @@ t.describe("deepClone", (it) => {
   it("should handle empty arrays and objects", () => {
     assertEquals(deepClone([]), []);
     assertEquals(deepClone({}), {});
+  });
+});
+
+t.describe("differenceInMinutes", (it) => {
+  it("should return the difference in minutes between two dates", () => {
+    const a = new Date("2025-01-01T12:00:00Z");
+    const b = new Date("2025-01-01T12:30:00Z");
+    assertEquals(differenceInMinutes(a, b), 30);
+  });
+
+  it("should return absolute difference regardless of order", () => {
+    const a = new Date("2025-01-01T12:30:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInMinutes(a, b), 30);
+  });
+
+  it("should accept string arguments", () => {
+    assertEquals(
+      differenceInMinutes("2025-01-01T12:00:00Z", "2025-01-01T13:00:00Z"),
+      60,
+    );
+  });
+
+  it("should floor partial minutes", () => {
+    const a = new Date("2025-01-01T12:00:00Z");
+    const b = new Date("2025-01-01T12:05:45Z");
+    assertEquals(differenceInMinutes(a, b), 5);
+  });
+
+  it("should return 0 for identical dates", () => {
+    const date = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInMinutes(date, date), 0);
+  });
+});
+
+t.describe("differenceInHours", (it) => {
+  it("should return the difference in hours between two dates", () => {
+    const a = new Date("2025-01-01T15:00:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInHours(a, b), 3);
+  });
+
+  it("should ceil partial hours", () => {
+    const a = new Date("2025-01-01T12:30:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInHours(a, b), 1);
+  });
+
+  it("should return negative when first date is earlier", () => {
+    const a = new Date("2025-01-01T10:00:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInHours(a, b), -2);
+  });
+
+  it("should return 0 for identical dates", () => {
+    const date = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInHours(date, date), 0);
+  });
+});
+
+t.describe("differenceInDays", (it) => {
+  it("should return the difference in days between two dates", () => {
+    const a = new Date("2025-01-05T12:00:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInDays(a, b), 4);
+  });
+
+  it("should ceil partial days", () => {
+    const a = new Date("2025-01-02T06:00:00Z");
+    const b = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInDays(a, b), 1);
+  });
+
+  it("should return negative when first date is earlier", () => {
+    const a = new Date("2025-01-01T12:00:00Z");
+    const b = new Date("2025-01-05T12:00:00Z");
+    assertEquals(differenceInDays(a, b), -4);
+  });
+
+  it("should return 0 for identical dates", () => {
+    const date = new Date("2025-01-01T12:00:00Z");
+    assertEquals(differenceInDays(date, date), 0);
   });
 });
 

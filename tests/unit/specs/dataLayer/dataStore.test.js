@@ -243,6 +243,44 @@ t.describe("PostThread Management", (it) => {
   // Skipping async event test - requires callback support
 });
 
+t.describe("PostThreadOther Management", (it) => {
+  const postURI = "at://did:test/app.bsky.feed.post/thread";
+  const testPostThreadOther = [
+    { uri: "at://did:plc:reply1/app.bsky.feed.post/reply1" },
+    { uri: "at://did:plc:reply2/app.bsky.feed.post/reply2" },
+  ];
+
+  it("should set and get a post thread other", () => {
+    const dataStore = new DataStore();
+    dataStore.setPostThreadOther(postURI, testPostThreadOther);
+    assertEquals(dataStore.getPostThreadOther(postURI), testPostThreadOther);
+  });
+
+  it("should check if post thread other exists", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasPostThreadOther(postURI), false);
+    dataStore.setPostThreadOther(postURI, testPostThreadOther);
+    assertEquals(dataStore.hasPostThreadOther(postURI), true);
+  });
+
+  it("should clear post thread other", () => {
+    const dataStore = new DataStore();
+    dataStore.setPostThreadOther(postURI, testPostThreadOther);
+    assertEquals(dataStore.hasPostThreadOther(postURI), true);
+
+    dataStore.clearPostThreadOther(postURI);
+    assertEquals(dataStore.hasPostThreadOther(postURI), false);
+    assertEquals(dataStore.getPostThreadOther(postURI), undefined);
+  });
+
+  it("should handle empty post thread other", () => {
+    const dataStore = new DataStore();
+    dataStore.setPostThreadOther(postURI, []);
+    assertEquals(dataStore.hasPostThreadOther(postURI), true);
+    assertEquals(dataStore.getPostThreadOther(postURI), []);
+  });
+});
+
 t.describe("Profile Management", (it) => {
   const profileDid = "did:test:profile";
   const testProfile = {

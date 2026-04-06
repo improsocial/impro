@@ -195,6 +195,65 @@ t.describe("linkToFeed", (it) => {
   });
 });
 
+t.describe("path segment encoding", (it) => {
+  it("should encode slashes in hashtags", () => {
+    assertEquals(linkToHashtag("test/tag"), "/hashtag/test%2Ftag");
+  });
+
+  it("should encode spaces in hashtags", () => {
+    assertEquals(linkToHashtag("hello world"), "/hashtag/hello%20world");
+  });
+
+  it("should preserve colons in DID handles", () => {
+    assertEquals(linkToProfile("did:plc:abc123"), "/profile/did:plc:abc123");
+  });
+
+  it("should preserve colons in DID-based post URIs", () => {
+    const uri = "at://did:plc:alice123/app.bsky.feed.post/key456";
+    assertEquals(
+      linkToPostFromUri(uri),
+      "/profile/did:plc:alice123/post/key456",
+    );
+  });
+
+  it("should preserve at signs in handles", () => {
+    assertEquals(
+      linkToProfile("@alice.bsky.social"),
+      "/profile/@alice.bsky.social",
+    );
+  });
+
+  it("should encode question marks in path segments", () => {
+    assertEquals(linkToHashtag("test?q=1"), "/hashtag/test%3Fq%3D1");
+  });
+
+  it("should encode hash characters in path segments", () => {
+    assertEquals(linkToHashtag("test#tag"), "/hashtag/test%23tag");
+  });
+
+  it("should encode slashes in handles for post links", () => {
+    const post = {
+      uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
+      author: { handle: "alice/evil" },
+    };
+    assertEquals(linkToPost(post), "/profile/alice%2Fevil/post/abc123");
+  });
+
+  it("should encode slashes in handles for followers links", () => {
+    assertEquals(
+      linkToProfileFollowers("alice/evil"),
+      "/profile/alice%2Fevil/followers",
+    );
+  });
+
+  it("should encode slashes in handles for following links", () => {
+    assertEquals(
+      linkToProfileFollowing("alice/evil"),
+      "/profile/alice%2Fevil/following",
+    );
+  });
+});
+
 t.describe("getPermalinkForPost", (it) => {
   it("should return bsky.app permalink for post", () => {
     const post = {

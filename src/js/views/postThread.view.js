@@ -88,7 +88,8 @@ class PostThreadView extends View {
         isNotFoundPost(post) ||
         isMutedPost(post) ||
         post.isBlockedReply ||
-        replyHasContentLabel(reply)
+        replyHasContentLabel(reply) ||
+        post.isHidden
       ) {
         return false;
       }
@@ -216,7 +217,7 @@ class PostThreadView extends View {
     }
 
     // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
-    // Things shown here will also need to be filtered out from the reply chain separately.
+    // Things shown here will also need to be filtered out from the reply chain separately (doShowReply())
     function doPutReplyInHiddenSection(reply) {
       if (!reply.post) {
         return false;
@@ -226,6 +227,10 @@ class PostThreadView extends View {
       }
       // If the post author blocked the replier, put the reply in the hidden section
       if (reply.post.isBlockedReply) {
+        return true;
+      }
+      // Replies can be marked as hidden by bsky sentiment analysis (app.bsky.unspecced.getPostThreadOtherV2)
+      if (reply.post.isHidden) {
         return true;
       }
       return false;

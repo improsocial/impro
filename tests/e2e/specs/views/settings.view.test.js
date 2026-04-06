@@ -17,11 +17,14 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(2, {
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(3, {
       timeout: 10000,
     });
-    await expect(nav.locator(".vertical-nav-label")).toContainText(
+    await expect(nav.locator(".vertical-nav-label").first()).toContainText(
       "Appearance",
+    );
+    await expect(nav.locator(".vertical-nav-label").nth(1)).toContainText(
+      "Muted words",
     );
   });
 
@@ -35,7 +38,7 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await expect(view.locator(".vertical-nav-label")).toContainText(
+    await expect(view.locator(".vertical-nav-label").first()).toContainText(
       "Appearance",
       { timeout: 10000 },
     );

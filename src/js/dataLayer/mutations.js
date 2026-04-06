@@ -352,6 +352,29 @@ export class Mutations {
     }
   }
 
+  async addMutedWord({ value, targets, actorTarget, expiresAt }) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.addMutedWord({
+      value,
+      targets,
+      actorTarget,
+      expiresAt,
+    });
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
+  async removeMutedWord(wordId) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.removeMutedWord(wordId);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
+  async updateMutedWord(wordId, updatedFields) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.updateMutedWord(wordId, updatedFields);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
   async subscribeLabeler(profile, labelerInfo) {
     const patchId = this.patchStore.addPreferencePatch({
       type: "subscribeLabeler",

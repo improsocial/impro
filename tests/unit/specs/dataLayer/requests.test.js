@@ -20,6 +20,8 @@ t.describe("loadPostThread", (it) => {
       ],
     };
 
+    const mockPostThreadOther = [{ uri: "reply1" }];
+
     const normalizedPosts = [
       { uri: postURI, content: "Main post" },
       { uri: "reply1", content: "Reply 1" },
@@ -27,6 +29,7 @@ t.describe("loadPostThread", (it) => {
 
     const mockApi = {
       getPostThread: async () => mockPostThread,
+      getPostThreadOther: async () => mockPostThreadOther,
     };
 
     const dataStore = new DataStore();
@@ -39,6 +42,9 @@ t.describe("loadPostThread", (it) => {
 
     // Check thread was stored
     assertEquals(dataStore.getPostThread(postURI), mockPostThread);
+
+    // Check postThreadOther was stored
+    assertEquals(dataStore.getPostThreadOther(postURI), mockPostThreadOther);
 
     // Check posts were stored
     assertEquals(dataStore.getPost(postURI), normalizedPosts[0]);
@@ -55,6 +61,7 @@ t.describe("loadPostThread", (it) => {
 
     const mockApi = {
       getPostThread: async () => emptyPostThread,
+      getPostThreadOther: async () => [],
     };
 
     const dataStore = new DataStore();
@@ -66,6 +73,7 @@ t.describe("loadPostThread", (it) => {
     await requests.loadPostThread(postURI);
 
     assertEquals(dataStore.getPostThread(postURI), emptyPostThread);
+    assertEquals(dataStore.getPostThreadOther(postURI), []);
     assertEquals(dataStore.getPost(postURI), normalizedPosts[0]);
   });
 });

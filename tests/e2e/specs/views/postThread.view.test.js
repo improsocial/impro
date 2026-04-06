@@ -727,6 +727,199 @@ test.describe("Post thread view", () => {
       await expect(view.locator("hidden-replies-section")).not.toBeAttached();
     });
 
+    test("should place sentiment-hidden replies in the hidden section", async ({
+      page,
+    }) => {
+      const postWithReplies = createPost({
+        uri: postUri,
+        text: "Post with sentiment-hidden reply",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount: 2,
+      });
+
+      const normalReply = createPost({
+        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+        text: "Normal reply",
+        authorHandle: "replier1.bsky.social",
+        authorDisplayName: "Replier One",
+      });
+
+      const hiddenReply = createPost({
+        uri: "at://did:plc:replier2/app.bsky.feed.post/hiddenreply",
+        text: "Sentiment-hidden reply content",
+        authorHandle: "replier2.bsky.social",
+        authorDisplayName: "Replier Two",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([postWithReplies, normalReply, hiddenReply]);
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: postWithReplies,
+        parent: null,
+        replies: [
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: normalReply,
+            replies: [],
+          },
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: hiddenReply,
+            replies: [],
+          },
+        ],
+      });
+      mockServer.setPostThreadOther(postUri, [{ uri: hiddenReply.uri }]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view).toContainText("Normal reply", { timeout: 10000 });
+
+      // Sentiment-hidden reply should not be in the main reply chains
+      const replyChains = view.locator(".post-thread-reply-chains");
+      await expect(replyChains).not.toContainText(
+        "Sentiment-hidden reply content",
+      );
+
+      // Hidden section should be present
+      const hiddenSection = view.locator("hidden-replies-section");
+      await expect(hiddenSection).toBeVisible();
+      await expect(
+        hiddenSection.locator(".hidden-replies-button"),
+      ).toContainText("Show more replies");
+    });
+
+    test("should not affect replies when getPostThreadOtherV2 returns empty", async ({
+      page,
+    }) => {
+      const postWithReplies = createPost({
+        uri: postUri,
+        text: "Post with all normal replies",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount: 2,
+      });
+
+      const reply1 = createPost({
+        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+        text: "First normal reply",
+        authorHandle: "replier1.bsky.social",
+        authorDisplayName: "Replier One",
+      });
+
+      const reply2 = createPost({
+        uri: "at://did:plc:replier2/app.bsky.feed.post/reply2",
+        text: "Second normal reply",
+        authorHandle: "replier2.bsky.social",
+        authorDisplayName: "Replier Two",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([postWithReplies, reply1, reply2]);
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: postWithReplies,
+        parent: null,
+        replies: [
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: reply1,
+            replies: [],
+          },
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: reply2,
+            replies: [],
+          },
+        ],
+      });
+      // Empty postThreadOther — no replies hidden by sentiment
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(view).toContainText("First normal reply", {
+        timeout: 10000,
+      });
+      await expect(view).toContainText("Second normal reply");
+
+      // No hidden section
+      await expect(view.locator("hidden-replies-section")).not.toBeAttached();
+    });
+
+    test("should reveal sentiment-hidden replies when clicking 'Show more replies'", async ({
+      page,
+    }) => {
+      const postWithReplies = createPost({
+        uri: postUri,
+        text: "Post with sentiment-hidden reply",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+        replyCount: 2,
+      });
+
+      const normalReply = createPost({
+        uri: "at://did:plc:replier1/app.bsky.feed.post/reply1",
+        text: "Normal reply",
+        authorHandle: "replier1.bsky.social",
+        authorDisplayName: "Replier One",
+      });
+
+      const hiddenReply = createPost({
+        uri: "at://did:plc:replier2/app.bsky.feed.post/hiddenreply",
+        text: "Sentiment-hidden reply revealed",
+        authorHandle: "replier2.bsky.social",
+        authorDisplayName: "Replier Two",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([postWithReplies, normalReply, hiddenReply]);
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: postWithReplies,
+        parent: null,
+        replies: [
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: normalReply,
+            replies: [],
+          },
+          {
+            $type: "app.bsky.feed.defs#threadViewPost",
+            post: hiddenReply,
+            replies: [],
+          },
+        ],
+      });
+      mockServer.setPostThreadOther(postUri, [{ uri: hiddenReply.uri }]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const hiddenSection = view.locator("hidden-replies-section");
+      await expect(hiddenSection.locator(".hidden-replies-button")).toBeVisible(
+        { timeout: 10000 },
+      );
+
+      // Click to expand
+      await hiddenSection.locator(".hidden-replies-button").click();
+
+      // The hidden reply should now be visible
+      await expect(hiddenSection.locator(".toggle-content")).toBeVisible();
+      await expect(hiddenSection).toContainText(
+        "Sentiment-hidden reply revealed",
+      );
+    });
+
     test("should place muted word replies in the hidden section (via getPreferences)", async ({
       page,
     }) => {

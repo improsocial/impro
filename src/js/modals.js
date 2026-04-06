@@ -1,41 +1,39 @@
 import { html, render } from "/js/lib/lit-html.js";
 
-let signInModal = null;
+export function showSignInModal() {
+  const dialog = document.createElement("dialog");
+  dialog.classList.add("modal-dialog", "compact");
 
-export async function showSignInModal() {
-  if (!signInModal) {
-    signInModal = document.createElement("dialog");
-    signInModal.classList.add("modal-dialog", "compact");
+  render(
+    html`
+      <div class="modal-dialog-content">
+        <h2 class="modal-dialog-title modal-dialog-title-large">Sign in</h2>
+        <p class="modal-dialog-message">Sign in to join the conversation!</p>
+        <a
+          href="/login"
+          class="modal-dialog-button primary-button full-width"
+          @click=${() => {
+            dialog.close();
+            dialog.remove();
+          }}
+        >
+          Okay
+        </a>
+      </div>
+    `,
+    dialog,
+  );
 
-    render(
-      html`
-        <div class="modal-dialog-content">
-          <h2 class="modal-dialog-title modal-dialog-title-large">Sign in</h2>
-          <p class="modal-dialog-message">Sign in to join the conversation!</p>
-          <a
-            href="/login"
-            class="modal-dialog-button primary-button full-width"
-            @click=${() => {
-              signInModal.close();
-            }}
-          >
-            Okay
-          </a>
-        </div>
-      `,
-      signInModal,
-    );
+  // Dismiss on backdrop click
+  dialog.addEventListener("click", (e) => {
+    if (e.target.tagName === "DIALOG") {
+      dialog.close();
+      dialog.remove();
+    }
+  });
 
-    // Dismiss on backdrop click
-    signInModal.addEventListener("click", (e) => {
-      if (e.target.tagName === "DIALOG") {
-        e.target.close();
-      }
-    });
-
-    document.body.appendChild(signInModal);
-  }
-  signInModal.showModal();
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }
 
 export function showInfoModal({ title, message, confirmButtonText = "OK" }) {

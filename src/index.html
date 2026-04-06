@@ -37,6 +37,7 @@
       import notFoundView from "/js/views/notFound.view.js";
       import settingsView from "/js/views/settings.view.js";
       import settingsAppearanceView from "/js/views/settings/appearance.view.js";
+      import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
@@ -195,6 +196,7 @@
       router.addRoute("/profile", () => profileView); // current user profile
       router.addRoute("/settings", () => settingsView);
       router.addRoute("/settings/appearance", () => settingsAppearanceView);
+      router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
       router.setNotFoundView(() => notFoundView);
 
       router.renderRoute(({ view, params, container }) => {

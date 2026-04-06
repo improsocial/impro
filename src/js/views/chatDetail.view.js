@@ -10,7 +10,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf } from "/js/utils.js";
+import { wait, raf, differenceInMinutes } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
@@ -259,13 +259,6 @@ class ChatDetailView extends View {
         renderPage();
         focusChatInput();
       }
-    }
-
-    function differenceInMinutes(a, b) {
-      const date1 = typeof a === "string" ? new Date(a) : a;
-      const date2 = typeof b === "string" ? new Date(b) : b;
-      const diff = Math.abs(date1.getTime() - date2.getTime());
-      return Math.floor(diff / (1000 * 60));
     }
 
     function groupMessages(messages, currentUserDid) {

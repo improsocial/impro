@@ -124,7 +124,7 @@ t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.textContent.includes("deleted"));
+    assert(container.textContent.includes("not found"));
   });
 });
 

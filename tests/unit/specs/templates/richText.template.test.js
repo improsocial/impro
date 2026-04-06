@@ -18,7 +18,7 @@ t.describe("richTextTemplate", (it) => {
     assert(richText.textContent.includes("Hello world"));
   });
 
-  it("should render text with link facet", () => {
+  it("should render text with link facet without truncating by default", () => {
     const text = "Check out example.com";
     const facets = [
       {
@@ -38,6 +38,73 @@ t.describe("richTextTemplate", (it) => {
     assert(link !== null);
     assert(link.getAttribute("href").startsWith("https://example.com"));
     assertEquals(link.textContent, "example.com");
+  });
+
+  it("should not truncate long link text by default", () => {
+    const url = "https://example.com/very/long/path/to/page";
+    const text = "See " + url;
+    const facets = [
+      {
+        index: { byteStart: 4, byteEnd: 4 + url.length },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: url,
+          },
+        ],
+      },
+    ];
+    const result = richTextTemplate({ text, facets });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assertEquals(link.getAttribute("href"), url);
+    assertEquals(link.textContent, url);
+  });
+
+  it("should truncate long link text when truncateUrls is true", () => {
+    const url = "https://example.com/very/long/path/to/page";
+    const text = "See " + url;
+    const facets = [
+      {
+        index: { byteStart: 4, byteEnd: 4 + url.length },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: url,
+          },
+        ],
+      },
+    ];
+    const result = richTextTemplate({ text, facets, truncateUrls: true });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assertEquals(link.getAttribute("href"), url);
+    assertEquals(link.textContent, "example.com/very/long/pa...");
+  });
+
+  it("should not truncate short link text when truncateUrls is true", () => {
+    const url = "https://example.com/short";
+    const text = "See " + url;
+    const facets = [
+      {
+        index: { byteStart: 4, byteEnd: 4 + url.length },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: url,
+          },
+        ],
+      },
+    ];
+    const result = richTextTemplate({ text, facets, truncateUrls: true });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    assertEquals(link.textContent, "example.com/short");
   });
 
   it("should render text with mention facet", () => {

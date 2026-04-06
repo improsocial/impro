@@ -13,6 +13,8 @@ import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon
 import { formatLargeNumber, classnames, noop, sortBy } from "/js/utils.js";
 import { showSignInModal } from "/js/modals.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
+import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -67,12 +69,16 @@ function profileDescriptionTemplate({
           ${richTextTemplate({
             text: richTextProfileDescription.text,
             facets: richTextProfileDescription.facets,
+            truncateUrls: true,
           })}
         </div>`
       : ""}
     <!-- TODO: Add like button -->
   `;
 }
+
+// Match the default banner color in social-app
+const LABELER_BANNER_FALLBACK_COLOR = "rgb(105, 0, 255)";
 
 export function profileCardTemplate({
   profile,
@@ -98,7 +104,12 @@ export function profileCardTemplate({
   const isBlockedBy = !!profile.viewer?.blockedBy;
   const canChat = profileChatStatus?.canChat || !!profileChatStatus?.convo;
   return html`<div class="profile-card">
-    <div class="profile-banner-container">
+    <div
+      class="profile-banner-container"
+      style="${!profile.banner && isLabeler
+        ? `background-color: ${LABELER_BANNER_FALLBACK_COLOR}`
+        : ""}"
+    >
       ${profile.banner
         ? html`
             <lightbox-image-group hide-alt-text="true">
@@ -278,7 +289,9 @@ export function profileCardTemplate({
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">
-          ${getDisplayName(profile)}
+          ${getDisplayName(profile)}${verificationBadgeTemplate({
+            profile,
+          })}${automatedAccountBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
           ${profile.viewer?.followedBy && !isBlocking && !isBlockedBy

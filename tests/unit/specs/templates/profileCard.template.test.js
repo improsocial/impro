@@ -157,6 +157,62 @@ t.describe("profileCardTemplate", (it) => {
   });
 });
 
+t.describe("profileCardTemplate - verification badge", (it) => {
+  it("should render verification badge for verified profile", () => {
+    const profile = {
+      ...mockProfile,
+      verification: { verifiedStatus: "valid", trustedVerifierStatus: "none" },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(
+      "[data-testid='profile-name'] .verification-badge",
+    );
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Verified");
+  });
+
+  it("should not render verification badge for non-verified profile", () => {
+    const result = profileCardTemplate({
+      profile: mockProfile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector(
+        "[data-testid='profile-name'] .verification-badge",
+      ),
+      null,
+    );
+  });
+
+  it("should render verifier badge for trusted verifier profile", () => {
+    const profile = {
+      ...mockProfile,
+      verification: {
+        verifiedStatus: "none",
+        trustedVerifierStatus: "valid",
+      },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector(
+      "[data-testid='profile-name'] .verification-badge",
+    );
+    assert(badge !== null);
+    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+  });
+});
+
 t.describe("profileCardTemplate - labeler support", (it) => {
   it("should render subscribe button for labeler profile when not subscribed", () => {
     const profile = {

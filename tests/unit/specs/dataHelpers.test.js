@@ -9,12 +9,14 @@ import {
   createEmbedFromPost,
   embedViewRecordToPostView,
   replaceTopParent,
+  isAutomatedAccount,
   isLabelerProfile,
   getLabelNameAndDescription,
   getLabelerForLabel,
   getDefinitionForLabel,
   isBadgeLabel,
   addFeedItemToFeed,
+  getDisplayName,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -229,6 +231,45 @@ t.describe("createEmbedFromPost", (it) => {
       uri: "minimal-uri",
     });
   });
+
+  it("should include embeds when post has an embed", () => {
+    const post = {
+      author: { did: "did:plc:123" },
+      record: { text: "Hello" },
+      uri: "test-uri",
+      embed: {
+        $type: "app.bsky.embed.images#view",
+        images: [{ thumb: "thumb.jpg" }],
+      },
+    };
+
+    const result = createEmbedFromPost(post);
+
+    assertEquals(result, {
+      $type: "app.bsky.embed.record#viewRecord",
+      author: { did: "did:plc:123" },
+      value: { text: "Hello" },
+      uri: "test-uri",
+      embeds: [
+        {
+          $type: "app.bsky.embed.images#view",
+          images: [{ thumb: "thumb.jpg" }],
+        },
+      ],
+    });
+  });
+
+  it("should not include embeds when post has no embed", () => {
+    const post = {
+      author: { did: "did:plc:456" },
+      record: { text: "No embed" },
+      uri: "no-embed-uri",
+    };
+
+    const result = createEmbedFromPost(post);
+
+    assert(!("embeds" in result));
+  });
 });
 
 t.describe("embedViewRecordToPostView", (it) => {
@@ -402,6 +443,42 @@ t.describe("replaceTopParent", (it) => {
 
     assertEquals(result.parent.parent.parent, newParent);
     assertEquals(result.parent.parent.post.uri, "grandparent-uri");
+  });
+});
+
+t.describe("isAutomatedAccount", (it) => {
+  it("should return false for profile without labels", () => {
+    const profile = { did: "did:plc:123", handle: "user.bsky.social" };
+    assertEquals(isAutomatedAccount(profile), false);
+  });
+
+  it("should return false for profile with empty labels", () => {
+    const profile = { did: "did:plc:123", labels: [] };
+    assertEquals(isAutomatedAccount(profile), false);
+  });
+
+  it("should return false for profile with non-bot labels", () => {
+    const profile = {
+      did: "did:plc:123",
+      labels: [{ val: "!no-unauthenticated" }],
+    };
+    assertEquals(isAutomatedAccount(profile), false);
+  });
+
+  it("should return true for profile with bot label", () => {
+    const profile = {
+      did: "did:plc:123",
+      labels: [{ val: "bot" }],
+    };
+    assertEquals(isAutomatedAccount(profile), true);
+  });
+
+  it("should return true when bot label is among other labels", () => {
+    const profile = {
+      did: "did:plc:123",
+      labels: [{ val: "!no-unauthenticated" }, { val: "bot" }],
+    };
+    assertEquals(isAutomatedAccount(profile), true);
   });
 });
 
@@ -652,6 +729,86 @@ t.describe("addFeedItemToFeed", (it) => {
 
     assertEquals(result.length, 1);
     assertEquals(result[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
+  });
+});
+
+t.describe("getDisplayName", (it) => {
+  it("should return displayName when present", () => {
+    const profile = { displayName: "Alice", handle: "alice.bsky.social" };
+    assertEquals(getDisplayName(profile), "Alice");
+  });
+
+  it("should trim whitespace from displayName", () => {
+    const profile = { displayName: "  Alice  ", handle: "alice.bsky.social" };
+    assertEquals(getDisplayName(profile), "Alice");
+  });
+
+  it("should strip check mark characters", () => {
+    const profile = {
+      displayName: "Alice \u2705\u2713\u2714\u2611",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice");
+  });
+
+  it("should strip control characters", () => {
+    const profile = {
+      displayName: "Ali\u0000ce\u001F",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice");
+  });
+
+  it("should strip bidirectional override characters", () => {
+    const profile = {
+      displayName: "Ali\u202Ace\u202E",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice");
+  });
+
+  it("should collapse multiple spaces into one", () => {
+    const profile = {
+      displayName: "Alice   Bob",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice Bob");
+  });
+
+  it("should collapse spaces with zero-width spaces", () => {
+    const profile = {
+      displayName: "Alice \u200B Bob",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice Bob");
+  });
+
+  it("should handle all sanitizations together", () => {
+    const profile = {
+      displayName: "  \u2705Alice\u0000   Bob\u202E  ",
+      handle: "alice.bsky.social",
+    };
+    assertEquals(getDisplayName(profile), "Alice Bob");
+  });
+
+  it("should return 'Deleted Account' for missing.invalid handle", () => {
+    const profile = { handle: "missing.invalid" };
+    assertEquals(getDisplayName(profile), "Deleted Account");
+  });
+
+  it("should return 'Invalid Handle' for handle.invalid handle", () => {
+    const profile = { handle: "handle.invalid" };
+    assertEquals(getDisplayName(profile), "Invalid Handle");
+  });
+
+  it("should return handle when no displayName", () => {
+    const profile = { handle: "alice.bsky.social" };
+    assertEquals(getDisplayName(profile), "alice.bsky.social");
+  });
+
+  it("should prefer displayName over special handle fallbacks", () => {
+    const profile = { displayName: "Still Here", handle: "missing.invalid" };
+    assertEquals(getDisplayName(profile), "Still Here");
   });
 });
 

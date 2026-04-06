@@ -669,4 +669,114 @@ t.describe("Error Handling and Edge Cases", (it) => {
   });
 });
 
+t.describe("addMutedWord", (it) => {
+  it("should call updatePreferences with new muted word", async () => {
+    let updatedPreferences = null;
+    const mockPreferencesProvider = {
+      requirePreferences: () => new Preferences([], []),
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.addMutedWord({
+      value: "testword",
+      targets: ["content", "tag"],
+      actorTarget: "all",
+    });
+
+    const words = updatedPreferences.getMutedWords();
+    assertEquals(words.length, 1);
+    assertEquals(words[0].value, "testword");
+    assertEquals(words[0].targets.length, 2);
+    assertEquals(words[0].actorTarget, "all");
+  });
+
+  it("should pass expiresAt through to preferences", async () => {
+    let updatedPreferences = null;
+    const mockPreferencesProvider = {
+      requirePreferences: () => new Preferences([], []),
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    const expiresAt = "2026-05-01T00:00:00.000Z";
+    await mutations.addMutedWord({
+      value: "temp",
+      targets: ["tag"],
+      actorTarget: "exclude-following",
+      expiresAt,
+    });
+
+    const words = updatedPreferences.getMutedWords();
+    assertEquals(words[0].expiresAt, expiresAt);
+    assertEquals(words[0].actorTarget, "exclude-following");
+  });
+});
+
+t.describe("removeMutedWord", (it) => {
+  it("should call updatePreferences with word removed", async () => {
+    let updatedPreferences = null;
+    const existingPrefs = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#mutedWordsPref",
+          items: [
+            {
+              id: "word-1",
+              value: "remove-me",
+              targets: ["content"],
+              actorTarget: "all",
+            },
+            {
+              id: "word-2",
+              value: "keep-me",
+              targets: ["tag"],
+              actorTarget: "all",
+            },
+          ],
+        },
+      ],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => existingPrefs,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.removeMutedWord("word-1");
+
+    const words = updatedPreferences.getMutedWords();
+    assertEquals(words.length, 1);
+    assertEquals(words[0].value, "keep-me");
+  });
+});
+
 await t.run();

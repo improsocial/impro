@@ -86,6 +86,7 @@ t.describe("PostComposer - placeholder text", (it) => {
     element.replyTo = {
       author: { handle: "user.bsky.social", displayName: "User" },
       record: { text: "Original post", createdAt: new Date().toISOString() },
+      indexedAt: new Date().toISOString(),
     };
     connectElement(element);
     const richTextInput = element.querySelector("rich-text-input");
@@ -106,6 +107,7 @@ t.describe("PostComposer - button text", (it) => {
     element.replyTo = {
       author: { handle: "user.bsky.social", displayName: "User" },
       record: { text: "Original post", createdAt: new Date().toISOString() },
+      indexedAt: new Date().toISOString(),
     };
     connectElement(element);
     const postButton = element.querySelector(".rounded-button-primary");

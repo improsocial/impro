@@ -18,6 +18,7 @@ export class MockServer {
     this.hiddenPostUris = [];
     this.labelerSubscriptions = [];
     this.labelerViews = [bskyLabeler];
+    this.mutedWords = [];
     this.contentLabelPrefs = [];
     this.notifications = [];
     this.notificationCursor = undefined;
@@ -27,6 +28,7 @@ export class MockServer {
     this.reportPayloads = [];
     this.postQuotes = new Map();
     this.postReposts = new Map();
+    this.postThreadOthers = new Map();
     this.postThreads = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
@@ -128,6 +130,10 @@ export class MockServer {
     this.postThreads.set(postUri, thread);
   }
 
+  setPostThreadOther(postUri, threadOther) {
+    this.postThreadOthers.set(postUri, threadOther);
+  }
+
   addProfileFollowers(did, followers) {
     this.profileFollowers.set(did, followers);
   }
@@ -225,6 +231,14 @@ export class MockServer {
                 ]
               : []),
             ...this.contentLabelPrefs,
+            ...(this.mutedWords.length > 0
+              ? [
+                  {
+                    $type: "app.bsky.actor.defs#mutedWordsPref",
+                    items: this.mutedWords,
+                  },
+                ]
+              : []),
           ],
         }),
       }),
@@ -906,6 +920,20 @@ export class MockServer {
       });
     });
 
+    await page.route(
+      "**/xrpc/app.bsky.unspecced.getPostThreadOtherV2*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const anchor = url.searchParams.get("anchor");
+        const customThreadOther = this.postThreadOthers.get(anchor);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ thread: customThreadOther || [] }),
+        });
+      },
+    );
+
     await page.route("**/xrpc/app.bsky.graph.getFollowers*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
@@ -1289,6 +1317,12 @@ export class MockServer {
       this.contentLabelPrefs = (body?.preferences || []).filter(
         (p) => p.$type === "app.bsky.actor.defs#contentLabelPref",
       );
+      const mutedWordsPref = body?.preferences?.find(
+        (p) => p.$type === "app.bsky.actor.defs#mutedWordsPref",
+      );
+      if (mutedWordsPref) {
+        this.mutedWords = mutedWordsPref.items || [];
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",

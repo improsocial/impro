@@ -121,7 +121,7 @@ export function largePostTemplate({
           <div class="large-post-header-text">
             ${postHeaderTextTemplate({
               author: post.author,
-              timestamp: post.record.createdAt,
+              timestamp: post.indexedAt,
               includeTime: false,
             })}
           </div>
@@ -151,7 +151,7 @@ export function largePostTemplate({
                 : null
             }
             <div class="post-full-timestamp">
-              ${formatFullTimestamp(post.record.createdAt)}
+              ${formatFullTimestamp(post.indexedAt)}
             </div>
             ${postActionCountsTemplate({
               repostCount: post.repostCount,

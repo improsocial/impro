@@ -81,7 +81,6 @@ export class Requests {
     this.statusStore = new StatusStore();
 
     this.enableStatus(this.loadCurrentUser, "loadCurrentUser");
-    this.enableStatus(this.loadPreferences, "loadPreferences");
     this.enableStatus(this.loadPostThread, "loadPostThread");
     this.enableStatus(this.loadPost, "loadPost");
     this.enableStatus(
@@ -124,17 +123,17 @@ export class Requests {
     this.dataStore.setCurrentUser(profile);
   }
 
-  async loadPreferences() {
-    const preferences = await this.api.getPreferences();
-    this.dataStore.setPreferences(preferences);
-  }
-
   async loadPostThread(postURI, { depth = 6 } = {}) {
     const labelers = this.requireLabelers();
-    let postThread = await this.api.getPostThread(postURI, {
-      labelers,
-      depth,
-    });
+    let [postThread, postThreadOther] = await Promise.all([
+      this.api.getPostThread(postURI, {
+        labelers,
+        depth,
+      }),
+      this.api.getPostThreadOther(postURI, {
+        labelers,
+      }),
+    ]);
     // Save posts
     const postsToSave = this.normalizer.getPostsFromPostThread(postThread);
     this.dataStore.setPosts(postsToSave);
@@ -167,6 +166,7 @@ export class Requests {
     }
     // Save post thread
     this.dataStore.setPostThread(postURI, postThread);
+    this.dataStore.setPostThreadOther(postURI, postThreadOther);
     // Note - this return value is used by loadParentChain
     return postThread;
   }
@@ -378,7 +378,8 @@ export class Requests {
   }
 
   async loadProfile(did) {
-    const profile = await this.api.getProfile(did);
+    const labelers = this.requireLabelers();
+    const profile = await this.api.getProfile(did, { labelers });
     this.dataStore.setProfile(did, profile);
   }
 
@@ -386,6 +387,9 @@ export class Requests {
     if (!query) {
       this.dataStore.clearProfileSearchResults();
       return;
+    }
+    if (!cursor) {
+      this.dataStore.clearProfileSearchResults();
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
@@ -414,6 +418,9 @@ export class Requests {
       this.dataStore.clearPostSearchResults();
       return;
     }
+    if (!cursor) {
+      this.dataStore.clearPostSearchResults();
+    }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
     this.dataStore.setLatestPostSearchRequestTime(requestTime);
@@ -433,7 +440,9 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris);
+      const parentPosts = await this.api.getPosts(replyParentUris, {
+        labelers,
+      });
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
@@ -458,6 +467,9 @@ export class Requests {
     if (!query) {
       this.dataStore.clearFeedSearchResults();
       return;
+    }
+    if (!cursor) {
+      this.dataStore.clearFeedSearchResults();
     }
     const requestTime = Date.now();
     this.dataStore.setLatestFeedSearchRequestTime(requestTime);
@@ -552,11 +564,12 @@ export class Requests {
     if (reload) {
       cursor = "";
     }
-    const res = await this.api.getNotifications({ cursor, limit });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getNotifications({ cursor, limit, labelers });
     // Get associated posts
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
-      const fetchedPosts = await this.api.getPosts(postUris);
+      const fetchedPosts = await this.api.getPosts(postUris, { labelers });
       this.dataStore.setPosts(fetchedPosts);
     }
     const previousCursor = this.dataStore.getNotificationCursor();
@@ -589,14 +602,16 @@ export class Requests {
     if (reload) {
       cursor = "";
     }
+    const labelers = this.requireLabelers();
     const res = await this.api.getNotifications({
       cursor,
       limit,
       reasons: MENTION_REASONS,
+      labelers,
     });
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
-      const fetchedPosts = await this.api.getPosts(postUris);
+      const fetchedPosts = await this.api.getPosts(postUris, { labelers });
       this.dataStore.setPosts(fetchedPosts);
     }
     const previousCursor = this.dataStore.getMentionNotificationCursor();
@@ -691,8 +706,9 @@ export class Requests {
   }
 
   async loadPostLikes(postUri, { cursor } = {}) {
+    const labelers = this.requireLabelers();
     const existingLikes = this.dataStore.getPostLikes(postUri);
-    const res = await this.api.getLikes(postUri, { cursor });
+    const res = await this.api.getLikes(postUri, { cursor, labelers });
 
     if (existingLikes && cursor) {
       // Append to existing likes
@@ -707,15 +723,16 @@ export class Requests {
   }
 
   async loadPostQuotes(postUri, { cursor } = {}) {
+    const labelers = this.requireLabelers();
     const existingQuotes = this.dataStore.getPostQuotes(postUri);
-    const res = await this.api.getQuotes(postUri, { cursor });
+    const res = await this.api.getQuotes(postUri, { cursor, labelers });
 
     // if there are posts that are replies, load the parents
     const replyPosts = res.posts.filter((post) => post.record?.reply);
     const replyParentUris = replyPosts
       .map((post) => post.record?.reply?.parent?.uri)
       .filter(Boolean);
-    const parentPosts = await this.api.getPosts(replyParentUris);
+    const parentPosts = await this.api.getPosts(replyParentUris, { labelers });
     // Save posts and parents
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
@@ -731,8 +748,9 @@ export class Requests {
   }
 
   async loadPostReposts(postUri, { cursor } = {}) {
+    const labelers = this.requireLabelers();
     const existingReposts = this.dataStore.getPostReposts(postUri);
-    const res = await this.api.getRepostedBy(postUri, { cursor });
+    const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
 
     if (existingReposts && cursor) {
       // Append to existing reposts
@@ -881,7 +899,8 @@ export class Requests {
       cursor = "";
     }
 
-    const res = await this.api.getBookmarks({ limit, cursor });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getBookmarks({ limit, cursor, labelers });
 
     // Extract posts from bookmarks array: [{item: post, ...}]
     const posts = res.bookmarks.map((bookmark) => bookmark.item);
@@ -893,7 +912,9 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris);
+      const parentPosts = await this.api.getPosts(replyParentUris, {
+        labelers,
+      });
       this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {
@@ -922,8 +943,9 @@ export class Requests {
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {
+    const labelers = this.requireLabelers();
     const existingFollowers = this.dataStore.getProfileFollowers(profileDid);
-    const res = await this.api.getFollowers(profileDid, { cursor });
+    const res = await this.api.getFollowers(profileDid, { cursor, labelers });
 
     if (existingFollowers && cursor) {
       // Append to existing followers
@@ -938,8 +960,9 @@ export class Requests {
   }
 
   async loadProfileFollows(profileDid, { cursor } = {}) {
+    const labelers = this.requireLabelers();
     const existingFollows = this.dataStore.getProfileFollows(profileDid);
-    const res = await this.api.getFollows(profileDid, { cursor });
+    const res = await this.api.getFollows(profileDid, { cursor, labelers });
 
     if (existingFollows && cursor) {
       // Append to existing follows

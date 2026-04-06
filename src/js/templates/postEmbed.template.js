@@ -141,7 +141,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
             })}
             ${postHeaderTextTemplate({
               author: quotedPost.author,
-              timestamp: quotedPost.value.createdAt,
+              timestamp: quotedPost.indexedAt,
             })}
           </div>
           ${quotedPost.badgeLabels

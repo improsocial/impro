@@ -13,11 +13,7 @@ export function externalLinkTemplate({
   lazyLoadImages,
 }) {
   return html`<div class="external-link" data-testid="external-link">
-    <a
-      href="${sanitizeUri(url)}"
-      target="_blank"
-      @click=${(e) => e.stopPropagation()}
-    >
+    <a href="${sanitizeUri(url)}" target="_blank">
       <div class="external-link-content">
         ${image
           ? html`<img

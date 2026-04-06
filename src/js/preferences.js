@@ -276,7 +276,10 @@ export class Preferences {
       if (!labeler) continue;
       const labelDefinition = getDefinitionForLabel(label, labeler);
       if (!labelDefinition || !isBadgeLabel(labelDefinition)) continue;
+      const visibility = this.getLabelVisibility(label, labelDefinition);
+      if (visibility === "ignore") continue;
       badgeLabels.push({
+        visibility,
         label,
         labelDefinition,
         labeler,
@@ -326,6 +329,54 @@ export class Preferences {
       return false;
     }
     return hiddenPostsPreference.items.includes(postUri);
+  }
+
+  getMutedWords() {
+    const mutedWordsPreference = Preferences.getMutedWordsPreference(this.obj);
+    return mutedWordsPreference ? mutedWordsPreference.items : [];
+  }
+
+  addMutedWord({ value, targets, actorTarget, expiresAt }) {
+    const clone = this.clone();
+    let mutedWordsPreference = Preferences.getMutedWordsPreference(clone.obj);
+    if (!mutedWordsPreference) {
+      mutedWordsPreference = {
+        $type: "app.bsky.actor.defs#mutedWordsPref",
+        items: [],
+      };
+      clone.obj.push(mutedWordsPreference);
+    }
+    mutedWordsPreference.items.push({
+      id: generateTid(),
+      value,
+      targets,
+      actorTarget,
+      expiresAt,
+    });
+    return clone;
+  }
+
+  removeMutedWord(wordId) {
+    const clone = this.clone();
+    const mutedWordsPreference = Preferences.getMutedWordsPreference(clone.obj);
+    if (!mutedWordsPreference) {
+      return clone;
+    }
+    mutedWordsPreference.items = mutedWordsPreference.items.filter(
+      (item) => item.id !== wordId,
+    );
+    return clone;
+  }
+
+  updateMutedWord(wordId, updatedFields) {
+    const clone = this.clone();
+    const mutedWordsPreference = Preferences.getMutedWordsPreference(clone.obj);
+    if (mutedWordsPreference) {
+      mutedWordsPreference.items = mutedWordsPreference.items.map((item) =>
+        item.id === wordId ? { ...item, ...updatedFields } : item,
+      );
+    }
+    return clone;
   }
 
   hasMutedWord({ text, facets, embed, languages, author }) {

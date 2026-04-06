@@ -64,6 +64,23 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
     }
   });
 
+  // Precache labeler creator DIDs when preferences are set
+  dataLayer.preferencesProvider.on("setPreferences", (preferences) => {
+    for (const labelerDef of preferences.labelerDefs) {
+      try {
+        if (labelerDef.creator) {
+          identityResolver.setDidForHandle(
+            labelerDef.creator.handle,
+            labelerDef.creator.did,
+          );
+        }
+      } catch (error) {
+        console.error("error when setting DID from labeler", labelerDef);
+        console.error(error);
+      }
+    }
+  });
+
   // Precache author DIDs from notifications
   dataLayer.dataStore.on("setNotifications", (notifications) => {
     for (const notification of notifications) {

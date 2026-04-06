@@ -5,7 +5,25 @@ import { linkToHashtag, linkToProfile } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
 
-function facetTemplate({ facet, wrappedText }) {
+// Matches social-app behavior
+export function truncateUrl(url) {
+  try {
+    const urlp = new URL(url);
+    if (urlp.protocol !== "http:" && urlp.protocol !== "https:") {
+      return url;
+    }
+    const path =
+      (urlp.pathname === "/" ? "" : urlp.pathname) + urlp.search + urlp.hash;
+    if (path.length > 15) {
+      return urlp.host + path.slice(0, 13) + "...";
+    }
+    return urlp.host + path;
+  } catch {
+    return url;
+  }
+}
+
+function facetTemplate({ facet, wrappedText, truncateUrls }) {
   // only support 1 feature for now
   const feature = facet.features[0];
   if (!feature) {
@@ -15,7 +33,9 @@ function facetTemplate({ facet, wrappedText }) {
   switch (feature.$type) {
     case "app.bsky.richtext.facet#link":
       const uri = feature.uri;
-      return html`<a href="${sanitizeUri(uri)}">${wrappedText}</a>`;
+      return html`<a href="${sanitizeUri(uri)}"
+        >${truncateUrls ? truncateUrl(wrappedText) : wrappedText}</a
+      >`;
     case "app.bsky.richtext.facet#tag":
       const tag = feature.tag;
       return html`<a href="${linkToHashtag(tag)}">${wrappedText}</a>`;
@@ -44,7 +64,7 @@ function facetOverlaps(facet1, facet2) {
   );
 }
 
-function richTextLineTemplate({ text, facets, byteOffset }) {
+function richTextLineTemplate({ text, facets, byteOffset, truncateUrls }) {
   if (text.length === 0) {
     return html`<div><br /></div>`;
   }
@@ -70,7 +90,7 @@ function richTextLineTemplate({ text, facets, byteOffset }) {
       facet.index.byteStart - byteOffset,
       facet.index.byteEnd - byteOffset,
     );
-    parts.push(facetTemplate({ facet, wrappedText }));
+    parts.push(facetTemplate({ facet, wrappedText, truncateUrls }));
     currentIndex = facet.index.byteEnd - byteOffset;
   }
   const finalTextPart = sliceByByte(text, currentIndex);
@@ -78,7 +98,7 @@ function richTextLineTemplate({ text, facets, byteOffset }) {
   return html`<div>${parts}</div>`;
 }
 
-export function richTextTemplate({ text, facets = [] }) {
+export function richTextTemplate({ text, facets = [], truncateUrls = false }) {
   const lines = text.split("\n");
   const divs = [];
   // If facets are longer than the overall byte length of the text, clamp them to fit
@@ -98,7 +118,12 @@ export function richTextTemplate({ text, facets = [] }) {
         facet.index.byteEnd <= byteOffset + lineByteLength,
     );
     divs.push(
-      richTextLineTemplate({ text: line, facets: facetsForLine, byteOffset }),
+      richTextLineTemplate({
+        text: line,
+        facets: facetsForLine,
+        byteOffset,
+        truncateUrls,
+      }),
     );
     byteOffset += lineByteLength + 1; // +1 for the newline character
   }

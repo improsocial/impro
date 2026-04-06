@@ -15,18 +15,6 @@ export class Declarative {
     return currentUser;
   }
 
-  async ensurePreferences() {
-    let preferences = this.selectors.getPreferences();
-    if (!preferences) {
-      await this.requests.loadPreferences();
-      preferences = this.selectors.getPreferences();
-    }
-    if (!preferences) {
-      throw new Error("Preferences not found");
-    }
-    return preferences;
-  }
-
   async ensureProfile(profileDid) {
     let profile = this.selectors.getProfile(profileDid);
     if (!profile) {

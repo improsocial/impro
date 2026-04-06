@@ -219,6 +219,25 @@ export function batch(items, batchSize) {
   return batches;
 }
 
+export function differenceInMinutes(a, b) {
+  const date1 = typeof a === "string" ? new Date(a) : a;
+  const date2 = typeof b === "string" ? new Date(b) : b;
+  const diff = Math.abs(date1.getTime() - date2.getTime());
+  return Math.floor(diff / (1000 * 60));
+}
+
+export function differenceInHours(date1, date2) {
+  const diffMs = date1 - date2;
+  const oneHourMs = 60 * 60 * 1000;
+  return Math.ceil(diffMs / oneHourMs);
+}
+
+export function differenceInDays(date1, date2) {
+  const diffMs = date1 - date2;
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  return Math.ceil(diffMs / oneDayMs);
+}
+
 export function getCurrentTimestamp() {
   return new Date().toISOString();
 }

@@ -81,6 +81,35 @@ t.describe("avatarTemplate", (it) => {
     const img = container.querySelector("[data-testid='avatar-image']");
     assertEquals(img.getAttribute("loading"), "eager");
   });
+
+  it("should set data-lightbox-src to full-size avatar URL", () => {
+    const result = avatarTemplate({ author: post.author });
+    const container = document.createElement("div");
+    render(result, container);
+    const img = container.querySelector("[data-testid='avatar-image']");
+    assertEquals(img.getAttribute("data-lightbox-src"), post.author.avatar);
+  });
+
+  it("should use thumbnail URL for src and full-size URL for data-lightbox-src", () => {
+    const result = avatarTemplate({ author: post.author });
+    const container = document.createElement("div");
+    render(result, container);
+    const img = container.querySelector("[data-testid='avatar-image']");
+    assert(img.getAttribute("src").includes("avatar_thumbnail"));
+    assert(!img.getAttribute("data-lightbox-src").includes("avatar_thumbnail"));
+  });
+
+  it("should use fallback for both src and data-lightbox-src when no avatar URL", () => {
+    const author = { ...post.author, avatar: null };
+    const result = avatarTemplate({ author });
+    const container = document.createElement("div");
+    render(result, container);
+    const img = container.querySelector("[data-testid='avatar-image']");
+    assert(img.getAttribute("src").includes("avatar-fallback.svg"));
+    assert(
+      img.getAttribute("data-lightbox-src").includes("avatar-fallback.svg"),
+    );
+  });
 });
 
 t.describe("avatarTemplate - labeler profiles", (it) => {

@@ -92,14 +92,19 @@ export class Selectors {
   getPostThread(postURI) {
     // Load post thread from store, then hydrate it with posts from store
     const postThread = this.dataStore.getPostThread(postURI);
-    if (!postThread) {
+    const postThreadOther = this.dataStore.getPostThreadOther(postURI);
+    if (!postThread || !postThreadOther) {
       return null;
     }
     if (isBlockedPost(postThread) && isBlockingUser(postThread)) {
       return postThread;
     }
+    const hiddenReplyUris = postThreadOther.map((item) => item.uri);
     // Hydrate
-    const hydratedPostThread = this.hydratePostThread(postThread);
+    const hydratedPostThread = this.hydratePostThread(
+      postThread,
+      hiddenReplyUris,
+    );
     const parent = postThread.parent;
     if (parent) {
       hydratedPostThread.parent = this.hydratePostThreadParent(parent);
@@ -107,17 +112,21 @@ export class Selectors {
     return hydratedPostThread;
   }
 
-  hydratePostThread(postThread) {
+  hydratePostThread(postThread, hiddenReplyUris) {
     if (isBlockedPost(postThread) && isBlockingUser(postThread)) {
       return postThread;
     }
     const hydratedPostThread = {
       post: this.getPost(postThread.post.uri, { required: true }),
     };
+    if (hiddenReplyUris.includes(postThread.post.uri)) {
+      /* NOTE: LEXICON DEVIATION */
+      hydratedPostThread.post = { ...hydratedPostThread.post, isHidden: true };
+    }
     if (postThread.replies) {
       hydratedPostThread.replies = postThread.replies.map((reply) => {
         if (reply.$type === "app.bsky.feed.defs#threadViewPost") {
-          return this.hydratePostThread(reply);
+          return this.hydratePostThread(reply, hiddenReplyUris);
         }
         return reply;
       });

@@ -6,13 +6,13 @@ import { render } from "/js/lib/lit-html.js";
 const t = new TestSuite("notFoundPostTemplate");
 
 t.describe("notFoundPostTemplate", (it) => {
-  it("should display 'Post deleted' text", () => {
+  it("should display 'Post not found' text", () => {
     const result = notFoundPostTemplate();
     const container = document.createElement("div");
     render(result, container);
     const indicator = container.querySelector(".missing-post-indicator");
     assert(indicator !== null);
-    assert(indicator.textContent.includes("Post deleted"));
+    assert(indicator.textContent.includes("Post not found"));
   });
 });
 
