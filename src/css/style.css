@@ -16,6 +16,13 @@
   }
 }
 
+@media (hover: none) and (pointer: coarse) {
+  :focus,
+  :focus-visible {
+    outline: none;
+  }
+}
+
 html {
   /* colors */
   --white: #ffffff;
