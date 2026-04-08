@@ -5,6 +5,7 @@ import {
   resolveFacets,
   getFacetsFromText,
   getTagsFromFacets,
+  richTextToString,
 } from "/js/facetHelpers.js";
 
 const t = new TestSuite("facetHelpers");
@@ -349,6 +350,107 @@ t.describe("getTagsFromFacets", (it) => {
 
     assertEquals(tags.length, 1);
     assertEquals(tags[0].features[0].$type, "app.bsky.richtext.facet#tag");
+  });
+});
+
+t.describe("richTextToString", (it) => {
+  it("should return empty string for null/undefined text", () => {
+    assertEquals(richTextToString(null, []), "");
+    assertEquals(richTextToString(undefined, []), "");
+    assertEquals(richTextToString("", []), "");
+  });
+
+  it("should return text unchanged when no facets are provided", () => {
+    assertEquals(richTextToString("hello world", []), "hello world");
+    assertEquals(richTextToString("hello world", null), "hello world");
+    assertEquals(richTextToString("hello world", undefined), "hello world");
+  });
+
+  it("should replace a shortened link with its full URI", () => {
+    const text = "check this out: example.com/foo...";
+    const facets = [
+      {
+        index: { byteStart: 16, byteEnd: 34 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://example.com/foo/bar/baz",
+          },
+        ],
+      },
+    ];
+    assertEquals(
+      richTextToString(text, facets),
+      "check this out: https://example.com/foo/bar/baz",
+    );
+  });
+
+  it("should leave non-link facets (mentions, tags) as display text", () => {
+    const text = "hi @alice.test #hello";
+    const facets = [
+      {
+        index: { byteStart: 3, byteEnd: 14 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#mention",
+            did: "did:plc:alice",
+          },
+        ],
+      },
+      {
+        index: { byteStart: 15, byteEnd: 21 },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: "hello" }],
+      },
+    ];
+    assertEquals(richTextToString(text, facets), "hi @alice.test #hello");
+  });
+
+  it("should handle multiple link facets in order", () => {
+    const text = "see a.co/x and b.co/y end";
+    const facets = [
+      {
+        index: { byteStart: 15, byteEnd: 21 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://b.co/y/full",
+          },
+        ],
+      },
+      {
+        index: { byteStart: 4, byteEnd: 10 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://a.co/x/full",
+          },
+        ],
+      },
+    ];
+    assertEquals(
+      richTextToString(text, facets),
+      "see https://a.co/x/full and https://b.co/y/full end",
+    );
+  });
+
+  it("should handle multibyte characters correctly", () => {
+    const text = "héllo example.com/x";
+    // "héllo " = 7 bytes (é is 2 bytes), link starts at byte 7
+    const facets = [
+      {
+        index: { byteStart: 7, byteEnd: 20 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://example.com/x/full",
+          },
+        ],
+      },
+    ];
+    assertEquals(
+      richTextToString(text, facets),
+      "héllo https://example.com/x/full",
+    );
   });
 });
 

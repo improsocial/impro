@@ -1,4 +1,4 @@
-import { getByteIndex } from "/js/utils.js";
+import { getByteIndex, sliceByByte, getByteLength } from "/js/utils.js";
 import tlds from "/js/lib/tlds.js";
 
 const urlCharacterRegex = /[a-zA-Z0-9.\-:/_-~?#\[\]@!$&'()*+,;%=]/;
@@ -154,6 +154,41 @@ export function getTagsFromFacets(facets) {
   return facets.filter(
     (facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag",
   );
+}
+
+// Reconstructs the plain-text representation of a post, substituting
+// shortened link display text with the full URI from its facet. This matches
+// the behavior of social-app's "Copy post text" action.
+export function richTextToString(text, facets) {
+  if (!text) {
+    return "";
+  }
+  if (!facets?.length) {
+    return text;
+  }
+  const linkFacets = facets
+    .filter(
+      (facet) =>
+        facet.features?.[0]?.$type === "app.bsky.richtext.facet#link" &&
+        facet.features[0].uri,
+    )
+    .slice()
+    .sort((a, b) => a.index.byteStart - b.index.byteStart);
+
+  const totalBytes = getByteLength(text);
+  let result = "";
+  let cursor = 0;
+  for (const facet of linkFacets) {
+    const { byteStart, byteEnd } = facet.index;
+    if (byteStart < cursor || byteEnd > totalBytes) {
+      continue;
+    }
+    result += sliceByByte(text, cursor, byteStart);
+    result += facet.features[0].uri;
+    cursor = byteEnd;
+  }
+  result += sliceByByte(text, cursor, totalBytes);
+  return result;
 }
 
 export function clampFacetIndex(facet, { byteStart, byteEnd }) {
