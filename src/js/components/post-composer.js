@@ -538,6 +538,19 @@ class PostComposer extends Component {
         }
       });
     });
+
+    // iOS Safari: dismissing the keyboard via the "Done" button leaves the
+    // dialog's inner scroll area offset, which makes buttons unclickable
+    // until the dialog is swiped or re-tapped. Reset scroll on blur.
+    dialog.addEventListener(
+      "blur",
+      () => {
+        const scrollArea = this.querySelector(".post-composer-scroll-area");
+        if (scrollArea) scrollArea.scrollTop = 0;
+        window.scrollTo(0, 0);
+      },
+      true,
+    );
   }
 
   close() {
