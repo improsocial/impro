@@ -1,6 +1,11 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
-import { showSignInModal, showInfoModal, confirm } from "/js/modals.js";
+import {
+  showSignInModal,
+  showInfoModal,
+  confirm,
+  showWhoCanReplyModal,
+} from "/js/modals.js";
 
 const t = new TestSuite("Modals");
 
@@ -236,6 +241,128 @@ t.describe("confirm", (it) => {
     const result = confirm("Sure?");
     document.querySelector(".cancel-button").click();
     await result;
+    assert(document.querySelector("dialog") === null);
+  });
+});
+
+t.describe("showWhoCanReplyModal", (it) => {
+  const everybodyPost = { author: { handle: "alice.test" } };
+  const nobodyPost = {
+    author: { handle: "alice.test" },
+    threadgate: { record: { allow: [] } },
+  };
+  const followersPost = {
+    author: { handle: "alice.test" },
+    threadgate: {
+      record: {
+        allow: [{ $type: "app.bsky.feed.threadgate#followerRule" }],
+      },
+    },
+  };
+  const mentionAndFollowingPost = {
+    author: { handle: "alice.test" },
+    threadgate: {
+      record: {
+        allow: [
+          { $type: "app.bsky.feed.threadgate#mentionRule" },
+          { $type: "app.bsky.feed.threadgate#followingRule" },
+        ],
+      },
+    },
+  };
+
+  it("should create a dialog with the who-can-reply testid", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const dialog = document.querySelector("dialog");
+    assert(dialog !== null);
+    assertEquals(dialog.dataset.testid, "who-can-reply-modal");
+    assert(dialog.classList.contains("info-modal"));
+    assert(dialog.hasAttribute("open"));
+  });
+
+  it("should render the title", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const title = document.querySelector(".modal-dialog-title");
+    assertEquals(title.textContent, "Who can interact with this post?");
+  });
+
+  it("should render everybody message when no threadgate", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(body.textContent.includes("Everybody can reply to this post."));
+  });
+
+  it("should render nobody message when allow is empty", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: nobodyPost });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(body.textContent.includes("Replies to this post are disabled."));
+  });
+
+  it("should render followers rule", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: followersPost });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(body.textContent.includes("Only"));
+    assert(body.textContent.includes("users following"));
+    assert(body.textContent.includes("@alice.test"));
+    assert(body.textContent.includes("can reply."));
+  });
+
+  it("should join multiple rules with 'and'", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: mentionAndFollowingPost });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(body.textContent.includes("mentioned users"));
+    assert(body.textContent.includes(", and "));
+    assert(body.textContent.includes("users followed by"));
+  });
+
+  it("should not show quote message when embedding is enabled", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(!body.textContent.includes("quote this post"));
+  });
+
+  it("should show quote message when embedding is disabled", () => {
+    clearDOM();
+    showWhoCanReplyModal({
+      post: { ...everybodyPost, viewer: { embeddingDisabled: true } },
+    });
+    const body = document.querySelector(".who-can-reply-body");
+    assert(
+      body.textContent.includes("No one but the author can quote this post."),
+    );
+  });
+
+  it("should close and remove on OK button click", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const button = document.querySelector(".primary-button");
+    assertEquals(button.textContent.trim(), "OK");
+    button.click();
+    assert(document.querySelector("dialog") === null);
+  });
+
+  it("should close and remove on backdrop click", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const dialog = document.querySelector("dialog");
+    dialog.dispatchEvent(new Event("click", { bubbles: true }));
+    assert(document.querySelector("dialog") === null);
+  });
+
+  it("should close and remove on cancel event", () => {
+    clearDOM();
+    showWhoCanReplyModal({ post: everybodyPost });
+    const dialog = document.querySelector("dialog");
+    const cancelEvent = new Event("cancel");
+    cancelEvent.preventDefault = () => {};
+    dialog.dispatchEvent(cancelEvent);
     assert(document.querySelector("dialog") === null);
   });
 });

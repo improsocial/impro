@@ -17,6 +17,7 @@ import {
   isBadgeLabel,
   addFeedItemToFeed,
   getDisplayName,
+  getThreadgateAllowSettings,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -809,6 +810,94 @@ t.describe("getDisplayName", (it) => {
   it("should prefer displayName over special handle fallbacks", () => {
     const profile = { displayName: "Still Here", handle: "missing.invalid" };
     assertEquals(getDisplayName(profile), "Still Here");
+  });
+});
+
+t.describe("getThreadgateAllowSettings", (it) => {
+  it("returns everybody when post has no threadgate", () => {
+    assertEquals(getThreadgateAllowSettings({}), { type: "everybody" });
+  });
+
+  it("returns everybody when allow is undefined", () => {
+    const post = {
+      threadgate: { record: { $type: "app.bsky.feed.threadgate" } },
+    };
+    assertEquals(getThreadgateAllowSettings(post), { type: "everybody" });
+  });
+
+  it("returns nobody when allow is empty array", () => {
+    const post = { threadgate: { record: { allow: [] } } };
+    assertEquals(getThreadgateAllowSettings(post), { type: "nobody" });
+  });
+
+  it("maps a mention rule", () => {
+    const post = {
+      threadgate: {
+        record: { allow: [{ $type: "app.bsky.feed.threadgate#mentionRule" }] },
+      },
+    };
+    assertEquals(getThreadgateAllowSettings(post), [{ type: "mention" }]);
+  });
+
+  it("maps follower and following rules", () => {
+    const post = {
+      threadgate: {
+        record: {
+          allow: [
+            { $type: "app.bsky.feed.threadgate#followerRule" },
+            { $type: "app.bsky.feed.threadgate#followingRule" },
+          ],
+        },
+      },
+    };
+    assertEquals(getThreadgateAllowSettings(post), [
+      { type: "followers" },
+      { type: "following" },
+    ]);
+  });
+
+  it("resolves a list rule against threadgate.lists", () => {
+    const listUri = "at://did:plc:abc/app.bsky.graph.list/123";
+    const list = { uri: listUri, name: "Cool people" };
+    const post = {
+      threadgate: {
+        lists: [list],
+        record: {
+          allow: [
+            { $type: "app.bsky.feed.threadgate#listRule", list: listUri },
+          ],
+        },
+      },
+    };
+    assertEquals(getThreadgateAllowSettings(post), [{ type: "list", list }]);
+  });
+
+  it("returns null list when list rule references missing list", () => {
+    const post = {
+      threadgate: {
+        lists: [],
+        record: {
+          allow: [
+            {
+              $type: "app.bsky.feed.threadgate#listRule",
+              list: "at://did:plc:abc/app.bsky.graph.list/zzz",
+            },
+          ],
+        },
+      },
+    };
+    assertEquals(getThreadgateAllowSettings(post), [
+      { type: "list", list: null },
+    ]);
+  });
+
+  it("marks unknown rule types", () => {
+    const post = {
+      threadgate: {
+        record: { allow: [{ $type: "app.bsky.feed.threadgate#futureRule" }] },
+      },
+    };
+    assertEquals(getThreadgateAllowSettings(post), [{ type: "unknown" }]);
   });
 });
 

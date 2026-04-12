@@ -1,4 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { getThreadgateAllowSettings } from "/js/dataHelpers.js";
+import { linkToProfile } from "/js/navigation.js";
 
 export function showSignInModal() {
   const dialog = document.createElement("dialog");
@@ -139,4 +141,103 @@ export async function confirm(
     document.body.appendChild(dialog);
     dialog.showModal();
   });
+}
+
+function ruleTemplate({ rule, authorHandle }) {
+  if (rule.type === "mention") {
+    return html`mentioned users`;
+  }
+  if (rule.type === "followers") {
+    return html`users following
+      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+  }
+  if (rule.type === "following") {
+    return html`users followed by
+      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+  }
+  if (rule.type === "list") {
+    if (rule.list) {
+      return html`${rule.list.name} members`;
+    }
+    return html`list members`;
+  }
+  return html`unknown`;
+}
+
+function threadgateRuleTemplate({ post }) {
+  const settings = getThreadgateAllowSettings(post);
+  if (!Array.isArray(settings)) {
+    if (settings.type === "everybody") {
+      return html`Everybody can reply to this post.`;
+    }
+    if (settings.type === "nobody") {
+      return html`Replies to this post are disabled.`;
+    }
+  }
+  if (Array.isArray(settings)) {
+    if (settings.some((rule) => rule.type === "unknown")) {
+      return html`This post has an unknown type of threadgate on it. Your app
+      may be out of date.`;
+    }
+    const authorHandle = post.author.handle;
+    const parts = [];
+    settings.forEach((rule, i) => {
+      if (i > 0) {
+        if (i === settings.length - 1) {
+          parts.push(html`, and `);
+        } else {
+          parts.push(html`, `);
+        }
+      }
+      parts.push(ruleTemplate({ rule, authorHandle }));
+    });
+    return html`Only ${parts} can reply.`;
+  }
+  return null;
+}
+
+export function showWhoCanReplyModal({ post }) {
+  const dialog = document.createElement("dialog");
+  dialog.classList.add("modal-dialog", "info-modal");
+  dialog.dataset.testid = "who-can-reply-modal";
+
+  const dismiss = () => {
+    dialog.close();
+    dialog.remove();
+  };
+
+  const embeddingDisabled = !!post?.viewer?.embeddingDisabled;
+
+  render(
+    html`
+      <div class="modal-dialog-content">
+        <h2 class="modal-dialog-title">Who can interact with this post?</h2>
+        <div class="modal-dialog-message who-can-reply-body">
+          <span>${threadgateRuleTemplate({ post })}</span>
+          ${embeddingDisabled
+            ? html`<span>No one but the author can quote this post.</span>`
+            : ""}
+        </div>
+        <div class="modal-dialog-buttons">
+          <button class="modal-dialog-button primary-button" @click=${dismiss}>
+            OK
+          </button>
+        </div>
+      </div>
+    `,
+    dialog,
+  );
+
+  dialog.addEventListener("click", (e) => {
+    if (e.target.tagName === "DIALOG") {
+      dismiss();
+    }
+  });
+  dialog.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    dismiss();
+  });
+
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }

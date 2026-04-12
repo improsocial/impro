@@ -6,6 +6,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
 import { getRKey } from "/js/dataHelpers.js";
+import { richTextToString } from "/js/facetHelpers.js";
 import { showSignInModal } from "/js/modals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -185,6 +186,20 @@ export function postActionBarTemplate({
             >
               Copy link to post
             </context-menu-item>
+            ${post.record?.text
+              ? html`
+                  <context-menu-item
+                    @click=${() => {
+                      navigator.clipboard.writeText(
+                        richTextToString(post.record.text, post.record.facets),
+                      );
+                      showToast("Post text copied to clipboard");
+                    }}
+                  >
+                    Copy post text
+                  </context-menu-item>
+                `
+              : null}
           </context-menu-item-group>
           ${isAuthenticated
             ? html`

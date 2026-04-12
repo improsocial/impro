@@ -13,6 +13,7 @@ import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
+import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import {
@@ -135,6 +136,7 @@ export function largePostTemplate({
                     ${richTextTemplate({
                       text: postText,
                       facets: post.record.facets,
+                      truncateUrls: true,
                     })}
                   </div>`
                 : ""
@@ -152,6 +154,7 @@ export function largePostTemplate({
             }
             <div class="post-full-timestamp">
               ${formatFullTimestamp(post.indexedAt)}
+              ${whoCanReplyBadgeTemplate({ post })}
             </div>
             ${postActionCountsTemplate({
               repostCount: post.repostCount,

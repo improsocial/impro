@@ -579,6 +579,41 @@ export function isPinnedPost(feedItem) {
   return feedItem.reason?.$type === "app.bsky.feed.defs#reasonPin";
 }
 
+export function getThreadgateAllowSettings(post) {
+  // - undefined allow -> { type: "everybody" }
+  // - empty allow array -> { type: "nobody" }
+  // - otherwise -> array of { type: "mention" | "followers" | "following" | "list" | "unknown", list? }
+  const threadgate = post?.threadgate;
+  if (!threadgate || !threadgate.record) {
+    return { type: "everybody" };
+  }
+  const allow = threadgate.record.allow;
+  if (allow === undefined) {
+    return { type: "everybody" };
+  }
+  if (allow.length === 0) {
+    return { type: "nobody" };
+  }
+  const lists = threadgate.lists || [];
+  return allow.map((rule) => {
+    switch (rule.$type) {
+      case "app.bsky.feed.threadgate#mentionRule":
+        return { type: "mention" };
+      case "app.bsky.feed.threadgate#followerRule":
+        return { type: "followers" };
+      case "app.bsky.feed.threadgate#followingRule":
+        return { type: "following" };
+      case "app.bsky.feed.threadgate#listRule":
+        return {
+          type: "list",
+          list: lists.find((listView) => listView.uri === rule.list) ?? null,
+        };
+      default:
+        return { type: "unknown" };
+    }
+  });
+}
+
 // Adds a feed item to the beginning of a feed, preserving pinned post position.
 export function addFeedItemToFeed(feedItem, feed) {
   const newFeed = [];

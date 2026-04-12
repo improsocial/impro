@@ -222,6 +222,40 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     render(result, container);
     assert(container.querySelector("[data-testid='removed-quote']") !== null);
   });
+
+  it("should truncate long URLs in quoted post text", () => {
+    const url = "https://example.com/very/long/path/to/some/page";
+    const text = "See " + url;
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: {
+          ...post.record,
+          text,
+          facets: [
+            {
+              index: { byteStart: 4, byteEnd: 4 + url.length },
+              features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+            },
+          ],
+        },
+        uri: post.uri,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector(".quoted-post a[href='" + url + "']");
+    assert(link !== null);
+    assert(link.textContent.endsWith("..."));
+    assert(link.textContent.length < url.length);
+  });
 });
 
 await t.run();

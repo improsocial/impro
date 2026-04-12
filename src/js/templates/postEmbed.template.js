@@ -84,7 +84,11 @@ function showNestedEmbed(embed) {
   return true;
 }
 
-function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
+export function quotedPostTemplate({
+  quotedPost,
+  lazyLoadImages,
+  isAuthenticated,
+}) {
   if (!quotedPost) {
     return html`<div class="quoted-post">Post not found</div>`;
   }
@@ -153,6 +157,7 @@ function quotedPostTemplate({ quotedPost, lazyLoadImages, isAuthenticated }) {
                   ${richTextTemplate({
                     text: postText,
                     facets: quotedPost.value.facets,
+                    truncateUrls: true,
                   })}
                 </div>`
               : ""}

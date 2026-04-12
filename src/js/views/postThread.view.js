@@ -13,7 +13,9 @@ import {
   isUnavailablePost,
   isMutedPost,
   getReplyRootFromPost,
+  doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
+import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
 import { View } from "./view.js";
 import "/js/components/hidden-replies-section.js";
@@ -90,6 +92,13 @@ class PostThreadView extends View {
         post.isBlockedReply ||
         replyHasContentLabel(reply) ||
         post.isHidden
+      ) {
+        return false;
+      }
+      if (
+        !isAuthenticated &&
+        post.author &&
+        doHideAuthorOnUnauthenticated(post.author)
       ) {
         return false;
       }
@@ -284,40 +293,98 @@ class PostThreadView extends View {
       `;
     }
 
+    const NO_UNAUTHENTICATED_MESSAGE =
+      "This author has chosen to make their posts visible only to people who are signed in.";
+
+    function noUnauthenticatedSmallPostTemplate({ replyContext = null } = {}) {
+      return html`<div class="post small-post">
+        <div class="post-content-with-space">
+          <div class="post-content-left">
+            ${replyContext === "parent" || replyContext === "reply"
+              ? html`<div class="reply-context-line-in"></div>`
+              : ""}
+            <div class="no-unauthenticated-avatar">${lockIconTemplate()}</div>
+            ${replyContext === "root" || replyContext === "parent"
+              ? html`<div class="reply-context-line-out-container">
+                  <div class="reply-context-line-out"></div>
+                </div>`
+              : ""}
+          </div>
+          <div class="post-content-right">
+            <div class="no-unauthenticated-message">
+              ${NO_UNAUTHENTICATED_MESSAGE}
+            </div>
+          </div>
+        </div>
+      </div>`;
+    }
+
+    function noUnauthenticatedLargePostTemplate() {
+      return html`<div class="post large-post no-unauthenticated-post">
+        <div class="no-unauthenticated-header">
+          <div class="no-unauthenticated-avatar">${lockIconTemplate()}</div>
+          <div class="no-unauthenticated-skeleton-text">
+            <div class="skeleton-line skeleton-line-short"></div>
+            <div class="skeleton-line skeleton-line-medium"></div>
+          </div>
+        </div>
+        <div
+          class="no-unauthenticated-message no-unauthenticated-message-large"
+        >
+          ${NO_UNAUTHENTICATED_MESSAGE}
+        </div>
+      </div>`;
+    }
+
     function threadTemplate({ postThread, currentUser }) {
       try {
         const parents = flattenParents(postThread);
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
         const postAuthor = postThread.post?.author;
+        const hiddenUnauthenticated =
+          !isAuthenticated &&
+          postThread.post?.author &&
+          doHideAuthorOnUnauthenticated(postThread.post.author);
         return html`
           <div class="post-thread">
-            ${parents.map((parent, i) =>
-              smallPostTemplate({
-                post: parent.post ? parent.post : parent,
-                isUserPost: currentUser?.did === parent.post?.author?.did,
+            ${parents.map((parent, i) => {
+              const parentPost = parent.post ? parent.post : parent;
+              const replyContext = i === 0 ? "root" : "parent";
+              if (
+                !isAuthenticated &&
+                parentPost.author &&
+                doHideAuthorOnUnauthenticated(parentPost.author)
+              ) {
+                return noUnauthenticatedSmallPostTemplate({ replyContext });
+              }
+              return smallPostTemplate({
+                post: parentPost,
+                isUserPost: currentUser?.did === parentPost.author?.did,
                 postInteractionHandler,
-                replyContext: i === 0 ? "root" : "parent",
+                replyContext,
                 hideMutedAccount: true,
-              }),
-            )}
-            ${largePostTemplate({
-              post: postThread.post,
-              isUserPost: currentUser?.did === postThread.post?.author?.did,
-              postInteractionHandler,
-              afterHide: () => {
-                // if the main post is hidden, go back to the previous page
-                router.back();
-              },
-              afterDelete: () => {
-                // if the main post is deleted, go back to the previous page
-                router.back();
-              },
-              onClickReply: async () => {
-                await handleClickReply(postThread.post, root, currentUser);
-              },
-              replyContext: parents.length > 0 ? "reply" : null,
+              });
             })}
+            ${hiddenUnauthenticated
+              ? noUnauthenticatedLargePostTemplate()
+              : largePostTemplate({
+                  post: postThread.post,
+                  isUserPost: currentUser?.did === postThread.post?.author?.did,
+                  postInteractionHandler,
+                  afterHide: () => {
+                    // if the main post is hidden, go back to the previous page
+                    router.back();
+                  },
+                  afterDelete: () => {
+                    // if the main post is deleted, go back to the previous page
+                    router.back();
+                  },
+                  onClickReply: async () => {
+                    await handleClickReply(postThread.post, root, currentUser);
+                  },
+                  replyContext: parents.length > 0 ? "reply" : null,
+                })}
             ${isAuthenticated && currentUser && canReplyToPost(postThread.post)
               ? html`
                   <div
@@ -343,6 +410,9 @@ class PostThreadView extends View {
                 `
               : ""}
             ${(() => {
+              if (hiddenUnauthenticated) {
+                return "";
+              }
               if (replies) {
                 return postThreadRepliesTemplate({
                   replies,
@@ -365,7 +435,7 @@ class PostThreadView extends View {
 
     function threadSkeletonTemplate() {
       return html`<div class="post-thread">
-        ${Array.from({ length: 3 }).map((_, index) => {
+        ${Array.from({ length: 3 }).map(() => {
           return postSkeletonTemplate();
         })}
       </div>`;

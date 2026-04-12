@@ -5,7 +5,6 @@ import {
   isUnavailablePost,
   getDisplayName,
   doHideAuthorOnUnauthenticated,
-  getLabelNameAndDescription,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
@@ -35,6 +34,7 @@ function contentWarningTemplate({ post, contentLabel, children }) {
       children,
     });
   }
+
   return children;
 }
 
@@ -61,13 +61,11 @@ export function smallPostTemplate({
     return notFoundPostTemplate();
   } else if (isUnavailablePost(post)) {
     return unavailablePostTemplate();
-  } else if (
+  }
+  const hideUnauthenticated =
     !postInteractionHandler.isAuthenticated &&
     post.author &&
-    doHideAuthorOnUnauthenticated(post.author)
-  ) {
-    return unavailablePostTemplate();
-  }
+    doHideAuthorOnUnauthenticated(post.author);
   const postText = post.record.text?.trimEnd() || "";
   const content = html`
     <div
@@ -125,25 +123,32 @@ export function smallPostTemplate({
           ${contentWarningTemplate({
             post,
             contentLabel: ignoreContentWarning ? null : post.contentLabel,
+            isAuthenticated: postInteractionHandler.isAuthenticated,
             children: html` <div class="post-body">
-              ${postText.length > 0
-                ? html`<div class="post-text">
-                    ${richTextTemplate({
-                      text: postText,
-                      facets: post.record.facets,
-                    })}
+              ${hideUnauthenticated
+                ? html`<div class="missing-post-indicator no-unauthenticated">
+                    Sign-in required
                   </div>`
-                : ""}
-              ${post.embed
-                ? html`<div class="post-embed">
-                    ${postEmbedTemplate({
-                      embed: post.embed,
-                      mediaLabel: post.mediaLabel,
-                      lazyLoadImages,
-                      isAuthenticated: postInteractionHandler.isAuthenticated,
-                    })}
-                  </div>`
-                : null}
+                : html`${postText.length > 0
+                    ? html`<div class="post-text">
+                        ${richTextTemplate({
+                          text: postText,
+                          facets: post.record.facets,
+                          truncateUrls: true,
+                        })}
+                      </div>`
+                    : ""}
+                  ${post.embed
+                    ? html`<div class="post-embed">
+                        ${postEmbedTemplate({
+                          embed: post.embed,
+                          mediaLabel: post.mediaLabel,
+                          lazyLoadImages,
+                          isAuthenticated:
+                            postInteractionHandler.isAuthenticated,
+                        })}
+                      </div>`
+                    : null}`}
               ${postActionBarTemplate({
                 post,
                 isUserPost,

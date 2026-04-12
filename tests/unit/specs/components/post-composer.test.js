@@ -243,6 +243,133 @@ t.describe("PostComposer - send method", (it) => {
   });
 });
 
+t.describe("PostComposer - keyboard shortcuts", (it) => {
+  it("should send post on Cmd+Enter", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._postText = "Hello world";
+
+    let receivedDetail = null;
+    element.addEventListener("send-post", (e) => {
+      receivedDetail = e.detail;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        bubbles: true,
+      }),
+    );
+    assert(receivedDetail !== null);
+    assertEquals(receivedDetail.postText, "Hello world");
+  });
+
+  it("should send post on Ctrl+Enter", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._postText = "Hello world";
+
+    let fired = false;
+    element.addEventListener("send-post", () => {
+      fired = true;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        ctrlKey: true,
+        bubbles: true,
+      }),
+    );
+    assert(fired);
+  });
+
+  it("should not send on Cmd+Enter when post text is empty", () => {
+    const element = createPostComposer();
+    connectElement(element);
+
+    let fired = false;
+    element.addEventListener("send-post", () => {
+      fired = true;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        bubbles: true,
+      }),
+    );
+    assert(!fired);
+  });
+
+  it("should not send on Cmd+Enter when over character limit", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._postText = "x".repeat(301);
+    element.render();
+
+    let fired = false;
+    element.addEventListener("send-post", () => {
+      fired = true;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        bubbles: true,
+      }),
+    );
+    assert(!fired);
+  });
+
+  it("should not send on Cmd+Enter when already sending", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._postText = "Hello world";
+    element._isSending = true;
+    element.render();
+
+    let count = 0;
+    element.addEventListener("send-post", () => {
+      count++;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        metaKey: true,
+        bubbles: true,
+      }),
+    );
+    assertEquals(count, 0);
+  });
+
+  it("should not send on plain Enter", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._postText = "Hello world";
+
+    let fired = false;
+    element.addEventListener("send-post", () => {
+      fired = true;
+    });
+
+    const dialog = element.querySelector(".post-composer");
+    dialog.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+    );
+    assert(!fired);
+  });
+});
+
 t.describe("PostComposer - image selection", (it) => {
   it("should have file input for images", () => {
     const element = createPostComposer();

@@ -173,6 +173,7 @@ export function createPost({
   labels,
   viewer,
   loggedOut = false,
+  threadgate,
 }) {
   const did = uri.split("/")[2];
   return {
@@ -203,5 +204,6 @@ export function createPost({
     indexedAt: "2025-01-01T00:00:00.000Z",
     ...(loggedOut ? {} : { viewer: { ...viewer } }),
     labels: labels || [],
+    ...(threadgate ? { threadgate } : {}),
   };
 }

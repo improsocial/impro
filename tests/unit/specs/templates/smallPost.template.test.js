@@ -80,6 +80,36 @@ t.describe("smallPostTemplate", (it) => {
   });
 });
 
+t.describe("smallPostTemplate - rich text", (it) => {
+  it("should truncate long URLs in post text", () => {
+    const url = "https://example.com/very/long/path/to/some/page";
+    const text = "See " + url;
+    const postWithLongUrl = {
+      ...post,
+      record: {
+        ...post.record,
+        text,
+        facets: [
+          {
+            index: { byteStart: 4, byteEnd: 4 + url.length },
+            features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+          },
+        ],
+      },
+    };
+    const result = smallPostTemplate({
+      post: postWithLongUrl,
+      postInteractionHandler,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a[href='" + url + "']");
+    assert(link !== null);
+    assert(link.textContent.endsWith("..."));
+    assert(link.textContent.length < url.length);
+  });
+});
+
 t.describe("smallPostTemplate - pinned posts", (it) => {
   it("should show pinned label when isPinned is true", () => {
     const result = smallPostTemplate({
@@ -257,6 +287,65 @@ t.describe("smallPostTemplate - moderation", (it) => {
     const container = document.createElement("div");
     render(result, container);
     assertEquals(container.querySelector("muted-reply-toggle"), null);
+  });
+  it("should show author info and lock message for !no-unauthenticated posts when logged out", () => {
+    const restrictedPost = {
+      ...post,
+      author: {
+        ...post.author,
+        labels: [{ val: "!no-unauthenticated", src: post.author.did }],
+      },
+    };
+    const unauthHandler = { ...postInteractionHandler, isAuthenticated: false };
+    const result = smallPostTemplate({
+      post: restrictedPost,
+      postInteractionHandler: unauthHandler,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='avatar']") !== null,
+      "should show avatar",
+    );
+    assert(
+      container.querySelector("[data-testid='post-author-name']") !== null,
+      "should show author name",
+    );
+    const messageEl = container.querySelector(
+      ".missing-post-indicator.no-unauthenticated",
+    );
+    assert(messageEl !== null, "should have message element");
+    assert(
+      messageEl.textContent.includes("Sign-in required"),
+      "should show lock message",
+    );
+    assert(!container.querySelector(".post-text"), "should not show post text");
+  });
+
+  it("should render !no-unauthenticated posts normally when logged in", () => {
+    const restrictedPost = {
+      ...post,
+      author: {
+        ...post.author,
+        labels: [{ val: "!no-unauthenticated", src: post.author.did }],
+      },
+    };
+    const result = smallPostTemplate({
+      post: restrictedPost,
+      postInteractionHandler,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='small-post']") !== null,
+      "should render normal post",
+    );
+    assert(
+      !container.textContent.includes(
+        "This author has chosen to make their posts visible only to people who are signed in.",
+      ),
+      "should not show lock message",
+    );
   });
 });
 

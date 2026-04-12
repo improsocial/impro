@@ -10,6 +10,8 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import { IN_APP_LINK_DOMAINS } from "/js/config.js";
+import { quotedPostTemplate } from "/js/templates/postEmbed.template.js";
+import { createEmbedFromPost } from "/js/dataHelpers.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 
@@ -58,33 +60,6 @@ function replyToTemplate({ post }) {
         </div>
       </div>
       <hr style="margin-top: 18px;" />
-    </div>
-  `;
-}
-
-function quotedPostTemplate({ post }) {
-  return html`
-    <div class="quoted-post-link">
-      <div class="quoted-post post-content">
-        <div class="quoted-post-header">
-          ${avatarTemplate({ author: post.author, clickAction: "none" })}
-          ${postHeaderTextTemplate({
-            author: post.author,
-            timestamp: post.indexedAt,
-            enableProfileLink: false,
-          })}
-        </div>
-        <div class="quoted-post-body">
-          ${post.record.text
-            ? html`<div class="post-text">
-                ${richTextTemplate({
-                  text: post.record.text.trimEnd(),
-                  facets: post.record.facets,
-                })}
-              </div>`
-            : ""}
-        </div>
-      </div>
     </div>
   `;
 }
@@ -189,6 +164,18 @@ class PostComposer extends Component {
               this.close();
             }
           }}
+          @keydown=${(e) => {
+            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+              e.preventDefault();
+              if (
+                !this._isSending &&
+                !isAboveCharLimit &&
+                this._postText.length > 0
+              ) {
+                this.send();
+              }
+            }
+          }}
         >
           <div class="post-composer-content">
             <div class="post-composer-top-bar">
@@ -227,6 +214,9 @@ class PostComposer extends Component {
                     @input=${(e) => {
                       this.handleInput(e);
                     }}
+                    @paste=${(e) => {
+                      this.handlePaste(e);
+                    }}
                     placeholder="${promptText}"
                   ></rich-text-input>
                 </div>
@@ -256,7 +246,12 @@ class PostComposer extends Component {
                     >
                       <span>×</span>
                     </button>
-                    ${quotedPostTemplate({ post: this.quotedPost })}
+                    <div inert>
+                      ${quotedPostTemplate({
+                        quotedPost: createEmbedFromPost(this.quotedPost),
+                        isAuthenticated: true,
+                      })}
+                    </div>
                   </div>`
                 : ""}
               <div class="post-composer-bottom-bar">
@@ -309,7 +304,6 @@ class PostComposer extends Component {
   }
 
   handleQuotedPostEmbedPreviewClose() {
-    this._rejectedLinkEmbeds.add(this._quotedPostUrl);
     this._quotedPostUrl = null;
     this.quotedPost = null;
     this.render();
@@ -458,6 +452,25 @@ class PostComposer extends Component {
     this.render();
   }
 
+  handlePaste() {
+    // Unlike external links, add quote posts immediately if a link is pasted
+    // Wait a tick so handleInput runs first
+    requestAnimationFrame(() => {
+      if (this.quotedPost || this._quotedPostUrl) return;
+      for (const facet of this._unresolvedFacets) {
+        const feature = facet.features[0];
+        if (feature.$type === "app.bsky.richtext.facet#link") {
+          const url = feature.uri;
+          if (isQuotePostLink(url) && !this._rejectedLinkEmbeds.has(url)) {
+            this._quotedPostUrl = url;
+            this.loadQuotedPostFromLink();
+            break;
+          }
+        }
+      }
+    });
+  }
+
   async loadExternalLinkEmbedPreview() {
     const url = this._externalLinkUrl;
     // preliminary data
@@ -526,6 +539,19 @@ class PostComposer extends Component {
         }
       });
     });
+
+    // iOS Safari: dismissing the keyboard via the "Done" button leaves the
+    // dialog's inner scroll area offset, which makes buttons unclickable
+    // until the dialog is swiped or re-tapped. Reset scroll on blur.
+    dialog.addEventListener(
+      "blur",
+      () => {
+        const scrollArea = this.querySelector(".post-composer-scroll-area");
+        if (scrollArea) scrollArea.scrollTop = 0;
+        window.scrollTo(0, 0);
+      },
+      true,
+    );
   }
 
   close() {

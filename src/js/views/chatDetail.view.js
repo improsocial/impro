@@ -455,6 +455,7 @@ class ChatDetailView extends View {
                 ${richTextTemplate({
                   text: message.text,
                   facets: message.facets,
+                  truncateUrls: true,
                 })}
               </div>
             </div>

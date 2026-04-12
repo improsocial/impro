@@ -3,6 +3,17 @@ import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { wait, raf } from "/js/utils.js";
 
+const TOAST_GAP_PX = 8;
+const activeToasts = [];
+
+function restackToasts() {
+  let offset = 0;
+  for (const entry of activeToasts) {
+    entry.element.style.setProperty("--toast-stack-offset", `${offset}px`);
+    offset += entry.height + TOAST_GAP_PX;
+  }
+}
+
 export async function showToast(
   message,
   { error = false, timeout = 3000 } = {},
@@ -26,10 +37,20 @@ export async function showToast(
   await raf();
   await raf();
   toast.showPopover(); // this puts the element in the top layer, so it will be displayed above dialogs
+
+  const entry = { element: toast, height: toast.offsetHeight };
+  activeToasts.unshift(entry);
+  restackToasts();
+
   toast.classList.add("active");
   if (timeout) {
     await wait(timeout);
     toast.classList.remove("active");
+    const index = activeToasts.indexOf(entry);
+    if (index !== -1) {
+      activeToasts.splice(index, 1);
+      restackToasts();
+    }
     toast.hidePopover();
     await wait(1000);
     toast.remove();
