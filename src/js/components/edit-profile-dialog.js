@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
-import { classnames, graphemeCount } from "/js/utils.js";
+import { classnames, graphemeCount, enableDragToDismiss } from "/js/utils.js";
 import { compressImage } from "/js/imageUtils.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
@@ -98,7 +98,7 @@ class EditProfileDialog extends Component {
 
     render(
       html`<dialog
-        class="edit-profile-dialog"
+        class="bottom-sheet no-handle edit-profile-dialog"
         @click=${(event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
             this.close();
@@ -443,6 +443,14 @@ class EditProfileDialog extends Component {
     const dialog = this.querySelector(".edit-profile-dialog");
     if (dialog) {
       dialog.showModal();
+
+      enableDragToDismiss(dialog, {
+        onClose: () => this.close(),
+        ignoreTouchTarget: (el) =>
+          el.tagName === "BUTTON" ||
+          el.tagName === "INPUT" ||
+          el.tagName === "TEXTAREA",
+      });
     }
   }
 

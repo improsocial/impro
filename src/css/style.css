@@ -55,6 +55,7 @@ html {
     var(--muted-gray-light),
     var(--muted-gray-dark)
   );
+  --text-color-secondary: light-dark(var(--gray), var(--lighter-gray));
   --generic-border-color: light-dark(var(--lighter-gray), var(--light-gray));
   --text-input-background-color: light-dark(var(--off-white), var(--gray));
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
@@ -6244,7 +6245,7 @@ moderation-warning .toggle-content {
   height: 28px;
   border-radius: 50%;
   background-color: light-dark(var(--lighter-gray), var(--dark-gray));
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -6271,7 +6272,7 @@ moderation-warning .toggle-content {
 .report-step-title {
   font-size: 15px;
   font-weight: 500;
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
 }
 
 .report-step-title.active {
@@ -6316,7 +6317,7 @@ moderation-warning .toggle-content {
 
 .report-option-description {
   font-size: 13px;
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
 }
 
 .report-labeler-card {
@@ -6370,7 +6371,7 @@ moderation-warning .toggle-content {
   font-size: 20px;
   line-height: 1;
   cursor: pointer;
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
   padding: 0;
   width: 24px;
   height: 24px;
@@ -6430,13 +6431,13 @@ moderation-warning .toggle-content {
 }
 
 .report-details-input::placeholder {
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
   opacity: 1;
 }
 
 .report-details-counter {
   font-size: 12px;
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
   text-align: right;
 }
 
@@ -6459,7 +6460,7 @@ moderation-warning .toggle-content {
 .report-loading,
 .report-no-labelers {
   font-size: 14px;
-  color: light-dark(var(--gray), var(--lighter-gray));
+  color: var(--text-color-secondary);
   padding: 12px 0;
 }
 
@@ -6577,7 +6578,7 @@ toggle-switch {
 
 .post-notifications-dialog-subtitle {
   margin: 0;
-  color: light-dark(var(--gray), var(--gray));
+  color: var(--text-color-secondary);
   font-size: 0.95rem;
 }
 
@@ -6637,48 +6638,22 @@ toggle-switch {
   flex: 1;
 }
 
+.bottom-sheet.no-handle::before {
+  display: none;
+}
+
 .edit-profile-dialog {
-  border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-  background-color: light-dark(var(--white), var(--mid-gray));
-  color: var(--text-color);
-  max-width: 100%;
-  width: 100%;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  background-color: var(--background-color);
   top: 16px;
-  height: auto;
   max-height: calc(100vh - 16px);
-  box-shadow: var(--shadow-color-heavy);
-  animation: slide-up 0.15s ease-out;
-  transform: none;
-  margin: 0;
   overflow: visible;
-  padding: 0;
 }
 
 @media (min-width: 800px) {
   .edit-profile-dialog {
     max-width: 600px;
-    width: 90%;
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    height: auto;
     max-height: none;
-    border-radius: var(--dialog-border-radius);
-    box-shadow: none;
-    animation: none;
-    transform: translate(-50%, -50%);
   }
-}
-
-.edit-profile-dialog::backdrop {
-  background-color: var(--overlay-color-medium);
-  animation: fade-in 0.2s ease-out;
 }
 
 .edit-profile-dialog-content {
@@ -6859,8 +6834,8 @@ toggle-switch {
 .edit-profile-textarea {
   padding: 10px 12px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: 8px;
-  background-color: light-dark(var(--white), var(--dark-gray));
+  border-radius: var(--text-input-border-radius);
+  background-color: var(--text-input-background-color);
   color: var(--text-color);
   font-size: 16px;
   font-family: inherit;
