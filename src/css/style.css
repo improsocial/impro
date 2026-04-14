@@ -6653,6 +6653,7 @@ toggle-switch {
   .edit-profile-dialog {
     max-width: 600px;
     max-height: none;
+    top: 50%;
   }
 }
 
