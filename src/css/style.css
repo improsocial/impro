@@ -5341,6 +5341,12 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   box-shadow: var(--shadow-color-lightbox);
 }
 
+.lightbox img.lightbox-image-circle {
+  border-radius: 50%;
+  aspect-ratio: 1 / 1;
+  object-fit: cover;
+}
+
 .lightbox-alt-text {
   color: var(--off-white);
   font-size: 14px;

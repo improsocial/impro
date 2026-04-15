@@ -52,6 +52,17 @@ t.describe("avatarTemplate", (it) => {
     assert(lightbox !== null);
   });
 
+  it("should set image-shape to circle on lightbox wrapper", () => {
+    const result = avatarTemplate({
+      author: post.author,
+      clickAction: "lightbox",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const lightbox = container.querySelector("lightbox-image-group");
+    assertEquals(lightbox.getAttribute("image-shape"), "circle");
+  });
+
   it("should render without wrapper when clickAction is none", () => {
     const result = avatarTemplate({
       author: post.author,
