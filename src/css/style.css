@@ -6700,8 +6700,19 @@ toggle-switch {
   cursor: default;
 }
 
-.edit-profile-dialog-save-button:enabled {
+.edit-profile-dialog-save-button:enabled,
+.edit-profile-dialog-save-button.saving {
   color: var(--primary-button-color);
+}
+
+.edit-profile-dialog-save-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.edit-profile-dialog-save-button .loading-spinner {
+  border-top-color: var(--primary-button-color);
 }
 
 .edit-profile-dialog-body {

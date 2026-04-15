@@ -414,7 +414,7 @@ t.describe("EditProfileDialog - profile-save event", (it) => {
 });
 
 t.describe("EditProfileDialog - close", (it) => {
-  it("should dispatch edit-profile-closed event on close", () => {
+  it("should dispatch edit-profile-closed event on close", async () => {
     const element = document.createElement("edit-profile-dialog");
     connectElement(element);
     element.setProfile(mockProfile);
@@ -424,8 +424,34 @@ t.describe("EditProfileDialog - close", (it) => {
       closedEventFired = true;
     });
 
-    element.close();
+    await element.close();
     assertEquals(closedEventFired, true);
+  });
+
+  it("should not prompt for confirmation when closing while saving", async () => {
+    const element = document.createElement("edit-profile-dialog");
+    connectElement(element);
+    element.setProfile(mockProfile);
+
+    const displayNameInput = element.querySelector(
+      "[data-testid='edit-profile-display-name']",
+    );
+    displayNameInput.value = "Updated Name";
+    displayNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    const saveButton = element.querySelector(
+      "[data-testid='edit-profile-save-button']",
+    );
+    saveButton.click();
+
+    await element.close();
+
+    const confirmDialog = document.body.querySelector(".modal-dialog");
+    assertEquals(
+      confirmDialog,
+      null,
+      "No discard confirmation should be shown after save",
+    );
   });
 });
 

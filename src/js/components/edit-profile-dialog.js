@@ -157,12 +157,18 @@ class EditProfileDialog extends Component {
                 </button>
                 <h2>Edit profile</h2>
                 <button
-                  class="edit-profile-dialog-header-button edit-profile-dialog-save-button"
+                  class=${classnames(
+                    "edit-profile-dialog-header-button edit-profile-dialog-save-button",
+                    { saving: this._saving },
+                  )}
                   @click=${() => this._save()}
                   .disabled=${!this._canSave}
                   data-testid="edit-profile-save-button"
                 >
-                  ${this._saving ? "Saving..." : "Save"}
+                  <span>Save</span>
+                  ${this._saving
+                    ? html`<div class="loading-spinner"></div>`
+                    : ""}
                 </button>
               </div>
 
@@ -445,7 +451,8 @@ class EditProfileDialog extends Component {
       dialog.showModal();
 
       enableDragToDismiss(dialog, {
-        onClose: () => this.close(),
+        confirmDismiss: () => this._confirmDiscardIfDirty(),
+        onClose: () => this._doClose(),
         ignoreTouchTarget: (el) =>
           el.tagName === "BUTTON" ||
           el.tagName === "INPUT" ||
@@ -454,18 +461,21 @@ class EditProfileDialog extends Component {
     }
   }
 
+  async _confirmDiscardIfDirty() {
+    if (!this._isDirty || this._saving) return true;
+    return confirm("Are you sure you want to discard your changes?", {
+      title: "Discard changes?",
+      confirmButtonStyle: "danger",
+      confirmButtonText: "Discard",
+    });
+  }
+
   async close() {
-    if (this._isDirty) {
-      const discard = await confirm(
-        "Are you sure you want to discard your changes?",
-        {
-          title: "Discard changes?",
-          confirmButtonStyle: "danger",
-          confirmButtonText: "Discard",
-        },
-      );
-      if (!discard) return;
-    }
+    if (!(await this._confirmDiscardIfDirty())) return;
+    this._doClose();
+  }
+
+  _doClose() {
     this._isOpen = false;
     this.scrollLock.unlock();
     const dialog = this.querySelector(".edit-profile-dialog");
