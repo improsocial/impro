@@ -26,11 +26,15 @@ async function getReplyUrisForPostFromBacklinks(post) {
 }
 
 async function getPostsInThreadFromBacklinks(rootUri) {
-  return await getLinks({
+  const backlinks = await getLinks({
     subject: rootUri,
     source: "app.bsky.feed.post:reply.root.uri",
     timeout: 2000,
   });
+  // Also add the root itself
+  const { repo, collection, rkey } = parseUri(rootUri);
+  backlinks.push({ did: repo, collection, rkey });
+  return backlinks;
 }
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer
