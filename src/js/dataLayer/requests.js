@@ -826,7 +826,9 @@ export class Requests {
     const feedUris = pinnedFeeds
       .map((pinnedFeed) => pinnedFeed.value)
       .filter((feedUri) => feedUri !== "following");
-    const feedGenerators = await this.api.getFeedGenerators(feedUris);
+    const feedGenerators = feedUris.length
+      ? await this.api.getFeedGenerators(feedUris)
+      : [];
     for (const feedGenerator of feedGenerators) {
       this.dataStore.setFeedGenerator(feedGenerator.uri, feedGenerator);
     }
