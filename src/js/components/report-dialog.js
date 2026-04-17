@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { enableDragToDismiss, resetScrollOnBlur } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
@@ -799,6 +799,8 @@ class ReportDialog extends Component {
       ignoreTouchTarget: (el) =>
         el.tagName === "BUTTON" || el.tagName === "TEXTAREA",
     });
+
+    resetScrollOnBlur(dialog, this.querySelector(".report-dialog-body"));
   }
 
   close() {

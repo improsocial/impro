@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { classnames, graphemeCount } from "/js/utils.js";
+import { classnames, graphemeCount, resetScrollOnBlur } from "/js/utils.js";
 import { ScrollLock } from "/js/scrollLock.js";
 
 class ImageAltTextDialog extends Component {
@@ -109,6 +109,11 @@ class ImageAltTextDialog extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".image-alt-text-dialog");
     dialog.showModal();
+
+    resetScrollOnBlur(
+      dialog,
+      this.querySelector(".image-alt-text-dialog-content"),
+    );
 
     // Focus on the textarea after a small delay
     requestAnimationFrame(() => {

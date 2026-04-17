@@ -2,7 +2,12 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
-import { classnames, graphemeCount, enableDragToDismiss } from "/js/utils.js";
+import {
+  classnames,
+  enableDragToDismiss,
+  graphemeCount,
+  resetScrollOnBlur,
+} from "/js/utils.js";
 import { compressImage } from "/js/imageUtils.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
@@ -472,6 +477,11 @@ class EditProfileDialog extends Component {
           el.tagName === "TEXTAREA" ||
           !!el.closest("image-cropper"),
       });
+
+      resetScrollOnBlur(
+        dialog,
+        this.querySelector(".edit-profile-dialog-content"),
+      );
     }
   }
 
