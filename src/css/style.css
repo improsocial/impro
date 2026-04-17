@@ -3778,6 +3778,11 @@ emoji-picker {
   margin-bottom: 2px;
 }
 
+.notification-text .verification-badge {
+  margin-left: 4px;
+  margin-bottom: 2px;
+}
+
 .profile-name .verification-badge svg {
   width: 18px;
   height: 18px;
