@@ -48,3 +48,44 @@ globalThis.window.HTMLDialogElement.prototype.showModal = function () {
 globalThis.window.HTMLDialogElement.prototype.close = function () {
   this.removeAttribute("open");
 };
+
+// Fail loudly on any unmocked network call. Tests that need fetch should
+// assign their own stub to globalThis.fetch.
+globalThis.fetch = async (url) => {
+  throw new Error(`Unmocked fetch call in test: ${url}`);
+};
+
+// JSDOM's window.crypto lacks subtle; swap in node's webcrypto.
+if (!globalThis.window.crypto?.subtle) {
+  Object.defineProperty(globalThis.window, "crypto", {
+    value: globalThis.crypto,
+    configurable: true,
+    writable: true,
+  });
+}
+
+class LocalStorageStub {
+  constructor() {
+    this._store = {};
+  }
+  getItem(key) {
+    return key in this._store ? this._store[key] : null;
+  }
+  setItem(key, value) {
+    this._store[key] = String(value);
+  }
+  removeItem(key) {
+    delete this._store[key];
+  }
+  get length() {
+    return Object.keys(this._store).length;
+  }
+  key(index) {
+    return Object.keys(this._store)[index] ?? null;
+  }
+  clear() {
+    this._store = {};
+  }
+}
+
+globalThis.localStorage = new LocalStorageStub();

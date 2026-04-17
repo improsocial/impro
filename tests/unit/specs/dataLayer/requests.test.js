@@ -6,6 +6,28 @@ import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Requests");
 
+const originalFetch = globalThis.fetch;
+
+t.beforeEach(() => {
+  globalThis.fetch = async (route) => {
+    if (
+      route.startsWith(
+        "https://constellation.microcosm.blue/xrpc/blue.microcosm.links.getBacklinks",
+      )
+    ) {
+      return {
+        ok: true,
+        json: async () => ({ records: [], cursor: null }),
+      };
+    }
+    throw new Error("Unhandled route");
+  };
+});
+
+t.afterEach(() => {
+  globalThis.fetch = originalFetch;
+});
+
 t.describe("loadPostThread", (it) => {
   const postURI = "at://did:test/app.bsky.feed.post/thread";
 
