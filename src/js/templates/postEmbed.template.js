@@ -124,14 +124,23 @@ export function quotedPostTemplate({
     }
   }
   const postText = quotedPost.value.text?.trimEnd() || "";
-  return html`<a
+  return html`<div
     class="quoted-post-link"
+    role="link"
+    tabindex="0"
     @click=${(e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      router.go(linkToPost(quotedPost));
+      // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+      if (e.target.closest("a")) {
+        return;
+      }
+      window.router.go(linkToPost(quotedPost));
     }}
-    href="${linkToPost(quotedPost)}"
+    @keydown=${(e) => {
+      if (e.key !== "Enter") return;
+      if (e.target.closest("a")) return;
+      e.preventDefault();
+      window.router.go(linkToPost(quotedPost));
+    }}
   >
     <div class="quoted-post post-content">
       ${mutedWrapperTemplate({
@@ -175,7 +184,7 @@ export function quotedPostTemplate({
         `,
       })}
     </div>
-  </a>`;
+  </div>`;
 }
 
 function imageContainerTemplate({ image, lazyLoad }) {

@@ -2316,6 +2316,10 @@ like-button {
   background: transparent;
 }
 
+.quoted-post-link {
+  cursor: pointer;
+}
+
 @media (min-width: 800px) {
   .quoted-post-link:hover .quoted-post {
     background-color: var(--post-hover-color);
