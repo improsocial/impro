@@ -49,6 +49,12 @@ window.addEventListener("page-transition", () => {
   relativeTimeBase = new Date();
 });
 
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    relativeTimeBase = new Date();
+  }
+});
+
 export function displayRelativeTime(timestamp) {
   // e.g. "2025-09-11T15:08:11.414Z" -> "7h"
   const now = relativeTimeBase;

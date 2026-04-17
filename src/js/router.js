@@ -101,9 +101,6 @@ export class Router extends EventEmitter {
           detail: {
             scrollY,
             isBack,
-            showPage: () => {
-              this.currentPage.style.opacity = 1;
-            },
           },
         }),
       );
