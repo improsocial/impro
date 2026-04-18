@@ -48,7 +48,9 @@ class EditProfileDialog extends Component {
     this._profile = profile;
     this._displayName = profile.displayName || "";
     this._description = profile.description || "";
-    this._currentAvatar = avatarThumbnailUrl(profile.avatar) || null;
+    this._currentAvatar = profile.avatar
+      ? avatarThumbnailUrl(profile.avatar)
+      : null;
     this._currentBanner = profile.banner || null;
     this._newAvatarDataUrl = null;
     this._newBannerDataUrl = null;

@@ -110,6 +110,23 @@ class ProfileView extends View {
       dialog.open();
     }
 
+    async function handleSaveProfile(
+      profile,
+      profileUpdates,
+      successCallback,
+      errorCallback,
+    ) {
+      try {
+        await dataLayer.mutations.updateProfile(profile, profileUpdates);
+        await loadProfileDescription();
+        showToast("Profile updated");
+        successCallback();
+        renderPage();
+      } catch (error) {
+        errorCallback(error);
+      }
+    }
+
     const tabScrollState = new Map();
 
     async function scrollAndReloadFeed() {
@@ -418,22 +435,6 @@ class ProfileView extends View {
       return html`<div class="profile-container"></div>`;
     }
 
-    async function handleSaveProfile(
-      profile,
-      profileUpdates,
-      successCallback,
-      errorCallback,
-    ) {
-      try {
-        await dataLayer.mutations.updateProfile(profile, profileUpdates);
-        showToast("Profile updated");
-        successCallback();
-        renderPage();
-      } catch (error) {
-        errorCallback(error);
-      }
-    }
-
     function renderPage() {
       const profile = dataLayer.selectors.getProfile(profileDid);
       const currentUser = dataLayer.selectors.getCurrentUser();
@@ -544,15 +545,16 @@ class ProfileView extends View {
     }
 
     // This is async because it needs to resolve mentions
-    async function loadProfileDescription(profile) {
-      if (!profile.description) {
-        return null;
+    async function loadProfileDescription() {
+      const profile = dataLayer.selectors.getProfile(profileDid);
+      if (!profile?.description) {
+        return;
       }
       const facets = await getFacetsFromText(
         profile.description,
         identityResolver,
       );
-      return { text: profile.description, facets };
+      state.richTextProfileDescription = { text: profile.description, facets };
     }
 
     root.addEventListener("page-enter", async () => {
@@ -578,7 +580,7 @@ class ProfileView extends View {
         });
       }
 
-      state.richTextProfileDescription = await loadProfileDescription(profile);
+      await loadProfileDescription();
       renderPage();
       if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
         loadAuthorFeed();
