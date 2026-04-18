@@ -78,6 +78,7 @@ export function smallPostTemplate({
         if (e.target.closest("a")) {
           return;
         }
+        e.stopPropagation();
         window.router.go(linkToPost(post));
       }}
       @keydown=${(e) => {

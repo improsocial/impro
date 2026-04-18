@@ -133,6 +133,7 @@ export function quotedPostTemplate({
       if (e.target.closest("a")) {
         return;
       }
+      e.stopPropagation();
       window.router.go(linkToPost(quotedPost));
     }}
     @keydown=${(e) => {
