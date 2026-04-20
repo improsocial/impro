@@ -193,6 +193,8 @@ class PostThreadView extends View {
           const post = dataLayer.selectors.getPost(reply.post.uri); // todo - map in selector?
           return smallPostTemplate({
             post,
+            currentUser,
+            isAuthenticated,
             isUserPost: currentUser?.did === post.author?.did,
             postInteractionHandler,
             replyContext: getReplyContext(i, numReplies),
@@ -268,6 +270,8 @@ class PostThreadView extends View {
           ${hiddenSectionReplies.map((reply) =>
             smallPostTemplate({
               post: reply.post,
+              currentUser,
+              isAuthenticated,
               isUserPost: currentUser?.did === reply.post?.author?.did,
               postInteractionHandler,
               ignoreContentWarning: true,
@@ -363,6 +367,8 @@ class PostThreadView extends View {
               }
               return smallPostTemplate({
                 post: parentPost,
+                currentUser,
+                isAuthenticated,
                 isUserPost: currentUser?.did === parentPost.author?.did,
                 postInteractionHandler,
                 replyContext,
@@ -373,6 +379,8 @@ class PostThreadView extends View {
               ? noUnauthenticatedLargePostTemplate()
               : largePostTemplate({
                   post: postThread.post,
+                  currentUser,
+                  isAuthenticated,
                   isUserPost: currentUser?.did === postThread.post?.author?.did,
                   postInteractionHandler,
                   afterHide: () => {

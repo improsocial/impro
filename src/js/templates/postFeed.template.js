@@ -33,6 +33,7 @@ function replyContextTemplate({
   reply,
   post,
   currentUser,
+  isAuthenticated,
   hiddenPostUris,
   postInteractionHandler,
   onClickShowLess,
@@ -51,6 +52,8 @@ function replyContextTemplate({
         ? html`
             ${postTemplate({
               post: root,
+              currentUser,
+              isAuthenticated,
               isUserPost: root?.author?.did === currentUser?.did,
               replyContext: "root",
               hiddenPostUris,
@@ -76,6 +79,8 @@ function replyContextTemplate({
               : ""}
             ${postTemplate({
               post: parent,
+              currentUser,
+              isAuthenticated,
               isUserPost: parent.author?.did === currentUser?.did,
               replyContext: "parent",
               showReplyToLabel: !!grandparentAuthor && showViewMoreLink,
@@ -96,6 +101,7 @@ function replyContextTemplate({
 function feedItemTemplate({
   feedItem,
   currentUser,
+  isAuthenticated,
   hiddenPostUris,
   postInteractionHandler,
   onClickShowLess,
@@ -126,6 +132,7 @@ function feedItemTemplate({
             reply,
             post,
             currentUser,
+            isAuthenticated,
             feedContext,
             hiddenPostUris,
             postInteractionHandler,
@@ -136,6 +143,8 @@ function feedItemTemplate({
         : ""}
       ${postTemplate({
         post,
+        currentUser,
+        isAuthenticated,
         isPinned,
         hiddenPostUris,
         isUserPost: currentUser?.did === post.author?.did,
@@ -163,6 +172,7 @@ function feedSkeletonTemplate() {
 export function postFeedTemplate({
   feed,
   currentUser,
+  isAuthenticated,
   feedGenerator = null,
   hiddenPostUris = [],
   onLoadMore,
@@ -209,6 +219,7 @@ export function postFeedTemplate({
                 feedItemTemplate({
                   feedItem,
                   currentUser,
+                  isAuthenticated,
                   hiddenPostUris,
                   postInteractionHandler,
                   onClickShowLess,

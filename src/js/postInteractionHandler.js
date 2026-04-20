@@ -13,12 +13,7 @@ export class PostInteractionHandler {
     this.dataLayer = dataLayer;
     this.postComposerService = postComposerService;
     this.reportService = reportService;
-    this.isAuthenticated = dataLayer.isAuthenticated;
     this.renderFunc = renderFunc;
-  }
-
-  getCurrentUser() {
-    return this.dataLayer.selectors.getCurrentUser();
   }
 
   async handleLike(post, doLike) {

@@ -37,6 +37,7 @@ class NotificationsView extends View {
       chatNotificationService,
       postComposerService,
       reportService,
+      isAuthenticated,
     },
   }) {
     await requireAuth();
@@ -408,6 +409,8 @@ class NotificationsView extends View {
         <div class="notification-reply-wrapper ${isUnread ? "unread" : ""}">
           ${smallPostTemplate({
             post,
+            currentUser,
+            isAuthenticated,
             ignoreContentWarning: true,
             isUserPost: currentUser?.did === post.author?.did,
             showReplyToLabel: !!replyToAuthor,

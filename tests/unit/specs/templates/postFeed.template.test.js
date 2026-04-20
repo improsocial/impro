@@ -14,8 +14,6 @@ const mockUser = {
 };
 
 const postInteractionHandler = {
-  isAuthenticated: true,
-  getCurrentUser: () => ({ did: "did:plc:test" }),
   handleLike: noop,
   handleRepost: noop,
   handleDelete: noop,

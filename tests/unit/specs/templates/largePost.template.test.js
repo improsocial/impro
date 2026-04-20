@@ -5,9 +5,9 @@ import { post } from "../../fixtures.js";
 import { render } from "/js/lib/lit-html.js";
 
 const noop = () => {};
+const currentUser = { did: "did:plc:test" };
+const isAuthenticated = true;
 const postInteractionHandler = {
-  isAuthenticated: true,
-  getCurrentUser: () => ({ did: "did:plc:test" }),
   handleLike: noop,
   handleRepost: noop,
   handleQuotePost: noop,
@@ -18,25 +18,27 @@ const postInteractionHandler = {
   handleReport: noop,
 };
 
+const baseProps = { currentUser, isAuthenticated, postInteractionHandler };
+
 const t = new TestSuite("largePostTemplate");
 
 t.describe("largePostTemplate", (it) => {
   it("should render the post container", () => {
-    const result = largePostTemplate({ post, postInteractionHandler });
+    const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='large-post']") !== null);
   });
 
   it("should render post with avatar", () => {
-    const result = largePostTemplate({ post, postInteractionHandler });
+    const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='avatar']") !== null);
   });
 
   it("should render post with author name", () => {
-    const result = largePostTemplate({ post, postInteractionHandler });
+    const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
     assert(
@@ -51,7 +53,7 @@ t.describe("largePostTemplate", (it) => {
     };
     const result = largePostTemplate({
       post: postWithText,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -59,7 +61,7 @@ t.describe("largePostTemplate", (it) => {
   });
 
   it("should render post action bar", () => {
-    const result = largePostTemplate({ post, postInteractionHandler });
+    const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='reply-button']") !== null);
@@ -70,7 +72,7 @@ t.describe("largePostTemplate", (it) => {
   it("should render with reply context line when replyContext is parent", () => {
     const result = largePostTemplate({
       post,
-      postInteractionHandler,
+      ...baseProps,
       replyContext: "parent",
     });
     const container = document.createElement("div");
@@ -81,7 +83,7 @@ t.describe("largePostTemplate", (it) => {
   it("should render with reply context line when replyContext is reply", () => {
     const result = largePostTemplate({
       post,
-      postInteractionHandler,
+      ...baseProps,
       replyContext: "reply",
     });
     const container = document.createElement("div");
@@ -90,7 +92,7 @@ t.describe("largePostTemplate", (it) => {
   });
 
   it("should not render reply context line when no replyContext", () => {
-    const result = largePostTemplate({ post, postInteractionHandler });
+    const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
     assertEquals(container.querySelector(".reply-context-line-in"), null);
@@ -116,7 +118,7 @@ t.describe("largePostTemplate - rich text", (it) => {
     };
     const result = largePostTemplate({
       post: postWithLongUrl,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -136,7 +138,7 @@ t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
     };
     const result = largePostTemplate({
       post: blockedPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -151,7 +153,7 @@ t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
     };
     const result = largePostTemplate({
       post: notFoundPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -167,7 +169,7 @@ t.describe("largePostTemplate - moderation", (it) => {
     };
     const result = largePostTemplate({
       post: mutedPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -181,7 +183,7 @@ t.describe("largePostTemplate - moderation", (it) => {
     };
     const result = largePostTemplate({
       post: hiddenPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -195,7 +197,7 @@ t.describe("largePostTemplate - moderation", (it) => {
     };
     const result = largePostTemplate({
       post: normalPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);

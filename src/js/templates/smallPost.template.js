@@ -40,6 +40,8 @@ function contentWarningTemplate({ post, contentLabel, children }) {
 
 export function smallPostTemplate({
   post,
+  currentUser,
+  isAuthenticated,
   isUserPost,
   postInteractionHandler,
   replyContext,
@@ -63,7 +65,7 @@ export function smallPostTemplate({
     return unavailablePostTemplate();
   }
   const hideUnauthenticated =
-    !postInteractionHandler.isAuthenticated &&
+    !isAuthenticated &&
     post.author &&
     doHideAuthorOnUnauthenticated(post.author);
   const postText = post.record.text?.trimEnd() || "";
@@ -111,8 +113,7 @@ export function smallPostTemplate({
           ${repostAuthor
             ? html`<div class="repost-label" data-testid="repost-label">
                 ${repostIconTemplate()}
-                ${repostAuthor.did ===
-                postInteractionHandler.getCurrentUser()?.did
+                ${repostAuthor.did === currentUser?.did
                   ? "Reposted by you"
                   : "Reposted by " + getDisplayName(repostAuthor)}
               </div>`
@@ -135,7 +136,7 @@ export function smallPostTemplate({
           ${contentWarningTemplate({
             post,
             contentLabel: ignoreContentWarning ? null : post.contentLabel,
-            isAuthenticated: postInteractionHandler.isAuthenticated,
+            isAuthenticated,
             children: html` <div class="post-body">
               ${hideUnauthenticated
                 ? html`<div class="missing-post-indicator no-unauthenticated">
@@ -156,16 +157,15 @@ export function smallPostTemplate({
                           embed: post.embed,
                           mediaLabel: post.mediaLabel,
                           lazyLoadImages,
-                          isAuthenticated:
-                            postInteractionHandler.isAuthenticated,
+                          isAuthenticated,
                         })}
                       </div>`
                     : null}`}
               ${postActionBarTemplate({
                 post,
                 isUserPost,
-                isAuthenticated: postInteractionHandler.isAuthenticated,
-                currentUser: postInteractionHandler.getCurrentUser(),
+                isAuthenticated,
+                currentUser,
                 onClickReply: () => {
                   window.router.go(linkToPost(post));
                 },

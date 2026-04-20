@@ -247,6 +247,7 @@ class HomeView extends View {
                       : postFeedTemplate({
                           feed,
                           currentUser,
+                          isAuthenticated,
                           feedGenerator,
                           hiddenPostUris,
                           postInteractionHandler,

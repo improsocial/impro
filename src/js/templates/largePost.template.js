@@ -81,6 +81,8 @@ function postActionCountsTemplate({
 
 export function largePostTemplate({
   post,
+  currentUser,
+  isAuthenticated,
   isUserPost,
   postInteractionHandler,
   onClickReply = noop,
@@ -95,7 +97,7 @@ export function largePostTemplate({
   } else if (isUnavailablePost(post)) {
     return unavailablePostTemplate();
   } else if (
-    !postInteractionHandler.isAuthenticated &&
+    !isAuthenticated &&
     post.author &&
     doHideAuthorOnUnauthenticated(post.author)
   ) {
@@ -147,7 +149,7 @@ export function largePostTemplate({
                     ${postEmbedTemplate({
                       embed: post.embed,
                       mediaLabel: post.mediaLabel,
-                      isAuthenticated: postInteractionHandler.isAuthenticated,
+                      isAuthenticated,
                     })}
                   </div>`
                 : null
@@ -166,8 +168,8 @@ export function largePostTemplate({
             ${postActionBarTemplate({
               post,
               isUserPost,
-              isAuthenticated: postInteractionHandler.isAuthenticated,
-              currentUser: postInteractionHandler.getCurrentUser(),
+              isAuthenticated,
+              currentUser,
               onClickReply,
               onClickLike: (post, doLike) =>
                 postInteractionHandler.handleLike(post, doLike),

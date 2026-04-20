@@ -18,6 +18,7 @@ class HashtagView extends View {
       chatNotificationService,
       postComposerService,
       reportService,
+      isAuthenticated,
     },
   }) {
     await requireAuth();
@@ -116,6 +117,7 @@ class HashtagView extends View {
                   ${postFeedTemplate({
                     feed,
                     currentUser,
+                    isAuthenticated,
                     postInteractionHandler,
                     enableFeedFeedback: false,
                     onLoadMore: () => loadCurrentFeed(),
