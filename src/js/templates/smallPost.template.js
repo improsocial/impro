@@ -123,10 +123,10 @@ export function smallPostTemplate({
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied
+                ⤷ Replied to
                 ${replyToAuthor
-                  ? html`to ${getDisplayName(replyToAuthor)}`
-                  : ""}
+                  ? html` ${getDisplayName(replyToAuthor)}`
+                  : " user"}
               </div>`
             : ""}
           ${contentWarningTemplate({

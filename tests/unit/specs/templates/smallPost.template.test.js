@@ -198,6 +198,70 @@ t.describe("smallPostTemplate - reply context", (it) => {
   });
 });
 
+t.describe("smallPostTemplate - reply-to label", (it) => {
+  it("should not render reply-to-author label when showReplyToLabel is false", () => {
+    const result = smallPostTemplate({
+      post: post,
+      postInteractionHandler,
+      showReplyToLabel: false,
+      replyToAuthor: { displayName: "Alice", handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".reply-to-author"), null);
+  });
+
+  it("should render 'Replied to [display name]' when replyToAuthor is provided", () => {
+    const result = smallPostTemplate({
+      post: post,
+      postInteractionHandler,
+      showReplyToLabel: true,
+      replyToAuthor: { displayName: "Alice", handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Replied to Alice"),
+      `expected "Replied to Alice" in "${text}"`,
+    );
+  });
+
+  it("should fall back to handle when replyToAuthor has no displayName", () => {
+    const result = smallPostTemplate({
+      post: post,
+      postInteractionHandler,
+      showReplyToLabel: true,
+      replyToAuthor: { handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Replied to alice.bsky.social"),
+      `expected "Replied to alice.bsky.social" in "${text}"`,
+    );
+  });
+
+  it("should render 'Replied to user' when replyToAuthor is missing", () => {
+    const result = smallPostTemplate({
+      post: post,
+      postInteractionHandler,
+      showReplyToLabel: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assertEquals(text, "⤷ Replied to user");
+  });
+});
+
 t.describe("smallPostTemplate - blocked/unavailable posts", (it) => {
   it("should render blocked post template for blocked post", () => {
     const blockedPost = {
