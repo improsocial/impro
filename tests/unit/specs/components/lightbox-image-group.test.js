@@ -89,6 +89,25 @@ t.describe("LightboxDialog - rendering", (it) => {
     const altText = element.querySelector(".lightbox-alt-text");
     assertEquals(altText, null);
   });
+
+  it("should apply circle class when image-shape is circle", () => {
+    const element = document.createElement("lightbox-dialog");
+    element.setAttribute("image-shape", "circle");
+    element.images = [createTestImage("test.jpg", "Test")];
+    document.body.appendChild(element);
+    element.open();
+    const img = element.querySelector("img");
+    assert(img.classList.contains("lightbox-image-circle"));
+  });
+
+  it("should not apply circle class when image-shape is not set", () => {
+    const element = document.createElement("lightbox-dialog");
+    element.images = [createTestImage("test.jpg", "Test")];
+    document.body.appendChild(element);
+    element.open();
+    const img = element.querySelector("img");
+    assert(!img.classList.contains("lightbox-image-circle"));
+  });
 });
 
 t.describe("LightboxDialog - navigation", (it) => {
@@ -324,6 +343,37 @@ t.describe("LightboxImageGroup - click to open lightbox", (it) => {
     assert(lightboxDialog.getAttribute("hide-alt-text") !== null);
 
     // Clean up
+    lightboxDialog.close();
+    lightboxDialog.remove();
+  });
+
+  it("should pass image-shape attribute to lightbox dialog", () => {
+    const element = document.createElement("lightbox-image-group");
+    element.setAttribute("image-shape", "circle");
+    element.innerHTML = '<img src="test.jpg" alt="Test">';
+    document.body.appendChild(element);
+
+    const img = element.querySelector("img");
+    img.click();
+
+    const lightboxDialog = document.querySelector("lightbox-dialog");
+    assertEquals(lightboxDialog.getAttribute("image-shape"), "circle");
+
+    lightboxDialog.close();
+    lightboxDialog.remove();
+  });
+
+  it("should not set image-shape attribute on dialog when unset on group", () => {
+    const element = document.createElement("lightbox-image-group");
+    element.innerHTML = '<img src="test.jpg" alt="Test">';
+    document.body.appendChild(element);
+
+    const img = element.querySelector("img");
+    img.click();
+
+    const lightboxDialog = document.querySelector("lightbox-dialog");
+    assertEquals(lightboxDialog.getAttribute("image-shape"), null);
+
     lightboxDialog.close();
     lightboxDialog.remove();
   });

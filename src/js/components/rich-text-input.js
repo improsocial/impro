@@ -5,6 +5,7 @@ import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { deepClone } from "/js/utils.js";
+import { TYPEAHEAD_SERVICE_URL } from "/js/config.js";
 
 function getCursorPosition(editableDiv) {
   const sel = window.getSelection();
@@ -392,7 +393,7 @@ export class RichTextInput extends Component {
         limit: "8",
       });
       const response = await fetch(
-        `https://public.api.bsky.app/xrpc/app.bsky.actor.searchActorsTypeahead?${queryParams.toString()}`,
+        `${TYPEAHEAD_SERVICE_URL}/xrpc/app.bsky.actor.searchActorsTypeahead?${queryParams.toString()}`,
       );
       if (response.ok) {
         const data = await response.json();

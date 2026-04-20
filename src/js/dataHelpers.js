@@ -29,7 +29,7 @@ export function getIsLiked(post) {
   return !!post.viewer?.like;
 }
 export function getQuotedPost(post) {
-  const embed = post.embed;
+  const embed = post.embeds ? post.embeds[0] : post.embed;
   if (!embed) {
     return null;
   }
@@ -95,6 +95,13 @@ export function createEmbedFromPost(post) {
     author: { ...post.author },
     value: { ...post.record },
     uri: post.uri,
+    cid: post.cid,
+    indexedAt: post.indexedAt,
+    labels: post.labels,
+    likeCount: post.likeCount,
+    replyCount: post.replyCount,
+    repostCount: post.repostCount,
+    quoteCount: post.quoteCount,
   };
   if (post.embed) {
     embed.embeds = [post.embed];

@@ -1,11 +1,34 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import "/js/components/context-menu.js";
+
+// Mock MutationObserver before importing the component
+let mutationCallbacks = [];
+globalThis.MutationObserver = class {
+  constructor(callback) {
+    this._callback = callback;
+    this._connected = false;
+    mutationCallbacks.push(this);
+  }
+  observe() {
+    this._connected = true;
+  }
+  disconnect() {
+    this._connected = false;
+  }
+  _trigger() {
+    if (this._connected) {
+      this._callback();
+    }
+  }
+};
+
+await import("/js/components/context-menu.js");
 
 const t = new TestSuite("ContextMenu");
 
 t.beforeEach(() => {
   document.body.innerHTML = "";
+  mutationCallbacks = [];
 });
 
 function connectElement(element) {
@@ -117,6 +140,72 @@ t.describe("ContextMenu - container click", (it) => {
     const container = element.querySelector(".context-menu-container");
     container.click();
     assertEquals(element.isOpen, false);
+  });
+});
+
+t.describe("ContextMenu - child updates", (it) => {
+  it("should update dialog contents when children change", () => {
+    const element = document.createElement("context-menu");
+    element.innerHTML = "<span class='item-a'>Item A</span>";
+    connectElement(element);
+    const observer = mutationCallbacks[mutationCallbacks.length - 1];
+
+    const itemA = element.querySelector(".context-menu .item-a");
+    assert(itemA !== null, "Initial child should be in dialog");
+
+    const newChild = document.createElement("span");
+    newChild.className = "item-b";
+    newChild.textContent = "Item B";
+    element.appendChild(newChild);
+    observer._trigger();
+
+    const itemB = element.querySelector(".context-menu .item-b");
+    assert(itemB !== null, "New child should be moved into dialog");
+    assertEquals(itemB.textContent, "Item B");
+  });
+
+  it("should include all children when full set is provided", () => {
+    const element = document.createElement("context-menu");
+    element.innerHTML = "<span class='original'>Original</span>";
+    connectElement(element);
+    const observer = mutationCallbacks[mutationCallbacks.length - 1];
+
+    // Simulate lit-html re-rendering all children (old + new)
+    const original = document.createElement("span");
+    original.className = "original";
+    original.textContent = "Original";
+    const added = document.createElement("span");
+    added.className = "added";
+    added.textContent = "Added";
+    element.appendChild(original);
+    element.appendChild(added);
+    observer._trigger();
+
+    const items = element.querySelectorAll(".context-menu span");
+    assertEquals(items.length, 2);
+    assertEquals(items[0].textContent, "Original");
+    assertEquals(items[1].textContent, "Added");
+  });
+
+  it("should replace dialog contents when children are replaced", () => {
+    const element = document.createElement("context-menu");
+    element.innerHTML =
+      "<span class='keep'>Keep</span><span class='remove'>Remove</span>";
+    connectElement(element);
+    const observer = mutationCallbacks[mutationCallbacks.length - 1];
+
+    const dialog = element.querySelector(".context-menu");
+    assertEquals(dialog.querySelectorAll("span").length, 2);
+
+    const replacement = document.createElement("span");
+    replacement.className = "only";
+    replacement.textContent = "Only";
+    element.appendChild(replacement);
+    observer._trigger();
+
+    const spans = dialog.querySelectorAll("span");
+    assertEquals(spans.length, 1);
+    assertEquals(spans[0].textContent, "Only");
   });
 });
 

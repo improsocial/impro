@@ -731,7 +731,7 @@ test.describe("Profile view", () => {
       .click();
 
     await expect(page).toHaveURL(
-      /\/search\?q=from%3A%40otheruser\.bsky\.social&tab=posts/,
+      /\/search\?q=from%3A%40otheruser\.bsky\.social\+&tab=posts/,
       { timeout: 10000 },
     );
   });
@@ -766,7 +766,7 @@ test.describe("Profile view", () => {
       .click();
 
     await expect(page).toHaveURL(
-      /\/search\?q=from%3A%40testuser\.bsky\.social&tab=posts/,
+      /\/search\?q=from%3A%40testuser\.bsky\.social\+&tab=posts/,
       { timeout: 10000 },
     );
   });

@@ -463,8 +463,6 @@ export class OauthClient {
       throw new Error("No in-flight data found for requestId");
     }
 
-    localStorage.removeItem(`oauth_in_flight_${requestId}`);
-
     const inFlightData = JSON.parse(inFlightDataStr);
 
     if (iss !== inFlightData.authServerUrl) {
@@ -500,6 +498,13 @@ export class OauthClient {
 
     const session = new Session(sessionData, this.dpopRequests);
     session.save();
+
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key?.startsWith("oauth_in_flight_")) {
+        localStorage.removeItem(key);
+      }
+    }
 
     return session;
   }

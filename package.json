@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.9.63",
+  "version": "0.10.18",
   "type": "module",
   "scripts": {
     "start": "rm -rf build && NODE_ENV=development eleventy --serve",
@@ -20,6 +20,7 @@
     "@capacitor/cli": "^7.0.0",
     "@import-maps/resolve": "^2.0.0",
     "@playwright/test": "^1.58.1",
+    "canvas": "^3.2.3",
     "dotenv": "^17.2.2",
     "es-module-lexer": "^1.4.1",
     "esbuild": "^0.25.10",

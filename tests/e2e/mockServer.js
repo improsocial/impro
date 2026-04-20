@@ -1359,6 +1359,61 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/com.atproto.repo.getRecord*", (route) => {
+      const url = new URL(route.request().url());
+      const collection = url.searchParams.get("collection");
+      const rkey = url.searchParams.get("rkey");
+      if (collection === "app.bsky.actor.profile" && rkey === "self") {
+        const profile = this.profiles.get(userProfile.did) || userProfile;
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            uri: `at://${userProfile.did}/${collection}/${rkey}`,
+            cid: "bafyreiprofilerecord",
+            value: {
+              $type: "app.bsky.actor.profile",
+              displayName: profile.displayName || "",
+              description: profile.description || "",
+            },
+          }),
+        });
+      }
+      return route.fulfill({ status: 404, body: "{}" });
+    });
+
+    await page.route("**/xrpc/com.atproto.repo.putRecord*", (route) => {
+      const body = route.request().postDataJSON();
+      const collection = body?.collection;
+      if (collection === "app.bsky.actor.profile") {
+        const record = body?.record || {};
+        const profile = this.profiles.get(userProfile.did) || {
+          ...userProfile,
+        };
+        profile.displayName = record.displayName || "";
+        profile.description = record.description || "";
+        if (record.avatar) {
+          profile.avatar = "mock-avatar-url";
+        } else if (!record.avatar && record.avatar !== undefined) {
+          profile.avatar = "";
+        }
+        if (record.banner) {
+          profile.banner = "mock-banner-url";
+        } else if (!record.banner && record.banner !== undefined) {
+          profile.banner = "";
+        }
+        this.profiles.set(userProfile.did, profile);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          uri: `at://${userProfile.did}/${collection}/self`,
+          cid: "bafyreiupdatedrecord",
+        }),
+      });
+    });
+
     await page.route("**/xrpc/com.atproto.repo.uploadBlob*", (route) =>
       route.fulfill({
         status: 200,

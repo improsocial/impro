@@ -589,9 +589,10 @@ test.describe("Blocked posts in post thread", () => {
       await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
         timeout: 10000,
       });
-      await expect(view).toContainText("Post 1 by Author B", {
+      await expect(view).toContainText("Post 0 by Author A", {
         timeout: 10000,
       });
+      await expect(view).toContainText("Post 1 by Author B");
       await expect(view).toContainText(`Post ${NUM_POSTS - 3} by Author B`);
     });
 
@@ -681,6 +682,7 @@ test.describe("Blocked posts in post thread", () => {
       await expect(view).toContainText("Post 10 by Author C", {
         timeout: 10000,
       });
+      await expect(view).toContainText("Post 0 by Author A");
     });
 
     test("should handle a non-blocked third author interspersed in the parent chain", async ({
@@ -782,6 +784,7 @@ test.describe("Blocked posts in post thread", () => {
       await expect(view).toContainText("Post 10 by Author C", {
         timeout: 10000,
       });
+      await expect(view).toContainText("Post 0 by Author A");
     });
   });
 

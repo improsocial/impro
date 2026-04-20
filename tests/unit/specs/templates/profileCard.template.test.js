@@ -426,6 +426,68 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     );
   });
 
+  it("should render edit profile button for current user", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: true,
+      onClickEditProfile: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const editButton = container.querySelector(
+      "[data-testid='edit-profile-button']",
+    );
+    assert(editButton !== null);
+    assertEquals(editButton.textContent.trim(), "Edit Profile");
+  });
+
+  it("should not render edit profile button for other users", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='edit-profile-button']"),
+      null,
+    );
+  });
+
+  it("should call onClickEditProfile when edit button clicked", () => {
+    let editProfileCalled = false;
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: true,
+      onClickEditProfile: () => {
+        editProfileCalled = true;
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const editButton = container.querySelector(
+      "[data-testid='edit-profile-button']",
+    );
+    editButton.click();
+    assert(editProfileCalled);
+  });
+
   it("should render chat button for authenticated user viewing other profile", () => {
     const profile = {
       ...mockProfile,

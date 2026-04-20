@@ -11,6 +11,7 @@ import {
   differenceInMinutes,
   differenceInHours,
   differenceInDays,
+  buildQueryString,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -384,6 +385,42 @@ t.describe("differenceInDays", (it) => {
   it("should return 0 for identical dates", () => {
     const date = new Date("2025-01-01T12:00:00Z");
     assertEquals(differenceInDays(date, date), 0);
+  });
+});
+
+t.describe("buildQueryString", (it) => {
+  it("should build a query string from simple key-value pairs", () => {
+    const result = buildQueryString({ foo: "bar", baz: "qux" });
+    assertEquals(result, "foo=bar&baz=qux");
+  });
+
+  it("should url-encode keys and values", () => {
+    const result = buildQueryString({ "a key": "a value", other: "a&b" });
+    assertEquals(result, "a+key=a+value&other=a%26b");
+  });
+
+  it("should repeat the key for array values", () => {
+    const result = buildQueryString({ tag: ["a", "b", "c"] });
+    assertEquals(result, "tag=a&tag=b&tag=c");
+  });
+
+  it("should handle a mix of scalar and array values", () => {
+    const result = buildQueryString({ q: "hello", tag: ["a", "b"] });
+    assertEquals(result, "q=hello&tag=a&tag=b");
+  });
+
+  it("should stringify non-string scalar values", () => {
+    const result = buildQueryString({ limit: 25, active: true });
+    assertEquals(result, "limit=25&active=true");
+  });
+
+  it("should return an empty string for an empty object", () => {
+    assertEquals(buildQueryString({}), "");
+  });
+
+  it("should omit the key entirely for an empty array", () => {
+    const result = buildQueryString({ tag: [] });
+    assertEquals(result, "");
   });
 });
 

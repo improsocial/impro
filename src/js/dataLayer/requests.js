@@ -2,6 +2,7 @@ import { Normalizer } from "./normalizer.js";
 import {
   flattenParents,
   replaceTopParent,
+  getQuotedPost,
   getBlockedQuote,
   isBlockingUser,
   createUnavailablePost,
@@ -9,28 +10,9 @@ import {
   buildUri,
   parseUri,
 } from "/js/dataHelpers.js";
-import { getLinks } from "/js/constellation.js";
+import { Constellation } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
 import { ApiError } from "/js/api.js";
-
-async function getReplyUrisForPostFromBacklinks(post) {
-  const backlinks = await getLinks({
-    subject: post.uri,
-    source: "app.bsky.feed.post:reply.parent.uri",
-    timeout: 2000,
-  });
-  return backlinks.map(({ did, collection, rkey }) =>
-    buildUri({ repo: did, collection, rkey }),
-  );
-}
-
-async function getPostsInThreadFromBacklinks(rootUri) {
-  return await getLinks({
-    subject: rootUri,
-    source: "app.bsky.feed.post:reply.root.uri",
-    timeout: 2000,
-  });
-}
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer
 function getBlockedPostUris(posts) {
@@ -43,7 +25,16 @@ function getBlockedPostUris(posts) {
     .map((post) => getBlockedQuote(post))
     .filter(Boolean)
     .filter((blockedPost) => !isBlockingUser(blockedPost));
-  return unique([...blockedPosts, ...blockedQuotes], {
+  // Blocked nested quotes
+  // Note - this won't load blocked quotes of blocked quotes (edge case)
+  const blockedNestedQuotes = posts
+    .map((post) => getQuotedPost(post))
+    .filter(Boolean)
+    .map((quotedPost) => getBlockedQuote(quotedPost))
+    .filter(Boolean)
+    .filter((blockedPost) => !isBlockingUser(blockedPost));
+
+  return unique([...blockedPosts, ...blockedQuotes, ...blockedNestedQuotes], {
     by: "uri",
   }).map((blockedPost) => blockedPost.uri);
 }
@@ -73,10 +64,11 @@ class StatusStore {
 
 // Handles making requests to the API and storing the data in the data store.
 export class Requests {
-  constructor(api, dataStore, preferencesProvider) {
+  constructor(api, dataStore, preferencesProvider, { constellation } = {}) {
     this.api = api;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
+    this.constellation = constellation ?? new Constellation();
     this.normalizer = new Normalizer();
     this.statusStore = new StatusStore();
 
@@ -187,7 +179,7 @@ export class Requests {
 
     let backlinks;
     try {
-      backlinks = await getPostsInThreadFromBacklinks(rootUri);
+      backlinks = await this._getPostsInThreadFromBacklinks(rootUri);
     } catch (error) {
       if (error.name === "AbortError") {
         return await this.loadPostThread(blockedParent.uri, {
@@ -286,7 +278,7 @@ export class Requests {
     const loadedReplies = postThread.replies ?? [];
     let allReplyUris = null;
     try {
-      allReplyUris = await getReplyUrisForPostFromBacklinks(post);
+      allReplyUris = await this._getReplyUrisForPostFromBacklinks(post);
     } catch (error) {
       if (error.name === "AbortError") {
         console.warn("Timed out getting backlinks for replies");
@@ -358,6 +350,29 @@ export class Requests {
       // Set new feed
       this.dataStore.setFeed(feedURI, feed);
     }
+  }
+
+  async _getReplyUrisForPostFromBacklinks(post) {
+    const backlinks = await this.constellation.getLinks({
+      subject: post.uri,
+      source: "app.bsky.feed.post:reply.parent.uri",
+      timeout: 2000,
+    });
+    return backlinks.map(({ did, collection, rkey }) =>
+      buildUri({ repo: did, collection, rkey }),
+    );
+  }
+
+  async _getPostsInThreadFromBacklinks(rootUri) {
+    const backlinks = await this.constellation.getLinks({
+      subject: rootUri,
+      source: "app.bsky.feed.post:reply.root.uri",
+      timeout: 2000,
+    });
+    // Also add the root itself
+    const { repo, collection, rkey } = parseUri(rootUri);
+    backlinks.push({ did: repo, collection, rkey });
+    return backlinks;
   }
 
   async _loadBlockedPosts(blockedPostUris) {
@@ -811,7 +826,9 @@ export class Requests {
     const feedUris = pinnedFeeds
       .map((pinnedFeed) => pinnedFeed.value)
       .filter((feedUri) => feedUri !== "following");
-    const feedGenerators = await this.api.getFeedGenerators(feedUris);
+    const feedGenerators = feedUris.length
+      ? await this.api.getFeedGenerators(feedUris)
+      : [];
     for (const feedGenerator of feedGenerators) {
       this.dataStore.setFeedGenerator(feedGenerator.uri, feedGenerator);
     }

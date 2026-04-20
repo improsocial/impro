@@ -3,10 +3,15 @@ export class TestSuite {
     this.suiteName = suiteName;
     this.tests = [];
     this._beforeEach = null;
+    this._afterEach = null;
   }
 
   beforeEach(fn) {
     this._beforeEach = fn;
+  }
+
+  afterEach(fn) {
+    this._afterEach = fn;
   }
 
   test(name, fn) {
@@ -36,6 +41,10 @@ export class TestSuite {
         console.error("   ❌ Failed");
         console.error(error);
         results.push({ name: test.name, success: false, error: error.message });
+      } finally {
+        if (this._afterEach) {
+          await this._afterEach();
+        }
       }
     }
     const numPassed = results.filter((result) => result.success).length;

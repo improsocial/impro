@@ -1,19 +1,12 @@
 import { parseUri } from "/js/dataHelpers.js";
 import { RefreshTokenError, getAuth } from "/js/auth.js";
 import { TokenRefreshError as OauthRefreshTokenError } from "/js/oauth.js";
-import { batch, getCurrentTimestamp } from "/js/utils.js";
-
-export function buildQueryString(obj) {
-  const query = new URLSearchParams();
-  for (const [key, value] of Object.entries(obj)) {
-    if (Array.isArray(value)) {
-      value.forEach((v) => query.append(key, v));
-    } else {
-      query.append(key, value);
-    }
-  }
-  return query.toString();
-}
+import { batch, buildQueryString, getCurrentTimestamp } from "/js/utils.js";
+import {
+  PUBLIC_SERVICE_ENDPOINT_URL,
+  BSKY_APPVIEW_SERVICE_DID,
+  BSKY_CHAT_SERVICE_DID,
+} from "/js/config.js";
 
 export class ApiError extends Error {
   constructor(res) {
@@ -29,7 +22,7 @@ export class ApiError extends Error {
 
 class PublicSession {
   constructor() {
-    this.serviceEndpoint = "https://public.api.bsky.app";
+    this.serviceEndpoint = PUBLIC_SERVICE_ENDPOINT_URL;
   }
   async fetch(url, options) {
     return fetch(url, options);
@@ -43,8 +36,8 @@ export class Api {
   constructor(
     session,
     {
-      bskyAppViewServiceDid = "did:web:api.bsky.app#bsky_appview",
-      chatAppViewServiceDid = "did:web:api.bsky.chat#bsky_chat",
+      bskyAppViewServiceDid = BSKY_APPVIEW_SERVICE_DID,
+      chatAppViewServiceDid = BSKY_CHAT_SERVICE_DID,
     } = {},
   ) {
     this.isAuthenticated = !!session;
@@ -918,6 +911,34 @@ export class Api {
       stringifyBody: false,
     });
     return res.data.blob;
+  }
+
+  async getProfileRecord() {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.profile",
+        rkey: "self",
+      },
+    });
+    return res.data;
+  }
+
+  async putProfileRecord(record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.actor.profile",
+        rkey: "self",
+        record: {
+          $type: "app.bsky.actor.profile",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
   }
 
   async createModerationReport({ reasonType, reason, subject, labelerDid }) {

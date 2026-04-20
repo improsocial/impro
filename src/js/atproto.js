@@ -1,3 +1,5 @@
+import { HANDLE_RESOLVER_SERVICE_URL, PLC_DIRECTORY_URL } from "/js/config.js";
+
 const PDS_SERVICE_ID = "#atproto_pds";
 
 export function getServiceEndpointFromDidDoc(didDoc) {
@@ -21,7 +23,7 @@ export async function resolveHandle(handle) {
     handle,
   });
   const res = await fetch(
-    "https://public.api.bsky.app/xrpc/com.atproto.identity.resolveHandle?" +
+    `${HANDLE_RESOLVER_SERVICE_URL}/xrpc/com.atproto.identity.resolveHandle?` +
       params.toString(),
   );
   const data = await res.json();
@@ -30,7 +32,7 @@ export async function resolveHandle(handle) {
 
 export async function resolveDid(did) {
   if (did.startsWith("did:plc:")) {
-    const res = await fetch(`https://plc.directory/${encodeURIComponent(did)}`);
+    const res = await fetch(`${PLC_DIRECTORY_URL}/${encodeURIComponent(did)}`);
     const didDoc = await res.json();
     return didDoc;
   } else if (did.startsWith("did:web:")) {

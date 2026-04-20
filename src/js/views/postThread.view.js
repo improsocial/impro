@@ -339,6 +339,9 @@ class PostThreadView extends View {
     function threadTemplate({ postThread, currentUser }) {
       try {
         const parents = flattenParents(postThread);
+        // A post might still have a parent even if it isn't loaded by the appview -
+        // this happens if the client has malformed reply refs.
+        const hasParent = postThread.post?.record?.reply?.parent;
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
         const postAuthor = postThread.post?.author;
@@ -383,7 +386,7 @@ class PostThreadView extends View {
                   onClickReply: async () => {
                     await handleClickReply(postThread.post, root, currentUser);
                   },
-                  replyContext: parents.length > 0 ? "reply" : null,
+                  replyContext: hasParent ? "reply" : null,
                 })}
             ${isAuthenticated && currentUser && canReplyToPost(postThread.post)
               ? html`

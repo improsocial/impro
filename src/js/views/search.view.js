@@ -39,8 +39,8 @@ class SearchView extends View {
 
       // Update URL query parameter
       const url = new URL(window.location);
-      if (normalizedQuery) {
-        url.searchParams.set("q", normalizedQuery);
+      if (state.searchQuery) {
+        url.searchParams.set("q", state.searchQuery);
       } else {
         url.searchParams.delete("q");
       }

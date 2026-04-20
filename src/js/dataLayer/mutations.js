@@ -564,6 +564,70 @@ export class Mutations {
     }
   }
 
+  async updateProfile(
+    profile,
+    {
+      displayName,
+      description,
+      avatarBlob,
+      bannerBlob,
+      removeAvatar,
+      removeBanner,
+    },
+  ) {
+    const [avatarRef, bannerRef] = await Promise.all([
+      avatarBlob ? this.api.uploadBlob(avatarBlob) : null,
+      bannerBlob ? this.api.uploadBlob(bannerBlob) : null,
+    ]);
+
+    let existingRecord = {};
+    let swapCid = null;
+    try {
+      const recordData = await this.api.getProfileRecord();
+      existingRecord = recordData.value || {};
+      swapCid = recordData.cid;
+    } catch (error) {
+      if (error.status === 400) {
+        // No existing record is ok
+      } else {
+        throw error;
+      }
+    }
+
+    const updatedRecord = { ...existingRecord };
+    if (displayName !== undefined) {
+      updatedRecord.displayName = displayName;
+    }
+    if (description !== undefined) {
+      updatedRecord.description = description;
+    }
+    if (avatarRef) {
+      updatedRecord.avatar = avatarRef;
+    } else if (removeAvatar) {
+      delete updatedRecord.avatar;
+    }
+    if (bannerRef) {
+      updatedRecord.banner = bannerRef;
+    } else if (removeBanner) {
+      delete updatedRecord.banner;
+    }
+
+    await this.api.putProfileRecord(updatedRecord, swapCid);
+
+    const preferences = this.preferencesProvider.requirePreferences();
+    const labelers = preferences.getLabelerDids();
+    // Fetch full profile to get updated image urls
+    const updatedProfile = await this.api.getProfile(profile.did, { labelers });
+    this.dataStore.setProfile(updatedProfile.did, updatedProfile);
+    const currentUser = this.dataStore.getCurrentUser();
+    if (currentUser && currentUser.did === updatedProfile.did) {
+      this.dataStore.setCurrentUser({
+        ...currentUser,
+        ...updatedProfile,
+      });
+    }
+  }
+
   async createPost({
     postText,
     facets,

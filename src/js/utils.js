@@ -49,6 +49,12 @@ window.addEventListener("page-transition", () => {
   relativeTimeBase = new Date();
 });
 
+window.addEventListener("visibilitychange", () => {
+  if (document.visibilityState === "visible") {
+    relativeTimeBase = new Date();
+  }
+});
+
 export function displayRelativeTime(timestamp) {
   // e.g. "2025-09-11T15:08:11.414Z" -> "7h"
   const now = relativeTimeBase;
@@ -112,6 +118,18 @@ export function getIndexFromByteIndex(text, byteIndex) {
   const bytes = encoder.encode(text);
   const slicedBytes = bytes.slice(0, byteIndex);
   return decoder.decode(slicedBytes).length;
+}
+
+const graphemeSegmenter =
+  typeof Intl !== "undefined" && Intl.Segmenter
+    ? new Intl.Segmenter("en", { granularity: "grapheme" })
+    : null;
+
+export function graphemeCount(str) {
+  if (graphemeSegmenter) {
+    return [...graphemeSegmenter.segment(str)].length;
+  }
+  return [...str].length;
 }
 
 export function formatLargeNumber(number) {
@@ -209,6 +227,18 @@ export function wait(ms) {
 
 export function raf() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
+}
+
+export function buildQueryString(obj) {
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(obj)) {
+    if (Array.isArray(value)) {
+      value.forEach((entry) => query.append(key, entry));
+    } else {
+      query.append(key, value);
+    }
+  }
+  return query.toString();
 }
 
 export function batch(items, batchSize) {
@@ -350,4 +380,18 @@ export function enableDragToDismiss(
   target.__dragToDismiss = dragState;
 
   return dragState;
+}
+
+// iOS Safari: dismissing the keyboard via the "Done" button leaves the
+// dialog's inner scroll area offset, which makes buttons unclickable
+// until the dialog is swiped or re-tapped. Reset scroll on blur.
+export function resetScrollOnBlur(dialog, scrollArea) {
+  dialog.addEventListener(
+    "blur",
+    () => {
+      if (scrollArea) scrollArea.scrollTop = 0;
+      window.scrollTo(0, 0);
+    },
+    true,
+  );
 }

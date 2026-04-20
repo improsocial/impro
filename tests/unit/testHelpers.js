@@ -58,3 +58,42 @@ export function mock(fn = () => {}) {
   mockFn.results = results;
   return mockFn;
 }
+
+// A callable fetch replacement. Assign to globalThis.fetch, register routes
+// with __intercept(matcher, handler), and inspect captured requests on `calls`.
+// Matchers are strings (matched by URL prefix) or regex (matched with .test).
+export class MockFetch {
+  constructor() {
+    const routes = [];
+    const calls = [];
+    const fetch = async (url, options) => {
+      calls.push({ url, options });
+      for (const route of routes) {
+        const matches =
+          typeof route.matcher === "string"
+            ? url.startsWith(route.matcher)
+            : route.matcher.test(url);
+        if (matches) {
+          return route.handler(url, options);
+        }
+      }
+      throw new Error(`Unhandled fetch: ${url}`);
+    };
+    fetch.calls = calls;
+    fetch.__intercept = (matcher, handler) => {
+      routes.push({ matcher, handler });
+      return fetch;
+    };
+    fetch.__interceptJson = (matcher, body) => {
+      return fetch.__intercept(matcher, async () => ({
+        ok: true,
+        status: 200,
+        statusText: "OK",
+        headers: { get: () => null },
+        json: async () => body,
+        text: async () => "",
+      }));
+    };
+    return fetch;
+  }
+}

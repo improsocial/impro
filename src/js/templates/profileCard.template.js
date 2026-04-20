@@ -98,6 +98,7 @@ export function profileCardTemplate({
   onClickSubscribe = noop,
   onClickPostNotifications = noop,
   onClickReport = noop,
+  onClickEditProfile = noop,
 }) {
   const isFollowing = profile.viewer?.following;
   const isBlocking = !!profile.viewer?.blocking;
@@ -157,7 +158,13 @@ export function profileCardTemplate({
           : null}
         ${(() => {
           if (isCurrentUser) {
-            return null;
+            return html`<button
+              class="rounded-button profile-edit-button"
+              data-testid="edit-profile-button"
+              @click=${() => onClickEditProfile()}
+            >
+              Edit Profile
+            </button>`;
           }
           if (isBlockedBy && !isBlocking) {
             return null;

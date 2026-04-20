@@ -10,6 +10,7 @@ class LightboxDialog extends Component {
     }
     this.innerHTML = "";
     this.hideAltText = this.getAttribute("hide-alt-text") === "true";
+    this.imageShape = this.getAttribute("image-shape");
     this.currentIndex = this.currentIndex || 0;
     this.images = this.images || [];
     this.isOpen = false;
@@ -61,7 +62,11 @@ class LightboxDialog extends Component {
                 </button>
               `
             : ""}
-          <img src=${src} alt=${alt} />
+          <img
+            src=${src}
+            alt=${alt}
+            class=${this.imageShape === "circle" ? "lightbox-image-circle" : ""}
+          />
           ${hasMultiple
             ? html`
                 <button
@@ -128,6 +133,7 @@ class LightboxImageGroup extends Component {
       return;
     }
     this.hideAltText = this.getAttribute("hide-alt-text") === "true";
+    this.imageShape = this.getAttribute("image-shape");
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
     this.render();
@@ -154,6 +160,9 @@ class LightboxImageGroup extends Component {
     lightboxDialog.currentIndex = initialIndex;
     if (this.hideAltText) {
       lightboxDialog.setAttribute("hide-alt-text", "true");
+    }
+    if (this.imageShape) {
+      lightboxDialog.setAttribute("image-shape", this.imageShape);
     }
     lightboxDialog.addEventListener("close", () => {
       lightboxDialog.remove();

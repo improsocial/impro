@@ -12,6 +12,7 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
+import { OG_CARD_SERVICE_URL } from "/js/config.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
@@ -124,14 +125,24 @@ export function quotedPostTemplate({
     }
   }
   const postText = quotedPost.value.text?.trimEnd() || "";
-  return html`<a
+  return html`<div
     class="quoted-post-link"
+    role="link"
+    tabindex="0"
     @click=${(e) => {
+      // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
+      if (e.target.closest("a")) {
+        return;
+      }
       e.stopPropagation();
-      e.preventDefault();
-      router.go(linkToPost(quotedPost));
+      window.router.go(linkToPost(quotedPost));
     }}
-    href="${linkToPost(quotedPost)}"
+    @keydown=${(e) => {
+      if (e.key !== "Enter") return;
+      if (e.target.closest("a")) return;
+      e.preventDefault();
+      window.router.go(linkToPost(quotedPost));
+    }}
   >
     <div class="quoted-post post-content">
       ${mutedWrapperTemplate({
@@ -175,7 +186,21 @@ export function quotedPostTemplate({
         `,
       })}
     </div>
-  </a>`;
+  </div>`;
+}
+
+function imageContainerTemplate({ image, lazyLoad }) {
+  return html`<div class="post-image-container">
+    <img
+      class="post-image"
+      src="${image.thumb}"
+      alt=${image.alt}
+      height=${image.aspectRatio?.height ?? ""}
+      width=${image.aspectRatio?.width ?? ""}
+      loading=${lazyLoad ? "lazy" : "eager"}
+    />
+    ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
+  </div>`;
 }
 
 function imagesTemplate({ images, lazyLoad = false }) {
@@ -183,20 +208,16 @@ function imagesTemplate({ images, lazyLoad = false }) {
     class="post-images num-images-${images.length}"
     data-testid="post-images"
   >
-    ${images.map(
-      (image) =>
-        html`<div class="post-image-container">
-          <img
-            class="post-image"
-            src="${image.thumb}"
-            alt=${image.alt}
-            height=${image.aspectRatio?.height ?? ""}
-            width=${image.aspectRatio?.width ?? ""}
-            loading=${lazyLoad ? "lazy" : "eager"}
-          />
-          ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
-        </div> `,
-    )}
+    ${images.length === 3
+      ? // When there are three images, wrap the right two in a div
+        html`${imageContainerTemplate({ image: images[0], lazyLoad })}
+          <div class="right-column">
+            ${imageContainerTemplate({ image: images[1], lazyLoad })}
+            ${imageContainerTemplate({ image: images[2], lazyLoad })}
+          </div>`
+      : images.map((image) =>
+          imageContainerTemplate({ image: image, lazyLoad }),
+        )}
   </lightbox-image-group>`;
 }
 
@@ -244,7 +265,7 @@ function externalTemplate({ external, lazyLoadImages }) {
 }
 
 function getStarterPackThumbnail(starterPack) {
-  return `https://ogcard.cdn.bsky.app/start/${
+  return `${OG_CARD_SERVICE_URL}/start/${
     starterPack.creator.did
   }/${getRKey(starterPack)}`;
 }

@@ -137,6 +137,62 @@ t.describe("getQuotedPost", (it) => {
     const post = { uri: "test" };
     assertEquals(getQuotedPost(post), null);
   });
+
+  it("should use embeds array when available", () => {
+    const post = {
+      embeds: [
+        {
+          $type: "app.bsky.embed.record#view",
+          record: { uri: "quoted-post-uri", author: { displayName: "Test" } },
+        },
+      ],
+    };
+    assertEquals(getQuotedPost(post), post.embeds[0].record);
+  });
+
+  it("should use embeds array for recordWithMedia", () => {
+    const post = {
+      embeds: [
+        {
+          $type: "app.bsky.embed.recordWithMedia#view",
+          record: {
+            record: {
+              uri: "quoted-post-uri",
+              author: { displayName: "Test" },
+            },
+          },
+        },
+      ],
+    };
+    assertEquals(getQuotedPost(post), post.embeds[0].record.record);
+  });
+
+  it("should prefer embeds array over embed property", () => {
+    const post = {
+      embeds: [
+        {
+          $type: "app.bsky.embed.record#view",
+          record: { uri: "from-embeds-array" },
+        },
+      ],
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: { uri: "from-embed-prop" },
+      },
+    };
+    assertEquals(getQuotedPost(post), post.embeds[0].record);
+  });
+
+  it("should fall back to embed when embeds is empty", () => {
+    const post = {
+      embeds: [],
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: { uri: "from-embed-prop" },
+      },
+    };
+    assertEquals(getQuotedPost(post), null);
+  });
 });
 
 t.describe("getBlockedQuote", (it) => {
@@ -189,6 +245,13 @@ t.describe("createEmbedFromPost", (it) => {
       author: { did: "did:plc:123", displayName: "Test User" },
       record: { text: "Hello world", createdAt: "2024-01-01" },
       uri: "at://did:plc:123/app.bsky.feed.post/abc123",
+      cid: "cid123",
+      indexedAt: "2024-01-01T00:00:00Z",
+      labels: [{ val: "test" }],
+      likeCount: 5,
+      replyCount: 2,
+      repostCount: 1,
+      quoteCount: 3,
     };
 
     const result = createEmbedFromPost(post);
@@ -198,6 +261,13 @@ t.describe("createEmbedFromPost", (it) => {
       author: { did: "did:plc:123", displayName: "Test User" },
       value: { text: "Hello world", createdAt: "2024-01-01" },
       uri: "at://did:plc:123/app.bsky.feed.post/abc123",
+      cid: "cid123",
+      indexedAt: "2024-01-01T00:00:00Z",
+      labels: [{ val: "test" }],
+      likeCount: 5,
+      replyCount: 2,
+      repostCount: 1,
+      quoteCount: 3,
     });
   });
 
@@ -230,6 +300,13 @@ t.describe("createEmbedFromPost", (it) => {
       author: {},
       value: {},
       uri: "minimal-uri",
+      cid: undefined,
+      indexedAt: undefined,
+      labels: undefined,
+      likeCount: undefined,
+      replyCount: undefined,
+      repostCount: undefined,
+      quoteCount: undefined,
     });
   });
 
@@ -238,6 +315,13 @@ t.describe("createEmbedFromPost", (it) => {
       author: { did: "did:plc:123" },
       record: { text: "Hello" },
       uri: "test-uri",
+      cid: "cid456",
+      indexedAt: "2024-02-01T00:00:00Z",
+      labels: [],
+      likeCount: 0,
+      replyCount: 0,
+      repostCount: 0,
+      quoteCount: 0,
       embed: {
         $type: "app.bsky.embed.images#view",
         images: [{ thumb: "thumb.jpg" }],
@@ -251,6 +335,13 @@ t.describe("createEmbedFromPost", (it) => {
       author: { did: "did:plc:123" },
       value: { text: "Hello" },
       uri: "test-uri",
+      cid: "cid456",
+      indexedAt: "2024-02-01T00:00:00Z",
+      labels: [],
+      likeCount: 0,
+      replyCount: 0,
+      repostCount: 0,
+      quoteCount: 0,
       embeds: [
         {
           $type: "app.bsky.embed.images#view",

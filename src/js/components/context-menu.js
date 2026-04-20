@@ -10,19 +10,40 @@ class ContextMenu extends Component {
       return;
     }
     this.scrollLock = new ScrollLock(this);
-    this._children = getChildrenFragment(this);
+    this._childNodes = [...this.childNodes];
     this.innerHTML = "";
     this.isOpen = false;
     this.render();
     this._initialized = true;
+
+    this._observer = new MutationObserver(() => {
+      this._refreshChildren();
+    });
+    this._observer.observe(this, { childList: true });
   }
 
   disconnectedCallback() {
     // If scroll is still prevented, restore it
     this.scrollLock.unlock();
+    if (this._observer) {
+      this._observer.disconnect();
+    }
+  }
+
+  _refreshChildren() {
+    const container = this.querySelector(".context-menu-container");
+    const newChildren = [...this.childNodes].filter(
+      (node) => node !== container,
+    );
+    if (newChildren.length === 0) return;
+
+    this._childNodes = newChildren;
+    this.render();
   }
 
   render() {
+    this._observer?.disconnect();
+
     render(
       html`
         <div
@@ -46,14 +67,15 @@ class ContextMenu extends Component {
             @cancel=${() => {
               this.close();
             }}
-          ></dialog>
+          >
+            ${this._childNodes}
+          </dialog>
         </div>
       `,
       this,
     );
 
-    const dialog = this.querySelector(".context-menu");
-    dialog.appendChild(this._children);
+    this._observer?.observe(this, { childList: true });
   }
 
   open(x, y) {

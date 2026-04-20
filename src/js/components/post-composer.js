@@ -3,13 +3,19 @@ import { Component } from "/js/components/component.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { classnames, enableDragToDismiss, sanitizeUri } from "/js/utils.js";
+import {
+  classnames,
+  enableDragToDismiss,
+  graphemeCount,
+  resetScrollOnBlur,
+  sanitizeUri,
+} from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { showToast } from "/js/toasts.js";
-import { IN_APP_LINK_DOMAINS } from "/js/config.js";
+import { IN_APP_LINK_DOMAINS, LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { quotedPostTemplate } from "/js/templates/postEmbed.template.js";
 import { createEmbedFromPost } from "/js/dataHelpers.js";
 import "/js/components/rich-text-input.js";
@@ -142,7 +148,7 @@ class PostComposer extends Component {
 
   render() {
     const promptText = this.replyTo ? "Write your reply" : "What's up?";
-    const currentCharCount = this._postText.length;
+    const currentCharCount = graphemeCount(this._postText);
     const charCountPercentage = Math.min(
       Math.round((currentCharCount / 300) * 100),
       100,
@@ -483,7 +489,7 @@ class PostComposer extends Component {
     this.render();
     let res = null;
     try {
-      res = await fetch("https://cardyb.bsky.app/v1/extract?url=" + url);
+      res = await fetch(`${LINK_CARD_SERVICE_URL}/v1/extract?url=${url}`);
     } catch (error) {
       console.error("Error loading external link embed preview: ", error);
       return;
@@ -540,18 +546,7 @@ class PostComposer extends Component {
       });
     });
 
-    // iOS Safari: dismissing the keyboard via the "Done" button leaves the
-    // dialog's inner scroll area offset, which makes buttons unclickable
-    // until the dialog is swiped or re-tapped. Reset scroll on blur.
-    dialog.addEventListener(
-      "blur",
-      () => {
-        const scrollArea = this.querySelector(".post-composer-scroll-area");
-        if (scrollArea) scrollArea.scrollTop = 0;
-        window.scrollTo(0, 0);
-      },
-      true,
-    );
+    resetScrollOnBlur(dialog, this.querySelector(".post-composer-scroll-area"));
   }
 
   close() {

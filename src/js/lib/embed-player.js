@@ -1,6 +1,8 @@
 // Adapted from:
 // https://github.com/bluesky-social/social-app/blob/main/src/lib/strings/embed-player.ts
 
+import { TENOR_GIF_PROXY_URL } from "/js/config.js";
+
 const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 const isWeb = true;
 const IFRAME_HOST = "";
@@ -476,7 +478,7 @@ export function parseTenorGif(urlp) {
 
   return {
     success: true,
-    playerUri: `https://t.gifs.bsky.app/${id}/${filename}`,
+    playerUri: `${TENOR_GIF_PROXY_URL}/${id}/${filename}`,
     dimensions,
   };
 }

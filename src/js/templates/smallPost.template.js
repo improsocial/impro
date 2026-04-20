@@ -71,11 +71,20 @@ export function smallPostTemplate({
     <div
       class="post small-post clickable"
       data-testid="small-post"
+      role="link"
+      tabindex="0"
       @click=${(e) => {
         // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
         if (e.target.closest("a")) {
           return;
         }
+        e.stopPropagation();
+        window.router.go(linkToPost(post));
+      }}
+      @keydown=${(e) => {
+        if (e.key !== "Enter") return;
+        if (e.target.closest("a")) return;
+        e.preventDefault();
         window.router.go(linkToPost(post));
       }}
     >

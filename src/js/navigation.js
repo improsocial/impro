@@ -64,7 +64,7 @@ export function linkToFeed(feedGenerator) {
 }
 
 export function linkToSearchPostsByProfile(profile) {
-  const searchString = `from:@${profile.handle}`;
+  const searchString = `from:@${profile.handle} `;
   const query = new URLSearchParams();
   query.set("q", searchString);
   query.set("tab", "posts");

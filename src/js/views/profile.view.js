@@ -17,6 +17,7 @@ import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
+import "/js/components/edit-profile-dialog.js";
 
 class ProfileView extends View {
   async render({
@@ -90,6 +91,41 @@ class ProfileView extends View {
         renderFunc: () => renderPage(),
       },
     );
+
+    async function handleEditProfile(profile) {
+      const dialog = document.createElement("edit-profile-dialog");
+      dialog.addEventListener("profile-save", (event) =>
+        handleSaveProfile(
+          profile,
+          event.detail.profileUpdates,
+          event.detail.successCallback,
+          event.detail.errorCallback,
+        ),
+      );
+      dialog.addEventListener("edit-profile-closed", () => {
+        dialog.remove();
+      });
+      root.querySelector("main").appendChild(dialog);
+      dialog.setProfile(profile);
+      dialog.open();
+    }
+
+    async function handleSaveProfile(
+      profile,
+      profileUpdates,
+      successCallback,
+      errorCallback,
+    ) {
+      try {
+        await dataLayer.mutations.updateProfile(profile, profileUpdates);
+        await loadProfileDescription();
+        showToast("Profile updated");
+        successCallback();
+        renderPage();
+      } catch (error) {
+        errorCallback(error);
+      }
+    }
 
     const tabScrollState = new Map();
 
@@ -315,6 +351,7 @@ class ProfileView extends View {
                 ),
               onClickReport: (profile) =>
                 profileInteractionHandler.handleReport(profile),
+              onClickEditProfile: () => handleEditProfile(profile),
             })}
             ${isBlocking || isBlockedBy
               ? html`<div class="feed">
@@ -508,15 +545,16 @@ class ProfileView extends View {
     }
 
     // This is async because it needs to resolve mentions
-    async function loadProfileDescription(profile) {
-      if (!profile.description) {
-        return null;
+    async function loadProfileDescription() {
+      const profile = dataLayer.selectors.getProfile(profileDid);
+      if (!profile?.description) {
+        return;
       }
       const facets = await getFacetsFromText(
         profile.description,
         identityResolver,
       );
-      return { text: profile.description, facets };
+      state.richTextProfileDescription = { text: profile.description, facets };
     }
 
     root.addEventListener("page-enter", async () => {
@@ -542,7 +580,7 @@ class ProfileView extends View {
         });
       }
 
-      state.richTextProfileDescription = await loadProfileDescription(profile);
+      await loadProfileDescription();
       renderPage();
       if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
         loadAuthorFeed();
