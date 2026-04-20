@@ -17,6 +17,10 @@ export class PostInteractionHandler {
     this.renderFunc = renderFunc;
   }
 
+  getCurrentUser() {
+    return this.dataLayer.selectors.getCurrentUser();
+  }
+
   async handleLike(post, doLike) {
     if (doLike) {
       try {

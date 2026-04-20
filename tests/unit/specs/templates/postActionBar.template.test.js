@@ -11,6 +11,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -22,6 +23,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -33,6 +35,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -48,6 +51,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: postWithReplies,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -65,6 +69,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: postWithNoReplies,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -80,6 +85,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: postWithReposts,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -98,6 +104,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: postWithRepostsAndQuotes,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -115,6 +122,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: postWithNoReposts,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -130,6 +138,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: repostedPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -148,6 +157,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: notRepostedPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -158,6 +168,61 @@ t.describe("postActionBarTemplate", (it) => {
     assert(!repostButton.classList.contains("reposted"));
   });
 
+  it("should disable quote post item but keep label when no current user", () => {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: null,
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const quoteItem = Array.from(
+      container.querySelectorAll("context-menu-item"),
+    ).find((item) => item.textContent.trim().startsWith("Quote"));
+    assert(quoteItem !== undefined);
+    assertEquals(quoteItem.textContent.trim(), "Quote post");
+    assert(quoteItem.hasAttribute("disabled"));
+  });
+
+  it("should disable quote post item when embedding disabled", () => {
+    const embeddingDisabledPost = {
+      ...post,
+      viewer: { ...post.viewer, embeddingDisabled: true },
+    };
+    const result = postActionBarTemplate({
+      post: embeddingDisabledPost,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const quoteItem = Array.from(
+      container.querySelectorAll("context-menu-item"),
+    ).find((item) => item.textContent.trim().startsWith("Quote"));
+    assert(quoteItem !== undefined);
+    assertEquals(quoteItem.textContent.trim(), "Quote posts disabled");
+    assert(quoteItem.hasAttribute("disabled"));
+  });
+
+  it("should enable quote post item when current user is set and embedding allowed", () => {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const quoteItem = Array.from(
+      container.querySelectorAll("context-menu-item"),
+    ).find((item) => item.textContent.trim().startsWith("Quote"));
+    assert(quoteItem !== undefined);
+    assertEquals(quoteItem.textContent.trim(), "Quote post");
+    assert(!quoteItem.hasAttribute("disabled"));
+  });
+
   it("should add bookmarked class when post is bookmarked", () => {
     const bookmarkedPost = {
       ...post,
@@ -166,6 +231,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: bookmarkedPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -184,6 +250,7 @@ t.describe("postActionBarTemplate", (it) => {
     const result = postActionBarTemplate({
       post: notBookmarkedPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickLike: () => {},
     });
     const container = document.createElement("div");
@@ -208,6 +275,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     const result = postActionBarTemplate({
       post: testPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickBookmark,
     });
     const container = document.createElement("div");
@@ -232,6 +300,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     const result = postActionBarTemplate({
       post: testPost,
       isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
       onClickBookmark,
     });
     const container = document.createElement("div");

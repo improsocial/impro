@@ -162,6 +162,7 @@ export function smallPostTemplate({
                 post,
                 isUserPost,
                 isAuthenticated: postInteractionHandler.isAuthenticated,
+                currentUser: postInteractionHandler.getCurrentUser(),
                 onClickReply: () => {
                   window.router.go(linkToPost(post));
                 },

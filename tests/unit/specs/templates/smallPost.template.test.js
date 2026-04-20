@@ -7,6 +7,7 @@ import { render } from "/js/lib/lit-html.js";
 const noop = () => {};
 const postInteractionHandler = {
   isAuthenticated: true,
+  getCurrentUser: () => ({ did: "did:plc:test" }),
   handleLike: noop,
   handleRepost: noop,
   handleQuotePost: noop,

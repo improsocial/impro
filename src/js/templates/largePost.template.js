@@ -167,6 +167,7 @@ export function largePostTemplate({
               post,
               isUserPost,
               isAuthenticated: postInteractionHandler.isAuthenticated,
+              currentUser: postInteractionHandler.getCurrentUser(),
               onClickReply,
               onClickLike: (post, doLike) =>
                 postInteractionHandler.handleLike(post, doLike),

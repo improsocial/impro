@@ -21,6 +21,7 @@ function getBlueskyLinkForPost(post) {
 export function postActionBarTemplate({
   post,
   isAuthenticated,
+  currentUser,
   isUserPost,
   onClickReply = noop,
   onClickRepost = noop,
@@ -105,7 +106,7 @@ export function postActionBarTemplate({
             ${isReposted ? "Undo repost" : "Repost"}
           </context-menu-item>
           <context-menu-item
-            ?disabled=${!canQuotePost}
+            ?disabled=${!canQuotePost || !currentUser}
             @click=${() => {
               if (!isAuthenticated) {
                 showSignInModal();
