@@ -152,6 +152,31 @@ t.describe("smallPostTemplate - reposts", (it) => {
     assert(repostLabel.textContent.includes("Reposted by"));
   });
 
+  it("should show 'Reposted by you' when repostAuthor is the current user", () => {
+    const result = smallPostTemplate({
+      post: post,
+      postInteractionHandler,
+      repostAuthor: {
+        did: "did:plc:test",
+        displayName: "Reposter Name",
+        handle: "reposter.bsky.social",
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const repostLabel = container.querySelector("[data-testid='repost-label']");
+    assert(repostLabel !== null);
+    const text = repostLabel.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Reposted by you"),
+      `expected "Reposted by you" in "${text}"`,
+    );
+    assert(
+      !text.includes("Reposter Name"),
+      `did not expect display name in "${text}"`,
+    );
+  });
+
   it("should not show repost label when no repostAuthor", () => {
     const result = smallPostTemplate({
       post: post,

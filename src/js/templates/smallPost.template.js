@@ -111,7 +111,10 @@ export function smallPostTemplate({
           ${repostAuthor
             ? html`<div class="repost-label" data-testid="repost-label">
                 ${repostIconTemplate()}
-                ${"Reposted by " + getDisplayName(repostAuthor)}
+                ${repostAuthor.did ===
+                postInteractionHandler.getCurrentUser()?.did
+                  ? "Reposted by you"
+                  : "Reposted by " + getDisplayName(repostAuthor)}
               </div>`
             : ""}
           ${postHeaderTextTemplate({
