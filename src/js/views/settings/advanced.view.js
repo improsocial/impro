@@ -67,7 +67,7 @@ class SettingsAdvancedView extends View {
       e.preventDefault();
       const selectedConfig = resolveSelectedAppViewConfig();
       if (!isValidAppViewConfig(selectedConfig)) {
-        state.errorMessage = "Invalid AppView configuration";
+        state.errorMessage = "Invalid App View configuration";
         renderPage();
         return;
       }
@@ -156,7 +156,7 @@ class SettingsAdvancedView extends View {
                           </div>
                           <div class="form-group">
                             <label for="appViewServiceDid">
-                              AppView service DID
+                              App View service DID
                             </label>
                             <input
                               id="appViewServiceDid"
@@ -202,7 +202,7 @@ class SettingsAdvancedView extends View {
                     </div>
                     <div class="helper-text">
                       Tip: You can use the query parameter ?reset-appview to
-                      reset the AppView in case of misconfiguration.
+                      reset the App View in case of misconfiguration.
                     </div>
                     <div class="error-message-container">
                       ${state.errorMessage

@@ -65,7 +65,7 @@ class LoginView extends View {
 
       const selectedConfig = resolveSelectedAppViewConfig();
       if (!isValidAppViewConfig(selectedConfig)) {
-        state.errorMessage = "Invalid AppView configuration";
+        state.errorMessage = "Invalid App View configuration";
         renderPage();
         return;
       }
@@ -152,7 +152,7 @@ class LoginView extends View {
                 <details id="login-advanced" ?open=${advancedOpenByDefault}>
                   <summary>Advanced options</summary>
                   <div class="form-group">
-                    <label for="appview">Choose AppView</label>
+                    <label for="appview">Use App View</label>
                     <div class="select-wrapper">
                       <select
                         id="appview"
@@ -188,7 +188,7 @@ class LoginView extends View {
                         </div>
                         <div class="form-group">
                           <label for="appViewServiceDid">
-                            AppView service DID
+                            App View service DID
                           </label>
                           <input
                             id="appViewServiceDid"
@@ -220,10 +220,6 @@ class LoginView extends View {
                         </div>
                       `
                     : ""}
-                  <div class="helper-text">
-                    Tip: You can also switch AppViews under Settings while
-                    logged in.
-                  </div>
                 </details>
                 <div class="button-group">
                   <button type="button" @click=${() => router.go("/")}>

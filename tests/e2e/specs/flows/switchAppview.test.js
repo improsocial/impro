@@ -200,7 +200,7 @@ test.describe("Switch app view flow", () => {
     }
   });
 
-  test("persists the selected AppView to localStorage when the form is submitted", async ({
+  test("persists the selected App View to localStorage when the form is submitted", async ({
     page,
   }) => {
     const mockServer = new MockServer();

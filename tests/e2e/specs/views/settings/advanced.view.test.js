@@ -3,7 +3,7 @@ import { login } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
 
 test.describe("Settings Advanced view", () => {
-  test("should display header and AppView section", async ({ page }) => {
+  test("should display header and App View section", async ({ page }) => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
