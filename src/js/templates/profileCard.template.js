@@ -101,6 +101,7 @@ export function profileCardTemplate({
   onClickEditProfile = noop,
 }) {
   const isFollowing = profile.viewer?.following;
+  const isFollowedBy = profile.viewer?.followedBy;
   const isBlocking = !!profile.viewer?.blocking;
   const isBlockedBy = !!profile.viewer?.blockedBy;
   const canChat = profileChatStatus?.canChat || !!profileChatStatus?.convo;
@@ -130,20 +131,22 @@ export function profileCardTemplate({
           clickAction: "lightbox",
         })}
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
-          ? html`<button
-                class="rounded-button bell-button"
-                data-testid="post-notifications-button"
-                title="${activitySubscription?.post
-                  ? "Manage post notifications"
-                  : "Get notified of new posts"}"
-                @click=${() => {
-                  onClickPostNotifications(profile);
-                }}
-              >
-                ${notificationsIconTemplate({
-                  filled: !!activitySubscription?.post,
-                })}
-              </button>
+          ? html` ${isFollowing
+                ? html`<button
+                    class="rounded-button bell-button"
+                    data-testid="post-notifications-button"
+                    title="${activitySubscription?.post
+                      ? "Manage post notifications"
+                      : "Get notified of new posts"}"
+                    @click=${() => {
+                      onClickPostNotifications(profile);
+                    }}
+                  >
+                    ${notificationsIconTemplate({
+                      filled: !!activitySubscription?.post,
+                    })}
+                  </button>`
+                : ""}
               <button
                 class="rounded-button chat-button"
                 data-testid="chat-button"
@@ -210,7 +213,11 @@ export function profileCardTemplate({
             })}
             data-testid="follow-button"
           >
-            ${isFollowing ? "Following" : "+ Follow"}
+            ${isFollowing
+              ? "Following"
+              : isFollowedBy
+                ? "+ Follow back"
+                : "+ Follow"}
           </button>`;
         })()}
         <button
@@ -301,7 +308,7 @@ export function profileCardTemplate({
           })}${automatedAccountBadgeTemplate({ profile })}
         </h1>
         <div class="profile-handle-row">
-          ${profile.viewer?.followedBy && !isBlocking && !isBlockedBy
+          ${isFollowedBy && !isBlocking && !isBlockedBy
             ? html`<div
                 class="profile-follows-you"
                 data-testid="follows-you-badge"
