@@ -40,6 +40,7 @@ html {
   --pink: #df4074;
   --red: #d81316;
   --red-muted: #ff4949;
+  --yellow: #e6a817;
   --muted-gray-light: #666;
   --muted-gray-dark: #999;
   --disabled-gray: #464646;
@@ -90,6 +91,7 @@ html {
   --text-link-color: var(--highlight-color);
   --like-color: var(--pink);
   --error-color: var(--red-muted);
+  --warning-color: var(--yellow);
 
   /* border colors */
   --header-border-color: var(--generic-border-color);
@@ -5949,6 +5951,130 @@ moderation-warning .toggle-content {
   margin-top: 8px;
 }
 
+.select-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.select-wrapper::after {
+  content: "";
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  width: 12px;
+  height: 8px;
+  transform: translateY(-50%);
+  pointer-events: none;
+  background-color: var(--text-color-muted);
+  -webkit-mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+  mask: url("data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8' fill='none'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='black' stroke-width='1.75' stroke-linecap='round' stroke-linejoin='round' fill='none'/%3E%3C/svg%3E")
+    no-repeat center / contain;
+}
+
+.select-wrapper select {
+  font-size: 16px;
+  width: 100%;
+  padding: 12px 40px 12px 12px;
+  border-radius: var(--text-input-border-radius);
+  border: var(--hair) solid var(--post-border-color);
+  background-color: var(--text-input-background-color);
+  color: var(--text-color);
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .select-wrapper select:hover {
+    border-color: var(--text-color-muted);
+  }
+}
+
+#settings-advanced-form input {
+  font-size: 16px;
+}
+
+#settings-advanced-form .helper-text {
+  margin-top: 14px;
+}
+
+.settings-section .form-group {
+  margin-top: 8px;
+}
+
+.settings-section .button-group {
+  margin-top: 16px;
+}
+
+#login-advanced {
+  width: 100%;
+}
+
+#login-advanced summary {
+  font-size: 14px;
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+  color: var(--text-color-muted);
+}
+#login-advanced summary::marker {
+  margin-right: 2px;
+}
+
+#login-advanced .form-group {
+  margin-top: 8px;
+}
+
+#login-advanced .helper-text {
+  margin-top: 8px;
+}
+
+#login-advanced .helper-text .icon {
+  width: 18px;
+  height: 18px;
+}
+
+.warning-area {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: color-mix(in srgb, var(--warning-color) 12%, transparent);
+  color: color-mix(in srgb, var(--warning-color) 60%, var(--text-color));
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: var(--text-input-border-radius);
+}
+.warning-area h4 {
+  color: var(--warning-color);
+}
+
+.info-area {
+  margin-top: 12px;
+  padding: 12px;
+  background-color: color-mix(in srgb, var(--highlight-color) 12%, transparent);
+  color: color-mix(in srgb, var(--highlight-color) 60%, var(--text-color));
+  font-size: 14px;
+  line-height: 1.5;
+  border-radius: var(--text-input-border-radius);
+}
+
+.info-area h4 {
+  color: var(--highlight-color);
+}
+
+.warning-area h4,
+.info-area h4 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.warning-area h4 .icon,
+.info-area h4 .icon {
+  width: 18px;
+  height: 18px;
+}
+
 @media (min-width: 800px) {
   #login-form .form-title {
     display: none;
@@ -5994,7 +6120,7 @@ moderation-warning .toggle-content {
   font-size: 14px;
 }
 
-.error-message-container {
+#login-view .error-message-container {
   height: 2em;
 }
 
@@ -6075,6 +6201,20 @@ moderation-warning .toggle-content {
   color: var(--text-color-muted);
   font-size: 12px;
   text-align: center;
+}
+
+.dev-version-overlay {
+  position: fixed;
+  bottom: 4px;
+  right: 4px;
+  z-index: 9999;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  font-size: 10px;
+  font-family: monospace;
+  pointer-events: none;
 }
 
 .plain-text-page {
@@ -6968,4 +7108,9 @@ image-cropper {
 .edit-profile-cropper-container {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.helper-text {
+  font-size: 13px;
+  color: var(--text-color-muted);
 }

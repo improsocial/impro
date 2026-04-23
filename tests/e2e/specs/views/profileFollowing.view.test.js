@@ -112,7 +112,7 @@ test.describe("Profile following view", () => {
     }) => {
       await page.goto("/profile/someone.bsky.social/following");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

@@ -299,7 +299,7 @@ test.describe("Feed Detail view", () => {
     }) => {
       await page.goto("/profile/creator1.bsky.social/feed/trending");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

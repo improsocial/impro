@@ -913,7 +913,7 @@ test.describe("Notifications view", () => {
     }) => {
       await page.goto("/notifications");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 

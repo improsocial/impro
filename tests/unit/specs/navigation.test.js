@@ -14,6 +14,8 @@ import {
   linkToFeed,
   getPermalinkForPost,
   getPermalinkForProfile,
+  validateReturnToParam,
+  linkToLogin,
 } from "/js/navigation.js";
 
 const t = new TestSuite("navigation");
@@ -274,6 +276,93 @@ t.describe("getPermalinkForProfile", (it) => {
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/alice.bsky.social",
     );
+  });
+});
+
+t.describe("validateReturnToParam", (it) => {
+  it("accepts a simple path", () => {
+    assertEquals(validateReturnToParam("/bookmarks"), "/bookmarks");
+  });
+
+  it("accepts a path with query string and hash", () => {
+    assertEquals(
+      validateReturnToParam("/profile/alice.bsky.social?tab=posts#top"),
+      "/profile/alice.bsky.social?tab=posts#top",
+    );
+  });
+
+  it("rejects null and undefined", () => {
+    assertEquals(validateReturnToParam(null), null);
+    assertEquals(validateReturnToParam(undefined), null);
+  });
+
+  it("rejects empty string", () => {
+    assertEquals(validateReturnToParam(""), null);
+  });
+
+  it("rejects non-strings", () => {
+    assertEquals(validateReturnToParam(42), null);
+    assertEquals(validateReturnToParam({}), null);
+  });
+
+  it("rejects paths that don't start with /", () => {
+    assertEquals(validateReturnToParam("bookmarks"), null);
+    assertEquals(validateReturnToParam("https://evil.com/phish"), null);
+  });
+
+  it("rejects protocol-relative URLs", () => {
+    assertEquals(validateReturnToParam("//evil.com"), null);
+    assertEquals(validateReturnToParam("//evil.com/path"), null);
+  });
+
+  it("rejects backslash tricks", () => {
+    assertEquals(validateReturnToParam("/\\evil.com"), null);
+  });
+});
+
+t.describe("linkToLogin", (it) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+
+  const withPath = (path, fn) => {
+    window.history.replaceState(null, "", path);
+    try {
+      fn();
+    } finally {
+      window.history.replaceState(null, "", originalPath);
+    }
+  };
+
+  it("builds a /login url encoding the current location as returnTo", () => {
+    withPath("/bookmarks", () => {
+      assertEquals(linkToLogin(), "/login?returnTo=%2Fbookmarks");
+    });
+  });
+
+  it("skips returnTo when the current path is /login", () => {
+    withPath("/login", () => assertEquals(linkToLogin(), "/login"));
+    withPath("/login?foo=bar", () => assertEquals(linkToLogin(), "/login"));
+    withPath("/login#hash", () => assertEquals(linkToLogin(), "/login"));
+  });
+
+  it("skips returnTo when the current path is the home path", () => {
+    withPath("/", () => assertEquals(linkToLogin(), "/login"));
+    withPath("/?foo=bar", () => assertEquals(linkToLogin(), "/login"));
+  });
+
+  it("allows paths that start with /login but are a different route", () => {
+    withPath("/login-help", () => {
+      assertEquals(linkToLogin(), "/login?returnTo=%2Flogin-help");
+    });
+  });
+
+  it("encodes query string and hash in the path", () => {
+    withPath("/profile/a?tab=posts#top", () => {
+      assertEquals(
+        linkToLogin(),
+        "/login?returnTo=%2Fprofile%2Fa%3Ftab%3Dposts%23top",
+      );
+    });
   });
 });
 

@@ -101,7 +101,7 @@ test.describe("Feeds view", () => {
     }) => {
       await page.goto("/feeds");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

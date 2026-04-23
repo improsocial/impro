@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { getThreadgateAllowSettings } from "/js/dataHelpers.js";
-import { linkToProfile } from "/js/navigation.js";
+import { linkToProfile, linkToLogin } from "/js/navigation.js";
 
 export function showSignInModal() {
   const dialog = document.createElement("dialog");
@@ -12,14 +12,14 @@ export function showSignInModal() {
         <h2 class="modal-dialog-title modal-dialog-title-large">Sign in</h2>
         <p class="modal-dialog-message">Sign in to join the conversation!</p>
         <a
-          href="/login"
+          href=${linkToLogin()}
           class="modal-dialog-button primary-button full-width"
           @click=${() => {
             dialog.close();
             dialog.remove();
           }}
         >
-          Okay
+          Sign in
         </a>
       </div>
     `,

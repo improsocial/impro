@@ -48,6 +48,12 @@ Impro is a single-page app built with [Eleventy](https://www.11ty.dev/). To run 
 npm run start
 ```
 
+If you'd like to test changes to the Oauth configuration, you can start the server with a [Cloudflare Tunnel](https://github.com/cloudflare/cloudflared) (requires `cloudflared` to be installed):
+
+```bash
+npm run start:tunnel
+```
+
 External libraries are included as standalone files in `lib`. In cases where bundling is needed, the libraries are bundled with [esbuild](https://esbuild.github.io/). Changes to these bundles should be rare, but can be triggered manually with the following commands:
 
 ```bash

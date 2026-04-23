@@ -7,6 +7,7 @@
   <body>
     <script type="module">
       import { getAuth } from "/js/auth.js";
+      import { validateReturnToParam } from "/js/navigation.js";
 
       async function main() {
         const params = new URLSearchParams(window.location.search);
@@ -24,16 +25,18 @@
 
         if (
           parsedState.loopback === true &&
-          !window.location.origin.includes("localhost")
+          window.env.environment === "development" &&
+          window.location.hostname !== "localhost"
         ) {
           window.location.href =
             "http://localhost:8080/callback.html" + window.location.search;
           return;
         }
+        const returnTo = validateReturnToParam(parsedState.returnTo);
         const auth = await getAuth();
         try {
           await auth.handleOauthCallback(window.location.href);
-          window.location.href = "/";
+          window.location.href = returnTo ?? "/";
           return;
         } catch (error) {
           console.error("error", error);
@@ -42,6 +45,9 @@
             "error_message",
             "OAuth callback failed. Please try again.",
           );
+          if (returnTo) {
+            params.set("returnTo", returnTo);
+          }
           window.location.href = "/login?" + params.toString();
           return;
         }

@@ -126,7 +126,7 @@ test.describe("Hashtag view", () => {
     }) => {
       await page.goto("/hashtag/test");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

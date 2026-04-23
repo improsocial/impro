@@ -40,6 +40,8 @@ function contentWarningTemplate({ post, contentLabel, children }) {
 
 export function smallPostTemplate({
   post,
+  currentUser,
+  isAuthenticated,
   isUserPost,
   postInteractionHandler,
   replyContext,
@@ -63,7 +65,7 @@ export function smallPostTemplate({
     return unavailablePostTemplate();
   }
   const hideUnauthenticated =
-    !postInteractionHandler.isAuthenticated &&
+    !isAuthenticated &&
     post.author &&
     doHideAuthorOnUnauthenticated(post.author);
   const postText = post.record.text?.trimEnd() || "";
@@ -111,7 +113,9 @@ export function smallPostTemplate({
           ${repostAuthor
             ? html`<div class="repost-label" data-testid="repost-label">
                 ${repostIconTemplate()}
-                ${"Reposted by " + getDisplayName(repostAuthor)}
+                ${repostAuthor.did === currentUser?.did
+                  ? "Reposted by you"
+                  : "Reposted by " + getDisplayName(repostAuthor)}
               </div>`
             : ""}
           ${postHeaderTextTemplate({
@@ -123,16 +127,18 @@ export function smallPostTemplate({
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied
+                ⤷ Replied to
                 ${replyToAuthor
-                  ? html`to ${getDisplayName(replyToAuthor)}`
-                  : ""}
+                  ? replyToAuthor.did === currentUser?.did
+                    ? " you"
+                    : html` ${getDisplayName(replyToAuthor)}`
+                  : " user"}
               </div>`
             : ""}
           ${contentWarningTemplate({
             post,
             contentLabel: ignoreContentWarning ? null : post.contentLabel,
-            isAuthenticated: postInteractionHandler.isAuthenticated,
+            isAuthenticated,
             children: html` <div class="post-body">
               ${hideUnauthenticated
                 ? html`<div class="missing-post-indicator no-unauthenticated">
@@ -153,15 +159,15 @@ export function smallPostTemplate({
                           embed: post.embed,
                           mediaLabel: post.mediaLabel,
                           lazyLoadImages,
-                          isAuthenticated:
-                            postInteractionHandler.isAuthenticated,
+                          isAuthenticated,
                         })}
                       </div>`
                     : null}`}
               ${postActionBarTemplate({
                 post,
                 isUserPost,
-                isAuthenticated: postInteractionHandler.isAuthenticated,
+                isAuthenticated,
+                currentUser,
                 onClickReply: () => {
                   window.router.go(linkToPost(post));
                 },

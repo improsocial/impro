@@ -2,6 +2,7 @@ import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
+import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
 import { getAuth, requireAuth } from "/js/auth.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -34,6 +35,12 @@ class SettingsView extends View {
         url: "/settings/muted-words",
         enabled: true,
       },
+      {
+        icon: codeIconTemplate,
+        label: "Advanced",
+        url: "/settings/advanced",
+        enabled: true,
+      },
     ];
 
     async function renderPage() {
@@ -51,6 +58,7 @@ class SettingsView extends View {
             numNotifications,
             numChatNotifications,
             activeNavItem: "settings",
+            onClickActiveNavItem: () => window.scrollTo(0, 0),
             children: html`${textHeaderTemplate({
                 title: "Settings",
               })}
@@ -77,7 +85,10 @@ class SettingsView extends View {
                     class="vertical-nav-item danger-button"
                     @click=${async () => {
                       if (
-                        !(await confirm("Are you sure you want to sign out?"))
+                        !(await confirm("Are you sure you want to sign out?", {
+                          confirmButtonStyle: "danger",
+                          confirmButtonText: "Sign out",
+                        }))
                       ) {
                         return;
                       }

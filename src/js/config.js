@@ -30,3 +30,23 @@ export const IN_APP_LINK_DOMAINS = [
   "dev.impro.social",
   "localhost",
 ];
+
+export const AppViewConfig = {
+  BLUESKY: {
+    id: "bluesky",
+    displayName: "Bluesky",
+    appViewServiceDid: "did:web:api.bsky.app#bsky_appview",
+    chatServiceDid: "did:web:api.bsky.chat#bsky_chat",
+  },
+  BLACKSKY: {
+    id: "blacksky",
+    displayName: "Blacksky",
+    appViewServiceDid: "did:web:api.blacksky.community#bsky_appview",
+    chatServiceDid: "did:web:api.blacksky.community#bsky_chat",
+  },
+};
+
+export const DEFAULT_APP_VIEW_CONFIGS = [
+  AppViewConfig.BLUESKY,
+  AppViewConfig.BLACKSKY,
+];

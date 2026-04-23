@@ -5,6 +5,7 @@ import {
   InvalidAuthUrlError,
 } from "/js/oauth.js";
 import { isDev, isNative } from "/js/utils.js";
+import { linkToLogin, validateReturnToParam } from "/js/navigation.js";
 
 export class RefreshTokenError extends Error {
   constructor(res) {
@@ -181,13 +182,13 @@ export class OAuth {
     return client.getSession();
   }
 
-  async login(handle) {
+  async login(handle, _password, { returnTo } = {}) {
     const client = await this.getClient();
     let authUrl = null;
     try {
       authUrl = await client.getAuthorizationUrl(handle, {
         scope: window.env.oauthScopes,
-        state: { loopback: isDev() },
+        state: { loopback: isDev(), returnTo: returnTo ?? null },
       });
     } catch (error) {
       if (error instanceof HandleNotFoundError) {
@@ -243,7 +244,7 @@ export async function requireAuth() {
   const auth = await getAuth();
   const session = await auth.getSession();
   if (!session) {
-    window.location.href = "/login";
+    window.location.href = linkToLogin();
     // no resolve, just wait for redirect
     return new Promise(() => {});
   }
@@ -254,7 +255,9 @@ export async function requireNoAuth() {
   const auth = await getAuth();
   const session = await auth.getSession();
   if (session) {
-    window.location.href = "/";
+    const params = new URLSearchParams(window.location.search);
+    const returnTo = validateReturnToParam(params.get("returnTo"));
+    window.location.href = returnTo ?? "/";
     // no resolve, just wait for redirect
     return new Promise(() => {});
   }

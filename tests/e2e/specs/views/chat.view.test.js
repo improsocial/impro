@@ -232,7 +232,7 @@ test.describe("Chat view", () => {
     }) => {
       await page.goto("/messages");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

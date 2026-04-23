@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 
-//github.com/halfmage/majesticons/blob/main/line/eye-line.svg
+// https://github.com/halfmage/majesticons/blob/main/line/eye-line.svg
 
 export function eyeIconTemplate() {
   return html`<div class="icon eye-icon">

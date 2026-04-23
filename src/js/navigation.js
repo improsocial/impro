@@ -84,3 +84,26 @@ export function getPermalinkForPost(post) {
 export function getPermalinkForProfile(profile) {
   return getPermalinkOrigin() + linkToProfile(profile.handle);
 }
+
+export function linkToLogin() {
+  const { pathname, search, hash } = window.location;
+  if (pathname === "/login" || pathname === "/") {
+    return "/login";
+  }
+  const params = new URLSearchParams();
+  params.set("returnTo", pathname + search + hash);
+  return "/login?" + params.toString();
+}
+
+export function validateReturnToParam(raw) {
+  if (typeof raw !== "string" || raw.length === 0) {
+    return null;
+  }
+  if (!raw.startsWith("/")) {
+    return null;
+  }
+  if (raw.startsWith("//") || raw.startsWith("/\\")) {
+    return null;
+  }
+  return raw;
+}

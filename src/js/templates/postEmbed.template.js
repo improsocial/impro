@@ -31,7 +31,7 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
 
 function blockedQuoteTemplate() {
   return html`<div class="quoted-post" data-testid="blocked-quote">
-    Post unavailable
+    Blocked
   </div>`;
 }
 

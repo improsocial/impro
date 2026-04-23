@@ -6,7 +6,7 @@ import { register } from "node:module";
 register(new URL("./loader.js", import.meta.url));
 
 // Enable JSDOM
-const dom = new JSDOM();
+const dom = new JSDOM("", { url: "http://localhost/" });
 globalThis.window = dom.window;
 globalThis.window.scrollTo = () => {};
 globalThis.document = dom.window.document;

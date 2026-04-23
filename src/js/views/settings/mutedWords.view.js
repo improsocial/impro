@@ -12,7 +12,12 @@ import "/js/components/context-menu-label.js";
 class SettingsMutedWordsView extends View {
   async render({
     root,
-    context: { dataLayer, notificationService, postComposerService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -236,6 +241,8 @@ class SettingsMutedWordsView extends View {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const preferences = dataLayer.preferencesProvider.requirePreferences();
       const mutedWords = [...preferences.getMutedWords()].reverse();
 
@@ -246,7 +253,9 @@ class SettingsMutedWordsView extends View {
               postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
+            numChatNotifications,
             activeNavItem: "settings",
+            onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${textHeaderTemplate({
                 title: "Muted words",
               })}
@@ -395,6 +404,10 @@ class SettingsMutedWordsView extends View {
     });
 
     notificationService?.on("update", () => {
+      renderPage();
+    });
+
+    chatNotificationService?.on("update", () => {
       renderPage();
     });
   }

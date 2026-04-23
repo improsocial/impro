@@ -17,7 +17,7 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(3, {
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(4, {
       timeout: 10000,
     });
     await expect(nav.locator(".vertical-nav-label").first()).toContainText(
@@ -25,6 +25,9 @@ test.describe("Settings view", () => {
     );
     await expect(nav.locator(".vertical-nav-label").nth(1)).toContainText(
       "Muted words",
+    );
+    await expect(nav.locator(".vertical-nav-label").nth(2)).toContainText(
+      "Advanced",
     );
   });
 
@@ -94,7 +97,7 @@ test.describe("Settings view", () => {
     }) => {
       await page.goto("/settings");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

@@ -13,7 +13,12 @@ import {
 class SettingsAppearanceView extends View {
   async render({
     root,
-    context: { dataLayer, notificationService, postComposerService },
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+    },
   }) {
     await requireAuth();
 
@@ -36,6 +41,8 @@ class SettingsAppearanceView extends View {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
       const currentHighlightColor = theme.highlightColor;
       const defaultHighlightColor = getDefaultHighlightColor();
       const currentLikeColor = theme.likeColor;
@@ -48,7 +55,9 @@ class SettingsAppearanceView extends View {
               postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
+            numChatNotifications,
             activeNavItem: "settings",
+            onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${textHeaderTemplate({
                 title: "Appearance",
               })}
@@ -145,6 +154,10 @@ class SettingsAppearanceView extends View {
     });
 
     notificationService?.on("update", () => {
+      renderPage();
+    });
+
+    chatNotificationService?.on("update", () => {
       renderPage();
     });
   }

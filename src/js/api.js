@@ -2,6 +2,7 @@ import { parseUri } from "/js/dataHelpers.js";
 import { RefreshTokenError, getAuth } from "/js/auth.js";
 import { TokenRefreshError as OauthRefreshTokenError } from "/js/oauth.js";
 import { batch, buildQueryString, getCurrentTimestamp } from "/js/utils.js";
+import { linkToLogin } from "/js/navigation.js";
 import {
   PUBLIC_SERVICE_ENDPOINT_URL,
   BSKY_APPVIEW_SERVICE_DID,
@@ -89,7 +90,7 @@ export class Api {
         console.error("Token refresh error", error);
         const auth = await getAuth();
         await auth.logout();
-        window.location.href = "/login";
+        window.location.href = linkToLogin();
         await new Promise(() => {});
       }
       throw error;

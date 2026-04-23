@@ -93,7 +93,7 @@ test.describe("Bookmarks view", () => {
     }) => {
       await page.goto("/bookmarks");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

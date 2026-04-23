@@ -177,7 +177,11 @@ class HomeView extends View {
         <div>
           An issue occurred when contacting the feed server.<br />
           Please let the feed owner know about this issue.<br />
-          <a href=${linkToProfile(feedGenerator.creator)}>View profile</a>
+          ${feedGenerator.creator
+            ? html`<a href=${linkToProfile(feedGenerator.creator)}
+                >View profile</a
+              >`
+            : ""}
         </div>
       </div>`;
     }
@@ -247,6 +251,7 @@ class HomeView extends View {
                       : postFeedTemplate({
                           feed,
                           currentUser,
+                          isAuthenticated,
                           feedGenerator,
                           hiddenPostUris,
                           postInteractionHandler,

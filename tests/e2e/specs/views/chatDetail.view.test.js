@@ -308,7 +308,7 @@ test.describe("Chat detail view", () => {
     }) => {
       await page.goto("/messages/some-convo");
 
-      await expect(page).toHaveURL("/login", { timeout: 10000 });
+      await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
 });

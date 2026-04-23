@@ -417,6 +417,7 @@ class ProfileView extends View {
                       ${postFeedTemplate({
                         feed: authorFeed,
                         currentUser,
+                        isAuthenticated,
                         postInteractionHandler,
                         onLoadMore: () => loadAuthorFeed(),
                       })}

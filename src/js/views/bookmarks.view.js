@@ -16,6 +16,7 @@ class BookmarksView extends View {
       chatNotificationService,
       postComposerService,
       reportService,
+      isAuthenticated,
     },
   }) {
     await requireAuth();
@@ -62,6 +63,7 @@ class BookmarksView extends View {
                 ${postFeedTemplate({
                   feed: bookmarks,
                   currentUser,
+                  isAuthenticated,
                   onLoadMore: () => loadBookmarks(),
                   postInteractionHandler,
                   emptyMessage: "No saved posts yet!",

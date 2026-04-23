@@ -26,6 +26,7 @@ class FeedDetailView extends View {
       chatNotificationService,
       postComposerService,
       reportService,
+      isAuthenticated,
     },
   }) {
     await requireAuth();
@@ -137,6 +138,7 @@ class FeedDetailView extends View {
                     ${postFeedTemplate({
                       feed,
                       currentUser,
+                      isAuthenticated,
                       feedGenerator,
                       hiddenPostUris,
                       onLoadMore: () => loadFeed(),

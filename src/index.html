@@ -18,6 +18,20 @@
     </div>
 
     <script type="module">
+      import { enableErrorLogs } from "/js/errorLogs.js";
+      import "/js/perf.js";
+
+      // Dev tools
+      if (window.env.environment === "development") {
+        enableErrorLogs();
+        const devVersionOverlay = document.createElement("div");
+        devVersionOverlay.className = "dev-version-overlay";
+        devVersionOverlay.textContent = `v${window.env.version} - ${window.env.gitCommit}`;
+        document.body.appendChild(devVersionOverlay);
+      }
+    </script>
+
+    <script type="module">
       import homeView from "/js/views/home.view.js";
       import postThreadView from "/js/views/postThread.view.js";
       import postLikesView from "/js/views/postLikes.view.js";
@@ -38,6 +52,7 @@
       import settingsView from "/js/views/settings.view.js";
       import settingsAppearanceView from "/js/views/settings/appearance.view.js";
       import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
+      import settingsAdvancedView from "/js/views/settings/advanced.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
@@ -62,23 +77,25 @@
         IN_APP_LINK_DOMAINS,
       } from "/js/config.js";
       import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
-
-      // Dev tools
-      import "/js/perf.js";
-      import { enableErrorLogs } from "/js/errorLogs.js";
-
-      if (window.env.environment === "development") {
-        enableErrorLogs();
-      }
+      import {
+        getAppViewConfig,
+        handleAppViewResetQueryParam,
+      } from "/js/appViewConfig.js";
 
       // Body class for styling
       if (isNative()) {
         document.body.classList.add("native");
       }
 
+      handleAppViewResetQueryParam();
+
       const auth = await getAuth();
       const session = await auth.getSession();
-      const api = new Api(session ?? null);
+      const appViewConfig = getAppViewConfig();
+      const api = new Api(session ?? null, {
+        bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
+        chatAppViewServiceDid: appViewConfig.chatServiceDid,
+      });
       const dataLayer = new DataLayer(api);
       // put dataLayer on window for easy access in dev tools
       window.dataLayer = dataLayer;
@@ -197,6 +214,7 @@
       router.addRoute("/settings", () => settingsView);
       router.addRoute("/settings/appearance", () => settingsAppearanceView);
       router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
+      router.addRoute("/settings/advanced", () => settingsAdvancedView);
       router.setNotFoundView(() => notFoundView);
 
       router.renderRoute(({ view, params, container }) => {
@@ -241,7 +259,7 @@
           // Only intercept in-app links if there's a match in the router
           if (router.hasRoute(relativePath)) {
             e.preventDefault();
-            router.go(relativePath);
+            router.go(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
           }
         }
       });

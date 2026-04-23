@@ -33,8 +33,8 @@ t.describe("showSignInModal", (it) => {
     assertEquals(message.textContent, "Sign in to join the conversation!");
     const link = document.querySelector("a.primary-button");
     assert(link !== null);
-    assert(link.getAttribute("href") === "/login");
-    assertEquals(link.textContent.trim(), "Okay");
+    assert(link.getAttribute("href").startsWith("/login"));
+    assertEquals(link.textContent.trim(), "Sign in");
   });
 
   it("should close and remove on backdrop click", () => {

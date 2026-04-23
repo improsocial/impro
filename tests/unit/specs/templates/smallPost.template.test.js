@@ -5,8 +5,8 @@ import { post } from "../../fixtures.js";
 import { render } from "/js/lib/lit-html.js";
 
 const noop = () => {};
+const currentUser = { did: "did:plc:test" };
 const postInteractionHandler = {
-  isAuthenticated: true,
   handleLike: noop,
   handleRepost: noop,
   handleQuotePost: noop,
@@ -18,13 +18,19 @@ const postInteractionHandler = {
   handleReport: noop,
 };
 
+const baseProps = {
+  currentUser,
+  isAuthenticated: true,
+  postInteractionHandler,
+};
+
 const t = new TestSuite("smallPostTemplate");
 
 t.describe("smallPostTemplate", (it) => {
   it("should render the post container", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -34,7 +40,7 @@ t.describe("smallPostTemplate", (it) => {
   it("should render post with avatar", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -44,7 +50,7 @@ t.describe("smallPostTemplate", (it) => {
   it("should render post with author name", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -60,7 +66,7 @@ t.describe("smallPostTemplate", (it) => {
     };
     const result = smallPostTemplate({
       post: postWithText,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -70,7 +76,7 @@ t.describe("smallPostTemplate", (it) => {
   it("should render post action bar", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -99,7 +105,7 @@ t.describe("smallPostTemplate - rich text", (it) => {
     };
     const result = smallPostTemplate({
       post: postWithLongUrl,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -114,7 +120,7 @@ t.describe("smallPostTemplate - pinned posts", (it) => {
   it("should show pinned label when isPinned is true", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       isPinned: true,
     });
     const container = document.createElement("div");
@@ -125,7 +131,7 @@ t.describe("smallPostTemplate - pinned posts", (it) => {
   it("should not show pinned label when isPinned is false", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       isPinned: false,
     });
     const container = document.createElement("div");
@@ -138,7 +144,7 @@ t.describe("smallPostTemplate - reposts", (it) => {
   it("should show repost label when repostAuthor is provided", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       repostAuthor: {
         displayName: "Reposter Name",
         handle: "reposter.bsky.social",
@@ -151,10 +157,35 @@ t.describe("smallPostTemplate - reposts", (it) => {
     assert(repostLabel.textContent.includes("Reposted by"));
   });
 
+  it("should show 'Reposted by you' when repostAuthor is the current user", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      repostAuthor: {
+        did: "did:plc:test",
+        displayName: "Reposter Name",
+        handle: "reposter.bsky.social",
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const repostLabel = container.querySelector("[data-testid='repost-label']");
+    assert(repostLabel !== null);
+    const text = repostLabel.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Reposted by you"),
+      `expected "Reposted by you" in "${text}"`,
+    );
+    assert(
+      !text.includes("Reposter Name"),
+      `did not expect display name in "${text}"`,
+    );
+  });
+
   it("should not show repost label when no repostAuthor", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -166,7 +197,7 @@ t.describe("smallPostTemplate - reply context", (it) => {
   it("should render reply context line-in when replyContext is parent", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       replyContext: "parent",
     });
     const container = document.createElement("div");
@@ -177,7 +208,7 @@ t.describe("smallPostTemplate - reply context", (it) => {
   it("should render reply context line-out when replyContext is root", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       replyContext: "root",
     });
     const container = document.createElement("div");
@@ -188,13 +219,103 @@ t.describe("smallPostTemplate - reply context", (it) => {
   it("should render both lines when replyContext is parent", () => {
     const result = smallPostTemplate({
       post: post,
-      postInteractionHandler,
+      ...baseProps,
       replyContext: "parent",
     });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector(".reply-context-line-in") !== null);
     assert(container.querySelector(".reply-context-line-out") !== null);
+  });
+});
+
+t.describe("smallPostTemplate - reply-to label", (it) => {
+  it("should not render reply-to-author label when showReplyToLabel is false", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      showReplyToLabel: false,
+      replyToAuthor: { displayName: "Alice", handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".reply-to-author"), null);
+  });
+
+  it("should render 'Replied to [display name]' when replyToAuthor is provided", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      showReplyToLabel: true,
+      replyToAuthor: { displayName: "Alice", handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Replied to Alice"),
+      `expected "Replied to Alice" in "${text}"`,
+    );
+  });
+
+  it("should fall back to handle when replyToAuthor has no displayName", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      showReplyToLabel: true,
+      replyToAuthor: { handle: "alice.bsky.social" },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Replied to alice.bsky.social"),
+      `expected "Replied to alice.bsky.social" in "${text}"`,
+    );
+  });
+
+  it("should render 'Replied to you' when replyToAuthor is the current user", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      showReplyToLabel: true,
+      replyToAuthor: {
+        did: "did:plc:test",
+        displayName: "Reply Author Name",
+        handle: "replyauthor.bsky.social",
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assert(
+      text.includes("Replied to you"),
+      `expected "Replied to you" in "${text}"`,
+    );
+    assert(
+      !text.includes("Reply Author Name"),
+      `did not expect display name in "${text}"`,
+    );
+  });
+
+  it("should render 'Replied to user' when replyToAuthor is missing", () => {
+    const result = smallPostTemplate({
+      post: post,
+      ...baseProps,
+      showReplyToLabel: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const label = container.querySelector(".reply-to-author");
+    assert(label !== null);
+    const text = label.textContent.replace(/\s+/g, " ").trim();
+    assertEquals(text, "⤷ Replied to user");
   });
 });
 
@@ -207,7 +328,7 @@ t.describe("smallPostTemplate - blocked/unavailable posts", (it) => {
     };
     const result = smallPostTemplate({
       post: blockedPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -222,7 +343,7 @@ t.describe("smallPostTemplate - blocked/unavailable posts", (it) => {
     };
     const result = smallPostTemplate({
       post: notFoundPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -238,7 +359,7 @@ t.describe("smallPostTemplate - moderation", (it) => {
     };
     const result = smallPostTemplate({
       post: mutedAccountPost,
-      postInteractionHandler,
+      ...baseProps,
       hideMutedAccount: true,
     });
     const container = document.createElement("div");
@@ -253,7 +374,7 @@ t.describe("smallPostTemplate - moderation", (it) => {
     };
     const result = smallPostTemplate({
       post: mutedWordPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -267,7 +388,7 @@ t.describe("smallPostTemplate - moderation", (it) => {
     };
     const result = smallPostTemplate({
       post: hiddenPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -282,7 +403,7 @@ t.describe("smallPostTemplate - moderation", (it) => {
     };
     const result = smallPostTemplate({
       post: normalPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -296,10 +417,10 @@ t.describe("smallPostTemplate - moderation", (it) => {
         labels: [{ val: "!no-unauthenticated", src: post.author.did }],
       },
     };
-    const unauthHandler = { ...postInteractionHandler, isAuthenticated: false };
     const result = smallPostTemplate({
       post: restrictedPost,
-      postInteractionHandler: unauthHandler,
+      ...baseProps,
+      isAuthenticated: false,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -332,7 +453,7 @@ t.describe("smallPostTemplate - moderation", (it) => {
     };
     const result = smallPostTemplate({
       post: restrictedPost,
-      postInteractionHandler,
+      ...baseProps,
     });
     const container = document.createElement("div");
     render(result, container);

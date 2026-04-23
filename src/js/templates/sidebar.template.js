@@ -18,6 +18,7 @@ import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import {
   linkToProfileFollowers,
   linkToProfileFollowing,
+  linkToLogin,
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 import { showInfoModal } from "/js/modals.js";
@@ -105,7 +106,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       </div>
       ${sidebarNavTemplate({ menuItems, activeNavItem, onClickActiveItem })}
       <a
-        href="/login"
+        href=${linkToLogin()}
         class="square-button primary-button login-button"
         data-testid="login-button"
         >Sign in</a

@@ -352,10 +352,45 @@ test.describe("Home view", () => {
     const view = page.locator("#home-view");
     await view.locator(".tab-bar-button", { hasText: "Broken Feed" }).click();
 
-    await expect(view.locator(".error-state")).toContainText(
+    const errorState = view.locator(".error-state");
+    await expect(errorState).toContainText(
       "An issue occurred when contacting the feed server.",
       { timeout: 10000 },
     );
+    await expect(
+      errorState.locator("a", { hasText: "View profile" }),
+    ).toHaveAttribute("href", "/profile/creator1.bsky.social");
+  });
+
+  test("should render error state for Following feed without a creator profile link", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) =>
+      route.fulfill({
+        status: 500,
+        contentType: "application/json",
+        body: JSON.stringify({ error: "InternalServerError" }),
+      }),
+    );
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator(".tab-bar-button.active")).toContainText(
+      "Following",
+      { timeout: 10000 },
+    );
+
+    const errorState = view.locator(".error-state");
+    await expect(errorState).toContainText(
+      "An issue occurred when contacting the feed server.",
+      { timeout: 10000 },
+    );
+    await expect(errorState.locator("a")).toHaveCount(0);
   });
 
   test.describe("Logged-out behavior", () => {

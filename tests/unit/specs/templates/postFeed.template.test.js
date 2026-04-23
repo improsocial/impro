@@ -14,7 +14,6 @@ const mockUser = {
 };
 
 const postInteractionHandler = {
-  isAuthenticated: true,
   handleLike: noop,
   handleRepost: noop,
   handleDelete: noop,
