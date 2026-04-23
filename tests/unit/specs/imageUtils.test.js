@@ -4,9 +4,45 @@ import {
   constrainImageSize,
   estimateDataUrlSize,
   dataUrlToBlob,
+  compressImage,
 } from "/js/imageUtils.js";
 
 const t = new TestSuite("imageUtils");
+
+const originalImage = globalThis.Image;
+const originalCreateElement = document.createElement;
+
+function installImageStubs(toDataURL = () => "data:image/jpeg;base64,") {
+  globalThis.Image = class {
+    /** @param {string} _ */
+    set src(_) {
+      this.width = 8000;
+      this.height = 8000;
+      queueMicrotask(() => this.onload?.());
+    }
+  };
+  document.createElement = function (tag) {
+    if (tag === "canvas") {
+      return {
+        width: 0,
+        height: 0,
+        getContext: () => ({
+          fillStyle: "",
+          fillRect: () => {},
+          drawImage: () => {},
+        }),
+        toDataURL: () => toDataURL(),
+      };
+    }
+    return originalCreateElement.call(document, tag);
+  };
+}
+
+t.afterEach(() => {
+  // Clean up any stubs
+  globalThis.Image = originalImage;
+  document.createElement = originalCreateElement;
+});
 
 t.describe("constrainImageSize", (it) => {
   it("should return original size when within bounds", () => {
@@ -127,6 +163,34 @@ t.describe("dataUrlToBlob", (it) => {
     const dataUrl = "data:image/jpeg;base64,AQID";
     const blob = dataUrlToBlob(dataUrl);
     assertEquals(blob.size, 3);
+  });
+});
+
+t.describe("compressImage", (it) => {
+  it("throws when output always exceeds the size limit", async () => {
+    // A base64 string ~3MB decoded — over the 2MB limit at any quality.
+    const oversized = `data:image/jpeg;base64,${"A".repeat(3_000_000)}`;
+    installImageStubs(() => oversized);
+
+    let thrown = null;
+    try {
+      await compressImage("data:image/jpeg;base64,AAAA");
+    } catch (error) {
+      thrown = error;
+    }
+    assert(thrown instanceof Error, "expected an Error to be thrown");
+    assertEquals(thrown.message, "Unable to compress image");
+  });
+
+  it("returns a blob when output fits under the size limit", async () => {
+    const small = `data:image/jpeg;base64,${"A".repeat(16)}`;
+    installImageStubs(() => small);
+
+    const result = await compressImage("data:image/jpeg;base64,AAAA");
+    assert(result.blob instanceof Blob, "expected a Blob");
+    assertEquals(result.blob.type, "image/jpeg");
+    assert(result.width > 0 && result.width <= 4000);
+    assert(result.height > 0 && result.height <= 4000);
   });
 });
 
