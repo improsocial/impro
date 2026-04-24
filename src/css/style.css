@@ -605,6 +605,11 @@ form button:disabled {
   }
 }
 
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-color-muted);
+}
+
 input[type="color"] {
   -webkit-appearance: none;
   appearance: none;
@@ -3514,10 +3519,6 @@ chat-input {
   scrollbar-width: none;
 }
 
-.message-input-field::placeholder {
-  color: var(--text-color-muted);
-}
-
 .message-input-field:focus {
   border-color: var(--highlight-color);
 }
@@ -4535,10 +4536,6 @@ emoji-picker {
   border-color: var(--highlight-color);
 }
 
-.post-composer-textarea::placeholder {
-  color: var(--text-color-muted);
-}
-
 .post-composer-bottom-bar {
   display: flex;
   justify-content: space-between;
@@ -5210,11 +5207,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 
 .image-alt-text-dialog-textarea:focus {
   border-color: var(--highlight-color);
-}
-
-.image-alt-text-dialog-textarea::placeholder {
-  color: light-dark(var(--gray), var(--light-gray));
-  opacity: 1;
 }
 
 .image-alt-text-dialog-char-count {
@@ -6621,11 +6613,6 @@ moderation-warning .toggle-content {
 
 .report-details-input:focus {
   border-color: var(--highlight-color);
-}
-
-.report-details-input::placeholder {
-  color: var(--text-color-secondary);
-  opacity: 1;
 }
 
 .report-details-counter {
