@@ -873,7 +873,30 @@ test.describe("Profile view", () => {
   });
 
   test.describe("Post notification subscription", () => {
+    const followedUser = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        following: "at://did:plc:testuser123/app.bsky.graph.follow/xyz",
+      },
+    };
+
     test("should show bell button on other user's profile", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(followedUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${followedUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator('[data-testid="post-notifications-button"]'),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("should not show bell button when not following the user", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -883,9 +906,13 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
+      await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+        "Other User",
+        { timeout: 10000 },
+      );
       await expect(
         view.locator('[data-testid="post-notifications-button"]'),
-      ).toBeVisible({ timeout: 10000 });
+      ).not.toBeVisible();
     });
 
     test("should not show bell button on own profile", async ({ page }) => {
@@ -939,10 +966,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       const bellButton = view.locator(
@@ -956,9 +983,9 @@ test.describe("Profile view", () => {
 
     test("should show filled bell icon when subscribed", async ({ page }) => {
       const subscribedUser = {
-        ...otherUser,
+        ...followedUser,
         viewer: {
-          ...otherUser.viewer,
+          ...followedUser.viewer,
           activitySubscription: { post: true, reply: false },
         },
       };
@@ -983,10 +1010,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1007,10 +1034,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1027,10 +1054,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1046,10 +1073,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1069,9 +1096,9 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const subscribedUser = {
-        ...otherUser,
+        ...followedUser,
         viewer: {
-          ...otherUser.viewer,
+          ...followedUser.viewer,
           activitySubscription: { post: true, reply: true },
         },
       };
@@ -1105,10 +1132,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1132,10 +1159,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
@@ -1168,10 +1195,10 @@ test.describe("Profile view", () => {
       page,
     }) => {
       const mockServer = new MockServer();
-      mockServer.addProfile(otherUser);
+      mockServer.addProfile(followedUser);
       await mockServer.setup(page);
       await login(page);
-      await page.goto(`/profile/${otherUser.did}`);
+      await page.goto(`/profile/${followedUser.did}`);
 
       const view = page.locator("#profile-view");
       await view
