@@ -132,7 +132,7 @@ class ChatView extends View {
     }
 
     function convosTemplate({ convos, hasMore, currentUser }) {
-      if (!convos.length === 0) {
+      if (convos.length === 0) {
         return html`<div class="feed-end-message">
           <div>No conversations yet!</div>
         </div>`;
