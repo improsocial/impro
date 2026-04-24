@@ -69,14 +69,18 @@ async function startTunnel() {
     process.exit(1);
   }
 
-  console.log("Starting cloudflared tunnel...");
+  console.info("Starting cloudflared tunnel...");
   const cloudflared = startCloudflared();
   const tunnelUrl = await waitForTunnelUrl(cloudflared);
   const hostName = tunnelUrl.replace(/^https:\/\//, "");
 
-  console.log("\n============================================================");
-  console.log(`Tunnel ready: ${tunnelUrl}`);
-  console.log("============================================================\n");
+  console.info(
+    "\n============================================================",
+  );
+  console.info(`Tunnel ready: ${tunnelUrl}`);
+  console.info(
+    "============================================================\n",
+  );
 
   return { cloudflared, hostName };
 }
