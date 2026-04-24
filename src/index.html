@@ -221,6 +221,18 @@
         }
       });
 
+      router.on("navigate", () => {
+        document.querySelectorAll("dialog[open]").forEach((dialog) => {
+          const wrapper = dialog.closest("[data-dialog-wrapper]");
+          if (wrapper && typeof wrapper.close === "function") {
+            wrapper.close();
+          } else {
+            dialog.close();
+            dialog.remove();
+          }
+        });
+      });
+
       router.mount(document.getElementById("app-root"));
 
       // attach to window since it's used in some nested functions

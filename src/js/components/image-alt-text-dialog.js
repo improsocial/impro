@@ -8,6 +8,7 @@ class ImageAltTextDialog extends Component {
     if (this.initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this.innerHTML = "";
     this.render();

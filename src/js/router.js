@@ -16,6 +16,7 @@ export class Router extends EventEmitter {
     window.history.scrollRestoration = "manual";
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
+      this.emit("navigate");
       await this.load(window.location.pathname, { isBack: true });
     });
   }
@@ -137,6 +138,7 @@ export class Router extends EventEmitter {
   async go(path) {
     this.scrollStates.set(window.location.pathname, window.scrollY);
     window.history.pushState({ canGoBack: true }, "", path);
+    this.emit("navigate");
     await this.load(path);
   }
 

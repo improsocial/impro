@@ -24,6 +24,7 @@ class EditProfileDialog extends Component {
     if (this.initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this._displayName = "";
     this._description = "";
@@ -107,18 +108,20 @@ class EditProfileDialog extends Component {
     render(
       html`<dialog
         class="bottom-sheet no-handle edit-profile-dialog"
-        @click=${(event) => {
+        @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
-            this.close();
+            if (await this.confirmClose()) {
+              this.close();
+            }
           }
         }}
-        @cancel=${(event) => {
+        @cancel=${async (event) => {
           event.preventDefault();
           if (isCropping) {
             this._croppingTarget = null;
             this._croppingImageSrc = null;
             this.render();
-          } else {
+          } else if (await this.confirmClose()) {
             this.close();
           }
         }}
@@ -158,7 +161,12 @@ class EditProfileDialog extends Component {
               <div class="edit-profile-dialog-header">
                 <button
                   class="edit-profile-dialog-header-button"
-                  @click=${() => this.close()}
+                  data-testid="edit-profile-cancel-button"
+                  @click=${async () => {
+                    if (await this.confirmClose()) {
+                      this.close();
+                    }
+                  }}
                   .disabled=${this._saving}
                 >
                   Cancel
@@ -430,7 +438,7 @@ class EditProfileDialog extends Component {
       }
 
       const successCallback = () => {
-        this._doClose();
+        this.close();
       };
       const errorCallback = (error) => {
         console.error("Failed to update profile:", error);
@@ -471,8 +479,8 @@ class EditProfileDialog extends Component {
       dialog.showModal();
 
       enableDragToDismiss(dialog, {
-        confirmDismiss: () => this._confirmDiscardIfDirty(),
-        onClose: () => this._doClose(),
+        confirmDismiss: () => this.confirmClose(),
+        onClose: () => this.close(),
         ignoreTouchTarget: (el) =>
           el.tagName === "BUTTON" ||
           el.tagName === "INPUT" ||
@@ -487,7 +495,7 @@ class EditProfileDialog extends Component {
     }
   }
 
-  async _confirmDiscardIfDirty() {
+  async confirmClose() {
     if (!this._isDirty || !!this._croppingTarget || this._saving) return true;
     return confirm("Are you sure you want to discard your changes?", {
       title: "Discard changes?",
@@ -496,12 +504,7 @@ class EditProfileDialog extends Component {
     });
   }
 
-  async close() {
-    if (!(await this._confirmDiscardIfDirty())) return;
-    this._doClose();
-  }
-
-  _doClose() {
+  close() {
     this._isOpen = false;
     this.scrollLock.unlock();
     const dialog = this.querySelector(".edit-profile-dialog");

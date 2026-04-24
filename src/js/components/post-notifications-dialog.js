@@ -9,6 +9,7 @@ class PostNotificationsDialog extends Component {
     if (this.initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this._postEnabled = this.activitySubscription?.post ?? false;
     this._replyEnabled = this.activitySubscription?.reply ?? false;

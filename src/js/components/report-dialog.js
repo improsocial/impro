@@ -614,6 +614,7 @@ class ReportDialog extends Component {
     if (this.initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this.innerHTML = "";
     this._stepIndex = 0;

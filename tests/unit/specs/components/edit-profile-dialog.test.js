@@ -428,7 +428,37 @@ t.describe("EditProfileDialog - close", (it) => {
     assertEquals(closedEventFired, true);
   });
 
-  it("should not prompt for confirmation when closing while saving", async () => {
+  it("should prompt for confirmation when cancel is clicked with unsaved changes", async () => {
+    const element = document.createElement("edit-profile-dialog");
+    connectElement(element);
+    element.setProfile(mockProfile);
+
+    const displayNameInput = element.querySelector(
+      "[data-testid='edit-profile-display-name']",
+    );
+    displayNameInput.value = "Updated Name";
+    displayNameInput.dispatchEvent(new Event("input", { bubbles: true }));
+
+    let closedEventFired = false;
+    element.addEventListener("edit-profile-closed", () => {
+      closedEventFired = true;
+    });
+
+    const cancelButton = element.querySelector(
+      "[data-testid='edit-profile-cancel-button']",
+    );
+    cancelButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    const confirmDialog = document.body.querySelector(".modal-dialog");
+    assert(
+      confirmDialog !== null,
+      "Discard confirmation should be shown when there are unsaved changes",
+    );
+    assertEquals(closedEventFired, false);
+  });
+
+  it("should not prompt for confirmation when dismissed while saving", async () => {
     const element = document.createElement("edit-profile-dialog");
     connectElement(element);
     element.setProfile(mockProfile);
@@ -444,14 +474,24 @@ t.describe("EditProfileDialog - close", (it) => {
     );
     saveButton.click();
 
-    await element.close();
+    let closedEventFired = false;
+    element.addEventListener("edit-profile-closed", () => {
+      closedEventFired = true;
+    });
+
+    // Cancel button is disabled while saving; Escape key (cancel event) is the
+    // available dismiss path during save.
+    const dialog = element.querySelector(".edit-profile-dialog");
+    dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     const confirmDialog = document.body.querySelector(".modal-dialog");
     assertEquals(
       confirmDialog,
       null,
-      "No discard confirmation should be shown after save",
+      "No discard confirmation should be shown while saving",
     );
+    assertEquals(closedEventFired, true);
   });
 });
 
