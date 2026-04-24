@@ -132,7 +132,7 @@ test.describe("Settings Muted Words view", () => {
     await view.locator('[data-testid="muted-word-delete"]').click();
 
     // Confirm dialog should appear
-    const dialog = page.locator("dialog");
+    const dialog = page.locator("dialog.modal-dialog");
     await expect(dialog).toBeVisible({ timeout: 5000 });
     await expect(dialog).toContainText("Are you sure?");
     await expect(dialog).toContainText(
