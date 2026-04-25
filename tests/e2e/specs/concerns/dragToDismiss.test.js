@@ -191,6 +191,9 @@ test.describe("Drag-to-dismiss", () => {
         did: "did:plc:otheruser1",
         handle: "otheruser.bsky.social",
         displayName: "Other User",
+        viewer: {
+          following: "at://did:plc:testuser123/app.bsky.graph.follow/xyz",
+        },
       });
       const mockServer = new MockServer();
       mockServer.addProfile(otherUser);

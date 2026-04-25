@@ -222,7 +222,7 @@ test.describe("Switch app view flow", () => {
       .toEqual({
         id: "blacksky",
         appViewServiceDid: BLACKSKY_APPVIEW_DID,
-        chatServiceDid: BLACKSKY_CHAT_DID,
+        chatServiceDid: BLUESKY_CHAT_DID,
       });
   });
 });

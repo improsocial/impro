@@ -440,6 +440,10 @@ t.describe("smallPostTemplate - moderation", (it) => {
       messageEl.textContent.includes("Sign-in required"),
       "should show lock message",
     );
+    assert(
+      messageEl.querySelector(".info-icon") !== null,
+      "should show info icon",
+    );
     assert(!container.querySelector(".post-text"), "should not show post text");
   });
 

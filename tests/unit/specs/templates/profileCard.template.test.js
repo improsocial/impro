@@ -73,6 +73,44 @@ t.describe("profileCardTemplate", (it) => {
     );
   });
 
+  it("should render + Follow back when followed by but not following", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: true },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='follow-button']")
+        .textContent.trim(),
+      "+ Follow back",
+    );
+  });
+
+  it("should render Following (not Follow back) when mutuals", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: true },
+    };
+    const result = profileCardTemplate({
+      profile,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='follow-button']")
+        .textContent.trim(),
+      "Following",
+    );
+  });
+
   it("should not render followedBy indicator when not followed by", () => {
     const profile = {
       ...mockProfile,
@@ -154,6 +192,125 @@ t.describe("profileCardTemplate", (it) => {
     assert(followCallArgs !== null);
     assertEquals(followCallArgs.profile, profile);
     assertEquals(followCallArgs.shouldFollow, false);
+  });
+});
+
+t.describe("profileCardTemplate - post notifications button", (it) => {
+  it("should render post notifications button when following", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='post-notifications-button']") !==
+        null,
+    );
+  });
+
+  it("should not render post notifications button when not following", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
+  it("should not render post notifications button when only followed by", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: true },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
+  it("should not render post notifications button for unauthenticated user", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: false,
+      isCurrentUser: false,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
+  it("should not render post notifications button for current user", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: true,
+      onClickPostNotifications: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='post-notifications-button']"),
+      null,
+    );
+  });
+
+  it("should call onClickPostNotifications when bell clicked", () => {
+    let notificationsCallArg = null;
+    const profile = {
+      ...mockProfile,
+      viewer: { following: true, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      onClickPostNotifications: (p) => {
+        notificationsCallArg = p;
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    container
+      .querySelector("[data-testid='post-notifications-button']")
+      .click();
+    assertEquals(notificationsCallArg, profile);
   });
 });
 

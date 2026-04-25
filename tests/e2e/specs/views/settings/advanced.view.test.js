@@ -135,7 +135,7 @@ test.describe("Settings Advanced view", () => {
     const select = view.locator('select[name="appview"]');
     await expect(select).toBeVisible({ timeout: 10000 });
 
-    const applyButton = view.getByRole("button", { name: "Apply and reload" });
+    const applyButton = view.getByRole("button", { name: "Save and reload" });
     await expect(applyButton).toBeDisabled();
 
     await select.selectOption("blacksky");
@@ -166,7 +166,7 @@ test.describe("Settings Advanced view", () => {
     await page.goto("/settings/advanced");
 
     const view = page.locator("#settings-advanced-view");
-    const applyButton = view.getByRole("button", { name: "Apply and reload" });
+    const applyButton = view.getByRole("button", { name: "Save and reload" });
     await expect(view.locator('select[name="appview"]')).toHaveValue("custom", {
       timeout: 10000,
     });
@@ -194,7 +194,7 @@ test.describe("Settings Advanced view", () => {
     await expect(select).toBeVisible({ timeout: 10000 });
 
     await select.selectOption("blacksky");
-    await view.getByRole("button", { name: "Apply and reload" }).click();
+    await view.getByRole("button", { name: "Save and reload" }).click();
 
     await page.waitForURL("/settings/advanced", { timeout: 10000 });
 

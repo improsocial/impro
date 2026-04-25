@@ -1,5 +1,5 @@
 import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { assert, assertEquals, mock } from "../testHelpers.js";
 import { Router } from "/js/router.js";
 
 const t = new TestSuite("Router");
@@ -167,6 +167,53 @@ t.describe("renderRoute", (it) => {
   });
 });
 
+t.describe("popstate", (it) => {
+  // Capture the Router's popstate handler rather than dispatching a global
+  // popstate event, since previously-created Router instances in other tests
+  // also have popstate listeners on window and would fire here.
+  function createRouterWithPopstateHandler() {
+    const origAdd = window.addEventListener.bind(window);
+    let popstateHandler = null;
+    window.addEventListener = (event, handler, options) => {
+      if (event === "popstate" && popstateHandler === null) {
+        popstateHandler = handler;
+      } else {
+        origAdd(event, handler, options);
+      }
+    };
+    const router = new Router();
+    window.addEventListener = origAdd;
+    return { router, popstateHandler };
+  }
+
+  it("should emit navigate event when popstate fires", async () => {
+    const { router, popstateHandler } = createRouterWithPopstateHandler();
+    const container = document.createElement("div");
+    router.mount(container);
+
+    const listener = mock();
+    router.on("navigate", listener);
+
+    await popstateHandler(new Event("popstate"));
+
+    assertEquals(listener.calls.length, 1);
+  });
+
+  it("should emit navigate before loading the new page", async () => {
+    const { router, popstateHandler } = createRouterWithPopstateHandler();
+    const container = document.createElement("div");
+    router.mount(container);
+
+    const order = [];
+    router.on("navigate", () => order.push("navigate"));
+    router.on("page-shown", () => order.push("page-shown"));
+
+    await popstateHandler(new Event("popstate"));
+
+    assertEquals(order[0], "navigate");
+  });
+});
+
 t.describe("load", (it) => {
   it("should load route and render view", async () => {
     const router = new Router();
@@ -208,6 +255,31 @@ t.describe("load", (it) => {
     await router.load("/user/123");
 
     assertEquals(receivedParams, { id: "123" });
+  });
+});
+
+t.describe("go", (it) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+
+  it("should emit navigate event before loading the new page", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/go-test", () => Promise.resolve({}));
+
+    const order = [];
+    router.on("navigate", () => order.push("navigate"));
+    router.on("page-shown", () => order.push("page-shown"));
+
+    try {
+      await router.go("/go-test");
+    } finally {
+      window.history.replaceState(null, "", originalPath);
+    }
+
+    assertEquals(order[0], "navigate");
+    assertEquals(order[1], "page-shown");
   });
 });
 

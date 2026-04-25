@@ -1,5 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "./component.js";
+import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
+import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
 
 class ModerationWarning extends Component {
   connectedCallback() {
@@ -9,6 +11,7 @@ class ModerationWarning extends Component {
     this.label = this.getAttribute("label");
     this.labelerLink = this.getAttribute("labelerLink");
     this.labelerName = this.getAttribute("labelerName");
+    this.iconStyle = this.getAttribute("icon-style") ?? "info";
     this.expanded = false;
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
@@ -17,6 +20,8 @@ class ModerationWarning extends Component {
   }
 
   render() {
+    const iconTemplate =
+      this.iconStyle === "closed-eye" ? eyeSlashIconTemplate : infoIconTemplate;
     render(
       html`
         <div
@@ -33,7 +38,10 @@ class ModerationWarning extends Component {
             }
           }}
         >
-          <span>${this.label}</span>
+          <span class="moderation-warning-label">
+            ${iconTemplate()}
+            <span>${this.label}</span>
+          </span>
           <label class="show-hide-label">
             ${this.expanded ? "Hide" : "Show"}
           </label>

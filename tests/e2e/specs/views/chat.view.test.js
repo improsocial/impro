@@ -201,6 +201,26 @@ test.describe("Chat view", () => {
     );
   });
 
+  test("should display empty state when there are no conversations", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    await expect(
+      chatView.locator('[data-testid="header-title"]'),
+    ).toContainText("Chats", { timeout: 10000 });
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
+    );
+    await expect(chatView.locator(".convo-item")).toHaveCount(0);
+  });
+
   test("should display error state when conversations fail to load", async ({
     page,
   }) => {

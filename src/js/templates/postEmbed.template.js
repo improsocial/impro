@@ -6,6 +6,7 @@ import {
 } from "/js/dataHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { parseEmbedPlayerFromUrl } from "/js/lib/embed-player.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
@@ -30,24 +31,33 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
 }
 
 function blockedQuoteTemplate() {
-  return html`<div class="quoted-post" data-testid="blocked-quote">
-    Blocked
+  return html`<div
+    class="quoted-post missing-quote-indicator"
+    data-testid="blocked-quote"
+  >
+    ${infoIconTemplate()} Blocked
   </div>`;
 }
 
 function removedQuoteTemplate() {
-  return html`<div class="quoted-post" data-testid="removed-quote">
-    Removed by author
+  return html`<div
+    class="quoted-post missing-quote-indicator"
+    data-testid="removed-quote"
+  >
+    ${infoIconTemplate()} Removed by author
   </div>`;
 }
 
 function notFoundQuoteTemplate() {
-  return html`<div class="quoted-post" data-testid="not-found-quote">
-    Deleted
+  return html`<div
+    class="quoted-post missing-quote-indicator"
+    data-testid="not-found-quote"
+  >
+    ${infoIconTemplate()} Deleted
   </div>`;
 }
 
-function mutedWrapperTemplate({ isMuted, label, children }) {
+function mutedWrapperTemplate({ isMuted, label, iconStyle, children }) {
   if (isMuted) {
     return html`<moderation-warning
       @click=${(e) => {
@@ -59,6 +69,7 @@ function mutedWrapperTemplate({ isMuted, label, children }) {
       }}
       class="quoted-account-muted-warning"
       label=${label}
+      icon-style=${iconStyle}
       >${children}</moderation-warning
     >`;
   }
@@ -102,14 +113,17 @@ export function quotedPostTemplate({
   // Mute if necessary.
   let isMuted = false;
   let mutedLabel = null;
+  let mutedIconStyle = "info";
   if (quotedPost.hasMutedWord) {
     isMuted = true;
     mutedLabel = "Hidden by muted word";
+    mutedIconStyle = "closed-eye";
   }
   // this has precedence, in the case that both are true
   if (quotedPost.author.viewer?.muted) {
     isMuted = true;
     mutedLabel = "Muted Account";
+    mutedIconStyle = "closed-eye";
   }
   // And this has further precedence
   const contentLabel = quotedPost.contentLabel;
@@ -119,6 +133,7 @@ export function quotedPostTemplate({
       contentLabel.labelDefinition,
     );
     mutedLabel = labelName;
+    mutedIconStyle = "info";
     const isAuthorLabel = contentLabel.label.uri === quotedPost?.author?.did;
     if (isAuthorLabel) {
       mutedLabel += " (Account)";
@@ -148,6 +163,7 @@ export function quotedPostTemplate({
       ${mutedWrapperTemplate({
         isMuted,
         label: mutedLabel,
+        iconStyle: mutedIconStyle,
         children: html`
           <div class="quoted-post-header">
             ${avatarTemplate({

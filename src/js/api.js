@@ -470,11 +470,7 @@ export class Api {
   }
 
   async getPreferences() {
-    const res = await this.request(`app.bsky.actor.getPreferences`, {
-      headers: {
-        "atproto-proxy": this.bskyAppViewServiceDid,
-      },
-    });
+    const res = await this.request(`app.bsky.actor.getPreferences`); // note - no atproto-proxy for this endpoint
     return res.data.preferences;
   }
 

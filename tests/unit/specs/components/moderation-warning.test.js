@@ -221,6 +221,41 @@ t.describe("ModerationWarning - accessibility", (it) => {
   });
 });
 
+t.describe("ModerationWarning - icon style", (it) => {
+  it("should render info icon by default", () => {
+    const element = document.createElement("moderation-warning");
+    document.body.appendChild(element);
+    assert(element.querySelector(".info-icon") !== null);
+    assertEquals(element.querySelector(".eye-slash-icon"), null);
+  });
+
+  it("should render info icon when icon-style is 'info'", () => {
+    const element = document.createElement("moderation-warning");
+    element.setAttribute("icon-style", "info");
+    document.body.appendChild(element);
+    assert(element.querySelector(".info-icon") !== null);
+    assertEquals(element.querySelector(".eye-slash-icon"), null);
+  });
+
+  it("should render eye-slash icon when icon-style is 'closed-eye'", () => {
+    const element = document.createElement("moderation-warning");
+    element.setAttribute("icon-style", "closed-eye");
+    document.body.appendChild(element);
+    assert(element.querySelector(".eye-slash-icon") !== null);
+    assertEquals(element.querySelector(".info-icon"), null);
+  });
+
+  it("should render icon inside the top-bar label", () => {
+    const element = document.createElement("moderation-warning");
+    element.setAttribute("label", "Hidden");
+    document.body.appendChild(element);
+    const labelEl = element.querySelector(".top-bar .moderation-warning-label");
+    assert(labelEl !== null);
+    assert(labelEl.querySelector(".icon") !== null);
+    assert(labelEl.textContent.includes("Hidden"));
+  });
+});
+
 t.describe("ModerationWarning - reinitialization protection", (it) => {
   it("should not reinitialize when connectedCallback is called multiple times", () => {
     const element = document.createElement("moderation-warning");

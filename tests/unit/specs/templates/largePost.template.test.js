@@ -173,7 +173,9 @@ t.describe("largePostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("moderation-warning") !== null);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should show moderation warning for hidden post", () => {
@@ -187,7 +189,9 @@ t.describe("largePostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("moderation-warning") !== null);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should not show moderation warning for normal post", () => {

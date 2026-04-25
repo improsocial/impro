@@ -14,6 +14,14 @@ t.describe("blockedPostTemplate", (it) => {
     assert(indicator !== null);
     assert(indicator.textContent.includes("Blocked"));
   });
+
+  it("should render an info icon", () => {
+    const result = blockedPostTemplate();
+    const container = document.createElement("div");
+    render(result, container);
+    const indicator = container.querySelector(".missing-post-indicator");
+    assert(indicator.querySelector(".info-icon") !== null);
+  });
 });
 
 await t.run();

@@ -184,7 +184,11 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("[data-testid='blocked-quote']") !== null);
+    const blockedQuote = container.querySelector(
+      "[data-testid='blocked-quote']",
+    );
+    assert(blockedQuote !== null);
+    assert(blockedQuote.querySelector(".info-icon") !== null);
   });
 
   it("should render not found quote embed", () => {
@@ -202,7 +206,11 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("[data-testid='not-found-quote']") !== null);
+    const notFoundQuote = container.querySelector(
+      "[data-testid='not-found-quote']",
+    );
+    assert(notFoundQuote !== null);
+    assert(notFoundQuote.querySelector(".info-icon") !== null);
   });
 
   it("should render detached/removed quote embed", () => {
@@ -220,7 +228,96 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("[data-testid='removed-quote']") !== null);
+    const removedQuote = container.querySelector(
+      "[data-testid='removed-quote']",
+    );
+    assert(removedQuote !== null);
+    assert(removedQuote.querySelector(".info-icon") !== null);
+  });
+
+  it("should use closed-eye icon-style for a muted-account quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: { ...post.author, viewer: { muted: true } },
+        value: post.record,
+        uri: post.uri,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+  });
+
+  it("should use closed-eye icon-style for a muted-word quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: post.record,
+        uri: post.uri,
+        hasMutedWord: true,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+  });
+
+  it("should use info icon-style for a content-labeled quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: post.record,
+        uri: post.uri,
+        contentLabel: {
+          visibility: "blur",
+          label: { uri: "did:plc:other", val: "nsfw" },
+          labelDefinition: {
+            identifier: "nsfw",
+            blurs: "content",
+            severity: "alert",
+            locales: [
+              { lang: "en", name: "NSFW", description: "Adult content" },
+            ],
+          },
+        },
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("icon-style"), "info");
   });
 
   it("should truncate long URLs in quoted post text", () => {

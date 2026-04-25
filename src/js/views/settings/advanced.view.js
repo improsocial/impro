@@ -194,7 +194,7 @@ class SettingsAdvancedView extends View {
                         type="submit"
                         ?disabled=${state.loading || !isDirty()}
                       >
-                        Apply and reload
+                        Save and reload
                         ${state.loading
                           ? html`<div class="loading-spinner"></div>`
                           : ""}

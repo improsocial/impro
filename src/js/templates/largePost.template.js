@@ -205,11 +205,15 @@ export function largePostTemplate({
     `;
 
   if (post.viewer?.hasMutedWord) {
-    content = html`<moderation-warning label="Post hidden by muted word"
+    content = html`<moderation-warning
+      label="Post hidden by muted word"
+      icon-style="closed-eye"
       >${content}</moderation-warning
     > `;
   } else if (post.viewer?.isHidden) {
-    content = html`<moderation-warning label="Post hidden by you"
+    content = html`<moderation-warning
+      label="Post hidden by you"
+      icon-style="closed-eye"
       >${content}</moderation-warning
     > `;
   }

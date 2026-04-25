@@ -9,6 +9,7 @@ class ContextMenu extends Component {
     if (this._initialized) {
       return;
     }
+    this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this._childNodes = [...this.childNodes];
     this.innerHTML = "";

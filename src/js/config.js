@@ -42,7 +42,7 @@ export const AppViewConfig = {
     id: "blacksky",
     displayName: "Blacksky",
     appViewServiceDid: "did:web:api.blacksky.community#bsky_appview",
-    chatServiceDid: "did:web:api.blacksky.community#bsky_chat",
+    chatServiceDid: "did:web:api.bsky.chat#bsky_chat", // note: uses bsky chat service
   },
 };
 
