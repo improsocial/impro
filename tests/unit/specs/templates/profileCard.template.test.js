@@ -645,7 +645,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     assert(editProfileCalled);
   });
 
-  it("should render chat button for authenticated user viewing other profile", () => {
+  it("should render chat button for authenticated user viewing other profile when chat is allowed", () => {
     const profile = {
       ...mockProfile,
       viewer: { following: false, followedBy: false },
@@ -654,11 +654,29 @@ t.describe("profileCardTemplate - authentication states", (it) => {
       profile,
       isAuthenticated: true,
       isCurrentUser: false,
+      profileChatStatus: { canChat: true },
       onClickChat: () => {},
     });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='chat-button']") !== null);
+  });
+
+  it("should not render chat button when chat is not allowed", () => {
+    const profile = {
+      ...mockProfile,
+      viewer: { following: false, followedBy: false },
+    };
+    const result = profileCardTemplate({
+      profile,
+      isAuthenticated: true,
+      isCurrentUser: false,
+      profileChatStatus: { canChat: false },
+      onClickChat: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
   });
 
   it("should render stats for non-blocked profile", () => {

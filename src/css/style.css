@@ -435,10 +435,6 @@ main {
   justify-content: center;
 }
 
-.rounded-button.chat-button:disabled {
-  opacity: 0.5;
-}
-
 .rounded-button.chat-button .chat-icon {
   width: 20px;
   height: 20px;

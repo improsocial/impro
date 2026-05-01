@@ -132,32 +132,33 @@ export function profileCardTemplate({
         })}
         ${!isCurrentUser && !isLabeler && isAuthenticated && !isBlockedBy
           ? html` ${isFollowing
-                ? html`<button
-                    class="rounded-button bell-button"
-                    data-testid="post-notifications-button"
-                    title="${activitySubscription?.post
-                      ? "Manage post notifications"
-                      : "Get notified of new posts"}"
-                    @click=${() => {
-                      onClickPostNotifications(profile);
-                    }}
-                  >
-                    ${notificationsIconTemplate({
-                      filled: !!activitySubscription?.post,
-                    })}
-                  </button>`
-                : ""}
-              <button
-                class="rounded-button chat-button"
-                data-testid="chat-button"
-                ?disabled=${!canChat}
-                title="Go to chat"
-                @click=${() => {
-                  onClickChat(profile);
-                }}
-              >
-                ${chatIconTemplate()}
-              </button>`
+              ? html`<button
+                  class="rounded-button bell-button"
+                  data-testid="post-notifications-button"
+                  title="${activitySubscription?.post
+                    ? "Manage post notifications"
+                    : "Get notified of new posts"}"
+                  @click=${() => {
+                    onClickPostNotifications(profile);
+                  }}
+                >
+                  ${notificationsIconTemplate({
+                    filled: !!activitySubscription?.post,
+                  })}
+                </button>`
+              : ""}
+            ${canChat
+              ? html`<button
+                  class="rounded-button chat-button"
+                  data-testid="chat-button"
+                  title="Go to chat"
+                  @click=${() => {
+                    onClickChat(profile);
+                  }}
+                >
+                  ${chatIconTemplate()}
+                </button>`
+              : ""}`
           : null}
         ${(() => {
           if (isCurrentUser) {
