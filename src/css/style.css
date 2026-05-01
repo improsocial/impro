@@ -330,13 +330,16 @@ main {
   }
 
   .view-column-left {
-    flex: 1;
+    flex: 1 1 300px;
+    min-width: 0;
+    max-width: 300px;
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
   }
 
   .view-column-center {
+    box-sizing: border-box;
     flex: 1;
     border-right: var(--hair) solid var(--post-border-color);
     border-left: var(--hair) solid var(--post-border-color);
@@ -345,7 +348,9 @@ main {
   }
 
   .view-column-right {
-    flex: 1;
+    flex: 1 1 300px;
+    min-width: 0;
+    max-width: 300px;
   }
 }
 
@@ -3467,13 +3472,24 @@ chat-input {
 }
 
 @media (min-width: 800px) {
-  chat-input {
-    flex: 0;
+  /* mirror the .view-columns layout so the input aligns with view-column-center */
+  .message-input-wrapper {
+    justify-content: initial;
   }
-  /* this basically mirrors view-column-center */
-  .message-input-container {
-    bottom: 0;
+  .message-input-wrapper::before,
+  .message-input-wrapper::after {
+    content: "";
+    flex: 1 1 300px;
+    min-width: 0;
+    max-width: 300px;
+  }
+  chat-input {
+    flex: 1;
     min-width: 600px;
+  }
+  .message-input-container {
+    box-sizing: border-box;
+    bottom: 0;
     border-right: var(--hair) solid var(--post-border-color);
     border-left: var(--hair) solid var(--post-border-color);
   }
