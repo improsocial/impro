@@ -1756,7 +1756,6 @@ body.scroll-locked header {
   flex-direction: row;
   align-items: center;
   gap: 6px;
-  color: var(--text-color-muted);
 }
 
 .missing-quote-indicator .icon {
