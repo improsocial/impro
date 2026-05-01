@@ -5198,49 +5198,14 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   border-color: var(--highlight-color);
 }
 
-.image-alt-text-dialog-char-count {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.image-alt-text-dialog-char-count .char-count-text {
-  font-size: 14px;
-  color: var(--mid-gray);
-}
-
 .image-alt-text-dialog-footer .word-count-text {
   min-width: 32px;
   text-align: right;
 }
 
-.image-alt-text-dialog-char-count.overflow .char-count-text {
-  color: var(--red);
-}
-
 .image-alt-text-dialog-footer-buttons {
   display: flex;
   gap: 8px;
-}
-
-.image-alt-text-dialog-char-count .char-count-indicator {
-  height: 18px;
-  width: 18px;
-  border: 2px solid var(--light-gray);
-  position: relative;
-  overflow: hidden;
-}
-
-.image-alt-text-dialog-char-count .char-count-indicator-bar {
-  position: absolute;
-  bottom: 0;
-  width: 100%;
-  background-color: var(--blue);
-  transition: height 0.1s;
-}
-
-.image-alt-text-dialog-char-count.overflow .char-count-indicator-bar {
-  background-color: var(--red);
 }
 
 .image-alt-text-dialog-footer {
