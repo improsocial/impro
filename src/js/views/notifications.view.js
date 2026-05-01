@@ -15,6 +15,7 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import {
   getImagesFromPost,
   getVideoFromPost,
+  isEmptyPost,
   isUnavailablePost,
   parseUri,
 } from "/js/dataHelpers.js";
@@ -176,16 +177,15 @@ class NotificationsView extends View {
         type === "repost-via-repost"
       ) {
         const subject = notifications[0]?.subject;
-        return !subject || isUnavailablePost(subject);
+        return !subject || isEmptyPost(subject);
       }
       if (type === "reply" || type === "mention" || type === "quote") {
         const post = notifications[0]?.post;
-        return !post || isUnavailablePost(post);
+        return !post || isEmptyPost(post);
       }
       if (type === "subscribed-post") {
         return (
-          !notificationGroup.subject ||
-          isUnavailablePost(notificationGroup.subject)
+          !notificationGroup.subject || isEmptyPost(notificationGroup.subject)
         );
       }
       return false;

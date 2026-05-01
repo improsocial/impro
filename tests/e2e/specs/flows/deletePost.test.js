@@ -2,7 +2,11 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { userProfile } from "../../fixtures.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import {
+  createNotification,
+  createPost,
+  createProfile,
+} from "../../factories.js";
 
 test.describe("Delete post flow", () => {
   test("should remove post from home feed after deleting from profile", async ({
@@ -95,5 +99,67 @@ test.describe("Delete post flow", () => {
     // After deleting from thread view, the app should navigate away
     // or the post should no longer be visible
     await expect(largePost).not.toBeVisible({ timeout: 10000 });
+  });
+
+  test("should hide like notification after deleting the liked post", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: `at://${userProfile.did}/app.bsky.feed.post/mypost3`,
+      text: "Post that will be deleted",
+      authorHandle: userProfile.handle,
+      authorDisplayName: userProfile.displayName,
+    });
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    mockServer.addPosts([post]);
+    mockServer.addAuthorFeedPosts(userProfile.did, "posts_and_author_threads", [
+      post,
+    ]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "like",
+        author: alice,
+        reasonSubject: post.uri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+
+    // Confirm the like notification is initially visible
+    await page.goto("/notifications");
+    const notificationsView = page.locator("#notifications-view");
+    await expect(notificationsView.locator(".notification-item")).toHaveCount(
+      1,
+      { timeout: 10000 },
+    );
+    await expect(notificationsView).toContainText("liked your post");
+
+    // Delete the post from the profile view
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    const feedItem = profileView.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+    await feedItem.locator(".text-button").click();
+    await page.locator("context-menu-item", { hasText: "Delete post" }).click();
+    const confirmButton = page.locator("button.confirm-button");
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
+
+    // Notification should now be hidden because the post is a notFoundPost
+    await page.goto("/notifications");
+    await expect(notificationsView.locator(".feed-end-message")).toContainText(
+      "No notifications yet!",
+      { timeout: 10000 },
+    );
+    await expect(notificationsView.locator(".notification-item")).toHaveCount(
+      0,
+    );
   });
 });

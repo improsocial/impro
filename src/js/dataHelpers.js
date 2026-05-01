@@ -244,6 +244,10 @@ export function createUnavailablePost(uri) {
   };
 }
 
+export function isEmptyPost(post) {
+  return isBlockedPost(post) || isNotFoundPost(post) || isUnavailablePost(post);
+}
+
 export function isPostView(post) {
   return post.$type === "app.bsky.feed.defs#postView";
 }

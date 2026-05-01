@@ -7,9 +7,7 @@ import {
   isSelfOrFollowing,
   getMutedQuote,
   isMutedPost,
-  isBlockedPost,
-  isNotFoundPost,
-  isUnavailablePost,
+  isEmptyPost,
   doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 
@@ -179,10 +177,6 @@ function filterMutedPosts(feed) {
     feed: filteredFeedItems,
     cursor: feed.cursor,
   };
-}
-
-function isEmptyPost(post) {
-  return isBlockedPost(post) || isNotFoundPost(post) || isUnavailablePost(post);
 }
 
 function filterEmptyPosts(feed) {
