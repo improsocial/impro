@@ -5,8 +5,8 @@
   </head>
   <body>
     <div id="app-root">
-      <div id="splash-screen-container" class="splash-screen-container" hidden>
-        <div class="splash-screen">
+      <div id="app-loading-state" class="app-loading-state" hidden>
+        <div class="app-loading-state-content">
           <div class="loading-spinner"></div>
         </div>
       </div>
@@ -14,15 +14,36 @@
         <div>There was an error loading the app.</div>
         <button onclick="window.location.reload()">Try again</button>
       </div>
-      <script>
-        setTimeout(() => {
-          const errorState = document.getElementById("app-error-state");
-          if (errorState && !errorState.hidden) return;
-          const splash = document.getElementById("splash-screen-container");
-          if (splash) splash.hidden = false;
-        }, 2000);
-      </script>
     </div>
+
+    <script>
+      function showGlobalErrorState() {
+        const errorState = document.getElementById("app-error-state");
+        if (errorState) errorState.hidden = false;
+        const loadingState = document.getElementById("app-loading-state");
+        if (loadingState) loadingState.hidden = true;
+      }
+      function globalErrorStateIsShown() {
+        const errorState = document.getElementById("app-error-state");
+        return errorState && !errorState.hidden;
+      }
+      function showGlobalLoadingState() {
+        const errorState = document.getElementById("app-error-state");
+        if (errorState) errorState.hidden = true;
+        const loadingState = document.getElementById("app-loading-state");
+        if (loadingState) loadingState.hidden = false;
+      }
+      // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
+      // If the app loads successfully, the elements are replaced, so these timeouts won't do anything.
+      setTimeout(() => {
+        if (!globalErrorStateIsShown()) {
+          showGlobalLoadingState();
+        }
+      }, 2000);
+      setTimeout(() => {
+        showGlobalErrorState();
+      }, 10000);
+    </script>
 
     <script type="module">
       import { enableErrorLogs } from "/js/errorLogs.js";
@@ -130,8 +151,8 @@
           await dataLayer.initializePreferences();
         } catch (retryError) {
           console.error("Error initializing preferences", retryError);
-          document.getElementById("app-error-state").hidden = false;
-          document.getElementById("splash-screen-container").hidden = true;
+          window.showGlobalErrorState();
+          throw retryError;
         }
       }
 

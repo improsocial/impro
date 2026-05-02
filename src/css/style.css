@@ -6168,7 +6168,7 @@ moderation-warning .toggle-content {
   display: none;
 }
 
-.splash-screen {
+.app-loading-state-content {
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -6176,7 +6176,7 @@ moderation-warning .toggle-content {
   height: 100vh;
 }
 
-.splash-screen .loading-spinner {
+.app-loading-state-content .loading-spinner {
   width: 32px;
   height: 32px;
   border-width: 3px;
