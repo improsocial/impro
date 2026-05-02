@@ -35,7 +35,7 @@ html {
   --mid-light-gray: #656565;
   --lighter-gray: #d0d0d0;
   --lightest-gray: #f3f3f3;
-  --blue: #3a87fe;
+  --blue: #418af7;
   --purple: #9054f9;
   --pink: #df4074;
   --red: #d81316;
@@ -1261,6 +1261,14 @@ body.scroll-locked header {
   .sidebar-about-link:hover {
     text-decoration: underline;
   }
+
+  .logged-out-sidebar .sidebar-header {
+    align-items: center;
+  }
+
+  .logged-out-sidebar .sidebar-nav-item {
+    justify-content: center;
+  }
 }
 
 .sidebar-text-link {
@@ -1281,13 +1289,12 @@ body.scroll-locked header {
 
 @media (min-width: 800px) {
   .logged-out-sidebar .sidebar-title {
-    padding-left: 12px;
+    padding-left: 0;
+    text-align: center;
   }
-}
 
-@media (min-width: 1200px) {
-  .logged-out-sidebar .sidebar-title {
-    padding-left: 20px;
+  .logged-out-sidebar .sidebar-title h1 {
+    margin: 0;
   }
 }
 
@@ -1307,6 +1314,19 @@ body.scroll-locked header {
   margin-left: 16px;
   margin-top: 6px;
   white-space: nowrap;
+}
+
+@media (min-width: 800px) {
+  .logged-out-sidebar .login-button {
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  .logged-out-sidebar .sidebar-about-link {
+    margin-left: auto;
+    margin-right: auto;
+    text-align: center;
+  }
 }
 
 .footer-nav {
