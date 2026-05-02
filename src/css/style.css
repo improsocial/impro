@@ -918,7 +918,7 @@ body.scroll-locked header {
   display: inline-block;
   min-width: 3em;
   border-bottom: 3px solid transparent;
-  padding-bottom: 11px;
+  padding-bottom: 12px;
 }
 
 .tab-bar .tab-bar-button.active .tab-bar-button-label {
