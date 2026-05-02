@@ -121,7 +121,7 @@ class SettingsAdvancedView extends View {
                   <section class="settings-section">
                     <h2>App View</h2>
                     <p>
-                      Specify which App View (backend) to use for fetching
+                      Choose which App View (backend) to use for fetching
                       content. Tip: You can use the query parameter
                       ?reset-appview to reset the App View in case of
                       misconfiguration.
