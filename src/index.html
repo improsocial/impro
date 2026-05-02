@@ -243,6 +243,16 @@
         if (!anchor || anchor.dataset.external) {
           return;
         }
+        // Let the browser handle modifier/middle clicks (open in new tab/window)
+        if (
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey ||
+          e.button !== 0
+        ) {
+          return;
+        }
         if (anchor.href.startsWith("/")) {
           e.preventDefault();
           return router.go(anchor.href);
