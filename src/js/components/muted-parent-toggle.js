@@ -3,12 +3,12 @@ import { Component, getChildrenFragment } from "./component.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
 import { classnames } from "/js/utils.js";
 
-class MutedReplyToggle extends Component {
+class MutedParentToggle extends Component {
   connectedCallback() {
     if (this.initialized) {
       return;
     }
-    this.label = this.getAttribute("label") ?? "Muted reply";
+    this.label = this.getAttribute("label") ?? "Muted parent";
     this.expanded = false;
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
@@ -20,13 +20,13 @@ class MutedReplyToggle extends Component {
     render(
       html`
         <div
-          class=${classnames("muted-reply-toggle", {
+          class=${classnames("muted-parent-toggle", {
             expanded: this.expanded,
           })}
           aria-expanded=${this.expanded}
         >
           <div
-            class="muted-reply-toggle-button"
+            class="muted-parent-toggle-button"
             tabindex="0"
             role="button"
             ?hidden=${this.expanded}
@@ -39,7 +39,7 @@ class MutedReplyToggle extends Component {
               }
             }}
           >
-            <div class="muted-reply-toggle-button-icon">
+            <div class="muted-parent-toggle-button-icon">
               ${eyeSlashIconTemplate()}
             </div>
             <span>${this.label}</span>
@@ -63,4 +63,4 @@ class MutedReplyToggle extends Component {
   }
 }
 
-MutedReplyToggle.register();
+MutedParentToggle.register();

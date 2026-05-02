@@ -354,22 +354,7 @@ t.describe("smallPostTemplate - blocked/unavailable posts", (it) => {
 });
 
 t.describe("smallPostTemplate - moderation", (it) => {
-  it("should wrap in muted-reply-toggle for muted account when hideMutedAccount is true", () => {
-    const mutedAccountPost = {
-      ...post,
-      author: { ...post.author, viewer: { muted: true } },
-    };
-    const result = smallPostTemplate({
-      post: mutedAccountPost,
-      ...baseProps,
-      hideMutedAccount: true,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    assert(container.querySelector("muted-reply-toggle") !== null);
-  });
-
-  it("should wrap in muted-reply-toggle for post with muted word", () => {
+  it("should show a moderation warning for post with muted word", () => {
     const mutedWordPost = {
       ...post,
       viewer: { ...post.viewer, hasMutedWord: true },
@@ -380,10 +365,12 @@ t.describe("smallPostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("muted-reply-toggle") !== null);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("label"), "Hidden by muted word");
   });
 
-  it("should wrap in muted-reply-toggle for hidden post", () => {
+  it("should show a moderation warning for hidden post", () => {
     const hiddenPost = {
       ...post,
       viewer: { ...post.viewer, isHidden: true },
@@ -394,10 +381,12 @@ t.describe("smallPostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("muted-reply-toggle") !== null);
+    const warning = container.querySelector("moderation-warning");
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("label"), "Post hidden by you");
   });
 
-  it("should not wrap in muted-reply-toggle for normal post", () => {
+  it("should not show a moderation warning for normal post", () => {
     const normalPost = {
       ...post,
       viewer: { ...post.viewer, hasMutedWord: false, isHidden: false },
@@ -409,7 +398,22 @@ t.describe("smallPostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("muted-reply-toggle"), null);
+    assertEquals(container.querySelector("moderation-warning"), null);
+  });
+
+  it("should suppress mute warning when ignoreMuteWarning is true", () => {
+    const mutedWordPost = {
+      ...post,
+      viewer: { ...post.viewer, hasMutedWord: true },
+    };
+    const result = smallPostTemplate({
+      post: mutedWordPost,
+      ...baseProps,
+      ignoreMuteWarning: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector("moderation-warning"), null);
   });
   it("should show author info and lock message for !no-unauthenticated posts when logged out", () => {
     const restrictedPost = {

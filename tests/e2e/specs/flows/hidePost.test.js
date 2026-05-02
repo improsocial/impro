@@ -115,16 +115,16 @@ test.describe("Hide post flow", () => {
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();
 
-    // The reply should show "Post hidden by you" wrapper
-    const mutedToggle = view.locator("muted-reply-toggle");
-    await expect(mutedToggle).toBeVisible({ timeout: 10000 });
-    await expect(mutedToggle).toContainText("Post hidden by you");
+    // The reply should show a "Post hidden by you" moderation warning
+    const warning = view.locator("moderation-warning");
+    await expect(warning).toBeVisible({ timeout: 10000 });
+    await expect(warning).toContainText("Post hidden by you");
 
-    // Expanding the wrapper should reveal the content
-    await mutedToggle.locator(".muted-reply-toggle-button").click();
-    await expect(mutedToggle.locator(".toggle-content")).toBeVisible({
+    // Expanding the warning should reveal the content
+    await warning.locator(".top-bar").click();
+    await expect(warning.locator(".toggle-content")).toBeVisible({
       timeout: 5000,
     });
-    await expect(mutedToggle).toContainText("Reply to hide in thread");
+    await expect(warning).toContainText("Reply to hide in thread");
   });
 });

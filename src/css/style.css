@@ -2706,12 +2706,12 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   }
 }
 
-.muted-reply-toggle-button-icon {
+.muted-parent-toggle-button-icon {
   width: 20px;
   height: 20px;
 }
 
-.muted-reply-toggle-button {
+.muted-parent-toggle-button {
   display: flex;
   align-items: center;
   gap: 16px;
@@ -2724,12 +2724,12 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 }
 
 /* i don't know why the hidden attribute isn't working, but this hides it */
-.muted-reply-toggle.expanded .muted-reply-toggle-button {
+.muted-parent-toggle.expanded .muted-parent-toggle-button {
   display: none;
 }
 
 @media (min-width: 800px) {
-  .muted-reply-toggle-button:hover {
+  .muted-parent-toggle-button:hover {
     background-color: var(--post-hover-color);
   }
 }

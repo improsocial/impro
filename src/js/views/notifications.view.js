@@ -416,7 +416,7 @@ class NotificationsView extends View {
             showReplyToLabel: !!replyToAuthor,
             replyToAuthor,
             postInteractionHandler,
-            overrideMutedWords: true,
+            ignoreMuteWarning: true,
           })}
         </div>
       `;

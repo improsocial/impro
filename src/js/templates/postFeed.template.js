@@ -1,5 +1,6 @@
 import { html, keyed } from "/js/lib/lit-html.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
+import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { linkToPost } from "/js/navigation.js";
 
@@ -18,15 +19,19 @@ function feedFeedbackMessageTemplate({ post }) {
   `;
 }
 
-function postTemplate({ post, hiddenPostUris, ...props }) {
+function postTemplate({ post, hiddenPostUris, isParent = false, ...props }) {
   if (hiddenPostUris.includes(post.uri)) {
     return feedFeedbackMessageTemplate({ post });
-  } else {
-    return smallPostTemplate({
-      post,
-      ...props,
-    });
   }
+  const rendered = smallPostTemplate({
+    post,
+    ...props,
+    ignoreMuteWarning: isParent || props.ignoreMuteWarning,
+  });
+  if (isParent) {
+    return mutedParentToggleTemplate({ post, children: rendered });
+  }
+  return rendered;
 }
 
 function replyContextTemplate({
@@ -61,7 +66,7 @@ function replyContextTemplate({
               onClickShowLess,
               onClickShowMore,
               enableFeedFeedback,
-              hideMutedAccount: true,
+              isParent: true,
             })}
           `
         : ""}
@@ -90,7 +95,7 @@ function replyContextTemplate({
               onClickShowLess,
               onClickShowMore,
               enableFeedFeedback,
-              hideMutedAccount: true,
+              isParent: true,
             })}
           `
         : ""}
