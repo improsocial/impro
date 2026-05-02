@@ -41,10 +41,13 @@ function contentWarningTemplate({
     });
   }
   if (!ignoreMuteWarning) {
+    // stop clicks here from bubbling to the surrounding post and triggering navigation
+    const stopClick = (e) => e.stopPropagation();
     if (post.viewer?.hasMutedWord) {
       return html`<moderation-warning
         label="Hidden by muted word"
         icon-style="closed-eye"
+        @click=${stopClick}
         >${children}</moderation-warning
       >`;
     }
@@ -52,6 +55,7 @@ function contentWarningTemplate({
       return html`<moderation-warning
         label="Post hidden by you"
         icon-style="closed-eye"
+        @click=${stopClick}
         >${children}</moderation-warning
       >`;
     }
