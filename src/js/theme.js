@@ -5,7 +5,7 @@ function getRootStyle() {
 }
 
 export function getDefaultHighlightColor() {
-  return getRootStyle().getPropertyValue("--purple");
+  return getRootStyle().getPropertyValue("--blue");
 }
 
 export function getDefaultLikeColor() {
