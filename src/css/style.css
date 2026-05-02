@@ -5324,8 +5324,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .toast-with-link a {
-  color: var(--text-color);
+  color: inherit;
   text-decoration: underline;
+  font-weight: 500;
+  display: inline-block;
+  margin-left: 2px;
 }
 
 .lightbox-container {
