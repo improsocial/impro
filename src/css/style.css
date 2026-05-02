@@ -1518,6 +1518,10 @@ body.scroll-locked header {
   margin-bottom: 10px;
 }
 
+.large-post moderation-warning .top-bar {
+  margin-bottom: 0;
+}
+
 .post-content {
   position: relative;
   display: flex;

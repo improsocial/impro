@@ -23,6 +23,23 @@ import {
 } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
 
+function mutedWarningTemplate({ post, children }) {
+  if (post.viewer?.hasMutedWord) {
+    return html`<moderation-warning
+      label="Post hidden by muted word"
+      icon-style="closed-eye"
+      >${children}</moderation-warning
+    > `;
+  } else if (post.viewer?.isHidden) {
+    return html`<moderation-warning
+      label="Post hidden by you"
+      icon-style="closed-eye"
+      >${children}</moderation-warning
+    > `;
+  }
+  return children;
+}
+
 function postActionCountsTemplate({
   repostCount,
   likeCount,
@@ -110,114 +127,92 @@ export function largePostTemplate({
   if (contentLabel && contentLabel.visibility !== "ignore") {
     badgeLabels.push(contentLabel);
   }
-  let content = html`
-      <div class="post-content">
-        <div class="post-content-top">
-          <div>
-            ${
-              replyContext === "parent" || replyContext === "reply"
-                ? html`<div class="reply-context-line-in"></div>`
-                : ""
-            }
-            <div>${avatarTemplate({ author: post.author })}</div>
-          </div>
-          <div class="large-post-header-text">
-            ${postHeaderTextTemplate({
-              author: post.author,
-              timestamp: post.indexedAt,
-              includeTime: false,
-            })}
-          </div>
+  return html`<div class="post large-post" data-testid="large-post">
+    <div class="post-content">
+      <div class="post-content-top">
+        <div>
+          ${replyContext === "parent" || replyContext === "reply"
+            ? html`<div class="reply-context-line-in"></div>`
+            : ""}
+          <div>${avatarTemplate({ author: post.author })}</div>
         </div>
-        ${badgeLabels.length > 0 ? postLabelsTemplate({ badgeLabels }) : ""}
-        <div class="post-content-bottom">
-          <div class="post-body">
-            ${
-              postText.length > 0
-                ? html`<div class="post-text">
-                    ${richTextTemplate({
-                      text: postText,
-                      facets: post.record.facets,
-                      truncateUrls: true,
-                    })}
-                  </div>`
-                : ""
-            }
-            ${
-              post.embed
-                ? html`<div class="post-embed">
-                    ${postEmbedTemplate({
-                      embed: post.embed,
-                      mediaLabel: post.mediaLabel,
-                      isAuthenticated,
-                    })}
-                  </div>`
-                : null
-            }
-            <div class="post-full-timestamp">
-              ${formatFullTimestamp(post.indexedAt)}
-              ${whoCanReplyBadgeTemplate({ post })}
-            </div>
-            ${postActionCountsTemplate({
-              repostCount: post.repostCount,
-              quoteCount: post.quoteCount,
-              likeCount: post.likeCount,
-              bookmarkCount: post.bookmarkCount,
-              post,
-            })}
-            ${postActionBarTemplate({
-              post,
-              isUserPost,
-              isAuthenticated,
-              currentUser,
-              onClickReply,
-              onClickLike: (post, doLike) =>
-                postInteractionHandler.handleLike(post, doLike),
-              onClickRepost: (post, doRepost) =>
-                postInteractionHandler.handleRepost(post, doRepost),
-              onClickQuotePost: (post) =>
-                postInteractionHandler.handleQuotePost(post),
-              onClickBookmark: (post, doBookmark) =>
-                postInteractionHandler.handleBookmark(post, doBookmark),
-              onClickHidePost: async (post) => {
-                await postInteractionHandler.handleHidePost(post);
-                if (afterHide) {
-                  afterHide(post);
-                }
-              },
-              onClickMute: (profile, doMute) =>
-                postInteractionHandler.handleMuteAuthor(profile, doMute),
-              onClickBlock: (profile, doBlock) =>
-                postInteractionHandler.handleBlockAuthor(profile, doBlock),
-              onClickDelete: async (post) => {
-                await postInteractionHandler.handleDeletePost(post);
-                if (afterDelete) {
-                  afterDelete(post);
-                }
-              },
-              onClickReport: (post) =>
-                postInteractionHandler.handleReport(post),
-            })}
-            </div>
-          </div>
+        <div class="large-post-header-text">
+          ${postHeaderTextTemplate({
+            author: post.author,
+            timestamp: post.indexedAt,
+            includeTime: false,
+          })}
         </div>
       </div>
-    `;
-
-  if (post.viewer?.hasMutedWord) {
-    content = html`<moderation-warning
-      label="Post hidden by muted word"
-      icon-style="closed-eye"
-      >${content}</moderation-warning
-    > `;
-  } else if (post.viewer?.isHidden) {
-    content = html`<moderation-warning
-      label="Post hidden by you"
-      icon-style="closed-eye"
-      >${content}</moderation-warning
-    > `;
-  }
-  return html`<div class="post large-post" data-testid="large-post">
-    ${content}
+      ${badgeLabels.length > 0 ? postLabelsTemplate({ badgeLabels }) : ""}
+      <div class="post-content-bottom">
+        ${mutedWarningTemplate({
+          post,
+          children: html`<div class="post-body">
+            ${postText.length > 0
+              ? html`<div class="post-text">
+                  ${richTextTemplate({
+                    text: postText,
+                    facets: post.record.facets,
+                    truncateUrls: true,
+                  })}
+                </div>`
+              : ""}
+            ${post.embed
+              ? html`<div class="post-embed">
+                  ${postEmbedTemplate({
+                    embed: post.embed,
+                    mediaLabel: post.mediaLabel,
+                    isAuthenticated,
+                  })}
+                </div>`
+              : null}
+          </div>`,
+        })}
+        <div class="post-full-timestamp">
+          ${formatFullTimestamp(post.indexedAt)}
+          ${whoCanReplyBadgeTemplate({ post })}
+        </div>
+        ${postActionCountsTemplate({
+          repostCount: post.repostCount,
+          quoteCount: post.quoteCount,
+          likeCount: post.likeCount,
+          bookmarkCount: post.bookmarkCount,
+          post,
+        })}
+        ${postActionBarTemplate({
+          post,
+          isUserPost,
+          isAuthenticated,
+          currentUser,
+          onClickReply,
+          onClickLike: (post, doLike) =>
+            postInteractionHandler.handleLike(post, doLike),
+          onClickRepost: (post, doRepost) =>
+            postInteractionHandler.handleRepost(post, doRepost),
+          onClickQuotePost: (post) =>
+            postInteractionHandler.handleQuotePost(post),
+          onClickBookmark: (post, doBookmark) =>
+            postInteractionHandler.handleBookmark(post, doBookmark),
+          onClickHidePost: async (post) => {
+            await postInteractionHandler.handleHidePost(post);
+            if (afterHide) {
+              afterHide(post);
+            }
+          },
+          onClickMute: (profile, doMute) =>
+            postInteractionHandler.handleMuteAuthor(profile, doMute),
+          onClickBlock: (profile, doBlock) =>
+            postInteractionHandler.handleBlockAuthor(profile, doBlock),
+          onClickDelete: async (post) => {
+            await postInteractionHandler.handleDeletePost(post);
+            if (afterDelete) {
+              afterDelete(post);
+            }
+          },
+          onClickReport: (post) => postInteractionHandler.handleReport(post),
+        })}
+      </div>
+    </div>
   </div>`;
 }

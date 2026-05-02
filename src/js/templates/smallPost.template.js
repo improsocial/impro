@@ -164,38 +164,37 @@ export function smallPostTemplate({
                         })}
                       </div>`
                     : null}`}
-              ${postActionBarTemplate({
-                post,
-                isUserPost,
-                isAuthenticated,
-                currentUser,
-                onClickReply: () => {
-                  window.router.go(linkToPost(post));
-                },
-                onClickLike: (post, doLike) =>
-                  postInteractionHandler.handleLike(post, doLike),
-                onClickRepost: (post, doRepost) =>
-                  postInteractionHandler.handleRepost(post, doRepost),
-                onClickQuotePost: (post) =>
-                  postInteractionHandler.handleQuotePost(post),
-                onClickBookmark: (post, doBookmark) =>
-                  postInteractionHandler.handleBookmark(post, doBookmark),
-                onClickShowLess,
-                onClickShowMore,
-                onClickHidePost: (post) =>
-                  postInteractionHandler.handleHidePost(post),
-                onClickMute: (profile, doMute) =>
-                  postInteractionHandler.handleMuteAuthor(profile, doMute),
-                onClickBlock: (profile, doBlock) =>
-                  postInteractionHandler.handleBlockAuthor(profile, doBlock),
-                onClickDelete: (post) => {
-                  postInteractionHandler.handleDeletePost(post);
-                },
-                onClickReport: (post) =>
-                  postInteractionHandler.handleReport(post),
-                enableFeedFeedback,
-              })}
             </div>`,
+          })}
+          ${postActionBarTemplate({
+            post,
+            isUserPost,
+            isAuthenticated,
+            currentUser,
+            onClickReply: () => {
+              window.router.go(linkToPost(post));
+            },
+            onClickLike: (post, doLike) =>
+              postInteractionHandler.handleLike(post, doLike),
+            onClickRepost: (post, doRepost) =>
+              postInteractionHandler.handleRepost(post, doRepost),
+            onClickQuotePost: (post) =>
+              postInteractionHandler.handleQuotePost(post),
+            onClickBookmark: (post, doBookmark) =>
+              postInteractionHandler.handleBookmark(post, doBookmark),
+            onClickShowLess,
+            onClickShowMore,
+            onClickHidePost: (post) =>
+              postInteractionHandler.handleHidePost(post),
+            onClickMute: (profile, doMute) =>
+              postInteractionHandler.handleMuteAuthor(profile, doMute),
+            onClickBlock: (profile, doBlock) =>
+              postInteractionHandler.handleBlockAuthor(profile, doBlock),
+            onClickDelete: (post) => {
+              postInteractionHandler.handleDeletePost(post);
+            },
+            onClickReport: (post) => postInteractionHandler.handleReport(post),
+            enableFeedFeedback,
           })}
         </div>
       </div>
