@@ -107,7 +107,7 @@ t.describe("LikeButton - count attribute", (it) => {
     const element = document.createElement("like-button");
     element.setAttribute("count", "1500");
     document.body.appendChild(element);
-    const countEl = element.querySelector(".count-current");
+    const countEl = element.querySelector(".post-action-count");
     // formatLargeNumber should format 1500 as "1.5K" or similar
     assert(countEl !== null);
   });

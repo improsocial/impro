@@ -219,9 +219,6 @@ html {
   /* indicator backgrounds */
   --alt-indicator-background: rgba(26, 26, 26, 0.75);
 
-  /* animations */
-  --like-count-animation-duration: 0.3s;
-
   /* base styles */
   background: var(--background-color);
   font-family:
@@ -2110,87 +2107,11 @@ like-button {
 }
 
 .post-action-count {
-  position: relative;
-  overflow: hidden;
   vertical-align: top;
   font-size: 13px;
-  display: flex;
-  flex-direction: row;
-  gap: 4px;
   left: -2px;
-}
-
-.post-action-count .count-current {
-  display: inline-block;
-  transition: transform var(--like-count-animation-duration) ease-out;
+  position: relative;
   padding-right: 5px;
-}
-
-.post-action-count .count-previous {
-  position: absolute;
-  left: 0;
-  top: 0;
-  display: inline-block;
-}
-
-.post-action-count.count-animating.count-increasing .count-current {
-  animation: count-rotate-in-up var(--like-count-animation-duration) ease-out;
-}
-
-.post-action-count.count-animating.count-increasing .count-previous {
-  animation: count-rotate-out-up var(--like-count-animation-duration) ease-out;
-}
-
-.post-action-count.count-animating.count-decreasing .count-current {
-  animation: count-rotate-in-down var(--like-count-animation-duration) ease-out;
-}
-
-.post-action-count.count-animating.count-decreasing .count-previous {
-  animation: count-rotate-out-down var(--like-count-animation-duration) ease-out;
-}
-
-@keyframes count-rotate-in-up {
-  0% {
-    transform: translateY(100%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes count-rotate-out-up {
-  0% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-}
-
-@keyframes count-rotate-in-down {
-  0% {
-    transform: translateY(-100%);
-    opacity: 0;
-  }
-  100% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-}
-
-@keyframes count-rotate-out-down {
-  0% {
-    transform: translateY(0);
-    opacity: 1;
-  }
-  100% {
-    transform: translateY(100%);
-    opacity: 0;
-  }
 }
 
 .post-action-counts {

@@ -3,10 +3,8 @@ import { Component } from "./component.js";
 import { classnames, formatLargeNumber } from "/js/utils.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 
-// Should match the CSS animation durations
+// Should match the CSS animation duration
 const LIKE_ANIMATION_DURATION = 600;
-const COUNT_INCREASING_ANIMATION_DURATION = 275; // note- this needs to be slightly less than the duration of the animation to avoid a flash of the previous count
-const COUNT_DECREASING_ANIMATION_DURATION = 280;
 
 // Animated!
 class LikeButton extends Component {
@@ -23,12 +21,8 @@ class LikeButton extends Component {
     }
     this.isLiked = this.hasAttribute("is-liked");
     this.count = Number(this.getAttribute("count") || "0");
-    this.prevCount = this.count;
     this._isRippleAnimating = false;
-    this._isCountAnimating = false;
-    this._isCountIncreasing = true;
     this._rippleTimeout = null;
-    this._countTimeout = null;
     this._batchedAttributes = null;
     this._recentlyClicked = false;
     this.render();
@@ -36,17 +30,12 @@ class LikeButton extends Component {
   }
 
   batchedAttributeChangedCallback() {
-    this.prevCount = this.count;
     this.count = Number(this.getAttribute("count") || "0");
     this.wasLiked = this.isLiked;
     this.isLiked = this.hasAttribute("is-liked");
     if (this.isLiked && !this.wasLiked && this._recentlyClicked) {
       this.triggerRippleAnimation();
     }
-    // if (this.count !== this.prevCount) {
-    //   this._isCountIncreasing = this.count > this.prevCount;
-    //   this.triggerCountAnimation();
-    // }
     this.render();
   }
 
@@ -80,32 +69,9 @@ class LikeButton extends Component {
     }, LIKE_ANIMATION_DURATION);
   }
 
-  triggerCountAnimation() {
-    if (this._countTimeout) {
-      clearTimeout(this._countTimeout);
-    }
-
-    this._isCountAnimating = true;
-    this.render();
-
-    this._countTimeout = setTimeout(
-      () => {
-        this._isCountAnimating = false;
-        this.render();
-        this._countTimeout = null;
-      },
-      this._isCountIncreasing
-        ? COUNT_INCREASING_ANIMATION_DURATION
-        : COUNT_DECREASING_ANIMATION_DURATION,
-    );
-  }
-
   disconnectedCallback() {
     if (this._rippleTimeout) {
       clearTimeout(this._rippleTimeout);
-    }
-    if (this._countTimeout) {
-      clearTimeout(this._countTimeout);
     }
   }
 
@@ -134,22 +100,9 @@ class LikeButton extends Component {
         >
           <div class="post-action-icon">${heartIconTemplate()}</div>
           ${this.count > 0
-            ? html`<span
-                class=${classnames("post-action-count", {
-                  "count-animating": this._isCountAnimating,
-                  "count-increasing": this._isCountIncreasing,
-                  "count-decreasing": !this._isCountIncreasing,
-                })}
-              >
-                <span class="count-current"
-                  >${formatLargeNumber(this.count)}</span
-                >
-                ${this._isCountAnimating && this.prevCount > 0
-                  ? html`<span class="count-previous"
-                      >${formatLargeNumber(this.prevCount)}</span
-                    >`
-                  : null}
-              </span>`
+            ? html`<span class="post-action-count"
+                >${formatLargeNumber(this.count)}</span
+              >`
             : null}
         </button>
       `,
