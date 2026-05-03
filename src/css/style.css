@@ -2358,12 +2358,18 @@ animated-button {
 .feed-generator-embed-subtitle {
   font-size: 13px;
   color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .feed-generator-embed-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .feed-avatar {
@@ -2399,12 +2405,18 @@ animated-button {
 .list-embed-subtitle {
   font-size: 13px;
   color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .list-embed-text {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  flex: 1;
+  min-width: 0;
 }
 
 .list-avatar {
@@ -2461,6 +2473,10 @@ animated-button {
 .starter-pack-embed-subtitle {
   color: var(--text-color-muted);
   font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 
 .post-composer-embed-preview {
