@@ -1,5 +1,6 @@
 import { Component, getChildrenFragment } from "./component.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { ImageLoader } from "/js/utils.js";
 import { chevronLeftIconTemplate } from "../templates/icons/chevronLeft.template.js";
 import { chevronRightIconTemplate } from "../templates/icons/chevronRight.template.js";
 
@@ -14,6 +15,7 @@ class LightboxDialog extends Component {
     this.currentIndex = this.currentIndex || 0;
     this.images = this.images || [];
     this.isOpen = false;
+    this._imageLoader = this._imageLoader || new ImageLoader();
     this.render();
     this._initialized = true;
   }
@@ -24,9 +26,31 @@ class LightboxDialog extends Component {
       return;
     }
     const currentImg = this.images[this.currentIndex];
-    const src = currentImg.dataset.lightboxSrc ?? currentImg.src;
+    const fullsizeSrc = currentImg.dataset.lightboxSrc;
+    const thumbSrc = currentImg.src;
+    const hasFullsize = fullsizeSrc && fullsizeSrc !== thumbSrc;
+    const fullsizeReady =
+      hasFullsize && this._imageLoader.isLoaded(fullsizeSrc);
+    const src = fullsizeReady ? fullsizeSrc : thumbSrc;
     const alt = currentImg.alt;
     const hasMultiple = this.images.length > 1;
+
+    if (
+      hasFullsize &&
+      !fullsizeReady &&
+      !this._imageLoader.hasFailed(fullsizeSrc)
+    ) {
+      this._imageLoader.load(fullsizeSrc).then(
+        () => {
+          if (this.isOpen) {
+            this.render();
+          }
+        },
+        () => {
+          // Load failed or was aborted; keep showing the thumb.
+        },
+      );
+    }
 
     render(
       html`
@@ -102,6 +126,7 @@ class LightboxDialog extends Component {
     document.body.style.overflow = "";
     document.removeEventListener("keydown", this.handleKeyDown);
     this.isOpen = false;
+    this._imageLoader.abort();
     this.render();
     this.dispatchEvent(new Event("close"));
   }

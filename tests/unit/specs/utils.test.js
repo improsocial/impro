@@ -12,6 +12,7 @@ import {
   differenceInHours,
   differenceInDays,
   buildQueryString,
+  ImageLoader,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -421,6 +422,122 @@ t.describe("buildQueryString", (it) => {
   it("should omit the key entirely for an empty array", () => {
     const result = buildQueryString({ tag: [] });
     assertEquals(result, "");
+  });
+});
+
+t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
+  const originalImage = window.Image;
+
+  class MockImage {
+    static instances = [];
+    constructor() {
+      this.onload = null;
+      this.onerror = null;
+      this._src = "";
+      MockImage.instances.push(this);
+    }
+    set src(value) {
+      this._src = value;
+    }
+    get src() {
+      return this._src;
+    }
+  }
+
+  beforeEach(() => {
+    MockImage.instances = [];
+    window.Image = MockImage;
+  });
+
+  afterEach(() => {
+    window.Image = originalImage;
+  });
+
+  async function assertRejects(promise) {
+    let threw = false;
+    try {
+      await promise;
+    } catch {
+      threw = true;
+    }
+    assert(threw, "expected promise to reject");
+  }
+
+  it("returns the same promise for concurrent loads of the same src", async () => {
+    const loader = new ImageLoader();
+    const promiseA = loader.load("a.jpg");
+    const promiseB = loader.load("a.jpg");
+
+    assertEquals(MockImage.instances.length, 1);
+    assert(promiseA === promiseB);
+
+    MockImage.instances[0].onload();
+    await promiseA;
+    assert(loader.isLoaded("a.jpg"));
+  });
+
+  it("does not refetch a src that has already loaded", async () => {
+    const loader = new ImageLoader();
+    const first = loader.load("b.jpg");
+    MockImage.instances[0].onload();
+    await first;
+
+    await loader.load("b.jpg");
+    assertEquals(MockImage.instances.length, 1);
+  });
+
+  it("isLoaded returns false until the load completes", async () => {
+    const loader = new ImageLoader();
+    const promise = loader.load("c.jpg");
+    assertEquals(loader.isLoaded("c.jpg"), false);
+
+    MockImage.instances[0].onload();
+    await promise;
+    assertEquals(loader.isLoaded("c.jpg"), true);
+  });
+
+  it("abort rejects in-flight loads and clears their handlers", async () => {
+    const loader = new ImageLoader();
+    const promise = loader.load("d.jpg");
+    loader.abort();
+
+    await assertRejects(promise);
+    assertEquals(MockImage.instances[0].onload, null);
+    assertEquals(MockImage.instances[0].onerror, null);
+    assertEquals(loader.isLoaded("d.jpg"), false);
+  });
+
+  it("abort allows a subsequent load to refetch", async () => {
+    const loader = new ImageLoader();
+    const aborted = loader.load("e.jpg");
+    loader.abort();
+    await assertRejects(aborted);
+    loader.load("e.jpg");
+
+    assertEquals(MockImage.instances.length, 2);
+  });
+
+  it("resolves on success and rejects on error", async () => {
+    const loader = new ImageLoader();
+    const okPromise = loader.load("ok.jpg");
+    MockImage.instances[0].onload();
+    await okPromise;
+
+    const failPromise = loader.load("bad.jpg");
+    MockImage.instances[1].onerror();
+    await assertRejects(failPromise);
+  });
+
+  it("does not refetch a src that has already failed", async () => {
+    const loader = new ImageLoader();
+    const promise = loader.load("f.jpg");
+    MockImage.instances[0].onerror();
+    await assertRejects(promise);
+
+    assertEquals(loader.isLoaded("f.jpg"), false);
+    assertEquals(loader.hasFailed("f.jpg"), true);
+    await assertRejects(loader.load("f.jpg"));
+    assertEquals(MockImage.instances.length, 1);
   });
 });
 

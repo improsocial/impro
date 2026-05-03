@@ -210,6 +210,7 @@ function imageContainerTemplate({ image, lazyLoad }) {
     <img
       class="post-image"
       src="${image.thumb}"
+      data-lightbox-src="${image.fullsize ?? image.thumb}"
       alt=${image.alt}
       height=${image.aspectRatio?.height ?? ""}
       width=${image.aspectRatio?.width ?? ""}

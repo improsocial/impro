@@ -395,3 +395,63 @@ export function resetScrollOnBlur(dialog, scrollArea) {
     true,
   );
 }
+
+export class ImageLoader {
+  constructor() {
+    this._loaded = new Set();
+    this._failed = new Set();
+    this._loading = new Map();
+  }
+
+  isLoaded(src) {
+    return this._loaded.has(src);
+  }
+
+  hasFailed(src) {
+    return this._failed.has(src);
+  }
+
+  load(src) {
+    if (this._loaded.has(src)) {
+      return Promise.resolve();
+    }
+    if (this._failed.has(src)) {
+      return Promise.reject(
+        new Error(`Image previously failed to load: ${src}`),
+      );
+    }
+    const inFlight = this._loading.get(src);
+    if (inFlight) {
+      return inFlight.promise;
+    }
+    const image = new window.Image();
+    let rejectFn;
+    let resolveFn;
+    const promise = new Promise((resolve, reject) => {
+      resolveFn = resolve;
+      rejectFn = reject;
+    });
+    image.onload = () => {
+      this._loaded.add(src);
+      this._loading.delete(src);
+      resolveFn();
+    };
+    image.onerror = () => {
+      this._failed.add(src);
+      this._loading.delete(src);
+      rejectFn(new Error(`Image failed to load: ${src}`));
+    };
+    this._loading.set(src, { image, reject: rejectFn, promise });
+    image.src = src;
+    return promise;
+  }
+
+  abort() {
+    for (const { image, reject } of this._loading.values()) {
+      image.onload = null;
+      image.onerror = null;
+      reject(new Error("Image load aborted"));
+    }
+    this._loading.clear();
+  }
+}

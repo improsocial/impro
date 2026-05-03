@@ -19,10 +19,23 @@ export class TestSuite {
   }
 
   describe(namespace, callback) {
+    let scopedBeforeEach = null;
+    let scopedAfterEach = null;
     const it = (name, fn) => {
-      this.tests.push({ name: `${namespace} > ${name}`, fn });
+      this.tests.push({
+        name: `${namespace} > ${name}`,
+        fn,
+        beforeEach: () => scopedBeforeEach,
+        afterEach: () => scopedAfterEach,
+      });
     };
-    callback(it);
+    const beforeEach = (fn) => {
+      scopedBeforeEach = fn;
+    };
+    const afterEach = (fn) => {
+      scopedAfterEach = fn;
+    };
+    callback(it, { beforeEach, afterEach });
   }
 
   async run() {
@@ -30,9 +43,14 @@ export class TestSuite {
     console.info(`Running test suite "${this.suiteName}"...`);
     for (const test of this.tests) {
       console.info(`   ${this.suiteName} > ${test.name}`);
+      const scopedBeforeEach = test.beforeEach?.();
+      const scopedAfterEach = test.afterEach?.();
       try {
         if (this._beforeEach) {
           await this._beforeEach();
+        }
+        if (scopedBeforeEach) {
+          await scopedBeforeEach();
         }
         await test.fn();
         console.info("   ✅ Passed");
@@ -42,6 +60,9 @@ export class TestSuite {
         console.error(error);
         results.push({ name: test.name, success: false, error: error.message });
       } finally {
+        if (scopedAfterEach) {
+          await scopedAfterEach();
+        }
         if (this._afterEach) {
           await this._afterEach();
         }
