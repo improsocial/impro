@@ -286,7 +286,7 @@ export class Selectors {
     // Filter the feed items to only show replies
     const filteredFeedItems = [];
     for (const feedItem of feed.feed) {
-      if (feedItem.reply) {
+      if (feedItem.reply && !feedItem.reason) {
         filteredFeedItems.push(feedItem);
       }
     }
