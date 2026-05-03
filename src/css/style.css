@@ -5264,7 +5264,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
     color-mix(in srgb, var(--highlight-color) 8%, var(--white)),
     color-mix(in srgb, var(--highlight-color) 8%, var(--mid-gray))
   );
-  border-color: color-mix(in srgb, var(--highlight-color) 30%, transparent);
+  border-color: var(--highlight-color);
   color: var(--highlight-color);
 }
 
@@ -5273,7 +5273,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
     color-mix(in srgb, var(--error-color) 12%, var(--white)),
     color-mix(in srgb, var(--error-color) 12%, var(--mid-gray))
   );
-  border-color: color-mix(in srgb, var(--error-color) 30%, transparent);
+  border-color: var(--error-color);
   color: var(--error-color);
 }
 
@@ -5282,7 +5282,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
     color-mix(in srgb, var(--warning-color) 12%, var(--white)),
     color-mix(in srgb, var(--warning-color) 12%, var(--mid-gray))
   );
-  border-color: color-mix(in srgb, var(--warning-color) 30%, transparent);
+  border-color: var(--warning-color);
   color: var(--warning-color);
 }
 
