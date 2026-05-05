@@ -2,7 +2,7 @@ import { html } from "/js/lib/lit-html.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
-import { pluginHost } from "/js/plugins/pluginHost.js";
+import { pluginService } from "/js/plugins/pluginService.js";
 import "/js/components/animated-sidebar.js";
 
 function defaultOnClickComposeButton() {
@@ -38,7 +38,7 @@ export function mainLayoutTemplate({
               numChatNotifications,
               onClickActiveItem: onClickActiveNavItem,
               onClickComposeButton,
-              pluginSidebarIcons: pluginHost.getSidebarIcons(),
+              pluginSidebarIcons: pluginService.getSidebarIcons(),
             })
           : ""}
       </div>

@@ -1,14 +1,13 @@
-import { pluginHost } from "/js/plugins/pluginHost.js";
 import { renderNode, isEmptyNode } from "./pluginRendering.js";
 
-// `${pluginId}:${modalId}` -> { dialog, content, isOpen, dismiss }
+// key -> { dialog, content, isOpen, dismiss }
 const dialogs = new Map();
 
 function dialogKey(pluginId, modalId) {
   return `${pluginId}:${modalId}`;
 }
 
-export function setupPluginModals() {
+export function setupPluginModals(pluginHost) {
   pluginHost.registerHostCall("openModal", ({ pluginId, args }) => {
     const [options] = args;
     if (!options || options.modalId == null) return;
@@ -31,7 +30,10 @@ export function setupPluginModals() {
         if (!entry.isOpen) return;
         entry.isOpen = false;
         dialog.close();
-        if (notify) pluginHost.notifyModalDismissed(pluginId, options.modalId);
+        if (notify)
+          pluginHost.sendNotification(pluginId, "modalDismissed", {
+            modalId: options.modalId,
+          });
       };
       entry.dismiss = dismiss;
 

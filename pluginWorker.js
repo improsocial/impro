@@ -156,7 +156,7 @@ self.addEventListener("message", async (event) => {
   const message = event.data;
   if (!message || typeof message !== "object") return;
 
-  // RPC
+  // RPC calls
   if (message.type === "call") {
     const fn = handlers.get(message.handlerId);
     if (!fn) {
@@ -180,12 +180,16 @@ self.addEventListener("message", async (event) => {
     return;
   }
 
-  // Events
-  if (message.type === "modalDismissed") {
-    const modal = openModals.get(message.modalId);
-    if (modal) {
-      openModals.delete(message.modalId);
-      modal.onClose();
+  // Notifications
+  if (message.type === "notification") {
+    switch (message.notificationType) {
+      case "modalDismissed": {
+        const modal = openModals.get(message.modalId);
+        if (modal) {
+          openModals.delete(message.modalId);
+          modal.onClose();
+        }
+      }
     }
     return;
   }

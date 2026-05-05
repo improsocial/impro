@@ -4,6 +4,7 @@ import { SimpleUUID, isDev } from "/js/utils.js";
 const LOCAL_PLUGINS_INDEX_URL = "/plugins-local/index.json";
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
 const PLUGIN_READY_TIMEOUT_MS = 5000;
+
 const WORKER_PREFIX = `
 delete self.BroadcastChannel;
 delete self.SharedWorker;
@@ -132,7 +133,7 @@ class PluginInstance {
   }
 }
 
-class PluginHost {
+export class PluginHost {
   constructor({ verbose = false } = {}) {
     this.registries = {
       mutedWordMatchers: new Set(),
@@ -291,14 +292,14 @@ class PluginHost {
     }
   }
 
-  notifyModalDismissed(pluginId, modalId) {
+  sendNotification(pluginId, notificationType, eventData = {}) {
     const instance = this._loadedPlugins.get(pluginId);
     if (!instance) return;
-    instance.worker.postMessage({ type: "modalDismissed", modalId });
-  }
-
-  getSidebarIcons() {
-    return [...this.registries.sidebarIcons];
+    instance.worker.postMessage({
+      type: "notification",
+      notificationType,
+      ...eventData,
+    });
   }
 
   _registerFromPlugin(pluginInstance, message) {
@@ -401,5 +402,3 @@ class WorkerInterface extends EventTarget {
     }
   }
 }
-
-export const pluginHost = new PluginHost({ verbose: isDev() });

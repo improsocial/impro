@@ -109,8 +109,7 @@
         getAppViewConfig,
         handleAppViewResetQueryParam,
       } from "/js/appViewConfig.js";
-      import { pluginHost } from "/js/plugins/pluginHost.js";
-      import { setupPluginModals } from "/js/plugins/pluginModals.js";
+      import { pluginService } from "/js/plugins/pluginService.js";
 
       // Body class for styling
       if (isNative()) {
@@ -159,8 +158,7 @@
       }
 
       try {
-        setupPluginModals();
-        await pluginHost.loadEnabledPlugins();
+        pluginService.loadPlugins();
       } catch (error) {
         console.error("Error loading plugins", error);
       }
