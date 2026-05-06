@@ -635,7 +635,7 @@ input[type="color"]::-moz-color-swatch {
   width: 16px;
   height: 16px;
   border: 2px solid light-dark(var(--lighter-gray), var(--light-gray));
-  border-top: 2px solid var(--text-color);
+  border-top: 2px solid var(--highlight-color);
   border-radius: 50%;
   animation: spin 1s linear infinite;
 }
@@ -6210,7 +6210,7 @@ moderation-warning .toggle-content {
   width: 32px;
   height: 32px;
   border-width: 3px;
-  border-top-color: var(--text-color-muted);
+  border-top-color: var(--highlight-color);
 }
 
 .list-item {
