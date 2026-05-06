@@ -1444,9 +1444,15 @@ button.sidebar-plugin-nav-item {
   width: 100%;
   max-width: 100%;
   box-sizing: border-box;
-  /* use box-shadow because border renders inconsistently on ios safari */
-  box-shadow: 0 var(--hair) 0 var(--post-border-color);
-  margin-bottom: var(--hair);
+}
+
+/* Use pseudo-element instead of border because border was rendering inconsistently on ios safari */
+.feed-item::after {
+  content: "";
+  display: block;
+  width: 100%;
+  height: var(--hair);
+  background-color: var(--post-border-color);
 }
 
 .post-list {
