@@ -18,7 +18,7 @@ t.describe("save", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColor"), null);
+    assertEquals(localStorage.getItem("theme-highlightColorv2"), null);
     assertEquals(localStorage.getItem("theme-likeColor"), null);
     assertEquals(localStorage.getItem("theme-colorScheme"), null);
   });
@@ -31,14 +31,14 @@ t.describe("save", (it) => {
       colorScheme: "dark",
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColor"), "#123456");
+    assertEquals(localStorage.getItem("theme-highlightColorv2"), "#123456");
     assertEquals(localStorage.getItem("theme-likeColor"), "#abcdef");
     assertEquals(localStorage.getItem("theme-colorScheme"), "dark");
   });
 
   it("removes previously-stored values when reset to the default", () => {
     localStorage.clear();
-    localStorage.setItem("theme-highlightColor", "#123456");
+    localStorage.setItem("theme-highlightColorv2", "#123456");
     localStorage.setItem("theme-likeColor", "#abcdef");
     localStorage.setItem("theme-colorScheme", "dark");
     const theme = new Theme({
@@ -47,7 +47,7 @@ t.describe("save", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColor"), null);
+    assertEquals(localStorage.getItem("theme-highlightColorv2"), null);
     assertEquals(localStorage.getItem("theme-likeColor"), null);
     assertEquals(localStorage.getItem("theme-colorScheme"), null);
   });
@@ -62,7 +62,7 @@ t.describe("getDefaultColorScheme", (it) => {
 t.describe("fromLocalStorage", (it) => {
   it("reads stored values when present", () => {
     localStorage.clear();
-    localStorage.setItem("theme-highlightColor", "#111111");
+    localStorage.setItem("theme-highlightColorv2", "#111111");
     localStorage.setItem("theme-likeColor", "#222222");
     localStorage.setItem("theme-colorScheme", "dark");
     const theme = Theme.fromLocalStorage();
@@ -90,7 +90,7 @@ t.describe("update methods", (it) => {
     });
     theme.updateHighlightColor("#abcdef");
     assertEquals(theme.highlightColor, "#abcdef");
-    assertEquals(localStorage.getItem("theme-highlightColor"), "#abcdef");
+    assertEquals(localStorage.getItem("theme-highlightColorv2"), "#abcdef");
   });
 
   it("updateLikeColor sets the value and persists it", () => {
