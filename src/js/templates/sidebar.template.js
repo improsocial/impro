@@ -108,11 +108,7 @@ function sidebarNavTemplate({
   `;
 }
 
-function loggedOutSidebarTemplate({
-  activeNavItem,
-  onClickActiveItem,
-  pluginSidebarIcons,
-}) {
+function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
   const menuItems = [
     {
       id: "home",
@@ -139,7 +135,6 @@ function loggedOutSidebarTemplate({
         menuItems,
         activeNavItem,
         onClickActiveItem,
-        pluginSidebarIcons,
       })}
       <a
         href=${linkToLogin()}
@@ -183,7 +178,6 @@ export function sidebarTemplate({
     return loggedOutSidebarTemplate({
       activeNavItem,
       onClickActiveItem,
-      pluginSidebarIcons,
     });
   }
 
