@@ -261,38 +261,38 @@ class PostComposer extends Component {
                     </div>
                   </div>`
                 : ""}
-              <div class="post-composer-bottom-bar">
-                <div class="post-composer-bottom-bar-left">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    style="display: none;"
-                    @change=${(e) => this.handleImageSelect(e)}
-                    @cancel=${(e) => {
-                      e.stopPropagation();
-                    }}
-                  />
-                  <button
-                    class="image-picker-button"
-                    @click=${() => this.handleImageButtonClick()}
-                    .disabled=${this._selectedImages.length >= 4}
-                  >
-                    ${imageIconTemplate()}
-                  </button>
-                </div>
-                <div
-                  class=${classnames("word-count", {
-                    overflow: isAboveCharLimit,
-                  })}
+            </div>
+            <div class="post-composer-bottom-bar">
+              <div class="post-composer-bottom-bar-left">
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  style="display: none;"
+                  @change=${(e) => this.handleImageSelect(e)}
+                  @cancel=${(e) => {
+                    e.stopPropagation();
+                  }}
+                />
+                <button
+                  class="image-picker-button"
+                  @click=${() => this.handleImageButtonClick()}
+                  .disabled=${this._selectedImages.length >= 4}
                 >
-                  <span class="word-count-text">${300 - currentCharCount}</span>
-                  <div class="word-count-indicator">
-                    <div
-                      class="word-count-indicator-bar"
-                      style="height: ${charCountPercentage}%"
-                    ></div>
-                  </div>
+                  ${imageIconTemplate()}
+                </button>
+              </div>
+              <div
+                class=${classnames("word-count", {
+                  overflow: isAboveCharLimit,
+                })}
+              >
+                <span class="word-count-text">${300 - currentCharCount}</span>
+                <div class="word-count-indicator">
+                  <div
+                    class="word-count-indicator-bar"
+                    style="height: ${charCountPercentage}%"
+                  ></div>
                 </div>
               </div>
             </div>
