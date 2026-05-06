@@ -60,7 +60,7 @@ class GifPlayer extends Component {
     if (video) {
       const source = document.createElement("source");
       source.src = this.src;
-      source.type = "video/mp4";
+      source.type = this.src.endsWith(".webm") ? "video/webm" : "video/mp4";
       video.appendChild(source);
       this._gifLoaded = true;
     }
