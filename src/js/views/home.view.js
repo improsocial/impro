@@ -2,7 +2,7 @@ import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
@@ -213,13 +213,10 @@ class HomeView extends View {
             showFloatingComposeButton: true,
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
-            children: html` <header>
-                <div class="header-row">
-                  <button class="menu-button" @click=${() => handleMenuClick()}>
-                    ${menuIconTemplate()}
-                  </button>
-                </div>
-                <div class="header-row">
+            children: html` ${headerTemplate({
+                leftButton: "menu",
+                onClickMenuButton: () => handleMenuClick(),
+                bottomItemTemplate: () => html`
                   <div class="tab-bar-horizontal-scroll-container">
                     ${tabBarTemplate({
                       tabs: feedGenerators.map((fg) => ({
@@ -230,8 +227,8 @@ class HomeView extends View {
                       onTabClick: handleTabClick,
                     })}
                   </div>
-                </div>
-              </header>
+                `,
+              })}
               <main>
                 ${feedGenerators.map((feedGenerator) => {
                   const acceptsInteractions =

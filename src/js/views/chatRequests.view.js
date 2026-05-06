@@ -1,6 +1,6 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
@@ -189,7 +189,7 @@ class ChatRequestsView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Chat requests",
                 showLoadingSpinner: convosRequestStatus.loading && !!convos,
                 leftButton: "back",

@@ -4,7 +4,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
@@ -58,7 +58,7 @@ class BookmarksView extends View {
             currentUser,
             activeNavItem: "bookmarks",
             children: html`
-              ${textHeaderTemplate({ title: "Saved Posts" })}
+              ${headerTemplate({ title: "Saved Posts" })}
               <main>
                 ${postFeedTemplate({
                   feed: bookmarks,

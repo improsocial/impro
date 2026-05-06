@@ -5,7 +5,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
@@ -84,7 +84,7 @@ class FeedDetailView extends View {
             currentUser,
             showSidebarOverlay: false,
             activeNavItem: null,
-            children: html`${textHeaderTemplate({
+            children: html`${headerTemplate({
                 title: feedName,
                 subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
                 rightItemTemplate: () => {

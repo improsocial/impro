@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames, debounce } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -384,7 +384,7 @@ class SearchView extends View {
               postComposerService.composePost({ currentUser }),
             children: html`
               <main>
-                ${textHeaderTemplate({ title: "Search" })}
+                ${headerTemplate({ title: "Search" })}
                 <div class="search-input-container">
                   ${searchIconTemplate()}
                   <input

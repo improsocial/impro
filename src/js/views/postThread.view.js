@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy } from "/js/utils.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
@@ -493,7 +493,7 @@ class PostThreadView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({ title: "Post" })}
+            children: html`${headerTemplate({ title: "Post" })}
               <main>
                 ${(() => {
                   if (postThreadRequestStatus.error) {

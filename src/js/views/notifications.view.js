@@ -1,7 +1,7 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -736,7 +736,7 @@ class NotificationsView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Notifications",
                 showLoadingSpinner: isLoading,
                 leftButton: "menu",

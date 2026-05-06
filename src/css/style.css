@@ -179,7 +179,7 @@ html {
   /* sizing */
   --font-size: 15px;
   --hair: 1px;
-  --text-header-height: 48px;
+  --header-height: 48px;
   --footer-height: 55px;
   --message-input-min-height: 70px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
@@ -504,6 +504,9 @@ main {
   cursor: pointer;
   color: var(--text-color-muted);
   font-size: 24px;
+  height: 30px;
+  width: 30px;
+  border-radius: var(--icon-button-border-radius);
 }
 
 @media (min-width: 800px) {
@@ -830,16 +833,23 @@ body.scroll-locked header {
   }
 }
 
-.text-header {
+.header > .header-row {
   display: flex;
   flex-direction: row;
-  flex-wrap: wrap;
   align-items: center;
   padding: 8px;
-  min-height: 48px;
 }
 
-.text-header .header-title-container {
+.header > .header-bottom-row {
+  display: flex;
+}
+
+.header > .header-bottom-row .bottom-item {
+  flex: 1;
+  min-width: 0;
+}
+
+.header .header-title-container {
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -848,37 +858,27 @@ body.scroll-locked header {
   min-width: 0;
 }
 
-.text-header .header-title {
+.header .header-title {
   font-size: 18px;
   font-weight: 600;
 }
 
-.text-header .header-subtitle {
+.header .header-subtitle {
   font-size: 13px;
   color: var(--text-color-muted);
   font-weight: 400;
 }
 
-.text-header .header-spacer {
+.header .header-spacer {
   flex: 1;
 }
 
-.text-header .loading-spinner {
+.header .loading-spinner {
   margin-right: 8px;
 }
 
-.text-header .bottom-item {
-  flex-basis: 100%;
-}
-
-.text-header .menu-button {
-  padding-left: 6px;
-  padding-right: 3px;
-}
-
-.header-row .menu-button {
-  padding-left: 14px;
-  padding-top: 12px;
+.header > .header-row.has-bottom-row {
+  padding-bottom: 0;
 }
 
 .tab-bar {
@@ -3271,8 +3271,8 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: calc(100vh - var(--text-header-height));
-  min-height: calc(100dvh - var(--text-header-height));
+  min-height: calc(100vh - var(--header-height));
+  min-height: calc(100dvh - var(--header-height));
 }
 
 .chat-detail-main .message-list {
@@ -4044,7 +4044,7 @@ emoji-picker {
 .search-input-container {
   background: var(--background-color);
   position: sticky;
-  top: var(--text-header-height);
+  top: var(--header-height);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -4174,7 +4174,7 @@ emoji-picker {
 .hashtag-tab-bar-container {
   background: var(--background-color);
   position: sticky;
-  top: var(--text-header-height);
+  top: var(--header-height);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -6821,20 +6821,6 @@ toggle-switch {
 .post-notifications-dialog-save:disabled {
   opacity: 0.5;
   cursor: not-allowed;
-}
-
-#notifications-view header {
-  padding: 0;
-}
-
-#notifications-view header .header-title-container {
-  padding-top: 8px;
-  padding-left: 8px;
-  padding-right: 8px;
-}
-
-#notifications-view header .bottom-item {
-  padding-top: 8px;
 }
 
 #notifications-view header .tab-bar {

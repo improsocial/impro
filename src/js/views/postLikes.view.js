@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
@@ -98,7 +98,7 @@ class PostLikesView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({
+            children: html`${headerTemplate({
                 title: "Liked by",
                 subtitle,
               })}

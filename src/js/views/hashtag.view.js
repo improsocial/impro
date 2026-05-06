@@ -1,7 +1,7 @@
 import { View } from "./view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
@@ -97,7 +97,7 @@ class HashtagView extends View {
             currentUser,
             activeNavItem: null,
             children: html` <main>
-              ${textHeaderTemplate({ title: `#${hashtag}` })}
+              ${headerTemplate({ title: `#${hashtag}` })}
               <div class="hashtag-tab-bar-container">
                 ${tabBarTemplate({
                   tabs: sortOptions,

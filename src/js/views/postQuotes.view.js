@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
@@ -113,7 +113,7 @@ class PostQuotesView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({
+            children: html`${headerTemplate({
                 title: "Quotes",
                 subtitle,
               })}

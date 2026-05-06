@@ -1,6 +1,6 @@
 import { View } from "./view.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { requireAuth } from "/js/auth.js";
@@ -636,7 +636,7 @@ class ChatDetailView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 avatarTemplate: () => {
                   return otherMember
                     ? avatarTemplate({ author: otherMember })
