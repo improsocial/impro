@@ -207,9 +207,11 @@ test.describe("Post thread view", () => {
     const largePost = view.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
-    await largePost.locator("like-button").click();
+    await largePost.locator('[data-testid="like-button"]').click();
 
-    await expect(largePost.locator("like-button .liked")).toBeVisible({
+    await expect(
+      largePost.locator('[data-testid="like-button"].active'),
+    ).toBeVisible({
       timeout: 10000,
     });
   });
@@ -268,7 +270,7 @@ test.describe("Post thread view", () => {
     await largePost.locator('[data-testid="bookmark-button"]').click();
 
     await expect(
-      largePost.locator('[data-testid="bookmark-button"].bookmarked'),
+      largePost.locator('[data-testid="bookmark-button"].active'),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -1188,14 +1190,14 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      const toggle = view.locator("muted-reply-toggle");
+      const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
 
       // Content should be hidden initially
       await expect(toggle.locator(".toggle-content")).toBeHidden();
 
       // Click to expand
-      await toggle.locator(".muted-reply-toggle-button").click();
+      await toggle.locator(".muted-parent-toggle-button").click();
       await expect(toggle.locator(".toggle-content")).toBeVisible();
       await expect(toggle).toContainText("This is a muted parent post");
     });
@@ -1241,7 +1243,7 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      const toggle = view.locator("muted-reply-toggle");
+      const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
       await expect(toggle).toContainText("Hidden by muted word");
     });
@@ -1287,7 +1289,7 @@ test.describe("Post thread view", () => {
       await page.goto("/profile/author1.bsky.social/post/abc123");
 
       const view = page.locator("#post-detail-view");
-      const toggle = view.locator("muted-reply-toggle");
+      const toggle = view.locator("muted-parent-toggle");
       await expect(toggle).toBeVisible({ timeout: 10000 });
       await expect(toggle).toContainText("Post hidden by you");
     });

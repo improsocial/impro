@@ -18,6 +18,7 @@ import {
   addFeedItemToFeed,
   getDisplayName,
   getThreadgateAllowSettings,
+  isEmptyPost,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -989,6 +990,31 @@ t.describe("getThreadgateAllowSettings", (it) => {
       },
     };
     assertEquals(getThreadgateAllowSettings(post), [{ type: "unknown" }]);
+  });
+});
+
+t.describe("isEmptyPost", (it) => {
+  it("should return true for blocked posts", () => {
+    const post = { $type: "app.bsky.feed.defs#blockedPost", uri: "at://x" };
+    assertEquals(isEmptyPost(post), true);
+  });
+
+  it("should return true for not-found posts", () => {
+    const post = { $type: "app.bsky.feed.defs#notFoundPost", uri: "at://x" };
+    assertEquals(isEmptyPost(post), true);
+  });
+
+  it("should return true for unavailable posts", () => {
+    const post = {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: "at://x",
+    };
+    assertEquals(isEmptyPost(post), true);
+  });
+
+  it("should return false for normal post views", () => {
+    const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
+    assertEquals(isEmptyPost(post), false);
   });
 });
 

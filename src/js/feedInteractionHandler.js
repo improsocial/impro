@@ -19,7 +19,7 @@ export class FeedInteractionHandler {
         showToast("Feed pinned");
       } catch (error) {
         console.error(error);
-        showToast("Failed to pin feed", { error: true });
+        showToast("Failed to pin feed", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -31,7 +31,7 @@ export class FeedInteractionHandler {
         showToast("Feed unpinned");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unpin feed", { error: true });
+        showToast("Failed to unpin feed", { style: "error" });
         this.renderFunc();
       }
     }

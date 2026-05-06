@@ -184,7 +184,7 @@ class ProfileView extends View {
         renderPage();
       } catch (error) {
         console.error(error);
-        showToast("Failed to update labeler setting", { error: true });
+        showToast("Failed to update labeler setting", { style: "error" });
         renderPage();
       }
     }

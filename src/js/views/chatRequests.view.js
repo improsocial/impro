@@ -28,7 +28,7 @@ class ChatRequestsView extends View {
         window.router.go(`/messages/${convo.id}`);
       } catch (error) {
         console.error(error);
-        showToast("Failed to accept chat request", { error: true });
+        showToast("Failed to accept chat request", { style: "error" });
         renderPage();
       }
     }
@@ -39,7 +39,7 @@ class ChatRequestsView extends View {
         renderPage();
       } catch (error) {
         console.error(error);
-        showToast("Failed to reject chat request", { error: true });
+        showToast("Failed to reject chat request", { style: "error" });
         renderPage();
       }
     }

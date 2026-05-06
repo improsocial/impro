@@ -109,7 +109,9 @@ class FeedDetailView extends View {
                       <context-menu-item
                         @click=${() => {
                           navigator.clipboard.writeText(feedLink);
-                          showToast("Link copied to clipboard");
+                          showToast("Link copied to clipboard", {
+                            style: "success",
+                          });
                         }}
                       >
                         Copy link to feed

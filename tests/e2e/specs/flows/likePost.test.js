@@ -27,8 +27,10 @@ test.describe("Like post flow", () => {
     const feedItem = homeView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem.locator("like-button").click();
-    await expect(feedItem.locator("like-button .liked")).toBeVisible({
+    await feedItem.locator('[data-testid="like-button"]').click();
+    await expect(
+      feedItem.locator('[data-testid="like-button"].active'),
+    ).toBeVisible({
       timeout: 10000,
     });
 
@@ -93,8 +95,10 @@ test.describe("Like post flow", () => {
     const feedItem = homeView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem.locator("like-button .liked").click();
-    await expect(feedItem.locator("like-button .liked")).toHaveCount(0, {
+    await feedItem.locator('[data-testid="like-button"].active').click();
+    await expect(
+      feedItem.locator('[data-testid="like-button"].active'),
+    ).toHaveCount(0, {
       timeout: 10000,
     });
 

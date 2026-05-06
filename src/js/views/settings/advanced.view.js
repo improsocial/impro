@@ -119,7 +119,13 @@ class SettingsAdvancedView extends View {
                   @submit=${(e) => handleSubmit(e)}
                 >
                   <section class="settings-section">
-                    <h2>AppView</h2>
+                    <h2>App View</h2>
+                    <p>
+                      Choose which App View (backend) to use for fetching
+                      content. Tip: You can use the query parameter
+                      ?reset-appview to reset the App View in case of
+                      misconfiguration.
+                    </p>
                     <div class="form-group">
                       <div class="select-wrapper">
                         <select
@@ -199,10 +205,6 @@ class SettingsAdvancedView extends View {
                           ? html`<div class="loading-spinner"></div>`
                           : ""}
                       </button>
-                    </div>
-                    <div class="helper-text">
-                      Tip: You can use the query parameter ?reset-appview to
-                      reset the App View in case of misconfiguration.
                     </div>
                     <div class="error-message-container">
                       ${state.errorMessage

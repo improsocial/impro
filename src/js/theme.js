@@ -5,7 +5,7 @@ function getRootStyle() {
 }
 
 export function getDefaultHighlightColor() {
-  return getRootStyle().getPropertyValue("--purple");
+  return getRootStyle().getPropertyValue("--blue");
 }
 
 export function getDefaultLikeColor() {
@@ -16,7 +16,7 @@ export function getDefaultColorScheme() {
   return "system";
 }
 
-class Theme {
+export class Theme {
   constructor({ highlightColor, likeColor, colorScheme }) {
     this.highlightColor = highlightColor;
     this.likeColor = likeColor;
@@ -76,9 +76,21 @@ class Theme {
   }
 
   save() {
-    localStorage.setItem("theme-highlightColor", this.highlightColor);
-    localStorage.setItem("theme-likeColor", this.likeColor);
-    localStorage.setItem("theme-colorScheme", this.colorScheme);
+    if (this.highlightColor === getDefaultHighlightColor()) {
+      localStorage.removeItem("theme-highlightColor");
+    } else {
+      localStorage.setItem("theme-highlightColor", this.highlightColor);
+    }
+    if (this.likeColor === getDefaultLikeColor()) {
+      localStorage.removeItem("theme-likeColor");
+    } else {
+      localStorage.setItem("theme-likeColor", this.likeColor);
+    }
+    if (this.colorScheme === getDefaultColorScheme()) {
+      localStorage.removeItem("theme-colorScheme");
+    } else {
+      localStorage.setItem("theme-colorScheme", this.colorScheme);
+    }
   }
 
   static fromLocalStorage() {

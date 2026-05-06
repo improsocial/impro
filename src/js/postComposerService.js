@@ -106,11 +106,12 @@ export class PostComposerService {
             >View</a
           >
         </div>`,
+        { style: "success" },
       );
       return res;
     } catch (error) {
       console.error(error);
-      showToast("Failed to send post", { error: true });
+      showToast("Failed to send post", { style: "error" });
       throw error;
     }
   }

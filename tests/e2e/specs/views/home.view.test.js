@@ -199,9 +199,11 @@ test.describe("Home view", () => {
     const feedItem = view.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem.locator("like-button").click();
+    await feedItem.locator('[data-testid="like-button"]').click();
 
-    await expect(feedItem.locator("like-button .liked")).toBeVisible({
+    await expect(
+      feedItem.locator('[data-testid="like-button"].active'),
+    ).toBeVisible({
       timeout: 10000,
     });
   });
@@ -258,7 +260,7 @@ test.describe("Home view", () => {
     await feedItem.locator('[data-testid="bookmark-button"]').click();
 
     await expect(
-      feedItem.locator('[data-testid="bookmark-button"].bookmarked'),
+      feedItem.locator('[data-testid="bookmark-button"].active'),
     ).toBeVisible({ timeout: 10000 });
   });
 

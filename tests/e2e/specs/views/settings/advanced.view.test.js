@@ -16,7 +16,7 @@ test.describe("Settings Advanced view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view).toContainText("AppView");
+    await expect(view).toContainText("App View");
     await expect(view.locator('select[name="appview"]')).toBeVisible();
   });
 

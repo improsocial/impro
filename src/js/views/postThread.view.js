@@ -3,6 +3,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy } from "/js/utils.js";
 import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
+import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -275,7 +276,7 @@ class PostThreadView extends View {
               isUserPost: currentUser?.did === reply.post?.author?.did,
               postInteractionHandler,
               ignoreContentWarning: true,
-              overrideMutedWords: true,
+              ignoreMuteWarning: true,
               lazyLoadImages: true,
             }),
           )}
@@ -365,14 +366,17 @@ class PostThreadView extends View {
               ) {
                 return noUnauthenticatedSmallPostTemplate({ replyContext });
               }
-              return smallPostTemplate({
+              return mutedParentToggleTemplate({
                 post: parentPost,
-                currentUser,
-                isAuthenticated,
-                isUserPost: currentUser?.did === parentPost.author?.did,
-                postInteractionHandler,
-                replyContext,
-                hideMutedAccount: true,
+                children: smallPostTemplate({
+                  post: parentPost,
+                  currentUser,
+                  isAuthenticated,
+                  isUserPost: currentUser?.did === parentPost.author?.did,
+                  postInteractionHandler,
+                  replyContext,
+                  ignoreMuteWarning: true,
+                }),
               });
             })}
             ${hiddenUnauthenticated

@@ -188,7 +188,7 @@ class ChatDetailView extends View {
         renderPage();
       } catch (error) {
         console.error(error);
-        showToast("Failed to add reaction", { error: true });
+        showToast("Failed to add reaction", { style: "error" });
       }
     }
 
@@ -207,7 +207,7 @@ class ChatDetailView extends View {
           renderPage();
         } catch (error) {
           console.error(error);
-          showToast("Failed to remove reaction", { error: true });
+          showToast("Failed to remove reaction", { style: "error" });
         }
       } else {
         // Add reaction
@@ -223,7 +223,7 @@ class ChatDetailView extends View {
           renderPage();
         } catch (error) {
           console.error(error);
-          showToast("Failed to add reaction", { error: true });
+          showToast("Failed to add reaction", { style: "error" });
         }
       }
     }
@@ -253,7 +253,7 @@ class ChatDetailView extends View {
         scrollToBottom();
       } catch (error) {
         console.error(error);
-        showToast("Failed to send message", { error: true });
+        showToast("Failed to send message", { style: "error" });
       } finally {
         state.isSendingMessage = false;
         renderPage();

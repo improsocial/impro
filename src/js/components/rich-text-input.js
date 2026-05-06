@@ -300,6 +300,14 @@ export class RichTextInput extends Component {
             @keydown=${(e) => {
               this.handleKeydown(e);
             }}
+            @paste=${(e) => {
+              e.preventDefault();
+              // https://stackoverflow.com/a/58980415
+              const text = (e.clipboardData || window.clipboardData).getData(
+                "text/plain",
+              );
+              document.execCommand("insertText", false, text);
+            }}
           ></div>
           <div
             class="rich-text-input-placeholder ${this.text.length > 0

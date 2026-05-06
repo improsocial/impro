@@ -399,6 +399,24 @@ test.describe("Profile view", () => {
     });
   });
 
+  test("should hide chat button for users who cannot be messaged", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile({ ...otherUser, canChat: false });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+    await expect(view.locator('[data-testid="chat-button"]')).not.toBeVisible();
+  });
+
   test("should display 'User Blocked' badge and hide feed for blocked profiles", async ({
     page,
   }) => {

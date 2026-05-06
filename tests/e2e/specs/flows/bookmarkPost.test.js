@@ -27,7 +27,7 @@ test.describe("Bookmark post flow", () => {
 
     await feedItem.locator('[data-testid="bookmark-button"]').click();
     await expect(
-      feedItem.locator('[data-testid="bookmark-button"].bookmarked'),
+      feedItem.locator('[data-testid="bookmark-button"].active'),
     ).toBeVisible({ timeout: 10000 });
 
     // Navigate to bookmarks view and verify the post appears
@@ -73,11 +73,9 @@ test.describe("Bookmark post flow", () => {
     const feedItem = homeView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
-    await feedItem
-      .locator('[data-testid="bookmark-button"].bookmarked')
-      .click();
+    await feedItem.locator('[data-testid="bookmark-button"].active').click();
     await expect(
-      feedItem.locator('[data-testid="bookmark-button"].bookmarked'),
+      feedItem.locator('[data-testid="bookmark-button"].active'),
     ).toHaveCount(0, { timeout: 10000 });
 
     // Navigate back to bookmarks view and verify the post is gone

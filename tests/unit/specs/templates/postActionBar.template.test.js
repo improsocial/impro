@@ -39,8 +39,10 @@ t.describe("postActionBarTemplate", (it) => {
       onClickLike: () => {},
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     assert(container.querySelector("[data-testid='bookmark-button']") !== null);
+    container.remove();
   });
 
   it("should show reply count when post has replies", () => {
@@ -223,7 +225,7 @@ t.describe("postActionBarTemplate", (it) => {
     assert(!quoteItem.hasAttribute("disabled"));
   });
 
-  it("should add bookmarked class when post is bookmarked", () => {
+  it("should add active class when post is bookmarked", () => {
     const bookmarkedPost = {
       ...post,
       viewer: { ...post.viewer, bookmarked: true },
@@ -235,14 +237,16 @@ t.describe("postActionBarTemplate", (it) => {
       onClickLike: () => {},
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const bookmarkButton = container.querySelector(
       "[data-testid='bookmark-button']",
     );
-    assert(bookmarkButton.classList.contains("bookmarked"));
+    assert(bookmarkButton.classList.contains("active"));
+    container.remove();
   });
 
-  it("should not have bookmarked class when post is not bookmarked", () => {
+  it("should not have active class when post is not bookmarked", () => {
     const notBookmarkedPost = {
       ...post,
       viewer: { ...post.viewer, bookmarked: false },
@@ -254,11 +258,13 @@ t.describe("postActionBarTemplate", (it) => {
       onClickLike: () => {},
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const bookmarkButton = container.querySelector(
       "[data-testid='bookmark-button']",
     );
-    assert(!bookmarkButton.classList.contains("bookmarked"));
+    assert(!bookmarkButton.classList.contains("active"));
+    container.remove();
   });
 });
 
@@ -279,6 +285,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
       onClickBookmark,
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const bookmarkButton = container.querySelector(
       "[data-testid='bookmark-button']",
@@ -286,6 +293,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     bookmarkButton.click();
     assert(callArgs !== null);
     assertEquals(callArgs.doBookmark, true);
+    container.remove();
   });
 
   it("should call onClickBookmark with false when unbookmarking", () => {
@@ -304,6 +312,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
       onClickBookmark,
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const bookmarkButton = container.querySelector(
       "[data-testid='bookmark-button']",
@@ -311,6 +320,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     bookmarkButton.click();
     assert(callArgs !== null);
     assertEquals(callArgs.doBookmark, false);
+    container.remove();
   });
 });
 

@@ -766,4 +766,88 @@ t.describe("getLabelerSettings", (it) => {
   });
 });
 
+t.describe("getAuthorFeed (replies)", (it) => {
+  const did = "did:test:alice";
+  const feedURI = `${did}-replies`;
+
+  function makeSelectors(dataStore) {
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    return new Selectors(dataStore, patchStore, mockPreferencesProvider, false);
+  }
+
+  it("should keep replies authored by the user", () => {
+    const dataStore = new DataStore();
+    const replyPost = { uri: "post1", author: { did } };
+    const parentPost = { uri: "parent1", author: { did } };
+    const rootPost = { uri: "root1", author: { did } };
+
+    dataStore.setAuthorFeed(feedURI, {
+      feed: [
+        {
+          post: { uri: "post1" },
+          reply: {
+            root: { uri: "root1" },
+            parent: { uri: "parent1" },
+          },
+        },
+      ],
+      cursor: "c",
+    });
+    dataStore.setPost("post1", replyPost);
+    dataStore.setPost("parent1", parentPost);
+    dataStore.setPost("root1", rootPost);
+
+    const result = makeSelectors(dataStore).getAuthorFeed(did, "replies");
+
+    assertEquals(result.feed.length, 1);
+    assertEquals(result.feed[0].post.uri, "post1");
+  });
+
+  it("should drop top-level posts (no reply)", () => {
+    const dataStore = new DataStore();
+    dataStore.setAuthorFeed(feedURI, {
+      feed: [{ post: { uri: "post1" } }],
+      cursor: "c",
+    });
+    dataStore.setPost("post1", { uri: "post1", author: { did } });
+
+    const result = makeSelectors(dataStore).getAuthorFeed(did, "replies");
+
+    assertEquals(result.feed.length, 0);
+  });
+
+  it("should drop reposts even if the reposted post is itself a reply", () => {
+    const dataStore = new DataStore();
+    dataStore.setAuthorFeed(feedURI, {
+      feed: [
+        {
+          post: { uri: "post1" },
+          reason: { $type: "app.bsky.feed.defs#reasonRepost" },
+          reply: {
+            root: { uri: "root1" },
+            parent: { uri: "parent1" },
+          },
+        },
+      ],
+      cursor: "c",
+    });
+    dataStore.setPost("post1", { uri: "post1", author: { did: "did:other" } });
+    dataStore.setPost("parent1", {
+      uri: "parent1",
+      author: { did: "did:other" },
+    });
+    dataStore.setPost("root1", {
+      uri: "root1",
+      author: { did: "did:other" },
+    });
+
+    const result = makeSelectors(dataStore).getAuthorFeed(did, "replies");
+
+    assertEquals(result.feed.length, 0);
+  });
+});
+
 await t.run();

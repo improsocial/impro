@@ -5,17 +5,45 @@
   </head>
   <body>
     <div id="app-root">
-      <div class="splash-screen-container" hidden>
-        <div class="splash-screen">
-          <h1>Impro</h1>
+      <div id="app-loading-state" class="app-loading-state" hidden>
+        <div class="app-loading-state-content">
+          <div class="loading-spinner"></div>
         </div>
       </div>
-      <script>
-        setTimeout(() => {
-          document.querySelector(".splash-screen-container").hidden = false;
-        }, 2000);
-      </script>
+      <div class="error-state app-error-state" id="app-error-state" hidden>
+        <div>There was an error loading the app.</div>
+        <button onclick="window.location.reload()">Try again</button>
+      </div>
     </div>
+
+    <script>
+      function showGlobalErrorState() {
+        const errorState = document.getElementById("app-error-state");
+        if (errorState) errorState.hidden = false;
+        const loadingState = document.getElementById("app-loading-state");
+        if (loadingState) loadingState.hidden = true;
+      }
+      function globalErrorStateIsShown() {
+        const errorState = document.getElementById("app-error-state");
+        return errorState && !errorState.hidden;
+      }
+      function showGlobalLoadingState() {
+        const errorState = document.getElementById("app-error-state");
+        if (errorState) errorState.hidden = true;
+        const loadingState = document.getElementById("app-loading-state");
+        if (loadingState) loadingState.hidden = false;
+      }
+      // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
+      // If the app loads successfully, the elements are replaced, so these timeouts won't do anything.
+      setTimeout(() => {
+        if (!globalErrorStateIsShown()) {
+          showGlobalLoadingState();
+        }
+      }, 2000);
+      setTimeout(() => {
+        showGlobalErrorState();
+      }, 10000);
+    </script>
 
     <script type="module">
       import { enableErrorLogs } from "/js/errorLogs.js";
@@ -119,7 +147,13 @@
       } catch (error) {
         console.error("Error initializing preferences", error);
         await wait(1000);
-        await dataLayer.initializePreferences();
+        try {
+          await dataLayer.initializePreferences();
+        } catch (retryError) {
+          console.error("Error initializing preferences", retryError);
+          window.showGlobalErrorState();
+          throw retryError;
+        }
       }
 
       if (notificationService) {
@@ -228,7 +262,6 @@
             wrapper.close();
           } else {
             dialog.close();
-            dialog.remove();
           }
         });
       });
@@ -242,6 +275,16 @@
       document.addEventListener("click", (e) => {
         const anchor = e.target.closest("a");
         if (!anchor || anchor.dataset.external) {
+          return;
+        }
+        // Let the browser handle modifier/middle clicks (open in new tab/window)
+        if (
+          e.metaKey ||
+          e.ctrlKey ||
+          e.shiftKey ||
+          e.altKey ||
+          e.button !== 0
+        ) {
           return;
         }
         if (anchor.href.startsWith("/")) {

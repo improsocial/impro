@@ -139,7 +139,7 @@ export function quotedPostTemplate({
       mutedLabel += " (Account)";
     }
   }
-  const postText = quotedPost.value.text?.trimEnd() || "";
+  const postText = quotedPost.value.text || "";
   return html`<div
     class="quoted-post-link"
     role="link"
@@ -210,6 +210,7 @@ function imageContainerTemplate({ image, lazyLoad }) {
     <img
       class="post-image"
       src="${image.thumb}"
+      data-lightbox-src="${image.fullsize ?? image.thumb}"
       alt=${image.alt}
       height=${image.aspectRatio?.height ?? ""}
       width=${image.aspectRatio?.width ?? ""}

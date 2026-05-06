@@ -81,7 +81,7 @@ export class ReportService {
       showToast("Report submitted");
     } catch (error) {
       console.error(error);
-      showToast("Failed to submit report", { error: true });
+      showToast("Failed to submit report", { style: "error" });
       throw error;
     }
   }

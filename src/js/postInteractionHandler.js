@@ -2,6 +2,7 @@ import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { noop } from "/js/utils.js";
 import { confirm } from "/js/modals.js";
+import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
 
 export class PostInteractionHandler {
   constructor(
@@ -28,7 +29,7 @@ export class PostInteractionHandler {
         this.renderFunc();
       } catch (error) {
         console.error(error);
-        showToast("Failed to like post", { error: true });
+        showToast("Failed to like post", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -41,7 +42,7 @@ export class PostInteractionHandler {
         this.renderFunc();
       } catch (error) {
         console.error(error);
-        showToast("Failed to unlike post", { error: true });
+        showToast("Failed to unlike post", { style: "error" });
         this.renderFunc();
       }
     }
@@ -59,7 +60,7 @@ export class PostInteractionHandler {
         this.renderFunc();
       } catch (error) {
         console.error(error);
-        showToast("Failed to repost post", { error: true });
+        showToast("Failed to repost post", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -72,7 +73,7 @@ export class PostInteractionHandler {
         this.renderFunc();
       } catch (error) {
         console.error(error);
-        showToast("Failed to delete repost", { error: true });
+        showToast("Failed to delete repost", { style: "error" });
         this.renderFunc();
       }
     }
@@ -88,10 +89,10 @@ export class PostInteractionHandler {
         await promise;
         // Render final update
         this.renderFunc();
-        showToast("Post saved");
+        showToast("Post saved", { style: "success" });
       } catch (error) {
         console.error(error);
-        showToast("Failed to bookmark post", { error: true });
+        showToast("Failed to bookmark post", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -102,10 +103,12 @@ export class PostInteractionHandler {
         await promise;
         // Render final update
         this.renderFunc();
-        showToast("Removed from saved posts");
+        showToast("Removed from saved posts", {
+          iconTemplate: trashCanIconTemplate,
+        });
       } catch (error) {
         console.error(error);
-        showToast("Failed to remove bookmark", { error: true });
+        showToast("Failed to remove bookmark", { style: "error" });
         this.renderFunc();
       }
     }
@@ -129,7 +132,7 @@ export class PostInteractionHandler {
       showToast("Post deleted");
     } catch (error) {
       console.error(error);
-      showToast("Failed to delete post", { error: true });
+      showToast("Failed to delete post", { style: "error" });
     }
     this.renderFunc();
   }
@@ -153,7 +156,7 @@ export class PostInteractionHandler {
       showToast("Post hidden");
     } catch (error) {
       console.error(error);
-      showToast("Failed to hide post", { error: true });
+      showToast("Failed to hide post", { style: "error" });
       this.renderFunc();
     }
   }
@@ -170,7 +173,7 @@ export class PostInteractionHandler {
         showToast("Account muted");
       } catch (error) {
         console.error(error);
-        showToast("Failed to mute account", { error: true });
+        showToast("Failed to mute account", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -184,7 +187,7 @@ export class PostInteractionHandler {
         showToast("Account unmuted");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unmute account", { error: true });
+        showToast("Failed to unmute account", { style: "error" });
         this.renderFunc();
       }
     }
@@ -202,7 +205,7 @@ export class PostInteractionHandler {
         showToast("Account blocked");
       } catch (error) {
         console.error(error);
-        showToast("Failed to block account", { error: true });
+        showToast("Failed to block account", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -216,7 +219,7 @@ export class PostInteractionHandler {
         showToast("Account unblocked");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unblock account", { error: true });
+        showToast("Failed to unblock account", { style: "error" });
         this.renderFunc();
       }
     }

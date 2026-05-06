@@ -22,9 +22,14 @@ import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/lightbox-image-group.js";
-import "/js/components/muted-reply-toggle.js";
 
-function contentWarningTemplate({ post, contentLabel, children }) {
+function contentWarningTemplate({
+  post,
+  ignoreContentWarning,
+  ignoreMuteWarning,
+  children,
+}) {
+  const contentLabel = ignoreContentWarning ? null : post.contentLabel;
   if (contentLabel && contentLabel.visibility !== "ignore") {
     const isAuthorLabel = contentLabel.label.uri === post?.author?.did;
     return moderationWarningTemplate({
@@ -35,7 +40,26 @@ function contentWarningTemplate({ post, contentLabel, children }) {
       children,
     });
   }
-
+  if (!ignoreMuteWarning) {
+    // stop clicks here from bubbling to the surrounding post and triggering navigation
+    const stopClick = (e) => e.stopPropagation();
+    if (post.viewer?.hasMutedWord) {
+      return html`<moderation-warning
+        label="Hidden by muted word"
+        icon-style="closed-eye"
+        @click=${stopClick}
+        >${children}</moderation-warning
+      >`;
+    }
+    if (post.viewer?.isHidden) {
+      return html`<moderation-warning
+        label="Post hidden by you"
+        icon-style="closed-eye"
+        @click=${stopClick}
+        >${children}</moderation-warning
+      >`;
+    }
+  }
   return children;
 }
 
@@ -48,12 +72,11 @@ export function smallPostTemplate({
   replyContext,
   repostAuthor,
   ignoreContentWarning = false,
+  ignoreMuteWarning = false,
   isPinned = false,
   onClickShowLess = noop,
   onClickShowMore = noop,
   enableFeedFeedback = false,
-  hideMutedAccount = false,
-  overrideMutedWords = false,
   showReplyToLabel = false,
   replyToAuthor = null,
   lazyLoadImages = false,
@@ -69,7 +92,7 @@ export function smallPostTemplate({
     !isAuthenticated &&
     post.author &&
     doHideAuthorOnUnauthenticated(post.author);
-  const postText = post.record.text?.trimEnd() || "";
+  const postText = post.record.text || "";
   const content = html`
     <div
       class="post small-post clickable"
@@ -138,8 +161,8 @@ export function smallPostTemplate({
             : ""}
           ${contentWarningTemplate({
             post,
-            contentLabel: ignoreContentWarning ? null : post.contentLabel,
-            isAuthenticated,
+            ignoreContentWarning,
+            ignoreMuteWarning,
             children: html` <div class="post-body">
               ${hideUnauthenticated
                 ? html`<div class="missing-post-indicator no-unauthenticated">
@@ -164,58 +187,42 @@ export function smallPostTemplate({
                         })}
                       </div>`
                     : null}`}
-              ${postActionBarTemplate({
-                post,
-                isUserPost,
-                isAuthenticated,
-                currentUser,
-                onClickReply: () => {
-                  window.router.go(linkToPost(post));
-                },
-                onClickLike: (post, doLike) =>
-                  postInteractionHandler.handleLike(post, doLike),
-                onClickRepost: (post, doRepost) =>
-                  postInteractionHandler.handleRepost(post, doRepost),
-                onClickQuotePost: (post) =>
-                  postInteractionHandler.handleQuotePost(post),
-                onClickBookmark: (post, doBookmark) =>
-                  postInteractionHandler.handleBookmark(post, doBookmark),
-                onClickShowLess,
-                onClickShowMore,
-                onClickHidePost: (post) =>
-                  postInteractionHandler.handleHidePost(post),
-                onClickMute: (profile, doMute) =>
-                  postInteractionHandler.handleMuteAuthor(profile, doMute),
-                onClickBlock: (profile, doBlock) =>
-                  postInteractionHandler.handleBlockAuthor(profile, doBlock),
-                onClickDelete: (post) => {
-                  postInteractionHandler.handleDeletePost(post);
-                },
-                onClickReport: (post) =>
-                  postInteractionHandler.handleReport(post),
-                enableFeedFeedback,
-              })}
             </div>`,
+          })}
+          ${postActionBarTemplate({
+            post,
+            isUserPost,
+            isAuthenticated,
+            currentUser,
+            onClickReply: () => {
+              window.router.go(linkToPost(post));
+            },
+            onClickLike: (post, doLike) =>
+              postInteractionHandler.handleLike(post, doLike),
+            onClickRepost: (post, doRepost) =>
+              postInteractionHandler.handleRepost(post, doRepost),
+            onClickQuotePost: (post) =>
+              postInteractionHandler.handleQuotePost(post),
+            onClickBookmark: (post, doBookmark) =>
+              postInteractionHandler.handleBookmark(post, doBookmark),
+            onClickShowLess,
+            onClickShowMore,
+            onClickHidePost: (post) =>
+              postInteractionHandler.handleHidePost(post),
+            onClickMute: (profile, doMute) =>
+              postInteractionHandler.handleMuteAuthor(profile, doMute),
+            onClickBlock: (profile, doBlock) =>
+              postInteractionHandler.handleBlockAuthor(profile, doBlock),
+            onClickDelete: (post) => {
+              postInteractionHandler.handleDeletePost(post);
+            },
+            onClickReport: (post) => postInteractionHandler.handleReport(post),
+            enableFeedFeedback,
           })}
         </div>
       </div>
     </div>
   `;
 
-  if (hideMutedAccount && post.author.viewer?.muted) {
-    return html`<muted-reply-toggle label="Muted account">
-      ${content}
-    </muted-reply-toggle>`;
-  }
-  if (post.viewer?.hasMutedWord && !overrideMutedWords) {
-    return html`<muted-reply-toggle label="Hidden by muted word">
-      ${content}
-    </muted-reply-toggle>`;
-  }
-  if (post.viewer?.isHidden) {
-    return html`<muted-reply-toggle label="Post hidden by you">
-      ${content}
-    </muted-reply-toggle>`;
-  }
   return content;
 }

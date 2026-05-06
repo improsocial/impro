@@ -26,7 +26,7 @@ export class ProfileInteractionHandler {
         }
       } catch (error) {
         console.error(error);
-        showToast("Failed to follow account", { error: true });
+        showToast("Failed to follow account", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -42,7 +42,7 @@ export class ProfileInteractionHandler {
         }
       } catch (error) {
         console.error(error);
-        showToast("Failed to unfollow account", { error: true });
+        showToast("Failed to unfollow account", { style: "error" });
         this.renderFunc();
       }
     }
@@ -60,7 +60,7 @@ export class ProfileInteractionHandler {
         showToast("Account muted");
       } catch (error) {
         console.error(error);
-        showToast("Failed to mute account", { error: true });
+        showToast("Failed to mute account", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -74,7 +74,7 @@ export class ProfileInteractionHandler {
         showToast("Account unmuted");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unmute account", { error: true });
+        showToast("Failed to unmute account", { style: "error" });
         this.renderFunc();
       }
     }
@@ -93,7 +93,7 @@ export class ProfileInteractionHandler {
         showToast("Account blocked");
       } catch (error) {
         console.error(error);
-        showToast("Failed to block account", { error: true });
+        showToast("Failed to block account", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -107,7 +107,7 @@ export class ProfileInteractionHandler {
         showToast("Account unblocked");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unblock account", { error: true });
+        showToast("Failed to unblock account", { style: "error" });
         this.renderFunc();
       }
     }
@@ -129,7 +129,7 @@ export class ProfileInteractionHandler {
         showToast("Subscribed to labeler");
       } catch (error) {
         console.error(error);
-        showToast("Failed to subscribe to labeler", { error: true });
+        showToast("Failed to subscribe to labeler", { style: "error" });
         this.renderFunc();
       }
     } else {
@@ -143,7 +143,7 @@ export class ProfileInteractionHandler {
         showToast("Unsubscribed from labeler");
       } catch (error) {
         console.error(error);
-        showToast("Failed to unsubscribe from labeler", { error: true });
+        showToast("Failed to unsubscribe from labeler", { style: "error" });
         this.renderFunc();
       }
     }
@@ -181,20 +181,22 @@ export class ProfileInteractionHandler {
             if (!activitySubscription.post && !activitySubscription.reply) {
               showToast(
                 `You will no longer receive notifications for @${profile.handle}`,
+                { style: "success" },
               );
             } else if (!wasSubscribed) {
               showToast(
                 `You'll start receiving notifications for @${profile.handle}!`,
+                { style: "success" },
               );
             } else {
-              showToast("Changes saved");
+              showToast("Changes saved", { style: "success" });
             }
             successCallback();
             resolve();
           } catch (error) {
             console.error(error);
             showToast("Failed to save notification preferences", {
-              error: true,
+              style: "error",
             });
             errorCallback(error.message || "An unexpected error occurred.");
             this.renderFunc();

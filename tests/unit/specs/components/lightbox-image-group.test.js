@@ -11,6 +11,28 @@ function createTestImage(src, alt) {
   return img;
 }
 
+class MockImageLoader {
+  constructor() {
+    this.loadedSet = new Set();
+    this.failedSet = new Set();
+    this.loadCalls = [];
+    this.abortCalls = 0;
+  }
+  isLoaded(src) {
+    return this.loadedSet.has(src);
+  }
+  hasFailed(src) {
+    return this.failedSet.has(src);
+  }
+  load(src) {
+    this.loadCalls.push(src);
+    return new Promise(() => {}); // never resolves; tests drive state directly
+  }
+  abort() {
+    this.abortCalls += 1;
+  }
+}
+
 t.beforeEach(() => {
   document.body.innerHTML = "";
 });
@@ -50,15 +72,66 @@ t.describe("LightboxDialog - rendering", (it) => {
     assert(img.src.includes("test.jpg"));
   });
 
-  it("should use data-lightbox-src when available", () => {
-    const element = document.createElement("lightbox-dialog");
+  it("should show thumb as placeholder while fullsize loads, then swap", () => {
     const image = createTestImage("thumbnail.jpg", "Test image");
     image.dataset.lightboxSrc = "fullsize.jpg";
+    const element = document.createElement("lightbox-dialog");
+    element._imageLoader = new MockImageLoader();
     element.images = [image];
     document.body.appendChild(element);
     element.open();
+
+    const initialImg = element.querySelector("img");
+    assert(initialImg.src.includes("thumbnail.jpg"));
+    assertEquals(element._imageLoader.loadCalls, ["fullsize.jpg"]);
+
+    element._imageLoader.loadedSet.add("fullsize.jpg");
+    element.render();
+    const swappedImg = element.querySelector("img");
+    assert(swappedImg.src.includes("fullsize.jpg"));
+  });
+
+  it("should use src directly when fullsize equals thumb (no preload needed)", () => {
+    const image = createTestImage("http://localhost/same.jpg", "Test image");
+    image.dataset.lightboxSrc = "http://localhost/same.jpg";
+    const element = document.createElement("lightbox-dialog");
+    element._imageLoader = new MockImageLoader();
+    element.images = [image];
+    document.body.appendChild(element);
+    element.open();
+
     const img = element.querySelector("img");
-    assert(img.src.includes("fullsize.jpg"));
+    assert(img.src.includes("same.jpg"));
+    assertEquals(element._imageLoader.loadCalls, []);
+  });
+
+  it("aborts in-flight image loads on close", () => {
+    const image = createTestImage("thumbnail.jpg", "Test image");
+    image.dataset.lightboxSrc = "fullsize.jpg";
+    const element = document.createElement("lightbox-dialog");
+    element._imageLoader = new MockImageLoader();
+    element.images = [image];
+    document.body.appendChild(element);
+    element.open();
+    assertEquals(element._imageLoader.loadCalls, ["fullsize.jpg"]);
+
+    element.close();
+    assertEquals(element._imageLoader.abortCalls, 1);
+  });
+
+  it("does not retry a fullsize that previously failed", () => {
+    const image = createTestImage("thumbnail.jpg", "Test image");
+    image.dataset.lightboxSrc = "fullsize.jpg";
+    const element = document.createElement("lightbox-dialog");
+    element._imageLoader = new MockImageLoader();
+    element._imageLoader.failedSet.add("fullsize.jpg");
+    element.images = [image];
+    document.body.appendChild(element);
+    element.open();
+
+    const img = element.querySelector("img");
+    assert(img.src.includes("thumbnail.jpg"));
+    assertEquals(element._imageLoader.loadCalls, []);
   });
 
   it("should fall back to src when data-lightbox-src is not set", () => {

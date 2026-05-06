@@ -4,6 +4,7 @@ import { getPermalinkForPost } from "/js/navigation.js";
 import { formatLargeNumber, noop, classnames } from "/js/utils.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
+import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
 import { getRKey } from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
@@ -11,7 +12,7 @@ import { showSignInModal } from "/js/modals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
-import "/js/components/like-button.js";
+import "/js/components/animated-button.js";
 
 function getBlueskyLinkForPost(post) {
   const rkey = getRKey(post);
@@ -122,42 +123,49 @@ export function postActionBarTemplate({
       <div class="post-action">
         ${keyed(
           post.uri,
-          html`<like-button
+          html`<animated-button
+            button-class="post-action-button like-button"
+            testid="like-button"
+            ?is-active=${isLiked}
             @click=${(e) => {
               e.stopPropagation();
-            }}
-            ?is-liked=${isLiked}
-            count=${numLikes}
-            @click-like=${() => {
               if (!isAuthenticated) {
                 showSignInModal();
                 return;
               }
               onClickLike(post, !isLiked);
             }}
-          ></like-button>`,
+          >
+            <div class="post-action-icon">${heartIconTemplate()}</div>
+            ${numLikes > 0
+              ? html`<span class="post-action-count"
+                  >${formatLargeNumber(numLikes)}</span
+                >`
+              : null}
+          </animated-button>`,
         )}
       </div>
       <div class="post-action post-action-bookmark">
-        <button
-          class="post-action-button ${classnames({
-            bookmarked: isBookmarked,
-          })}"
-          data-testid="bookmark-button"
-          @click=${(e) => {
-            e.stopPropagation();
-            if (!isAuthenticated) {
-              return showSignInModal();
-            }
-            onClickBookmark(post, !isBookmarked);
-          }}
-        >
-          <div class="post-action-icon">
-            ${bookmarkIconTemplate({
-              filled: isBookmarked,
-            })}
-          </div>
-        </button>
+        ${keyed(
+          post.uri,
+          html`<animated-button
+            button-class="post-action-button bookmark-button"
+            testid="bookmark-button"
+            ?is-active=${isBookmarked}
+            @click=${(e) => {
+              e.stopPropagation();
+              if (!isAuthenticated) {
+                showSignInModal();
+                return;
+              }
+              onClickBookmark(post, !isBookmarked);
+            }}
+          >
+            <div class="post-action-icon">
+              ${bookmarkIconTemplate({ filled: isBookmarked })}
+            </div>
+          </animated-button>`,
+        )}
       </div>
       <div class="post-action">
         <button
@@ -182,7 +190,7 @@ export function postActionBarTemplate({
             <context-menu-item
               @click=${() => {
                 navigator.clipboard.writeText(getPermalinkForPost(post));
-                showToast("Link copied to clipboard");
+                showToast("Link copied to clipboard", { style: "success" });
               }}
             >
               Copy link to post
@@ -194,7 +202,9 @@ export function postActionBarTemplate({
                       navigator.clipboard.writeText(
                         richTextToString(post.record.text, post.record.facets),
                       );
-                      showToast("Post text copied to clipboard");
+                      showToast("Post text copied to clipboard", {
+                        style: "success",
+                      });
                     }}
                   >
                     Copy post text

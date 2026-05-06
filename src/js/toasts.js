@@ -1,10 +1,19 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
+import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { wait, raf } from "/js/utils.js";
 
 const TOAST_GAP_PX = 8;
 const activeToasts = [];
+
+const STYLE_ICONS = {
+  default: circleCheckIconTemplate,
+  success: circleCheckIconTemplate,
+  error: alertIconTemplate,
+  warning: alertIconTemplate,
+  info: infoIconTemplate,
+};
 
 function restackToasts() {
   let offset = 0;
@@ -16,19 +25,16 @@ function restackToasts() {
 
 export async function showToast(
   message,
-  { error = false, timeout = 3000 } = {},
+  { style = "default", timeout = 3000, iconTemplate } = {},
 ) {
   const toast = document.createElement("div");
   toast.setAttribute("popover", "manual");
-  toast.classList.add("toast");
-  if (error) {
-    toast.classList.add("error");
-  }
+  toast.classList.add("toast", style);
+  const resolvedIconTemplate =
+    iconTemplate ?? STYLE_ICONS[style] ?? STYLE_ICONS.default;
   render(
     html`
-      <span class="toast-icon"
-        >${error ? alertIconTemplate() : infoIconTemplate()}</span
-      >
+      <span class="toast-icon">${resolvedIconTemplate()}</span>
       ${message}
     `,
     toast,
