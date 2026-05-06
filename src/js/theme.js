@@ -77,9 +77,9 @@ export class Theme {
 
   save() {
     if (this.highlightColor === getDefaultHighlightColor()) {
-      localStorage.removeItem("theme-highlightColor");
+      localStorage.removeItem("theme-highlightColorv2");
     } else {
-      localStorage.setItem("theme-highlightColor", this.highlightColor);
+      localStorage.setItem("theme-highlightColorv2", this.highlightColor);
     }
     if (this.likeColor === getDefaultLikeColor()) {
       localStorage.removeItem("theme-likeColor");
@@ -95,7 +95,7 @@ export class Theme {
 
   static fromLocalStorage() {
     const highlightColor =
-      localStorage.getItem("theme-highlightColor") ||
+      localStorage.getItem("theme-highlightColorv2") ||
       getDefaultHighlightColor();
     const likeColor =
       localStorage.getItem("theme-likeColor") || getDefaultLikeColor();
