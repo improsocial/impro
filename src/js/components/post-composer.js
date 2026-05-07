@@ -208,91 +208,93 @@ class PostComposer extends Component {
               </button>
             </div>
             <div class="post-composer-scroll-area">
-              ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
-              <div class="post-composer-body">
-                <div class="post-composer-body-left">
-                  ${avatarTemplate({
-                    author: this.currentUser,
-                    clickAction: "none",
-                  })}
-                </div>
-                <div class="post-composer-body-right">
-                  <rich-text-input
-                    @input=${(e) => {
-                      this.handleInput(e);
-                    }}
-                    @paste=${(e) => {
-                      this.handlePaste(e);
-                    }}
-                    placeholder="${promptText}"
-                  ></rich-text-input>
-                </div>
-              </div>
-              ${this._externalLinkEmbedData
-                ? externalLinkEmbedPreviewTemplate({
-                    data: this._externalLinkEmbedData,
-                    onClose: () => {
-                      this.handleExternalLinkEmbedPreviewClose();
-                    },
-                  })
-                : ""}
-              ${this._selectedImages.length > 0
-                ? imagePreviewTemplate({
-                    images: this._selectedImages,
-                    onRemove: (index) => this.handleRemoveImage(index),
-                    onEditAltText: (index) => this.handleEditAltText(index),
-                  })
-                : ""}
-              ${this.quotedPost
-                ? html`<div class="post-composer-embed-preview">
-                    <button
-                      class="embed-preview-close-button"
-                      @click=${() => {
-                        this.handleQuotedPostEmbedPreviewClose();
+              <div class="post-composer-scroll-area-content">
+                ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
+                <div class="post-composer-body">
+                  <div class="post-composer-body-left">
+                    ${avatarTemplate({
+                      author: this.currentUser,
+                      clickAction: "none",
+                    })}
+                  </div>
+                  <div class="post-composer-body-right">
+                    <rich-text-input
+                      @input=${(e) => {
+                        this.handleInput(e);
                       }}
-                    >
-                      <span>×</span>
-                    </button>
-                    <div inert>
-                      ${quotedPostTemplate({
-                        quotedPost: createEmbedFromPost(this.quotedPost),
-                        isAuthenticated: true,
-                      })}
-                    </div>
-                  </div>`
-                : ""}
-            </div>
-            <div class="post-composer-bottom-bar">
-              <div class="post-composer-bottom-bar-left">
-                <input
-                  type="file"
-                  accept="image/*"
-                  multiple
-                  style="display: none;"
-                  @change=${(e) => this.handleImageSelect(e)}
-                  @cancel=${(e) => {
-                    e.stopPropagation();
-                  }}
-                />
-                <button
-                  class="image-picker-button"
-                  @click=${() => this.handleImageButtonClick()}
-                  .disabled=${this._selectedImages.length >= 4}
-                >
-                  ${imageIconTemplate()}
-                </button>
+                      @paste=${(e) => {
+                        this.handlePaste(e);
+                      }}
+                      placeholder="${promptText}"
+                    ></rich-text-input>
+                  </div>
+                </div>
+                ${this._externalLinkEmbedData
+                  ? externalLinkEmbedPreviewTemplate({
+                      data: this._externalLinkEmbedData,
+                      onClose: () => {
+                        this.handleExternalLinkEmbedPreviewClose();
+                      },
+                    })
+                  : ""}
+                ${this._selectedImages.length > 0
+                  ? imagePreviewTemplate({
+                      images: this._selectedImages,
+                      onRemove: (index) => this.handleRemoveImage(index),
+                      onEditAltText: (index) => this.handleEditAltText(index),
+                    })
+                  : ""}
+                ${this.quotedPost
+                  ? html`<div class="post-composer-embed-preview">
+                      <button
+                        class="embed-preview-close-button"
+                        @click=${() => {
+                          this.handleQuotedPostEmbedPreviewClose();
+                        }}
+                      >
+                        <span>×</span>
+                      </button>
+                      <div inert>
+                        ${quotedPostTemplate({
+                          quotedPost: createEmbedFromPost(this.quotedPost),
+                          isAuthenticated: true,
+                        })}
+                      </div>
+                    </div>`
+                  : ""}
               </div>
-              <div
-                class=${classnames("word-count", {
-                  overflow: isAboveCharLimit,
-                })}
-              >
-                <span class="word-count-text">${300 - currentCharCount}</span>
-                <div class="word-count-indicator">
-                  <div
-                    class="word-count-indicator-bar"
-                    style="height: ${charCountPercentage}%"
-                  ></div>
+              <div class="post-composer-bottom-bar">
+                <div class="post-composer-bottom-bar-left">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    style="display: none;"
+                    @change=${(e) => this.handleImageSelect(e)}
+                    @cancel=${(e) => {
+                      e.stopPropagation();
+                    }}
+                  />
+                  <button
+                    class="image-picker-button"
+                    @click=${() => this.handleImageButtonClick()}
+                    .disabled=${this._selectedImages.length >= 4}
+                  >
+                    ${imageIconTemplate()}
+                  </button>
+                </div>
+                <div
+                  class=${classnames("word-count", {
+                    overflow: isAboveCharLimit,
+                  })}
+                >
+                  <span class="word-count-text">${300 - currentCharCount}</span>
+                  <div class="word-count-indicator">
+                    <div
+                      class="word-count-indicator-bar"
+                      style="height: ${charCountPercentage}%"
+                    ></div>
+                  </div>
                 </div>
               </div>
             </div>
