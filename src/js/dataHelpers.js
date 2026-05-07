@@ -1,5 +1,16 @@
 import { unique } from "/js/utils.js";
 
+export const INVALID_HANDLE = "handle.invalid";
+export const MISSING_HANDLE = "missing.invalid";
+
+export function hasValidHandle(profile) {
+  return (
+    !!profile.handle &&
+    profile.handle !== INVALID_HANDLE &&
+    profile.handle !== MISSING_HANDLE
+  );
+}
+
 export function avatarThumbnailUrl(avatarUrl) {
   if (!avatarUrl) {
     console.warn("avatarUrl is null");
@@ -366,9 +377,9 @@ export function getDisplayName(profile) {
   if (profile.displayName) {
     return sanitizeDisplayName(profile.displayName);
   }
-  if (profile.handle === "missing.invalid") {
+  if (profile.handle === MISSING_HANDLE) {
     return "Deleted Account";
-  } else if (profile.handle === "handle.invalid") {
+  } else if (profile.handle === INVALID_HANDLE) {
     return "Invalid Handle";
   }
   return profile.handle;

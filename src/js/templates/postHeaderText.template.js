@@ -14,7 +14,7 @@ export function postHeaderTextTemplate({
   return html`<div class="post-header-text">
     ${enableProfileLink
       ? html`<a
-          href="${linkToProfile(author.handle)}"
+          href="${linkToProfile(author)}"
           class="post-name"
           data-testid="post-author-name"
           >${author.displayName || author.handle}</a

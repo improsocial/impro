@@ -19,6 +19,9 @@ import {
   getDisplayName,
   getThreadgateAllowSettings,
   isEmptyPost,
+  hasValidHandle,
+  INVALID_HANDLE,
+  MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -902,6 +905,24 @@ t.describe("getDisplayName", (it) => {
   it("should prefer displayName over special handle fallbacks", () => {
     const profile = { displayName: "Still Here", handle: "missing.invalid" };
     assertEquals(getDisplayName(profile), "Still Here");
+  });
+});
+
+t.describe("hasValidHandle", (it) => {
+  it("returns true for a normal handle", () => {
+    assert(hasValidHandle({ handle: "alice.bsky.social" }));
+  });
+
+  it("returns false for the invalid sentinel", () => {
+    assert(!hasValidHandle({ handle: INVALID_HANDLE }));
+  });
+
+  it("returns false for the missing sentinel", () => {
+    assert(!hasValidHandle({ handle: MISSING_HANDLE }));
+  });
+
+  it("returns false when handle is absent", () => {
+    assert(!hasValidHandle({ did: "did:plc:bob" }));
   });
 });
 

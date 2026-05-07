@@ -4,7 +4,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { showToast } from "/js/toasts.js";
 
@@ -75,8 +75,7 @@ class ChatRequestsView extends View {
                 ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
               </div>
               <div class="convo-handle">
-                ${otherMember?.handle &&
-                otherMember?.handle !== "missing.invalid"
+                ${otherMember?.handle && otherMember?.handle !== MISSING_HANDLE
                   ? `@${otherMember.handle}`
                   : ""}
               </div>

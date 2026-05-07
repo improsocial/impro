@@ -8,6 +8,7 @@ import {
   getDisplayName,
   getLastInteraction,
   getInteractionTimestamp,
+  MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/infinite-scroll-container.js";
@@ -78,7 +79,7 @@ class ChatView extends View {
               ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
             </div>
             <div class="convo-handle">
-              ${otherUser?.handle && otherUser?.handle !== "missing.invalid"
+              ${otherUser?.handle && otherUser?.handle !== MISSING_HANDLE
                 ? `@${otherUser.handle}`
                 : ""}
             </div>

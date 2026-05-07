@@ -146,7 +146,7 @@ class SearchView extends View {
     function profileResultTemplate({ profile }) {
       const displayName = getDisplayName(profile);
       return html`<div
-        @click=${() => window.router.go(linkToProfile(profile.handle))}
+        @click=${() => window.router.go(linkToProfile(profile))}
         class="profile-list-item"
       >
         ${avatarTemplate({ author: profile })}

@@ -3,6 +3,7 @@ import { assert, assertEquals } from "../testHelpers.js";
 import {
   linkToHashtag,
   linkToProfile,
+  linkToProfileByDid,
   linkToLabeler,
   linkToPost,
   linkToPostFromUri,
@@ -35,16 +36,40 @@ t.describe("linkToHashtag", (it) => {
 });
 
 t.describe("linkToProfile", (it) => {
-  it("should return profile link from handle string", () => {
-    assertEquals(
-      linkToProfile("alice.bsky.social"),
-      "/profile/alice.bsky.social",
-    );
-  });
-
   it("should return profile link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(linkToProfile(profile), "/profile/bob.bsky.social");
+  });
+
+  it("falls back to did when handle is handle.invalid", () => {
+    const profile = { handle: "handle.invalid", did: "did:plc:bob" };
+    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+  });
+
+  it("falls back to did when handle is missing.invalid", () => {
+    const profile = { handle: "missing.invalid", did: "did:plc:bob" };
+    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+  });
+
+  it("falls back to did when handle is absent", () => {
+    const profile = { did: "did:plc:bob" };
+    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+  });
+});
+
+t.describe("linkToProfileByDid", (it) => {
+  it("returns a profile link for the given did", () => {
+    assertEquals(
+      linkToProfileByDid("did:plc:abc123"),
+      "/profile/did:plc:abc123",
+    );
+  });
+
+  it("preserves colons in the did", () => {
+    assertEquals(
+      linkToProfileByDid("did:web:example.com"),
+      "/profile/did:web:example.com",
+    );
   });
 });
 
@@ -79,6 +104,14 @@ t.describe("linkToPost", (it) => {
       author: { handle: "bob.test" },
     };
     assertEquals(linkToPost(post), "/profile/bob.test/post/xyz789");
+  });
+
+  it("falls back to author did when handle is invalid", () => {
+    const post = {
+      uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
+      author: { handle: "handle.invalid", did: "did:plc:alice" },
+    };
+    assertEquals(linkToPost(post), "/profile/did:plc:alice/post/abc123");
   });
 });
 
@@ -140,13 +173,6 @@ t.describe("linkToPostReposts", (it) => {
 });
 
 t.describe("linkToProfileFollowers", (it) => {
-  it("should return followers link from handle string", () => {
-    assertEquals(
-      linkToProfileFollowers("alice.bsky.social"),
-      "/profile/alice.bsky.social/followers",
-    );
-  });
-
   it("should return followers link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(
@@ -154,21 +180,30 @@ t.describe("linkToProfileFollowers", (it) => {
       "/profile/bob.bsky.social/followers",
     );
   });
+
+  it("falls back to did when handle is invalid", () => {
+    const profile = { handle: "handle.invalid", did: "did:plc:bob" };
+    assertEquals(
+      linkToProfileFollowers(profile),
+      "/profile/did:plc:bob/followers",
+    );
+  });
 });
 
 t.describe("linkToProfileFollowing", (it) => {
-  it("should return following link from handle string", () => {
-    assertEquals(
-      linkToProfileFollowing("alice.bsky.social"),
-      "/profile/alice.bsky.social/following",
-    );
-  });
-
   it("should return following link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
     assertEquals(
       linkToProfileFollowing(profile),
       "/profile/bob.bsky.social/following",
+    );
+  });
+
+  it("falls back to did when handle is invalid", () => {
+    const profile = { handle: "handle.invalid", did: "did:plc:bob" };
+    assertEquals(
+      linkToProfileFollowing(profile),
+      "/profile/did:plc:bob/following",
     );
   });
 });
@@ -206,8 +241,11 @@ t.describe("path segment encoding", (it) => {
     assertEquals(linkToHashtag("hello world"), "/hashtag/hello%20world");
   });
 
-  it("should preserve colons in DID handles", () => {
-    assertEquals(linkToProfile("did:plc:abc123"), "/profile/did:plc:abc123");
+  it("should preserve colons in DIDs", () => {
+    assertEquals(
+      linkToProfileByDid("did:plc:abc123"),
+      "/profile/did:plc:abc123",
+    );
   });
 
   it("should preserve colons in DID-based post URIs", () => {
@@ -220,7 +258,7 @@ t.describe("path segment encoding", (it) => {
 
   it("should preserve at signs in handles", () => {
     assertEquals(
-      linkToProfile("@alice.bsky.social"),
+      linkToProfile({ handle: "@alice.bsky.social" }),
       "/profile/@alice.bsky.social",
     );
   });
@@ -243,14 +281,14 @@ t.describe("path segment encoding", (it) => {
 
   it("should encode slashes in handles for followers links", () => {
     assertEquals(
-      linkToProfileFollowers("alice/evil"),
+      linkToProfileFollowers({ handle: "alice/evil" }),
       "/profile/alice%2Fevil/followers",
     );
   });
 
   it("should encode slashes in handles for following links", () => {
     assertEquals(
-      linkToProfileFollowing("alice/evil"),
+      linkToProfileFollowing({ handle: "alice/evil" }),
       "/profile/alice%2Fevil/following",
     );
   });
@@ -275,6 +313,14 @@ t.describe("getPermalinkForProfile", (it) => {
     assertEquals(
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/alice.bsky.social",
+    );
+  });
+
+  it("falls back to did when handle is invalid", () => {
+    const profile = { handle: "handle.invalid", did: "did:plc:alice" };
+    assertEquals(
+      getPermalinkForProfile(profile),
+      "https://bsky.app/profile/did:plc:alice",
     );
   });
 });

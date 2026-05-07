@@ -7,12 +7,12 @@ import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBad
 export function profileListItemTemplate({ actor }) {
   const displayName = actor.displayName || actor.handle;
   return html`<div
-    @click=${() => window.router.go(linkToProfile(actor.handle))}
+    @click=${() => window.router.go(linkToProfile(actor))}
     class="profile-list-item"
   >
     ${avatarTemplate({ author: actor })}
     <div class="profile-list-item-body" data-testid="profile-list-item-body">
-      <a class="profile-list-item-name" href="${linkToProfile(actor.handle)}">
+      <a class="profile-list-item-name" href="${linkToProfile(actor)}">
         <span
           class="profile-list-item-display-name"
           data-testid="profile-list-item-display-name"

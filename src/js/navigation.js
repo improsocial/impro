@@ -1,19 +1,23 @@
-import { getRKey, parseUri } from "/js/dataHelpers.js";
+import { getRKey, parseUri, hasValidHandle } from "/js/dataHelpers.js";
 
 function encodePathSegment(segment) {
   return encodeURIComponent(segment).replace(/%3A/g, ":").replace(/%40/g, "@");
+}
+
+function profileIdentifier(profile) {
+  return hasValidHandle(profile) ? profile.handle : profile.did;
 }
 
 export function linkToHashtag(hashtag) {
   return `/hashtag/${encodePathSegment(hashtag)}`;
 }
 
-export function linkToProfile(identifierOrProfile) {
-  let handle = identifierOrProfile;
-  if (typeof identifierOrProfile === "object") {
-    handle = identifierOrProfile.handle;
-  }
-  return `/profile/${encodePathSegment(handle)}`;
+export function linkToProfile(profile) {
+  return `/profile/${encodePathSegment(profileIdentifier(profile))}`;
+}
+
+export function linkToProfileByDid(did) {
+  return `/profile/${encodePathSegment(did)}`;
 }
 
 export function linkToLabeler(labeler) {
@@ -21,7 +25,7 @@ export function linkToLabeler(labeler) {
 }
 
 export function linkToPost(post) {
-  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}`;
+  return `/profile/${encodePathSegment(profileIdentifier(post.author))}/post/${encodePathSegment(getRKey(post))}`;
 }
 
 export function linkToPostFromUri(postUri) {
@@ -30,35 +34,27 @@ export function linkToPostFromUri(postUri) {
 }
 
 export function linkToPostLikes(post) {
-  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/likes`;
+  return `/profile/${encodePathSegment(profileIdentifier(post.author))}/post/${encodePathSegment(getRKey(post))}/likes`;
 }
 
 export function linkToPostQuotes(post) {
-  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/quotes`;
+  return `/profile/${encodePathSegment(profileIdentifier(post.author))}/post/${encodePathSegment(getRKey(post))}/quotes`;
 }
 
 export function linkToPostReposts(post) {
-  return `/profile/${encodePathSegment(post.author.handle)}/post/${encodePathSegment(getRKey(post))}/reposts`;
+  return `/profile/${encodePathSegment(profileIdentifier(post.author))}/post/${encodePathSegment(getRKey(post))}/reposts`;
 }
 
-export function linkToProfileFollowers(handleOrProfile) {
-  let handle = handleOrProfile;
-  if (typeof handleOrProfile === "object") {
-    handle = handleOrProfile.handle;
-  }
-  return `/profile/${encodePathSegment(handle)}/followers`;
+export function linkToProfileFollowers(profile) {
+  return `/profile/${encodePathSegment(profileIdentifier(profile))}/followers`;
 }
 
-export function linkToProfileFollowing(handleOrProfile) {
-  let handle = handleOrProfile;
-  if (typeof handleOrProfile === "object") {
-    handle = handleOrProfile.handle;
-  }
-  return `/profile/${encodePathSegment(handle)}/following`;
+export function linkToProfileFollowing(profile) {
+  return `/profile/${encodePathSegment(profileIdentifier(profile))}/following`;
 }
 
 export function linkToFeed(feedGenerator) {
-  return `/profile/${encodePathSegment(feedGenerator.creator.handle)}/feed/${encodePathSegment(
+  return `/profile/${encodePathSegment(profileIdentifier(feedGenerator.creator))}/feed/${encodePathSegment(
     getRKey(feedGenerator),
   )}`;
 }
@@ -82,7 +78,7 @@ export function getPermalinkForPost(post) {
 }
 
 export function getPermalinkForProfile(profile) {
-  return getPermalinkOrigin() + linkToProfile(profile.handle);
+  return getPermalinkOrigin() + linkToProfile(profile);
 }
 
 export function linkToLogin() {

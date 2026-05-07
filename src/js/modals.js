@@ -143,17 +143,17 @@ export async function confirm(
   });
 }
 
-function ruleTemplate({ rule, authorHandle }) {
+function ruleTemplate({ rule, author }) {
   if (rule.type === "mention") {
     return html`mentioned users`;
   }
   if (rule.type === "followers") {
     return html`users following
-      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
   }
   if (rule.type === "following") {
     return html`users followed by
-      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
   }
   if (rule.type === "list") {
     if (rule.list) {
@@ -179,7 +179,7 @@ function threadgateRuleTemplate({ post }) {
       return html`This post has an unknown type of threadgate on it. Your app
       may be out of date.`;
     }
-    const authorHandle = post.author.handle;
+    const author = post.author;
     const parts = [];
     settings.forEach((rule, i) => {
       if (i > 0) {
@@ -189,7 +189,7 @@ function threadgateRuleTemplate({ post }) {
           parts.push(html`, `);
         }
       }
-      parts.push(ruleTemplate({ rule, authorHandle }));
+      parts.push(ruleTemplate({ rule, author }));
     });
     return html`Only ${parts} can reply.`;
   }
