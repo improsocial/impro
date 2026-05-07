@@ -72,6 +72,7 @@ class FeedDetailView extends View {
       const feedAuthorHandle = feedAuthor?.handle;
       const preferences = dataLayer.selectors.getPreferences();
       const isPinned = preferences.isFeedPinned(feedUri);
+      const feed = dataLayer.selectors.getFeed(feedUri);
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({
@@ -134,22 +135,17 @@ class FeedDetailView extends View {
                 },
               })}
               <main>
-                ${(() => {
-                  const feed = dataLayer.selectors.getFeed(feedUri);
-                  const feedGenerator =
-                    dataLayer.selectors.getFeedGenerator(feedUri);
-                  return html`<div class="feed-container">
-                    ${postFeedTemplate({
-                      feed,
-                      currentUser,
-                      isAuthenticated,
-                      feedGenerator,
-                      hiddenPostUris,
-                      onLoadMore: () => loadFeed(),
-                      postInteractionHandler,
-                    })}
-                  </div>`;
-                })()}
+                <div class="feed-container">
+                  ${postFeedTemplate({
+                    feed,
+                    currentUser,
+                    isAuthenticated,
+                    feedGenerator,
+                    hiddenPostUris,
+                    onLoadMore: () => loadFeed(),
+                    postInteractionHandler,
+                  })}
+                </div>
               </main>`,
           })}
         </div>`,
