@@ -233,6 +233,16 @@ class ProfileView extends View {
           <button @click=${() => window.location.reload()}>Try again</button>
         </div>`;
       }
+      if (
+        error instanceof ApiError &&
+        error.status === 400 &&
+        error.data.error === "AccountTakedown"
+      ) {
+        return html`<div class="error-state">
+          <div>Account has been suspended</div>
+          <button @click=${() => window.location.reload()}>Try again</button>
+        </div>`;
+      }
       console.error(error);
       return html`<div class="error-state">
         <div>There was an error loading the profile.</div>
