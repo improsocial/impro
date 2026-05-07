@@ -36,6 +36,10 @@
       // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
       // If the app loads successfully, the elements are replaced, so these timeouts won't do anything.
       setTimeout(() => {
+        if (!window.mainModuleLoaded) {
+          console.error("Main module failed to load");
+          showGlobalErrorState();
+        }
         if (!globalErrorStateIsShown()) {
           showGlobalLoadingState();
         }
@@ -43,13 +47,6 @@
       setTimeout(() => {
         showGlobalErrorState();
       }, 10000);
-      // Heartbeat check for main module
-      setTimeout(() => {
-        if (!window.mainModuleLoaded) {
-          console.error("Main module failed to load");
-          showGlobalErrorState();
-        }
-      }, 100);
     </script>
 
     <script type="module">
