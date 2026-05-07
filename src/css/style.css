@@ -894,10 +894,12 @@ body.scroll-locked header {
   color: var(--icon-button-color);
   font-weight: 600;
   font-size: 15px;
-  padding-bottom: 14px;
   padding-right: 16px;
   padding-left: 16px;
   white-space: nowrap;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
 }
 
 .tab-bar .tab-bar-button.active {
