@@ -82,10 +82,10 @@ export function displayRelativeTime(timestamp) {
   if (diffMinutes > 0) {
     return `${diffMinutes}m`;
   }
-  // const diffSeconds = Math.floor(diff / 1000);
-  // if (diffSeconds > 0) {
-  //   return `${diffSeconds}s`;
-  // }
+  const diffSeconds = Math.floor(diff / 1000);
+  if (diffSeconds > 0) {
+    return `${diffSeconds}s`;
+  }
   return "1m";
 }
 
