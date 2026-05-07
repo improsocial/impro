@@ -43,6 +43,13 @@
       setTimeout(() => {
         showGlobalErrorState();
       }, 10000);
+      // Heartbeat check for main module
+      setTimeout(() => {
+        if (!window.mainModuleLoaded) {
+          console.error("Main module failed to load");
+          showGlobalErrorState();
+        }
+      }, 100);
     </script>
 
     <script type="module">
@@ -110,6 +117,8 @@
         handleAppViewResetQueryParam,
       } from "/js/appViewConfig.js";
       import { pluginService } from "/js/plugins/pluginService.js";
+
+      window.mainModuleLoaded = true;
 
       // Body class for styling
       if (isNative()) {
