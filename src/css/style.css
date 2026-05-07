@@ -1448,13 +1448,15 @@ button.sidebar-plugin-nav-item {
   box-sizing: border-box;
 }
 
-/* Use pseudo-element instead of border because border was rendering inconsistently on ios safari */
+/* workaround for iOS Safari subpixel rounding */
 .feed-item::after {
   content: "";
   display: block;
   width: 100%;
-  height: var(--hair);
+  height: 1px;
   background-color: var(--post-border-color);
+  transform: scaleY(0.5);
+  transform-origin: bottom;
 }
 
 .post-list {
