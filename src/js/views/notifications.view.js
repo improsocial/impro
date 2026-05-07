@@ -55,10 +55,7 @@ class NotificationsView extends View {
         </div>`;
       }
 
-      const postPreview =
-        post?.record?.text || post?.record?.text === ""
-          ? post.record.text
-          : null;
+      const postPreview = post?.record?.text ? post.record.text : null;
 
       const images = getImagesFromPost(post);
       const video = getVideoFromPost(post);
