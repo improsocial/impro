@@ -63,18 +63,6 @@ export class Mutations {
         viewer: { ...post.viewer, like: null },
         likeCount: post.likeCount - 1,
       });
-      // If the "likes" feed is loaded, remove the post from it.
-      const currentUser = this.dataStore.getCurrentUser();
-      if (currentUser) {
-        const feedURI = `${currentUser.did}-likes`;
-        const likedFeed = this.dataStore.getAuthorFeed(feedURI);
-        if (likedFeed) {
-          this.dataStore.setAuthorFeed(feedURI, {
-            feed: likedFeed.feed.filter((p) => p.post?.uri !== post.uri),
-            cursor: likedFeed.cursor,
-          });
-        }
-      }
     } catch (error) {
       console.error(error);
       throw error;
