@@ -203,10 +203,9 @@ class PluginInstance {
 export class PluginHost {
   constructor({ verbose = false } = {}) {
     this.registries = {
-      mutedWordMatchers: new Set(),
       sidebarItems: new Set(),
     };
-    this._loadedPlugins = new Map(); // id -> PluginInstance
+    this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
   }
 
@@ -298,18 +297,6 @@ export class PluginHost {
 
   handleRegister(pluginInstance, message) {
     switch (message.target) {
-      // case "mutedWordMatcher": {
-      //   const entry = {
-      //     pluginId,
-      //     match: (text, value) =>
-      //       this._callWorker(worker, "mutedWordMatcher", message.handlerId, [
-      //         text,
-      //         value,
-      //       ]),
-      //   };
-      //   this.registries.mutedWordMatchers.add(entry);
-      //   return () => this.registries.mutedWordMatchers.delete(entry);
-      // }
       case "sidebarItem": {
         const entry = {
           pluginId: pluginInstance.pluginId,

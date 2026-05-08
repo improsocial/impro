@@ -16,16 +16,6 @@ let registered = false;
 export class Plugin {
   constructor() {}
 
-  // registerMutedWordMatcher(fn) {
-  //   const handlerId = getHandlerId();
-  //   handlers.set(handlerId, fn);
-  //   self.postMessage({
-  //     type: "register",
-  //     target: "mutedWordMatcher",
-  //     handlerId,
-  //   });
-  // }
-
   addSidebarItem(icon, title, callback) {
     const handlerId = uuid.create();
     handlers.set(handlerId, callback);
