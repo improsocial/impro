@@ -13,6 +13,25 @@ delete self.SharedWorker;
 const SANDBOX_URL = "/js/plugins/sandbox.html";
 const SANDBOX_READY_TIMEOUT_MS = 5000;
 
+async function fetchPluginIndex() {
+  const response = await fetch(LOCAL_PLUGINS_INDEX_URL);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  const body = await response.json();
+  return Array.isArray(body.ids) ? body.ids : [];
+}
+
+async function fetchPluginSource(id) {
+  const response = await fetch(`/plugins-local/${id}/main.js`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return await response.text();
+}
+
+async function fetchPluginManifest(id) {
+  const response = await fetch(`/plugins-local/${id}/manifest.json`);
+  if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  return parsePluginManifest(id, await response.json());
+}
+
 function parsePluginManifest(pluginId, manifest) {
   for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (typeof manifest[field] !== "string") {
@@ -48,88 +67,136 @@ class Logger {
   }
 }
 
-class WorkerSandbox {
-  constructor(id) {
-    this.id = id;
+const logger = new Logger("[plugins]", isDev() ? "info" : "warn");
+
+// Has same API as Worker, but runs code in a sandboxed iframe
+class SandboxedWorker extends EventTarget {
+  constructor(source) {
+    super();
+    this.source = source;
     this.frame = this._createSandboxFrame();
-    this.worker = null;
+    this._messageTarget = this.frame.contentWindow;
+    this._handleWindowMessage = this._handleWindowMessage.bind(this);
+    window.addEventListener("message", this._handleWindowMessage);
+    this.frame.addEventListener("load", () => {
+      this.frame.contentWindow.postMessage({ type: "init", source }, "*");
+    });
+    document.body.appendChild(this.frame);
   }
 
   _createSandboxFrame() {
     const frame = document.createElement("iframe");
     frame.setAttribute("sandbox", "allow-scripts");
     frame.setAttribute("aria-hidden", "true");
-    frame.setAttribute("title", `worker sandbox: ${this.id}`);
     frame.style.display = "none";
     frame.src = SANDBOX_URL;
     return frame;
   }
 
-  _destroy() {
-    this.frame.remove();
+  postMessage(payload) {
+    this.frame.contentWindow.postMessage({ type: "send", payload }, "*");
   }
 
-  async load(source, timeoutMs = SANDBOX_READY_TIMEOUT_MS) {
-    const ready = new Promise((resolve, reject) => {
-      const onMessage = (event) => {
-        if (event.source !== this.frame.contentWindow) return;
-        if (event.data?.type !== "ready") return;
-        clearTimeout(timeout);
-        window.removeEventListener("message", onMessage);
-        if (event.data.error) reject(new Error(event.data.error));
-        else resolve();
-      };
-      const timeout = setTimeout(() => {
-        window.removeEventListener("message", onMessage);
-        reject(new Error("sandbox iframe did not become ready"));
-      }, timeoutMs);
-      window.addEventListener("message", onMessage);
-    });
-    this.frame.addEventListener("load", () => {
-      this.frame.contentWindow.postMessage({ type: "init", source }, "*");
-    });
-    document.body.appendChild(this.frame);
-    await ready;
+  terminate() {
+    window.removeEventListener("message", this._handleWindowMessage);
+    this.frame.remove();
+    this.dispatchEvent({ type: "terminate" });
+  }
 
-    this.worker = new WorkerInterface(this.frame.contentWindow);
-    this.worker.addEventListener("terminate", () => this._destroy());
-    return this.worker;
+  _handleWindowMessage(event) {
+    if (event.source !== this.frame.contentWindow) return;
+    const message = event.data;
+    if (!message || typeof message !== "object") return;
+    switch (message.type) {
+      case "fromWorker":
+        this.dispatchEvent({ type: "message", data: message.payload });
+        return;
+      case "workerError":
+        this.dispatchEvent({ type: "error", message: message.error });
+        return;
+    }
   }
 }
 
+async function createSandboxedWorker(source) {
+  const worker = new SandboxedWorker(source);
+  // in the future, we could add a handshake here to ensure worker has loaded
+  return worker;
+}
+
 class PluginInstance {
-  constructor(pluginId, worker) {
+  constructor(pluginId, host, worker) {
     this.pluginId = pluginId;
     this.worker = worker;
+    this.host = host;
     this.disposers = [];
+    this._pendingCalls = new Map();
+    this.callUuid = new SimpleUUID();
+    this.worker.addEventListener("message", (event) =>
+      this._handleWorkerMessage(event),
+    );
+    this.worker.addEventListener("error", (event) =>
+      logger.error(`"${this.pluginId}" worker error:`, event.message),
+    );
   }
 
-  async waitForReady(timeoutMs = PLUGIN_READY_TIMEOUT_MS) {
-    const ready = new Promise((resolve, reject) => {
-      const cleanup = () => {
-        this.worker.removeEventListener("message", messageListener);
-        this.worker.removeEventListener("error", errorListener);
-      };
-      const messageListener = (event) => {
-        if (event.data?.type !== "ready") return;
-        cleanup();
-        if (event.data.error) reject(new Error(event.data.error));
-        else resolve();
-      };
-      const errorListener = (event) => {
-        cleanup();
-        reject(new Error(event.message));
-      };
-      this.worker.addEventListener("message", messageListener);
-      this.worker.addEventListener("error", errorListener);
-    });
-    const timeout = new Promise((_, reject) =>
-      setTimeout(
-        () => reject(new Error(`did not finish loading within ${timeoutMs}ms`)),
-        timeoutMs,
-      ),
+  _handleWorkerMessage(event) {
+    console.log(
+      `PluginInstance "${this.pluginId}" received message:`,
+      event.data,
     );
-    return Promise.race([ready, timeout]);
+    const message = event.data;
+    if (!message || typeof message !== "object") return;
+    switch (message.type) {
+      case "register": {
+        const dispose = this.host.handleRegister(this, message);
+        if (dispose) this.disposers.push(dispose);
+        return;
+      }
+      case "result": {
+        this._handleCallResult(message);
+        return;
+      }
+      case "hostCall": {
+        this.host.handleHostCall(this.pluginId, message);
+        return;
+      }
+      default:
+        return;
+    }
+  }
+
+  static async load(pluginId, host, source) {
+    const worker = await createSandboxedWorker(WORKER_PREFIX + source);
+    const instance = new PluginInstance(pluginId, host, worker);
+    return instance;
+  }
+
+  async call(target, handlerId, args) {
+    const callId = this.callUuid.create();
+    return new Promise((resolve, reject) => {
+      this._pendingCalls.set(callId, { resolve, reject });
+      this.worker.postMessage({
+        type: "call",
+        callId,
+        target,
+        handlerId,
+        args,
+      });
+    });
+  }
+
+  _handleCallResult(message) {
+    const pending = this._pendingCalls.get(message.callId);
+    if (!pending) return;
+    this._pendingCalls.delete(message.callId);
+    if (message.error) pending.reject(new Error(message.error));
+    else pending.resolve(message.value);
+  }
+
+  unload() {
+    this.disposers.forEach((dispose) => dispose());
+    this.worker.terminate();
   }
 }
 
@@ -139,29 +206,55 @@ export class PluginHost {
       mutedWordMatchers: new Set(),
       sidebarItems: new Set(),
     };
-
-    this.logger = new Logger("[plugins]");
     this._loadedPlugins = new Map(); // id -> PluginInstance
-
     this._hostCallHandlers = new Map();
-    this._pendingPluginCalls = new Map();
-
-    this.uuid = new SimpleUUID();
   }
 
-  async loadEnabledPlugins({ enabledIds = [] } = {}) {
-    const availablePlugins = await this._fetchPluginIndex();
-    this.logger.info(
+  async loadPlugins(pluginIds) {
+    let availablePlugins;
+    try {
+      availablePlugins = await fetchPluginIndex();
+    } catch {
+      availablePlugins = [];
+    }
+    logger.info(
       `discovered ${availablePlugins.length} plugin(s):`,
       availablePlugins,
     );
-    const toLoad = availablePlugins.filter((id) => enabledIds.includes(id));
-    if (enabledIds) {
-      const skipped = availablePlugins.filter((id) => !enabledIds.includes(id));
-      if (skipped.length)
-        this.logger.info("skipping disabled plugin(s):", skipped);
+    const toLoad = availablePlugins.filter((id) => pluginIds.includes(id));
+    if (pluginIds) {
+      const skipped = availablePlugins.filter((id) => !pluginIds.includes(id));
+      if (skipped.length) logger.info("skipping disabled plugin(s):", skipped);
     }
     await Promise.all(toLoad.map((id) => this._loadPlugin(id)));
+  }
+
+  async _loadPlugin(pluginId) {
+    if (this._loadedPlugins.has(pluginId)) return;
+    let manifest;
+    try {
+      manifest = await fetchPluginManifest(pluginId);
+    } catch (error) {
+      logger.warn(`"${pluginId}" invalid manifest:`, error.message);
+      return;
+    }
+    let source;
+    try {
+      source = await fetchPluginSource(pluginId);
+    } catch (error) {
+      logger.error(
+        `failed to load "${pluginId}": could not fetch main.js`,
+        error,
+      );
+      return;
+    }
+    try {
+      const pluginInstance = await PluginInstance.load(pluginId, this, source);
+      this._loadedPlugins.set(pluginId, pluginInstance);
+      logger.info(`loaded "${pluginId}" v${manifest.version}`);
+    } catch (error) {
+      logger.error(`"${pluginId}" failed during onload:`, error.message);
+    }
   }
 
   registerHostCall(method, handler) {
@@ -169,113 +262,10 @@ export class PluginHost {
     return () => this._hostCallHandlers.delete(method);
   }
 
-  async _fetchPluginIndex() {
-    try {
-      const response = await fetch(LOCAL_PLUGINS_INDEX_URL);
-      if (!response.ok) return [];
-      const body = await response.json();
-      return Array.isArray(body.ids) ? body.ids : [];
-    } catch {
-      return [];
-    }
-  }
-
-  async _loadPlugin(pluginId) {
-    if (this._loadedPlugins.has(pluginId)) return;
-
-    const manifest = await this._fetchManifest(pluginId);
-    if (!manifest) {
-      this.logger.error(
-        `failed to load "${pluginId}": invalid or missing manifest`,
-      );
-      return;
-    }
-
-    const source = await this._fetchSource(pluginId);
-    if (!source) {
-      this.logger.error(`failed to load "${pluginId}": could not fetch source`);
-      return;
-    }
-
-    let worker;
-    try {
-      const sandbox = new WorkerSandbox();
-      worker = await sandbox.load(source);
-    } catch (error) {
-      this.logger.error(
-        `failed to load "${pluginId}": could not spawn worker`,
-        error,
-      );
-      return;
-    }
-    const pluginInstance = new PluginInstance(pluginId, worker);
-
-    worker.addEventListener("message", (event) =>
-      this._handleWorkerMessage(pluginInstance, event.data),
-    );
-    worker.addEventListener("error", (event) =>
-      this.logger.error(`"${pluginId}" worker error:`, event.message),
-    );
-
-    this._loadedPlugins.set(pluginId, pluginInstance);
-    try {
-      await pluginInstance.waitForReady();
-      this.logger.info(`loaded "${pluginId}" v${manifest.version}`);
-    } catch (error) {
-      this.logger.error(`"${pluginId}" failed during onload:`, error.message);
-    }
-  }
-
-  async _fetchSource(id) {
-    try {
-      const response = await fetch(`/plugins-local/${id}/main.js`);
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return await response.text();
-    } catch (error) {
-      this.logger.error(
-        `failed to load "${id}": could not fetch main.js`,
-        error,
-      );
-      return null;
-    }
-  }
-
-  async _fetchManifest(id) {
-    try {
-      const response = await fetch(`/plugins-local/${id}/manifest.json`);
-      if (!response.ok) return null;
-      return parsePluginManifest(id, await response.json());
-    } catch (error) {
-      this.logger.warn(`"${id}" invalid manifest:`, error.message);
-      return null;
-    }
-  }
-
-  _handleWorkerMessage(pluginInstance, message) {
-    if (!message || typeof message !== "object") return;
-    switch (message.type) {
-      case "register": {
-        const dispose = this._registerFromPlugin(pluginInstance, message);
-        if (dispose) pluginInstance.disposers.push(dispose);
-        return;
-      }
-      case "result": {
-        this._handleCallResult(message);
-        return;
-      }
-      case "hostCall": {
-        this._handleHostCall(pluginInstance.pluginId, message);
-        return;
-      }
-      default:
-        return;
-    }
-  }
-
-  _handleHostCall(pluginId, message) {
+  handleHostCall(pluginId, message) {
     const handler = this._hostCallHandlers.get(message.method);
     if (!handler) {
-      this.logger.warn(
+      logger.warn(
         `"${pluginId}" called unknown host method "${message.method}"`,
       );
       return;
@@ -283,7 +273,7 @@ export class PluginHost {
     try {
       handler({ pluginId, args: message.args ?? [] });
     } catch (error) {
-      this.logger.error(
+      logger.error(
         `"${pluginId}" host method "${message.method}" threw:`,
         error,
       );
@@ -293,7 +283,7 @@ export class PluginHost {
   dispatchNodeEvent(pluginId, handlerId) {
     const instance = this._loadedPlugins.get(pluginId);
     if (!instance) return;
-    return this._callPlugin(instance, "nodeEvent", handlerId, []);
+    instance.call("nodeEvent", handlerId, []);
   }
 
   sendNotification(pluginId, notificationType, eventData = {}) {
@@ -306,7 +296,7 @@ export class PluginHost {
     });
   }
 
-  _registerFromPlugin(pluginInstance, message) {
+  handleRegister(pluginInstance, message) {
     switch (message.target) {
       // case "mutedWordMatcher": {
       //   const entry = {
@@ -326,8 +316,8 @@ export class PluginHost {
           icon: message.icon,
           title: message.title,
           invoke: () =>
-            this._callPlugin(
-              pluginInstance,
+            pluginInstance.call(
+              // this._callPlugin(
               "sidebarItem",
               message.handlerId,
               [],
@@ -337,72 +327,17 @@ export class PluginHost {
         return () => this.registries.sidebarItems.delete(entry);
       }
       default:
-        this.logger.warn(
+        logger.warn(
           `"${pluginInstance.pluginId}" attempted to register unknown target "${message.target}"`,
         );
         return null;
     }
   }
 
-  _callPlugin(pluginInstance, target, handlerId, args) {
-    const callId = this.uuid.create();
-    return new Promise((resolve, reject) => {
-      this._pendingPluginCalls.set(callId, { resolve, reject });
-      pluginInstance.worker.postMessage({
-        type: "call",
-        callId,
-        target,
-        handlerId,
-        args,
-      });
-    });
-  }
-
-  _handleCallResult(message) {
-    const pending = this._pendingPluginCalls.get(message.callId);
-    if (!pending) return;
-    this._pendingPluginCalls.delete(message.callId);
-    if (message.error) pending.reject(new Error(message.error));
-    else pending.resolve(message.value);
-  }
-
   unloadPlugin(pluginId) {
     const instance = this._loadedPlugins.get(pluginId);
     if (!instance) return;
-    instance.disposers.forEach((dispose) => dispose());
-    instance.worker.terminate();
+    instance.unload();
     this._loadedPlugins.delete(pluginId);
-  }
-}
-
-class WorkerInterface extends EventTarget {
-  constructor(messageTarget) {
-    super();
-    this._messageTarget = messageTarget;
-    this._handleWindowMessage = this._handleWindowMessage.bind(this);
-    window.addEventListener("message", this._handleWindowMessage);
-  }
-
-  postMessage(payload) {
-    this._messageTarget.postMessage({ type: "send", payload }, "*");
-  }
-
-  terminate() {
-    window.removeEventListener("message", this._handleWindowMessage);
-    this.dispatchEvent({ type: "terminate" });
-  }
-
-  _handleWindowMessage(event) {
-    if (event.source !== this._messageTarget) return;
-    const message = event.data;
-    if (!message || typeof message !== "object") return;
-    switch (message.type) {
-      case "fromWorker":
-        this.dispatchEvent({ type: "message", data: message.payload });
-        return;
-      case "workerError":
-        this.dispatchEvent({ type: "error", message: message.error });
-        return;
-    }
   }
 }
