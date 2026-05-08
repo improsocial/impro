@@ -881,6 +881,12 @@ body.scroll-locked header {
   padding-bottom: 0;
 }
 
+@media (min-width: 800px) {
+  #home-view .header > .header-row {
+    display: none;
+  }
+}
+
 .tab-bar {
   display: flex;
   height: 45px;
