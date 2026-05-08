@@ -1,3 +1,5 @@
+const SLOW_TEST_THRESHOLD_MS = 250;
+
 export class TestSuite {
   constructor(suiteName) {
     this.suiteName = suiteName;
@@ -45,6 +47,7 @@ export class TestSuite {
       console.info(`   ${this.suiteName} > ${test.name}`);
       const scopedBeforeEach = test.beforeEach?.();
       const scopedAfterEach = test.afterEach?.();
+      const startTime = performance.now();
       try {
         if (this._beforeEach) {
           await this._beforeEach();
@@ -53,13 +56,24 @@ export class TestSuite {
           await scopedBeforeEach();
         }
         await test.fn();
+        const durationMs = performance.now() - startTime;
         console.info("   ✅ Passed");
-        results.push({ name: test.name, success: true });
+        results.push({ name: test.name, success: true, durationMs });
       } catch (error) {
+        const durationMs = performance.now() - startTime;
         console.error("   ❌ Failed");
         console.error(error);
-        results.push({ name: test.name, success: false, error: error.message });
+        results.push({
+          name: test.name,
+          success: false,
+          error: error.message,
+          durationMs,
+        });
       } finally {
+        const lastResult = results[results.length - 1];
+        if (lastResult?.durationMs >= SLOW_TEST_THRESHOLD_MS) {
+          console.warn(`   ⚠️  slow (${lastResult.durationMs.toFixed(0)}ms)`);
+        }
         if (scopedAfterEach) {
           await scopedAfterEach();
         }

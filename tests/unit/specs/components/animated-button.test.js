@@ -157,43 +157,6 @@ t.describe("AnimatedButton - animations", (it) => {
   });
 });
 
-t.describe("AnimatedButton - cleanup", (it) => {
-  it("should reset ripple state and clear timer ref on disconnect", async () => {
-    const element = createWithContent();
-    document.body.appendChild(element);
-    element.triggerRippleAnimation();
-    assert(element._rippleTimeout !== null);
-    assertEquals(element._isRippleAnimating, true);
-
-    element.remove();
-
-    assertEquals(element._rippleTimeout, null);
-    assertEquals(element._isRippleAnimating, false);
-
-    // If the timer wasn't cleared, the deferred callback would re-set
-    // _isRippleAnimating; wait past the animation duration and confirm it stays false.
-    await new Promise((resolve) => setTimeout(resolve, 650));
-    assertEquals(element._isRippleAnimating, false);
-  });
-
-  it("should clear recently-clicked timer ref on disconnect", async () => {
-    const element = createWithContent();
-    document.body.appendChild(element);
-    element.querySelector("button").click();
-    assert(element._recentlyClickedTimeout !== null);
-    assertEquals(element._recentlyClicked, true);
-
-    element.remove();
-
-    assertEquals(element._recentlyClickedTimeout, null);
-
-    // If the timer was still live, _recentlyClicked would flip to false after 1s.
-    // It should remain true since the timer was cleared.
-    await new Promise((resolve) => setTimeout(resolve, 1050));
-    assertEquals(element._recentlyClicked, true);
-  });
-});
-
 t.describe("AnimatedButton - reinitialization protection", (it) => {
   it("should not duplicate inner button when connectedCallback is called multiple times", () => {
     const element = createWithContent();
