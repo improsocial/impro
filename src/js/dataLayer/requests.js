@@ -455,9 +455,10 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris, {
-        labelers,
-      });
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
@@ -747,7 +748,10 @@ export class Requests {
     const replyParentUris = replyPosts
       .map((post) => post.record?.reply?.parent?.uri)
       .filter(Boolean);
-    const parentPosts = await this.api.getPosts(replyParentUris, { labelers });
+    const parentPosts =
+      replyParentUris.length > 0
+        ? await this.api.getPosts(replyParentUris, { labelers })
+        : [];
     // Save posts and parents
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
@@ -882,7 +886,16 @@ export class Requests {
 
     const searchResults = searchData.posts || [];
     if (searchResults.length > 0) {
-      this.dataStore.setPosts(searchResults);
+      // If there are posts that are replies, load the parents
+      const replyPosts = searchResults.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
+      this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
@@ -929,9 +942,10 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris, {
-        labelers,
-      });
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
       this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {
