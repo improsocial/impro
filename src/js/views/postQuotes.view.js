@@ -3,10 +3,8 @@ import { View } from "./view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
-import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
+import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import "/js/components/infinite-scroll-container.js";
 
 class PostQuotesView extends View {
   async render({
@@ -42,44 +40,6 @@ class PostQuotesView extends View {
       },
     );
 
-    function quotesListTemplate({ quotes, hasMore, currentUser }) {
-      if (!quotes || quotes.length === 0) {
-        return html`<div class="search-status-message">No quotes yet.</div>`;
-      }
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadQuotes();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="post-list">
-          ${quotes.map((quote) =>
-            smallPostTemplate({
-              post: quote,
-              currentUser,
-              isAuthenticated,
-              showReplyToLabel: !!quote.record?.reply,
-              replyToAuthor: quote.record?.reply?.parentAuthor,
-              isUserPost: currentUser?.did === quote.author?.did,
-              postInteractionHandler,
-              pluginService,
-            }),
-          )}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 5 }).map(() => postSkeletonTemplate())
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function quotesSkeletonTemplate() {
-      return html`<div class="post-list">
-        ${Array.from({ length: 10 }).map(() => postSkeletonTemplate())}
-      </div>`;
-    }
-
     function quotesErrorTemplate({ error }) {
       console.error(error);
       return html`<div class="error-state">
@@ -98,12 +58,19 @@ class PostQuotesView extends View {
       const post = dataLayer.selectors.getPost(postUri);
       const postQuotesRequestStatus =
         dataLayer.requests.getStatus("loadPostQuotes");
-      const hasMore = postQuotes?.cursor ? true : false;
 
       const subtitle = post?.quoteCount
         ? `${formatLargeNumber(post.quoteCount)} ${
             post.quoteCount === 1 ? "quote" : "quotes"
           }`
+        : null;
+
+      // Format as feed for postFeedTemplate
+      const postQuotesFeed = postQuotes
+        ? {
+            feed: postQuotes.posts.map((quote) => ({ post: quote })),
+            cursor: postQuotes.cursor,
+          }
         : null;
 
       render(
@@ -121,21 +88,19 @@ class PostQuotesView extends View {
                 subtitle,
               })}
               <main style="position: relative;">
-                ${(() => {
-                  if (postQuotesRequestStatus.error) {
-                    return quotesErrorTemplate({
+                ${postQuotesRequestStatus.error
+                  ? quotesErrorTemplate({
                       error: postQuotesRequestStatus.error,
-                    });
-                  } else if (postQuotes && postQuotes.posts) {
-                    return quotesListTemplate({
-                      quotes: postQuotes.posts,
+                    })
+                  : postFeedTemplate({
+                      feed: postQuotesFeed,
                       currentUser,
-                      hasMore,
-                    });
-                  } else {
-                    return quotesSkeletonTemplate();
-                  }
-                })()}
+                      isAuthenticated,
+                      onLoadMore: loadQuotes,
+                      postInteractionHandler,
+                      emptyMessage: "No quotes yet.",
+                      pluginService,
+                    })}
               </main>`,
           })}
         </div>`,
