@@ -36,10 +36,6 @@
       // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
       // If the app loads successfully, the elements are replaced, so these timeouts won't do anything.
       setTimeout(() => {
-        if (!window.mainModuleLoaded) {
-          console.error("Main module failed to load");
-          showGlobalErrorState();
-        }
         if (!globalErrorStateIsShown()) {
           showGlobalLoadingState();
         }
@@ -115,220 +111,233 @@
       } from "/js/appViewConfig.js";
       import { pluginService } from "/js/plugins/pluginService.js";
 
-      window.mainModuleLoaded = true;
+      async function main() {
+        // Body class for styling
+        if (isNative()) {
+          document.body.classList.add("native");
+        }
 
-      // Body class for styling
-      if (isNative()) {
-        document.body.classList.add("native");
-      }
+        handleAppViewResetQueryParam();
 
-      handleAppViewResetQueryParam();
+        const auth = await getAuth();
+        const session = await auth.getSession();
+        const appViewConfig = getAppViewConfig();
+        const api = new Api(session ?? null, {
+          bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
+          chatAppViewServiceDid: appViewConfig.chatServiceDid,
+        });
+        const dataLayer = new DataLayer(api);
+        // put dataLayer on window for easy access in dev tools
+        window.dataLayer = dataLayer;
+        const identityResolver = new IdentityResolver();
+        const notificationService = session
+          ? new NotificationService(api)
+          : null;
+        const chatNotificationService = session
+          ? new ChatNotificationService(api)
+          : null;
+        const postComposerService = session
+          ? new PostComposerService(dataLayer, identityResolver)
+          : null;
+        const reportService = session ? new ReportService(dataLayer) : null;
 
-      const auth = await getAuth();
-      const session = await auth.getSession();
-      const appViewConfig = getAppViewConfig();
-      const api = new Api(session ?? null, {
-        bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
-        chatAppViewServiceDid: appViewConfig.chatServiceDid,
-      });
-      const dataLayer = new DataLayer(api);
-      // put dataLayer on window for easy access in dev tools
-      window.dataLayer = dataLayer;
-      const identityResolver = new IdentityResolver();
-      const notificationService = session ? new NotificationService(api) : null;
-      const chatNotificationService = session
-        ? new ChatNotificationService(api)
-        : null;
-      const postComposerService = session
-        ? new PostComposerService(dataLayer, identityResolver)
-        : null;
-      const reportService = session ? new ReportService(dataLayer) : null;
+        // Precache author DIDs when data is set in the data store.
+        // This will save us from needing to resolve handles when navigating between pages.
+        setUpIdentityPrecaching(dataLayer, identityResolver);
 
-      // Precache author DIDs when data is set in the data store.
-      // This will save us from needing to resolve handles when navigating between pages.
-      setUpIdentityPrecaching(dataLayer, identityResolver);
-
-      // Preload preferences - sometimes this fails, so try it twice.
-      try {
-        await dataLayer.initializePreferences();
-      } catch (error) {
-        console.error("Error initializing preferences", error);
-        await wait(1000);
+        // Preload preferences - sometimes this fails, so try it twice.
         try {
           await dataLayer.initializePreferences();
-        } catch (retryError) {
-          console.error("Error initializing preferences", retryError);
-          window.showGlobalErrorState();
-          throw retryError;
+        } catch (error) {
+          console.error("Error initializing preferences:", error);
+          await wait(1000);
+          try {
+            await dataLayer.initializePreferences();
+          } catch (retryError) {
+            console.error("Error initializing preferences:", retryError);
+            throw retryError;
+          }
         }
-      }
 
-      try {
-        pluginService.loadPlugins();
-      } catch (error) {
-        console.error("Error loading plugins", error);
-      }
+        try {
+          pluginService.loadPlugins();
+        } catch (error) {
+          console.error("Error loading plugins", error);
+        }
 
-      if (notificationService) {
-        notificationService.startPolling();
+        if (notificationService) {
+          notificationService.startPolling();
 
-        notificationService.on("update", () => {
-          const numNotifications =
-            notificationService?.getNumNotifications() ?? 0;
-          // When there are new notifications, preload notifications for the notifs page.
+          notificationService.on("update", () => {
+            const numNotifications =
+              notificationService?.getNumNotifications() ?? 0;
+            // When there are new notifications, preload notifications for the notifs page.
+            if (
+              numNotifications > 0 &&
+              !window.location.pathname.includes("notifications")
+            ) {
+              const loadedNotifications =
+                dataLayer.selectors.getNotifications();
+              const { loading: notificationsLoading } =
+                dataLayer.requests.getStatus("loadNotifications");
+              // Only preload if there are no notifications loaded
+              if (!loadedNotifications && !notificationsLoading) {
+                dataLayer.requests.loadNotifications({
+                  limit: NOTIFICATIONS_PAGE_SIZE,
+                  reload: true,
+                });
+              }
+            }
+          });
+        }
+
+        if (chatNotificationService) {
+          chatNotificationService.startPolling();
+        }
+
+        const context = {
+          isAuthenticated: !!session,
+          api,
+          dataLayer,
+          identityResolver,
+          notificationService,
+          chatNotificationService,
+          postComposerService,
+          reportService,
+          pluginService,
+        };
+
+        const router = new Router();
+        router.addRoute("/", () => homeView);
+        router.addRoute("/intent/compose", () => homeView);
+        router.addRoute("/login", () => loginView);
+        router.addRoute("/notifications", () => notificationsView);
+        router.addRoute("/messages/inbox", () => chatRequestsView);
+        router.addRoute("/messages/:convoId", () => chatDetailView);
+        router.addRoute("/messages", () => chatView);
+        router.addRoute("/feeds", () => feedsView);
+        router.addRoute("/bookmarks", () => bookmarksView);
+        router.addRoute("/search", () => searchView);
+        router.addRoute("/hashtag/:tag", () => hashtagView);
+        router.addRoute(
+          "/profile/:handleOrDid/feed/:rkey",
+          () => feedDetailView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/post/:rkey/likes",
+          () => postLikesView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/post/:rkey/quotes",
+          () => postQuotesView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/post/:rkey/reposts",
+          () => postRepostsView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/post/:rkey",
+          () => postThreadView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/followers",
+          () => profileFollowersView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/following",
+          () => profileFollowingView,
+        );
+        router.addRoute("/profile/:handleOrDid", () => profileView);
+        router.addRoute("/profile", () => profileView); // current user profile
+        router.addRoute("/settings", () => settingsView);
+        router.addRoute("/settings/appearance", () => settingsAppearanceView);
+        router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
+        router.addRoute("/settings/advanced", () => settingsAdvancedView);
+        router.setNotFoundView(() => notFoundView);
+
+        router.renderRoute(({ view, params, container }) => {
+          return view.render({
+            root: container,
+            router,
+            params,
+            context,
+          });
+        });
+
+        router.on("page-shown", (page) => {
+          if (page.nativeRefreshDisabled) {
+            disableNativeRefresh();
+          } else {
+            enableNativeRefresh();
+          }
+        });
+
+        router.on("navigate", () => {
+          document.querySelectorAll("dialog[open]").forEach((dialog) => {
+            const wrapper = dialog.closest("[data-dialog-wrapper]");
+            if (wrapper && typeof wrapper.close === "function") {
+              wrapper.close();
+            } else {
+              dialog.close();
+            }
+          });
+        });
+
+        router.mount(document.getElementById("app-root"));
+
+        // attach to window since it's used in some nested functions
+        window.router = router;
+
+        // intercept in-app links
+        document.addEventListener("click", (e) => {
+          const anchor = e.target.closest("a");
+          if (!anchor || anchor.dataset.external) {
+            return;
+          }
+          // Let the browser handle modifier/middle clicks (open in new tab/window)
           if (
-            numNotifications > 0 &&
-            !window.location.pathname.includes("notifications")
+            e.metaKey ||
+            e.ctrlKey ||
+            e.shiftKey ||
+            e.altKey ||
+            e.button !== 0
           ) {
-            const loadedNotifications = dataLayer.selectors.getNotifications();
-            const { loading: notificationsLoading } =
-              dataLayer.requests.getStatus("loadNotifications");
-            // Only preload if there are no notifications loaded
-            if (!loadedNotifications && !notificationsLoading) {
-              dataLayer.requests.loadNotifications({
-                limit: NOTIFICATIONS_PAGE_SIZE,
-                reload: true,
-              });
+            return;
+          }
+          if (anchor.href.startsWith("/")) {
+            e.preventDefault();
+            return router.go(anchor.href);
+          }
+          const parsedUrl = new URL(anchor.href);
+          const currentHostname = window.location.hostname;
+          if (
+            currentHostname === parsedUrl.hostname ||
+            IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
+          ) {
+            const relativePath = parsedUrl.pathname;
+            // Only intercept in-app links if there's a match in the router
+            if (router.hasRoute(relativePath)) {
+              e.preventDefault();
+              router.go(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
             }
           }
         });
+
+        await router.load(window.location.pathname ?? "/");
+
+        window.addEventListener("native-reload", () => {
+          hapticsImpactLight();
+          window.location.reload();
+        });
+
+        // Page has loaded, let the native app know
+        dispatchNativeRefreshEnded();
       }
 
-      if (chatNotificationService) {
-        chatNotificationService.startPolling();
-      }
-
-      const context = {
-        isAuthenticated: !!session,
-        api,
-        dataLayer,
-        identityResolver,
-        notificationService,
-        chatNotificationService,
-        postComposerService,
-        reportService,
-        pluginService,
-      };
-
-      const router = new Router();
-      router.addRoute("/", () => homeView);
-      router.addRoute("/intent/compose", () => homeView);
-      router.addRoute("/login", () => loginView);
-      router.addRoute("/notifications", () => notificationsView);
-      router.addRoute("/messages/inbox", () => chatRequestsView);
-      router.addRoute("/messages/:convoId", () => chatDetailView);
-      router.addRoute("/messages", () => chatView);
-      router.addRoute("/feeds", () => feedsView);
-      router.addRoute("/bookmarks", () => bookmarksView);
-      router.addRoute("/search", () => searchView);
-      router.addRoute("/hashtag/:tag", () => hashtagView);
-      router.addRoute("/profile/:handleOrDid/feed/:rkey", () => feedDetailView);
-      router.addRoute(
-        "/profile/:handleOrDid/post/:rkey/likes",
-        () => postLikesView,
-      );
-      router.addRoute(
-        "/profile/:handleOrDid/post/:rkey/quotes",
-        () => postQuotesView,
-      );
-      router.addRoute(
-        "/profile/:handleOrDid/post/:rkey/reposts",
-        () => postRepostsView,
-      );
-      router.addRoute("/profile/:handleOrDid/post/:rkey", () => postThreadView);
-      router.addRoute(
-        "/profile/:handleOrDid/followers",
-        () => profileFollowersView,
-      );
-      router.addRoute(
-        "/profile/:handleOrDid/following",
-        () => profileFollowingView,
-      );
-      router.addRoute("/profile/:handleOrDid", () => profileView);
-      router.addRoute("/profile", () => profileView); // current user profile
-      router.addRoute("/settings", () => settingsView);
-      router.addRoute("/settings/appearance", () => settingsAppearanceView);
-      router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
-      router.addRoute("/settings/advanced", () => settingsAdvancedView);
-      router.setNotFoundView(() => notFoundView);
-
-      router.renderRoute(({ view, params, container }) => {
-        return view.render({
-          root: container,
-          router,
-          params,
-          context,
-        });
+      main().catch((error) => {
+        console.error("Error in main function:", error);
+        window.showGlobalErrorState();
       });
-
-      router.on("page-shown", (page) => {
-        if (page.nativeRefreshDisabled) {
-          disableNativeRefresh();
-        } else {
-          enableNativeRefresh();
-        }
-      });
-
-      router.on("navigate", () => {
-        document.querySelectorAll("dialog[open]").forEach((dialog) => {
-          const wrapper = dialog.closest("[data-dialog-wrapper]");
-          if (wrapper && typeof wrapper.close === "function") {
-            wrapper.close();
-          } else {
-            dialog.close();
-          }
-        });
-      });
-
-      router.mount(document.getElementById("app-root"));
-
-      // attach to window since it's used in some nested functions
-      window.router = router;
-
-      // intercept in-app links
-      document.addEventListener("click", (e) => {
-        const anchor = e.target.closest("a");
-        if (!anchor || anchor.dataset.external) {
-          return;
-        }
-        // Let the browser handle modifier/middle clicks (open in new tab/window)
-        if (
-          e.metaKey ||
-          e.ctrlKey ||
-          e.shiftKey ||
-          e.altKey ||
-          e.button !== 0
-        ) {
-          return;
-        }
-        if (anchor.href.startsWith("/")) {
-          e.preventDefault();
-          return router.go(anchor.href);
-        }
-        const parsedUrl = new URL(anchor.href);
-        const currentHostname = window.location.hostname;
-        if (
-          currentHostname === parsedUrl.hostname ||
-          IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
-        ) {
-          const relativePath = parsedUrl.pathname;
-          // Only intercept in-app links if there's a match in the router
-          if (router.hasRoute(relativePath)) {
-            e.preventDefault();
-            router.go(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
-          }
-        }
-      });
-
-      await router.load(window.location.pathname ?? "/");
-
-      window.addEventListener("native-reload", () => {
-        hapticsImpactLight();
-        window.location.reload();
-      });
-
-      // Page has loaded, let the native app know
-      dispatchNativeRefreshEnded();
     </script>
   </body>
 </html>
