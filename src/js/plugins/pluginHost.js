@@ -203,6 +203,10 @@ export class PluginHost {
     };
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
+    this._handlePluginNodeEvent = this._handlePluginNodeEvent.bind(this);
+    window.addEventListener("plugin-node-event", (e) =>
+      this._handlePluginNodeEvent(e),
+    );
   }
 
   async loadPlugins(pluginIds) {
@@ -275,10 +279,17 @@ export class PluginHost {
     }
   }
 
+  _handlePluginNodeEvent(event) {
+    const { pluginId, handlerId } = event.detail;
+    this.callPlugin(pluginId, handlerId).catch((error) => {
+      logger.warn(`[plugins] "${pluginId}" event handler threw:`, error);
+    });
+  }
+
   callPlugin(pluginId, handlerId) {
     const instance = this._loadedPlugins.get(pluginId);
     if (!instance) return;
-    instance.call(handlerId, []);
+    return instance.call(handlerId, []);
   }
 
   sendNotification(pluginId, notificationType, eventData = {}) {

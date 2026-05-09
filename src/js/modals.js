@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { getThreadgateAllowSettings } from "/js/dataHelpers.js";
 import { linkToProfile, linkToLogin } from "/js/navigation.js";
+import { renderNode, isEmptyNode } from "/js/plugins/pluginRendering.js";
 
 export function showSignInModal() {
   const dialog = document.createElement("dialog");
@@ -240,4 +241,73 @@ export function showWhoCanReplyModal({ post }) {
 
   document.body.appendChild(dialog);
   dialog.showModal();
+}
+
+const pluginModals = new Map();
+
+export function showPluginModal({
+  pluginHost,
+  pluginId,
+  modalId,
+  title,
+  content,
+  onDismiss = () => {},
+}) {
+  let modal = pluginModals.get(`${pluginId}:${modalId}`);
+  if (modal?.isOpen) return;
+
+  if (!modal) {
+    const dialog = document.createElement("dialog");
+    dialog.classList.add("modal-dialog", "plugin-modal");
+    dialog.dataset.pluginId = pluginId;
+
+    const content = document.createElement("div");
+    content.classList.add("modal-dialog-content");
+    dialog.appendChild(content);
+
+    modal = { dialog, content, isOpen: false };
+
+    function dismiss() {
+      if (!modal.isOpen) return;
+      modal.isOpen = false;
+      dialog.close();
+      onDismiss();
+    }
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target.tagName === "DIALOG") dismiss();
+    });
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      dismiss();
+    });
+
+    pluginModals.set(`${pluginId}:${modalId}`, modal);
+    document.body.appendChild(dialog);
+  }
+
+  modal.content.replaceChildren();
+  if (!isEmptyNode(title)) {
+    const titleEl = renderNode(title, pluginId);
+    titleEl.classList.add("modal-dialog-title");
+    modal.content.appendChild(titleEl);
+  }
+  if (content?.children?.length) {
+    for (const childNode of content.children) {
+      modal.content.appendChild(renderNode(childNode, pluginId));
+    }
+  } else if (!isEmptyNode(content)) {
+    modal.content.appendChild(renderNode(content, pluginId));
+  }
+
+  modal.isOpen = true;
+  modal.dialog.showModal();
+}
+
+export function hidePluginModal({ pluginId, modalId }) {
+  const modal = pluginModals.get(`${pluginId}:${modalId}`);
+  if (modal && modal.isOpen) {
+    modal.isOpen = false;
+    modal.dialog.close();
+  }
 }

@@ -1,6 +1,6 @@
 import { isDev } from "/js/utils.js";
-import { PluginHost } from "./pluginHost.js";
-import { setupPluginModals } from "./pluginModals.js";
+import { PluginHost } from "/js/plugins/pluginHost.js";
+import { showPluginModal, hidePluginModal } from "/js/modals.js";
 
 const ENABLED_PLUGINS_KEY = "enabled-plugins";
 
@@ -24,7 +24,31 @@ function setEnabledPlugins(ids) {
 class PluginService {
   constructor() {
     this.pluginHost = new PluginHost({ verbose: isDev() });
-    setupPluginModals(this.pluginHost);
+    this._setupModals();
+  }
+
+  _setupModals() {
+    this.pluginHost.registerHostCall("openModal", ({ pluginId, args }) => {
+      const [options] = args;
+      const { modalId, title, content } = options;
+      showPluginModal({
+        pluginId,
+        modalId,
+        title,
+        content,
+        onDismiss: () => {
+          this.pluginHost.sendNotification(pluginId, "modalDismissed", {
+            modalId,
+          });
+        },
+      });
+    });
+
+    this.pluginHost.registerHostCall("closeModal", ({ pluginId, args }) => {
+      const [options] = args;
+      const { modalId } = options;
+      hidePluginModal({ pluginId, modalId });
+    });
   }
 
   async loadPlugins() {

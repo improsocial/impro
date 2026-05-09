@@ -22,10 +22,10 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 import { showInfoModal } from "/js/modals.js";
-import { PluginRenderer } from "/js/plugins/pluginRenderer.js";
+import { getPluginIconTemplate } from "/js/plugins/pluginRendering.js";
 
 function pluginSidebarItemTemplate({ entry }) {
-  const iconTemplate = PluginRenderer.getPluginIconTemplate(entry.icon);
+  const iconTemplate = getPluginIconTemplate(entry.icon);
   return html`
     <button
       class="sidebar-nav-item sidebar-plugin-nav-item"
