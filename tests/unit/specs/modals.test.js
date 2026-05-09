@@ -5,9 +5,15 @@ import {
   showInfoModal,
   confirm,
   showWhoCanReplyModal,
-  showPluginModal,
+  showPluginModal as _showPluginModal,
   hidePluginModal,
 } from "/js/modals.js";
+import { PluginRenderer } from "/js/plugins/pluginRendering.js";
+
+const pluginRenderer = new PluginRenderer(null);
+function showPluginModal(opts) {
+  return _showPluginModal({ pluginRenderer, ...opts });
+}
 
 const t = new TestSuite("Modals");
 

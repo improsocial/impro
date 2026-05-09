@@ -42,61 +42,73 @@ const PLUGIN_ICON_TEMPLATES = {
   "lightning-bolt": lightningBoltIconTemplate,
 };
 
+function createVirtualEvent(e) {
+  // Create a serializeable event object - can extend this later if needed
+  return {
+    type: e.type,
+  };
+}
+
 // Render a serialized VirtualEl node ({ tag, attrs, text, children }) into a
 // real element. Text and children are mutually exclusive on
 // the worker side (setText() clears children).
-export function renderNode(node, pluginId) {
-  let tag = typeof node.tag === "string" ? node.tag.toLowerCase() : "div";
-  if (!isAllowedTag(tag)) {
-    console.warn(
-      `[plugins] "${pluginId}" tried to render disallowed tag <${tag}>`,
-    );
-    tag = "span";
+export class PluginRenderer {
+  constructor(pluginHost) {
+    this.pluginHost = pluginHost;
   }
-  const element = document.createElement(tag);
-  if (node.attrs) {
-    for (const [name, value] of Object.entries(node.attrs)) {
-      if (!isAllowedAttr(name)) {
-        console.warn(
-          `[plugins] "${pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
-        );
-        continue;
+  renderNode(node, pluginId) {
+    let tag = typeof node.tag === "string" ? node.tag.toLowerCase() : "div";
+    if (!isAllowedTag(tag)) {
+      console.warn(
+        `[plugins] "${pluginId}" tried to render disallowed tag <${tag}>`,
+      );
+      tag = "span";
+    }
+    const element = document.createElement(tag);
+    if (node.attrs) {
+      for (const [name, value] of Object.entries(node.attrs)) {
+        if (!isAllowedAttr(name)) {
+          console.warn(
+            `[plugins] "${pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
+          );
+          continue;
+        }
+        element.setAttribute(name, String(value));
       }
-      element.setAttribute(name, String(value));
     }
-  }
-  if (node.events && typeof node.events === "object") {
-    for (const [name, handlerId] of Object.entries(node.events)) {
-      if (!ALLOWED_EVENTS.includes(name)) {
-        console.warn(
-          `[plugins] "${pluginId}" tried to bind disallowed event "${name}"`,
-        );
-        continue;
+    if (node.events && typeof node.events === "object") {
+      for (const [name, handlerId] of Object.entries(node.events)) {
+        if (!ALLOWED_EVENTS.includes(name)) {
+          console.warn(
+            `[plugins] "${pluginId}" tried to bind disallowed event "${name}"`,
+          );
+          continue;
+        }
+        element.addEventListener(name, (e) => {
+          this.pluginHost.handleNodeEvent(
+            pluginId,
+            handlerId,
+            createVirtualEvent(e),
+          );
+        });
       }
-      element.addEventListener(name, () => {
-        window.dispatchEvent(
-          new CustomEvent("plugin-node-event", {
-            detail: { pluginId, handlerId },
-          }),
-        );
-      });
     }
-  }
-  if (node.text != null) {
-    element.textContent = node.text;
-  } else if (Array.isArray(node.children)) {
-    for (const child of node.children) {
-      element.appendChild(renderNode(child, pluginId));
+    if (node.text != null) {
+      element.textContent = node.text;
+    } else if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        element.appendChild(this.renderNode(child, pluginId));
+      }
     }
+    return element;
   }
-  return element;
-}
 
-export function isEmptyNode(node) {
-  if (!node) return true;
-  if (node.text != null && node.text !== "") return false;
-  if (Array.isArray(node.children) && node.children.length > 0) return false;
-  return true;
+  isEmptyNode(node) {
+    if (!node) return true;
+    if (node.text != null && node.text !== "") return false;
+    if (Array.isArray(node.children) && node.children.length > 0) return false;
+    return true;
+  }
 }
 
 export function getPluginIconTemplate(icon) {

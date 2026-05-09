@@ -1,9 +1,7 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
 
-const LOCAL_PLUGINS_INDEX_URL = "/plugins-local/index.json";
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
-const PLUGIN_READY_TIMEOUT_MS = 5000;
 
 const WORKER_PREFIX = `
 delete self.BroadcastChannel;
@@ -11,10 +9,9 @@ delete self.SharedWorker;
 `;
 
 const SANDBOX_URL = "/js/plugins/sandbox.html";
-const SANDBOX_READY_TIMEOUT_MS = 5000;
 
-async function fetchPluginIndex() {
-  const response = await fetch(LOCAL_PLUGINS_INDEX_URL);
+async function fetchPluginIndex(indexUrl) {
+  const response = await fetch(indexUrl);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   const body = await response.json();
   return Array.isArray(body.ids) ? body.ids : [];
@@ -125,10 +122,11 @@ async function createSandboxedWorker(source) {
 }
 
 class PluginInstance {
-  constructor(pluginId, host, worker) {
+  constructor(pluginId, worker, { onRegister, onHostCall }) {
     this.pluginId = pluginId;
     this.worker = worker;
-    this.host = host;
+    this._onRegister = onRegister;
+    this._onHostCall = onHostCall;
     this.disposers = [];
     this._pendingCalls = new Map();
     this.callUuid = new SimpleUUID();
@@ -138,14 +136,21 @@ class PluginInstance {
     this.worker.addEventListener("error", (event) =>
       logger.error(`"${this.pluginId}" worker error:`, event.message),
     );
+    this._readyPromise = new Promise((resolve) => {
+      this._setReady = () => resolve();
+    });
   }
 
   _handleWorkerMessage(event) {
     const message = event.data;
     if (!message || typeof message !== "object") return;
     switch (message.type) {
+      case "ready": {
+        this._setReady();
+        return;
+      }
       case "register": {
-        const dispose = this.host.handleRegister(this, message);
+        const dispose = this._onRegister(this, message);
         if (dispose) this.disposers.push(dispose);
         return;
       }
@@ -154,7 +159,7 @@ class PluginInstance {
         return;
       }
       case "hostCall": {
-        this.host.handleHostCall(this.pluginId, message);
+        this._onHostCall(this, message);
         return;
       }
       default:
@@ -162,13 +167,18 @@ class PluginInstance {
     }
   }
 
-  static async load(pluginId, host, source) {
+  static async loadFromSource(pluginId, source, callbacks) {
     const worker = await createSandboxedWorker(WORKER_PREFIX + source);
-    const instance = new PluginInstance(pluginId, host, worker);
-    return instance;
+    const instance = new PluginInstance(pluginId, worker, callbacks);
+    return instance.waitForReady();
   }
 
-  async call(handlerId, args) {
+  async waitForReady() {
+    await this._readyPromise;
+    return this;
+  }
+
+  async call(handlerId, ...args) {
     const callId = this.callUuid.create();
     return new Promise((resolve, reject) => {
       this._pendingCalls.set(callId, { resolve, reject });
@@ -178,6 +188,14 @@ class PluginInstance {
         handlerId,
         args,
       });
+    });
+  }
+
+  async sendEvent(event, data) {
+    this.worker.postMessage({
+      type: "event",
+      event,
+      data,
     });
   }
 
@@ -196,45 +214,67 @@ class PluginInstance {
 }
 
 export class PluginHost {
-  constructor({ verbose = false } = {}) {
-    this.registries = {
-      sidebarItems: new Set(),
-      postContextMenuItems: new Set(),
-    };
+  constructor() {
+    this._availablePlugins = null;
+    this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
-    this._handlePluginNodeEvent = this._handlePluginNodeEvent.bind(this);
-    window.addEventListener("plugin-node-event", (e) =>
-      this._handlePluginNodeEvent(e),
-    );
+  }
+
+  addRegistrationTarget(target, handler) {
+    this._registrationTargets.set(target, handler);
+  }
+
+  _handleRegistration(pluginInstance, message) {
+    const handler = this._registrationTargets.get(message.target);
+    if (!handler) {
+      logger.warn(
+        `"${pluginInstance.pluginId}" attempted to register unknown target "${message.target}"`,
+      );
+      return null;
+    }
+
+    return handler(pluginInstance, message);
+  }
+
+  async loadPluginIndex(indexUrl) {
+    try {
+      this._availablePlugins = await fetchPluginIndex(indexUrl);
+      logger.info(
+        `discovered ${this._availablePlugins.length} plugin(s):`,
+        this._availablePlugins,
+      );
+    } catch (error) {
+      throw new Error(`failed to load plugin index: ${error.message}`);
+    }
   }
 
   async loadPlugins(pluginIds) {
-    let availablePlugins;
-    try {
-      availablePlugins = await fetchPluginIndex();
-    } catch {
-      availablePlugins = [];
+    if (this._availablePlugins === null) {
+      logger.info("Plugin index not loaded");
+      return;
     }
-    logger.info(
-      `discovered ${availablePlugins.length} plugin(s):`,
-      availablePlugins,
-    );
-    const toLoad = availablePlugins.filter((id) => pluginIds.includes(id));
-    if (pluginIds) {
-      const skipped = availablePlugins.filter((id) => !pluginIds.includes(id));
-      if (skipped.length) logger.info("skipping disabled plugin(s):", skipped);
+    const toLoad = [];
+    for (const pluginId of pluginIds) {
+      if (!this._availablePlugins.includes(pluginId)) {
+        logger.warn("skipping unregistered plugin:", pluginId);
+        continue;
+      }
+      toLoad.push(pluginId);
     }
-    await Promise.all(toLoad.map((id) => this._loadPlugin(id)));
+    await Promise.all(toLoad.map((id) => this.loadPlugin(id)));
   }
 
-  async _loadPlugin(pluginId) {
+  async loadPlugin(pluginId) {
     if (this._loadedPlugins.has(pluginId)) return;
     let manifest;
     try {
       manifest = await fetchPluginManifest(pluginId);
     } catch (error) {
-      logger.warn(`"${pluginId}" invalid manifest:`, error.message);
+      logger.warn(
+        `failed to load "${pluginId}": invalid manifest:`,
+        error.message,
+      );
       return;
     }
     let source;
@@ -248,88 +288,57 @@ export class PluginHost {
       return;
     }
     try {
-      const pluginInstance = await PluginInstance.load(pluginId, this, source);
+      const pluginInstance = await PluginInstance.loadFromSource(
+        pluginId,
+        source,
+        {
+          onRegister: (instance, message) =>
+            this._handleRegistration(instance, message),
+          onHostCall: (instance, message) =>
+            this._handleHostCall(instance, message),
+        },
+      );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
     } catch (error) {
-      logger.error(`"${pluginId}" failed during onload:`, error.message);
+      logger.error(`"${pluginId}" failed during initialize:`, error.message);
     }
   }
 
-  registerHostCall(method, handler) {
+  addHostMethod(method, handler) {
     this._hostCallHandlers.set(method, handler);
-    return () => this._hostCallHandlers.delete(method);
   }
 
-  handleHostCall(pluginId, message) {
+  _handleHostCall(pluginInstance, message) {
     const handler = this._hostCallHandlers.get(message.method);
     if (!handler) {
       logger.warn(
-        `"${pluginId}" called unknown host method "${message.method}"`,
+        `"${pluginInstance.pluginId}" called unknown host method "${message.method}"`,
       );
       return;
     }
+    const args = message.args ?? [];
     try {
-      handler({ pluginId, args: message.args ?? [] });
+      handler(pluginInstance, ...args);
     } catch (error) {
       logger.error(
-        `"${pluginId}" host method "${message.method}" threw:`,
+        `"${pluginInstance.pluginId}" host method "${message.method}" threw:`,
         error,
       );
     }
   }
 
-  _handlePluginNodeEvent(event) {
-    const { pluginId, handlerId } = event.detail;
-    this.callPlugin(pluginId, handlerId).catch((error) => {
+  handleNodeEvent(pluginId, handlerId, virtualEvent) {
+    const instance = this._loadedPlugins.get(pluginId);
+    if (!instance) {
+      logger.warn(
+        `received event for unknown plugin "${pluginId}", handler "${handlerId}"`,
+      );
+      return;
+    }
+    instance.call(handlerId, virtualEvent).catch((error) => {
       logger.warn(`[plugins] "${pluginId}" event handler threw:`, error);
     });
-  }
-
-  callPlugin(pluginId, handlerId) {
-    const instance = this._loadedPlugins.get(pluginId);
-    if (!instance) return;
-    return instance.call(handlerId, []);
-  }
-
-  sendNotification(pluginId, notificationType, eventData = {}) {
-    const instance = this._loadedPlugins.get(pluginId);
-    if (!instance) return;
-    instance.worker.postMessage({
-      type: "notification",
-      notificationType,
-      ...eventData,
-    });
-  }
-
-  handleRegister(pluginInstance, message) {
-    switch (message.target) {
-      case "sidebarItem": {
-        const entry = {
-          pluginId: pluginInstance.pluginId,
-          icon: message.icon,
-          title: message.title,
-          invoke: () => pluginInstance.call(message.handlerId, []),
-        };
-        this.registries.sidebarItems.add(entry);
-        return () => this.registries.sidebarItems.delete(entry);
-      }
-      case "postContextMenuItem": {
-        const entry = {
-          pluginId: pluginInstance.pluginId,
-          icon: message.icon,
-          title: message.title,
-          invoke: (post) => pluginInstance.call(message.handlerId, [post]),
-        };
-        this.registries.postContextMenuItems.add(entry);
-        return () => this.registries.postContextMenuItems.delete(entry);
-      }
-      default:
-        logger.warn(
-          `"${pluginInstance.pluginId}" attempted to register unknown target "${message.target}"`,
-        );
-        return null;
-    }
   }
 
   unloadPlugin(pluginId) {

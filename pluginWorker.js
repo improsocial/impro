@@ -200,13 +200,13 @@ self.addEventListener("message", async (event) => {
     return;
   }
 
-  // Notifications
-  if (message.type === "notification") {
-    switch (message.notificationType) {
+  // Events
+  if (message.type === "event") {
+    switch (message.event) {
       case "modalDismissed": {
-        const modal = openModals.get(message.modalId);
+        const modal = openModals.get(message.data.modalId);
         if (modal) {
-          openModals.delete(message.modalId);
+          openModals.delete(message.data.modalId);
           modal.onClose();
         }
       }

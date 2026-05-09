@@ -1,7 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { getThreadgateAllowSettings } from "/js/dataHelpers.js";
 import { linkToProfile, linkToLogin } from "/js/navigation.js";
-import { renderNode, isEmptyNode } from "/js/plugins/pluginRendering.js";
 
 export function showSignInModal() {
   const dialog = document.createElement("dialog");
@@ -246,7 +245,7 @@ export function showWhoCanReplyModal({ post }) {
 const pluginModals = new Map();
 
 export function showPluginModal({
-  pluginHost,
+  pluginRenderer,
   pluginId,
   modalId,
   title,
@@ -261,11 +260,11 @@ export function showPluginModal({
     dialog.classList.add("modal-dialog", "plugin-modal");
     dialog.dataset.pluginId = pluginId;
 
-    const content = document.createElement("div");
-    content.classList.add("modal-dialog-content");
-    dialog.appendChild(content);
+    const contentEl = document.createElement("div");
+    contentEl.classList.add("modal-dialog-content");
+    dialog.appendChild(contentEl);
 
-    modal = { dialog, content, isOpen: false };
+    modal = { dialog, contentEl, isOpen: false };
 
     function dismiss() {
       if (!modal.isOpen) return;
@@ -286,20 +285,21 @@ export function showPluginModal({
     document.body.appendChild(dialog);
   }
 
-  modal.content.replaceChildren();
-  if (!isEmptyNode(title)) {
-    const titleEl = renderNode(title, pluginId);
+  modal.contentEl.replaceChildren();
+  if (!pluginRenderer.isEmptyNode(title)) {
+    const titleEl = pluginRenderer.renderNode(title, pluginId);
     titleEl.classList.add("modal-dialog-title");
-    modal.content.appendChild(titleEl);
+    modal.contentEl.appendChild(titleEl);
   }
   if (content?.children?.length) {
     for (const childNode of content.children) {
-      modal.content.appendChild(renderNode(childNode, pluginId));
+      modal.contentEl.appendChild(
+        pluginRenderer.renderNode(childNode, pluginId),
+      );
     }
-  } else if (!isEmptyNode(content)) {
-    modal.content.appendChild(renderNode(content, pluginId));
+  } else if (!pluginRenderer.isEmptyNode(content)) {
+    modal.contentEl.appendChild(pluginRenderer.renderNode(content, pluginId));
   }
-
   modal.isOpen = true;
   modal.dialog.showModal();
 }

@@ -109,7 +109,7 @@
         getAppViewConfig,
         handleAppViewResetQueryParam,
       } from "/js/appViewConfig.js";
-      import { pluginService } from "/js/plugins/pluginService.js";
+      import { PluginService } from "/js/plugins/pluginService.js";
 
       async function main() {
         // Body class for styling
@@ -159,8 +159,14 @@
           }
         }
 
+        const pluginService = new PluginService();
+
+        // Dev helpers
+        window.enablePlugin = pluginService.enablePlugin.bind(pluginService);
+        window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
+
         try {
-          pluginService.loadPlugins();
+          await pluginService.loadEnabledPlugins();
         } catch (error) {
           console.error("Error loading plugins", error);
         }
