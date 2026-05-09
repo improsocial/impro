@@ -1,10 +1,10 @@
-import { DataStore } from "./dataStore.js";
-import { PatchStore } from "./patchStore.js";
-import { PreferencesProvider } from "./preferencesProvider.js";
-import { Mutations } from "./mutations.js";
-import { Requests } from "./requests.js";
-import { Selectors } from "./selectors.js";
-import { Declarative } from "./declarative.js";
+import { DataStore } from "/js/dataLayer/dataStore.js";
+import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { Mutations } from "/js/dataLayer/mutations.js";
+import { Requests } from "/js/dataLayer/requests.js";
+import { Selectors } from "/js/dataLayer/selectors.js";
+import { Declarative } from "/js/dataLayer/declarative.js";
 
 export class DataLayer {
   constructor(api) {

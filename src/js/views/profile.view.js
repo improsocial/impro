@@ -4,7 +4,7 @@ import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
 } from "/js/dataHelpers.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";

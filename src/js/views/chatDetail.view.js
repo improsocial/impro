@@ -1,4 +1,4 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";

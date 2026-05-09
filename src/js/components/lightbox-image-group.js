@@ -1,8 +1,8 @@
-import { Component, getChildrenFragment } from "./component.js";
+import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { ImageLoader } from "/js/utils.js";
-import { chevronLeftIconTemplate } from "../templates/icons/chevronLeft.template.js";
-import { chevronRightIconTemplate } from "../templates/icons/chevronRight.template.js";
+import { chevronLeftIconTemplate } from "/js/templates/icons/chevronLeft.template.js";
+import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 
 class LightboxDialog extends Component {
   connectedCallback() {

@@ -1,4 +1,4 @@
-import { Component } from "./component.js";
+import { Component } from "/js/components/component.js";
 import { classnames } from "/js/utils.js";
 
 // Should match the CSS animation duration

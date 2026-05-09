@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";

@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { Component, getChildrenFragment } from "./component.js";
+import { Component, getChildrenFragment } from "/js/components/component.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
 

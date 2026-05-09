@@ -1,4 +1,4 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";

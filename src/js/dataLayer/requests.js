@@ -1,4 +1,4 @@
-import { Normalizer } from "./normalizer.js";
+import { Normalizer } from "/js/dataLayer/normalizer.js";
 import {
   flattenParents,
   replaceTopParent,

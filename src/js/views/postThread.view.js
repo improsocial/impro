@@ -18,7 +18,7 @@ import {
 } from "/js/dataHelpers.js";
 import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 

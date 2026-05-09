@@ -1,4 +1,4 @@
-import { Component } from "./component.js";
+import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
 

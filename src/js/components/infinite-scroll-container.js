@@ -1,4 +1,4 @@
-import { Component, getChildrenFragment } from "./component.js";
+import { Component, getChildrenFragment } from "/js/components/component.js";
 
 class InfiniteScrollContainer extends Component {
   static get observedAttributes() {
