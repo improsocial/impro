@@ -84,8 +84,9 @@ class ProfileFollowingView extends View {
       const profileFollowing =
         dataLayer.selectors.getProfileFollows(profileDid);
       const profile = dataLayer.selectors.getProfile(profileDid);
-      const profileFollowingRequestStatus =
-        dataLayer.requests.getStatus("loadProfileFollows");
+      const profileFollowingRequestStatus = dataLayer.requests.getStatus(
+        "loadProfileFollows-" + profileDid,
+      );
       const hasMore = profileFollowing?.cursor ? true : false;
 
       const subtitle = profile?.followsCount

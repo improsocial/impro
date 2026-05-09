@@ -484,8 +484,9 @@ class PostThreadView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      const postThreadRequestStatus =
-        dataLayer.requests.getStatus("loadPostThread");
+      const postThreadRequestStatus = dataLayer.requests.getStatus(
+        "loadPostThread-" + postUri,
+      );
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({

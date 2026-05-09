@@ -85,7 +85,7 @@ class ProfileFollowersView extends View {
         dataLayer.selectors.getProfileFollowers(profileDid);
       const profile = dataLayer.selectors.getProfile(profileDid);
       const profileFollowersRequestStatus = dataLayer.requests.getStatus(
-        "loadProfileFollowers",
+        "loadProfileFollowers-" + profileDid,
       );
       const hasMore = profileFollowers?.cursor ? true : false;
 

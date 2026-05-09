@@ -56,8 +56,9 @@ class PostQuotesView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const postQuotes = dataLayer.selectors.getPostQuotes(postUri);
       const post = dataLayer.selectors.getPost(postUri);
-      const postQuotesRequestStatus =
-        dataLayer.requests.getStatus("loadPostQuotes");
+      const postQuotesRequestStatus = dataLayer.requests.getStatus(
+        "loadPostQuotes-" + postUri,
+      );
 
       const subtitle = post?.quoteCount
         ? `${formatLargeNumber(post.quoteCount)} ${

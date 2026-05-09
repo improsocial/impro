@@ -361,9 +361,15 @@ class SearchView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const normalizedQuery = state.searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.getStatus("loadPostSearch");
-      const profileStatus = dataLayer.requests.getStatus("loadProfileSearch");
-      const feedStatus = dataLayer.requests.getStatus("loadFeedSearch");
+      const postStatus = dataLayer.requests.getStatus(
+        `loadPostSearch-${normalizedQuery}-top`,
+      );
+      const profileStatus = dataLayer.requests.getStatus(
+        "loadProfileSearch-" + normalizedQuery,
+      );
+      const feedStatus = dataLayer.requests.getStatus(
+        "loadFeedSearch-" + normalizedQuery,
+      );
       const postSearchResults = dataLayer.selectors.getPostSearchResults();
       const profileSearchResults =
         dataLayer.selectors.getProfileSearchResults();

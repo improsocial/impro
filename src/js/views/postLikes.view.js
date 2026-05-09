@@ -80,8 +80,9 @@ class PostLikesView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const postLikes = dataLayer.selectors.getPostLikes(postUri);
       const post = dataLayer.selectors.getPost(postUri);
-      const postLikesRequestStatus =
-        dataLayer.requests.getStatus("loadPostLikes");
+      const postLikesRequestStatus = dataLayer.requests.getStatus(
+        "loadPostLikes-" + postUri,
+      );
       const hasMore = postLikes?.cursor ? true : false;
 
       const subtitle = post?.likeCount

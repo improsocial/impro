@@ -455,7 +455,9 @@ class ProfileView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      const profileRequestStatus = dataLayer.requests.getStatus("loadProfile");
+      const profileRequestStatus = dataLayer.requests.getStatus(
+        "loadProfile-" + profileDid,
+      );
       const isLabeler = profile && isLabelerProfile(profile);
       const labelerInfo = isLabeler
         ? dataLayer.selectors.getLabelerInfo(profile.did)

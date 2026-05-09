@@ -618,8 +618,9 @@ class ChatDetailView extends View {
         chatNotificationService?.getNumNotifications() ?? 0;
       const messagesData = dataLayer.selectors.getConvoMessages(convoId);
       const messages = messagesData?.messages ?? null;
-      const messagesRequestStatus =
-        dataLayer.requests.getStatus("loadMessages");
+      const messagesRequestStatus = dataLayer.requests.getStatus(
+        "loadConvoMessages-" + convoId,
+      );
       const hasMore = !!messagesData?.cursor;
 
       // Get convo details to show other member info

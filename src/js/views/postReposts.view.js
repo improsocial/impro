@@ -81,8 +81,9 @@ class PostRepostsView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const postReposts = dataLayer.selectors.getPostReposts(postUri);
       const post = dataLayer.selectors.getPost(postUri);
-      const postRepostsRequestStatus =
-        dataLayer.requests.getStatus("loadPostReposts");
+      const postRepostsRequestStatus = dataLayer.requests.getStatus(
+        "loadPostReposts-" + postUri,
+      );
       const hasMore = postReposts?.cursor ? true : false;
       const subtitle = post?.repostCount
         ? `${formatLargeNumber(post.repostCount)} ${
