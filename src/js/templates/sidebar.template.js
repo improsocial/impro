@@ -317,13 +317,6 @@ export function sidebarTemplate({
           </button>`
         : ""}
       <div class="sidebar-spacer"></div>
-      <div class="sidebar-footer" data-testid="sidebar-footer">
-        <a
-          href="https://github.com/improsocial/impro/issues"
-          class="sidebar-text-link"
-          >Bug report
-        </a>
-      </div>
     </animated-sidebar>
   `;
 }

@@ -354,29 +354,6 @@ t.describe("sidebarTemplate - compose button", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - footer", (it) => {
-  it("should render sidebar footer", () => {
-    const result = sidebarTemplate({
-      isAuthenticated: true,
-      currentUser: mockUser,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    assert(container.querySelector("[data-testid='sidebar-footer']") !== null);
-  });
-
-  it("should render bug report link", () => {
-    const result = sidebarTemplate({
-      isAuthenticated: true,
-      currentUser: mockUser,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const footer = container.querySelector("[data-testid='sidebar-footer']");
-    assert(footer.textContent.includes("Bug report"));
-  });
-});
-
 t.describe("sidebarTemplate - plugin sidebar items", (it) => {
   it("should not render any plugin items when pluginSidebarItems is empty", () => {
     const result = sidebarTemplate({
