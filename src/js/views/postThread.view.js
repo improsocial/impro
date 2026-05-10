@@ -352,7 +352,8 @@ class PostThreadView extends View {
         // this happens if the client has malformed reply refs.
         const replyParent = postThread.post?.record?.reply?.parent;
         const hasParent = !!replyParent;
-        const hasBrokenReplyRef = hasParent && parents.length === 0;
+        const hasBrokenReplyRef =
+          hasParent && postThread.parent && parents.length === 0;
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
         const postAuthor = postThread.post?.author;
