@@ -1,6 +1,7 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { noop } from "/js/utils.js";
+import { confirm } from "/js/modals.js";
 import "/js/components/post-notifications-dialog.js";
 
 export class ProfileInteractionHandler {
@@ -82,6 +83,15 @@ export class ProfileInteractionHandler {
 
   async handleBlock(profile, doBlock) {
     if (doBlock) {
+      const confirmed = await confirm(
+        "Blocked accounts cannot reply in your threads, mention you, or otherwise interact with you.",
+        {
+          title: "Block Account?",
+          confirmButtonText: "Block",
+          confirmButtonStyle: "danger",
+        },
+      );
+      if (!confirmed) return;
       try {
         hapticsImpactMedium();
         const promise = this.dataLayer.mutations.blockProfile(profile);
