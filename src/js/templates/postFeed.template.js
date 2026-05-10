@@ -13,7 +13,7 @@ function feedFeedbackMessageTemplate({ post }) {
       data-post-uri="${post.uri}"
     >
       <div class="feed-feedback-message-inner">
-        Your feedback has been sent to the feed operator.
+        Thank you for your feedback! It has been sent to the feed operator.
       </div>
     </div>
   `;
