@@ -822,12 +822,10 @@ header {
 
 body.scroll-locked header {
   position: fixed;
-  max-width: 800px;
 }
 
 @media (min-width: 800px) {
   body.scroll-locked header {
-    max-width: 600px;
     border-left: var(--hair) solid var(--post-border-color);
     border-right: var(--hair) solid var(--post-border-color);
   }

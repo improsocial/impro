@@ -14,12 +14,18 @@ function lockScroll(container) {
   body.classList.add("scroll-locked");
   body.style.position = "fixed";
   body.style.overflow = "hidden";
-  // body.style.top = -top + "px";
   body.style.top = "0";
   body.style.width = "100%";
   body.style.height = "100vh";
-  // window.scrollTo(0, top);
-  // body.style.height = top + 5000 + "px";
+  // Measure the column the header belongs to and pin the header to it.
+  // Without this it would span the full viewport width.
+  if (header) {
+    const columnEl = header.parentElement;
+    const columnRect = columnEl.getBoundingClientRect();
+    header.style.left = columnRect.left + "px";
+    header.style.width = columnRect.width + "px";
+    header.style.right = "auto";
+  }
 }
 
 function unlockScroll(container) {
@@ -33,6 +39,11 @@ function unlockScroll(container) {
   if (main) {
     scrollTo = -1 * (main.getBoundingClientRect().top - headerHeight);
     main.style.marginTop = "0";
+  }
+  if (header) {
+    header.style.left = "";
+    header.style.width = "";
+    header.style.right = "";
   }
   const body = document.body;
   // const top = body.getBoundingClientRect().top - headerHeight;
