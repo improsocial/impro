@@ -19,6 +19,7 @@ export function mainLayoutTemplate({
   showFloatingComposeButton = false,
   onClickComposeButton = defaultOnClickComposeButton,
   showSidebarOverlay = true,
+  pluginService,
 }) {
   // This fixes a weird performance bug that was happening on the postThread view
   // (specifically with the profile image)
@@ -37,6 +38,7 @@ export function mainLayoutTemplate({
               numChatNotifications,
               onClickActiveItem: onClickActiveNavItem,
               onClickComposeButton,
+              pluginSidebarItems: pluginService.getSidebarItems(),
             })
           : ""}
       </div>

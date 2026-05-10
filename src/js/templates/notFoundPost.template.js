@@ -1,10 +1,10 @@
 import { html } from "/js/lib/lit-html.js";
-import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
+import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
 
 export function notFoundPostTemplate() {
   return html`<div class="post small-post">
     <div class="missing-post-indicator">
-      ${infoIconTemplate()} Post not found
+      ${trashCanIconTemplate()} Post not found
     </div>
   </div> `;
 }

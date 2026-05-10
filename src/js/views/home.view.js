@@ -1,8 +1,8 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
@@ -21,6 +21,7 @@ class HomeView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     function createPersistedState(namespace) {
@@ -186,7 +187,7 @@ class HomeView extends View {
       </div>`;
     }
 
-    async function renderPage() {
+    function renderPage() {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
       const hiddenPostUris = showLessInteractions.map(
@@ -213,13 +214,11 @@ class HomeView extends View {
             showFloatingComposeButton: true,
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
-            children: html` <header>
-                <div class="header-row">
-                  <button class="menu-button" @click=${() => handleMenuClick()}>
-                    ${menuIconTemplate()}
-                  </button>
-                </div>
-                <div class="header-row">
+            pluginService,
+            children: html` ${headerTemplate({
+                leftButton: "menu",
+                onClickMenuButton: () => handleMenuClick(),
+                bottomItemTemplate: () => html`
                   <div class="tab-bar-horizontal-scroll-container">
                     ${tabBarTemplate({
                       tabs: feedGenerators.map((fg) => ({
@@ -230,8 +229,8 @@ class HomeView extends View {
                       onTabClick: handleTabClick,
                     })}
                   </div>
-                </div>
-              </header>
+                `,
+              })}
               <main>
                 ${feedGenerators.map((feedGenerator) => {
                   const acceptsInteractions =
@@ -261,6 +260,7 @@ class HomeView extends View {
                             handleShowMore(post, feedContext, feedGenerator),
                           enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
+                          pluginService,
                         })}
                   </div>`;
                 })}

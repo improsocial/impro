@@ -1,8 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { requireAuth } from "/js/auth.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
@@ -21,6 +21,7 @@ class PostRepostsView extends View {
       chatNotificationService,
       postComposerService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -80,8 +81,9 @@ class PostRepostsView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const postReposts = dataLayer.selectors.getPostReposts(postUri);
       const post = dataLayer.selectors.getPost(postUri);
-      const postRepostsRequestStatus =
-        dataLayer.requests.getStatus("loadPostReposts");
+      const postRepostsRequestStatus = dataLayer.requests.getStatus(
+        "loadPostReposts-" + postUri,
+      );
       const hasMore = postReposts?.cursor ? true : false;
       const subtitle = post?.repostCount
         ? `${formatLargeNumber(post.repostCount)} ${
@@ -98,7 +100,8 @@ class PostRepostsView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({
+            pluginService,
+            children: html`${headerTemplate({
                 title: "Reposted by",
                 subtitle,
               })}

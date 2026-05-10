@@ -1,9 +1,9 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 
 class NotFoundView extends View {
   async render({ root, context: { dataStore } }) {
-    async function renderPage() {
+    function renderPage() {
       render(
         html`<div id="not-found-view">
           <main>

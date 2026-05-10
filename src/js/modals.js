@@ -143,17 +143,17 @@ export async function confirm(
   });
 }
 
-function ruleTemplate({ rule, authorHandle }) {
+function ruleTemplate({ rule, author }) {
   if (rule.type === "mention") {
     return html`mentioned users`;
   }
   if (rule.type === "followers") {
     return html`users following
-      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
   }
   if (rule.type === "following") {
     return html`users followed by
-      <a href=${linkToProfile(authorHandle)}>@${authorHandle}</a>`;
+      <a href=${linkToProfile(author)}>@${author.handle}</a>`;
   }
   if (rule.type === "list") {
     if (rule.list) {
@@ -179,7 +179,7 @@ function threadgateRuleTemplate({ post }) {
       return html`This post has an unknown type of threadgate on it. Your app
       may be out of date.`;
     }
-    const authorHandle = post.author.handle;
+    const author = post.author;
     const parts = [];
     settings.forEach((rule, i) => {
       if (i > 0) {
@@ -189,7 +189,7 @@ function threadgateRuleTemplate({ post }) {
           parts.push(html`, `);
         }
       }
-      parts.push(ruleTemplate({ rule, authorHandle }));
+      parts.push(ruleTemplate({ rule, author }));
     });
     return html`Only ${parts} can reply.`;
   }
@@ -240,4 +240,74 @@ export function showWhoCanReplyModal({ post }) {
 
   document.body.appendChild(dialog);
   dialog.showModal();
+}
+
+const pluginModals = new Map();
+
+export function showPluginModal({
+  pluginRenderer,
+  pluginId,
+  modalId,
+  title,
+  content,
+  onDismiss = () => {},
+}) {
+  let modal = pluginModals.get(`${pluginId}:${modalId}`);
+  if (modal?.isOpen) return;
+
+  if (!modal) {
+    const dialog = document.createElement("dialog");
+    dialog.classList.add("modal-dialog", "plugin-modal");
+    dialog.dataset.pluginId = pluginId;
+
+    const contentEl = document.createElement("div");
+    contentEl.classList.add("modal-dialog-content");
+    dialog.appendChild(contentEl);
+
+    modal = { dialog, contentEl, isOpen: false };
+
+    function dismiss() {
+      if (!modal.isOpen) return;
+      modal.isOpen = false;
+      dialog.close();
+      onDismiss();
+    }
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target.tagName === "DIALOG") dismiss();
+    });
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      dismiss();
+    });
+
+    pluginModals.set(`${pluginId}:${modalId}`, modal);
+    document.body.appendChild(dialog);
+  }
+
+  modal.contentEl.replaceChildren();
+  if (!pluginRenderer.isEmptyNode(title)) {
+    const titleEl = pluginRenderer.renderNode(title, pluginId);
+    titleEl.classList.add("modal-dialog-title");
+    modal.contentEl.appendChild(titleEl);
+  }
+  if (content?.children?.length) {
+    for (const childNode of content.children) {
+      modal.contentEl.appendChild(
+        pluginRenderer.renderNode(childNode, pluginId),
+      );
+    }
+  } else if (!pluginRenderer.isEmptyNode(content)) {
+    modal.contentEl.appendChild(pluginRenderer.renderNode(content, pluginId));
+  }
+  modal.isOpen = true;
+  modal.dialog.showModal();
+}
+
+export function hidePluginModal({ pluginId, modalId }) {
+  const modal = pluginModals.get(`${pluginId}:${modalId}`);
+  if (modal && modal.isOpen) {
+    modal.isOpen = false;
+    modal.dialog.close();
+  }
 }

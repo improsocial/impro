@@ -44,6 +44,7 @@ function replyContextTemplate({
   onClickShowLess,
   onClickShowMore,
   enableFeedFeedback,
+  pluginService,
 }) {
   const root = reply.root;
   const parent = reply.parent;
@@ -66,6 +67,7 @@ function replyContextTemplate({
               onClickShowLess,
               onClickShowMore,
               enableFeedFeedback,
+              pluginService,
               isParent: true,
             })}
           `
@@ -95,6 +97,7 @@ function replyContextTemplate({
               onClickShowLess,
               onClickShowMore,
               enableFeedFeedback,
+              pluginService,
               isParent: true,
             })}
           `
@@ -112,6 +115,7 @@ function feedItemTemplate({
   onClickShowLess,
   onClickShowMore,
   enableFeedFeedback,
+  pluginService,
 }) {
   const post = feedItem.post;
   const reply = feedItem.reply;
@@ -144,6 +148,7 @@ function feedItemTemplate({
             onClickShowLess,
             onClickShowMore,
             enableFeedFeedback,
+            pluginService,
           })
         : ""}
       ${postTemplate({
@@ -161,6 +166,7 @@ function feedItemTemplate({
         showReplyToLabel,
         replyToAuthor,
         enableFeedFeedback,
+        pluginService,
       })}
     </div>
   `;
@@ -186,6 +192,7 @@ export function postFeedTemplate({
   onClickShowMore,
   enableFeedFeedback = false,
   emptyMessage = null,
+  pluginService,
 }) {
   if (!feed) {
     return feedSkeletonTemplate();
@@ -230,6 +237,7 @@ export function postFeedTemplate({
                   onClickShowLess,
                   onClickShowMore,
                   enableFeedFeedback,
+                  pluginService,
                 }),
               )}
             </div>`;

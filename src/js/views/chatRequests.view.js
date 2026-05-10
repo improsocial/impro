@@ -1,10 +1,10 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { showToast } from "/js/toasts.js";
 
@@ -17,6 +17,7 @@ class ChatRequestsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -74,8 +75,7 @@ class ChatRequestsView extends View {
                 ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
               </div>
               <div class="convo-handle">
-                ${otherMember?.handle &&
-                otherMember?.handle !== "missing.invalid"
+                ${otherMember?.handle && otherMember?.handle !== MISSING_HANDLE
                   ? `@${otherMember.handle}`
                   : ""}
               </div>
@@ -161,7 +161,7 @@ class ChatRequestsView extends View {
       </div>`;
     }
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -188,8 +188,9 @@ class ChatRequestsView extends View {
             },
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
+            pluginService,
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Chat requests",
                 showLoadingSpinner: convosRequestStatus.loading && !!convos,
                 leftButton: "back",

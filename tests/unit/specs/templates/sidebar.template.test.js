@@ -354,26 +354,87 @@ t.describe("sidebarTemplate - compose button", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - footer", (it) => {
-  it("should render sidebar footer", () => {
+t.describe("sidebarTemplate - plugin sidebar items", (it) => {
+  it("should not render any plugin items when pluginSidebarItems is empty", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
       currentUser: mockUser,
+      pluginSidebarItems: [],
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("[data-testid='sidebar-footer']") !== null);
+    assertEquals(
+      container.querySelectorAll(".sidebar-plugin-nav-item").length,
+      0,
+    );
   });
 
-  it("should render bug report link", () => {
+  it("should render a button for each plugin sidebar item", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
       currentUser: mockUser,
+      pluginSidebarItems: [
+        { title: "Plugin One", icon: "lightning-bolt", invoke: () => {} },
+        { title: "Plugin Two", icon: "lightning-bolt", invoke: () => {} },
+      ],
     });
     const container = document.createElement("div");
     render(result, container);
-    const footer = container.querySelector("[data-testid='sidebar-footer']");
-    assert(footer.textContent.includes("Bug report"));
+    const pluginItems = container.querySelectorAll(".sidebar-plugin-nav-item");
+    assertEquals(pluginItems.length, 2);
+  });
+
+  it("should render plugin item title as label and tooltip", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      pluginSidebarItems: [
+        { title: "Plugin One", icon: "lightning-bolt", invoke: () => {} },
+      ],
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const pluginItem = container.querySelector(".sidebar-plugin-nav-item");
+    assert(pluginItem !== null);
+    assertEquals(pluginItem.getAttribute("title"), "Plugin One");
+    assert(pluginItem.textContent.includes("Plugin One"));
+  });
+
+  it("should call entry.invoke when plugin item is clicked", () => {
+    let invoked = false;
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      pluginSidebarItems: [
+        {
+          title: "Plugin One",
+          icon: "lightning-bolt",
+          invoke: () => {
+            invoked = true;
+          },
+        },
+      ],
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    container.querySelector(".sidebar-plugin-nav-item").click();
+    assert(invoked);
+  });
+
+  it("should not render plugin sidebar items in logged out sidebar", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: false,
+      currentUser: null,
+      pluginSidebarItems: [
+        { title: "Plugin One", icon: "lightning-bolt", invoke: () => {} },
+      ],
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelectorAll(".sidebar-plugin-nav-item").length,
+      0,
+    );
   });
 });
 

@@ -8,12 +8,16 @@ import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { parseEmbedPlayerFromUrl } from "/js/lib/embed-player.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
-import { OG_CARD_SERVICE_URL } from "/js/config.js";
+import {
+  OG_CARD_SERVICE_URL,
+  TENOR_GIF_PROXY_URL,
+  KLIPY_GIF_PROXY_HOSTNAME,
+} from "/js/config.js";
+import { isSafari } from "/js/utils.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
@@ -256,20 +260,83 @@ function videoTemplate({ video }) {
   </div>`;
 }
 
-function tenorPlayerTemplate({ uri, alt }) {
+function gifPlayerTemplate({ uri, alt }) {
   return html` <div class="post-video">
     <gif-player src="${uri}" alt="${alt}"></gif-player>
   </div>`;
 }
 
+function isTenorGifUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname !== "media.tenor.com") return false;
+    const [_, id, filename] = parsedUrl.pathname.split("/");
+    return Boolean(id && filename && id.includes("AAAAC"));
+  } catch {
+    return false;
+  }
+}
+
+// https://github.com/bluesky-social/social-app/blob/main/src/lib/strings/embed-player.ts
+function getTenorGifPlayerUri(url) {
+  const parsedUrl = new URL(url);
+  let [_, id, filename] = parsedUrl.pathname.split("/");
+  if (isSafari()) {
+    id = id.replace("AAAAC", "AAAP1");
+    filename = filename.replace(".gif", ".mp4");
+  } else {
+    id = id.replace("AAAAC", "AAAP3");
+    filename = filename.replace(".gif", ".webm");
+  }
+  return `${TENOR_GIF_PROXY_URL}/${id}/${filename}`;
+}
+
+function isKlipyGifUrl(url) {
+  try {
+    const parsedUrl = new URL(url);
+    if (parsedUrl.hostname !== "static.klipy.com") return false;
+    if (!parsedUrl.pathname.startsWith("/ii/")) return false;
+    const height = Number(parsedUrl.searchParams.get("hh"));
+    const width = Number(parsedUrl.searchParams.get("ww"));
+    if (!height || !width || height <= 0 || width <= 0) return false;
+    const slug = isSafari()
+      ? parsedUrl.searchParams.get("mp4")
+      : parsedUrl.searchParams.get("webm");
+    return Boolean(slug);
+  } catch {
+    return false;
+  }
+}
+
+// https://github.com/bluesky-social/social-app/blob/main/src/lib/strings/embed-player.ts
+function getKlipyGifPlayerUri(url) {
+  const parsedUrl = new URL(url);
+  const slug = isSafari()
+    ? parsedUrl.searchParams.get("mp4")
+    : parsedUrl.searchParams.get("webm");
+  const ext = isSafari() ? "mp4" : "webm";
+  parsedUrl.hostname = KLIPY_GIF_PROXY_HOSTNAME;
+  const parts = parsedUrl.pathname.split("/");
+  parts[parts.length - 1] = `${slug}.${ext}`;
+  parsedUrl.pathname = parts.join("/");
+  parsedUrl.searchParams.delete("hh");
+  parsedUrl.searchParams.delete("ww");
+  parsedUrl.searchParams.delete("mp4");
+  parsedUrl.searchParams.delete("webm");
+  return parsedUrl.href;
+}
+
 function externalTemplate({ external, lazyLoadImages }) {
-  const embedPlayer = parseEmbedPlayerFromUrl(external.uri);
-  // todo: other embed players
-  if (embedPlayer && embedPlayer.type === "tenor_gif") {
-    return tenorPlayerTemplate({
-      uri: embedPlayer.playerUri,
+  if (isTenorGifUrl(external.uri)) {
+    return gifPlayerTemplate({
+      uri: getTenorGifPlayerUri(external.uri),
       alt: external.description,
-      lazyLoad: lazyLoadImages,
+    });
+  }
+  if (isKlipyGifUrl(external.uri)) {
+    return gifPlayerTemplate({
+      uri: getKlipyGifPlayerUri(external.uri),
+      alt: external.description,
     });
   }
   return externalLinkTemplate({

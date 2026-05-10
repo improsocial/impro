@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy } from "/js/utils.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
@@ -18,7 +18,7 @@ import {
 } from "/js/dataHelpers.js";
 import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 
@@ -34,6 +34,7 @@ class PostThreadView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -200,6 +201,7 @@ class PostThreadView extends View {
             postInteractionHandler,
             replyContext: getReplyContext(i, numReplies),
             lazyLoadImages,
+            pluginService,
           });
         })}
       </div>`;
@@ -278,6 +280,7 @@ class PostThreadView extends View {
               ignoreContentWarning: true,
               ignoreMuteWarning: true,
               lazyLoadImages: true,
+              pluginService,
             }),
           )}
         </hidden-replies-section>
@@ -376,6 +379,7 @@ class PostThreadView extends View {
                   postInteractionHandler,
                   replyContext,
                   ignoreMuteWarning: true,
+                  pluginService,
                 }),
               });
             })}
@@ -385,6 +389,7 @@ class PostThreadView extends View {
                   post: postThread.post,
                   currentUser,
                   isAuthenticated,
+                  pluginService,
                   isUserPost: currentUser?.did === postThread.post?.author?.did,
                   postInteractionHandler,
                   afterHide: () => {
@@ -479,8 +484,9 @@ class PostThreadView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      const postThreadRequestStatus =
-        dataLayer.requests.getStatus("loadPostThread");
+      const postThreadRequestStatus = dataLayer.requests.getStatus(
+        "loadPostThread-" + postUri,
+      );
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({
@@ -493,7 +499,8 @@ class PostThreadView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({ title: "Post" })}
+            pluginService,
+            children: html`${headerTemplate({ title: "Post" })}
               <main>
                 ${(() => {
                   if (postThreadRequestStatus.error) {

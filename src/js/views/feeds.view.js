@@ -1,8 +1,8 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 
 class FeedsView extends View {
@@ -13,11 +13,12 @@ class FeedsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -33,13 +34,14 @@ class FeedsView extends View {
             activeNavItem: "feeds",
             numNotifications,
             numChatNotifications,
+            pluginService,
             onClickActiveNavItem: () => {
               window.scrollTo(0, 0);
             },
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Feeds",
                 subtitle: "",
               })}

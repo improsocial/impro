@@ -1,8 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { requireAuth } from "/js/auth.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
@@ -20,6 +20,7 @@ class ProfileFollowingView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -83,8 +84,9 @@ class ProfileFollowingView extends View {
       const profileFollowing =
         dataLayer.selectors.getProfileFollows(profileDid);
       const profile = dataLayer.selectors.getProfile(profileDid);
-      const profileFollowingRequestStatus =
-        dataLayer.requests.getStatus("loadProfileFollows");
+      const profileFollowingRequestStatus = dataLayer.requests.getStatus(
+        "loadProfileFollows-" + profileDid,
+      );
       const hasMore = profileFollowing?.cursor ? true : false;
 
       const subtitle = profile?.followsCount
@@ -99,7 +101,8 @@ class ProfileFollowingView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({
+            pluginService,
+            children: html`${headerTemplate({
                 title: profile ? getDisplayName(profile) : "",
                 subtitle,
               })}

@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { confirm } from "/js/modals.js";
@@ -17,6 +17,7 @@ class SettingsMutedWordsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -254,9 +255,10 @@ class SettingsMutedWordsView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            pluginService,
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${textHeaderTemplate({
+            children: html`${headerTemplate({
                 title: "Muted words",
               })}
               <main>
@@ -351,7 +353,8 @@ class SettingsMutedWordsView extends View {
                   >
                     ${state.isSaving
                       ? html`<div class="loading-spinner"></div>`
-                      : "Add"}
+                      : html`<span>Add</span
+                          ><span class="button-plus-icon">+</span>`}
                   </button>
                   ${state.error
                     ? html`<div

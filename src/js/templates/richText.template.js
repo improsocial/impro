@@ -1,7 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { sliceByByte, sortBy, getByteLength, sanitizeUri } from "/js/utils.js";
 import { clampFacetIndex } from "/js/facetHelpers.js";
-import { linkToHashtag, linkToProfile } from "/js/navigation.js";
+import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
 
@@ -42,7 +42,7 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
     case "app.bsky.richtext.facet#mention":
       const did = feature.did;
       // Handle unresolved mentions
-      return html`<a href="${did ? linkToProfile(did) : "#"}"
+      return html`<a href="${did ? linkToProfileByDid(did) : "#"}"
         >${wrappedText}</a
       >`;
     default:

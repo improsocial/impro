@@ -15,12 +15,12 @@ t.describe("notFoundPostTemplate", (it) => {
     assert(indicator.textContent.includes("Post not found"));
   });
 
-  it("should render an info icon", () => {
+  it("should render a trash can icon", () => {
     const result = notFoundPostTemplate();
     const container = document.createElement("div");
     render(result, container);
     const indicator = container.querySelector(".missing-post-indicator");
-    assert(indicator.querySelector(".info-icon") !== null);
+    assert(indicator.querySelector(".trash-can-icon") !== null);
   });
 });
 

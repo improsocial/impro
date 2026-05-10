@@ -80,6 +80,7 @@ export function smallPostTemplate({
   showReplyToLabel = false,
   replyToAuthor = null,
   lazyLoadImages = false,
+  pluginService,
 }) {
   if (isBlockedPost(post)) {
     return blockedPostTemplate();
@@ -218,6 +219,7 @@ export function smallPostTemplate({
             },
             onClickReport: (post) => postInteractionHandler.handleReport(post),
             enableFeedFeedback,
+            pluginService,
           })}
         </div>
       </div>

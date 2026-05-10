@@ -1,6 +1,6 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { requireAuth } from "/js/auth.js";
@@ -52,6 +52,7 @@ class ChatDetailView extends View {
       chatNotificationService,
       identityResolver,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -609,7 +610,7 @@ class ChatDetailView extends View {
       return convo.members.find((member) => member.did !== currentUser?.did);
     }
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -617,8 +618,9 @@ class ChatDetailView extends View {
         chatNotificationService?.getNumNotifications() ?? 0;
       const messagesData = dataLayer.selectors.getConvoMessages(convoId);
       const messages = messagesData?.messages ?? null;
-      const messagesRequestStatus =
-        dataLayer.requests.getStatus("loadMessages");
+      const messagesRequestStatus = dataLayer.requests.getStatus(
+        "loadConvoMessages-" + convoId,
+      );
       const hasMore = !!messagesData?.cursor;
 
       // Get convo details to show other member info
@@ -635,8 +637,9 @@ class ChatDetailView extends View {
             showSidebarOverlay: false,
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
+            pluginService,
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 avatarTemplate: () => {
                   return otherMember
                     ? avatarTemplate({ author: otherMember })

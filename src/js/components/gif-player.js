@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { Component } from "./component.js";
+import { Component } from "/js/components/component.js";
 
 // Only start loading the video when it's close to visible in the viewport
 const gifPlayerObserver = new IntersectionObserver(
@@ -60,7 +60,7 @@ class GifPlayer extends Component {
     if (video) {
       const source = document.createElement("source");
       source.src = this.src;
-      source.type = "video/mp4";
+      source.type = this.src.endsWith(".webm") ? "video/webm" : "video/mp4";
       video.appendChild(source);
       this._gifLoaded = true;
     }

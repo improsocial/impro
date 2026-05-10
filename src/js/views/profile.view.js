@@ -4,7 +4,7 @@ import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
 } from "/js/dataHelpers.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
@@ -31,6 +31,7 @@ class ProfileView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     const defaultAuthorFeeds = [
@@ -232,6 +233,16 @@ class ProfileView extends View {
           <button @click=${() => window.location.reload()}>Try again</button>
         </div>`;
       }
+      if (
+        error instanceof ApiError &&
+        error.status === 400 &&
+        error.data.error === "AccountTakedown"
+      ) {
+        return html`<div class="error-state">
+          <div>Account has been suspended</div>
+          <button @click=${() => window.location.reload()}>Try again</button>
+        </div>`;
+      }
       console.error(error);
       return html`<div class="error-state">
         <div>There was an error loading the profile.</div>
@@ -420,6 +431,7 @@ class ProfileView extends View {
                         isAuthenticated,
                         postInteractionHandler,
                         onLoadMore: () => loadAuthorFeed(),
+                        pluginService,
                       })}
                     </div>`;
                   })}
@@ -443,7 +455,9 @@ class ProfileView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      const profileRequestStatus = dataLayer.requests.getStatus("loadProfile");
+      const profileRequestStatus = dataLayer.requests.getStatus(
+        "loadProfile-" + profileDid,
+      );
       const isLabeler = profile && isLabelerProfile(profile);
       const labelerInfo = isLabeler
         ? dataLayer.selectors.getLabelerInfo(profile.did)
@@ -457,6 +471,7 @@ class ProfileView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            pluginService,
             showSidebarOverlay: false,
             activeNavItem: currentUser?.did === profile?.did ? "profile" : null,
             onClickActiveNavItem: () => {

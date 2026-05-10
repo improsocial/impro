@@ -1,7 +1,7 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
@@ -19,6 +19,7 @@ class HashtagView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -78,7 +79,7 @@ class HashtagView extends View {
       }
     }
 
-    async function renderPage() {
+    function renderPage() {
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
@@ -96,8 +97,9 @@ class HashtagView extends View {
             numChatNotifications,
             currentUser,
             activeNavItem: null,
+            pluginService,
             children: html` <main>
-              ${textHeaderTemplate({ title: `#${hashtag}` })}
+              ${headerTemplate({ title: `#${hashtag}` })}
               <div class="hashtag-tab-bar-container">
                 ${tabBarTemplate({
                   tabs: sortOptions,
@@ -121,6 +123,7 @@ class HashtagView extends View {
                     postInteractionHandler,
                     enableFeedFeedback: false,
                     onLoadMore: () => loadCurrentFeed(),
+                    pluginService,
                   })}
                 </div>`;
               })}

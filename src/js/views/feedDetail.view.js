@@ -1,11 +1,11 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
@@ -27,6 +27,7 @@ class FeedDetailView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -54,7 +55,7 @@ class FeedDetailView extends View {
       renderFunc: () => renderPage(),
     });
 
-    async function renderPage() {
+    function renderPage() {
       const showLessInteractions =
         dataLayer.selectors.getShowLessInteractions() ?? [];
       const hiddenPostUris = showLessInteractions.map(
@@ -71,6 +72,7 @@ class FeedDetailView extends View {
       const feedAuthorHandle = feedAuthor?.handle;
       const preferences = dataLayer.selectors.getPreferences();
       const isPinned = preferences.isFeedPinned(feedUri);
+      const feed = dataLayer.selectors.getFeed(feedUri);
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({
@@ -84,7 +86,8 @@ class FeedDetailView extends View {
             currentUser,
             showSidebarOverlay: false,
             activeNavItem: null,
-            children: html`${textHeaderTemplate({
+            pluginService,
+            children: html`${headerTemplate({
                 title: feedName,
                 subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
                 rightItemTemplate: () => {
@@ -132,22 +135,18 @@ class FeedDetailView extends View {
                 },
               })}
               <main>
-                ${(() => {
-                  const feed = dataLayer.selectors.getFeed(feedUri);
-                  const feedGenerator =
-                    dataLayer.selectors.getFeedGenerator(feedUri);
-                  return html`<div class="feed-container">
-                    ${postFeedTemplate({
-                      feed,
-                      currentUser,
-                      isAuthenticated,
-                      feedGenerator,
-                      hiddenPostUris,
-                      onLoadMore: () => loadFeed(),
-                      postInteractionHandler,
-                    })}
-                  </div>`;
-                })()}
+                <div class="feed-container">
+                  ${postFeedTemplate({
+                    feed,
+                    currentUser,
+                    isAuthenticated,
+                    feedGenerator,
+                    hiddenPostUris,
+                    onLoadMore: () => loadFeed(),
+                    postInteractionHandler,
+                    pluginService,
+                  })}
+                </div>
               </main>`,
           })}
         </div>`,

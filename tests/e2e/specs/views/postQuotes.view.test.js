@@ -100,7 +100,7 @@ test.describe("Post quotes view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator(".search-status-message")).toContainText(
+    await expect(view.locator(".feed-end-message")).toContainText(
       "No quotes yet.",
       { timeout: 10000 },
     );

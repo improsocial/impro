@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
@@ -20,6 +20,7 @@ class PostLikesView extends View {
       chatNotificationService,
       postComposerService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -79,8 +80,9 @@ class PostLikesView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const postLikes = dataLayer.selectors.getPostLikes(postUri);
       const post = dataLayer.selectors.getPost(postUri);
-      const postLikesRequestStatus =
-        dataLayer.requests.getStatus("loadPostLikes");
+      const postLikesRequestStatus = dataLayer.requests.getStatus(
+        "loadPostLikes-" + postUri,
+      );
       const hasMore = postLikes?.cursor ? true : false;
 
       const subtitle = post?.likeCount
@@ -98,7 +100,8 @@ class PostLikesView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
-            children: html`${textHeaderTemplate({
+            pluginService,
+            children: html`${headerTemplate({
                 title: "Liked by",
                 subtitle,
               })}

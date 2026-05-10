@@ -5,3 +5,5 @@ build
 tests/e2e/.results
 CLAUDE.md
 .claude
+plugins-local/*
+!plugins-local/.gitkeep

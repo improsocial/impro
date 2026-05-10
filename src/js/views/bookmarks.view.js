@@ -1,10 +1,10 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
@@ -17,6 +17,7 @@ class BookmarksView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -37,7 +38,7 @@ class BookmarksView extends View {
       await loadBookmarks({ reload: true });
     }
 
-    async function renderPage() {
+    function renderPage() {
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
@@ -57,8 +58,9 @@ class BookmarksView extends View {
             numChatNotifications,
             currentUser,
             activeNavItem: "bookmarks",
+            pluginService,
             children: html`
-              ${textHeaderTemplate({ title: "Saved Posts" })}
+              ${headerTemplate({ title: "Saved Posts" })}
               <main>
                 ${postFeedTemplate({
                   feed: bookmarks,
@@ -67,6 +69,7 @@ class BookmarksView extends View {
                   onLoadMore: () => loadBookmarks(),
                   postInteractionHandler,
                   emptyMessage: "No saved posts yet!",
+                  pluginService,
                 })}
               </main>
             `,

@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import {
@@ -18,6 +18,7 @@ class SettingsAppearanceView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -37,7 +38,7 @@ class SettingsAppearanceView extends View {
       renderPage();
     }
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -56,9 +57,10 @@ class SettingsAppearanceView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            pluginService,
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${textHeaderTemplate({
+            children: html`${headerTemplate({
                 title: "Appearance",
               })}
               <main>

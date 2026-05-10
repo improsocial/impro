@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames, enableDragToDismiss } from "/js/utils.js";
-import { Component, getChildrenFragment } from "./component.js";
+import { Component, getChildrenFragment } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 

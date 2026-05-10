@@ -1,6 +1,6 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
@@ -8,6 +8,7 @@ import {
   getDisplayName,
   getLastInteraction,
   getInteractionTimestamp,
+  MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/infinite-scroll-container.js";
@@ -21,6 +22,7 @@ class ChatView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -77,7 +79,7 @@ class ChatView extends View {
               ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
             </div>
             <div class="convo-handle">
-              ${otherUser?.handle && otherUser?.handle !== "missing.invalid"
+              ${otherUser?.handle && otherUser?.handle !== MISSING_HANDLE
                 ? `@${otherUser.handle}`
                 : ""}
             </div>
@@ -161,7 +163,7 @@ class ChatView extends View {
       </div>`;
     }
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -178,6 +180,7 @@ class ChatView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            pluginService,
             activeNavItem: "chat",
             onClickActiveNavItem: async () => {
               window.scrollTo(0, 0);
@@ -186,7 +189,7 @@ class ChatView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Chats",
                 showLoadingSpinner: convosRequestStatus.loading && !!convos,
                 leftButton: "menu",

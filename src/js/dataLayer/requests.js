@@ -1,4 +1,4 @@
-import { Normalizer } from "./normalizer.js";
+import { Normalizer } from "/js/dataLayer/normalizer.js";
 import {
   flattenParents,
   replaceTopParent,
@@ -71,37 +71,58 @@ export class Requests {
     this.constellation = constellation ?? new Constellation();
     this.normalizer = new Normalizer();
     this.statusStore = new StatusStore();
-
-    this.enableStatus(this.loadCurrentUser, "loadCurrentUser");
-    this.enableStatus(this.loadPostThread, "loadPostThread");
-    this.enableStatus(this.loadPost, "loadPost");
+    // Enable status tracking
+    this.enableStatus(
+      this.loadPostThread,
+      (postUri) => "loadPostThread-" + postUri,
+    );
     this.enableStatus(
       this.loadNextFeedPage,
       (feedURI) => "loadNextFeedPage-" + feedURI,
     );
-    this.enableStatus(this.loadProfile, "loadProfile");
-    this.enableStatus(this.loadNextAuthorFeedPage, "loadNextAuthorFeedPage");
-    this.enableStatus(this.loadProfileSearch, "loadProfileSearch");
-    this.enableStatus(this.loadPostSearch, "loadPostSearch");
-    this.enableStatus(this.loadFeedSearch, "loadFeedSearch");
+    this.enableStatus(this.loadProfile, (did) => "loadProfile-" + did);
+    this.enableStatus(
+      this.loadProfileSearch,
+      (query) => "loadProfileSearch-" + query,
+    );
+    this.enableStatus(
+      this.loadPostSearch,
+      (query, { sort = "top" } = {}) => `loadPostSearch-${query}-${sort}`,
+    );
+    this.enableStatus(
+      this.loadFeedSearch,
+      (query) => "loadFeedSearch-" + query,
+    );
     this.enableStatus(this.loadNotifications, "loadNotifications");
     this.enableStatus(
       this.loadMentionNotifications,
       "loadMentionNotifications",
     );
     this.enableStatus(this.loadConvoList, "loadConvoList");
-    this.enableStatus(this.loadConvo, "loadConvo");
-    this.enableStatus(this.loadConvoMessages, "loadConvoMessages");
-    this.enableStatus(this.loadPostLikes, "loadPostLikes");
-    this.enableStatus(this.loadPostQuotes, "loadPostQuotes");
-    this.enableStatus(this.loadPostReposts, "loadPostReposts");
-    this.enableStatus(this.loadFeedGenerator, "loadFeedGenerator");
-    this.enableStatus(this.loadHashtagFeed, "loadHashtagFeed");
-    this.enableStatus(this.loadBookmarks, "loadBookmarks");
-    this.enableStatus(this.loadProfileFollowers, "loadProfileFollowers");
-    this.enableStatus(this.loadProfileFollows, "loadProfileFollows");
-    this.enableStatus(this.loadProfileChatStatus, "loadProfileChatStatus");
-    this.enableStatus(this.loadLabelerInfo, "loadLabelerInfo");
+    this.enableStatus(
+      this.loadConvoMessages,
+      (convoId) => "loadConvoMessages-" + convoId,
+    );
+    this.enableStatus(
+      this.loadPostLikes,
+      (postUri) => "loadPostLikes-" + postUri,
+    );
+    this.enableStatus(
+      this.loadPostQuotes,
+      (postUri) => "loadPostQuotes-" + postUri,
+    );
+    this.enableStatus(
+      this.loadPostReposts,
+      (postUri) => "loadPostReposts-" + postUri,
+    );
+    this.enableStatus(
+      this.loadProfileFollowers,
+      (profileDid) => "loadProfileFollowers-" + profileDid,
+    );
+    this.enableStatus(
+      this.loadProfileFollows,
+      (profileDid) => "loadProfileFollows-" + profileDid,
+    );
   }
 
   requireLabelers() {
@@ -455,9 +476,10 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris, {
-        labelers,
-      });
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
@@ -747,7 +769,10 @@ export class Requests {
     const replyParentUris = replyPosts
       .map((post) => post.record?.reply?.parent?.uri)
       .filter(Boolean);
-    const parentPosts = await this.api.getPosts(replyParentUris, { labelers });
+    const parentPosts =
+      replyParentUris.length > 0
+        ? await this.api.getPosts(replyParentUris, { labelers })
+        : [];
     // Save posts and parents
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
@@ -882,7 +907,16 @@ export class Requests {
 
     const searchResults = searchData.posts || [];
     if (searchResults.length > 0) {
-      this.dataStore.setPosts(searchResults);
+      // If there are posts that are replies, load the parents
+      const replyPosts = searchResults.filter((post) => post.record?.reply);
+      const replyParentUris = replyPosts
+        .map((post) => post.record?.reply?.parent?.uri)
+        .filter(Boolean);
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
+      this.dataStore.setPosts([...searchResults, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(searchResults);
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
@@ -929,9 +963,10 @@ export class Requests {
       const replyParentUris = replyPosts
         .map((post) => post.record?.reply?.parent?.uri)
         .filter(Boolean);
-      const parentPosts = await this.api.getPosts(replyParentUris, {
-        labelers,
-      });
+      const parentPosts =
+        replyParentUris.length > 0
+          ? await this.api.getPosts(replyParentUris, { labelers })
+          : [];
       this.dataStore.setPosts([...posts, ...parentPosts]);
       const blockedPostUris = getBlockedPostUris(posts);
       if (blockedPostUris.length > 0) {

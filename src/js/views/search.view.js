@@ -1,8 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames, debounce } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -25,6 +25,7 @@ class SearchView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     const state = {
@@ -145,7 +146,7 @@ class SearchView extends View {
     function profileResultTemplate({ profile }) {
       const displayName = getDisplayName(profile);
       return html`<div
-        @click=${() => window.router.go(linkToProfile(profile.handle))}
+        @click=${() => window.router.go(linkToProfile(profile))}
         class="profile-list-item"
       >
         ${avatarTemplate({ author: profile })}
@@ -202,6 +203,7 @@ class SearchView extends View {
                   replyToAuthor: post.record?.reply?.parentAuthor ?? null,
                   isUserPost: currentUser?.did === post.author?.did,
                   postInteractionHandler,
+                  pluginService,
                 })}
               </div>`,
           )}
@@ -359,9 +361,15 @@ class SearchView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const normalizedQuery = state.searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.getStatus("loadPostSearch");
-      const profileStatus = dataLayer.requests.getStatus("loadProfileSearch");
-      const feedStatus = dataLayer.requests.getStatus("loadFeedSearch");
+      const postStatus = dataLayer.requests.getStatus(
+        `loadPostSearch-${normalizedQuery}-top`,
+      );
+      const profileStatus = dataLayer.requests.getStatus(
+        "loadProfileSearch-" + normalizedQuery,
+      );
+      const feedStatus = dataLayer.requests.getStatus(
+        "loadFeedSearch-" + normalizedQuery,
+      );
       const postSearchResults = dataLayer.selectors.getPostSearchResults();
       const profileSearchResults =
         dataLayer.selectors.getProfileSearchResults();
@@ -379,12 +387,13 @@ class SearchView extends View {
             currentUser,
             numNotifications,
             numChatNotifications,
+            pluginService,
             activeNavItem: "search",
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
               <main>
-                ${textHeaderTemplate({ title: "Search" })}
+                ${headerTemplate({ title: "Search" })}
                 <div class="search-input-container">
                   ${searchIconTemplate()}
                   <input

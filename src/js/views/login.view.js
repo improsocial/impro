@@ -1,4 +1,4 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import {
   getAuth,
   requireNoAuth,

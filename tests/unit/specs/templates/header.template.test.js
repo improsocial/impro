@@ -6,43 +6,88 @@ import { render, html } from "/js/lib/lit-html.js";
 const t = new TestSuite("headerTemplate");
 
 t.describe("headerTemplate", (it) => {
-  it("should render children content", () => {
+  it("should render header element", () => {
     const result = headerTemplate({
-      children: html`<span class="test-child">Test Content</span>`,
+      title: "Test Title",
     });
     const container = document.createElement("div");
     render(result, container);
-    const child = container.querySelector(".test-child");
-    assert(child !== null);
-    assertEquals(child.textContent, "Test Content");
+    assert(container.querySelector("[data-testid='header']") !== null);
+  });
+
+  it("should render title", () => {
+    const result = headerTemplate({
+      title: "Test Title",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const title = container.querySelector("[data-testid='header-title']");
+    assert(title !== null);
+    assertEquals(title.textContent, "Test Title");
+  });
+});
+
+t.describe("headerTemplate - subtitle", (it) => {
+  it("should render subtitle when provided", () => {
+    const result = headerTemplate({
+      title: "Test Title",
+      subtitle: "Test Subtitle",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const subtitle = container.querySelector("[data-testid='header-subtitle']");
+    assert(subtitle !== null);
+    assertEquals(subtitle.textContent, "Test Subtitle");
+  });
+
+  it("should not render subtitle when not provided", () => {
+    const result = headerTemplate({
+      title: "Test Title",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='header-subtitle']"),
+      null,
+    );
+  });
+});
+
+t.describe("headerTemplate - avatar", (it) => {
+  it("should render avatar when avatarTemplate is provided", () => {
+    const result = headerTemplate({
+      title: "Test Title",
+      avatarTemplate: () => html`<div class="test-avatar">Avatar</div>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector(".test-avatar") !== null);
+  });
+
+  it("should not render avatar when avatarTemplate is not provided", () => {
+    const result = headerTemplate({
+      title: "Test Title",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".test-avatar"), null);
   });
 });
 
 t.describe("headerTemplate - left button", (it) => {
   it("should render back button by default", () => {
     const result = headerTemplate({
-      children: html`<span>Title</span>`,
+      title: "Test Title",
     });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='back-button']") !== null);
-  });
-
-  it("should render back button when leftButton is 'back'", () => {
-    const result = headerTemplate({
-      leftButton: "back",
-      children: html`<span>Title</span>`,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    assert(container.querySelector("[data-testid='back-button']") !== null);
-    assertEquals(container.querySelector("[data-testid='menu-button']"), null);
   });
 
   it("should render menu button when leftButton is 'menu'", () => {
     const result = headerTemplate({
+      title: "Test Title",
       leftButton: "menu",
-      children: html`<span>Title</span>`,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -53,11 +98,11 @@ t.describe("headerTemplate - left button", (it) => {
   it("should call onClickMenuButton when menu button is clicked", () => {
     let clicked = false;
     const result = headerTemplate({
+      title: "Test Title",
       leftButton: "menu",
       onClickMenuButton: () => {
         clicked = true;
       },
-      children: html`<span>Title</span>`,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -69,7 +114,7 @@ t.describe("headerTemplate - left button", (it) => {
 t.describe("headerTemplate - loading spinner", (it) => {
   it("should not render loading spinner by default", () => {
     const result = headerTemplate({
-      children: html`<span>Title</span>`,
+      title: "Test Title",
     });
     const container = document.createElement("div");
     render(result, container);
@@ -81,8 +126,8 @@ t.describe("headerTemplate - loading spinner", (it) => {
 
   it("should render loading spinner when showLoadingSpinner is true", () => {
     const result = headerTemplate({
+      title: "Test Title",
       showLoadingSpinner: true,
-      children: html`<span>Title</span>`,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -93,37 +138,24 @@ t.describe("headerTemplate - loading spinner", (it) => {
 t.describe("headerTemplate - right item", (it) => {
   it("should render right item when rightItemTemplate is provided", () => {
     const result = headerTemplate({
-      rightItemTemplate: () => html`<button class="right-item">Action</button>`,
-      children: html`<span>Title</span>`,
+      title: "Test Title",
+      rightItemTemplate: () =>
+        html`<button class="right-action">Action</button>`,
     });
     const container = document.createElement("div");
     render(result, container);
-    const rightItem = container.querySelector(".right-item");
+    const rightItem = container.querySelector(".right-action");
     assert(rightItem !== null);
     assertEquals(rightItem.textContent, "Action");
   });
-});
 
-t.describe("headerTemplate - custom className", (it) => {
-  it("should apply custom className", () => {
+  it("should not render right item by default", () => {
     const result = headerTemplate({
-      className: "custom-header",
-      children: html`<span>Title</span>`,
+      title: "Test Title",
     });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector(".custom-header") !== null);
-  });
-
-  it("should keep header class with custom className", () => {
-    const result = headerTemplate({
-      className: "custom-header",
-      children: html`<span>Title</span>`,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const header = container.querySelector("[data-testid='header']");
-    assert(header.classList.contains("header"));
+    assertEquals(container.querySelector(".right-action"), null);
   });
 });
 

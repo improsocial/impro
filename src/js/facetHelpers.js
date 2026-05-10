@@ -1,94 +1,115 @@
 import { getByteIndex, sliceByByte, getByteLength } from "/js/utils.js";
 import tlds from "/js/lib/tlds.js";
 
-const urlCharacterRegex = /[a-zA-Z0-9.\-:/_-~?#\[\]@!$&'()*+,;%=]/;
-const urlRegex = new RegExp(
-  `${urlCharacterRegex.source}${urlCharacterRegex.source}+\\.${urlCharacterRegex.source}${urlCharacterRegex.source}+`,
-  "gm",
-);
+// Matches logic in atproto/packages/api/src/rich-text/detection.ts
 
-function ensureExternal(href) {
-  return href.includes("://") ? href : `https://${href}`;
+const urlRegex =
+  /(^|\s|\()((https?:\/\/[\S]+)|((?<domain>[a-z][a-z0-9]*(\.[a-z0-9]+)+)[\S]*))/gim;
+
+function isValidDomain(domain) {
+  return tlds.some((tld) => domain.endsWith(`.${tld}`));
 }
 
-function stripTrailingPunctuation(text) {
-  return text.replace(/[.,!?:;)\]\u201d\u2019'"']+$/, "");
+function trimUri(uri) {
+  let trimmed = uri;
+  if (".,;:!?".includes(trimmed.at(-1))) trimmed = trimmed.slice(0, -1);
+  if (trimmed.endsWith(")") && !trimmed.includes("(")) {
+    trimmed = trimmed.slice(0, -1);
+  }
+  return trimmed;
 }
 
 function getLinkFacetsFromText(text) {
-  const matches = text.matchAll(urlRegex) || [];
-  const items = [...matches].map((match) => {
+  const facets = [];
+  for (const match of text.matchAll(urlRegex)) {
+    const leading = match[1];
+    const isHttp = match[2].startsWith("http");
+
+    if (!isHttp) {
+      const domain = match.groups?.domain;
+      if (!domain || !isValidDomain(domain)) continue;
+    }
+
+    const uri = trimUri(match[2]);
+    const start = match.index + leading.length;
+    facets.push({
+      index: {
+        byteStart: getByteIndex(text, start),
+        byteEnd: getByteIndex(text, start + uri.length),
+      },
+      features: [
+        {
+          $type: "app.bsky.richtext.facet#link",
+          uri: isHttp ? uri : `https://${uri}`,
+        },
+      ],
+    });
+  }
+  return facets;
+}
+
+const hashtagRegex =
+  /(^|\s)[#＃]((?!️)[^\s­⁠ ​‌‍⃢]*[^\d\s\p{P}­⁠ ​‌‍⃢]+[^\s­⁠ ​‌‍⃢]*)?/gu;
+const trailingPunctuationRegex = /\p{P}+$/gu;
+
+function getHashtags(text) {
+  return [...text.matchAll(hashtagRegex)]
+    .map((match) => {
+      const leading = match[1];
+      let tag = match[2];
+      if (!tag) return null;
+      tag = tag.trim().replace(trailingPunctuationRegex, "");
+      if (tag.length === 0 || tag.length > 64) return null;
+      const start = match.index + leading.length;
+      const byteStart = getByteIndex(text, start);
+      const byteEnd = getByteIndex(text, start + 1 + tag.length);
+      return {
+        index: { byteStart, byteEnd },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag }],
+      };
+    })
+    .filter(Boolean);
+}
+
+const cashtagRegex =
+  /(^|\s|\()\$([A-Za-z][A-Za-z0-9]{0,4})(?=\s|$|[.,;:!?)"'’])/gu;
+
+function getCashtags(text) {
+  return [...text.matchAll(cashtagRegex)].map((match) => {
+    const leading = match[1];
+    const ticker = match[2].toUpperCase();
+    const start = match.index + leading.length;
+    const byteStart = getByteIndex(text, start);
+    const byteEnd = getByteIndex(text, start + 1 + ticker.length);
     return {
-      index: match.index,
-      text: stripTrailingPunctuation(match[0]),
+      index: { byteStart, byteEnd },
+      features: [{ $type: "app.bsky.richtext.facet#tag", tag: `$${ticker}` }],
     };
   });
-  return items
-    .filter((item) => !item.text.startsWith("@")) // Don't include mentions
-    .filter((item) => {
-      // Check for valid TLD
-      try {
-        const url = new URL(ensureExternal(item.text));
-        return tlds.includes(url.hostname.split(".").pop());
-      } catch (error) {
-        console.warn("Invalid URL: " + item.text, error);
-        return false;
-      }
-    })
-    .map((item) => {
-      const byteStart = getByteIndex(text, item.index);
-      const byteEnd = getByteIndex(text, item.index + item.text.length);
+}
+
+const mentionRegex = /(^|\s|\()(@)([a-zA-Z0-9.-]+)(\b)/g;
+
+function getUnresolvedMentions(text) {
+  return [...text.matchAll(mentionRegex)]
+    .map((match) => {
+      const leading = match[1];
+      const handle = match[3];
+      if (!isValidDomain(handle)) return null;
+      const start = match.index + leading.length;
+      const byteStart = getByteIndex(text, start);
+      const byteEnd = getByteIndex(text, start + 1 + handle.length);
       return {
         index: { byteStart, byteEnd },
         features: [
           {
-            $type: "app.bsky.richtext.facet#link",
-            uri: ensureExternal(item.text),
+            $type: "app.bsky.richtext.facet#mention",
+            handle,
           },
         ],
       };
-    });
-}
-
-const hashtagRegex = /#[a-zA-Z0-9_]+/gm;
-
-function getHashtags(text) {
-  const matches = text.matchAll(hashtagRegex) || [];
-  return [...matches].map((match) => {
-    const byteStart = getByteIndex(text, match.index);
-    const byteEnd = getByteIndex(text, match.index + match[0].length);
-    return {
-      index: { byteStart, byteEnd },
-      features: [
-        { $type: "app.bsky.richtext.facet#tag", tag: match[0].slice(1) },
-      ],
-    };
-  });
-}
-
-const mentionRegex = /(?<=^|\s)@[a-zA-Z0-9._-]+/gm;
-
-function getUnresolvedMentions(text) {
-  const matches = text.matchAll(mentionRegex) || [];
-  const items = [...matches].map((match) => {
-    return {
-      index: match.index,
-      text: stripTrailingPunctuation(match[0]),
-    };
-  });
-  return items.map((item) => {
-    const byteStart = getByteIndex(text, item.index);
-    const byteEnd = getByteIndex(text, item.index + item.text.length);
-    return {
-      index: { byteStart, byteEnd },
-      features: [
-        {
-          $type: "app.bsky.richtext.facet#mention",
-          handle: item.text.slice(1),
-        },
-      ],
-    };
-  });
+    })
+    .filter(Boolean);
 }
 
 async function resolveMentions(mentions, identityResolver) {
@@ -118,8 +139,9 @@ export function getUnresolvedFacetsFromText(text) {
   }
   const links = getLinkFacetsFromText(text);
   const hashtags = getHashtags(text);
+  const cashtags = getCashtags(text);
   const unresolvedMentions = getUnresolvedMentions(text);
-  return [...links, ...hashtags, ...unresolvedMentions];
+  return [...links, ...hashtags, ...cashtags, ...unresolvedMentions];
 }
 
 export async function resolveFacets(facets, identityResolver) {

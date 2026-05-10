@@ -14,9 +14,14 @@ const mockUser = {
   followsCount: 50,
 };
 
+const mockPluginService = {
+  getSidebarItems: () => [],
+};
+
 t.describe("mainLayoutTemplate", (it) => {
   it("should render children in center column", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       children: html`<div class="test-content">Test Content</div>`,
@@ -33,6 +38,7 @@ t.describe("mainLayoutTemplate", (it) => {
 t.describe("mainLayoutTemplate - footer", (it) => {
   it("should render footer", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       children: html`<div>Content</div>`,
@@ -44,6 +50,7 @@ t.describe("mainLayoutTemplate - footer", (it) => {
 
   it("should render logged out footer when not authenticated", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: false,
       currentUser: null,
       children: html`<div>Content</div>`,
@@ -59,6 +66,7 @@ t.describe("mainLayoutTemplate - footer", (it) => {
 t.describe("mainLayoutTemplate - floating compose button", (it) => {
   it("should not render floating compose button by default", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       children: html`<div>Content</div>`,
@@ -73,6 +81,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
 
   it("should render floating compose button when showFloatingComposeButton is true", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       showFloatingComposeButton: true,
@@ -88,6 +97,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
 
   it("should not render floating compose button when no currentUser", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: null,
       showFloatingComposeButton: true,
@@ -104,6 +114,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
   it("should call onClickComposeButton when floating button is clicked", () => {
     let clicked = false;
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       showFloatingComposeButton: true,
@@ -122,6 +133,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
 t.describe("mainLayoutTemplate - sidebar", (it) => {
   it("should render sidebar when showSidebarOverlay is true", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       showSidebarOverlay: true,
@@ -136,6 +148,7 @@ t.describe("mainLayoutTemplate - sidebar", (it) => {
 t.describe("mainLayoutTemplate - notifications", (it) => {
   it("should pass notification counts to footer", () => {
     const result = mainLayoutTemplate({
+      pluginService: mockPluginService,
       isAuthenticated: true,
       currentUser: mockUser,
       numNotifications: 5,

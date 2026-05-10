@@ -106,6 +106,7 @@ export function largePostTemplate({
   replyContext,
   afterDelete = null,
   afterHide = null,
+  pluginService,
 }) {
   if (isBlockedPost(post)) {
     return blockedPostTemplate();
@@ -211,6 +212,7 @@ export function largePostTemplate({
             }
           },
           onClickReport: (post) => postInteractionHandler.handleReport(post),
+          pluginService,
         })}
       </div>
     </div>

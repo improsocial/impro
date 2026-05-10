@@ -37,6 +37,7 @@ export function postActionBarTemplate({
   onClickDelete = noop,
   onClickReport = noop,
   enableFeedFeedback = false,
+  pluginService,
 }) {
   const numReplies = post.replyCount;
   const numReposts = post.repostCount + post.quoteCount;
@@ -45,6 +46,7 @@ export function postActionBarTemplate({
   const isLiked = !!post.viewer?.like;
   const isBookmarked = !!post.viewer?.bookmarked;
   const canQuotePost = !post.viewer?.embeddingDisabled;
+  const pluginContextMenuItems = pluginService?.getPostContextMenuItems() || [];
   return html`
     <div
       class="post-actions"
@@ -303,6 +305,23 @@ export function postActionBarTemplate({
                       </context-menu-item>`
                     : null
                 }
+              `
+            : null}
+          ${pluginContextMenuItems.length > 0
+            ? html`
+                <context-menu-item-group>
+                  ${pluginContextMenuItems.map((item) => {
+                    return html`
+                      <context-menu-item
+                        @click=${() => {
+                          item.invoke(post);
+                        }}
+                      >
+                        ${item.title}
+                      </context-menu-item>
+                    `;
+                  })}
+                </context-menu-item-group>
               `
             : null}
         </context-menu>

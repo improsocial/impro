@@ -22,6 +22,8 @@ export function unique(array, { by: keyOrFn } = {}) {
 
 export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
+export const isSafari = () =>
+  /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
 export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   let fn = fnOrKey;
@@ -80,10 +82,10 @@ export function displayRelativeTime(timestamp) {
   if (diffMinutes > 0) {
     return `${diffMinutes}m`;
   }
-  // const diffSeconds = Math.floor(diff / 1000);
-  // if (diffSeconds > 0) {
-  //   return `${diffSeconds}s`;
-  // }
+  const diffSeconds = Math.floor(diff / 1000);
+  if (diffSeconds > 0) {
+    return `${diffSeconds}s`;
+  }
   return "1m";
 }
 
@@ -453,5 +455,15 @@ export class ImageLoader {
       reject(new Error("Image load aborted"));
     }
     this._loading.clear();
+  }
+}
+
+export class SimpleUUID {
+  constructor() {
+    this._id = 0;
+  }
+
+  create() {
+    return this._id++;
   }
 }

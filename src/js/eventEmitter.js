@@ -35,3 +35,20 @@ export class EventEmitter {
     }
   }
 }
+
+export class EventTarget {
+  constructor() {
+    this.ee = new EventEmitter();
+  }
+  addEventListener(event, listener) {
+    this.ee.on(event, listener);
+  }
+
+  removeEventListener(event, listener) {
+    this.ee.off(event, listener);
+  }
+
+  dispatchEvent(event) {
+    this.ee.emit(event.type, event);
+  }
+}

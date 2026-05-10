@@ -1,5 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { Component } from "./component.js";
+import { Component } from "/js/components/component.js";
 import { classnames } from "/js/utils.js";
 
 class ToggleSwitch extends Component {

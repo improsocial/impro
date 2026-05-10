@@ -1,10 +1,10 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
 import { getAuth, requireAuth } from "/js/auth.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { classnames } from "/js/utils.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -18,6 +18,7 @@ class SettingsView extends View {
       notificationService,
       chatNotificationService,
       postComposerService,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -43,7 +44,7 @@ class SettingsView extends View {
       },
     ];
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -59,7 +60,8 @@ class SettingsView extends View {
             numChatNotifications,
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.scrollTo(0, 0),
-            children: html`${textHeaderTemplate({
+            pluginService,
+            children: html`${headerTemplate({
                 title: "Settings",
               })}
               <main>

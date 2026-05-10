@@ -18,10 +18,15 @@ const postInteractionHandler = {
   handleReport: noop,
 };
 
+const pluginService = {
+  getPostContextMenuItems: () => [],
+};
+
 const baseProps = {
   currentUser,
   isAuthenticated: true,
   postInteractionHandler,
+  pluginService,
 };
 
 const t = new TestSuite("smallPostTemplate");
@@ -477,6 +482,80 @@ t.describe("smallPostTemplate - moderation", (it) => {
       ),
       "should not show lock message",
     );
+  });
+});
+
+t.describe("smallPostTemplate - plugin context menu items", (it) => {
+  it("should render plugin-provided context menu items in the action bar", () => {
+    const invocations = [];
+    const customPluginService = {
+      getPostContextMenuItems: () => [
+        { title: "Translate post", invoke: (post) => invocations.push(post) },
+        { title: "Save to Notion", invoke: () => {} },
+      ],
+    };
+    const result = smallPostTemplate({
+      post,
+      ...baseProps,
+      pluginService: customPluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const items = Array.from(container.querySelectorAll("context-menu-item"));
+    const itemTexts = items.map((el) => el.textContent.trim());
+    assert(
+      itemTexts.includes("Translate post"),
+      `expected "Translate post" in ${JSON.stringify(itemTexts)}`,
+    );
+    assert(
+      itemTexts.includes("Save to Notion"),
+      `expected "Save to Notion" in ${JSON.stringify(itemTexts)}`,
+    );
+    container.remove();
+  });
+
+  it("should invoke the plugin item callback with the post when clicked", () => {
+    const invocations = [];
+    const customPluginService = {
+      getPostContextMenuItems: () => [
+        { title: "Translate post", invoke: (post) => invocations.push(post) },
+      ],
+    };
+    const result = smallPostTemplate({
+      post,
+      ...baseProps,
+      pluginService: customPluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const items = Array.from(container.querySelectorAll("context-menu-item"));
+    const target = items.find(
+      (el) => el.textContent.trim() === "Translate post",
+    );
+    assert(target !== null && target !== undefined);
+    target.click();
+    assertEquals(invocations.length, 1);
+    assertEquals(invocations[0], post);
+    container.remove();
+  });
+
+  it("should not render any plugin items when the registry is empty", () => {
+    const result = smallPostTemplate({
+      post,
+      ...baseProps,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const items = Array.from(container.querySelectorAll("context-menu-item"));
+    const itemTexts = items.map((el) => el.textContent.trim());
+    assert(
+      !itemTexts.includes("Translate post"),
+      "plugin item should not render",
+    );
+    container.remove();
   });
 });
 

@@ -1,7 +1,7 @@
-import { View } from "./view.js";
+import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
-import { textHeaderTemplate } from "/js/templates/textHeader.template.js";
+import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -39,6 +39,7 @@ class NotificationsView extends View {
       postComposerService,
       reportService,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await requireAuth();
@@ -54,10 +55,7 @@ class NotificationsView extends View {
         </div>`;
       }
 
-      const postPreview =
-        post?.record?.text || post?.record?.text === ""
-          ? post.record.text
-          : null;
+      const postPreview = post?.record?.text ? post.record.text : null;
 
       const images = getImagesFromPost(post);
       const video = getVideoFromPost(post);
@@ -417,6 +415,7 @@ class NotificationsView extends View {
             replyToAuthor,
             postInteractionHandler,
             ignoreMuteWarning: true,
+            pluginService,
           })}
         </div>
       `;
@@ -689,7 +688,7 @@ class NotificationsView extends View {
       }
     }
 
-    async function renderPage() {
+    function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -735,8 +734,9 @@ class NotificationsView extends View {
             showFloatingComposeButton: true,
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
+            pluginService,
             children: html`
-              ${textHeaderTemplate({
+              ${headerTemplate({
                 title: "Notifications",
                 showLoadingSpinner: isLoading,
                 leftButton: "menu",

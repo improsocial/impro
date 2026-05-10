@@ -1,14 +1,4 @@
-import { deepClone } from "/js/utils.js";
-
-class SimpleUUID {
-  constructor() {
-    this._id = 0;
-  }
-
-  create() {
-    return this._id++;
-  }
-}
+import { deepClone, SimpleUUID } from "/js/utils.js";
 
 // The store saves patch data for optimistic updates.
 export class PatchStore {

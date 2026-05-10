@@ -1,4 +1,4 @@
-import { Component, getChildrenFragment } from "./component.js";
+import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 
 class ContextMenuItemGroup extends Component {

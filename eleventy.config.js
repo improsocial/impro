@@ -7,6 +7,37 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/css");
   eleventyConfig.addPassthroughCopy("src/img");
   eleventyConfig.addPassthroughCopy("src/manifest.json");
+  eleventyConfig.addPassthroughCopy("plugins-local");
+  eleventyConfig.addWatchTarget("plugins-local");
+
+  // Prevent sandbox from being treated as a template
+  eleventyConfig.ignores.add("src/js/plugins/sandbox.html");
+
+  // Local plugin index
+  eleventyConfig.on("eleventy.before", () => {
+    const localPluginsDir = "plugins-local";
+    if (!fs.existsSync(localPluginsDir)) return;
+    const ids = [];
+    for (const entry of fs.readdirSync(localPluginsDir, {
+      withFileTypes: true,
+    })) {
+      if (!entry.isDirectory() && !entry.isSymbolicLink()) continue;
+      if (entry.name.startsWith(".")) continue;
+      const manifestPath = path.join(
+        localPluginsDir,
+        entry.name,
+        "manifest.json",
+      );
+      const mainPath = path.join(localPluginsDir, entry.name, "main.js");
+      if (!fs.existsSync(manifestPath) || !fs.existsSync(mainPath)) continue;
+      ids.push(entry.name);
+    }
+    fs.mkdirSync("build/plugins-local", { recursive: true });
+    fs.writeFileSync(
+      "build/plugins-local/index.json",
+      JSON.stringify({ ids }, null, 2),
+    );
+  });
 
   // Send index for SPA
   eleventyConfig.setServerOptions({

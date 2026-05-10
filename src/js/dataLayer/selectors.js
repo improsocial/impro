@@ -512,10 +512,24 @@ export class Selectors {
     // Hydrate
     const hydratedFeedItems = [];
     for (const feedItem of feed.feed) {
-      const hydratedFeedItem = {
-        post: this.getPost(feedItem.post.uri, { required: true }),
-      };
-      hydratedFeedItems.push(hydratedFeedItem);
+      let post = this.getPost(feedItem.post.uri, { required: true });
+      if (post.record?.reply?.parent) {
+        const parentPost = this.getPost(post.record.reply.parent.uri);
+        if (parentPost) {
+          post = {
+            ...post,
+            record: {
+              ...post.record,
+              reply: {
+                ...post.record.reply,
+                // NOTE: LEXICON DEVIATION
+                parentAuthor: parentPost.author,
+              },
+            },
+          };
+        }
+      }
+      hydratedFeedItems.push({ post });
     }
     return {
       feed: hydratedFeedItems,

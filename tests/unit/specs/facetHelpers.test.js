@@ -62,6 +62,51 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     assertEquals(facets[0].features[0].uri, "https://example.com");
   });
 
+  it("should not strip closing paren when URI contains a matching paren", () => {
+    const text = "see https://en.wikipedia.org/wiki/Foo_(bar) for context";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const links = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
+    );
+    assertEquals(links.length, 1);
+    assertEquals(
+      links[0].features[0].uri,
+      "https://en.wikipedia.org/wiki/Foo_(bar)",
+    );
+  });
+
+  it("should strip a trailing closing paren when URI has none", () => {
+    const text = "see (example.com) for more";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const links = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
+    );
+    assertEquals(links.length, 1);
+    assertEquals(links[0].features[0].uri, "https://example.com");
+  });
+
+  it("should not detect bare domains with invalid TLDs as links", () => {
+    const text = "visit foo.invalidtld today";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const links = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
+    );
+    assertEquals(links.length, 0);
+  });
+
+  it("should not detect a domain inside an email address", () => {
+    const text = "Email me at user@example.com";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const links = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
+    );
+    assertEquals(links.length, 0);
+  });
+
   it("should detect hashtags", () => {
     const text = "Hello #world and #coding";
     const facets = getUnresolvedFacetsFromText(text);
@@ -72,6 +117,40 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     assertEquals(hashtags.length, 2);
     assertEquals(hashtags[0].features[0].tag, "world");
     assertEquals(hashtags[1].features[0].tag, "coding");
+  });
+
+  it("should detect cashtags", () => {
+    const text = "Bought $AAPL and $tsla today";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 2);
+    assertEquals(tags[0].features[0].tag, "$AAPL");
+    assertEquals(tags[1].features[0].tag, "$TSLA");
+  });
+
+  it("should not detect cashtags mid-word", () => {
+    const text = "email me at foo$bar.com or pay me $5";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 0);
+  });
+
+  it("should compute correct byte indices for cashtags", () => {
+    const text = "Buy $AAPL now";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 1);
+    assertEquals(tags[0].index.byteStart, 4);
+    assertEquals(tags[0].index.byteEnd, 9);
   });
 
   it("should detect mentions", () => {
@@ -106,12 +185,65 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
   });
 
   it("should have correct byte indices", () => {
-    const text = "Hi @bob";
+    const text = "Hi @bob.com";
     const facets = getUnresolvedFacetsFromText(text);
 
     assertEquals(facets.length, 1);
     assertEquals(facets[0].index.byteStart, 3);
-    assertEquals(facets[0].index.byteEnd, 7);
+    assertEquals(facets[0].index.byteEnd, 11);
+  });
+
+  it("should not detect mentions without valid TLD", () => {
+    const text = "Hi @bob";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const mentions = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
+    );
+    assertEquals(mentions.length, 0);
+  });
+
+  it("should detect mentions preceded by an open paren", () => {
+    const text = "see (@alice.bsky.social)";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const mentions = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
+    );
+    assertEquals(mentions.length, 1);
+    assertEquals(mentions[0].features[0].handle, "alice.bsky.social");
+  });
+
+  it("should detect hashtags only when preceded by start or whitespace", () => {
+    const text = "no#match but #yes works";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 1);
+    assertEquals(tags[0].features[0].tag, "yes");
+  });
+
+  it("should not detect hashtags consisting only of digits", () => {
+    const text = "Read #123 carefully";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 0);
+  });
+
+  it("should strip trailing punctuation from hashtags", () => {
+    const text = "Hello #world!";
+    const facets = getUnresolvedFacetsFromText(text);
+
+    const tags = facets.filter(
+      (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
+    );
+    assertEquals(tags.length, 1);
+    assertEquals(tags[0].features[0].tag, "world");
   });
 
   it("should not parse email addresses as mentions", () => {
