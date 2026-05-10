@@ -136,8 +136,9 @@ class PluginInstance {
     this.worker.addEventListener("error", (event) =>
       logger.error(`"${this.pluginId}" worker error:`, event.message),
     );
-    this._readyPromise = new Promise((resolve) => {
+    this._readyPromise = new Promise((resolve, reject) => {
       this._setReady = () => resolve();
+      this._setFailed = (e) => reject(e);
     });
   }
 
@@ -146,7 +147,7 @@ class PluginInstance {
     if (!message || typeof message !== "object") return;
     switch (message.type) {
       case "ready": {
-        this._setReady();
+        message.error ? this._setFailed(message.error) : this._setReady();
         return;
       }
       case "register": {
@@ -301,7 +302,7 @@ export class PluginHost {
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
     } catch (error) {
-      logger.error(`"${pluginId}" failed during initialize:`, error.message);
+      logger.error(`"${pluginId}" failed during initialization:`, error);
     }
   }
 
