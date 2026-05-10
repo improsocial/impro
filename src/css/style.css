@@ -5903,6 +5903,10 @@ moderation-warning .top-bar {
   cursor: pointer;
 }
 
+.post-muted-warning .top-bar {
+  margin-top: 8px;
+}
+
 .post-moderation-warning .top-bar {
   margin-top: 8px;
 }

@@ -45,6 +45,7 @@ function contentWarningTemplate({
     const stopClick = (e) => e.stopPropagation();
     if (post.viewer?.hasMutedWord) {
       return html`<moderation-warning
+        class="post-muted-warning"
         label="Hidden by muted word"
         icon-style="closed-eye"
         @click=${stopClick}
@@ -53,6 +54,7 @@ function contentWarningTemplate({
     }
     if (post.viewer?.isHidden) {
       return html`<moderation-warning
+        class="post-muted-warning"
         label="Post hidden by you"
         icon-style="closed-eye"
         @click=${stopClick}
