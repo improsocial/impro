@@ -19,5 +19,6 @@ export default defineConfig({
     command: "npm start -- --port=8081",
     url: "http://localhost:8081",
     reuseExistingServer: true,
+    env: { PLAYWRIGHT: "1" },
   },
 });

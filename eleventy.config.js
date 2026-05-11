@@ -41,7 +41,7 @@ export default async function (eleventyConfig) {
 
   // Send index for SPA
   eleventyConfig.setServerOptions({
-    liveReload: true,
+    liveReload: !process.env.PLAYWRIGHT,
     onRequest: {
       "/*": function ({ url }) {
         if (fs.existsSync(path.join("build", url.pathname))) {
