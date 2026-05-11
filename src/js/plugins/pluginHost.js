@@ -3,11 +3,6 @@ import { SimpleUUID, isDev } from "/js/utils.js";
 
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
 
-const WORKER_PREFIX = `
-delete self.BroadcastChannel;
-delete self.SharedWorker;
-`;
-
 const SANDBOX_URL = "/js/plugins/sandbox.html";
 
 async function fetchPluginIndex(indexUrl) {
@@ -169,7 +164,7 @@ class PluginInstance {
   }
 
   static async loadFromSource(pluginId, source, callbacks) {
-    const worker = await createSandboxedWorker(WORKER_PREFIX + source);
+    const worker = await createSandboxedWorker(source);
     const instance = new PluginInstance(pluginId, worker, callbacks);
     try {
       return await instance.waitForReady(2000);

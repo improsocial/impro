@@ -26,12 +26,30 @@
 
         function init(source) {
           if (worker) return;
+          let userUrl = null;
           try {
-            const blob = new Blob([source], { type: "text/javascript" });
-            const url = URL.createObjectURL(blob);
-            worker = new Worker(url, { type: "module" });
-            URL.revokeObjectURL(url);
+            const userBlob = new Blob([source], { type: "text/javascript" });
+            userUrl = URL.createObjectURL(userBlob);
+            const bootstrap = `
+              delete self.BroadcastChannel;
+              delete self.SharedWorker;
+              import(${JSON.stringify(userUrl)}).then(
+                (mod) => { mod.default?.register?.(); },
+                (error) => {
+                  self.postMessage({ type: "ready", error: error?.message ?? String(error) });
+                },
+              );
+            `;
+            const bootstrapBlob = new Blob([bootstrap], {
+              type: "text/javascript",
+            });
+            const bootstrapUrl = URL.createObjectURL(bootstrapBlob);
+            worker = new Worker(bootstrapUrl, { type: "module" });
+            URL.revokeObjectURL(bootstrapUrl);
+            // Defer revoking userUrl until the worker has had a chance to import
+            setTimeout(() => URL.revokeObjectURL(userUrl), 5000);
           } catch (error) {
+            if (userUrl) URL.revokeObjectURL(userUrl);
             window.parent.postMessage(
               {
                 type: "sandbox-ready",
