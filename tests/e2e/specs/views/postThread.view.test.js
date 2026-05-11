@@ -82,6 +82,51 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test("should show 'Load parent post' link when reply ref is broken", async ({
+    page,
+  }) => {
+    const parentUri = "at://did:plc:parentbroken/app.bsky.feed.post/parent1";
+
+    // Child post has reply refs but the thread tree omits the parent
+    const childPost = createPost({
+      uri: postUri,
+      text: "Reply with broken parent ref",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: parentUri, cid: "bafyparentbroken" },
+        root: { uri: parentUri, cid: "bafyparentbroken" },
+      },
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([childPost]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: childPost,
+      parent: null,
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+      timeout: 10000,
+    });
+
+    const loadParentLink = view.locator(".load-more-link a", {
+      hasText: "Load parent post",
+    });
+    await expect(loadParentLink).toBeVisible();
+    await expect(loadParentLink).toHaveAttribute(
+      "href",
+      "/profile/did:plc:parentbroken/post/parent1",
+    );
+  });
+
   test("should display replies", async ({ page }) => {
     const postWithReplies = createPost({
       uri: postUri,
