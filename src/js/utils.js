@@ -20,6 +20,20 @@ export function unique(array, { by: keyOrFn } = {}) {
   return uniqueArray;
 }
 
+export function groupBy(array, keyOrFn) {
+  const getKey =
+    typeof keyOrFn === "function" ? keyOrFn : (item) => item[keyOrFn];
+  const groups = new Map();
+  array.forEach((item) => {
+    const key = getKey(item);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(item);
+  });
+  return groups;
+}
+
 export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
 export const isSafari = () =>

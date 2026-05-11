@@ -2,6 +2,7 @@ import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
 import {
   unique,
+  groupBy,
   noop,
   sliceByByte,
   formatLargeNumber,
@@ -84,6 +85,59 @@ t.describe("unique", (it) => {
       { name: "Jane", age: 25 },
       { name: "Bob", age: 35 },
     ]);
+  });
+});
+
+t.describe("groupBy", (it) => {
+  it("should group items by key string", () => {
+    const input = [
+      { pluginId: "a", title: "1" },
+      { pluginId: "b", title: "2" },
+      { pluginId: "a", title: "3" },
+    ];
+    const result = groupBy(input, "pluginId");
+    assertEquals(
+      [...result.entries()],
+      [
+        [
+          "a",
+          [
+            { pluginId: "a", title: "1" },
+            { pluginId: "a", title: "3" },
+          ],
+        ],
+        ["b", [{ pluginId: "b", title: "2" }]],
+      ],
+    );
+  });
+
+  it("should group items by function", () => {
+    const input = [1, 2, 3, 4, 5];
+    const result = groupBy(input, (n) => (n % 2 === 0 ? "even" : "odd"));
+    assertEquals(
+      [...result.entries()],
+      [
+        ["odd", [1, 3, 5]],
+        ["even", [2, 4]],
+      ],
+    );
+  });
+
+  it("should preserve insertion order of keys", () => {
+    const input = [
+      { id: "b" },
+      { id: "a" },
+      { id: "b" },
+      { id: "c" },
+      { id: "a" },
+    ];
+    const result = groupBy(input, "id");
+    assertEquals([...result.keys()], ["b", "a", "c"]);
+  });
+
+  it("should return empty Map for empty array", () => {
+    const result = groupBy([], "id");
+    assertEquals([...result.entries()], []);
   });
 });
 

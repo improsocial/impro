@@ -324,4 +324,131 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
   });
 });
 
+t.describe("postActionBarTemplate - plugin context menu items", (it) => {
+  function makePluginService(items) {
+    return { getPostContextMenuItems: () => items };
+  }
+
+  it("should render one context-menu-item-group per plugin", () => {
+    const pluginService = makePluginService([
+      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const moreMenu = container.querySelectorAll("context-menu")[1];
+    const groups = moreMenu.querySelectorAll("context-menu-item-group");
+    const pluginGroups = Array.from(groups).filter((group) =>
+      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+    assertEquals(pluginGroups.length, 2);
+    assertEquals(
+      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["A1", "A2"],
+    );
+    assertEquals(
+      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["B1"],
+    );
+  });
+
+  it("should group non-contiguous items from the same plugin together", () => {
+    const pluginService = makePluginService([
+      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const moreMenu = container.querySelectorAll("context-menu")[1];
+    const pluginGroups = Array.from(
+      moreMenu.querySelectorAll("context-menu-item-group"),
+    ).filter((group) =>
+      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+    assertEquals(pluginGroups.length, 2);
+    assertEquals(
+      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["A1", "A2"],
+    );
+    assertEquals(
+      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["B1"],
+    );
+  });
+
+  it("should not render any plugin group when no plugin items", () => {
+    const pluginService = makePluginService([]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    // No context menu item should reference our plugin titles
+    const allItems = Array.from(
+      container.querySelectorAll("context-menu-item"),
+    );
+    assert(
+      !allItems.some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+  });
+
+  it("should invoke plugin handler with the post when clicked", () => {
+    let invoked = null;
+    const pluginService = makePluginService([
+      {
+        pluginId: "plugin-a",
+        title: "Do thing",
+        invoke: (clickedPost) => {
+          invoked = clickedPost;
+        },
+      },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const item = Array.from(
+      container.querySelectorAll("context-menu-item"),
+    ).find((node) => node.textContent.trim() === "Do thing");
+    assert(item !== undefined);
+    item.click();
+    assertEquals(invoked, post);
+  });
+});
+
 await t.run();

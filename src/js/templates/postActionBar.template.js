@@ -1,7 +1,7 @@
 import { html, keyed } from "/js/lib/lit-html.js";
 import { showToast } from "/js/toasts.js";
 import { getPermalinkForPost } from "/js/navigation.js";
-import { formatLargeNumber, noop, classnames } from "/js/utils.js";
+import { formatLargeNumber, groupBy, noop, classnames } from "/js/utils.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
@@ -17,6 +17,27 @@ import "/js/components/animated-button.js";
 function getBlueskyLinkForPost(post) {
   const rkey = getRKey(post);
   return `https://bsky.app/profile/${post.author.handle}/post/${rkey}`;
+}
+
+function pluginContextMenuItemsTemplate({ items, post }) {
+  const itemsByPlugin = groupBy(items, "pluginId");
+  return [...itemsByPlugin.values()].map(
+    (group) => html`
+      <context-menu-item-group>
+        ${group.map(
+          (item) => html`
+            <context-menu-item
+              @click=${() => {
+                item.invoke(post);
+              }}
+            >
+              ${item.title}
+            </context-menu-item>
+          `,
+        )}
+      </context-menu-item-group>
+    `,
+  );
 }
 
 export function postActionBarTemplate({
@@ -307,23 +328,10 @@ export function postActionBarTemplate({
                 }
               `
             : null}
-          ${pluginContextMenuItems.length > 0
-            ? html`
-                <context-menu-item-group>
-                  ${pluginContextMenuItems.map((item) => {
-                    return html`
-                      <context-menu-item
-                        @click=${() => {
-                          item.invoke(post);
-                        }}
-                      >
-                        ${item.title}
-                      </context-menu-item>
-                    `;
-                  })}
-                </context-menu-item-group>
-              `
-            : null}
+          ${pluginContextMenuItemsTemplate({
+            items: pluginContextMenuItems,
+            post,
+          })}
         </context-menu>
       </div>
     </div>
