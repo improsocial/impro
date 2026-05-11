@@ -16,9 +16,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm start -- --port=8081",
+    command: "npm run build && PORT=8081 npm run serve:static",
     url: "http://localhost:8081",
-    reuseExistingServer: true,
+    reuseExistingServer: false,
     env: { PLAYWRIGHT: "1" },
   },
 });

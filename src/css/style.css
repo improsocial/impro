@@ -6717,7 +6717,7 @@ toggle-switch {
   width: 44px;
   height: 26px;
   border-radius: 13px;
-  background-color: light-dark(var(--light-gray), var(--dark-gray));
+  background-color: light-dark(var(--lighter-gray), var(--light-gray));
   position: relative;
   cursor: pointer;
   transition: background-color 0.2s ease;
@@ -7176,4 +7176,156 @@ image-cropper {
 .edit-profile-cropper-container {
   border-radius: 8px;
   overflow: hidden;
+}
+
+.plugin-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.plugin-list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color, #e0e0e0);
+}
+
+.plugin-list-item-name {
+  font-weight: 600;
+}
+
+.plugin-list-item-description {
+  font-size: 14px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+.plugin-list-item-version {
+  font-size: 12px;
+  opacity: 0.6;
+  margin-top: 4px;
+}
+
+.plugin-list-item-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plugin-settings-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: inherit;
+  text-decoration: none;
+}
+
+.plugin-settings-link .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.plugin-settings-tab {
+  padding: 16px;
+}
+
+.plugin-setting-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  border-bottom: var(--hair) solid var(--generic-border-color);
+}
+
+.plugin-setting-item:first-child {
+  padding-top: 0;
+}
+
+.plugin-setting-item:last-child {
+  border-bottom: none;
+}
+
+.plugin-setting-item-info {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.plugin-setting-item-name {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.plugin-setting-item-desc {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  margin-top: 4px;
+}
+
+.plugin-setting-item-control {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.plugin-setting-text-input,
+.plugin-setting-dropdown {
+  font-size: 16px;
+  padding: 8px 10px;
+  border-radius: var(--text-input-border-radius);
+  border: var(--hair) solid var(--generic-border-color);
+  background: var(--text-input-background-color);
+  color: var(--text-color);
+}
+
+.plugin-setting-text-input {
+  min-width: 180px;
+}
+
+.plugin-setting-button {
+  font-size: 14px;
+  padding: 8px 14px;
+  border-radius: var(--pill-button-border-radius, 999px);
+  border: var(--hair) solid var(--generic-border-color);
+  background: var(--primary-button-muted-color);
+  color: var(--text-color);
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.plugin-setting-button.primary-button {
+  background: var(--primary-button-color);
+  color: var(--primary-button-text-color);
+  border-color: transparent;
+}
+
+@media (min-width: 800px) {
+  .plugin-setting-button:hover {
+    background: var(--primary-button-muted-hover-color);
+  }
+
+  .plugin-setting-button.primary-button:hover {
+    background: var(--primary-button-hover-color);
+  }
+}
+
+@media (max-width: 600px) {
+  .plugin-setting-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .plugin-setting-item-control {
+    justify-content: flex-end;
+  }
+
+  .plugin-setting-text-input {
+    min-width: 0;
+    width: 100%;
+  }
 }

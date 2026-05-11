@@ -1,4 +1,5 @@
 import { lightningBoltIconTemplate } from "/js/templates/icons/lightningBoltIcon.template.js";
+import "/js/components/toggle-switch.js";
 
 const ALLOWED_TAGS = [
   "div",
@@ -20,15 +21,35 @@ const ALLOWED_TAGS = [
   "br",
   "hr",
   "button",
+  "input",
+  "select",
+  "option",
+  "label",
+  "textarea",
 ];
 
-const ALLOWED_EVENTS = ["click"];
+const ALLOWED_EVENTS = ["click", "change", "input"];
 
 function isAllowedTag(tag) {
   return ALLOWED_TAGS.includes(tag);
 }
 
-const ALLOWED_ATTRS = ["class", "title", "role", "lang", "dir"];
+const ALLOWED_ATTRS = [
+  "class",
+  "title",
+  "role",
+  "lang",
+  "dir",
+  "type",
+  "value",
+  "placeholder",
+  "checked",
+  "selected",
+  "disabled",
+  "name",
+  "for",
+  "id",
+];
 
 function isAllowedAttr(name) {
   return (
@@ -43,9 +64,15 @@ const PLUGIN_ICON_TEMPLATES = {
 };
 
 function createVirtualEvent(e) {
-  // Create a serializeable event object - can extend this later if needed
+  const target = e.target ?? {};
+  const virtualTarget = {};
+  if (typeof target.value === "string") virtualTarget.value = target.value;
+  if (typeof target.checked === "boolean") {
+    virtualTarget.checked = target.checked;
+  }
   return {
     type: e.type,
+    target: virtualTarget,
   };
 }
 
@@ -63,6 +90,9 @@ export class PluginRenderer {
         `[plugins] "${pluginId}" tried to render disallowed tag <${tag}>`,
       );
       tag = "span";
+    }
+    if (tag === "input" && node.attrs?.type === "checkbox") {
+      tag = "toggle-switch";
     }
     const element = document.createElement(tag);
     if (node.attrs) {

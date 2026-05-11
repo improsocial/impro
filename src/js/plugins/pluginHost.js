@@ -71,7 +71,10 @@ class SandboxedWorker extends EventTarget {
     this._handleWindowMessage = this._handleWindowMessage.bind(this);
     window.addEventListener("message", this._handleWindowMessage);
     this.frame.addEventListener("load", () => {
-      this.frame.contentWindow.postMessage({ type: "init", source }, "*");
+      this.frame.contentWindow.postMessage(
+        { type: "init", source, bootstrapTemplate: WORKER_BOOTSTRAP_TEMPLATE },
+        "*",
+      );
     });
     document.body.appendChild(this.frame);
   }
@@ -110,10 +113,34 @@ class SandboxedWorker extends EventTarget {
   }
 }
 
+export const WORKER_BOOTSTRAP_TEMPLATE = `
+  delete self.BroadcastChannel;
+  delete self.SharedWorker;
+  import("%USER_URL_PLACEHOLDER%").then(
+    (mod) => { mod.default?.register?.(); },
+    (error) => {
+      self.postMessage({ type: "ready", error: error?.message ?? String(error) });
+    },
+  );
+`;
+
 async function createSandboxedWorker(source) {
   const worker = new SandboxedWorker(source);
   // in the future, we could add a handshake here to ensure worker has loaded
   return worker;
+}
+
+// Direct (unsandboxed) Worker for e2e tests
+async function createDirectWorker(source) {
+  const userUrl = URL.createObjectURL(
+    new Blob([source], { type: "text/javascript" }),
+  );
+  const bootstrap = WORKER_BOOTSTRAP_TEMPLATE.replaceAll(
+    "%USER_URL_PLACEHOLDER%",
+    userUrl,
+  );
+  const blob = new Blob([bootstrap], { type: "text/javascript" });
+  return new Worker(URL.createObjectURL(blob), { type: "module" });
 }
 
 class PluginInstance {
@@ -163,8 +190,10 @@ class PluginInstance {
     }
   }
 
-  static async loadFromSource(pluginId, source, callbacks) {
-    const worker = await createSandboxedWorker(source);
+  static async loadFromSource(pluginId, source, callbacks, sandbox) {
+    const worker = sandbox
+      ? await createSandboxedWorker(source)
+      : await createDirectWorker(source);
     const instance = new PluginInstance(pluginId, worker, callbacks);
     try {
       return await instance.waitForReady(2000);
@@ -218,11 +247,40 @@ class PluginInstance {
 }
 
 export class PluginHost {
-  constructor() {
+  constructor({ sandbox = true } = {}) {
     this._availablePlugins = null;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
+    this._manifests = new Map();
     this._hostCallHandlers = new Map();
+    this._sandbox = sandbox;
+  }
+
+  getAvailablePluginIds() {
+    return this._availablePlugins ? [...this._availablePlugins] : [];
+  }
+
+  getManifest(pluginId) {
+    return this._manifests.get(pluginId) ?? null;
+  }
+
+  isLoaded(pluginId) {
+    return this._loadedPlugins.has(pluginId);
+  }
+
+  getInstance(pluginId) {
+    return this._loadedPlugins.get(pluginId) ?? null;
+  }
+
+  async ensureManifest(pluginId) {
+    if (this._manifests.has(pluginId)) return this._manifests.get(pluginId);
+    try {
+      const manifest = await fetchPluginManifest(pluginId);
+      this._manifests.set(pluginId, manifest);
+      return manifest;
+    } catch {
+      return null;
+    }
   }
 
   addRegistrationTarget(target, handler) {
@@ -274,6 +332,7 @@ export class PluginHost {
     let manifest;
     try {
       manifest = await fetchPluginManifest(pluginId);
+      this._manifests.set(pluginId, manifest);
     } catch (error) {
       logger.warn(
         `failed to load "${pluginId}": invalid manifest:`,
@@ -301,6 +360,7 @@ export class PluginHost {
           onHostCall: (instance, message) =>
             this._handleHostCall(instance, message),
         },
+        this._sandbox,
       );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
@@ -315,21 +375,35 @@ export class PluginHost {
 
   _handleHostCall(pluginInstance, message) {
     const handler = this._hostCallHandlers.get(message.method);
+    const hostCallId = message.hostCallId;
+    const sendResult = (result) => {
+      if (hostCallId == null) return;
+      pluginInstance.worker.postMessage({
+        type: "hostResult",
+        hostCallId,
+        ...result,
+      });
+    };
     if (!handler) {
       logger.warn(
         `"${pluginInstance.pluginId}" called unknown host method "${message.method}"`,
       );
+      sendResult({ error: `unknown host method "${message.method}"` });
       return;
     }
     const args = message.args ?? [];
-    try {
-      handler(pluginInstance, ...args);
-    } catch (error) {
-      logger.error(
-        `"${pluginInstance.pluginId}" host method "${message.method}" threw:`,
-        error,
+    Promise.resolve()
+      .then(() => handler(pluginInstance, ...args))
+      .then(
+        (value) => sendResult({ value }),
+        (error) => {
+          logger.error(
+            `"${pluginInstance.pluginId}" host method "${message.method}" threw:`,
+            error,
+          );
+          sendResult({ error: error?.message ?? String(error) });
+        },
       );
-    }
   }
 
   handleNodeEvent(pluginId, handlerId, virtualEvent) {

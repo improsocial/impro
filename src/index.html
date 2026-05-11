@@ -81,9 +81,12 @@
       import settingsAppearanceView from "/js/views/settings/appearance.view.js";
       import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
       import settingsAdvancedView from "/js/views/settings/advanced.view.js";
+      import settingsPluginsView from "/js/views/settings/plugins.view.js";
+      import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
+      import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
       import { Api } from "/js/api.js";
@@ -119,18 +122,6 @@
 
         handleAppViewResetQueryParam();
 
-        const pluginService = new PluginService();
-
-        // Dev helpers
-        window.enablePlugin = pluginService.enablePlugin.bind(pluginService);
-        window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
-
-        try {
-          await pluginService.loadEnabledPlugins();
-        } catch (error) {
-          console.error("Error loading plugins", error);
-        }
-
         const auth = await getAuth();
         const session = await auth.getSession();
         const appViewConfig = getAppViewConfig();
@@ -138,7 +129,20 @@
           bskyAppViewServiceDid: appViewConfig.appViewServiceDid,
           chatAppViewServiceDid: appViewConfig.chatServiceDid,
         });
-        const dataLayer = new DataLayer(api, pluginService);
+        const preferencesProvider = new PreferencesProvider(api);
+        const pluginService = new PluginService(preferencesProvider, {
+          sandbox: !window.env.playwright,
+        });
+
+        // Dev helpers
+        window.enablePlugin = pluginService.enablePlugin.bind(pluginService);
+        window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
+
+        const dataLayer = new DataLayer(
+          api,
+          pluginService,
+          preferencesProvider,
+        );
         // put dataLayer on window for easy access in dev tools
         window.dataLayer = dataLayer;
         const identityResolver = new IdentityResolver();
@@ -169,6 +173,12 @@
             console.error("Error initializing preferences:", retryError);
             throw retryError;
           }
+        }
+
+        try {
+          await pluginService.loadEnabledPlugins();
+        } catch (error) {
+          console.error("Error loading plugins", error);
         }
 
         if (notificationService) {
@@ -259,6 +269,11 @@
         router.addRoute("/settings/appearance", () => settingsAppearanceView);
         router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
         router.addRoute("/settings/advanced", () => settingsAdvancedView);
+        router.addRoute("/settings/plugins", () => settingsPluginsView);
+        router.addRoute(
+          "/settings/plugins/:pluginId",
+          () => settingsPluginDetailView,
+        );
         router.setNotFoundView(() => notFoundView);
 
         router.renderRoute(({ view, params, container }) => {

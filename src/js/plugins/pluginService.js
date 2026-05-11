@@ -5,16 +5,37 @@ import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 const ENABLED_PLUGINS_KEY = "enabled-plugins";
 
 export class PluginService {
-  constructor() {
+  constructor(preferencesProvider, { sandbox = true } = {}) {
     this.registries = {
       sidebarItems: new Set(),
       postContextMenuItems: new Set(),
       feedFilters: new Set(),
+      settingTabs: new Map(),
     };
-    this.pluginHost = new PluginHost();
+    this.pluginHost = new PluginHost({ sandbox });
     this.pluginRenderer = new PluginRenderer(this.pluginHost);
+    this.preferencesProvider = preferencesProvider;
     this._setupRegistries();
     this._setupHostMethods();
+    if (preferencesProvider) {
+      preferencesProvider.on("pluginSettingsChanged", ({ pluginId, data }) => {
+        const instance = this.pluginHost.getInstance(pluginId);
+        if (!instance) return;
+        instance.sendEvent("settingsChanged", { data });
+      });
+    }
+  }
+
+  _readPluginSettings(pluginId) {
+    const prefs = this.preferencesProvider.requirePreferences();
+    return prefs.getPluginSettings(pluginId);
+  }
+
+  async _writePluginSettings(pluginId, data) {
+    if (!this.preferencesProvider) {
+      throw new Error("Preferences not available");
+    }
+    await this.preferencesProvider.updatePluginSettings(pluginId, data);
   }
 
   _setupRegistries() {
@@ -41,6 +62,20 @@ export class PluginService {
         return () => this.registries.postContextMenuItems.delete(entry);
       },
     );
+    this.pluginHost.addRegistrationTarget("settingTab", (plugin, message) => {
+      const entry = {
+        pluginId: plugin.pluginId,
+        name: message.name,
+        display: () => plugin.call(message.displayHandlerId),
+        hide: () => plugin.call(message.hideHandlerId),
+      };
+      this.registries.settingTabs.set(plugin.pluginId, entry);
+      return () => {
+        if (this.registries.settingTabs.get(plugin.pluginId) === entry) {
+          this.registries.settingTabs.delete(plugin.pluginId);
+        }
+      };
+    });
     this.pluginHost.addRegistrationTarget("feedFilter", (plugin, message) => {
       const entry = {
         pluginId: plugin.pluginId,
@@ -75,6 +110,43 @@ export class PluginService {
     this.pluginHost.addHostMethod("closeModal", (plugin, { modalId }) => {
       hidePluginModal({ pluginId: plugin.pluginId, modalId });
     });
+
+    this.pluginHost.addHostMethod("loadData", (plugin) => {
+      return this._readPluginSettings(plugin.pluginId);
+    });
+
+    this.pluginHost.addHostMethod("saveData", async (plugin, { data }) => {
+      await this._writePluginSettings(plugin.pluginId, data);
+    });
+  }
+
+  getSettingTabs() {
+    return [...this.registries.settingTabs.values()];
+  }
+
+  getSettingTab(pluginId) {
+    return this.registries.settingTabs.get(pluginId) ?? null;
+  }
+
+  async listAvailablePlugins() {
+    const ids = this.pluginHost.getAvailablePluginIds();
+    const enabled = new Set(this.getEnabledPlugins());
+    const manifests = await Promise.all(
+      ids.map((id) => this.pluginHost.ensureManifest(id)),
+    );
+    return ids
+      .map((id, index) => {
+        const manifest = manifests[index];
+        if (!manifest) return null;
+        return {
+          id,
+          manifest,
+          enabled: enabled.has(id),
+          loaded: this.pluginHost.isLoaded(id),
+          hasSettings: this.registries.settingTabs.has(id),
+        };
+      })
+      .filter((entry) => entry !== null);
   }
 
   async loadEnabledPlugins() {

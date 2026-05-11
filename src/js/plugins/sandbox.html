@@ -18,28 +18,23 @@
           if (event.source !== window.parent) return;
           const message = event.data;
           if (!message || typeof message !== "object") return;
-          if (message.type === "init") init(message.source);
+          if (message.type === "init")
+            init(message.source, message.bootstrapTemplate);
           else if (message.type === "send" && worker)
             worker.postMessage(message.payload);
           else if (message.type === "terminate" && worker) worker.terminate();
         });
 
-        function init(source) {
+        function init(source, bootstrapTemplate) {
           if (worker) return;
           let userUrl = null;
           try {
             const userBlob = new Blob([source], { type: "text/javascript" });
             userUrl = URL.createObjectURL(userBlob);
-            const bootstrap = `
-              delete self.BroadcastChannel;
-              delete self.SharedWorker;
-              import(${JSON.stringify(userUrl)}).then(
-                (mod) => { mod.default?.register?.(); },
-                (error) => {
-                  self.postMessage({ type: "ready", error: error?.message ?? String(error) });
-                },
-              );
-            `;
+            const bootstrap = bootstrapTemplate.replaceAll(
+              "%USER_URL_PLACEHOLDER%",
+              userUrl,
+            );
             const bootstrapBlob = new Blob([bootstrap], {
               type: "text/javascript",
             });

@@ -1,7 +1,6 @@
 import { userProfile } from "./fixtures.js";
 
 export async function login(page) {
-  await page.goto("/login");
   const oauthSession = {
     did: userProfile.did,
     serviceEndpoint: "https://fake.bsky.social",
@@ -13,7 +12,7 @@ export async function login(page) {
       token_endpoint: `https://fake.bsky.social/oauth/token`,
     },
   };
-  await page.evaluate((session) => {
+  await page.addInitScript((session) => {
     localStorage.setItem("oauth_session", JSON.stringify(session));
   }, oauthSession);
 }

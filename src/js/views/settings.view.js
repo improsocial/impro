@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
+import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
 import { getAuth, requireAuth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -34,6 +35,12 @@ class SettingsView extends View {
         icon: mutedWordIconTemplate,
         label: "Muted words",
         url: "/settings/muted-words",
+        enabled: true,
+      },
+      {
+        icon: boxIconTemplate,
+        label: "Plugins",
+        url: "/settings/plugins",
         enabled: true,
       },
       {

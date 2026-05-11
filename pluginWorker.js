@@ -11,6 +11,18 @@ const uuid = new SimpleUUID();
 
 const callHandlers = new Map();
 
+const pendingHostCalls = new Map();
+
+function hostCall(method, ...args) {
+  const hostCallId = uuid.create();
+  return new Promise((resolve, reject) => {
+    pendingHostCalls.set(hostCallId, { resolve, reject });
+    self.postMessage({ type: "hostCall", method, hostCallId, args });
+  });
+}
+
+const settingsChangeListeners = new Set();
+
 let registered = false;
 
 export class Plugin {
@@ -38,6 +50,35 @@ export class Plugin {
       title,
       handlerId,
     });
+  }
+
+  async loadData() {
+    return hostCall("loadData");
+  }
+
+  async saveData(data) {
+    await hostCall("saveData", { data });
+  }
+
+  addSettingTab(tab) {
+    tab.plugin = this;
+    const displayHandlerId = uuid.create();
+    callHandlers.set(displayHandlerId, () => {
+      tab.containerEl = new VirtualEl("div");
+      tab.display();
+      return tab.containerEl._serialize();
+    });
+    self.postMessage({
+      type: "register",
+      target: "settingTab",
+      name: tab.name ?? null,
+      displayHandlerId,
+    });
+    this._settingTab = tab;
+  }
+
+  onSettingsChange(callback) {
+    settingsChangeListeners.add(callback);
   }
 
   addFeedFilter(filterId, callback = () => {}) {
@@ -112,6 +153,149 @@ export class Modal {
   onClose() {}
 }
 
+export class PluginSettingTab {
+  constructor() {
+    this.containerEl = new VirtualEl("div");
+    this.name = null;
+  }
+  setName(name) {
+    this.name = name;
+    return this;
+  }
+  display() {}
+}
+
+export class Setting {
+  constructor(containerEl) {
+    this.settingEl = containerEl.createDiv({ cls: "plugin-setting-item" });
+    this.infoEl = this.settingEl.createDiv({ cls: "plugin-setting-item-info" });
+    this.nameEl = this.infoEl.createDiv({ cls: "plugin-setting-item-name" });
+    this.descEl = this.infoEl.createDiv({ cls: "plugin-setting-item-desc" });
+    this.controlEl = this.settingEl.createDiv({
+      cls: "plugin-setting-item-control",
+    });
+  }
+  setName(text) {
+    this.nameEl.setText(text);
+    return this;
+  }
+  setDesc(text) {
+    this.descEl.setText(text);
+    return this;
+  }
+  addText(callback) {
+    const component = new TextComponent(this.controlEl);
+    callback(component);
+    return this;
+  }
+  addToggle(callback) {
+    const component = new ToggleComponent(this.controlEl);
+    callback(component);
+    return this;
+  }
+  addDropdown(callback) {
+    const component = new DropdownComponent(this.controlEl);
+    callback(component);
+    return this;
+  }
+  addButton(callback) {
+    const component = new ButtonComponent(this.controlEl);
+    callback(component);
+    return this;
+  }
+}
+
+class TextComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("input", {
+      attr: { type: "text" },
+      cls: "plugin-setting-text-input",
+    });
+  }
+  setValue(value) {
+    this.el.setAttr("value", value == null ? "" : String(value));
+    return this;
+  }
+  setPlaceholder(value) {
+    this.el.setAttr("placeholder", value);
+    return this;
+  }
+  onChange(callback) {
+    this.el.onChange((event) => callback(event.target.value));
+    return this;
+  }
+}
+
+class ToggleComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("input", {
+      attr: { type: "checkbox" },
+      cls: "plugin-setting-toggle",
+    });
+  }
+  setValue(value) {
+    if (value) this.el.setAttr("checked", "");
+    else delete this.el.attrs.checked;
+    return this;
+  }
+  onChange(callback) {
+    this.el.onChange((event) => callback(event.target.checked));
+    return this;
+  }
+}
+
+class DropdownComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("select", {
+      cls: "plugin-setting-dropdown",
+    });
+  }
+  addOption(value, label) {
+    this.el.createEl("option", { text: label, attr: { value } });
+    return this;
+  }
+  addOptions(map) {
+    for (const [value, label] of Object.entries(map)) {
+      this.addOption(value, label);
+    }
+    return this;
+  }
+  setValue(value) {
+    for (const child of this.el.children) {
+      if (child.attrs?.value === value) {
+        child.attrs.selected = "";
+      } else if (child.attrs) {
+        delete child.attrs.selected;
+      }
+    }
+    return this;
+  }
+  onChange(callback) {
+    this.el.onChange((event) => callback(event.target.value));
+    return this;
+  }
+}
+
+class ButtonComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("button", {
+      cls: "plugin-setting-button",
+    });
+  }
+  setButtonText(text) {
+    this.el.setText(text);
+    return this;
+  }
+  setCta() {
+    this.el.addClass("primary-button");
+    return this;
+  }
+  onClick(callback) {
+    this.el.onClick(callback);
+    return this;
+  }
+}
+
 class VirtualEl {
   constructor(tag) {
     this.tag = tag;
@@ -125,6 +309,20 @@ class VirtualEl {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, fn);
     this.events.click = handlerId;
+    return this;
+  }
+
+  onChange(fn) {
+    const handlerId = uuid.create();
+    callHandlers.set(handlerId, fn);
+    this.events.change = handlerId;
+    return this;
+  }
+
+  onInput(fn) {
+    const handlerId = uuid.create();
+    callHandlers.set(handlerId, fn);
+    this.events.input = handlerId;
     return this;
   }
 
@@ -211,6 +409,16 @@ self.addEventListener("message", async (event) => {
     return;
   }
 
+  // Host call results
+  if (message.type === "hostResult") {
+    const pending = pendingHostCalls.get(message.hostCallId);
+    if (!pending) return;
+    pendingHostCalls.delete(message.hostCallId);
+    if (message.error) pending.reject(new Error(message.error));
+    else pending.resolve(message.value);
+    return;
+  }
+
   // Events
   if (message.type === "event") {
     switch (message.event) {
@@ -220,6 +428,17 @@ self.addEventListener("message", async (event) => {
           openModals.delete(message.data.modalId);
           modal.onClose();
         }
+        return;
+      }
+      case "settingsChanged": {
+        for (const listener of settingsChangeListeners) {
+          try {
+            listener(message.data.data);
+          } catch (error) {
+            console.error("settingsChanged listener threw:", error);
+          }
+        }
+        return;
       }
     }
     return;

@@ -17,7 +17,7 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(4, {
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(5, {
       timeout: 10000,
     });
     await expect(nav.locator(".vertical-nav-label").first()).toContainText(
@@ -27,6 +27,9 @@ test.describe("Settings view", () => {
       "Muted words",
     );
     await expect(nav.locator(".vertical-nav-label").nth(2)).toContainText(
+      "Plugins",
+    );
+    await expect(nav.locator(".vertical-nav-label").nth(3)).toContainText(
       "Advanced",
     );
   });

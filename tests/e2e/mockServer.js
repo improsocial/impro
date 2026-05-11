@@ -1,5 +1,10 @@
 import { createPost } from "./factories.js";
 import { bskyLabeler, userProfile } from "./fixtures.js";
+import {
+  TEST_PLUGIN_ID,
+  TEST_PLUGIN_MANIFEST,
+  getTestPluginSource,
+} from "./testPlugin.js";
 
 export class MockServer {
   constructor() {
@@ -39,6 +44,7 @@ export class MockServer {
     this.searchPosts = [];
     this.searchProfiles = [];
     this.timelinePosts = [];
+    this.pluginSettings = new Map();
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -160,6 +166,32 @@ export class MockServer {
   }
 
   async setup(page) {
+    // Plugin fixture routes — serve a self-contained test plugin so plugin
+    // e2e tests don't depend on plugins-local/.
+    await page.route("**/plugins-local/index.json", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ ids: [TEST_PLUGIN_ID] }),
+      }),
+    );
+    await page.route(
+      `**/plugins-local/${TEST_PLUGIN_ID}/manifest.json`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(TEST_PLUGIN_MANIFEST),
+        }),
+    );
+    await page.route(`**/plugins-local/${TEST_PLUGIN_ID}/main.js`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/javascript",
+        body: getTestPluginSource(),
+      }),
+    );
+
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
     );
@@ -239,6 +271,11 @@ export class MockServer {
                   },
                 ]
               : []),
+            ...[...this.pluginSettings.entries()].map(([pluginId, data]) => ({
+              $type: "app.bsky.actor.defs#improPluginSettingsPref",
+              pluginId,
+              data,
+            })),
           ],
         }),
       }),
@@ -1323,6 +1360,12 @@ export class MockServer {
       if (mutedWordsPref) {
         this.mutedWords = mutedWordsPref.items || [];
       }
+      const pluginSettingsPrefs = (body?.preferences || []).filter(
+        (p) => p.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+      );
+      this.pluginSettings = new Map(
+        pluginSettingsPrefs.map((p) => [p.pluginId, p.data]),
+      );
       return route.fulfill({
         status: 200,
         contentType: "application/json",

@@ -2568,4 +2568,64 @@ t.describe(
   },
 );
 
+t.describe("Preferences plugin settings", (it) => {
+  it("returns null when no settings record exists", () => {
+    const preferences = new Preferences([], []);
+    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+  });
+
+  it("returns stored data for a plugin", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        pluginId: "my-plugin",
+        data: { foo: "bar" },
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getPluginSettings("my-plugin"), { foo: "bar" });
+  });
+
+  it("does not return data scoped to a different plugin", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        pluginId: "plugin-a",
+        data: { foo: "bar" },
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getPluginSettings("plugin-b"), null);
+  });
+
+  it("inserts a new record when none exists", () => {
+    const preferences = new Preferences([], []);
+    const updated = preferences.setPluginSettings("my-plugin", { count: 1 });
+    assertEquals(updated.getPluginSettings("my-plugin"), { count: 1 });
+    // Original unchanged
+    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+  });
+
+  it("updates an existing record", () => {
+    const preferences = new Preferences([], []).setPluginSettings("my-plugin", {
+      count: 1,
+    });
+    const updated = preferences.setPluginSettings("my-plugin", { count: 2 });
+    assertEquals(updated.getPluginSettings("my-plugin"), { count: 2 });
+    // Only one record stored
+    const records = updated.obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+    );
+    assertEquals(records.length, 1);
+  });
+
+  it("keeps settings for multiple plugins isolated", () => {
+    const updated = new Preferences([], [])
+      .setPluginSettings("plugin-a", { a: 1 })
+      .setPluginSettings("plugin-b", { b: 2 });
+    assertEquals(updated.getPluginSettings("plugin-a"), { a: 1 });
+    assertEquals(updated.getPluginSettings("plugin-b"), { b: 2 });
+  });
+});
+
 await t.run();
