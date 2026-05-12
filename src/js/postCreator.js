@@ -74,12 +74,13 @@ export class PostCreator {
     // Get full post from the app view
     let fullPost = null;
     let tries = 0;
-    do {
+    while (!fullPost && tries < 3) {
       try {
         fullPost = await this.api.getPost(res.uri);
       } catch (e) {}
-      await wait(200);
-    } while (!fullPost && tries < 3);
+      if (!fullPost) await wait(200);
+      tries++;
+    }
     if (!fullPost) {
       throw new Error(`Failed to get post: ${res.uri}`);
     }
