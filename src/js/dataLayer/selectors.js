@@ -600,6 +600,10 @@ export class Selectors {
     });
   }
 
+  getBlockedProfiles() {
+    return this.dataStore.getBlockedProfiles();
+  }
+
   getProfileFollowers(profileDid) {
     return this.dataStore.getProfileFollowers(profileDid);
   }

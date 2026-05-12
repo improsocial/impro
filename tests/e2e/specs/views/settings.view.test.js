@@ -17,7 +17,7 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(5, {
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(6, {
       timeout: 10000,
     });
     await expect(nav.locator(".vertical-nav-label").first()).toContainText(
@@ -27,11 +27,31 @@ test.describe("Settings view", () => {
       "Muted words",
     );
     await expect(nav.locator(".vertical-nav-label").nth(2)).toContainText(
-      "Plugins",
+      "Blocked accounts",
     );
     await expect(nav.locator(".vertical-nav-label").nth(3)).toContainText(
+      "Plugins",
+    );
+    await expect(nav.locator(".vertical-nav-label").nth(4)).toContainText(
       "Advanced",
     );
+  });
+
+  test("should navigate to blocked accounts settings", async ({ page }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings");
+
+    const view = page.locator("#settings-view");
+    await view
+      .locator(".vertical-nav-item", { hasText: "Blocked accounts" })
+      .click();
+
+    await expect(page).toHaveURL("/settings/blocked-accounts", {
+      timeout: 10000,
+    });
   });
 
   test("should navigate to appearance settings when clicking Appearance", async ({

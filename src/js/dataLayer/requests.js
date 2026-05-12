@@ -130,6 +130,7 @@ export class Requests {
       this.loadProfileFollows,
       (profileDid) => "loadProfileFollows-" + profileDid,
     );
+    this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
   }
 
   requireLabelers() {
@@ -1041,6 +1042,21 @@ export class Requests {
     } else {
       // Set new follows
       this.dataStore.setProfileFollows(profileDid, res);
+    }
+  }
+
+  async loadBlockedProfiles({ cursor } = {}) {
+    const labelers = this.requireLabelers();
+    const existing = this.dataStore.getBlockedProfiles();
+    const res = await this.api.getBlocks({ cursor, labelers });
+
+    if (existing && cursor) {
+      this.dataStore.setBlockedProfiles({
+        blocks: [...existing.blocks, ...res.blocks],
+        cursor: res.cursor,
+      });
+    } else {
+      this.dataStore.setBlockedProfiles(res);
     }
   }
 

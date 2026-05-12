@@ -7,7 +7,10 @@ import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBad
 export function profileListItemTemplate({ actor }) {
   const displayName = actor.displayName || actor.handle;
   return html`<div
-    @click=${() => window.router.go(linkToProfile(actor))}
+    @click=${(e) => {
+      if (e.target.closest("a")) return;
+      window.router.go(linkToProfile(actor));
+    }}
     class="profile-list-item"
   >
     ${avatarTemplate({ author: actor })}

@@ -4266,7 +4266,7 @@ emoji-picker {
 
 .feeds-list-item-description {
   font-size: 14px;
-  color: var(--text-secondary);
+  color: var(--text-color-secondary);
   white-space: pre-wrap;
 }
 
@@ -5803,6 +5803,29 @@ img[data-lightbox] {
 }
 
 .muted-word-empty {
+  padding: 12px 16px;
+  margin: 0 16px 16px;
+  border-radius: 8px;
+  background: var(--post-hover-color);
+  color: var(--text-color);
+  font-style: italic;
+  font-size: 14px;
+}
+
+.blocked-account-description {
+  padding: 16px 16px 16px;
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+.blocked-account-list {
+  display: flex;
+  flex-direction: column;
+}
+
+.blocked-account-empty {
   padding: 12px 16px;
   margin: 0 16px 16px;
   border-radius: 8px;
