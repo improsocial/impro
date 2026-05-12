@@ -19,7 +19,7 @@ const postInteractionHandler = {
 };
 
 const pluginService = {
-  getPostContextMenuItems: () => [],
+  getPostContextMenuItems: async () => [],
 };
 
 const baseProps = {
@@ -485,78 +485,122 @@ t.describe("smallPostTemplate - moderation", (it) => {
   });
 });
 
-t.describe("smallPostTemplate - plugin context menu items", (it) => {
-  it("should render plugin-provided context menu items in the action bar", () => {
-    const invocations = [];
-    const customPluginService = {
-      getPostContextMenuItems: () => [
-        { title: "Translate post", invoke: (post) => invocations.push(post) },
-        { title: "Save to Notion", invoke: () => {} },
-      ],
-    };
-    const result = smallPostTemplate({
-      post,
-      ...baseProps,
-      pluginService: customPluginService,
+t.describe(
+  "smallPostTemplate - plugin context menu items",
+  (it, { afterEach }) => {
+    afterEach(() => {
+      document.body
+        .querySelectorAll("context-menu")
+        .forEach((menu) => menu.remove());
     });
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    render(result, container);
-    const items = Array.from(container.querySelectorAll("context-menu-item"));
-    const itemTexts = items.map((el) => el.textContent.trim());
-    assert(
-      itemTexts.includes("Translate post"),
-      `expected "Translate post" in ${JSON.stringify(itemTexts)}`,
-    );
-    assert(
-      itemTexts.includes("Save to Notion"),
-      `expected "Save to Notion" in ${JSON.stringify(itemTexts)}`,
-    );
-    container.remove();
-  });
 
-  it("should invoke the plugin item callback with the post when clicked", () => {
-    const invocations = [];
-    const customPluginService = {
-      getPostContextMenuItems: () => [
-        { title: "Translate post", invoke: (post) => invocations.push(post) },
-      ],
-    };
-    const result = smallPostTemplate({
-      post,
-      ...baseProps,
-      pluginService: customPluginService,
-    });
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    render(result, container);
-    const items = Array.from(container.querySelectorAll("context-menu-item"));
-    const target = items.find(
-      (el) => el.textContent.trim() === "Translate post",
-    );
-    assert(target !== null && target !== undefined);
-    target.click();
-    assertEquals(invocations.length, 1);
-    assertEquals(invocations[0], post);
-    container.remove();
-  });
+    async function flushMicrotasks() {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
 
-  it("should not render any plugin items when the registry is empty", () => {
-    const result = smallPostTemplate({
-      post,
-      ...baseProps,
+    function ensurePageVisible() {
+      if (!document.querySelector(".page-visible")) {
+        const pageVisible = document.createElement("div");
+        pageVisible.classList.add("page-visible");
+        document.body.appendChild(pageVisible);
+      }
+    }
+
+    async function openPostContextMenu(container) {
+      ensurePageVisible();
+      const moreButton = Array.from(
+        container.querySelectorAll(".post-action-button.text-button"),
+      ).find((button) => button.textContent.trim() === "...");
+      moreButton.click();
+      await flushMicrotasks();
+      return document.body.querySelector("context-menu.post-context-menu");
+    }
+
+    it("should render plugin-provided context menu items in the action bar", async () => {
+      const customPluginService = {
+        getPostContextMenuItems: async () => [
+          { title: "Translate post", invoke: () => {} },
+          { title: "Save to Notion", invoke: () => {} },
+        ],
+      };
+      const result = smallPostTemplate({
+        post,
+        ...baseProps,
+        pluginService: customPluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const items = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item"),
+      );
+      const itemTexts = items.map((el) => el.textContent.trim());
+      assert(
+        itemTexts.includes("Translate post"),
+        `expected "Translate post" in ${JSON.stringify(itemTexts)}`,
+      );
+      assert(
+        itemTexts.includes("Save to Notion"),
+        `expected "Save to Notion" in ${JSON.stringify(itemTexts)}`,
+      );
+      container.remove();
     });
-    const container = document.createElement("div");
-    document.body.appendChild(container);
-    render(result, container);
-    const items = Array.from(container.querySelectorAll("context-menu-item"));
-    const itemTexts = items.map((el) => el.textContent.trim());
-    assert(
-      !itemTexts.includes("Translate post"),
-      "plugin item should not render",
-    );
-    container.remove();
-  });
-});
+
+    it("should invoke the plugin item callback when clicked", async () => {
+      let invoked = false;
+      const customPluginService = {
+        getPostContextMenuItems: async () => [
+          {
+            title: "Translate post",
+            invoke: () => {
+              invoked = true;
+            },
+          },
+        ],
+      };
+      const result = smallPostTemplate({
+        post,
+        ...baseProps,
+        pluginService: customPluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const items = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item"),
+      );
+      const target = items.find(
+        (el) => el.textContent.trim() === "Translate post",
+      );
+      assert(target !== null && target !== undefined);
+      target.click();
+      assertEquals(invoked, true);
+      container.remove();
+    });
+
+    it("should not render any plugin items when the registry is empty", async () => {
+      const result = smallPostTemplate({
+        post,
+        ...baseProps,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const items = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item"),
+      );
+      const itemTexts = items.map((el) => el.textContent.trim());
+      assert(
+        !itemTexts.includes("Translate post"),
+        "plugin item should not render",
+      );
+      container.remove();
+    });
+  },
+);
 
 await t.run();

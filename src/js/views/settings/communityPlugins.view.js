@@ -52,7 +52,7 @@ class SettingsCommunityPluginsView extends View {
         showToast(
           wasInstalled
             ? `Uninstalled ${entry.name}`
-            : `Installed ${entry.name}!`,
+            : `Installed ${entry.name}`,
           { style: wasInstalled ? "default" : "success" },
         );
       } catch (error) {

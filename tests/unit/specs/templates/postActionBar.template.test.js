@@ -324,131 +324,174 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
   });
 });
 
-t.describe("postActionBarTemplate - plugin context menu items", (it) => {
-  function makePluginService(items) {
-    return { getPostContextMenuItems: () => items };
-  }
-
-  it("should render one context-menu-item-group per plugin", () => {
-    const pluginService = makePluginService([
-      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
-      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
-      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
-    ]);
-    const result = postActionBarTemplate({
-      post,
-      isAuthenticated: true,
-      currentUser: { did: "did:plc:test" },
-      pluginService,
+t.describe(
+  "postActionBarTemplate - plugin context menu items",
+  (it, { afterEach }) => {
+    afterEach(() => {
+      document.body
+        .querySelectorAll("context-menu")
+        .forEach((menu) => menu.remove());
     });
-    const container = document.createElement("div");
-    render(result, container);
-    const moreMenu = container.querySelectorAll("context-menu")[1];
-    const groups = moreMenu.querySelectorAll("context-menu-item-group");
-    const pluginGroups = Array.from(groups).filter((group) =>
-      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
-        ["A1", "A2", "B1"].includes(item.textContent.trim()),
-      ),
-    );
-    assertEquals(pluginGroups.length, 2);
-    assertEquals(
-      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
-        (item) => item.textContent.trim(),
-      ),
-      ["A1", "A2"],
-    );
-    assertEquals(
-      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
-        (item) => item.textContent.trim(),
-      ),
-      ["B1"],
-    );
-  });
 
-  it("should group non-contiguous items from the same plugin together", () => {
-    const pluginService = makePluginService([
-      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
-      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
-      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
-    ]);
-    const result = postActionBarTemplate({
-      post,
-      isAuthenticated: true,
-      currentUser: { did: "did:plc:test" },
-      pluginService,
+    function makePluginService(items) {
+      return { getPostContextMenuItems: async () => items };
+    }
+
+    async function flushMicrotasks() {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    function ensurePageVisible() {
+      if (!document.querySelector(".page-visible")) {
+        const pageVisible = document.createElement("div");
+        pageVisible.classList.add("page-visible");
+        document.body.appendChild(pageVisible);
+      }
+    }
+
+    async function openPostContextMenu(container) {
+      ensurePageVisible();
+      const moreButton = Array.from(
+        container.querySelectorAll(".post-action-button.text-button"),
+      ).find((button) => button.textContent.trim() === "...");
+      moreButton.click();
+      await flushMicrotasks();
+      return document.body.querySelector("context-menu.post-context-menu");
+    }
+
+    it("should render one context-menu-item-group per plugin", async () => {
+      const pluginService = makePluginService([
+        { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+        { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+        { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+      ]);
+      const result = postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        pluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const groups = postContextMenu.querySelectorAll(
+        "context-menu-item-group",
+      );
+      const pluginGroups = Array.from(groups).filter((group) =>
+        Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+          ["A1", "A2", "B1"].includes(item.textContent.trim()),
+        ),
+      );
+      assertEquals(pluginGroups.length, 2);
+      assertEquals(
+        Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+          (item) => item.textContent.trim(),
+        ),
+        ["A1", "A2"],
+      );
+      assertEquals(
+        Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+          (item) => item.textContent.trim(),
+        ),
+        ["B1"],
+      );
+      container.remove();
     });
-    const container = document.createElement("div");
-    render(result, container);
-    const moreMenu = container.querySelectorAll("context-menu")[1];
-    const pluginGroups = Array.from(
-      moreMenu.querySelectorAll("context-menu-item-group"),
-    ).filter((group) =>
-      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
-        ["A1", "A2", "B1"].includes(item.textContent.trim()),
-      ),
-    );
-    assertEquals(pluginGroups.length, 2);
-    assertEquals(
-      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
-        (item) => item.textContent.trim(),
-      ),
-      ["A1", "A2"],
-    );
-    assertEquals(
-      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
-        (item) => item.textContent.trim(),
-      ),
-      ["B1"],
-    );
-  });
 
-  it("should not render any plugin group when no plugin items", () => {
-    const pluginService = makePluginService([]);
-    const result = postActionBarTemplate({
-      post,
-      isAuthenticated: true,
-      currentUser: { did: "did:plc:test" },
-      pluginService,
+    it("should group non-contiguous items from the same plugin together", async () => {
+      const pluginService = makePluginService([
+        { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+        { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+        { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+      ]);
+      const result = postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        pluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const pluginGroups = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item-group"),
+      ).filter((group) =>
+        Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+          ["A1", "A2", "B1"].includes(item.textContent.trim()),
+        ),
+      );
+      assertEquals(pluginGroups.length, 2);
+      assertEquals(
+        Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+          (item) => item.textContent.trim(),
+        ),
+        ["A1", "A2"],
+      );
+      assertEquals(
+        Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+          (item) => item.textContent.trim(),
+        ),
+        ["B1"],
+      );
+      container.remove();
     });
-    const container = document.createElement("div");
-    render(result, container);
-    // No context menu item should reference our plugin titles
-    const allItems = Array.from(
-      container.querySelectorAll("context-menu-item"),
-    );
-    assert(
-      !allItems.some((item) =>
-        ["A1", "A2", "B1"].includes(item.textContent.trim()),
-      ),
-    );
-  });
 
-  it("should invoke plugin handler with the post when clicked", () => {
-    let invoked = null;
-    const pluginService = makePluginService([
-      {
-        pluginId: "plugin-a",
-        title: "Do thing",
-        invoke: (clickedPost) => {
-          invoked = clickedPost;
+    it("should not render any plugin group when no plugin items", async () => {
+      const pluginService = makePluginService([]);
+      const result = postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        pluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const allItems = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item"),
+      );
+      assert(
+        !allItems.some((item) =>
+          ["A1", "A2", "B1"].includes(item.textContent.trim()),
+        ),
+      );
+      container.remove();
+    });
+
+    it("should invoke plugin handler when clicked", async () => {
+      let invoked = false;
+      const pluginService = makePluginService([
+        {
+          pluginId: "plugin-a",
+          title: "Do thing",
+          invoke: () => {
+            invoked = true;
+          },
         },
-      },
-    ]);
-    const result = postActionBarTemplate({
-      post,
-      isAuthenticated: true,
-      currentUser: { did: "did:plc:test" },
-      pluginService,
+      ]);
+      const result = postActionBarTemplate({
+        post,
+        isAuthenticated: true,
+        currentUser: { did: "did:plc:test" },
+        pluginService,
+      });
+      const container = document.createElement("div");
+      document.body.appendChild(container);
+      render(result, container);
+      const postContextMenu = await openPostContextMenu(container);
+      const item = Array.from(
+        postContextMenu.querySelectorAll("context-menu-item"),
+      ).find((node) => node.textContent.trim() === "Do thing");
+      assert(item !== undefined);
+      item.click();
+      assertEquals(invoked, true);
+      container.remove();
     });
-    const container = document.createElement("div");
-    render(result, container);
-    const item = Array.from(
-      container.querySelectorAll("context-menu-item"),
-    ).find((node) => node.textContent.trim() === "Do thing");
-    assert(item !== undefined);
-    item.click();
-    assertEquals(invoked, post);
-  });
-});
+  },
+);
 
 await t.run();

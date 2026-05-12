@@ -17,6 +17,7 @@ globalThis.Node = dom.window.Node;
 globalThis.DocumentFragment = dom.window.DocumentFragment;
 globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
+globalThis.MutationObserver = dom.window.MutationObserver;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 
 // Mock requestAnimationFrame
@@ -47,6 +48,7 @@ globalThis.window.HTMLDialogElement.prototype.showModal = function () {
 };
 globalThis.window.HTMLDialogElement.prototype.close = function () {
   this.removeAttribute("open");
+  this.dispatchEvent(new globalThis.Event("close"));
 };
 
 globalThis.window.HTMLElement.prototype.showPopover = function () {};

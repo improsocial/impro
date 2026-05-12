@@ -11,7 +11,7 @@ export class PluginService {
   constructor(preferencesProvider, { sandbox = true, localOnly = false } = {}) {
     this.registries = {
       sidebarItems: new Set(),
-      postContextMenuItems: new Set(),
+      eventListeners: new Map(),
       feedFilters: new Set(),
       settingTabs: new Map(),
     };
@@ -60,16 +60,16 @@ export class PluginService {
       },
     );
     this.pluginBridge.addRegistrationTarget(
-      "postContextMenuItem",
+      "eventListener",
       (plugin, message) => {
-        const entry = {
-          pluginId: plugin.pluginId,
-          icon: message.icon,
-          title: message.title,
-          invoke: (post) => plugin.call(message.handlerId, post),
-        };
-        this.registries.postContextMenuItems.add(entry);
-        return () => this.registries.postContextMenuItems.delete(entry);
+        let listeners = this.registries.eventListeners.get(message.event);
+        if (!listeners) {
+          listeners = new Map();
+          this.registries.eventListeners.set(message.event, listeners);
+        }
+        const handler = (...args) => plugin.call(message.handlerId, ...args);
+        listeners.set(plugin.pluginId, handler);
+        return () => listeners.delete(plugin.pluginId);
       },
     );
     this.pluginBridge.addRegistrationTarget("settingTab", (plugin, message) => {
@@ -334,8 +334,32 @@ export class PluginService {
     return [...this.registries.sidebarItems];
   }
 
-  getPostContextMenuItems() {
-    return [...this.registries.postContextMenuItems];
+  async getPostContextMenuItems(post) {
+    const listeners = this.registries.eventListeners.get("post-context-menu");
+    if (!listeners || listeners.size === 0) return [];
+    const results = await Promise.all(
+      [...listeners].map(async ([pluginId, handler]) => {
+        try {
+          const items = await handler(post);
+          return (items ?? []).map((item) => ({
+            pluginId,
+            icon: item.icon,
+            title: item.title,
+            invoke: () =>
+              this.pluginBridge
+                .getInstance(pluginId)
+                .call(item.handlerId, post),
+          }));
+        } catch (error) {
+          console.error(
+            `Plugin ${pluginId} post-context-menu handler failed:`,
+            error,
+          );
+          return [];
+        }
+      }),
+    );
+    return results.flat();
   }
 
   // RPC

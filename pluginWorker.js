@@ -23,10 +23,86 @@ function hostCall(method, ...args) {
 
 const settingsChangeListeners = new Set();
 
+const eventListeners = new Map();
+
+function addEventListener(event, listener) {
+  let listeners = eventListeners.get(event);
+  if (!listeners) {
+    listeners = new Set();
+    eventListeners.set(event, listeners);
+    const handlerId = uuid.create();
+    callHandlers.set(handlerId, (...args) => {
+      const menu = new Menu();
+      for (const eventListener of listeners) {
+        try {
+          eventListener(menu, ...args);
+        } catch (error) {
+          console.error(`"${event}" listener threw:`, error);
+        }
+      }
+      return menu._serialize();
+    });
+    self.postMessage({
+      type: "register",
+      target: "eventListener",
+      event,
+      handlerId,
+    });
+  }
+  listeners.add(listener);
+}
+
+export class MenuItem {
+  constructor() {
+    this.title = "";
+    this.icon = null;
+    this._callback = () => {};
+  }
+  setTitle(title) {
+    this.title = title;
+    return this;
+  }
+  setIcon(icon) {
+    this.icon = icon;
+    return this;
+  }
+  onClick(callback) {
+    this._callback = callback;
+    return this;
+  }
+}
+
+export class Menu {
+  constructor() {
+    this.items = [];
+  }
+  addItem(builder) {
+    const item = new MenuItem();
+    builder(item);
+    this.items.push(item);
+    return this;
+  }
+  _serialize() {
+    return this.items.map((item) => {
+      const handlerId = uuid.create();
+      callHandlers.set(handlerId, item._callback);
+      return { title: item.title, icon: item.icon, handlerId };
+    });
+  }
+}
+
+class App {
+  on(event, listener) {
+    addEventListener(event, listener);
+  }
+}
+
 let registered = false;
 
 export class Plugin {
-  constructor() {}
+  constructor() {
+    this.app = new App();
+  }
 
   addSidebarItem(icon, title, callback = () => {}) {
     const handlerId = uuid.create();
@@ -34,18 +110,6 @@ export class Plugin {
     self.postMessage({
       type: "register",
       target: "sidebarItem",
-      icon,
-      title,
-      handlerId,
-    });
-  }
-
-  addPostContextMenuItem(icon, title, callback = () => {}) {
-    const handlerId = uuid.create();
-    callHandlers.set(handlerId, callback);
-    self.postMessage({
-      type: "register",
-      target: "postContextMenuItem",
       icon,
       title,
       handlerId,
