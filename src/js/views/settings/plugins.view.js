@@ -35,10 +35,10 @@ class SettingsPluginsView extends View {
     async function togglePlugin(plugin) {
       if (plugin.enabled) {
         pluginService.disablePlugin(plugin.id);
-        pluginService.pluginHost.unloadPlugin(plugin.id);
+        pluginService.pluginBridge.unloadPlugin(plugin.id);
       } else {
         pluginService.enablePlugin(plugin.id);
-        await pluginService.pluginHost.loadPlugin(plugin.id);
+        await pluginService.pluginBridge.loadPlugin(plugin.id);
       }
       await loadPlugins();
     }

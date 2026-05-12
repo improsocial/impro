@@ -80,8 +80,8 @@ function createVirtualEvent(e) {
 // real element. Text and children are mutually exclusive on
 // the worker side (setText() clears children).
 export class PluginRenderer {
-  constructor(pluginHost) {
-    this.pluginHost = pluginHost;
+  constructor(pluginBridge) {
+    this.pluginBridge = pluginBridge;
   }
   renderNode(node, pluginId) {
     let tag = typeof node.tag === "string" ? node.tag.toLowerCase() : "div";
@@ -115,7 +115,7 @@ export class PluginRenderer {
           continue;
         }
         element.addEventListener(name, (e) => {
-          this.pluginHost.handleNodeEvent(
+          this.pluginBridge.handleNodeEvent(
             pluginId,
             handlerId,
             createVirtualEvent(e),

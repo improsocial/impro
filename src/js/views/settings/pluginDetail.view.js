@@ -27,13 +27,14 @@ class SettingsPluginDetailView extends View {
     };
 
     async function loadTab() {
-      state.manifest = await pluginService.pluginHost.ensureManifest(pluginId);
+      state.manifest =
+        await pluginService.pluginBridge.ensureManifest(pluginId);
       if (!state.manifest) {
         state.error = "Plugin not found.";
         renderPage();
         return;
       }
-      if (!pluginService.pluginHost.isLoaded(pluginId)) {
+      if (!pluginService.pluginBridge.isLoaded(pluginId)) {
         state.error = "This plugin is not enabled.";
         renderPage();
         return;

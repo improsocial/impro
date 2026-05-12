@@ -1,4 +1,4 @@
-import { PluginHost } from "/js/plugins/pluginHost.js";
+import { PluginBridge } from "/js/plugins/pluginBridge.js";
 import { showPluginModal, hidePluginModal } from "/js/modals.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 
@@ -12,14 +12,14 @@ export class PluginService {
       feedFilters: new Set(),
       settingTabs: new Map(),
     };
-    this.pluginHost = new PluginHost({ sandbox });
-    this.pluginRenderer = new PluginRenderer(this.pluginHost);
+    this.pluginBridge = new PluginBridge({ sandbox });
+    this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.preferencesProvider = preferencesProvider;
     this._setupRegistries();
     this._setupHostMethods();
     if (preferencesProvider) {
       preferencesProvider.on("pluginSettingsChanged", ({ pluginId, data }) => {
-        const instance = this.pluginHost.getInstance(pluginId);
+        const instance = this.pluginBridge.getInstance(pluginId);
         if (!instance) return;
         instance.sendEvent("settingsChanged", { data });
       });
@@ -39,17 +39,20 @@ export class PluginService {
   }
 
   _setupRegistries() {
-    this.pluginHost.addRegistrationTarget("sidebarItem", (plugin, message) => {
-      const entry = {
-        pluginId: plugin.pluginId,
-        icon: message.icon,
-        title: message.title,
-        invoke: () => plugin.call(message.handlerId),
-      };
-      this.registries.sidebarItems.add(entry);
-      return () => this.registries.sidebarItems.delete(entry);
-    });
-    this.pluginHost.addRegistrationTarget(
+    this.pluginBridge.addRegistrationTarget(
+      "sidebarItem",
+      (plugin, message) => {
+        const entry = {
+          pluginId: plugin.pluginId,
+          icon: message.icon,
+          title: message.title,
+          invoke: () => plugin.call(message.handlerId),
+        };
+        this.registries.sidebarItems.add(entry);
+        return () => this.registries.sidebarItems.delete(entry);
+      },
+    );
+    this.pluginBridge.addRegistrationTarget(
       "postContextMenuItem",
       (plugin, message) => {
         const entry = {
@@ -62,7 +65,7 @@ export class PluginService {
         return () => this.registries.postContextMenuItems.delete(entry);
       },
     );
-    this.pluginHost.addRegistrationTarget("settingTab", (plugin, message) => {
+    this.pluginBridge.addRegistrationTarget("settingTab", (plugin, message) => {
       const entry = {
         pluginId: plugin.pluginId,
         name: message.name,
@@ -76,7 +79,7 @@ export class PluginService {
         }
       };
     });
-    this.pluginHost.addRegistrationTarget("feedFilter", (plugin, message) => {
+    this.pluginBridge.addRegistrationTarget("feedFilter", (plugin, message) => {
       const entry = {
         pluginId: plugin.pluginId,
         filterId: plugin.filterId,
@@ -89,7 +92,7 @@ export class PluginService {
   }
 
   _setupHostMethods() {
-    this.pluginHost.addHostMethod(
+    this.pluginBridge.addHostMethod(
       "openModal",
       (plugin, { modalId, title, content }) => {
         showPluginModal({
@@ -107,15 +110,15 @@ export class PluginService {
       },
     );
 
-    this.pluginHost.addHostMethod("closeModal", (plugin, { modalId }) => {
+    this.pluginBridge.addHostMethod("closeModal", (plugin, { modalId }) => {
       hidePluginModal({ pluginId: plugin.pluginId, modalId });
     });
 
-    this.pluginHost.addHostMethod("loadData", (plugin) => {
+    this.pluginBridge.addHostMethod("loadData", (plugin) => {
       return this._readPluginSettings(plugin.pluginId);
     });
 
-    this.pluginHost.addHostMethod("saveData", async (plugin, { data }) => {
+    this.pluginBridge.addHostMethod("saveData", async (plugin, { data }) => {
       await this._writePluginSettings(plugin.pluginId, data);
     });
   }
@@ -129,10 +132,10 @@ export class PluginService {
   }
 
   async listAvailablePlugins() {
-    const ids = this.pluginHost.getAvailablePluginIds();
+    const ids = this.pluginBridge.getAvailablePluginIds();
     const enabled = new Set(this.getEnabledPlugins());
     const manifests = await Promise.all(
-      ids.map((id) => this.pluginHost.ensureManifest(id)),
+      ids.map((id) => this.pluginBridge.ensureManifest(id)),
     );
     return ids
       .map((id, index) => {
@@ -142,7 +145,7 @@ export class PluginService {
           id,
           manifest,
           enabled: enabled.has(id),
-          loaded: this.pluginHost.isLoaded(id),
+          loaded: this.pluginBridge.isLoaded(id),
           hasSettings: this.registries.settingTabs.has(id),
         };
       })
@@ -151,8 +154,8 @@ export class PluginService {
 
   async loadEnabledPlugins() {
     const enabledIds = this.getEnabledPlugins();
-    await this.pluginHost.loadPluginIndex("/plugins-local/index.json");
-    await this.pluginHost.loadPlugins(enabledIds);
+    await this.pluginBridge.loadPluginIndex("/plugins-local/index.json");
+    await this.pluginBridge.loadPlugins(enabledIds);
   }
 
   getEnabledPlugins() {

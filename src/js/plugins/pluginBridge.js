@@ -246,7 +246,7 @@ class PluginInstance {
   }
 }
 
-export class PluginHost {
+export class PluginBridge {
   constructor({ sandbox = true } = {}) {
     this._availablePlugins = null;
     this._registrationTargets = new Map();
