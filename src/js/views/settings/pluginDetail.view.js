@@ -47,11 +47,18 @@ class SettingsPluginDetailView extends View {
       }
       try {
         state.containerNode = await tab.display();
+        state.error = null;
       } catch (error) {
         state.error = error.message ?? String(error);
       }
       renderPage();
     }
+
+    pluginService.on("settingTabRefresh", (event) => {
+      if (event.pluginId === pluginId) {
+        loadTab();
+      }
+    });
 
     function renderTabContent(containerNode) {
       if (!containerNode) return null;

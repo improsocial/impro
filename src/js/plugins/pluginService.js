@@ -5,14 +5,16 @@ import { PluginRegistry } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { compareVersions } from "/js/utils.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
-export class PluginService {
+export class PluginService extends EventEmitter {
   constructor(
     preferencesProvider,
     session,
     { sandbox = true, localOnly = false } = {},
   ) {
+    super();
     this.registries = {
       sidebarItems: new Set(),
       eventListeners: new Map(),
@@ -132,6 +134,10 @@ export class PluginService {
 
     this.pluginBridge.addHostMethod("saveData", async (plugin, { data }) => {
       await this._writePluginSettings(plugin.pluginId, data);
+    });
+
+    this.pluginBridge.addHostMethod("refreshSettingTab", (plugin) => {
+      this.emit("settingTabRefresh", { pluginId: plugin.pluginId });
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {

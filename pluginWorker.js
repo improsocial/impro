@@ -233,6 +233,9 @@ export class PluginSettingTab {
     return this;
   }
   display() {}
+  refresh() {
+    return hostCall("refreshSettingTab");
+  }
 }
 
 export class Setting {
