@@ -363,6 +363,7 @@ class ProfileView extends View {
               onClickReport: (profile) =>
                 profileInteractionHandler.handleReport(profile),
               onClickEditProfile: () => handleEditProfile(profile),
+              pluginService,
             })}
             ${isBlocking || isBlockedBy
               ? html`<div class="feed">

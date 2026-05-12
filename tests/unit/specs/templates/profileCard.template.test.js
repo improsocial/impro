@@ -417,7 +417,7 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     );
   });
 
-  it("should render follow button for labeler in context menu", () => {
+  it("should render follow button for labeler in context menu", async () => {
     const profile = {
       ...mockProfile,
       viewer: { following: false, followedBy: false },
@@ -432,13 +432,20 @@ t.describe("profileCardTemplate - labeler support", (it) => {
       onClickSubscribe: () => {},
     });
     const container = document.createElement("div");
+    container.classList.add("page-visible");
+    document.body.appendChild(container);
     render(result, container);
-    assert(
-      container.querySelector("[data-testid='context-menu-follow']") !== null,
+    container.querySelector(".ellipsis-button").click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const item = document.body.querySelector(
+      "[data-testid='context-menu-follow']",
     );
+    assert(item !== null);
+    document.body.querySelector(".profile-context-menu")?.remove();
+    container.remove();
   });
 
-  it("should render unfollow button for labeler in context menu when following", () => {
+  it("should render unfollow button for labeler in context menu when following", async () => {
     const profile = {
       ...mockProfile,
       viewer: { following: true, followedBy: false },
@@ -453,13 +460,19 @@ t.describe("profileCardTemplate - labeler support", (it) => {
       onClickSubscribe: () => {},
     });
     const container = document.createElement("div");
+    container.classList.add("page-visible");
+    document.body.appendChild(container);
     render(result, container);
+    container.querySelector(".ellipsis-button").click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     assertEquals(
-      container
+      document.body
         .querySelector("[data-testid='context-menu-follow']")
         .textContent.trim(),
       "Unfollow account",
     );
+    document.body.querySelector(".profile-context-menu")?.remove();
+    container.remove();
   });
 
   it("should call onClickSubscribe when subscribe button clicked for labeler", () => {

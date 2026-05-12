@@ -7440,6 +7440,38 @@ image-cropper {
   padding: 16px;
 }
 
+.plugin-settings-tab h1,
+.plugin-settings-tab h2,
+.plugin-settings-tab h3,
+.plugin-settings-tab h4 {
+  color: var(--text-color);
+  margin: 24px 0 8px;
+}
+
+.plugin-settings-tab h1:first-child,
+.plugin-settings-tab h2:first-child,
+.plugin-settings-tab h3:first-child,
+.plugin-settings-tab h4:first-child {
+  margin-top: 0;
+}
+
+.plugin-settings-tab h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.plugin-settings-tab h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-color-secondary);
+}
+
+.plugin-settings-tab p {
+  font-size: 14px;
+  color: var(--text-color-secondary);
+  margin: 8px 0;
+}
+
 .plugin-setting-item {
   display: flex;
   align-items: center;

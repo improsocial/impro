@@ -1,4 +1,4 @@
-import { html } from "/js/lib/lit-html.js";
+import { html, render } from "/js/lib/lit-html.js";
 import {
   getPermalinkForProfile,
   linkToProfileFollowers,
@@ -10,7 +10,13 @@ import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
-import { formatLargeNumber, classnames, noop, sortBy } from "/js/utils.js";
+import {
+  formatLargeNumber,
+  classnames,
+  groupBy,
+  noop,
+  sortBy,
+} from "/js/utils.js";
 import { showSignInModal } from "/js/modals.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
@@ -80,6 +86,119 @@ function profileDescriptionTemplate({
 // Match the default banner color in social-app
 const LABELER_BANNER_FALLBACK_COLOR = "rgb(105, 0, 255)";
 
+function profileContextMenuTemplate({
+  profile,
+  isAuthenticated,
+  isCurrentUser,
+  isLabeler,
+  pluginItems,
+  onClickFollow,
+  onClickMute,
+  onClickBlock,
+  onClickReport,
+}) {
+  const isFollowing = profile.viewer?.following;
+  const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
+  return html`
+    <context-menu-item-group>
+      <context-menu-item
+        @click=${() => {
+          window.open(getBlueskyLinkForProfile(profile), "_blank");
+        }}
+      >
+        Open in bsky.app
+      </context-menu-item>
+      <context-menu-item
+        @click=${() => {
+          navigator.clipboard.writeText(getPermalinkForProfile(profile));
+          showToast("Link copied to clipboard", { style: "success" });
+        }}
+      >
+        Copy link to profile
+      </context-menu-item>
+    </context-menu-item-group>
+    ${isAuthenticated
+      ? html`
+          <context-menu-item
+            @click=${() => {
+              router.go(linkToSearchPostsByProfile(profile));
+            }}
+          >
+            Search posts
+          </context-menu-item>
+        `
+      : null}
+    ${isAuthenticated && !isCurrentUser
+      ? html`
+          ${isLabeler
+            ? html`
+                <context-menu-item
+                  data-testid="context-menu-follow"
+                  @click=${() => {
+                    onClickFollow(profile, !isFollowing);
+                  }}
+                >
+                  ${isFollowing ? "Unfollow account" : "Follow account"}
+                </context-menu-item>
+              `
+            : null}
+          <context-menu-item-group>
+            <context-menu-item
+              @click=${() => {
+                onClickMute(profile, !profile.viewer?.muted);
+              }}
+            >
+              ${profile.viewer?.muted ? "Unmute Account" : "Mute Account"}
+            </context-menu-item>
+            <context-menu-item
+              @click=${() => {
+                onClickBlock(profile, !profile.viewer?.blocking);
+              }}
+            >
+              ${profile.viewer?.blocking ? "Unblock Account" : "Block Account"}
+            </context-menu-item>
+            <context-menu-item
+              @click=${() => {
+                onClickReport(profile);
+              }}
+            >
+              Report account
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
+    ${pluginGroups.map(
+      (group) => html`
+        <context-menu-item-group>
+          ${group.map(
+            (item) => html`
+              <context-menu-item @click=${() => item.invoke()}>
+                ${item.title}
+              </context-menu-item>
+            `,
+          )}
+        </context-menu-item-group>
+      `,
+    )}
+  `;
+}
+
+async function openProfileContextMenu(event, props) {
+  const pluginItems = props.pluginService
+    ? await props.pluginService.getProfileContextMenuItems(props.profile)
+    : [];
+  const menu = document.createElement("context-menu");
+  menu.classList.add("profile-context-menu");
+  const itemHolder = document.createElement("div");
+  render(profileContextMenuTemplate({ ...props, pluginItems }), itemHolder);
+  while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+  document.body.appendChild(menu);
+  menu.open(event.clientX, event.clientY);
+  menu
+    .querySelector("dialog")
+    .addEventListener("close", () => menu.remove(), { once: true });
+}
+
 export function profileCardTemplate({
   profile,
   richTextProfileDescription,
@@ -99,6 +218,7 @@ export function profileCardTemplate({
   onClickPostNotifications = noop,
   onClickReport = noop,
   onClickEditProfile = noop,
+  pluginService = null,
 }) {
   const isFollowing = profile.viewer?.following;
   const isFollowedBy = profile.viewer?.followedBy;
@@ -224,84 +344,22 @@ export function profileCardTemplate({
         })()}
         <button
           class="rounded-button ellipsis-button"
-          @click=${function (e) {
-            const contextMenu = this.nextElementSibling;
-            contextMenu.open(e.clientX, e.clientY);
+          @click=${(e) => {
+            openProfileContextMenu(e, {
+              profile,
+              isAuthenticated,
+              isCurrentUser,
+              isLabeler,
+              pluginService,
+              onClickFollow,
+              onClickMute,
+              onClickBlock,
+              onClickReport,
+            });
           }}
         >
           <span>...</span>
         </button>
-        <context-menu>
-          <context-menu-item-group>
-            <context-menu-item
-              @click=${() => {
-                window.open(getBlueskyLinkForProfile(profile), "_blank");
-              }}
-            >
-              Open in bsky.app
-            </context-menu-item>
-            <context-menu-item
-              @click=${() => {
-                navigator.clipboard.writeText(getPermalinkForProfile(profile));
-                showToast("Link copied to clipboard", { style: "success" });
-              }}
-            >
-              Copy link to profile
-            </context-menu-item>
-          </context-menu-item-group>
-          ${isAuthenticated
-            ? html`
-                <context-menu-item
-                  @click=${() => {
-                    router.go(linkToSearchPostsByProfile(profile));
-                  }}
-                >
-                  Search posts
-                </context-menu-item>
-              `
-            : null}
-          ${isAuthenticated && !isCurrentUser
-            ? html`
-                ${isLabeler
-                  ? html`
-                      <context-menu-item
-                        data-testid="context-menu-follow"
-                        @click=${() => {
-                          onClickFollow(profile, !isFollowing);
-                        }}
-                      >
-                        ${isFollowing ? "Unfollow account" : "Follow account"}
-                      </context-menu-item>
-                    `
-                  : null}
-                <context-menu-item-group>
-                  <context-menu-item
-                    @click=${() => {
-                      onClickMute(profile, !profile.viewer?.muted);
-                    }}
-                  >
-                    ${profile.viewer?.muted ? "Unmute Account" : "Mute Account"}
-                  </context-menu-item>
-                  <context-menu-item
-                    @click=${() => {
-                      onClickBlock(profile, !profile.viewer?.blocking);
-                    }}
-                  >
-                    ${profile.viewer?.blocking
-                      ? "Unblock Account"
-                      : "Block Account"}
-                  </context-menu-item>
-                  <context-menu-item
-                    @click=${() => {
-                      onClickReport(profile);
-                    }}
-                  >
-                    Report account
-                  </context-menu-item>
-                </context-menu-item-group>
-              `
-            : null}
-        </context-menu>
       </div>
       <div class="profile-info">
         <h1 class="profile-name" data-testid="profile-name">

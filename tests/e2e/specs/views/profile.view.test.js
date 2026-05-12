@@ -623,7 +623,7 @@ test.describe("Profile view", () => {
     // Open context menu
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await expect(menu.locator("context-menu-item")).toHaveCount(6, {
       timeout: 5000,
     });
@@ -672,7 +672,7 @@ test.describe("Profile view", () => {
 
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await expect(
       menu.locator("context-menu-item", { hasText: "Unmute Account" }),
     ).toBeVisible({ timeout: 5000 });
@@ -705,7 +705,7 @@ test.describe("Profile view", () => {
 
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await expect(
       menu.locator("context-menu-item", { hasText: "Unblock Account" }),
     ).toBeVisible({ timeout: 5000 });
@@ -738,7 +738,7 @@ test.describe("Profile view", () => {
 
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await expect(menu.locator("context-menu-item")).toHaveCount(3, {
       timeout: 5000,
     });
@@ -773,7 +773,7 @@ test.describe("Profile view", () => {
 
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await menu
       .locator("context-menu-item", { hasText: "Search posts" })
       .click();
@@ -808,7 +808,7 @@ test.describe("Profile view", () => {
 
     await view.locator(".ellipsis-button").click();
 
-    const menu = view.locator("context-menu");
+    const menu = page.locator(".profile-context-menu");
     await menu
       .locator("context-menu-item", { hasText: "Search posts" })
       .click();
@@ -1687,7 +1687,7 @@ test.describe("Profile view", () => {
       // Open context menu — should only have non-authenticated items
       await view.locator(".ellipsis-button").click();
 
-      const menu = view.locator("context-menu");
+      const menu = page.locator(".profile-context-menu");
       await expect(menu.locator("context-menu-item")).toHaveCount(2, {
         timeout: 5000,
       });

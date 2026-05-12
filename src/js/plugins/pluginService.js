@@ -348,26 +348,29 @@ export class PluginService {
   }
 
   async getPostContextMenuItems(post) {
-    const listeners = this.registries.eventListeners.get("post-context-menu");
+    return this._collectContextMenuItems("post-context-menu", post);
+  }
+
+  async getProfileContextMenuItems(profile) {
+    return this._collectContextMenuItems("profile-context-menu", profile);
+  }
+
+  async _collectContextMenuItems(event, arg) {
+    const listeners = this.registries.eventListeners.get(event);
     if (!listeners || listeners.size === 0) return [];
     const results = await Promise.all(
       [...listeners].map(async ([pluginId, handler]) => {
         try {
-          const items = await handler(post);
+          const items = await handler(arg);
           return (items ?? []).map((item) => ({
             pluginId,
             icon: item.icon,
             title: item.title,
             invoke: () =>
-              this.pluginBridge
-                .getInstance(pluginId)
-                .call(item.handlerId, post),
+              this.pluginBridge.getInstance(pluginId).call(item.handlerId, arg),
           }));
         } catch (error) {
-          console.error(
-            `Plugin ${pluginId} post-context-menu handler failed:`,
-            error,
-          );
+          console.error(`Plugin ${pluginId} ${event} handler failed:`, error);
           return [];
         }
       }),
