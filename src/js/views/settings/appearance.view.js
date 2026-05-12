@@ -62,6 +62,7 @@ class SettingsAppearanceView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Appearance",
+                onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
                 <section class="settings-section">

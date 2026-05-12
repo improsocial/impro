@@ -60,7 +60,10 @@ class SettingsPluginsView extends View {
             pluginService,
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({ title: "Plugins" })}
+            children: html`${headerTemplate({
+                title: "Plugins",
+                onClickBackButton: () => window.router.go("/settings"),
+              })}
               <main>
                 ${state.loading
                   ? html`<p>Loading…</p>`

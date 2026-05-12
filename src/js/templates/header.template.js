@@ -8,6 +8,7 @@ export function headerTemplate({
   avatarTemplate = null,
   showLoadingSpinner = false,
   leftButton = "back",
+  onClickBackButton = null,
   onClickMenuButton = null,
   rightItemTemplate = null,
   bottomItemTemplate = null,
@@ -29,7 +30,9 @@ export function headerTemplate({
         : html`<button
             class="back-button"
             data-testid="back-button"
-            @click=${() => router.back()}
+            @click=${onClickBackButton
+              ? () => onClickBackButton()
+              : () => router.back()}
           >
             ←
           </button>`}

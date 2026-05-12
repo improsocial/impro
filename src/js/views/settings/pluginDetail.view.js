@@ -76,7 +76,10 @@ class SettingsPluginDetailView extends View {
             pluginService,
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({ title })}
+            children: html`${headerTemplate({
+                title,
+                onClickBackButton: () => window.router.go("/settings/plugins"),
+              })}
               <main>
                 ${state.error
                   ? html`<p class="error-message">${state.error}</p>`
