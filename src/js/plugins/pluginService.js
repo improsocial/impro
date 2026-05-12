@@ -8,7 +8,11 @@ import { compareVersions } from "/js/utils.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
 export class PluginService {
-  constructor(preferencesProvider, { sandbox = true, localOnly = false } = {}) {
+  constructor(
+    preferencesProvider,
+    session,
+    { sandbox = true, localOnly = false } = {},
+  ) {
     this.registries = {
       sidebarItems: new Set(),
       eventListeners: new Map(),
@@ -24,6 +28,7 @@ export class PluginService {
     });
     this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.preferencesProvider = preferencesProvider;
+    this.session = session;
     this._setupRegistries();
     this._setupHostMethods();
   }
@@ -127,6 +132,14 @@ export class PluginService {
 
     this.pluginBridge.addHostMethod("saveData", async (plugin, { data }) => {
       await this._writePluginSettings(plugin.pluginId, data);
+    });
+
+    this.pluginBridge.addHostMethod("getCurrentUser", () => {
+      if (!this.session) return null;
+      return {
+        did: this.session.did,
+        handle: this.session.handle,
+      };
     });
   }
 

@@ -31,11 +31,11 @@ function addEventListener(event, listener) {
     listeners = new Set();
     eventListeners.set(event, listeners);
     const handlerId = uuid.create();
-    callHandlers.set(handlerId, (...args) => {
+    callHandlers.set(handlerId, async (...args) => {
       const menu = new Menu();
       for (const eventListener of listeners) {
         try {
-          eventListener(menu, ...args);
+          await eventListener(menu, ...args);
         } catch (error) {
           console.error(`"${event}" listener threw:`, error);
         }
@@ -92,6 +92,9 @@ export class Menu {
 }
 
 class App {
+  constructor() {
+    this.currentUser = null;
+  }
   on(event, listener) {
     addEventListener(event, listener);
   }
@@ -163,8 +166,11 @@ export class Plugin {
     if (registered) return;
     registered = true;
     const instance = new this();
-    Promise.resolve()
-      .then(() => instance.onload())
+    hostCall("getCurrentUser")
+      .then((user) => {
+        instance.app.currentUser = user;
+        return instance.onload();
+      })
       .then(
         () => self.postMessage({ type: "ready" }),
         (error) =>

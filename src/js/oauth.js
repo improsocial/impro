@@ -108,6 +108,10 @@ function upsertAccount(account) {
   writeAccounts(accounts);
 }
 
+function getAccount(did) {
+  return readAccounts().find((entry) => entry.did === did) ?? null;
+}
+
 function deleteAccount(did) {
   const accounts = readAccounts();
   writeAccounts(accounts.filter((entry) => entry.did !== did));
@@ -376,6 +380,10 @@ class Session {
 
   get did() {
     return this.sessionData.did;
+  }
+
+  get handle() {
+    return getAccount(this.sessionData.did)?.handle ?? null;
   }
 
   get serviceEndpoint() {
