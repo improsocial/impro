@@ -332,6 +332,7 @@ main {
     border-right: var(--hair) solid var(--post-border-color);
     border-left: var(--hair) solid var(--post-border-color);
     min-width: 600px;
+    max-width: 800px;
     margin: 0 auto;
   }
 
