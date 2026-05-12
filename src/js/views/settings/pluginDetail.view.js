@@ -27,8 +27,7 @@ class SettingsPluginDetailView extends View {
     };
 
     async function loadTab() {
-      state.manifest =
-        await pluginService.pluginBridge.ensureManifest(pluginId);
+      state.manifest = await pluginService.getManifest(pluginId);
       if (!state.manifest) {
         state.error = "Plugin not found.";
         renderPage();

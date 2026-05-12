@@ -481,3 +481,24 @@ export class SimpleUUID {
     return this._id++;
   }
 }
+
+function parseVersion(version) {
+  const base = String(version ?? "").split("-")[0];
+  const parts = base.split(".").map((part) => {
+    const num = parseInt(part, 10);
+    return Number.isFinite(num) && num >= 0 ? num : 0;
+  });
+  while (parts.length < 3) parts.push(0);
+  return parts.slice(0, 3);
+}
+
+// Compares two semver strings. Returns -1 / 0 / 1.
+export function compareVersions(versionA, versionB) {
+  const partsA = parseVersion(versionA);
+  const partsB = parseVersion(versionB);
+  for (let index = 0; index < 3; index++) {
+    if (partsA[index] > partsB[index]) return 1;
+    if (partsA[index] < partsB[index]) return -1;
+  }
+  return 0;
+}

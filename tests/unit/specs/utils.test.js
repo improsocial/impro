@@ -14,6 +14,7 @@ import {
   differenceInDays,
   buildQueryString,
   ImageLoader,
+  compareVersions,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -592,6 +593,42 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     assertEquals(loader.hasFailed("f.jpg"), true);
     await assertRejects(loader.load("f.jpg"));
     assertEquals(MockImage.instances.length, 1);
+  });
+});
+
+t.describe("compareVersions", (it) => {
+  it("returns 0 for equal versions", () => {
+    assertEquals(compareVersions("1.2.3", "1.2.3"), 0);
+    assertEquals(compareVersions("0.0.0", "0.0.0"), 0);
+  });
+
+  it("returns 1 when first is greater", () => {
+    assertEquals(compareVersions("1.2.4", "1.2.3"), 1);
+    assertEquals(compareVersions("1.3.0", "1.2.99"), 1);
+    assertEquals(compareVersions("2.0.0", "1.99.99"), 1);
+  });
+
+  it("returns -1 when first is less", () => {
+    assertEquals(compareVersions("1.2.3", "1.2.4"), -1);
+    assertEquals(compareVersions("0.0.0", "0.0.1"), -1);
+  });
+
+  it("pads missing parts with 0", () => {
+    assertEquals(compareVersions("1", "1.0.0"), 0);
+    assertEquals(compareVersions("1.2", "1.2.0"), 0);
+    assertEquals(compareVersions("1.2.0", "1.2.1"), -1);
+  });
+
+  it("ignores prerelease tags", () => {
+    assertEquals(compareVersions("1.2.3-beta", "1.2.3"), 0);
+    assertEquals(compareVersions("1.2.3-rc.1", "1.2.4-alpha"), -1);
+  });
+
+  it("coerces malformed parts to 0", () => {
+    assertEquals(compareVersions("abc", "0.0.0"), 0);
+    assertEquals(compareVersions("1.x.3", "1.0.3"), 0);
+    assertEquals(compareVersions(undefined, "0.0.1"), -1);
+    assertEquals(compareVersions(null, null), 0);
   });
 });
 

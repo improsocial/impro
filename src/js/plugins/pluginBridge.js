@@ -1,42 +1,7 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
 
-const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
-
 const SANDBOX_URL = "/js/plugins/sandbox.html";
-
-async function fetchPluginIndex(indexUrl) {
-  const response = await fetch(indexUrl);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return Array.isArray(body.ids) ? body.ids : [];
-}
-
-async function fetchPluginSource(id) {
-  const response = await fetch(`/plugins-local/${id}/main.js`);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return await response.text();
-}
-
-async function fetchPluginManifest(id) {
-  const response = await fetch(`/plugins-local/${id}/manifest.json`);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return parsePluginManifest(id, await response.json());
-}
-
-function parsePluginManifest(pluginId, manifest) {
-  for (const field of REQUIRED_MANIFEST_FIELDS) {
-    if (typeof manifest[field] !== "string") {
-      throw new Error(`missing required field "${field}"`);
-    }
-  }
-  if (manifest.id !== pluginId) {
-    throw new Error(
-      `manifest id "${manifest.id}" does not match directory name`,
-    );
-  }
-  return manifest;
-}
 
 class Logger {
   static LEVELS = { info: 10, warn: 20, error: 30, silent: 40 };
@@ -247,21 +212,12 @@ class PluginInstance {
 }
 
 export class PluginBridge {
-  constructor({ sandbox = true } = {}) {
-    this._availablePlugins = null;
+  constructor(sourceProvider, { sandbox = true } = {}) {
+    this._provider = sourceProvider;
+    this._sandbox = sandbox;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
-    this._manifests = new Map();
     this._hostCallHandlers = new Map();
-    this._sandbox = sandbox;
-  }
-
-  getAvailablePluginIds() {
-    return this._availablePlugins ? [...this._availablePlugins] : [];
-  }
-
-  getManifest(pluginId) {
-    return this._manifests.get(pluginId) ?? null;
   }
 
   isLoaded(pluginId) {
@@ -270,17 +226,6 @@ export class PluginBridge {
 
   getInstance(pluginId) {
     return this._loadedPlugins.get(pluginId) ?? null;
-  }
-
-  async ensureManifest(pluginId) {
-    if (this._manifests.has(pluginId)) return this._manifests.get(pluginId);
-    try {
-      const manifest = await fetchPluginManifest(pluginId);
-      this._manifests.set(pluginId, manifest);
-      return manifest;
-    } catch {
-      return null;
-    }
   }
 
   addRegistrationTarget(target, handler) {
@@ -299,50 +244,22 @@ export class PluginBridge {
     return handler(pluginInstance, message);
   }
 
-  async loadPluginIndex(indexUrl) {
-    try {
-      this._availablePlugins = await fetchPluginIndex(indexUrl);
-      logger.info(
-        `discovered ${this._availablePlugins.length} plugin(s):`,
-        this._availablePlugins,
-      );
-    } catch (error) {
-      throw new Error(`failed to load plugin index: ${error.message}`);
-    }
+  async loadPlugins(pluginRequests) {
+    await Promise.all(
+      pluginRequests.map(({ id, version }) => this.loadPlugin(id, version)),
+    );
   }
 
-  async loadPlugins(pluginIds) {
-    if (this._availablePlugins === null) {
-      logger.info("Plugin index not loaded");
-      return;
-    }
-    const toLoad = [];
-    for (const pluginId of pluginIds) {
-      if (!this._availablePlugins.includes(pluginId)) {
-        logger.warn("skipping unregistered plugin:", pluginId);
-        continue;
-      }
-      toLoad.push(pluginId);
-    }
-    await Promise.all(toLoad.map((id) => this.loadPlugin(id)));
-  }
-
-  async loadPlugin(pluginId) {
+  async loadPlugin(pluginId, version) {
     if (this._loadedPlugins.has(pluginId)) return;
-    let manifest;
-    try {
-      manifest = await fetchPluginManifest(pluginId);
-      this._manifests.set(pluginId, manifest);
-    } catch (error) {
-      logger.warn(
-        `failed to load "${pluginId}": invalid manifest:`,
-        error.message,
-      );
+    const manifest = await this._provider.ensureManifest(pluginId, version);
+    if (!manifest) {
+      logger.warn(`failed to load "${pluginId}": invalid manifest`);
       return;
     }
     let source;
     try {
-      source = await fetchPluginSource(pluginId);
+      source = await this._provider.getSource(pluginId, version);
     } catch (error) {
       logger.error(
         `failed to load "${pluginId}": could not fetch main.js`,

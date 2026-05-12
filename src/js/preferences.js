@@ -468,6 +468,31 @@ export class Preferences {
     return clone;
   }
 
+  getInstalledPlugins() {
+    const pref = Preferences.getPreferenceByType(
+      this.obj,
+      "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    return pref?.plugins ?? [];
+  }
+
+  setInstalledPlugins(plugins) {
+    const clone = this.clone();
+    const existing = Preferences.getPreferenceByType(
+      clone.obj,
+      "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    if (existing) {
+      existing.plugins = plugins;
+    } else {
+      clone.obj.push({
+        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        plugins,
+      });
+    }
+    return clone;
+  }
+
   getFollowingFeedPreference() {
     const followingFeedPreference = this.obj.find(
       (preference) =>

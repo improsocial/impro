@@ -17,7 +17,7 @@ export default async function (eleventyConfig) {
   eleventyConfig.on("eleventy.before", () => {
     const localPluginsDir = "plugins-local";
     if (!fs.existsSync(localPluginsDir)) return;
-    const ids = [];
+    const listings = [];
     for (const entry of fs.readdirSync(localPluginsDir, {
       withFileTypes: true,
     })) {
@@ -30,12 +30,18 @@ export default async function (eleventyConfig) {
       );
       const mainPath = path.join(localPluginsDir, entry.name, "main.js");
       if (!fs.existsSync(manifestPath) || !fs.existsSync(mainPath)) continue;
-      ids.push(entry.name);
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+      listings.push({
+        id: manifest.id,
+        name: manifest.name,
+        author: manifest.author,
+        description: manifest.description,
+      });
     }
     fs.mkdirSync("build/plugins-local", { recursive: true });
     fs.writeFileSync(
       "build/plugins-local/index.json",
-      JSON.stringify({ ids }, null, 2),
+      JSON.stringify(listings, null, 2),
     );
   });
 

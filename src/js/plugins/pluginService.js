@@ -1,29 +1,31 @@
 import { PluginBridge } from "/js/plugins/pluginBridge.js";
 import { showPluginModal, hidePluginModal } from "/js/modals.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
-
-const ENABLED_PLUGINS_KEY = "enabled-plugins";
+import { PluginRegistry } from "/js/plugins/pluginRegistry.js";
+import { PluginCache } from "/js/plugins/pluginCache.js";
+import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import { compareVersions } from "/js/utils.js";
+import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
 export class PluginService {
-  constructor(preferencesProvider, { sandbox = true } = {}) {
+  constructor(preferencesProvider, { sandbox = true, localOnly = false } = {}) {
     this.registries = {
       sidebarItems: new Set(),
       postContextMenuItems: new Set(),
       feedFilters: new Set(),
       settingTabs: new Map(),
     };
-    this.pluginBridge = new PluginBridge({ sandbox });
+    this.localOnly = localOnly;
+    this.registry = new PluginRegistry(PLUGIN_REGISTRY_URL, { localOnly });
+    this.pluginCache = new PluginCache();
+    this.sourceProvider = new SourceProvider(this.registry, this.pluginCache);
+    this.pluginBridge = new PluginBridge(this.sourceProvider, {
+      sandbox,
+    });
     this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.preferencesProvider = preferencesProvider;
     this._setupRegistries();
     this._setupHostMethods();
-    if (preferencesProvider) {
-      preferencesProvider.on("pluginSettingsChanged", ({ pluginId, data }) => {
-        const instance = this.pluginBridge.getInstance(pluginId);
-        if (!instance) return;
-        instance.sendEvent("settingsChanged", { data });
-      });
-    }
   }
 
   _readPluginSettings(pluginId) {
@@ -35,7 +37,12 @@ export class PluginService {
     if (!this.preferencesProvider) {
       throw new Error("Preferences not available");
     }
-    await this.preferencesProvider.updatePluginSettings(pluginId, data);
+    const preferences = this.preferencesProvider
+      .requirePreferences()
+      .setPluginSettings(pluginId, data);
+    await this.preferencesProvider.savePreferences(preferences);
+    const instance = this.pluginBridge.getInstance(pluginId);
+    if (instance) instance.sendEvent("settingsChanged", { data });
   }
 
   _setupRegistries() {
@@ -131,60 +138,194 @@ export class PluginService {
     return this.registries.settingTabs.get(pluginId) ?? null;
   }
 
-  async listAvailablePlugins() {
-    const ids = this.pluginBridge.getAvailablePluginIds();
-    const enabled = new Set(this.getEnabledPlugins());
-    const manifests = await Promise.all(
-      ids.map((id) => this.pluginBridge.ensureManifest(id)),
-    );
-    return ids
-      .map((id, index) => {
-        const manifest = manifests[index];
+  async listInstalledPlugins() {
+    const installed = this._getInstalled();
+    const results = await Promise.all(
+      installed.map(async (entry) => {
+        const manifest = await this.sourceProvider.ensureManifest(
+          entry.id,
+          entry.version,
+        );
         if (!manifest) return null;
         return {
-          id,
+          id: entry.id,
           manifest,
-          enabled: enabled.has(id),
-          loaded: this.pluginBridge.isLoaded(id),
-          hasSettings: this.registries.settingTabs.has(id),
+          enabled: entry.enabled === true,
+          loaded: this.pluginBridge.isLoaded(entry.id),
+          hasSettings: this.registries.settingTabs.has(entry.id),
         };
-      })
-      .filter((entry) => entry !== null);
+      }),
+    );
+    return results.filter((entry) => entry !== null);
   }
 
   async loadEnabledPlugins() {
-    const enabledIds = this.getEnabledPlugins();
-    await this.pluginBridge.loadPluginIndex("/plugins-local/index.json");
-    await this.pluginBridge.loadPlugins(enabledIds);
+    const installed = this._getInstalled();
+    const toLoad = installed.filter((entry) => entry.enabled);
+    await this.pluginBridge.loadPlugins(toLoad);
+    // Reconcile against all installed plugins (not just enabled) so disabled
+    // plugins keep their cached assets on re-enable
+    await this._reconcileCache(installed);
   }
 
-  getEnabledPlugins() {
+  async getManifest(pluginId) {
+    const installed = this._getInstalled().find(
+      (plugin) => plugin.id === pluginId,
+    );
+    return this.sourceProvider.ensureManifest(pluginId, installed?.version);
+  }
+
+  _getInstalled() {
+    if (!this.preferencesProvider) return [];
     try {
-      const raw = localStorage.getItem(ENABLED_PLUGINS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === "string")
-        : [];
+      return this.preferencesProvider
+        .requirePreferences()
+        .getInstalledPlugins();
     } catch {
       return [];
     }
   }
 
-  setEnabledPlugins(ids) {
-    localStorage.setItem(ENABLED_PLUGINS_KEY, JSON.stringify(ids));
+  async _setInstalled(plugins) {
+    const preferences = this.preferencesProvider
+      .requirePreferences()
+      .setInstalledPlugins(plugins);
+    await this.preferencesProvider.savePreferences(preferences);
   }
 
-  enablePlugin(pluginId) {
-    const ids = this.getEnabledPlugins();
-    if (!ids.includes(pluginId)) {
-      this.setEnabledPlugins([...ids, pluginId]);
+  // TODO
+  // async _applyAutoUpdates() {
+  //   const installed = this._getInstalled();
+  //   if (installed.length === 0) return installed;
+  //   let listings;
+  //   try {
+  //     listings = await this.registry.getPluginListings();
+  //   } catch {
+  //     return installed;
+  //   }
+  //   const listingById = new Map(
+  //     listings.map((listing) => [listing.id, listing]),
+  //   );
+  //   const liveVersions = await Promise.all(
+  //     installed.map(async (entry) => {
+  //       const listing = listingById.get(entry.id);
+  //       if (!listing || listing.local) return null;
+  //       try {
+  //         const manifest = await this.registry.fetchLiveManifest(listing);
+  //         return manifest.version;
+  //       } catch {
+  //         return null;
+  //       }
+  //     }),
+  //   );
+  //   let changed = false;
+  //   const next = installed.map((entry, index) => {
+  //     const liveVersion = liveVersions[index];
+  //     if (!liveVersion) return entry;
+  //     if (compareVersions(liveVersion, entry.version) > 0) {
+  //       changed = true;
+  //       return { ...entry, version: liveVersion };
+  //     }
+  //     return entry;
+  //   });
+  //   if (changed) await this._setInstalled(next);
+  //   return next;
+  // }
+
+  async _reconcileCache(installed) {
+    const urlLists = await Promise.all(
+      installed.map((entry) =>
+        this.sourceProvider.getCacheUrls(entry.id, entry.version),
+      ),
+    );
+    await this.pluginCache.reconcile(urlLists.flat());
+  }
+
+  async installPlugin(pluginId) {
+    const listing = await this.registry.getPluginListing(pluginId);
+    if (!listing) {
+      throw new Error(`unknown plugin: ${pluginId}`);
     }
+    const installed = this._getInstalled();
+    if (installed.some((plugin) => plugin.id === pluginId)) return;
+    const version = listing.local
+      ? (await this.sourceProvider.getManifest(pluginId)).version
+      : (await this.registry.fetchLiveManifest(listing)).version;
+    await this._setInstalled([
+      ...installed,
+      { id: pluginId, version, enabled: true },
+    ]);
+    await this.pluginBridge.loadPlugin(pluginId, version);
   }
 
-  disablePlugin(pluginId) {
-    const ids = this.getEnabledPlugins();
-    this.setEnabledPlugins(ids.filter((id) => id !== pluginId));
+  async uninstallPlugin(pluginId) {
+    this.pluginBridge.unloadPlugin(pluginId);
+    const next = this._getInstalled().filter(
+      (plugin) => plugin.id !== pluginId,
+    );
+    await this._setInstalled(next);
+    await this._reconcileCache(next);
+  }
+
+  async enablePlugin(pluginId) {
+    const installed = this._getInstalled();
+    const entry = installed.find((plugin) => plugin.id === pluginId);
+    if (!entry) throw new Error(`not installed: ${pluginId}`);
+    if (entry.enabled) return;
+    await this._setInstalled(
+      installed.map((plugin) =>
+        plugin.id === pluginId ? { ...plugin, enabled: true } : plugin,
+      ),
+    );
+    await this.pluginBridge.loadPlugin(pluginId, entry.version);
+  }
+
+  async disablePlugin(pluginId) {
+    this.pluginBridge.unloadPlugin(pluginId);
+    const installed = this._getInstalled();
+    if (!installed.some((plugin) => plugin.id === pluginId)) return;
+    await this._setInstalled(
+      installed.map((plugin) =>
+        plugin.id === pluginId ? { ...plugin, enabled: false } : plugin,
+      ),
+    );
+  }
+
+  async checkForUpdates(pluginId) {
+    const listing = await this.registry.getPluginListing(pluginId);
+    if (!listing || listing.local) return null;
+    const installed = this._getInstalled().find(
+      (plugin) => plugin.id === pluginId,
+    );
+    if (!installed) return null;
+    const liveManifest = await this.registry.fetchLiveManifest(listing);
+    if (compareVersions(liveManifest.version, installed.version) > 0) {
+      // Re-read after the await and merge by id so a concurrent
+      // enable/disable/uninstall isn't clobbered.
+      const next = this._getInstalled().map((plugin) =>
+        plugin.id === pluginId
+          ? { ...plugin, version: liveManifest.version }
+          : plugin,
+      );
+      await this._setInstalled(next);
+      return { updated: true, version: liveManifest.version };
+    }
+    return { updated: false };
+  }
+
+  async listRegistryPlugins() {
+    const listings = await this.registry.getPluginListings();
+    const installedIds = new Set(this._getInstalled().map((entry) => entry.id));
+    return listings.map((listing) => ({
+      ...listing,
+      installed: installedIds.has(listing.id),
+    }));
+  }
+
+  getEnabledPlugins() {
+    return this._getInstalled()
+      .filter((entry) => entry.enabled)
+      .map((entry) => entry.id);
   }
 
   // Registry convenience methods

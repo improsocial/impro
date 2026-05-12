@@ -9,10 +9,10 @@ import {
 
 const PLUGIN_ID = TEST_PLUGIN_ID;
 
-async function enablePlugin(page) {
-  await page.addInitScript((id) => {
-    localStorage.setItem("enabled-plugins", JSON.stringify([id]));
-  }, PLUGIN_ID);
+function seedEnabled(mockServer) {
+  mockServer.installedPlugins = [
+    { id: PLUGIN_ID, version: "1.0.0", enabled: true },
+  ];
 }
 
 async function gotoDetailView(page) {
@@ -29,7 +29,7 @@ test.describe("Settings plugin detail view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     await expect(view.locator('[data-testid="header-title"]')).toContainText(
@@ -41,7 +41,7 @@ test.describe("Settings plugin detail view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const settings = view.locator(".plugin-setting-item");
@@ -70,7 +70,7 @@ test.describe("Settings plugin detail view", () => {
     });
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const settings = view.locator(".plugin-setting-item");
@@ -90,7 +90,7 @@ test.describe("Settings plugin detail view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const greetingInput = view
@@ -114,7 +114,7 @@ test.describe("Settings plugin detail view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const toggle = view
@@ -137,7 +137,7 @@ test.describe("Settings plugin detail view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const dropdown = view
@@ -165,7 +165,7 @@ test.describe("Settings plugin detail view", () => {
     });
     await mockServer.setup(page);
     await login(page);
-    await enablePlugin(page);
+    seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
     const resetButton = view

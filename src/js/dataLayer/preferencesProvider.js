@@ -32,14 +32,9 @@ export class PreferencesProvider extends EventEmitter {
     this._setPreferences(preferences);
   }
 
-  async updatePluginSettings(pluginId, data) {
-    const preferences = this.requirePreferences().setPluginSettings(
-      pluginId,
-      data,
-    );
+  async savePreferences(preferences) {
     await this.api.updatePreferences(preferences.obj);
     this._preferences = preferences;
-    this.emit("pluginSettingsChanged", { pluginId, data });
   }
 
   _setPreferences(preferences) {

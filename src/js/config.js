@@ -9,6 +9,10 @@ export const DISCOVER_FEED_URI =
   "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
 export const CHAT_MESSAGES_PAGE_SIZE = 100;
 
+// Plugins
+export const PLUGIN_REGISTRY_URL =
+  "https://raw.githubusercontent.com/improsocial/impro-releases/main/community-plugins.json";
+
 // Appview dids
 export const BSKY_APPVIEW_SERVICE_DID = "did:web:api.bsky.app#bsky_appview";
 export const BSKY_CHAT_SERVICE_DID = "did:web:api.bsky.chat#bsky_chat";

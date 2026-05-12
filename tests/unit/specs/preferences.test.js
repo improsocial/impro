@@ -2628,4 +2628,56 @@ t.describe("Preferences plugin settings", (it) => {
   });
 });
 
+t.describe("Preferences installed plugins", (it) => {
+  it("returns empty array when no record exists", () => {
+    const preferences = new Preferences([], []);
+    assertEquals(preferences.getInstalledPlugins(), []);
+  });
+
+  it("returns stored plugins list", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        plugins: [
+          { id: "alpha", version: "1.0.0", enabled: true },
+          { id: "beta", version: "2.0.0", enabled: false },
+        ],
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getInstalledPlugins(), [
+      { id: "alpha", version: "1.0.0", enabled: true },
+      { id: "beta", version: "2.0.0", enabled: false },
+    ]);
+  });
+
+  it("inserts a new record when none exists", () => {
+    const preferences = new Preferences([], []);
+    const updated = preferences.setInstalledPlugins([
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    assertEquals(updated.getInstalledPlugins(), [
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    // Original unchanged
+    assertEquals(preferences.getInstalledPlugins(), []);
+  });
+
+  it("updates an existing record without duplicating", () => {
+    const preferences = new Preferences([], []).setInstalledPlugins([
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    const updated = preferences.setInstalledPlugins([
+      { id: "alpha", version: "1.1.0", enabled: true },
+    ]);
+    assertEquals(updated.getInstalledPlugins(), [
+      { id: "alpha", version: "1.1.0", enabled: true },
+    ]);
+    const records = updated.obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    assertEquals(records.length, 1);
+  });
+});
+
 await t.run();

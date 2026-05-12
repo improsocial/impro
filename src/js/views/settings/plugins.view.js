@@ -4,6 +4,11 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { requireAuth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
+import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
+import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
+import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import { confirm } from "/js/modals.js";
+import { showToast } from "/js/toasts.js";
 import "/js/components/toggle-switch.js";
 
 class SettingsPluginsView extends View {
@@ -22,23 +27,44 @@ class SettingsPluginsView extends View {
     const state = {
       plugins: [],
       loading: true,
+      uninstallingIds: new Set(),
     };
 
     async function loadPlugins() {
       state.loading = true;
       renderPage();
-      state.plugins = await pluginService.listAvailablePlugins();
+      state.plugins = await pluginService.listInstalledPlugins();
       state.loading = false;
       renderPage();
     }
 
+    async function uninstallPlugin(plugin) {
+      const confirmed = await confirm(
+        `"${plugin.manifest.name}" will be disabled and uninstalled.`,
+        {
+          title: "Uninstall plugin?",
+          confirmButtonStyle: "danger",
+          confirmButtonText: "Uninstall",
+        },
+      );
+      if (!confirmed) return;
+      state.uninstallingIds.add(plugin.id);
+      renderPage();
+      try {
+        await pluginService.uninstallPlugin(plugin.id);
+        await loadPlugins();
+        showToast(`Uninstalled ${plugin.manifest.name}`, { style: "success" });
+      } finally {
+        state.uninstallingIds.delete(plugin.id);
+        renderPage();
+      }
+    }
+
     async function togglePlugin(plugin) {
       if (plugin.enabled) {
-        pluginService.disablePlugin(plugin.id);
-        pluginService.pluginBridge.unloadPlugin(plugin.id);
+        await pluginService.disablePlugin(plugin.id);
       } else {
-        pluginService.enablePlugin(plugin.id);
-        await pluginService.pluginBridge.loadPlugin(plugin.id);
+        await pluginService.enablePlugin(plugin.id);
       }
       await loadPlugins();
     }
@@ -65,14 +91,48 @@ class SettingsPluginsView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
+                <a
+                  class="community-plugins-link"
+                  href="/settings/plugins/community"
+                >
+                  <span class="community-plugins-link-icon"
+                    >${globeIconTemplate()}</span
+                  >
+                  <span class="community-plugins-link-text">
+                    <span class="community-plugins-link-title"
+                      >Browse community plugins</span
+                    >
+                    <span class="community-plugins-link-subtitle"
+                      >Discover plugins built by the community</span
+                    >
+                  </span>
+                  <span class="community-plugins-link-arrow"
+                    >${chevronRightIconTemplate()}</span
+                  >
+                </a>
                 ${state.loading
-                  ? html`<p>Loading…</p>`
+                  ? html`<p class="plugin-list-loading">Loading…</p>`
                   : state.plugins.length === 0
-                    ? html`<p>No plugins available.</p>`
+                    ? html`<div class="plugins-empty-state">
+                        <div class="plugins-empty-state-title">
+                          No plugins installed
+                        </div>
+                        <p class="plugins-empty-state-message">
+                          Browse the community registry to find and install
+                          plugins.
+                        </p>
+                      </div>`
                     : html`<ul class="plugin-list">
                         ${state.plugins.map(
                           (plugin) => html`
-                            <li class="plugin-list-item">
+                            <li
+                              class="plugin-list-item ${state.uninstallingIds.has(
+                                plugin.id,
+                              )
+                                ? "uninstalling"
+                                : ""}"
+                              ?inert=${state.uninstallingIds.has(plugin.id)}
+                            >
                               <div class="plugin-list-item-info">
                                 <div class="plugin-list-item-name">
                                   ${plugin.manifest.name}
@@ -99,6 +159,13 @@ class SettingsPluginsView extends View {
                                       ${settingsIconTemplate()}
                                     </a>`
                                   : ""}
+                                <button
+                                  class="plugin-uninstall-button"
+                                  aria-label="Uninstall ${plugin.manifest.name}"
+                                  @click=${() => uninstallPlugin(plugin)}
+                                >
+                                  ${trashCanIconTemplate()}
+                                </button>
                                 <toggle-switch
                                   class="plugin-toggle"
                                   label="Enable ${plugin.manifest.name}"
