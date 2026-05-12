@@ -651,6 +651,7 @@ export class Mutations {
     replyRoot,
     quotedPost,
     images,
+    video,
   }) {
     const post = await this.postCreator.createPost({
       postText,
@@ -660,6 +661,7 @@ export class Mutations {
       replyRoot,
       quotedPost,
       images,
+      video,
     });
     // NOTE: LEXICON DEVIATION
     post.viewer.priorityReply = true;

@@ -8,7 +8,7 @@ import {
   graphemeCount,
   resetScrollOnBlur,
 } from "/js/utils.js";
-import { compressImage } from "/js/imageUtils.js";
+import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -427,13 +427,18 @@ class EditProfileDialog extends Component {
     try {
       let avatarBlob = null;
       let bannerBlob = null;
+      const imageCompressor = new ImageCompressor();
 
       if (this._newAvatarDataUrl) {
-        const compressed = await compressImage(this._newAvatarDataUrl);
+        const compressed = await imageCompressor.compressImage(
+          this._newAvatarDataUrl,
+        );
         avatarBlob = compressed.blob;
       }
       if (this._newBannerDataUrl) {
-        const compressed = await compressImage(this._newBannerDataUrl);
+        const compressed = await imageCompressor.compressImage(
+          this._newBannerDataUrl,
+        );
         bannerBlob = compressed.blob;
       }
 

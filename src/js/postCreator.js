@@ -1,9 +1,10 @@
 import { wait } from "/js/utils.js";
-import { compressImage } from "/js/imageUtils.js";
+import { ImageCompressor } from "/js/imageCompressor.js";
 
 export class PostCreator {
-  constructor(api) {
+  constructor(api, imageCompressor = new ImageCompressor()) {
     this.api = api;
+    this.imageCompressor = imageCompressor;
   }
 
   async createPost({
@@ -14,9 +15,11 @@ export class PostCreator {
     replyRoot,
     quotedPost,
     images,
+    video,
   }) {
-    const externalEmbed = await this.prepareExternalEmbed(external);
-    const imagesEmbed = await this.prepareImagesEmbed(images);
+    const externalEmbed = await this._prepareExternalEmbed(external);
+    const imagesEmbed = await this._prepareImagesEmbed(images);
+    const videoEmbed = this._prepareVideoEmbed(video);
     let reply = null;
     // Add reply reference if provided
     if (replyTo) {
@@ -46,8 +49,8 @@ export class PostCreator {
       };
     }
 
-    // Prioritize images over external links (can't have both external and images)
-    const mediaEmbed = imagesEmbed || externalEmbed;
+    // Prioritize video > images > external link (these are mutually exclusive)
+    const mediaEmbed = videoEmbed || imagesEmbed || externalEmbed;
 
     if (mediaEmbed && quotedPostEmbed) {
       embed = {
@@ -84,14 +87,16 @@ export class PostCreator {
     return fullPost;
   }
 
-  async prepareImagesEmbed(images) {
+  async _prepareImagesEmbed(images) {
     if (!images || images.length === 0) {
       return null;
     }
 
     const uploadedImages = [];
     for (const img of images) {
-      const compressedImage = await compressImage(img.dataUrl);
+      const compressedImage = await this.imageCompressor.compressImage(
+        img.dataUrl,
+      );
       const blob = await this.api.uploadBlob(compressedImage.blob);
 
       uploadedImages.push({
@@ -119,7 +124,33 @@ export class PostCreator {
     };
   }
 
-  async prepareExternalEmbed(external) {
+  _prepareVideoEmbed(video) {
+    if (!video || !video.blob) {
+      return null;
+    }
+    const embed = {
+      $type: "app.bsky.embed.video",
+      video: {
+        $type: "blob",
+        ref: { $link: video.blob.ref.$link },
+        mimeType: video.blob.mimeType,
+        size: video.blob.size,
+      },
+    };
+    if (video.alt) {
+      embed.alt = video.alt;
+    }
+    if (video.aspectRatio) {
+      embed.aspectRatio = {
+        $type: "app.bsky.embed.defs#aspectRatio",
+        width: video.aspectRatio.width,
+        height: video.aspectRatio.height,
+      };
+    }
+    return embed;
+  }
+
+  async _prepareExternalEmbed(external) {
     if (!external) {
       return null;
     }

@@ -2569,6 +2569,50 @@ animated-button {
   top: -1px;
 }
 
+.post-composer-video-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 16px;
+}
+
+.video-preview-item {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+  border-radius: var(--image-preview-border-radius);
+  overflow: hidden;
+  border: var(--hair) solid var(--post-border-color);
+  background: black;
+}
+
+.video-preview-item video {
+  width: 100%;
+  display: block;
+  max-height: 360px;
+}
+
+.video-preview-item .alt-indicator {
+  pointer-events: auto;
+  border: none;
+  cursor: pointer;
+  z-index: 1;
+}
+
+.video-preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--overlay-color-medium);
+  color: var(--overlay-text-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 14px;
+  pointer-events: none;
+}
+
 lightbox-image-group {
   display: flex;
   flex-direction: column;
@@ -4314,10 +4358,11 @@ emoji-picker {
 }
 
 .post-composer {
-  border: var(--hair) solid var(--post-border-color);
+  border: none;
   border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
+  padding: 0;
   max-width: 100%;
   width: 100%;
   position: fixed;
@@ -4353,6 +4398,7 @@ emoji-picker {
     transform: translate(-50%, -50%);
     touch-action: auto;
     display: block;
+    overflow: hidden;
   }
 }
 
@@ -4377,7 +4423,8 @@ emoji-picker {
 
 @media (min-width: 800px) {
   .post-composer-content {
-    padding: 10px 0;
+    padding-top: 10px;
+    padding-bottom: 0;
     display: block;
     flex: none;
     min-height: auto;

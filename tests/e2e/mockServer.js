@@ -1198,6 +1198,14 @@ export class MockServer {
               aspectRatio: img.aspectRatio,
             })),
           };
+        } else if (recordEmbed?.$type === "app.bsky.embed.video") {
+          embed = {
+            $type: "app.bsky.embed.video#view",
+            cid: recordEmbed.video.ref.$link,
+            playlist: "",
+            alt: recordEmbed.alt || "",
+            aspectRatio: recordEmbed.aspectRatio,
+          };
         } else if (recordEmbed?.$type === "app.bsky.embed.external") {
           embed = {
             $type: "app.bsky.embed.external#view",
@@ -1497,6 +1505,101 @@ export class MockServer {
         }),
       }),
     );
+
+    await page.route("**/xrpc/com.atproto.server.getServiceAuth*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ token: "mock-service-auth-token" }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.video.getUploadLimits*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          canUpload: this.videoCanUpload !== false,
+          remainingDailyVideos: 25,
+          remainingDailyBytes: 100_000_000,
+          message: this.videoUploadMessage || "",
+        }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.video.uploadVideo*", (route) => {
+      this.videoJobCounter = (this.videoJobCounter || 0) + 1;
+      const jobId = `mock-video-job-${this.videoJobCounter}`;
+      this.videoJobPollCounts = this.videoJobPollCounts || new Map();
+      this.videoJobPollCounts.set(jobId, 0);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          jobId,
+          did: userProfile.did,
+          state: "JOB_STATE_ENCODING",
+          progress: 0,
+        }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.video.getJobStatus*", (route) => {
+      const url = new URL(route.request().url());
+      const jobId = url.searchParams.get("jobId");
+      if (this.videoJobShouldFail) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            jobStatus: {
+              jobId,
+              did: userProfile.did,
+              state: "JOB_STATE_FAILED",
+              progress: 0,
+              error: "mock failure",
+              message: "mock failure",
+            },
+          }),
+        });
+      }
+      this.videoJobPollCounts = this.videoJobPollCounts || new Map();
+      const count = (this.videoJobPollCounts.get(jobId) || 0) + 1;
+      this.videoJobPollCounts.set(jobId, count);
+      // Complete on the second poll
+      if (count >= 2) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            jobStatus: {
+              jobId,
+              did: userProfile.did,
+              state: "JOB_STATE_COMPLETED",
+              progress: 1,
+              blob: {
+                $type: "blob",
+                ref: { $link: `bafkreimockvideo${this.videoJobCounter}` },
+                mimeType: "video/mp4",
+                size: 1024,
+              },
+            },
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          jobStatus: {
+            jobId,
+            did: userProfile.did,
+            state: "JOB_STATE_ENCODING",
+            progress: 0.5,
+          },
+        }),
+      });
+    });
 
     await page.route(
       (url) => url.toString().includes("cardyb.bsky.app/v1/extract"),

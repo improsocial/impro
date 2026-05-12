@@ -22,6 +22,8 @@ export const OG_CARD_SERVICE_URL = "https://ogcard.cdn.bsky.app";
 export const TENOR_GIF_PROXY_URL = "https://t.gifs.bsky.app";
 export const KLIPY_GIF_PROXY_HOSTNAME = "k.gifs.bsky.app";
 export const PLC_DIRECTORY_URL = "https://plc.directory";
+export const VIDEO_SERVICE_URL = "https://video.bsky.app";
+export const VIDEO_SERVICE_DID = "did:web:video.bsky.app";
 
 export const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 

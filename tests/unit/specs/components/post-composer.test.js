@@ -371,12 +371,12 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
 });
 
 t.describe("PostComposer - image selection", (it) => {
-  it("should have file input for images", () => {
+  it("should have file input for images and videos", () => {
     const element = createPostComposer();
     connectElement(element);
     const input = element.querySelector('input[type="file"]');
     assert(input !== null);
-    assertEquals(input.accept, "image/*");
+    assertEquals(input.accept, "image/*,video/*");
     assert(input.multiple);
   });
 
