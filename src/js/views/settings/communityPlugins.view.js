@@ -49,18 +49,15 @@ class SettingsCommunityPluginsView extends View {
           await pluginService.installPlugin(entry.id);
         }
         state.entries = await pluginService.listRegistryPlugins();
-        showToast(
-          wasInstalled
-            ? `Uninstalled ${entry.name}`
-            : `Installed ${entry.name}`,
-          { style: wasInstalled ? "default" : "success" },
-        );
+        showToast(wasInstalled ? "Uninstalled plugin" : "Installed plugin", {
+          style: wasInstalled ? "default" : "success",
+        });
       } catch (error) {
         state.error = error.message ?? String(error);
         showToast(
           wasInstalled
-            ? `Failed to uninstall ${entry.name}`
-            : `Failed to install ${entry.name}`,
+            ? "Failed to uninstall plugin"
+            : "Failed to install plugin",
           { style: "error" },
         );
       }
