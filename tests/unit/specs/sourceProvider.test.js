@@ -100,7 +100,7 @@ t.describe("SourceProvider with remote listings", (it) => {
     const manifest = await provider.getManifest("alpha", "1.0.0");
     assertEquals(
       fetchedUrl,
-      "https://github.com/ow/alpha/releases/download/1.0.0/manifest.json",
+      "https://raw.githubusercontent.com/ow/alpha/1.0.0/manifest.json",
     );
     assertEquals(manifest.id, "alpha");
   });
@@ -120,7 +120,7 @@ t.describe("SourceProvider with remote listings", (it) => {
     await provider.getSource("alpha", "2.5.0");
     assertEquals(
       fetchedUrl,
-      "https://github.com/ow/alpha/releases/download/2.5.0/main.js",
+      "https://raw.githubusercontent.com/ow/alpha/2.5.0/main.js",
     );
   });
 
@@ -158,8 +158,8 @@ t.describe("SourceProvider with remote listings", (it) => {
     );
     const urls = await provider.getCacheUrls("alpha", "1.2.3");
     assertEquals(urls, [
-      "https://github.com/ow/alpha/releases/download/1.2.3/manifest.json",
-      "https://github.com/ow/alpha/releases/download/1.2.3/main.js",
+      "https://raw.githubusercontent.com/ow/alpha/1.2.3/manifest.json",
+      "https://raw.githubusercontent.com/ow/alpha/1.2.3/main.js",
     ]);
   });
 });
@@ -189,7 +189,7 @@ t.describe("SourceProvider.ensureManifest", (it) => {
     const pluginCache = {
       async fetch(url) {
         fetchCount++;
-        const match = url.match(/download\/([^/]+)\/manifest\.json$/);
+        const match = url.match(/\/([^/]+)\/manifest\.json$/);
         const version = match[1];
         return jsonResponse({ id: "alpha", name: "A", version });
       },

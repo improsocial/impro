@@ -19,7 +19,7 @@ function parsePluginManifest(pluginId, manifest) {
 }
 
 function remoteAssetUrl(repo, tag, file) {
-  return `https://github.com/${repo}/releases/download/${tag}/${file}`;
+  return `https://raw.githubusercontent.com/${repo}/${tag}/${file}`;
 }
 
 export class SourceProvider {

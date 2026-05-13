@@ -215,12 +215,12 @@ export class MockServer {
         }),
     );
     await page.route(
-      "**/github.com/*/*/releases/download/*/manifest.json",
+      "**/raw.githubusercontent.com/*/*/*/manifest.json",
       (route) => {
         const match = route
           .request()
           .url()
-          .match(/releases\/download\/([^/]+)\/manifest\.json$/);
+          .match(/\/([^/]+)\/manifest\.json$/);
         const version = match?.[1] ?? "0.0.0";
         const id = this.registryEntries[0]?.id ?? "remote-plugin";
         route.fulfill({
@@ -235,7 +235,7 @@ export class MockServer {
         });
       },
     );
-    await page.route("**/github.com/*/*/releases/download/*/main.js", (route) =>
+    await page.route("**/raw.githubusercontent.com/*/*/*/main.js", (route) =>
       route.fulfill({
         status: 200,
         contentType: "text/javascript",
