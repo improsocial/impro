@@ -237,9 +237,22 @@ export class PluginBridge {
   }
 
   async loadPlugins(pluginRequests) {
+    const loadedPlugins = [];
+    const erroredPlugins = [];
     await Promise.all(
-      pluginRequests.map(({ id, version }) => this.loadPlugin(id, version)),
+      pluginRequests.map(async ({ id, version }) => {
+        try {
+          const plugin = await this.loadPlugin(id, version);
+          loadedPlugins.push(plugin);
+        } catch (error) {
+          erroredPlugins.push({ pluginId: id, version, error });
+        }
+      }),
     );
+    return {
+      loadedPlugins,
+      erroredPlugins,
+    };
   }
 
   async loadPlugin(pluginId, version) {
@@ -273,8 +286,10 @@ export class PluginBridge {
       );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
+      return pluginInstance;
     } catch (error) {
       logger.error(`"${pluginId}" failed during initialization:`, error);
+      throw error;
     }
   }
 

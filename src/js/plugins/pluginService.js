@@ -1,6 +1,6 @@
 import { PluginBridge } from "/js/plugins/pluginBridge.js";
 import { showPluginModal, hidePluginModal } from "/js/modals.js";
-import { showPluginToast, hidePluginToast } from "/js/toasts.js";
+import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 import { PluginRegistry } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
@@ -181,9 +181,9 @@ export class PluginService extends EventEmitter {
   }
 
   async loadPluginsInfo() {
-    const installed = this._getInstalled();
+    const installedPluginsPreference = this._getInstalledPluginsPreference();
     const results = await Promise.all(
-      installed.map(async (entry) => {
+      installedPluginsPreference.map(async (entry) => {
         const manifest = await this.sourceProvider.ensureManifest(
           entry.id,
           entry.version,
@@ -202,22 +202,36 @@ export class PluginService extends EventEmitter {
   }
 
   async loadEnabledPlugins() {
-    const installed = this._getInstalled();
-    const toLoad = installed.filter((entry) => entry.enabled);
-    await this.pluginBridge.loadPlugins(toLoad);
+    const installedPluginsPreference = this._getInstalledPluginsPreference();
+    const toLoad = installedPluginsPreference.filter((entry) => entry.enabled);
+    const { erroredPlugins } = await this.pluginBridge.loadPlugins(toLoad);
+    if (erroredPlugins.length) {
+      const failedPluginIds = erroredPlugins.map(({ pluginId }) => pluginId);
+      showToast(`Failed to load plugin(s): ${failedPluginIds.join(", ")}`, {
+        style: "error",
+      });
+      // Disable plugins that failed to load
+      await Promise.all(
+        failedPluginIds.map((pluginId) => this._setPluginDisabled(pluginId)),
+      );
+    }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
-    await this._reconcileCache(installed);
+    await this._reconcileCache(installedPluginsPreference);
   }
 
   async getManifest(pluginId) {
-    const installed = this._getInstalled().find(
-      (plugin) => plugin.id === pluginId,
+    const installedPluginsPreference =
+      this._getInstalledPluginsPreference().find(
+        (plugin) => plugin.id === pluginId,
+      );
+    return this.sourceProvider.ensureManifest(
+      pluginId,
+      installedPluginsPreference?.version,
     );
-    return this.sourceProvider.ensureManifest(pluginId, installed?.version);
   }
 
-  _getInstalled() {
+  _getInstalledPluginsPreference() {
     if (!this.preferencesProvider) return [];
     try {
       return this.preferencesProvider
@@ -228,7 +242,7 @@ export class PluginService extends EventEmitter {
     }
   }
 
-  async _setInstalled(plugins) {
+  async _setInstalledPluginsPreference(plugins) {
     const preferences = this.preferencesProvider
       .requirePreferences()
       .setInstalledPlugins(plugins);
@@ -237,19 +251,19 @@ export class PluginService extends EventEmitter {
 
   // TODO
   // async _applyAutoUpdates() {
-  //   const installed = this._getInstalled();
-  //   if (installed.length === 0) return installed;
+  //   const installedPluginsPreference = this._getInstalledPluginsPreference();
+  //   if (installedPluginsPreference.length === 0) return installedPluginsPreference;
   //   let listings;
   //   try {
   //     listings = await this.registry.getPluginListings();
   //   } catch {
-  //     return installed;
+  //     return installedPluginsPreference;
   //   }
   //   const listingById = new Map(
   //     listings.map((listing) => [listing.id, listing]),
   //   );
   //   const liveVersions = await Promise.all(
-  //     installed.map(async (entry) => {
+  //     installedPluginsPreference.map(async (entry) => {
   //       const listing = listingById.get(entry.id);
   //       if (!listing || listing.local) return null;
   //       try {
@@ -261,7 +275,7 @@ export class PluginService extends EventEmitter {
   //     }),
   //   );
   //   let changed = false;
-  //   const next = installed.map((entry, index) => {
+  //   const next = installedPluginsPreference.map((entry, index) => {
   //     const liveVersion = liveVersions[index];
   //     if (!liveVersion) return entry;
   //     if (compareVersions(liveVersion, entry.version) > 0) {
@@ -270,7 +284,7 @@ export class PluginService extends EventEmitter {
   //     }
   //     return entry;
   //   });
-  //   if (changed) await this._setInstalled(next);
+  //   if (changed) await this._setInstalledPluginsPreference(next);
   //   return next;
   // }
 
@@ -288,13 +302,14 @@ export class PluginService extends EventEmitter {
     if (!listing) {
       throw new Error(`unknown plugin: ${pluginId}`);
     }
-    const installed = this._getInstalled();
-    if (installed.some((plugin) => plugin.id === pluginId)) return;
+    const installedPluginsPreference = this._getInstalledPluginsPreference();
+    if (installedPluginsPreference.some((plugin) => plugin.id === pluginId))
+      return;
     const version = listing.local
       ? (await this.sourceProvider.getManifest(pluginId)).version
       : (await this.registry.fetchLiveManifest(listing)).version;
-    await this._setInstalled([
-      ...installed,
+    await this._setInstalledPluginsPreference([
+      ...installedPluginsPreference,
       { id: pluginId, version, enabled: true },
     ]);
     await this.pluginBridge.loadPlugin(pluginId, version);
@@ -302,32 +317,51 @@ export class PluginService extends EventEmitter {
 
   async uninstallPlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
-    const next = this._getInstalled().filter(
+    const next = this._getInstalledPluginsPreference().filter(
       (plugin) => plugin.id !== pluginId,
     );
-    await this._setInstalled(next);
+    await this._setInstalledPluginsPreference(next);
     await this._reconcileCache(next);
   }
 
   async enablePlugin(pluginId) {
-    const installed = this._getInstalled();
-    const entry = installed.find((plugin) => plugin.id === pluginId);
+    await this._setPluginEnabled(pluginId);
+    const entry = this._getInstalledPluginsPreference().find(
+      (plugin) => plugin.id === pluginId,
+    );
+    try {
+      await this.pluginBridge.loadPlugin(pluginId, entry.version);
+    } catch (e) {
+      await this._setPluginDisabled(pluginId);
+      throw e;
+    }
+  }
+
+  async _setPluginEnabled(pluginId) {
+    const installedPluginsPreference = this._getInstalledPluginsPreference();
+    const entry = installedPluginsPreference.find(
+      (plugin) => plugin.id === pluginId,
+    );
     if (!entry) throw new Error(`not installed: ${pluginId}`);
     if (entry.enabled) return;
-    await this._setInstalled(
-      installed.map((plugin) =>
+    await this._setInstalledPluginsPreference(
+      installedPluginsPreference.map((plugin) =>
         plugin.id === pluginId ? { ...plugin, enabled: true } : plugin,
       ),
     );
-    await this.pluginBridge.loadPlugin(pluginId, entry.version);
   }
 
   async disablePlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
-    const installed = this._getInstalled();
-    if (!installed.some((plugin) => plugin.id === pluginId)) return;
-    await this._setInstalled(
-      installed.map((plugin) =>
+    await this._setPluginDisabled(pluginId);
+  }
+
+  async _setPluginDisabled(pluginId) {
+    const installedPluginsPreference = this._getInstalledPluginsPreference();
+    if (!installedPluginsPreference.some((plugin) => plugin.id === pluginId))
+      return;
+    await this._setInstalledPluginsPreference(
+      installedPluginsPreference.map((plugin) =>
         plugin.id === pluginId ? { ...plugin, enabled: false } : plugin,
       ),
     );
@@ -336,20 +370,26 @@ export class PluginService extends EventEmitter {
   async checkForUpdates(pluginId) {
     const listing = await this.registry.getPluginListing(pluginId);
     if (!listing || listing.local) return null;
-    const installed = this._getInstalled().find(
-      (plugin) => plugin.id === pluginId,
-    );
-    if (!installed) return null;
+    const installedPluginsPreference =
+      this._getInstalledPluginsPreference().find(
+        (plugin) => plugin.id === pluginId,
+      );
+    if (!installedPluginsPreference) return null;
     const liveManifest = await this.registry.fetchLiveManifest(listing);
-    if (compareVersions(liveManifest.version, installed.version) > 0) {
+    if (
+      compareVersions(
+        liveManifest.version,
+        installedPluginsPreference.version,
+      ) > 0
+    ) {
       // Re-read after the await and merge by id so a concurrent
       // enable/disable/uninstall isn't clobbered.
-      const next = this._getInstalled().map((plugin) =>
+      const next = this._getInstalledPluginsPreference().map((plugin) =>
         plugin.id === pluginId
           ? { ...plugin, version: liveManifest.version }
           : plugin,
       );
-      await this._setInstalled(next);
+      await this._setInstalledPluginsPreference(next);
       return { updated: true, version: liveManifest.version };
     }
     return { updated: false };
@@ -357,7 +397,9 @@ export class PluginService extends EventEmitter {
 
   async listRegistryPlugins() {
     const listings = await this.registry.getPluginListings();
-    const installedIds = new Set(this._getInstalled().map((entry) => entry.id));
+    const installedIds = new Set(
+      this._getInstalledPluginsPreference().map((entry) => entry.id),
+    );
     return listings.map((listing) => ({
       ...listing,
       installed: installedIds.has(listing.id),
@@ -365,7 +407,7 @@ export class PluginService extends EventEmitter {
   }
 
   getEnabledPlugins() {
-    return this._getInstalled()
+    return this._getInstalledPluginsPreference()
       .filter((entry) => entry.enabled)
       .map((entry) => entry.id);
   }

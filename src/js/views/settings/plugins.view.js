@@ -26,6 +26,8 @@ class SettingsPluginsView extends View {
 
     const state = {
       uninstallingIds: new Set(),
+      enablingIds: new Set(),
+      disablingIds: new Set(),
     };
 
     async function loadPlugins() {
@@ -48,7 +50,7 @@ class SettingsPluginsView extends View {
       try {
         await pluginService.uninstallPlugin(plugin.id);
         await loadPlugins();
-        showToast(`Uninstalled ${plugin.manifest.name}`, { style: "success" });
+        showToast(`Uninstalled ${plugin.manifest.name}`);
       } finally {
         state.uninstallingIds.delete(plugin.id);
         renderPage();
@@ -56,12 +58,28 @@ class SettingsPluginsView extends View {
     }
 
     async function togglePlugin(plugin) {
-      if (plugin.enabled) {
-        await pluginService.disablePlugin(plugin.id);
-      } else {
-        await pluginService.enablePlugin(plugin.id);
+      const pendingSet = plugin.enabled
+        ? state.disablingIds
+        : state.enablingIds;
+      pendingSet.add(plugin.id);
+      renderPage();
+      try {
+        if (plugin.enabled) {
+          await pluginService.disablePlugin(plugin.id);
+          showToast(`Disabled ${plugin.manifest.name}`);
+        } else {
+          try {
+            await pluginService.enablePlugin(plugin.id);
+            showToast(`Enabled ${plugin.manifest.name}`, { style: "success" });
+          } catch (e) {
+            showToast("Plugin failed to load", { style: "error" });
+          }
+        }
+        await loadPlugins();
+      } finally {
+        pendingSet.delete(plugin.id);
+        renderPage();
       }
-      await loadPlugins();
     }
 
     function renderPage() {
@@ -119,15 +137,19 @@ class SettingsPluginsView extends View {
                         </p>
                       </div>`
                     : html`<ul class="plugin-list">
-                        ${pluginsInfo.map(
-                          (plugin) => html`
+                        ${pluginsInfo.map((plugin) => {
+                          const isPending =
+                            state.uninstallingIds.has(plugin.id) ||
+                            state.enablingIds.has(plugin.id) ||
+                            state.disablingIds.has(plugin.id);
+                          return html`
                             <li
                               class="plugin-list-item ${state.uninstallingIds.has(
                                 plugin.id,
                               )
                                 ? "uninstalling"
                                 : ""}"
-                              ?inert=${state.uninstallingIds.has(plugin.id)}
+                              ?inert=${isPending}
                             >
                               <div class="plugin-list-item-info">
                                 <div class="plugin-list-item-name">
@@ -165,13 +187,20 @@ class SettingsPluginsView extends View {
                                 <toggle-switch
                                   class="plugin-toggle"
                                   label="Enable ${plugin.manifest.name}"
-                                  ?checked=${plugin.enabled}
+                                  ?checked=${state.enablingIds.has(plugin.id)
+                                    ? true
+                                    : state.disablingIds.has(plugin.id)
+                                      ? false
+                                      : plugin.enabled}
+                                  ?disabled=${state.enablingIds.has(
+                                    plugin.id,
+                                  ) || state.disablingIds.has(plugin.id)}
                                   @change=${() => togglePlugin(plugin)}
                                 ></toggle-switch>
                               </div>
                             </li>
-                          `,
-                        )}
+                          `;
+                        })}
                       </ul>`}
               </main>`,
           })}

@@ -91,10 +91,18 @@ export class PluginRenderer {
       );
       tag = "span";
     }
-    if (tag === "input" && node.attrs?.type === "checkbox") {
+    const aliasedAsToggle = tag === "input" && node.attrs?.type === "checkbox";
+    if (aliasedAsToggle) {
       tag = "toggle-switch";
     }
     const element = document.createElement(tag);
+    if (aliasedAsToggle) {
+      // toggle-switch is controlled — flip its state here since the plugin
+      // worker can't observe events synchronously to re-render.
+      element.addEventListener("change", (e) => {
+        element.checked = e.detail?.checked ?? !element.checked;
+      });
+    }
     if (node.attrs) {
       for (const [name, value] of Object.entries(node.attrs)) {
         if (!isAllowedAttr(name)) {

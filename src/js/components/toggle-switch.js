@@ -47,7 +47,6 @@ class ToggleSwitch extends Component {
 
   render() {
     const label = this.getAttribute("label") ?? "";
-
     render(
       html`
         <div
@@ -62,10 +61,9 @@ class ToggleSwitch extends Component {
           aria-label=${label}
           @click=${() => {
             if (this.disabled) return;
-            this.checked = !this.checked;
             this.dispatchEvent(
               new CustomEvent("change", {
-                detail: { checked: this.checked },
+                detail: { checked: !this.checked },
                 bubbles: true,
               }),
             );
