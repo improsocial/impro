@@ -77,6 +77,21 @@ export class SourceProvider {
     return parsePluginManifest(pluginId, await response.json());
   }
 
+  async getLiveManifest(pluginId) {
+    const listing = await this._resolveListing(pluginId);
+    if (listing.local) {
+      const response = await this._fetch(
+        `/plugins-local/${pluginId}/manifest.json`,
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return parsePluginManifest(pluginId, await response.json());
+    }
+    const url = remoteAssetUrl(listing.repo, "HEAD", "manifest.json");
+    const response = await this._fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return parsePluginManifest(pluginId, await response.json());
+  }
+
   async getSource(pluginId, version) {
     const listing = await this._resolveListing(pluginId);
     if (listing.local) {

@@ -7,6 +7,7 @@ import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
 import { confirm } from "/js/modals.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/toggle-switch.js";
@@ -28,6 +29,7 @@ class SettingsPluginsView extends View {
       uninstallingIds: new Set(),
       enablingIds: new Set(),
       disablingIds: new Set(),
+      reloading: false,
     };
 
     async function loadPlugins() {
@@ -57,6 +59,21 @@ class SettingsPluginsView extends View {
       }
     }
 
+    async function reloadPlugins() {
+      if (state.reloading) return;
+      state.reloading = true;
+      renderPage();
+      try {
+        await pluginService.reloadPlugins();
+        showToast("Reloaded plugins");
+      } catch (e) {
+        showToast("Failed to reload plugins", { style: "error" });
+      } finally {
+        state.reloading = false;
+        renderPage();
+      }
+    }
+
     async function togglePlugin(plugin) {
       const pendingSet = plugin.enabled
         ? state.disablingIds
@@ -72,7 +89,9 @@ class SettingsPluginsView extends View {
             await pluginService.enablePlugin(plugin.id);
             showToast(`Enabled ${plugin.manifest.name}`, { style: "success" });
           } catch (e) {
-            showToast("Plugin failed to load", { style: "error" });
+            showToast(`Error when loading ${plugin.manifest.name}`, {
+              style: "error",
+            });
           }
         }
         await loadPlugins();
@@ -124,6 +143,17 @@ class SettingsPluginsView extends View {
                     >${chevronRightIconTemplate()}</span
                   >
                 </a>
+                <div class="installed-plugins-header">
+                  <h2>Installed plugins</h2>
+                  <button
+                    class="plugin-reload-button"
+                    aria-label="Reload plugins"
+                    ?disabled=${state.reloading}
+                    @click=${() => reloadPlugins()}
+                  >
+                    ${reloadIconTemplate()}
+                  </button>
+                </div>
                 ${!pluginsInfo
                   ? html`<p class="plugin-list-loading">Loading…</p>`
                   : pluginsInfo.length === 0

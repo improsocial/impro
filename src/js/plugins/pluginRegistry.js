@@ -52,11 +52,4 @@ export class PluginRegistry {
     const all = await this.getPluginListings(opts);
     return all.find((listing) => listing.id === id) ?? null;
   }
-
-  async fetchLiveManifest(listing) {
-    const url = `https://raw.githubusercontent.com/${listing.repo}/HEAD/manifest.json`;
-    const response = await this._fetch(url, { cache: "no-store" });
-    if (!response.ok) throw new Error(`manifest HTTP ${response.status}`);
-    return await response.json();
-  }
 }

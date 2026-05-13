@@ -149,18 +149,4 @@ t.describe("PluginRegistry.getPluginListing", (it) => {
   });
 });
 
-t.describe("PluginRegistry.fetchLiveManifest", (it) => {
-  it("hits raw.githubusercontent.com at HEAD", async () => {
-    const liveUrl =
-      "https://raw.githubusercontent.com/ow/alpha/HEAD/manifest.json";
-    const { fetchImpl, calls } = fakeFetcher({
-      [liveUrl]: { id: "alpha", version: "9.9.9" },
-    });
-    const registry = new PluginRegistry(REGISTRY_URL, { fetchImpl });
-    const manifest = await registry.fetchLiveManifest({ repo: "ow/alpha" });
-    assertEquals(manifest.version, "9.9.9");
-    assert(calls.includes(liveUrl));
-  });
-});
-
 await t.run();

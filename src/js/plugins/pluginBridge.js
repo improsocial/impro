@@ -349,4 +349,9 @@ export class PluginBridge {
     instance.unload();
     this._loadedPlugins.delete(pluginId);
   }
+
+  async reloadPlugin(pluginId, version) {
+    this.unloadPlugin(pluginId);
+    return this.loadPlugin(pluginId, version);
+  }
 }

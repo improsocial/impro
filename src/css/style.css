@@ -7583,3 +7583,36 @@ image-cropper {
     width: 100%;
   }
 }
+
+.installed-plugins-header {
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.installed-plugins-header h2 {
+  font-size: 16px;
+}
+
+.plugin-reload-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+}
+
+.plugin-reload-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plugin-reload-button .icon {
+  width: 24px;
+  height: 24px;
+}

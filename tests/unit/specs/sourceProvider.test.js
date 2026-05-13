@@ -227,4 +227,24 @@ t.describe("SourceProvider.ensureManifest", (it) => {
   });
 });
 
+t.describe("SourceProvider.getLiveManifest", (it) => {
+  it("hits raw.githubusercontent.com at HEAD", async () => {
+    const liveUrl =
+      "https://raw.githubusercontent.com/ow/alpha/HEAD/manifest.json";
+    let fetchedUrl = null;
+    const fetchImpl = async (url) => {
+      fetchedUrl = url;
+      return jsonResponse({ id: "alpha", name: "Alpha", version: "9.9.9" });
+    };
+    const provider = new SourceProvider(
+      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
+      null,
+      { fetchImpl },
+    );
+    const manifest = await provider.getLiveManifest("alpha");
+    assertEquals(manifest.version, "9.9.9");
+    assertEquals(fetchedUrl, liveUrl);
+  });
+});
+
 await t.run();
