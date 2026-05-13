@@ -84,7 +84,7 @@ class SettingsPluginsView extends View {
       try {
         const updates = await pluginService.checkForUpdates();
         if (updates.size === 0) {
-          showToast("All plugins up to date");
+          showToast("All plugins are up to date", { style: "success" });
         } else {
           showToast(
             `${updates.size} update${updates.size === 1 ? "" : "s"} available`,
