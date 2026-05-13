@@ -22,6 +22,7 @@ export class PluginService extends EventEmitter {
       feedFilters: new Set(),
       settingTabs: new Map(),
     };
+    this._pluginsInfo = null;
     this.localOnly = localOnly;
     this.registry = new PluginRegistry(PLUGIN_REGISTRY_URL, { localOnly });
     this.pluginCache = new PluginCache();
@@ -175,7 +176,11 @@ export class PluginService extends EventEmitter {
     return this.registries.settingTabs.get(pluginId) ?? null;
   }
 
-  async listInstalledPlugins() {
+  getPluginsInfo() {
+    return this._pluginsInfo;
+  }
+
+  async loadPluginsInfo() {
     const installed = this._getInstalled();
     const results = await Promise.all(
       installed.map(async (entry) => {
@@ -193,7 +198,7 @@ export class PluginService extends EventEmitter {
         };
       }),
     );
-    return results.filter((entry) => entry !== null);
+    this._pluginsInfo = results.filter((entry) => entry !== null);
   }
 
   async loadEnabledPlugins() {

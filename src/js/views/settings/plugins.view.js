@@ -25,16 +25,11 @@ class SettingsPluginsView extends View {
     await requireAuth();
 
     const state = {
-      plugins: [],
-      loading: true,
       uninstallingIds: new Set(),
     };
 
     async function loadPlugins() {
-      state.loading = true;
-      renderPage();
-      state.plugins = await pluginService.listInstalledPlugins();
-      state.loading = false;
+      await pluginService.loadPluginsInfo();
       renderPage();
     }
 
@@ -75,6 +70,7 @@ class SettingsPluginsView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
+      const pluginsInfo = pluginService.getPluginsInfo();
       render(
         html`<div id="settings-plugins-view">
           ${mainLayoutTemplate({
@@ -110,9 +106,9 @@ class SettingsPluginsView extends View {
                     >${chevronRightIconTemplate()}</span
                   >
                 </a>
-                ${state.loading
+                ${!pluginsInfo
                   ? html`<p class="plugin-list-loading">Loading…</p>`
-                  : state.plugins.length === 0
+                  : pluginsInfo.length === 0
                     ? html`<div class="plugins-empty-state">
                         <div class="plugins-empty-state-title">
                           No plugins installed
@@ -123,7 +119,7 @@ class SettingsPluginsView extends View {
                         </p>
                       </div>`
                     : html`<ul class="plugin-list">
-                        ${state.plugins.map(
+                        ${pluginsInfo.map(
                           (plugin) => html`
                             <li
                               class="plugin-list-item ${state.uninstallingIds.has(
@@ -192,6 +188,7 @@ class SettingsPluginsView extends View {
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
+      renderPage();
       loadPlugins();
     });
 
