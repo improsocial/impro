@@ -94,7 +94,7 @@ class TestPlugin extends Plugin {
   }
 }
 
-export default TestPlugin;
+TestPlugin.register();
 `;
 
 let cachedSource = null;

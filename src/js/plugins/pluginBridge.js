@@ -37,7 +37,7 @@ class SandboxedWorker extends EventTarget {
     window.addEventListener("message", this._handleWindowMessage);
     this.frame.addEventListener("load", () => {
       this.frame.contentWindow.postMessage(
-        { type: "init", source, bootstrapTemplate: WORKER_BOOTSTRAP_TEMPLATE },
+        { type: "init", workerSource: wrapWorkerSource(source) },
         "*",
       );
     });
@@ -78,16 +78,13 @@ class SandboxedWorker extends EventTarget {
   }
 }
 
-export const WORKER_BOOTSTRAP_TEMPLATE = `
-  delete self.BroadcastChannel;
-  delete self.SharedWorker;
-  import("%USER_URL_PLACEHOLDER%").then(
-    (mod) => { mod.default?.register?.(); },
-    (error) => {
-      self.postMessage({ type: "ready", error: error?.message ?? String(error) });
-    },
-  );
-`;
+export function wrapWorkerSource(source) {
+  const prelude = `
+    delete self.BroadcastChannel;
+    delete self.SharedWorker;
+  `;
+  return `${prelude}\n${source}`;
+}
 
 async function createSandboxedWorker(source) {
   const worker = new SandboxedWorker(source);
@@ -97,14 +94,9 @@ async function createSandboxedWorker(source) {
 
 // Direct (unsandboxed) Worker for e2e tests
 async function createDirectWorker(source) {
-  const userUrl = URL.createObjectURL(
-    new Blob([source], { type: "text/javascript" }),
-  );
-  const bootstrap = WORKER_BOOTSTRAP_TEMPLATE.replaceAll(
-    "%USER_URL_PLACEHOLDER%",
-    userUrl,
-  );
-  const blob = new Blob([bootstrap], { type: "text/javascript" });
+  const blob = new Blob([wrapWorkerSource(source)], {
+    type: "text/javascript",
+  });
   return new Worker(URL.createObjectURL(blob), { type: "module" });
 }
 

@@ -18,33 +18,22 @@
           if (event.source !== window.parent) return;
           const message = event.data;
           if (!message || typeof message !== "object") return;
-          if (message.type === "init")
-            init(message.source, message.bootstrapTemplate);
+          if (message.type === "init") init(message.workerSource);
           else if (message.type === "send" && worker)
             worker.postMessage(message.payload);
           else if (message.type === "terminate" && worker) worker.terminate();
         });
 
-        function init(source, bootstrapTemplate) {
+        function init(workerSource) {
           if (worker) return;
-          let userUrl = null;
           try {
-            const userBlob = new Blob([source], { type: "text/javascript" });
-            userUrl = URL.createObjectURL(userBlob);
-            const bootstrap = bootstrapTemplate.replaceAll(
-              "%USER_URL_PLACEHOLDER%",
-              userUrl,
-            );
-            const bootstrapBlob = new Blob([bootstrap], {
+            const blob = new Blob([workerSource], {
               type: "text/javascript",
             });
-            const bootstrapUrl = URL.createObjectURL(bootstrapBlob);
-            worker = new Worker(bootstrapUrl, { type: "module" });
-            URL.revokeObjectURL(bootstrapUrl);
-            // Defer revoking userUrl until the worker has had a chance to import
-            setTimeout(() => URL.revokeObjectURL(userUrl), 5000);
+            const workerUrl = URL.createObjectURL(blob);
+            worker = new Worker(workerUrl, { type: "module" });
+            URL.revokeObjectURL(workerUrl);
           } catch (error) {
-            if (userUrl) URL.revokeObjectURL(userUrl);
             window.parent.postMessage(
               {
                 type: "sandbox-ready",
