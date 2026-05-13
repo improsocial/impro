@@ -9,6 +9,27 @@ function seedInstalled(mockServer) {
   ];
 }
 
+const REMOTE_ID = "remote-themes";
+const REMOTE_REGISTRY_ENTRY = {
+  id: REMOTE_ID,
+  name: "Remote Themes",
+  author: "alice",
+  repo: "alice/remote-themes",
+  description: "Adds extra themes",
+};
+
+function seedRemoteInstalled(mockServer, { installedVersion, liveVersion }) {
+  mockServer.registryEntries = [REMOTE_REGISTRY_ENTRY];
+  mockServer.installedPlugins = [
+    { id: REMOTE_ID, version: installedVersion, enabled: false },
+  ];
+  mockServer.liveManifest = {
+    id: REMOTE_ID,
+    name: REMOTE_REGISTRY_ENTRY.name,
+    version: liveVersion,
+  };
+}
+
 test.describe("Settings plugins view", () => {
   test("lists installed plugins with manifest info", async ({ page }) => {
     const mockServer = new MockServer();
@@ -115,6 +136,98 @@ test.describe("Settings plugins view", () => {
 
     await expect(sampleItem).toBeVisible();
     await expect(page.locator(".plugin-list-item")).toHaveCount(1);
+  });
+
+  test("check for updates shows toast and no Update button when up to date", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    seedRemoteInstalled(mockServer, {
+      installedVersion: "1.0.0",
+      liveVersion: "1.0.0",
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/plugins");
+
+    const view = page.locator("#settings-plugins-view");
+    const headerButton = view.locator(".plugin-check-updates-button");
+    await expect(headerButton).toContainText("Check for updates", {
+      timeout: 10000,
+    });
+    await headerButton.click();
+
+    await expect(page.locator(".toast")).toContainText(
+      "All plugins up to date",
+    );
+    await expect(headerButton).toContainText("Check for updates");
+    await expect(view.locator(".plugin-update-button")).toHaveCount(0);
+  });
+
+  test("check for updates surfaces per-plugin Update button", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    seedRemoteInstalled(mockServer, {
+      installedVersion: "1.0.0",
+      liveVersion: "1.0.1",
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/plugins");
+
+    const view = page.locator("#settings-plugins-view");
+    const headerButton = view.locator(".plugin-check-updates-button");
+    await expect(headerButton).toContainText("Check for updates", {
+      timeout: 10000,
+    });
+    await headerButton.click();
+
+    await expect(page.locator(".toast")).toContainText("1 update available");
+    await expect(headerButton).toContainText("Update all");
+
+    const sampleItem = view.locator(".plugin-list-item", {
+      hasText: "Remote Themes",
+    });
+    const updateButton = sampleItem.locator(".plugin-update-button");
+    await expect(updateButton).toBeVisible();
+    await updateButton.click();
+
+    await expect(page.locator(".toast").last()).toContainText(
+      "Updated Remote Themes to v1.0.1",
+    );
+    await expect(sampleItem.locator(".plugin-update-button")).toHaveCount(0);
+    await expect(headerButton).toContainText("Check for updates");
+  });
+
+  test("Update all updates every outdated plugin", async ({ page }) => {
+    const mockServer = new MockServer();
+    seedRemoteInstalled(mockServer, {
+      installedVersion: "1.0.0",
+      liveVersion: "1.0.1",
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/plugins");
+
+    const view = page.locator("#settings-plugins-view");
+    const headerButton = view.locator(".plugin-check-updates-button");
+    await expect(headerButton).toContainText("Check for updates", {
+      timeout: 10000,
+    });
+    await headerButton.click();
+    await expect(headerButton).toContainText("Update all");
+
+    await headerButton.click();
+
+    await expect(page.locator(".toast").last()).toContainText(
+      "Updated 1 plugin",
+    );
+    await expect(view.locator(".plugin-update-button")).toHaveCount(0);
+    await expect(headerButton).toContainText("Check for updates");
   });
 
   test("enabling a plugin via toggle navigates to settings link", async ({

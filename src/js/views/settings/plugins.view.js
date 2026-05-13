@@ -30,6 +30,9 @@ class SettingsPluginsView extends View {
       enablingIds: new Set(),
       disablingIds: new Set(),
       reloading: false,
+      checkingForUpdates: false,
+      updatingAll: false,
+      updatingIds: new Set(),
     };
 
     async function loadPlugins() {
@@ -74,6 +77,71 @@ class SettingsPluginsView extends View {
       }
     }
 
+    async function checkForUpdates() {
+      if (state.checkingForUpdates) return;
+      state.checkingForUpdates = true;
+      renderPage();
+      try {
+        const updates = await pluginService.checkForUpdates();
+        if (updates.size === 0) {
+          showToast("All plugins up to date");
+        } else {
+          showToast(
+            `${updates.size} update${updates.size === 1 ? "" : "s"} available`,
+          );
+        }
+      } catch (e) {
+        showToast("Failed to check for updates", { style: "error" });
+      } finally {
+        state.checkingForUpdates = false;
+        renderPage();
+      }
+    }
+
+    async function updatePlugin(plugin) {
+      state.updatingIds.add(plugin.id);
+      renderPage();
+      try {
+        const result = await pluginService.updatePlugin(plugin.id);
+        if (result?.updated) {
+          showToast(`Updated ${plugin.manifest.name} to v${result.version}`, {
+            style: "success",
+          });
+          await loadPlugins();
+        }
+      } catch (e) {
+        showToast(`Failed to update ${plugin.manifest.name}`, {
+          style: "error",
+        });
+      } finally {
+        state.updatingIds.delete(plugin.id);
+        renderPage();
+      }
+    }
+
+    async function updateAllPlugins() {
+      if (state.updatingAll) return;
+      state.updatingAll = true;
+      renderPage();
+      try {
+        const { updated, failed } = await pluginService.updateAllPlugins();
+        if (failed.length > 0) {
+          showToast(`Updated ${updated.length}, failed ${failed.length}`, {
+            style: "error",
+          });
+        } else {
+          showToast(
+            `Updated ${updated.length} plugin${updated.length === 1 ? "" : "s"}`,
+            { style: "success" },
+          );
+        }
+        await loadPlugins();
+      } finally {
+        state.updatingAll = false;
+        renderPage();
+      }
+    }
+
     async function togglePlugin(plugin) {
       const pendingSet = plugin.enabled
         ? state.disablingIds
@@ -108,6 +176,9 @@ class SettingsPluginsView extends View {
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
       const pluginsInfo = pluginService.getPluginsInfo();
+      const availableUpdates = pluginService.getAvailableUpdates();
+      const hasAvailableUpdates =
+        availableUpdates !== null && availableUpdates.size > 0;
       render(
         html`<div id="settings-plugins-view">
           ${mainLayoutTemplate({
@@ -145,14 +216,33 @@ class SettingsPluginsView extends View {
                 </a>
                 <div class="installed-plugins-header">
                   <h2>Installed plugins</h2>
-                  <button
-                    class="plugin-reload-button"
-                    aria-label="Reload plugins"
-                    ?disabled=${state.reloading}
-                    @click=${() => reloadPlugins()}
-                  >
-                    ${reloadIconTemplate()}
-                  </button>
+                  <div class="installed-plugins-header-actions">
+                    <button
+                      class="plugin-check-updates-button rounded-button rounded-button-primary"
+                      ?disabled=${state.checkingForUpdates || state.updatingAll}
+                      @click=${() =>
+                        hasAvailableUpdates
+                          ? updateAllPlugins()
+                          : checkForUpdates()}
+                    >
+                      ${state.checkingForUpdates || state.updatingAll
+                        ? html`<div
+                            class="loading-spinner"
+                            data-testid="loading-spinner"
+                          ></div>`
+                        : hasAvailableUpdates
+                          ? "Update all"
+                          : "Check for updates"}
+                    </button>
+                    <button
+                      class="plugin-reload-button"
+                      aria-label="Reload plugins"
+                      ?disabled=${state.reloading}
+                      @click=${() => reloadPlugins()}
+                    >
+                      ${reloadIconTemplate()}
+                    </button>
+                  </div>
                 </div>
                 ${!pluginsInfo
                   ? html`<p class="plugin-list-loading">Loading…</p>`
@@ -168,10 +258,16 @@ class SettingsPluginsView extends View {
                       </div>`
                     : html`<ul class="plugin-list">
                         ${pluginsInfo.map((plugin) => {
+                          const hasUpdate =
+                            availableUpdates?.has(plugin.id) ?? false;
+                          const isUpdating =
+                            state.updatingIds.has(plugin.id) ||
+                            (state.updatingAll && hasUpdate);
                           const isPending =
                             state.uninstallingIds.has(plugin.id) ||
                             state.enablingIds.has(plugin.id) ||
-                            state.disablingIds.has(plugin.id);
+                            state.disablingIds.has(plugin.id) ||
+                            isUpdating;
                           return html`
                             <li
                               class="plugin-list-item ${state.uninstallingIds.has(
@@ -205,6 +301,19 @@ class SettingsPluginsView extends View {
                                 </div>
                               </div>
                               <div class="plugin-list-item-controls">
+                                ${hasUpdate
+                                  ? html`<button
+                                      class="plugin-update-button rounded-button rounded-button-primary"
+                                      @click=${() => updatePlugin(plugin)}
+                                    >
+                                      ${isUpdating
+                                        ? html`<div
+                                            class="loading-spinner"
+                                            data-testid="loading-spinner"
+                                          ></div>`
+                                        : "Update"}
+                                    </button>`
+                                  : ""}
                                 ${plugin.enabled && plugin.hasSettings
                                   ? html`<a
                                       class="plugin-settings-link"

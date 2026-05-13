@@ -23,6 +23,7 @@ export class PluginService extends EventEmitter {
       settingTabs: new Map(),
     };
     this._pluginsInfo = null;
+    this._availableUpdates = null;
     this.localOnly = localOnly;
     this.registry = new PluginRegistry(PLUGIN_REGISTRY_URL, { localOnly });
     this.pluginCache = new PluginCache();
@@ -180,6 +181,37 @@ export class PluginService extends EventEmitter {
     return this._pluginsInfo;
   }
 
+  getAvailableUpdates() {
+    return this._availableUpdates;
+  }
+
+  async checkForUpdates() {
+    const installed = this._getInstalledPluginsPreference();
+    const results = await Promise.allSettled(
+      installed.map(async (entry) => {
+        const listing = await this.registry
+          .getPluginListing(entry.id)
+          .catch(() => null);
+        if (listing?.local) return null;
+        const liveManifest = await this.sourceProvider.getLiveManifest(
+          entry.id,
+        );
+        if (compareVersions(liveManifest.version, entry.version) > 0) {
+          return { id: entry.id, version: liveManifest.version };
+        }
+        return null;
+      }),
+    );
+    const updates = new Map();
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        updates.set(result.value.id, result.value.version);
+      }
+    }
+    this._availableUpdates = updates;
+    return updates;
+  }
+
   async reloadPlugins() {
     const installedPluginsPreference = this._getInstalledPluginsPreference();
     const results = await Promise.allSettled(
@@ -270,16 +302,6 @@ export class PluginService extends EventEmitter {
     await this.preferencesProvider.savePreferences(preferences);
   }
 
-  async updatePlugins() {
-    const installedPluginsPreference = this._getInstalledPluginsPreference();
-    return await Promise.all(
-      installedPluginsPreference.map(async (plugin) => {
-        const result = await this.updatePlugin(plugin.id);
-        return { pluginId: plugin.id, result };
-      }),
-    );
-  }
-
   async _reconcileCache(installed) {
     const urlLists = await Promise.all(
       installed.map((entry) =>
@@ -367,9 +389,32 @@ export class PluginService extends EventEmitter {
         version: newVersion,
       }));
       await this.pluginBridge.reloadPlugin(pluginId, newVersion);
+      this._availableUpdates?.delete(pluginId);
       return { updated: true, version: newVersion };
     }
+    this._availableUpdates?.delete(pluginId);
     return { updated: false };
+  }
+
+  async updateAllPlugins() {
+    if (!this._availableUpdates || this._availableUpdates.size === 0) {
+      return { updated: [], failed: [] };
+    }
+    const ids = [...this._availableUpdates.keys()];
+    const results = await Promise.allSettled(
+      ids.map((pluginId) => this.updatePlugin(pluginId)),
+    );
+    const updated = [];
+    const failed = [];
+    results.forEach((result, index) => {
+      const pluginId = ids[index];
+      if (result.status === "fulfilled" && result.value?.updated) {
+        updated.push(pluginId);
+      } else if (result.status === "rejected") {
+        failed.push(pluginId);
+      }
+    });
+    return { updated, failed };
   }
 
   async _updatePluginPreferenceEntry(pluginId, updateFunc) {

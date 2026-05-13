@@ -228,9 +228,9 @@ t.describe("SourceProvider.ensureManifest", (it) => {
 });
 
 t.describe("SourceProvider.getLiveManifest", (it) => {
-  it("hits raw.githubusercontent.com at HEAD", async () => {
+  it("hits raw.githubusercontent.com at main", async () => {
     const liveUrl =
-      "https://raw.githubusercontent.com/ow/alpha/HEAD/manifest.json";
+      "https://raw.githubusercontent.com/ow/alpha/main/manifest.json";
     let fetchedUrl = null;
     const fetchImpl = async (url) => {
       fetchedUrl = url;

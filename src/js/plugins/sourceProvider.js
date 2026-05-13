@@ -86,7 +86,7 @@ export class SourceProvider {
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return parsePluginManifest(pluginId, await response.json());
     }
-    const url = remoteAssetUrl(listing.repo, "HEAD", "manifest.json");
+    const url = remoteAssetUrl(listing.repo, "main", "manifest.json");
     const response = await this._fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return parsePluginManifest(pluginId, await response.json());

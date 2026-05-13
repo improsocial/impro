@@ -7596,6 +7596,16 @@ image-cropper {
   font-size: 16px;
 }
 
+.installed-plugins-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.plugin-check-updates-button {
+  min-height: 37px;
+}
+
 .plugin-reload-button {
   display: inline-flex;
   align-items: center;
