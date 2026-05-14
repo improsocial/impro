@@ -243,7 +243,7 @@ export class MockServer {
       }),
     );
     await page.route(
-      "**/raw.githubusercontent.com/*/*/HEAD/manifest.json",
+      "**/raw.githubusercontent.com/*/*/main/manifest.json",
       (route) => {
         const live = this.liveManifest ?? {
           id: this.registryEntries[0]?.id ?? "remote-plugin",

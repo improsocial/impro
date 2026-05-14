@@ -7376,7 +7376,7 @@ image-cropper {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
+  gap: 24px;
   padding: 16px;
   border-bottom: 1px solid var(--border-color, #e0e0e0);
 }

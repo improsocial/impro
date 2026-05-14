@@ -1,10 +1,11 @@
+import { isDev } from "/js/utils.js";
+
 const CACHE_TTL_MS = 120_000;
 const LOCAL_INDEX_URL = "/plugins-local/index.json";
 
 export class PluginRegistry {
-  constructor(url, { fetchImpl, localOnly = false } = {}) {
+  constructor(url, { fetchImpl } = {}) {
     this.url = url;
-    this.localOnly = localOnly;
     this._fetch = fetchImpl ?? ((...args) => window.fetch(...args));
     this._cache = null;
   }
@@ -18,8 +19,8 @@ export class PluginRegistry {
       return this._cache.listings;
     }
     const [remoteListings, localListings] = await Promise.all([
-      this.localOnly ? [] : this._fetchRemoteListings(),
-      this._fetchLocalListings(),
+      this._fetchRemoteListings(),
+      isDev() ? this._fetchLocalListings() : [],
     ]);
     const localSet = new Set(localListings.map((listing) => listing.id));
     const listings = [

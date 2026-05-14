@@ -10,11 +10,7 @@ import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
 export class PluginService extends EventEmitter {
-  constructor(
-    preferencesProvider,
-    session,
-    { sandbox = true, localOnly = false } = {},
-  ) {
+  constructor(preferencesProvider, session) {
     super();
     this.registries = {
       sidebarItems: new Set(),
@@ -24,13 +20,10 @@ export class PluginService extends EventEmitter {
     };
     this._pluginsInfo = null;
     this._availableUpdates = null;
-    this.localOnly = localOnly;
-    this.registry = new PluginRegistry(PLUGIN_REGISTRY_URL, { localOnly });
+    this.registry = new PluginRegistry(PLUGIN_REGISTRY_URL);
     this.pluginCache = new PluginCache();
     this.sourceProvider = new SourceProvider(this.registry, this.pluginCache);
-    this.pluginBridge = new PluginBridge(this.sourceProvider, {
-      sandbox,
-    });
+    this.pluginBridge = new PluginBridge(this.sourceProvider);
     this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.preferencesProvider = preferencesProvider;
     this.session = session;

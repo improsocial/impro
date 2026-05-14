@@ -132,9 +132,7 @@
           chatAppViewServiceDid: appViewConfig.chatServiceDid,
         });
         const preferencesProvider = new PreferencesProvider(api);
-        const pluginService = new PluginService(preferencesProvider, session, {
-          sandbox: !window.env.playwright,
-        });
+        const pluginService = new PluginService(preferencesProvider, session);
 
         // Dev helpers
         window.enablePlugin = pluginService.enablePlugin.bind(pluginService);

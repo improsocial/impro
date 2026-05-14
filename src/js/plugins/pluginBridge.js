@@ -147,8 +147,8 @@ class PluginInstance {
     }
   }
 
-  static async loadFromSource(pluginId, source, callbacks, sandbox) {
-    const worker = sandbox
+  static async loadFromSource(pluginId, source, callbacks) {
+    const worker = !window.env.playwright // don't sandbox in e2e tests
       ? await createSandboxedWorker(source)
       : await createDirectWorker(source);
     const instance = new PluginInstance(pluginId, worker, callbacks);
@@ -204,9 +204,8 @@ class PluginInstance {
 }
 
 export class PluginBridge {
-  constructor(sourceProvider, { sandbox = true } = {}) {
+  constructor(sourceProvider) {
     this._provider = sourceProvider;
-    this._sandbox = sandbox;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
@@ -282,7 +281,6 @@ export class PluginBridge {
           onHostCall: (instance, message) =>
             this._handleHostCall(instance, message),
         },
-        this._sandbox,
       );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);

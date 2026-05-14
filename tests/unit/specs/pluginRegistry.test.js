@@ -101,24 +101,6 @@ t.describe("PluginRegistry.getPluginListings", (it) => {
     assertEquals(registryCalls.length, 2);
   });
 
-  it("skips the remote fetch when localOnly is set", async () => {
-    const { fetchImpl, calls } = fakeFetcher({
-      [REGISTRY_URL]: SAMPLE,
-      [LOCAL_INDEX_URL]: [
-        { id: "gamma", name: "Gamma", author: "me", description: "local" },
-      ],
-    });
-    const registry = new PluginRegistry(REGISTRY_URL, {
-      fetchImpl,
-      localOnly: true,
-    });
-    const listings = await registry.getPluginListings();
-    assertEquals(listings.length, 1);
-    assertEquals(listings[0].id, "gamma");
-    assertEquals(listings[0].local, true);
-    assert(!calls.includes(REGISTRY_URL));
-  });
-
   it("tolerates a missing local index", async () => {
     const { fetchImpl } = fakeFetcher({ [REGISTRY_URL]: SAMPLE });
     const registry = new PluginRegistry(REGISTRY_URL, { fetchImpl });

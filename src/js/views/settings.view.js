@@ -46,7 +46,7 @@ class SettingsView extends View {
       },
       {
         icon: boxIconTemplate,
-        label: "Plugins",
+        label: "Plugins (beta)",
         url: "/settings/plugins",
         enabled: true,
       },

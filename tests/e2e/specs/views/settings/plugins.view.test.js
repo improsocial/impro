@@ -159,7 +159,7 @@ test.describe("Settings plugins view", () => {
     await headerButton.click();
 
     await expect(page.locator(".toast")).toContainText(
-      "All plugins up to date",
+      "All plugins are up to date",
     );
     await expect(headerButton).toContainText("Check for updates");
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
