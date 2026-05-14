@@ -393,7 +393,7 @@ class SearchView extends View {
               postComposerService.composePost({ currentUser }),
             children: html`
               <main>
-                ${headerTemplate({ title: "Search" })}
+                ${headerTemplate({ title: "Search", fixedHeight: true })}
                 <div class="search-input-container">
                   ${searchIconTemplate()}
                   <input

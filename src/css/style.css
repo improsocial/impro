@@ -179,7 +179,8 @@ html {
   /* sizing */
   --font-size: 15px;
   --hair: 1px;
-  --header-height: 48px;
+  --fixed-header-height: 46px;
+  --chat-detail-header-height: 56px;
   --footer-height: 55px;
   --message-input-min-height: 70px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
@@ -819,6 +820,14 @@ header {
   margin: 0 auto;
   left: 0;
   right: 0;
+}
+
+header.fixed-height-header {
+  height: var(--fixed-header-height);
+}
+
+#chat-detail-view .header-row {
+  height: var(--chat-detail-header-height);
 }
 
 body.scroll-locked header {
@@ -3324,8 +3333,8 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  min-height: calc(100vh - var(--header-height));
-  min-height: calc(100dvh - var(--header-height));
+  min-height: calc(100vh - var(--chat-detail-header-height));
+  min-height: calc(100dvh - var(--chat-detail-header-height));
 }
 
 .chat-detail-main .message-list {
@@ -4097,7 +4106,7 @@ emoji-picker {
 .search-input-container {
   background: var(--background-color);
   position: sticky;
-  top: var(--header-height);
+  top: var(--fixed-header-height);
   display: flex;
   flex-direction: column;
   width: 100%;
@@ -4227,7 +4236,7 @@ emoji-picker {
 .hashtag-tab-bar-container {
   background: var(--background-color);
   position: sticky;
-  top: var(--header-height);
+  top: var(--fixed-header-height);
   display: flex;
   flex-direction: column;
   width: 100%;
