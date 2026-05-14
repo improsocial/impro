@@ -288,6 +288,24 @@ export function getCurrentTimestamp() {
   return new Date().toISOString();
 }
 
+export function getBrowserLanguages() {
+  if (navigator.languages && navigator.languages.length) {
+    return [...navigator.languages];
+  }
+  if (navigator.language) {
+    return [navigator.language];
+  }
+  return [];
+}
+
+export function getPostLangs() {
+  const tags = getBrowserLanguages()
+    .map((tag) => tag.split("-")[0].toLowerCase())
+    .filter(Boolean);
+  const deduped = unique(tags);
+  return deduped.length ? deduped.slice(0, 3) : ["en"];
+}
+
 export function sanitizeUri(uri) {
   let parsedUri = null;
   try {

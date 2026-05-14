@@ -12,8 +12,9 @@ function makeApi() {
       mimeType: "image/jpeg",
       size: 100,
     }),
-    createPost: async ({ embed }) => {
+    createPost: async ({ embed, langs }) => {
       api.lastEmbed = embed;
+      api.lastLangs = langs;
       return { uri: "at://did:plc:user/app.bsky.feed.post/abc" };
     },
     getPost: async () => ({
@@ -88,6 +89,14 @@ t.describe("video embed preparation", (it) => {
       video: { ...videoFixture(), alt: "" },
     });
     assert(!("alt" in api.lastEmbed));
+  });
+
+  it("forwards langs to api.createPost", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api);
+    await pc.createPost({ postText: "hi" });
+    assert(Array.isArray(api.lastLangs));
+    assert(api.lastLangs.length > 0);
   });
 });
 

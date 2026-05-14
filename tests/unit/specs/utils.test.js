@@ -15,6 +15,7 @@ import {
   buildQueryString,
   ImageLoader,
   compareVersions,
+  getPostLangs,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -629,6 +630,61 @@ t.describe("compareVersions", (it) => {
     assertEquals(compareVersions("1.x.3", "1.0.3"), 0);
     assertEquals(compareVersions(undefined, "0.0.1"), -1);
     assertEquals(compareVersions(null, null), 0);
+  });
+});
+
+t.describe("getPostLangs", (it, { beforeEach, afterEach }) => {
+  let originalLanguages;
+  let originalLanguage;
+
+  beforeEach(() => {
+    originalLanguages = Object.getOwnPropertyDescriptor(navigator, "languages");
+    originalLanguage = Object.getOwnPropertyDescriptor(navigator, "language");
+  });
+
+  afterEach(() => {
+    if (originalLanguages) {
+      Object.defineProperty(navigator, "languages", originalLanguages);
+    }
+    if (originalLanguage) {
+      Object.defineProperty(navigator, "language", originalLanguage);
+    }
+  });
+
+  function setLanguages(languages, language) {
+    Object.defineProperty(navigator, "languages", {
+      value: languages,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "language", {
+      value: language,
+      configurable: true,
+    });
+  }
+
+  it("returns base language codes from navigator.languages", () => {
+    setLanguages(["en-US", "fr-FR"], "en-US");
+    assertEquals(getPostLangs(), ["en", "fr"]);
+  });
+
+  it("dedupes language codes", () => {
+    setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
+    assertEquals(getPostLangs(), ["en", "fr"]);
+  });
+
+  it("limits to top 3 codes", () => {
+    setLanguages(["en", "fr", "de", "es", "ja"], "en");
+    assertEquals(getPostLangs(), ["en", "fr", "de"]);
+  });
+
+  it("falls back to navigator.language when languages is empty", () => {
+    setLanguages([], "es-MX");
+    assertEquals(getPostLangs(), ["es"]);
+  });
+
+  it("falls back to ['en'] when no locale info is available", () => {
+    setLanguages([], "");
+    assertEquals(getPostLangs(), ["en"]);
   });
 });
 

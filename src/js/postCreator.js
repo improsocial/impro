@@ -1,4 +1,4 @@
-import { wait } from "/js/utils.js";
+import { getPostLangs, wait } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 
 export class PostCreator {
@@ -69,6 +69,7 @@ export class PostCreator {
       facets,
       embed,
       reply,
+      langs: getPostLangs(),
     });
 
     // Get full post from the app view

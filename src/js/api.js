@@ -880,11 +880,12 @@ export class Api {
     return res.data;
   }
 
-  async createPost({ text, facets, embed, reply }) {
+  async createPost({ text, facets, embed, reply, langs }) {
     const record = {
       text,
       facets,
       createdAt: getCurrentTimestamp(),
+      langs,
     };
     if (embed) {
       record.embed = embed;
