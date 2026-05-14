@@ -4623,16 +4623,28 @@ emoji-picker {
   flex-shrink: 0;
   margin-top: 16px;
   padding: 8px 16px calc(var(--safe-area-inset-bottom) + 8px);
-  border-top: var(--hair) solid var(--post-border-color);
   position: sticky;
   bottom: 0;
   background-color: light-dark(var(--white), var(--mid-gray));
 }
 
+/* workaround for iOS Safari subpixel rounding */
+.post-composer-bottom-bar::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--post-border-color);
+  transform: scaleY(0.5);
+  transform-origin: top;
+}
+
 @media (min-width: 800px) {
   .post-composer-bottom-bar {
     padding: 8px 10px;
-    position: static;
+    position: relative;
   }
 }
 
