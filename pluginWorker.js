@@ -176,13 +176,12 @@ export class Plugin {
     settingsChangeListeners.add(callback);
   }
 
-  addFeedFilter(filterId, callback = () => {}) {
+  addFeedFilter(callback = () => {}) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, callback);
     self.postMessage({
       type: "register",
       target: "feedFilter",
-      filterId,
       handlerId,
     });
   }

@@ -92,7 +92,6 @@ export class PluginService extends EventEmitter {
     this.pluginBridge.addRegistrationTarget("feedFilter", (plugin, message) => {
       const entry = {
         pluginId: plugin.pluginId,
-        filterId: plugin.filterId,
         invoke: (feedURI, feedItems) =>
           plugin.call(message.handlerId, feedURI, feedItems),
       };
@@ -516,7 +515,7 @@ export class PluginService extends EventEmitter {
         filteredFeedItems = { ...filteredFeedItems, ...results };
       } catch (e) {
         console.error(
-          `Plugin ${feedFilter.pluginId} feed filter '${feedFilter.filterId}' raised an exception`,
+          `Plugin ${feedFilter.pluginId} feed filter raised an exception`,
           e,
         );
       }
