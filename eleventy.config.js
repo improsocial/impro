@@ -11,18 +11,23 @@ export default async function (eleventyConfig) {
   // Prevent sandbox from being treated as a template
   eleventyConfig.ignores.add("src/js/plugins/sandbox.html");
 
+  const isDev = process.env.NODE_ENV !== "production";
+
   // Add watch targets for local plugins
-  eleventyConfig.addWatchTarget("plugins-local");
-  for (const entry of fs.readdirSync("plugins-local", {
-    withFileTypes: true,
-  })) {
-    if (!entry.isSymbolicLink()) continue;
-    const realPath = fs.realpathSync(path.join("plugins-local", entry.name));
-    eleventyConfig.addWatchTarget(`${realPath}/{manifest.json,main.js}`);
+  if (isDev) {
+    eleventyConfig.addWatchTarget("plugins-local");
+    for (const entry of fs.readdirSync("plugins-local", {
+      withFileTypes: true,
+    })) {
+      if (!entry.isSymbolicLink()) continue;
+      const realPath = fs.realpathSync(path.join("plugins-local", entry.name));
+      eleventyConfig.addWatchTarget(`${realPath}/{manifest.json,main.js}`);
+    }
   }
 
   // Copy local plugins into build and generate index
   eleventyConfig.on("eleventy.before", () => {
+    if (!isDev) return;
     const localPluginsDir = "plugins-local";
     const listings = [];
     fs.mkdirSync("build/plugins-local", { recursive: true });
