@@ -23,8 +23,11 @@ export class PluginService extends EventEmitter {
       settingTabs: new Map(),
     };
     this._availableUpdates = null;
+    this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
-    this.localRegistry = isDev() ? new LocalPluginRegistry() : null;
+    this.localRegistry = this.localPluginsEnabled
+      ? new LocalPluginRegistry()
+      : null;
     this.pluginCache = new PluginCache();
     this.sourceProvider = new SourceProvider(this.pluginCache);
     this.pluginBridge = new PluginBridge(this.sourceProvider);
@@ -149,7 +152,11 @@ export class PluginService extends EventEmitter {
   }
 
   async loadEnabledPlugins() {
-    const enabledPlugins = this.prefManager.getEnabledPlugins();
+    const enabledPlugins = this.prefManager
+      .getEnabledPlugins()
+      .filter(
+        (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
+      );
     const { erroredPlugins } =
       await this.pluginBridge.loadPlugins(enabledPlugins);
     if (erroredPlugins.length) {
@@ -222,7 +229,10 @@ export class PluginService extends EventEmitter {
 
   getPluginsInfo() {
     const installedPlugins = this.prefManager.getInstalledPlugins();
-    return installedPlugins.map((entry) => {
+    const visiblePlugins = this.localPluginsEnabled
+      ? installedPlugins
+      : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
+    return visiblePlugins.map((entry) => {
       return {
         id: entry.id,
         name: entry.name,

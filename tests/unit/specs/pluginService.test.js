@@ -73,6 +73,7 @@ function makeService({
       remoteListings.find((listing) => listing.id === id) ?? null,
     getListings: async () => remoteListings,
   };
+  service.localPluginsEnabled = localListings != null;
   service.localRegistry = localListings
     ? { getListings: async () => localListings }
     : null;
@@ -264,6 +265,42 @@ t.describe("loadEnabledPlugins", (it) => {
     );
   });
 
+  it("skips __LOCAL entries when localPluginsEnabled is false", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
+    ];
+    const loadPluginsCalls = [];
+    service.pluginBridge.loadPlugins = async (entries) => {
+      loadPluginsCalls.push(entries);
+      return { loadedPlugins: entries, erroredPlugins: [] };
+    };
+    await service.loadEnabledPlugins();
+    assertEquals(
+      loadPluginsCalls[0].map((entry) => entry.id),
+      ["a"],
+    );
+  });
+
+  it("loads __LOCAL entries when localPluginsEnabled is true", async () => {
+    const { service, state } = makeService({ localListings: [] });
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      { id: "b__LOCAL", version: "1.0.0", repo: null, enabled: true },
+    ];
+    const loadPluginsCalls = [];
+    service.pluginBridge.loadPlugins = async (entries) => {
+      loadPluginsCalls.push(entries);
+      return { loadedPlugins: entries, erroredPlugins: [] };
+    };
+    await service.loadEnabledPlugins();
+    assertEquals(
+      loadPluginsCalls[0].map((entry) => entry.id),
+      ["a", "b__LOCAL"],
+    );
+  });
+
   it("disables plugins reported as errored by the bridge", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [
@@ -451,6 +488,29 @@ t.describe("updateAllPlugins", (it) => {
     const result = await service.updateAllPlugins();
     assertEquals(result.updated, ["a"]);
     assertEquals(result.failed, ["b"]);
+  });
+});
+
+t.describe("getPluginsInfo", (it) => {
+  it("hides __LOCAL plugins when localPluginsEnabled is false", () => {
+    const { service, state } = makeService({});
+    state.installedPlugins = [
+      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+      { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
+    ];
+    const info = service.getPluginsInfo();
+    assertEquals(info.length, 1);
+    assertEquals(info[0].id, "alpha");
+  });
+
+  it("includes __LOCAL plugins when localPluginsEnabled is true", () => {
+    const { service, state } = makeService({ localListings: [] });
+    state.installedPlugins = [
+      { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
+      { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
+    ];
+    const info = service.getPluginsInfo();
+    assertEquals(info.length, 2);
   });
 });
 
