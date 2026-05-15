@@ -31,6 +31,7 @@ class SettingsCommunityPluginsView extends View {
       try {
         state.entries = await pluginService.listRegistryPlugins();
       } catch (error) {
+        console.error(error);
         state.error = error.message ?? String(error);
       }
       renderPage();
@@ -64,7 +65,8 @@ class SettingsCommunityPluginsView extends View {
             : `Installed ${entry.name}`,
           { style: wasInstalled ? "default" : "success" },
         );
-      } catch (error) {
+      } catch (e) {
+        console.error(e);
         showToast(
           wasInstalled
             ? `Failed to uninstall ${entry.name}`
@@ -98,13 +100,13 @@ class SettingsCommunityPluginsView extends View {
                 onClickBackButton: () => window.router.go("/settings/plugins"),
               })}
               <main>
-                ${!state.entries
-                  ? "" // loading is usually quick, so don't show a loading state
-                  : state.error
-                    ? html`<div class="error-state">
-                        <div>Failed to load plugins</div>
-                        <button @click=${() => loadEntries()}>Try again</button>
-                      </div>`
+                ${state.error
+                  ? html`<div class="error-state">
+                      <div>Failed to load plugins</div>
+                      <button @click=${() => loadEntries()}>Try again</button>
+                    </div>`
+                  : !state.entries
+                    ? "" // loading is usually quick, so don't show a loading state
                     : state.entries.length === 0
                       ? html`<div class="plugins-empty-state">
                           <div class="plugins-empty-state-title">
@@ -125,7 +127,7 @@ class SettingsCommunityPluginsView extends View {
                                 <div class="plugin-list-item-info">
                                   <div class="plugin-list-item-name">
                                     ${entry.name}
-                                    ${entry.local
+                                    ${entry.id.endsWith("__LOCAL")
                                       ? html`<span class="plugin-local-badge"
                                           >local</span
                                         >`

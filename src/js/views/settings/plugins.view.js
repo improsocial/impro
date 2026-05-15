@@ -34,12 +34,6 @@ class SettingsPluginsView extends View {
       updatingAll: false,
       updatingIds: new Set(),
     };
-
-    async function loadPlugins() {
-      await pluginService.loadPluginsInfo();
-      renderPage();
-    }
-
     async function uninstallPlugin(plugin) {
       const confirmed = await confirm(
         `"${plugin.name}" will be uninstalled and its settings will be deleted.`,
@@ -54,7 +48,6 @@ class SettingsPluginsView extends View {
       renderPage();
       try {
         await pluginService.uninstallPlugin(plugin.id);
-        await loadPlugins();
         showToast(`Uninstalled ${plugin.name}`);
       } finally {
         state.uninstallingIds.delete(plugin.id);
@@ -70,6 +63,7 @@ class SettingsPluginsView extends View {
         await pluginService.reloadPlugins();
         showToast("Reloaded plugins");
       } catch (e) {
+        console.error(e);
         showToast("Failed to reload plugins", { style: "error" });
       } finally {
         state.reloading = false;
@@ -107,9 +101,9 @@ class SettingsPluginsView extends View {
           showToast(`Updated ${plugin.name} to v${result.version}`, {
             style: "success",
           });
-          await loadPlugins();
         }
       } catch (e) {
+        console.error(e);
         showToast(`Failed to update ${plugin.name}`, {
           style: "error",
         });
@@ -135,7 +129,6 @@ class SettingsPluginsView extends View {
             { style: "success" },
           );
         }
-        await loadPlugins();
       } finally {
         state.updatingAll = false;
         renderPage();
@@ -162,7 +155,6 @@ class SettingsPluginsView extends View {
             });
           }
         }
-        await loadPlugins();
       } finally {
         pendingSet.delete(plugin.id);
         renderPage();
@@ -240,10 +232,13 @@ class SettingsPluginsView extends View {
                                   : checkForUpdates()}
                             >
                               ${state.checkingForUpdates || state.updatingAll
-                                ? html`<div
-                                    class="loading-spinner"
-                                    data-testid="loading-spinner"
-                                  ></div>`
+                                ? html`${hasAvailableUpdates
+                                      ? "Updating..."
+                                      : "Checking..."}
+                                    <div
+                                      class="loading-spinner"
+                                      data-testid="loading-spinner"
+                                    ></div>`
                                 : hasAvailableUpdates
                                   ? "Update all"
                                   : "Check for updates"}
@@ -282,7 +277,7 @@ class SettingsPluginsView extends View {
                                 <div class="plugin-list-item-info">
                                   <div class="plugin-list-item-name">
                                     ${plugin.name}
-                                    ${plugin.local
+                                    ${plugin.id.endsWith("__LOCAL")
                                       ? html`<span class="plugin-local-badge"
                                           >local</span
                                         >`
@@ -360,13 +355,11 @@ class SettingsPluginsView extends View {
     root.addEventListener("page-enter", async () => {
       renderPage();
       dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
-      await loadPlugins();
     });
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
       renderPage();
-      loadPlugins();
     });
 
     notificationService?.on("update", () => renderPage());

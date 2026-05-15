@@ -235,13 +235,14 @@ export class PluginBridge {
     return handler(pluginInstance, message);
   }
 
+  // Request: {id, version, repo?}
   async loadPlugins(pluginRequests) {
     const loadedPlugins = [];
     const erroredPlugins = [];
     await Promise.all(
-      pluginRequests.map(async ({ id, version }) => {
+      pluginRequests.map(async ({ id, version, repo }) => {
         try {
-          const plugin = await this.loadPlugin(id, version);
+          const plugin = await this.loadPlugin(id, version, repo);
           loadedPlugins.push(plugin);
         } catch (error) {
           erroredPlugins.push({ pluginId: id, version, error });
@@ -254,18 +255,18 @@ export class PluginBridge {
     };
   }
 
-  async loadPlugin(pluginId, version) {
+  async loadPlugin(pluginId, version, repo) {
     if (this._loadedPlugins.has(pluginId)) return;
     let manifest;
     try {
-      manifest = await this._provider.getManifest(pluginId, version);
+      manifest = await this._provider.getManifest(pluginId, version, repo);
     } catch (error) {
       logger.warn(`failed to load "${pluginId}": invalid manifest`, error);
       throw new Error("Failed to load plugin manifest");
     }
     let source;
     try {
-      source = await this._provider.getSource(pluginId, version);
+      source = await this._provider.getSource(pluginId, version, repo);
     } catch (error) {
       logger.error(
         `failed to load "${pluginId}": could not fetch main.js`,
@@ -350,8 +351,8 @@ export class PluginBridge {
     this._loadedPlugins.delete(pluginId);
   }
 
-  async reloadPlugin(pluginId, version) {
+  async reloadPlugin(pluginId, version, repo) {
     this.unloadPlugin(pluginId);
-    return this.loadPlugin(pluginId, version);
+    return this.loadPlugin(pluginId, version, repo);
   }
 }

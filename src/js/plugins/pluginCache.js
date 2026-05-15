@@ -4,20 +4,15 @@ const CACHE_NAME = "plugins-v1";
 // URLs are versioned so new versions should fetch new entries
 
 export class PluginCache {
-  constructor({ cachesImpl, fetchImpl } = {}) {
-    this._caches = cachesImpl ?? window.caches;
-    this._fetch = fetchImpl ?? ((...args) => window.fetch(...args));
-  }
-
   async _getCache() {
-    return await this._caches.open(CACHE_NAME);
+    return await caches.open(CACHE_NAME);
   }
 
   async fetch(url) {
     const cache = await this._getCache();
     let response = await cache.match(url);
     if (!response) {
-      response = await this._fetch(url, { redirect: "follow" });
+      response = await fetch(url, { redirect: "follow" });
       if (!response.ok) throw new Error(`HTTP ${response.status} ${url}`);
       await cache.put(url, response.clone());
     }

@@ -42,12 +42,12 @@ export default async function (eleventyConfig) {
       if (!fs.existsSync(manifestPath) || !fs.existsSync(mainPath)) continue;
       const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
       listings.push({
-        id: manifest.id,
+        id: manifest.id + "__LOCAL",
         name: manifest.name,
         author: manifest.author,
         description: manifest.description,
       });
-      const destDir = path.join("build/plugins-local", entry.name);
+      const destDir = path.join("build/plugins-local", manifest.id + "__LOCAL");
       fs.mkdirSync(destDir, { recursive: true });
       fs.copyFileSync(manifestPath, path.join(destDir, "manifest.json"));
       fs.copyFileSync(mainPath, path.join(destDir, "main.js"));

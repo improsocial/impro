@@ -15,172 +15,191 @@ function jsonResponse(body, { ok = true, status = 200 } = {}) {
   };
 }
 
-function fakeRegistry(listingsById) {
+// Installs a stub for `fetch` (used by SourceProvider for local plugins) on
+// both globalThis and window. Returns `{ calls, restore }`.
+function stubFetch(handler) {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return handler(url, options);
+  };
+  const originalGlobal = globalThis.fetch;
+  const originalWindow = globalThis.window.fetch;
+  globalThis.fetch = fetchImpl;
+  globalThis.window.fetch = fetchImpl;
   return {
-    async getPluginListing(id) {
-      return listingsById[id] ?? null;
+    calls,
+    restore() {
+      globalThis.fetch = originalGlobal;
+      globalThis.window.fetch = originalWindow;
+    },
+  };
+}
+
+function fakePluginCache(handler) {
+  const calls = [];
+  return {
+    calls,
+    async fetch(url) {
+      calls.push(url);
+      return handler(url);
     },
   };
 }
 
 const t = new TestSuite("sourceProviders");
 
-t.describe("SourceProvider with local listings", (it) => {
-  it("fetches local manifest from /plugins-local/", async () => {
-    let fetchedUrl = null;
-    const fetchImpl = async (url) => {
-      fetchedUrl = url;
-      return jsonResponse({ id: "alpha", name: "A", version: "1.0.0" });
-    };
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", name: "A", local: true } }),
-      null,
-      { fetchImpl },
+t.describe("SourceProvider with local plugins", (it, { afterEach }) => {
+  let stub;
+  afterEach(() => stub?.restore());
+
+  it("fetches local manifest from /plugins-local/ and appends __LOCAL", async () => {
+    stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "Alpha", version: "1.0.0" }),
     );
-    const manifest = await provider.getManifest("alpha");
-    assertEquals(fetchedUrl, "/plugins-local/alpha/manifest.json");
+    const provider = new SourceProvider(null);
+    const manifest = await provider.getManifest("alpha__LOCAL");
+    assertEquals(
+      stub.calls[0].url,
+      "/plugins-local/alpha__LOCAL/manifest.json",
+    );
+    assertEquals(manifest.id, "alpha__LOCAL");
     assertEquals(manifest.version, "1.0.0");
   });
 
   it("fetches local source from /plugins-local/", async () => {
-    let fetchedUrl = null;
-    const fetchImpl = async (url) => {
-      fetchedUrl = url;
-      return jsonResponse("alert(1)");
-    };
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", name: "A", local: true } }),
-      null,
-      { fetchImpl },
-    );
-    await provider.getSource("alpha");
-    assertEquals(fetchedUrl, "/plugins-local/alpha/main.js");
+    stub = stubFetch(async () => jsonResponse("alert(1)"));
+    const provider = new SourceProvider(null);
+    const source = await provider.getSource("alpha__LOCAL");
+    assertEquals(stub.calls[0].url, "/plugins-local/alpha__LOCAL/main.js");
+    assertEquals(source, "alert(1)");
   });
 
-  it("rejects manifest with mismatched id", async () => {
-    const fetchImpl = async () =>
-      jsonResponse({ id: "different", name: "A", version: "1.0.0" });
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", name: "A", local: true } }),
-      null,
-      { fetchImpl },
+  it("rejects local manifest with mismatched id", async () => {
+    stub = stubFetch(async () =>
+      jsonResponse({ id: "different", name: "A", version: "1.0.0" }),
     );
-    let threw = false;
+    const provider = new SourceProvider(null);
+    let caught = null;
     try {
-      await provider.getManifest("alpha");
+      await provider.getManifest("alpha__LOCAL");
     } catch (error) {
-      threw = true;
-      assert(error.message.includes("does not match"));
+      caught = error;
     }
-    assert(threw);
+    assert(caught?.message.includes("does not match"));
+  });
+
+  it("throws when local manifest is missing required fields", async () => {
+    stub = stubFetch(async () => jsonResponse({ id: "alpha", name: "A" }));
+    const provider = new SourceProvider(null);
+    let caught = null;
+    try {
+      await provider.getManifest("alpha__LOCAL");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("version"));
+  });
+
+  it("throws when local manifest fetch fails", async () => {
+    stub = stubFetch(async () => ({ ok: false, status: 404 }));
+    const provider = new SourceProvider(null);
+    let caught = null;
+    try {
+      await provider.getManifest("alpha__LOCAL");
+    } catch (error) {
+      caught = error;
+    }
+    assertEquals(caught?.message, "HTTP 404");
   });
 
   it("getCacheUrls returns empty for local plugins", async () => {
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", name: "A", local: true } }),
-      null,
+    const provider = new SourceProvider(null);
+    assertEquals(await provider.getCacheUrls("alpha__LOCAL"), []);
+  });
+
+  it("getLiveManifest delegates to getManifest for local plugins", async () => {
+    stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "Alpha", version: "9.9.9" }),
     );
-    assertEquals(await provider.getCacheUrls("alpha"), []);
+    const provider = new SourceProvider(null);
+    const manifest = await provider.getLiveManifest("alpha__LOCAL");
+    assertEquals(manifest.version, "9.9.9");
+    assertEquals(manifest.id, "alpha__LOCAL");
   });
 });
 
-t.describe("SourceProvider with remote listings", (it) => {
+t.describe("SourceProvider with remote plugins", (it) => {
   it("fetches manifest from versioned release URL via plugin cache", async () => {
-    let fetchedUrl = null;
-    const pluginCache = {
-      async fetch(url) {
-        fetchedUrl = url;
-        return jsonResponse({ id: "alpha", name: "A", version: "1.0.0" });
-      },
-    };
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
-      pluginCache,
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
     );
-    const manifest = await provider.getManifest("alpha", "1.0.0");
+    const provider = new SourceProvider(pluginCache);
+    const manifest = await provider.getManifest("alpha", "1.0.0", "ow/alpha");
     assertEquals(
-      fetchedUrl,
+      pluginCache.calls[0],
       "https://raw.githubusercontent.com/ow/alpha/1.0.0/manifest.json",
     );
     assertEquals(manifest.id, "alpha");
   });
 
-  it("uses the version that was passed in", async () => {
-    let fetchedUrl = null;
-    const pluginCache = {
-      async fetch(url) {
-        fetchedUrl = url;
-        return jsonResponse("alert(1)");
+  it("fetches source from the version that was passed in", async () => {
+    const pluginCache = fakePluginCache(async () => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return "alert(1)";
       },
-    };
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
-      pluginCache,
-    );
-    await provider.getSource("alpha", "2.5.0");
+    }));
+    const provider = new SourceProvider(pluginCache);
+    const source = await provider.getSource("alpha", "2.5.0", "ow/alpha");
     assertEquals(
-      fetchedUrl,
+      pluginCache.calls[0],
       "https://raw.githubusercontent.com/ow/alpha/2.5.0/main.js",
     );
+    assertEquals(source, "alert(1)");
   });
 
-  it("throws when version is omitted for a remote plugin", async () => {
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
-      { async fetch() {} },
-    );
-    let threw = false;
+  it("throws when version or repo is omitted for a remote plugin", async () => {
+    const provider = new SourceProvider(fakePluginCache(async () => null));
+    let caught = null;
     try {
       await provider.getManifest("alpha");
     } catch (error) {
-      threw = true;
-      assert(error.message.includes("version required"));
+      caught = error;
     }
-    assert(threw);
+    assert(caught?.message.includes("Version and repo are required"));
+
+    caught = null;
+    try {
+      await provider.getSource("alpha", "1.0.0");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("Version and repo are required"));
   });
 
-  it("throws when plugin is not in registry", async () => {
-    const provider = new SourceProvider(fakeRegistry({}), null);
-    let threw = false;
+  it("rejects remote manifest with mismatched id", async () => {
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "different", name: "A", version: "1.0.0" }),
+    );
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
     try {
-      await provider.getManifest("missing");
+      await provider.getManifest("alpha", "1.0.0", "ow/alpha");
     } catch (error) {
-      threw = true;
-      assert(error.message.includes("not in registry"));
+      caught = error;
     }
-    assert(threw);
+    assert(caught?.message.includes("does not match"));
   });
 
   it("getCacheUrls returns both manifest and main.js URLs", async () => {
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
-      null,
-    );
-    const urls = await provider.getCacheUrls("alpha", "1.2.3");
+    const provider = new SourceProvider(null);
+    const urls = await provider.getCacheUrls("alpha", "1.2.3", "ow/alpha");
     assertEquals(urls, [
       "https://raw.githubusercontent.com/ow/alpha/1.2.3/manifest.json",
       "https://raw.githubusercontent.com/ow/alpha/1.2.3/main.js",
     ]);
-  });
-});
-
-t.describe("SourceProvider.getLiveManifest", (it) => {
-  it("hits raw.githubusercontent.com at main", async () => {
-    const liveUrl =
-      "https://raw.githubusercontent.com/ow/alpha/main/manifest.json";
-    let fetchedUrl = null;
-    const fetchImpl = async (url) => {
-      fetchedUrl = url;
-      return jsonResponse({ id: "alpha", name: "Alpha", version: "9.9.9" });
-    };
-    const provider = new SourceProvider(
-      fakeRegistry({ alpha: { id: "alpha", repo: "ow/alpha" } }),
-      null,
-      { fetchImpl },
-    );
-    const manifest = await provider.getLiveManifest("alpha");
-    assertEquals(manifest.version, "9.9.9");
-    assertEquals(fetchedUrl, liveUrl);
   });
 });
 

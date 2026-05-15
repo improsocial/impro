@@ -47,42 +47,80 @@ function makeResponse(body, { ok = true, status = 200 } = {}) {
   };
 }
 
+// Installs a stub for `fetch` on globalThis and window. Returns
+// `{ calls, restore }` so tests can inspect requests and clean up.
+function stubFetch(handler) {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url, options });
+    return handler(url, options);
+  };
+  const originalGlobal = globalThis.fetch;
+  const originalWindow = globalThis.window.fetch;
+  globalThis.fetch = fetchImpl;
+  globalThis.window.fetch = fetchImpl;
+  return {
+    calls,
+    restore() {
+      globalThis.fetch = originalGlobal;
+      globalThis.window.fetch = originalWindow;
+    },
+  };
+}
+
+// Installs a fresh FakeCaches on globalThis and window. Returns the fake plus
+// a restore function.
+function stubCaches() {
+  const fakeCaches = new FakeCaches();
+  const originalGlobal = globalThis.caches;
+  const originalWindow = globalThis.window.caches;
+  globalThis.caches = fakeCaches;
+  globalThis.window.caches = fakeCaches;
+  return {
+    caches: fakeCaches,
+    restore() {
+      globalThis.caches = originalGlobal;
+      globalThis.window.caches = originalWindow;
+    },
+  };
+}
+
 const t = new TestSuite("pluginCache");
 
-t.describe("PluginCache.fetch", (it) => {
+t.describe("PluginCache.fetch", (it, { beforeEach, afterEach }) => {
+  let fetchStub;
+  let cachesStub;
+  beforeEach(() => {
+    cachesStub = stubCaches();
+  });
+  afterEach(() => {
+    fetchStub?.restore();
+    cachesStub.restore();
+  });
+
   it("fetches on miss and stores in cache", async () => {
-    const caches = new FakeCaches();
-    let fetchCount = 0;
-    const fetchImpl = async () => {
-      fetchCount++;
-      return makeResponse("hello");
-    };
-    const cache = new PluginCache({ cachesImpl: caches, fetchImpl });
+    fetchStub = stubFetch(async () => makeResponse("hello"));
+    const cache = new PluginCache();
     const response = await cache.fetch("https://example.test/a.js");
     assertEquals(await response.text(), "hello");
-    assertEquals(fetchCount, 1);
-    const bucket = await caches.open("plugins-v1");
+    assertEquals(fetchStub.calls.length, 1);
+    const bucket = await cachesStub.caches.open("plugins-v1");
     assert(await bucket.match("https://example.test/a.js"));
   });
 
   it("reuses cached response on hit", async () => {
-    const caches = new FakeCaches();
-    let fetchCount = 0;
-    const fetchImpl = async () => {
-      fetchCount++;
-      return makeResponse("hello");
-    };
-    const cache = new PluginCache({ cachesImpl: caches, fetchImpl });
+    fetchStub = stubFetch(async () => makeResponse("hello"));
+    const cache = new PluginCache();
     await cache.fetch("https://example.test/a.js");
     await cache.fetch("https://example.test/a.js");
-    assertEquals(fetchCount, 1);
+    assertEquals(fetchStub.calls.length, 1);
   });
 
   it("throws on non-OK responses and does not cache them", async () => {
-    const caches = new FakeCaches();
-    const fetchImpl = async () =>
-      makeResponse("nope", { ok: false, status: 404 });
-    const cache = new PluginCache({ cachesImpl: caches, fetchImpl });
+    fetchStub = stubFetch(async () =>
+      makeResponse("nope", { ok: false, status: 404 }),
+    );
+    const cache = new PluginCache();
     let threw = false;
     try {
       await cache.fetch("https://example.test/missing.js");
@@ -91,28 +129,32 @@ t.describe("PluginCache.fetch", (it) => {
       assert(error.message.includes("404"));
     }
     assert(threw);
-    const bucket = await caches.open("plugins-v1");
+    const bucket = await cachesStub.caches.open("plugins-v1");
     assertEquals((await bucket.keys()).length, 0);
   });
 });
 
-t.describe("PluginCache.reconcile", (it) => {
+t.describe("PluginCache.reconcile", (it, { beforeEach, afterEach }) => {
+  let cachesStub;
+  beforeEach(() => {
+    cachesStub = stubCaches();
+  });
+  afterEach(() => cachesStub.restore());
+
   it("deletes entries not in the wanted set", async () => {
-    const caches = new FakeCaches();
-    const bucket = await caches.open("plugins-v1");
+    const bucket = await cachesStub.caches.open("plugins-v1");
     await bucket.put("https://x.test/keep.js", makeResponse("k"));
     await bucket.put("https://x.test/old.js", makeResponse("o"));
-    const cache = new PluginCache({ cachesImpl: caches });
+    const cache = new PluginCache();
     await cache.reconcile(["https://x.test/keep.js"]);
     const remaining = (await bucket.keys()).map((request) => request.url);
     assertEquals(remaining, ["https://x.test/keep.js"]);
   });
 
   it("keeps wanted entries even if not all are present", async () => {
-    const caches = new FakeCaches();
-    const bucket = await caches.open("plugins-v1");
+    const bucket = await cachesStub.caches.open("plugins-v1");
     await bucket.put("https://x.test/keep.js", makeResponse("k"));
-    const cache = new PluginCache({ cachesImpl: caches });
+    const cache = new PluginCache();
     await cache.reconcile([
       "https://x.test/keep.js",
       "https://x.test/not-yet-fetched.js",

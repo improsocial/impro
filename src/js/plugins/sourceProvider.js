@@ -1,7 +1,3 @@
-// Loads a plugin's manifest and source code. Routes per-plugin based on
-// the registry listing's `local` flag: local plugins come from /plugins-local/,
-// remote plugins come from GitHub release assets via the plugin cache.
-
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
 
 function parsePluginManifest(pluginId, manifest) {
@@ -23,74 +19,63 @@ function remoteAssetUrl(repo, tag, file) {
 }
 
 export class SourceProvider {
-  constructor(registry, pluginCache, { fetchImpl } = {}) {
-    this.registry = registry;
+  constructor(pluginCache) {
     this.pluginCache = pluginCache;
-    this._fetch = fetchImpl ?? ((...args) => window.fetch(...args));
   }
 
-  async _resolveListing(pluginId) {
-    const listing = await this.registry.getPluginListing(pluginId);
-    if (!listing) throw new Error(`not in registry: ${pluginId}`);
-    return listing;
-  }
-
-  async getManifest(pluginId, version) {
-    const listing = await this._resolveListing(pluginId);
-    return this._fetchManifest(pluginId, listing, version);
-  }
-
-  async _fetchManifest(pluginId, listing, version) {
-    if (listing.local) {
-      const response = await this._fetch(
-        `/plugins-local/${pluginId}/manifest.json`,
-      );
+  async getManifest(pluginId, version, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      const response = await fetch(`/plugins-local/${pluginId}/manifest.json`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return parsePluginManifest(pluginId, await response.json());
+      const manifest = await response.json();
+      manifest.id = manifest.id + "__LOCAL";
+      return parsePluginManifest(pluginId, manifest);
     }
-    if (!version) throw new Error(`version required: ${pluginId}`);
-    const url = remoteAssetUrl(listing.repo, version, "manifest.json");
+    if (!version || !repo) {
+      throw new Error("Version and repo are required");
+    }
+    const url = remoteAssetUrl(repo, version, "manifest.json");
     const response = await this.pluginCache.fetch(url);
     return parsePluginManifest(pluginId, await response.json());
   }
 
-  async getLiveManifest(pluginId) {
-    const listing = await this._resolveListing(pluginId);
-    if (listing.local) {
-      const response = await this._fetch(
-        `/plugins-local/${pluginId}/manifest.json`,
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return parsePluginManifest(pluginId, await response.json());
+  async getLiveManifest(pluginId, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      return this.getManifest(pluginId, null, null);
     }
-    const url = remoteAssetUrl(listing.repo, "main", "manifest.json");
-    const response = await this._fetch(url, { cache: "no-store" });
+    if (!repo) {
+      throw new Error("Repo is required");
+    }
+    // Fetch from main branch
+    const url = remoteAssetUrl(repo, "main", "manifest.json");
+    const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return parsePluginManifest(pluginId, await response.json());
   }
 
-  async getSource(pluginId, version) {
-    const listing = await this._resolveListing(pluginId);
-    if (listing.local) {
-      const response = await this._fetch(`/plugins-local/${pluginId}/main.js`);
+  async getSource(pluginId, version, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      const response = await fetch(`/plugins-local/${pluginId}/main.js`);
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       return await response.text();
     }
-    if (!version) throw new Error(`version required: ${pluginId}`);
-    const url = remoteAssetUrl(listing.repo, version, "main.js");
+    if (!version || !repo) {
+      throw new Error("Version and repo are required");
+    }
+    const url = remoteAssetUrl(repo, version, "main.js");
     const response = await this.pluginCache.fetch(url);
     return await response.text();
   }
 
   // URLs that should be retained in the cache
   // Local plugins have no cached URLs
-  async getCacheUrls(pluginId, version) {
-    const listing = await this.registry.getPluginListing(pluginId);
-    if (!listing || listing.local) return [];
-    if (!version) return [];
+  async getCacheUrls(pluginId, version, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      return [];
+    }
     return [
-      remoteAssetUrl(listing.repo, version, "manifest.json"),
-      remoteAssetUrl(listing.repo, version, "main.js"),
+      remoteAssetUrl(repo, version, "manifest.json"),
+      remoteAssetUrl(repo, version, "main.js"),
     ];
   }
 }
