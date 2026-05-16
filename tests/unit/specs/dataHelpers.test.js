@@ -892,20 +892,23 @@ t.describe("pinPostInFeed", (it) => {
 t.describe("unpinPostInFeed", (it) => {
   const pinReason = { $type: "app.bsky.feed.defs#reasonPin" };
 
-  it("should remove the matching pinned item", () => {
+  it("should clear the pin reason on the matching item but keep it in place", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const feed = [{ post, reason: pinReason }, { post: { uri: "post-2" } }];
     const result = unpinPostInFeed(feed, post);
-    assertEquals(result.length, 1);
-    assertEquals(result[0].post.uri, "post-2");
+    assertEquals(result.length, 2);
+    assertEquals(result[0].post.uri, "post-1");
+    assertEquals(result[0].reason, undefined);
+    assertEquals(result[1].post.uri, "post-2");
   });
 
-  it("should leave a non-pinned occurrence of the post in place", () => {
+  it("should leave a non-pinned occurrence of the post unchanged", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const feed = [{ post }, { post: { uri: "post-2" } }];
     const result = unpinPostInFeed(feed, post);
     assertEquals(result.length, 2);
     assertEquals(result[0].post.uri, "post-1");
+    assertEquals(result[0].reason, undefined);
   });
 
   it("should not affect another pinned item with a different uri", () => {

@@ -598,7 +598,7 @@ t.describe("Author Feed Patches", (it) => {
     assertEquals(patched.cursor, "x");
   });
 
-  it("should drop the pinned item via unpinPost", () => {
+  it("should clear the pin reason on the item via unpinPost", () => {
     const patchStore = new PatchStore();
     const feed = {
       feed: [
@@ -614,7 +614,9 @@ t.describe("Author Feed Patches", (it) => {
       post: targetPost,
     });
     const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
-    assertEquals(patched.feed.length, 0);
+    assertEquals(patched.feed.length, 1);
+    assertEquals(patched.feed[0].post.uri, targetPost.uri);
+    assertEquals(patched.feed[0].reason, undefined);
   });
 
   it("should return null feed unchanged", () => {

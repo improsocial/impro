@@ -661,10 +661,12 @@ export function pinPostInFeed(feed, post) {
   return [{ post, reason: reasonPin }, ...unpinned];
 }
 
-// Returns a new feed with the given post unpinned. The unpinned item is
-// dropped from the feed since its natural position is unknown.
+// Returns a new feed with the given post unpinned. The item is left in place
+// (a follow-up feed reload will move it to its natural chronological position).
 export function unpinPostInFeed(feed, post) {
-  return feed.filter(
-    (item) => !(isPinnedPost(item) && item.post?.uri === post.uri),
+  return feed.map((item) =>
+    isPinnedPost(item) && item.post?.uri === post.uri
+      ? { ...item, reason: undefined }
+      : item,
   );
 }
