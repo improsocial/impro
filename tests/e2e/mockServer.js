@@ -1522,17 +1522,21 @@ export class MockServer {
       const rkey = url.searchParams.get("rkey");
       if (collection === "app.bsky.actor.profile" && rkey === "self") {
         const profile = this.profiles.get(userProfile.did) || userProfile;
+        const value = {
+          $type: "app.bsky.actor.profile",
+          displayName: profile.displayName || "",
+          description: profile.description || "",
+        };
+        if (profile.pinnedPost) {
+          value.pinnedPost = profile.pinnedPost;
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
             uri: `at://${userProfile.did}/${collection}/${rkey}`,
             cid: "bafyreiprofilerecord",
-            value: {
-              $type: "app.bsky.actor.profile",
-              displayName: profile.displayName || "",
-              description: profile.description || "",
-            },
+            value,
           }),
         });
       }
@@ -1558,6 +1562,11 @@ export class MockServer {
           profile.banner = "mock-banner-url";
         } else if (!record.banner && record.banner !== undefined) {
           profile.banner = "";
+        }
+        if (record.pinnedPost) {
+          profile.pinnedPost = record.pinnedPost;
+        } else {
+          delete profile.pinnedPost;
         }
         this.profiles.set(userProfile.did, profile);
       }

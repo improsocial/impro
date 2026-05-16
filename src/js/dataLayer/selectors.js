@@ -30,7 +30,8 @@ export class Selectors {
   }
 
   getCurrentUser() {
-    return this.dataStore.getCurrentUser();
+    const user = this.dataStore.getCurrentUser();
+    return this.patchStore.applyCurrentUserPatches(user);
   }
 
   getPreferences() {
@@ -254,10 +255,11 @@ export class Selectors {
 
   getAuthorFeed(did, feedType) {
     const feedURI = `${did}-${feedType}`;
-    const feed = this.dataStore.getAuthorFeed(feedURI);
-    if (!feed) {
+    const rawFeed = this.dataStore.getAuthorFeed(feedURI);
+    if (!rawFeed) {
       return null;
     }
+    const feed = this.patchStore.applyAuthorFeedPatches(feedURI, rawFeed);
     // Hydrate
     const hydratedFeedItems = [];
     for (const feedItem of feed.feed) {

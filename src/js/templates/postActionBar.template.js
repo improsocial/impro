@@ -23,6 +23,7 @@ function postContextMenuTemplate({
   post,
   isAuthenticated,
   isUserPost,
+  isPinnedToProfile,
   enableFeedFeedback,
   pluginItems,
   onClickShowMore,
@@ -32,7 +33,9 @@ function postContextMenuTemplate({
   onClickBlock,
   onClickReport,
   onClickDelete,
+  onClickPin,
 }) {
+  const canPin = isUserPost && !post.record?.reply;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
     <context-menu-item-group>
@@ -120,9 +123,22 @@ function postContextMenuTemplate({
             : null}
           ${isUserPost
             ? html`
-                <context-menu-item @click=${() => onClickDelete(post)}>
-                  Delete post
-                </context-menu-item>
+                <context-menu-item-group>
+                  ${canPin
+                    ? html`
+                        <context-menu-item
+                          @click=${() => onClickPin(post, !isPinnedToProfile)}
+                        >
+                          ${isPinnedToProfile
+                            ? "Unpin from your profile"
+                            : "Pin to your profile"}
+                        </context-menu-item>
+                      `
+                    : null}
+                  <context-menu-item @click=${() => onClickDelete(post)}>
+                    Delete post
+                  </context-menu-item>
+                </context-menu-item-group>
               `
             : null}
         `
@@ -176,9 +192,12 @@ export function postActionBarTemplate({
   onClickBlock = noop,
   onClickDelete = noop,
   onClickReport = noop,
+  onClickPin = noop,
   enableFeedFeedback = false,
   pluginService,
 }) {
+  const isPinnedToProfile =
+    !!currentUser?.pinnedPost && currentUser.pinnedPost.uri === post.uri;
   const numReplies = post.replyCount;
   const numReposts = post.repostCount + post.quoteCount;
   const isReposted = !!post.viewer?.repost;
@@ -317,6 +336,7 @@ export function postActionBarTemplate({
               post,
               isAuthenticated,
               isUserPost,
+              isPinnedToProfile,
               enableFeedFeedback,
               pluginService,
               onClickShowMore,
@@ -326,6 +346,7 @@ export function postActionBarTemplate({
               onClickBlock,
               onClickReport,
               onClickDelete,
+              onClickPin,
             });
           }}
         >

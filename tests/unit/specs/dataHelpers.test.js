@@ -16,6 +16,8 @@ import {
   getDefinitionForLabel,
   isBadgeLabel,
   addFeedItemToFeed,
+  pinPostInFeed,
+  unpinPostInFeed,
   getDisplayName,
   getThreadgateAllowSettings,
   isEmptyPost,
@@ -825,6 +827,98 @@ t.describe("addFeedItemToFeed", (it) => {
 
     assertEquals(result.length, 1);
     assertEquals(result[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
+  });
+});
+
+t.describe("pinPostInFeed", (it) => {
+  const pinReason = { $type: "app.bsky.feed.defs#reasonPin" };
+
+  it("should add a pinned item to an empty feed", () => {
+    const post = { uri: "post-1", cid: "cid-1" };
+    const result = pinPostInFeed([], post);
+    assertEquals(result.length, 1);
+    assertEquals(result[0].post, post);
+    assertEquals(result[0].reason.$type, pinReason.$type);
+  });
+
+  it("should move an existing post to the top and mark it pinned", () => {
+    const post = { uri: "post-2", cid: "cid-2" };
+    const feed = [
+      { post: { uri: "post-1" } },
+      { post },
+      { post: { uri: "post-3" } },
+    ];
+    const result = pinPostInFeed(feed, post);
+    assertEquals(result.length, 3);
+    assertEquals(result[0].post.uri, "post-2");
+    assertEquals(result[0].reason.$type, pinReason.$type);
+    assertEquals(result[1].post.uri, "post-1");
+    assertEquals(result[2].post.uri, "post-3");
+  });
+
+  it("should unpin a previously pinned item when pinning a new one", () => {
+    const oldPinned = { post: { uri: "post-1" }, reason: pinReason };
+    const other = { post: { uri: "post-2" } };
+    const newPost = { uri: "post-3", cid: "cid-3" };
+    const result = pinPostInFeed([oldPinned, other], newPost);
+    assertEquals(result.length, 3);
+    assertEquals(result[0].post.uri, "post-3");
+    assertEquals(result[0].reason.$type, pinReason.$type);
+    // Old pinned item is still present, but no longer carries the pin reason.
+    const oldInResult = result.find((item) => item.post.uri === "post-1");
+    assertEquals(oldInResult.reason, undefined);
+  });
+
+  it("should not duplicate the post when it is already pinned", () => {
+    const post = { uri: "post-1", cid: "cid-1" };
+    const feed = [{ post, reason: pinReason }, { post: { uri: "post-2" } }];
+    const result = pinPostInFeed(feed, post);
+    assertEquals(result.length, 2);
+    assertEquals(result[0].post.uri, "post-1");
+    assertEquals(result[0].reason.$type, pinReason.$type);
+    assertEquals(result[1].post.uri, "post-2");
+  });
+
+  it("should not mutate the input feed", () => {
+    const post = { uri: "post-1" };
+    const feed = [{ post: { uri: "post-2" } }];
+    const before = [...feed];
+    pinPostInFeed(feed, post);
+    assertEquals(feed.length, before.length);
+    assertEquals(feed[0], before[0]);
+  });
+});
+
+t.describe("unpinPostInFeed", (it) => {
+  const pinReason = { $type: "app.bsky.feed.defs#reasonPin" };
+
+  it("should remove the matching pinned item", () => {
+    const post = { uri: "post-1", cid: "cid-1" };
+    const feed = [{ post, reason: pinReason }, { post: { uri: "post-2" } }];
+    const result = unpinPostInFeed(feed, post);
+    assertEquals(result.length, 1);
+    assertEquals(result[0].post.uri, "post-2");
+  });
+
+  it("should leave a non-pinned occurrence of the post in place", () => {
+    const post = { uri: "post-1", cid: "cid-1" };
+    const feed = [{ post }, { post: { uri: "post-2" } }];
+    const result = unpinPostInFeed(feed, post);
+    assertEquals(result.length, 2);
+    assertEquals(result[0].post.uri, "post-1");
+  });
+
+  it("should not affect another pinned item with a different uri", () => {
+    const post = { uri: "post-1" };
+    const otherPinned = { post: { uri: "post-2" }, reason: pinReason };
+    const result = unpinPostInFeed([otherPinned], post);
+    assertEquals(result.length, 1);
+    assertEquals(result[0].post.uri, "post-2");
+    assertEquals(result[0].reason.$type, pinReason.$type);
+  });
+
+  it("should return an empty feed when given one", () => {
+    assertEquals(unpinPostInFeed([], { uri: "post-1" }).length, 0);
   });
 });
 

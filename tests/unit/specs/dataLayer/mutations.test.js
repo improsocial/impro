@@ -3,6 +3,7 @@ import { assertEquals } from "../../testHelpers.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { Selectors } from "/js/dataLayer/selectors.js";
 import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Mutations");
@@ -992,6 +993,258 @@ t.describe("updateProfile", (it) => {
 
     const currentUser = dataStore.getCurrentUser();
     assertEquals(currentUser.displayName, "Updated User");
+  });
+});
+
+t.describe("pinPost", (it) => {
+  const testUser = {
+    did: "did:plc:user",
+    handle: "user.test",
+    viewer: {},
+  };
+  const testPost = {
+    uri: "at://did:plc:user/app.bsky.feed.post/abc",
+    cid: "cid-abc",
+    author: testUser,
+    record: { text: "hi" },
+  };
+
+  function setup(mockApi, { pinnedPost = null, authorFeed = null } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setCurrentUser({ ...testUser, pinnedPost });
+    if (authorFeed) {
+      dataStore.setAuthorFeed(`${testUser.did}-posts`, authorFeed);
+    }
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      true,
+    );
+    return {
+      mutations: new Mutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+      patchStore,
+      selectors,
+    };
+  }
+
+  it("should set pinnedPost on currentUser and call putProfileRecord", async () => {
+    let putRecordArgs = null;
+    const mockApi = {
+      getProfileRecord: async () => ({
+        value: { displayName: "Me" },
+        cid: "cid-profile",
+      }),
+      putProfileRecord: async (record, swapRecord) => {
+        putRecordArgs = { record, swapRecord };
+        return {};
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi);
+
+    await mutations.pinPost(testPost);
+
+    assertEquals(dataStore.getCurrentUser().pinnedPost.uri, testPost.uri);
+    assertEquals(dataStore.getCurrentUser().pinnedPost.cid, testPost.cid);
+    assertEquals(putRecordArgs.record.pinnedPost.uri, testPost.uri);
+    assertEquals(putRecordArgs.record.pinnedPost.cid, testPost.cid);
+    assertEquals(putRecordArgs.record.displayName, "Me");
+    assertEquals(putRecordArgs.swapRecord, "cid-profile");
+  });
+
+  it("should pin in the author feed after server success", async () => {
+    const otherItem = {
+      post: { uri: "at://did:plc:user/app.bsky.feed.post/other" },
+    };
+    const targetItem = { post: testPost };
+    const mockApi = {
+      getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
+      putProfileRecord: async () => ({}),
+    };
+    const { mutations, dataStore } = setup(mockApi, {
+      authorFeed: { feed: [otherItem, targetItem], cursor: "" },
+    });
+
+    await mutations.pinPost(testPost);
+
+    const feed = dataStore.getAuthorFeed(`${testUser.did}-posts`).feed;
+    assertEquals(feed[0].post.uri, testPost.uri);
+    assertEquals(feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
+    assertEquals(feed.length, 2);
+  });
+
+  it("should optimistically patch currentUser and author feed while in flight", async () => {
+    const otherPost = {
+      uri: "at://did:plc:user/app.bsky.feed.post/other",
+      cid: "cid-other",
+      author: testUser,
+      record: { text: "other" },
+    };
+    const otherItem = { post: otherPost };
+    const targetItem = { post: testPost };
+    let putResolve;
+    const putPromise = new Promise((resolve) => {
+      putResolve = resolve;
+    });
+    const mockApi = {
+      getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
+      putProfileRecord: () => putPromise,
+    };
+    const { mutations, selectors, dataStore } = setup(mockApi, {
+      authorFeed: { feed: [otherItem, targetItem], cursor: "" },
+    });
+    dataStore.setPost(otherPost.uri, otherPost);
+    dataStore.setPost(testPost.uri, testPost);
+
+    const promise = mutations.pinPost(testPost);
+    // Yield so the patches apply before we inspect them.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    assertEquals(selectors.getCurrentUser().pinnedPost.uri, testPost.uri);
+    const inFlightFeed = selectors.getAuthorFeed(testUser.did, "posts").feed;
+    assertEquals(inFlightFeed[0].post.uri, testPost.uri);
+    assertEquals(inFlightFeed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
+
+    putResolve({});
+    await promise;
+
+    // After success, dataStore matches the previously-patched view.
+    assertEquals(selectors.getCurrentUser().pinnedPost.uri, testPost.uri);
+  });
+
+  it("should revert to original state on failure", async () => {
+    const otherPost = {
+      uri: "at://did:plc:user/app.bsky.feed.post/other",
+      cid: "cid-other",
+      author: testUser,
+      record: { text: "other" },
+    };
+    const otherItem = { post: otherPost };
+    const targetItem = { post: testPost };
+    const mockApi = {
+      getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
+      putProfileRecord: async () => {
+        throw new Error("server error");
+      },
+    };
+    const previousPinned = {
+      uri: "at://did:plc:user/app.bsky.feed.post/old",
+      cid: "cid-old",
+    };
+    const { mutations, dataStore, selectors } = setup(mockApi, {
+      pinnedPost: previousPinned,
+      authorFeed: { feed: [otherItem, targetItem], cursor: "" },
+    });
+    dataStore.setPost(otherPost.uri, otherPost);
+    dataStore.setPost(testPost.uri, testPost);
+
+    let threw = false;
+    try {
+      await mutations.pinPost(testPost);
+    } catch (e) {
+      threw = true;
+    }
+    assertEquals(threw, true);
+    // Patches removed; selectors reflect original dataStore.
+    assertEquals(selectors.getCurrentUser().pinnedPost.uri, previousPinned.uri);
+    const feed = selectors.getAuthorFeed(testUser.did, "posts").feed;
+    assertEquals(feed[0].post.uri, otherItem.post.uri);
+    // dataStore unchanged.
+    assertEquals(dataStore.getCurrentUser().pinnedPost.uri, previousPinned.uri);
+  });
+});
+
+t.describe("unpinPost", (it) => {
+  const testUser = {
+    did: "did:plc:user",
+    handle: "user.test",
+    viewer: {},
+  };
+  const testPost = {
+    uri: "at://did:plc:user/app.bsky.feed.post/abc",
+    cid: "cid-abc",
+    author: testUser,
+    record: { text: "hi" },
+  };
+
+  function setup(mockApi, { pinnedPost, authorFeed = null } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setCurrentUser({ ...testUser, pinnedPost });
+    if (authorFeed) {
+      dataStore.setAuthorFeed(`${testUser.did}-posts`, authorFeed);
+    }
+    return {
+      mutations: new Mutations(
+        mockApi,
+        dataStore,
+        patchStore,
+        mockPreferencesProvider,
+      ),
+      dataStore,
+    };
+  }
+
+  it("should clear pinnedPost on currentUser and putProfileRecord without it", async () => {
+    let putRecordArgs = null;
+    const mockApi = {
+      getProfileRecord: async () => ({
+        value: {
+          displayName: "Me",
+          pinnedPost: { uri: testPost.uri, cid: testPost.cid },
+        },
+        cid: "cid-profile",
+      }),
+      putProfileRecord: async (record, swapRecord) => {
+        putRecordArgs = { record, swapRecord };
+        return {};
+      },
+    };
+    const { mutations, dataStore } = setup(mockApi, {
+      pinnedPost: { uri: testPost.uri, cid: testPost.cid },
+    });
+
+    await mutations.unpinPost(testPost);
+
+    assertEquals(dataStore.getCurrentUser().pinnedPost, undefined);
+    assertEquals("pinnedPost" in putRecordArgs.record, false);
+    assertEquals(putRecordArgs.record.displayName, "Me");
+  });
+
+  it("should be a no-op when a different post is pinned", async () => {
+    let putCalled = false;
+    const mockApi = {
+      getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
+      putProfileRecord: async () => {
+        putCalled = true;
+        return {};
+      },
+    };
+    const otherPinned = {
+      uri: "at://did:plc:user/app.bsky.feed.post/other",
+      cid: "cid-other",
+    };
+    const { mutations, dataStore } = setup(mockApi, {
+      pinnedPost: otherPinned,
+    });
+
+    await mutations.unpinPost(testPost);
+
+    assertEquals(putCalled, false);
+    assertEquals(dataStore.getCurrentUser().pinnedPost.uri, otherPinned.uri);
   });
 });
 

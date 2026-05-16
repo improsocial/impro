@@ -137,6 +137,39 @@ export class PostInteractionHandler {
     this.renderFunc();
   }
 
+  async handlePinPost(post, doPin) {
+    if (doPin) {
+      try {
+        hapticsImpactMedium();
+        const promise = this.dataLayer.mutations.pinPost(post);
+        // Render optimistic update
+        this.renderFunc();
+        await promise;
+        // Render final update
+        this.renderFunc();
+        showToast("Post pinned to your profile", { style: "success" });
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to pin post", { style: "error" });
+        this.renderFunc();
+      }
+    } else {
+      try {
+        const promise = this.dataLayer.mutations.unpinPost(post);
+        // Render optimistic update
+        this.renderFunc();
+        await promise;
+        // Render final update
+        this.renderFunc();
+        showToast("Post unpinned");
+      } catch (error) {
+        console.error(error);
+        showToast("Failed to unpin post", { style: "error" });
+        this.renderFunc();
+      }
+    }
+  }
+
   async handleHidePost(post) {
     if (
       !(await confirm("This post will be hidden from feeds and threads.", {

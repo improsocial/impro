@@ -535,4 +535,108 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
   });
 });
 
+t.describe("Current User Patches", (it) => {
+  const baseUser = { did: "did:plc:me", handle: "me.test" };
+
+  it("should overlay pinnedPost via setPinnedPost", () => {
+    const patchStore = new PatchStore();
+    patchStore.addCurrentUserPatch({
+      type: "setPinnedPost",
+      pinnedPost: { uri: "at://x/y/1", cid: "c1" },
+    });
+    const patched = patchStore.applyCurrentUserPatches(baseUser);
+    assertEquals(patched.pinnedPost.uri, "at://x/y/1");
+  });
+
+  it("should remove pinnedPost via clearPinnedPost", () => {
+    const patchStore = new PatchStore();
+    patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
+    const user = { ...baseUser, pinnedPost: { uri: "at://x/y/1", cid: "c1" } };
+    const patched = patchStore.applyCurrentUserPatches(user);
+    assertEquals(patched.pinnedPost, undefined);
+  });
+
+  it("should return null user unchanged", () => {
+    const patchStore = new PatchStore();
+    patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
+    assertEquals(patchStore.applyCurrentUserPatches(null), null);
+  });
+
+  it("should drop the patch after remove", () => {
+    const patchStore = new PatchStore();
+    const id = patchStore.addCurrentUserPatch({
+      type: "setPinnedPost",
+      pinnedPost: { uri: "at://x/y/1", cid: "c1" },
+    });
+    patchStore.removeCurrentUserPatch(id);
+    const patched = patchStore.applyCurrentUserPatches(baseUser);
+    assertEquals(patched.pinnedPost, undefined);
+  });
+});
+
+t.describe("Author Feed Patches", (it) => {
+  const feedURI = "did:plc:me-posts";
+  const targetPost = {
+    uri: "at://did:plc:me/app.bsky.feed.post/p1",
+    cid: "c1",
+  };
+
+  it("should pin a post in the feed via pinPost", () => {
+    const patchStore = new PatchStore();
+    const feed = {
+      feed: [{ post: { uri: "at://other" } }, { post: targetPost }],
+      cursor: "x",
+    };
+    patchStore.addAuthorFeedPatch(feedURI, {
+      type: "pinPost",
+      post: targetPost,
+    });
+    const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
+    assertEquals(patched.feed[0].post.uri, targetPost.uri);
+    assertEquals(patched.feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
+    assertEquals(patched.feed.length, 2);
+    assertEquals(patched.cursor, "x");
+  });
+
+  it("should drop the pinned item via unpinPost", () => {
+    const patchStore = new PatchStore();
+    const feed = {
+      feed: [
+        {
+          post: targetPost,
+          reason: { $type: "app.bsky.feed.defs#reasonPin" },
+        },
+      ],
+      cursor: "x",
+    };
+    patchStore.addAuthorFeedPatch(feedURI, {
+      type: "unpinPost",
+      post: targetPost,
+    });
+    const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
+    assertEquals(patched.feed.length, 0);
+  });
+
+  it("should return null feed unchanged", () => {
+    const patchStore = new PatchStore();
+    patchStore.addAuthorFeedPatch(feedURI, {
+      type: "pinPost",
+      post: targetPost,
+    });
+    assertEquals(patchStore.applyAuthorFeedPatches(feedURI, null), null);
+  });
+
+  it("should drop the patch after remove", () => {
+    const patchStore = new PatchStore();
+    const id = patchStore.addAuthorFeedPatch(feedURI, {
+      type: "pinPost",
+      post: targetPost,
+    });
+    patchStore.removeAuthorFeedPatch(feedURI, id);
+    const feed = { feed: [{ post: targetPost }], cursor: "" };
+    const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
+    assertEquals(patched.feed[0].reason, undefined);
+  });
+});
+
 await t.run();

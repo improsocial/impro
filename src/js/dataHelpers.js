@@ -647,3 +647,24 @@ export function addFeedItemToFeed(feedItem, feed) {
   newFeed.push(...feed.filter((item) => !isPinnedPost(item)));
   return newFeed;
 }
+
+// Returns a new feed with the given post pinned to the top. Any previously
+// pinned item is unpinned. If the post is already in the feed it's removed
+// from its old position, otherwise a new feed item is created.
+export function pinPostInFeed(feed, post) {
+  const reasonPin = { $type: "app.bsky.feed.defs#reasonPin" };
+  const unpinned = feed
+    .filter((item) => item.post?.uri !== post.uri)
+    .map((item) =>
+      isPinnedPost(item) ? { ...item, reason: undefined } : item,
+    );
+  return [{ post, reason: reasonPin }, ...unpinned];
+}
+
+// Returns a new feed with the given post unpinned. The unpinned item is
+// dropped from the feed since its natural position is unknown.
+export function unpinPostInFeed(feed, post) {
+  return feed.filter(
+    (item) => !(isPinnedPost(item) && item.post?.uri === post.uri),
+  );
+}

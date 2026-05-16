@@ -2,6 +2,8 @@ import {
   parseUri,
   createNotFoundPost,
   addFeedItemToFeed,
+  pinPostInFeed,
+  unpinPostInFeed,
 } from "/js/dataHelpers.js";
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
@@ -640,6 +642,90 @@ export class Mutations {
         ...currentUser,
         ...updatedProfile,
       });
+    }
+  }
+
+  async pinPost(post) {
+    const currentUser = this.dataStore.getCurrentUser();
+    if (!currentUser) throw new Error("No current user");
+    const authorFeedURI = `${currentUser.did}-posts`;
+    const pinnedRef = { uri: post.uri, cid: post.cid };
+
+    // Optimistic update via patches on currentUser and author feed
+    const userPatchId = this.patchStore.addCurrentUserPatch({
+      type: "setPinnedPost",
+      pinnedPost: pinnedRef,
+    });
+    const feedPatchId = this.patchStore.addAuthorFeedPatch(authorFeedURI, {
+      type: "pinPost",
+      post,
+    });
+
+    try {
+      const recordData = await this.api.getProfileRecord();
+      const existingRecord = recordData.value || {};
+      const swapCid = recordData.cid;
+      await this.api.putProfileRecord(
+        { ...existingRecord, pinnedPost: pinnedRef },
+        swapCid,
+      );
+      // Commit to dataStore
+      const latestUser = this.dataStore.getCurrentUser();
+      if (latestUser) {
+        this.dataStore.setCurrentUser({ ...latestUser, pinnedPost: pinnedRef });
+      }
+      const existingFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+      if (existingFeed) {
+        this.dataStore.setAuthorFeed(authorFeedURI, {
+          feed: pinPostInFeed(existingFeed.feed, post),
+          cursor: existingFeed.cursor,
+        });
+      }
+    } finally {
+      this.patchStore.removeCurrentUserPatch(userPatchId);
+      this.patchStore.removeAuthorFeedPatch(authorFeedURI, feedPatchId);
+    }
+  }
+
+  async unpinPost(post) {
+    const currentUser = this.dataStore.getCurrentUser();
+    if (!currentUser) throw new Error("No current user");
+    if (currentUser.pinnedPost?.uri !== post.uri) {
+      // Already unpinned (or a different post is pinned); nothing to do.
+      return;
+    }
+    const authorFeedURI = `${currentUser.did}-posts`;
+
+    const userPatchId = this.patchStore.addCurrentUserPatch({
+      type: "clearPinnedPost",
+    });
+    const feedPatchId = this.patchStore.addAuthorFeedPatch(authorFeedURI, {
+      type: "unpinPost",
+      post,
+    });
+
+    try {
+      const recordData = await this.api.getProfileRecord();
+      const existingRecord = recordData.value || {};
+      const swapCid = recordData.cid;
+      const { pinnedPost: _, ...updatedRecord } = existingRecord;
+      await this.api.putProfileRecord(updatedRecord, swapCid);
+      // Commit to dataStore
+      const latestUser = this.dataStore.getCurrentUser();
+      if (latestUser) {
+        const { pinnedPost: _, ...rest } = latestUser;
+        this.dataStore.setCurrentUser(rest);
+      }
+      const existingFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+      if (existingFeed) {
+        this.dataStore.setAuthorFeed(authorFeedURI, {
+          feed: unpinPostInFeed(existingFeed.feed, post),
+          cursor: existingFeed.cursor,
+        });
+      }
+    } finally {
+      this.patchStore.removeCurrentUserPatch(userPatchId);
+      this.patchStore.removeAuthorFeedPatch(authorFeedURI, feedPatchId);
     }
   }
 
