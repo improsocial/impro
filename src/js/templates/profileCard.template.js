@@ -102,6 +102,7 @@ function profileContextMenuTemplate({
   return html`
     <context-menu-item-group>
       <context-menu-item
+        data-testid="menu-action-profile-open-in-bsky"
         @click=${() => {
           window.open(getBlueskyLinkForProfile(profile), "_blank");
         }}
@@ -109,6 +110,7 @@ function profileContextMenuTemplate({
         Open in bsky.app
       </context-menu-item>
       <context-menu-item
+        data-testid="menu-action-profile-copy-link"
         @click=${() => {
           navigator.clipboard.writeText(getPermalinkForProfile(profile));
           showToast("Link copied to clipboard", { style: "success" });
@@ -120,6 +122,7 @@ function profileContextMenuTemplate({
     ${isAuthenticated
       ? html`
           <context-menu-item
+            data-testid="menu-action-profile-search-posts"
             @click=${() => {
               router.go(linkToSearchPostsByProfile(profile));
             }}
@@ -133,7 +136,8 @@ function profileContextMenuTemplate({
           ${isLabeler
             ? html`
                 <context-menu-item
-                  data-testid="context-menu-follow"
+                  data-testid="menu-action-profile-follow"
+                  data-teststate=${isFollowing ? "following" : "not-following"}
                   @click=${() => {
                     onClickFollow(profile, !isFollowing);
                   }}
@@ -144,6 +148,8 @@ function profileContextMenuTemplate({
             : null}
           <context-menu-item-group>
             <context-menu-item
+              data-testid="menu-action-profile-mute"
+              data-teststate=${profile.viewer?.muted ? "muted" : "unmuted"}
               @click=${() => {
                 onClickMute(profile, !profile.viewer?.muted);
               }}
@@ -151,6 +157,10 @@ function profileContextMenuTemplate({
               ${profile.viewer?.muted ? "Unmute Account" : "Mute Account"}
             </context-menu-item>
             <context-menu-item
+              data-testid="menu-action-profile-block"
+              data-teststate=${profile.viewer?.blocking
+                ? "blocking"
+                : "not-blocking"}
               @click=${() => {
                 onClickBlock(profile, !profile.viewer?.blocking);
               }}
@@ -158,6 +168,7 @@ function profileContextMenuTemplate({
               ${profile.viewer?.blocking ? "Unblock Account" : "Block Account"}
             </context-menu-item>
             <context-menu-item
+              data-testid="menu-action-profile-report"
               @click=${() => {
                 onClickReport(profile);
               }}
@@ -316,6 +327,7 @@ export function profileCardTemplate({
                   "rounded-button-primary": !isSubscribed,
                 })}
                 data-testid="subscribe-button"
+                data-teststate=${isSubscribed ? "subscribed" : "not-subscribed"}
               >
                 ${isSubscribed ? "Subscribed" : "+ Subscribe"}
               </button>`;
@@ -334,6 +346,11 @@ export function profileCardTemplate({
               "rounded-button-primary": !isFollowing,
             })}
             data-testid="follow-button"
+            data-teststate=${isFollowing
+              ? "following"
+              : isFollowedBy
+                ? "follow-back"
+                : "follow"}
           >
             ${isFollowing
               ? "Following"

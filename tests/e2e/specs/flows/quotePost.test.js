@@ -28,7 +28,7 @@ test.describe("Quote post flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     await feedItem.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Quote Post" }).click();
+    await page.locator('[data-testid="menu-action-quote-post"]').click();
 
     // Wait for the composer to open with the quoted post
     const composer = page.locator("post-composer .post-composer");
@@ -83,7 +83,7 @@ test.describe("Quote post flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     await feedItem.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Quote Post" }).click();
+    await page.locator('[data-testid="menu-action-quote-post"]').click();
 
     const composer = page.locator("post-composer .post-composer");
     await expect(composer).toBeVisible({ timeout: 10000 });

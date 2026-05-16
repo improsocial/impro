@@ -77,7 +77,7 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
     // Click the Posts tab
-    await view.locator(".tab-bar-button", { hasText: "Posts" }).click();
+    await view.locator('[data-testid="tab-posts"]').click();
 
     await expect(view.locator("[data-post-uri]")).toHaveCount(2, {
       timeout: 10000,
@@ -102,7 +102,7 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
     await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Profiles" }),
+      view.locator('[data-testid="tab-profiles"].active'),
     ).toBeVisible({ timeout: 10000 });
   });
 
@@ -117,10 +117,9 @@ test.describe("Search view", () => {
     const profilesPanel = view.locator(
       ".search-tab-panel:not([hidden]) .search-results-panel",
     );
-    await expect(profilesPanel.locator(".search-status-message")).toContainText(
-      "No profiles found.",
-      { timeout: 10000 },
-    );
+    await expect(
+      profilesPanel.locator('[data-testid="empty-state"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should show empty state when no posts match", async ({ page }) => {
@@ -132,8 +131,8 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
     await expect(
-      view.locator(".search-post-results .search-status-message"),
-    ).toContainText("No posts found.", { timeout: 10000 });
+      view.locator('.search-post-results [data-testid="empty-state"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should switch between Profiles, Posts, and Feeds tabs", async ({
@@ -175,9 +174,9 @@ test.describe("Search view", () => {
     });
 
     // Switch to Posts tab
-    await view.locator(".tab-bar-button", { hasText: "Posts" }).click();
+    await view.locator('[data-testid="tab-posts"]').click();
     await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Posts" }),
+      view.locator('[data-testid="tab-posts"].active'),
     ).toBeVisible();
     await expect(view.locator("[data-post-uri]")).toHaveCount(1, {
       timeout: 10000,
@@ -185,9 +184,9 @@ test.describe("Search view", () => {
     await expect(view).toContainText("A matching post");
 
     // Switch to Feeds tab
-    await view.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+    await view.locator('[data-testid="tab-feeds"]').click();
     await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Feeds" }),
+      view.locator('[data-testid="tab-feeds"].active'),
     ).toBeVisible();
     await expect(view.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
@@ -195,9 +194,9 @@ test.describe("Search view", () => {
     await expect(view).toContainText("My Custom Feed");
 
     // Switch back to Profiles tab
-    await view.locator(".tab-bar-button", { hasText: "Profiles" }).click();
+    await view.locator('[data-testid="tab-profiles"]').click();
     await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Profiles" }),
+      view.locator('[data-testid="tab-profiles"].active'),
     ).toBeVisible();
     await expect(view.locator(".profile-list-item")).toHaveCount(1);
   });
@@ -294,9 +293,9 @@ test.describe("Search view", () => {
     await page.goto("/search?q=test&tab=posts");
 
     const view = page.locator("#search-view");
-    await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Posts" }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="tab-posts"].active')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(view.locator("[data-post-uri]")).toHaveCount(1, {
       timeout: 10000,
     });
@@ -357,7 +356,7 @@ test.describe("Search view", () => {
     await page.goto("/search?q=feed");
 
     const view = page.locator("#search-view");
-    await view.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+    await view.locator('[data-testid="tab-feeds"]').click();
 
     await expect(view.locator(".feeds-list-item")).toHaveCount(2, {
       timeout: 10000,
@@ -381,8 +380,7 @@ test.describe("Search view", () => {
     const feedsPanel = view.locator(
       ".search-tab-panel:not([hidden]) .search-results-panel",
     );
-    await expect(feedsPanel.locator(".search-status-message")).toContainText(
-      "No feeds found.",
+    await expect(feedsPanel.locator('[data-testid="empty-state"]')).toBeVisible(
       { timeout: 10000 },
     );
   });
@@ -430,9 +428,9 @@ test.describe("Search view", () => {
     await page.goto("/search?q=test&tab=feeds");
 
     const view = page.locator("#search-view");
-    await expect(
-      view.locator(".tab-bar-button.active", { hasText: "Feeds" }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="tab-feeds"].active')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(view.locator(".feeds-list-item")).toHaveCount(1, {
       timeout: 10000,
     });
@@ -649,12 +647,8 @@ test.describe("Search view", () => {
       await expect(view).toContainText("Alicia");
 
       // Posts and Feeds tabs should be hidden for logged-out users
-      await expect(
-        view.locator(".tab-bar-button", { hasText: "Posts" }),
-      ).not.toBeVisible();
-      await expect(
-        view.locator(".tab-bar-button", { hasText: "Feeds" }),
-      ).not.toBeVisible();
+      await expect(view.locator('[data-testid="tab-posts"]')).not.toBeVisible();
+      await expect(view.locator('[data-testid="tab-feeds"]')).not.toBeVisible();
     });
   });
 });

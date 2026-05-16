@@ -39,11 +39,9 @@ test.describe("Pin post flow", () => {
       0,
     );
 
-    // Open the post action menu and click "Pin to your profile"
+    // Open the post action menu and click the pin item
     await feedItem.locator(".text-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Pin to your profile" })
-      .click();
+    await page.locator('[data-testid="menu-action-post-pin"]').click();
 
     // The pinned label should appear optimistically
     await expect(
@@ -58,14 +56,16 @@ test.describe("Pin post flow", () => {
       cid: post.cid,
     });
 
-    // Re-opening the menu now shows "Unpin from your profile"
+    // Re-opening the menu now shows pinned state
     await profileView
       .locator('[data-testid="feed-item"]')
       .first()
       .locator(".text-button")
       .click();
     await expect(
-      page.locator("context-menu-item", { hasText: "Unpin from your profile" }),
+      page.locator(
+        '[data-testid="menu-action-post-pin"][data-teststate="pinned"]',
+      ),
     ).toBeVisible();
   });
 
@@ -93,7 +93,7 @@ test.describe("Pin post flow", () => {
     await feedItem.locator(".text-button").click();
 
     await expect(
-      page.locator("context-menu-item", { hasText: "Pin to your profile" }),
+      page.locator('[data-testid="menu-action-post-pin"]'),
     ).toHaveCount(0);
   });
 });

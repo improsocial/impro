@@ -93,7 +93,10 @@ class SettingsMutedAccountsView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
-                <p class="muted-account-description">
+                <p
+                  class="muted-account-description"
+                  data-testid="page-description"
+                >
                   Muted accounts have their posts removed from your feed and
                   from your notifications. Mutes are completely private.
                 </p>

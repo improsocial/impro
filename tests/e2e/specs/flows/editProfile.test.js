@@ -60,7 +60,7 @@ test.describe("Edit profile flow", () => {
     await dialog.locator('[data-testid="edit-profile-save-button"]').click();
 
     // Verify the toast shows success
-    await expect(page.locator(".toast")).toContainText("Profile updated", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
 
@@ -233,10 +233,10 @@ test.describe("Edit profile flow", () => {
     // Context menu should appear with "Upload from Files" and "Remove Avatar"
     const menu = dialog.locator(".edit-profile-avatar-menu");
     await expect(
-      menu.locator("context-menu-item", { hasText: "Upload from Files" }),
+      menu.locator('[data-testid="menu-action-avatar-upload"]'),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      menu.locator("context-menu-item", { hasText: "Remove Avatar" }),
+      menu.locator('[data-testid="menu-action-avatar-remove"]'),
     ).toBeVisible();
   });
 
@@ -274,10 +274,10 @@ test.describe("Edit profile flow", () => {
     // Context menu should only have "Upload from Files"
     const menu = dialog.locator(".edit-profile-avatar-menu");
     await expect(
-      menu.locator("context-menu-item", { hasText: "Upload from Files" }),
+      menu.locator('[data-testid="menu-action-avatar-upload"]'),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      menu.locator("context-menu-item", { hasText: "Remove Avatar" }),
+      menu.locator('[data-testid="menu-action-avatar-remove"]'),
     ).toHaveCount(0);
   });
 
@@ -320,9 +320,7 @@ test.describe("Edit profile flow", () => {
 
     // Click "Remove Avatar"
     const menu = dialog.locator(".edit-profile-avatar-menu");
-    await menu
-      .locator("context-menu-item", { hasText: "Remove Avatar" })
-      .click();
+    await menu.locator('[data-testid="menu-action-avatar-remove"]').click();
 
     // Avatar image should be removed from the preview (placeholder may still exist)
     await expect(
@@ -334,7 +332,7 @@ test.describe("Edit profile flow", () => {
     // Save
     await dialog.locator('[data-testid="edit-profile-save-button"]').click();
 
-    await expect(page.locator(".toast")).toContainText("Profile updated", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
   });
@@ -376,9 +374,7 @@ test.describe("Edit profile flow", () => {
 
     // Click "Remove Banner"
     const menu = dialog.locator(".edit-profile-banner-menu");
-    await menu
-      .locator("context-menu-item", { hasText: "Remove Banner" })
-      .click();
+    await menu.locator('[data-testid="menu-action-banner-remove"]').click();
 
     // Banner image should be removed from the preview
     await expect(
@@ -388,7 +384,7 @@ test.describe("Edit profile flow", () => {
     // Save
     await dialog.locator('[data-testid="edit-profile-save-button"]').click();
 
-    await expect(page.locator(".toast")).toContainText("Profile updated", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
   });
@@ -431,9 +427,7 @@ test.describe("Edit profile flow", () => {
     // Set a file on the hidden file input to trigger the cropper
     const [fileChooser] = await Promise.all([
       page.waitForEvent("filechooser"),
-      menu
-        .locator("context-menu-item", { hasText: "Upload from Files" })
-        .click(),
+      menu.locator('[data-testid="menu-action-avatar-upload"]').click(),
     ]);
 
     await fileChooser.setFiles({

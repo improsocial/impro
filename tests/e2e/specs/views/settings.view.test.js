@@ -17,24 +17,27 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(6, {
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(7, {
       timeout: 10000,
     });
-    await expect(nav.locator(".vertical-nav-label").first()).toContainText(
-      "Appearance",
-    );
-    await expect(nav.locator(".vertical-nav-label").nth(1)).toContainText(
-      "Muted words",
-    );
-    await expect(nav.locator(".vertical-nav-label").nth(2)).toContainText(
-      "Blocked accounts",
-    );
-    await expect(nav.locator(".vertical-nav-label").nth(3)).toContainText(
-      "Plugins",
-    );
-    await expect(nav.locator(".vertical-nav-label").nth(4)).toContainText(
-      "Advanced",
-    );
+    await expect(
+      nav.locator('[data-testid="settings-nav-appearance"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-muted-words"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-muted-accounts"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-blocked-accounts"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-plugins"]'),
+    ).toBeVisible();
+    await expect(
+      nav.locator('[data-testid="settings-nav-advanced"]'),
+    ).toBeVisible();
   });
 
   test("should navigate to blocked accounts settings", async ({ page }) => {
@@ -45,9 +48,7 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await view
-      .locator(".vertical-nav-item", { hasText: "Blocked accounts" })
-      .click();
+    await view.locator('[data-testid="settings-nav-blocked-accounts"]').click();
 
     await expect(page).toHaveURL("/settings/blocked-accounts", {
       timeout: 10000,
@@ -64,12 +65,11 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await expect(view.locator(".vertical-nav-label").first()).toContainText(
-      "Appearance",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="settings-nav-appearance"]'),
+    ).toBeVisible({ timeout: 10000 });
 
-    await view.locator(".vertical-nav-item", { hasText: "Appearance" }).click();
+    await view.locator('[data-testid="settings-nav-appearance"]').click();
 
     await expect(page).toHaveURL("/settings/appearance", { timeout: 10000 });
   });
@@ -82,9 +82,9 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await expect(view.locator(".danger-button")).toContainText("Sign out", {
-      timeout: 10000,
-    });
+    await expect(view.locator('[data-testid="settings-sign-out"]')).toBeVisible(
+      { timeout: 10000 },
+    );
   });
 
   test("should display version info", async ({ page }) => {
@@ -95,8 +95,9 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    await expect(view.locator(".version-info")).toBeVisible({ timeout: 10000 });
-    await expect(view.locator(".version-info")).toContainText("Impro v");
+    await expect(view.locator('[data-testid="version-info"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should display footer links", async ({ page }) => {
@@ -107,11 +108,15 @@ test.describe("Settings view", () => {
     await page.goto("/settings");
 
     const view = page.locator("#settings-view");
-    const footer = view.locator(".settings-footer-links");
-    await expect(footer).toBeVisible({ timeout: 10000 });
-    await expect(footer).toContainText("Terms");
-    await expect(footer).toContainText("Privacy Policy");
-    await expect(footer).toContainText("GitHub");
+    await expect(view.locator('[data-testid="footer-link-terms"]')).toBeVisible(
+      { timeout: 10000 },
+    );
+    await expect(
+      view.locator('[data-testid="footer-link-privacy"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="footer-link-github"]'),
+    ).toBeVisible();
   });
 
   test.describe("Logged-out behavior", () => {

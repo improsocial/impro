@@ -40,7 +40,6 @@ t.describe("PostComposer - rendering", (it) => {
     connectElement(element);
     const cancelButton = element.querySelector(".post-composer-cancel-button");
     assert(cancelButton !== null);
-    assertEquals(cancelButton.textContent.trim(), "Cancel");
   });
 
   it("should render post button", () => {

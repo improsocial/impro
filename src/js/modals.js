@@ -9,11 +9,19 @@ export function showSignInModal() {
   render(
     html`
       <div class="modal-dialog-content">
-        <h2 class="modal-dialog-title modal-dialog-title-large">Sign in</h2>
-        <p class="modal-dialog-message">Sign in to join the conversation!</p>
+        <h2
+          class="modal-dialog-title modal-dialog-title-large"
+          data-testid="modal-title"
+        >
+          Sign in
+        </h2>
+        <p class="modal-dialog-message" data-testid="modal-message">
+          Sign in to join the conversation!
+        </p>
         <a
           href=${linkToLogin()}
           class="modal-dialog-button primary-button full-width"
+          data-testid="modal-primary-button"
           @click=${() => {
             dialog.close();
             dialog.remove();
@@ -45,10 +53,15 @@ export function showInfoModal({ title, message, confirmButtonText = "OK" }) {
   render(
     html`
       <div class="modal-dialog-content">
-        <h2 class="modal-dialog-title">${title}</h2>
-        <p class="modal-dialog-message">${message}</p>
+        <h2 class="modal-dialog-title" data-testid="modal-title">${title}</h2>
+        <p class="modal-dialog-message" data-testid="modal-message">
+          ${message}
+        </p>
         <div class="modal-dialog-buttons">
-          <button class="modal-dialog-button primary-button">
+          <button
+            class="modal-dialog-button primary-button"
+            data-testid="modal-primary-button"
+          >
             ${confirmButtonText}
           </button>
         </div>
@@ -98,12 +111,24 @@ export async function confirm(
     render(
       html`
         <div class="modal-dialog-content">
-          ${title ? html`<h2 class="modal-dialog-title">${title}</h2>` : null}
-          <p class="modal-dialog-message">${message}</p>
+          ${title
+            ? html`<h2 class="modal-dialog-title" data-testid="modal-title">
+                ${title}
+              </h2>`
+            : null}
+          <p class="modal-dialog-message" data-testid="modal-message">
+            ${message}
+          </p>
           <div class="modal-dialog-buttons">
-            <button class="modal-dialog-button cancel-button">Cancel</button>
+            <button
+              class="modal-dialog-button cancel-button"
+              data-testid="modal-cancel-button"
+            >
+              Cancel
+            </button>
             <button
               class="modal-dialog-button confirm-button ${confirmButtonStyle}-button"
+              data-testid="modal-confirm-button"
             >
               ${confirmButtonText}
             </button>
@@ -211,7 +236,9 @@ export function showWhoCanReplyModal({ post }) {
   render(
     html`
       <div class="modal-dialog-content">
-        <h2 class="modal-dialog-title">Who can interact with this post?</h2>
+        <h2 class="modal-dialog-title" data-testid="modal-title">
+          Who can interact with this post?
+        </h2>
         <div class="modal-dialog-message who-can-reply-body">
           <span>${threadgateRuleTemplate({ post })}</span>
           ${embeddingDisabled
@@ -219,7 +246,11 @@ export function showWhoCanReplyModal({ post }) {
             : ""}
         </div>
         <div class="modal-dialog-buttons">
-          <button class="modal-dialog-button primary-button" @click=${dismiss}>
+          <button
+            class="modal-dialog-button primary-button"
+            data-testid="modal-primary-button"
+            @click=${dismiss}
+          >
             OK
           </button>
         </div>

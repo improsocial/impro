@@ -28,7 +28,7 @@ test.describe("Repost flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     await feedItem.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+    await page.locator('[data-testid="menu-action-repost"]').click();
 
     await expect(
       feedItem.locator('[data-testid="repost-button"].reposted'),
@@ -83,7 +83,7 @@ test.describe("Repost flow", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     await feedItem.locator('[data-testid="repost-button"].reposted').click();
-    await page.locator("context-menu-item", { hasText: "Undo repost" }).click();
+    await page.locator('[data-testid="menu-action-repost"]').click();
 
     await expect(
       feedItem.locator('[data-testid="repost-button"].reposted'),

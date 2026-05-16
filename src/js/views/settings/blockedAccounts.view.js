@@ -95,7 +95,10 @@ class SettingsBlockedAccountsView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
-                <p class="blocked-account-description">
+                <p
+                  class="blocked-account-description"
+                  data-testid="page-description"
+                >
                   Blocked accounts cannot reply to your posts, mention you, or
                   interact with you. You won't see their content.
                 </p>

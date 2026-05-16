@@ -65,7 +65,10 @@ class SettingsAppearanceView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
-                <section class="settings-section">
+                <section
+                  class="settings-section"
+                  data-testid="settings-section-color-scheme"
+                >
                   <h2>Color scheme</h2>
                   <p>Choose between light and dark mode.</p>
                   <select
@@ -95,7 +98,10 @@ class SettingsAppearanceView extends View {
                     </option>
                   </select>
                 </section>
-                <section class="settings-section">
+                <section
+                  class="settings-section"
+                  data-testid="settings-section-highlight-color"
+                >
                   <h2>Highlight color</h2>
                   <p>Choose the highlight color for buttons and links.</p>
                   <div class="settings-color-picker">
@@ -116,7 +122,10 @@ class SettingsAppearanceView extends View {
                     </button>
                   </div>
                 </section>
-                <section class="settings-section">
+                <section
+                  class="settings-section"
+                  data-testid="settings-section-like-color"
+                >
                   <h2>Like color</h2>
                   <p>Choose the color for liked posts.</p>
                   <div class="settings-color-picker">

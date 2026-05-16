@@ -232,6 +232,7 @@ class EditProfileDialog extends Component {
                 <context-menu class="edit-profile-banner-menu">
                   <context-menu-item-group>
                     <context-menu-item
+                      data-testid="menu-action-banner-upload"
                       @click=${() => this._pickImage("banner")}
                     >
                       Upload from Files
@@ -240,6 +241,7 @@ class EditProfileDialog extends Component {
                   ${bannerSrc
                     ? html`<context-menu-item-group>
                         <context-menu-item
+                          data-testid="menu-action-banner-remove"
                           @click=${() => {
                             this._newBannerDataUrl = null;
                             this._removeBanner = true;
@@ -255,6 +257,7 @@ class EditProfileDialog extends Component {
                 <context-menu class="edit-profile-avatar-menu">
                   <context-menu-item-group>
                     <context-menu-item
+                      data-testid="menu-action-avatar-upload"
                       @click=${() => this._pickImage("avatar")}
                     >
                       Upload from Files
@@ -263,6 +266,7 @@ class EditProfileDialog extends Component {
                   ${avatarSrc
                     ? html`<context-menu-item-group>
                         <context-menu-item
+                          data-testid="menu-action-avatar-remove"
                           @click=${() => {
                             this._newAvatarDataUrl = null;
                             this._removeAvatar = true;

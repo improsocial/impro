@@ -43,7 +43,7 @@ test.describe("Delete post flow", () => {
 
     // Open the post action menu and click "Delete post"
     await feedItem.locator(".text-button").click();
-    await page.locator("context-menu-item", { hasText: "Delete post" }).click();
+    await page.locator('[data-testid="menu-action-post-delete"]').click();
 
     // Confirm deletion if a confirmation dialog appears
     const confirmButton = page.locator("button.confirm-button");
@@ -89,7 +89,7 @@ test.describe("Delete post flow", () => {
 
     // Open the post action menu and click "Delete post"
     await largePost.locator(".text-button").click();
-    await page.locator("context-menu-item", { hasText: "Delete post" }).click();
+    await page.locator('[data-testid="menu-action-post-delete"]').click();
 
     // Confirm deletion if a confirmation dialog appears
     const confirmButton = page.locator("button.confirm-button");
@@ -147,7 +147,7 @@ test.describe("Delete post flow", () => {
     const feedItem = profileView.locator('[data-testid="feed-item"]');
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
     await feedItem.locator(".text-button").click();
-    await page.locator("context-menu-item", { hasText: "Delete post" }).click();
+    await page.locator('[data-testid="menu-action-post-delete"]').click();
     const confirmButton = page.locator("button.confirm-button");
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();

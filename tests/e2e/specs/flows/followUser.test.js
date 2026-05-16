@@ -36,10 +36,12 @@ test.describe("Follow/Unfollow flow", () => {
     // Click the follow button
     await profileView.locator('[data-testid="follow-button"]').click();
 
-    // Verify the button changes to "Following"
+    // Verify the button changes to following state
     await expect(
-      profileView.locator('[data-testid="follow-button"]'),
-    ).toContainText("Following", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="follow-button"][data-teststate="following"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
 
     // Verify the follower count incremented
     await expect(
@@ -91,8 +93,10 @@ test.describe("Follow/Unfollow flow", () => {
 
     const profileView = page.locator("#profile-view");
     await expect(
-      profileView.locator('[data-testid="follow-button"]'),
-    ).toContainText("Following", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="follow-button"][data-teststate="following"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
 
     // Click the follow button to unfollow
     await profileView.locator('[data-testid="follow-button"]').click();

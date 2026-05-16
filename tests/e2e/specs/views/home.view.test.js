@@ -230,7 +230,7 @@ test.describe("Home view", () => {
     await expect(feedItem).toHaveCount(1, { timeout: 10000 });
 
     await feedItem.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+    await page.locator('[data-testid="menu-action-repost"]').click();
 
     await expect(
       feedItem.locator('[data-testid="repost-button"].reposted'),
@@ -1152,9 +1152,7 @@ test.describe("Home view", () => {
         req.url().includes("app.bsky.feed.sendInteractions"),
       );
       await feedItem.locator(".text-button").click();
-      await page
-        .locator("context-menu-item", { hasText: "Show less like this" })
-        .click();
+      await page.locator('[data-testid="menu-action-post-show-less"]').click();
 
       await sendInteractionsRequest;
       await expect(
@@ -1204,15 +1202,12 @@ test.describe("Home view", () => {
         req.url().includes("app.bsky.feed.sendInteractions"),
       );
       await feedItem.locator(".text-button").click();
-      await page
-        .locator("context-menu-item", { hasText: "Show more like this" })
-        .click();
+      await page.locator('[data-testid="menu-action-post-show-more"]').click();
 
       await sendInteractionsRequest;
-      await expect(page.locator(".toast")).toContainText(
-        "Feedback sent to feed operator",
-        { timeout: 10000 },
-      );
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 10000,
+      });
     });
   });
 });

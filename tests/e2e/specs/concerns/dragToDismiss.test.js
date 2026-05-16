@@ -94,9 +94,7 @@ test.describe("Drag-to-dismiss", () => {
       await page
         .locator('#home-view [data-testid="feed-item"] .text-button')
         .click();
-      await page
-        .locator("context-menu-item", { hasText: "Report post" })
-        .click();
+      await page.locator('[data-testid="menu-action-post-report"]').click();
       const reportDialog = page.locator("report-dialog .report-dialog");
       await expect(reportDialog).toBeVisible({ timeout: 5000 });
       return reportDialog;

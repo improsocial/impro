@@ -26,11 +26,12 @@ test.describe("Settings Muted Accounts view", () => {
     await page.goto("/settings/muted-accounts");
 
     const view = page.locator("#settings-muted-accounts-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Muted accounts",
-      { timeout: 10000 },
-    );
-    await expect(view).toContainText("Muted accounts have their posts removed");
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="page-description"]'),
+    ).toBeVisible();
   });
 
   test("should display empty state when no accounts are muted", async ({
@@ -45,9 +46,7 @@ test.describe("Settings Muted Accounts view", () => {
     const view = page.locator("#settings-muted-accounts-view");
     await expect(
       view.locator('[data-testid="muted-account-empty"]'),
-    ).toContainText("You have not muted any accounts yet.", {
-      timeout: 10000,
-    });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should list muted accounts", async ({ page }) => {

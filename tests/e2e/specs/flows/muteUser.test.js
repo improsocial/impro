@@ -44,14 +44,14 @@ test.describe("Mute user flow", () => {
     ).toContainText("Other User", { timeout: 10000 });
 
     await profileView.locator(".ellipsis-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Mute Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-profile-mute"]').click();
 
-    // Verify context menu now shows "Unmute Account"
+    // Verify context menu now shows muted state
     await profileView.locator(".ellipsis-button").click();
     await expect(
-      page.locator("context-menu-item", { hasText: "Unmute Account" }),
+      page.locator(
+        '[data-testid="menu-action-profile-mute"][data-teststate="muted"]',
+      ),
     ).toBeVisible({ timeout: 5000 });
     // Close the menu by pressing Escape
     await page.keyboard.press("Escape");
@@ -96,12 +96,10 @@ test.describe("Mute user flow", () => {
 
     // Open the post's context menu and mute the user
     await feedItem.locator(".text-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Mute Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-post-mute"]').click();
 
     // Verify a toast confirms the mute action
-    await expect(page.locator(".toast")).toContainText("Account muted", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
 
@@ -117,10 +115,12 @@ test.describe("Mute user flow", () => {
       profileView.locator('[data-testid="profile-name"]'),
     ).toContainText("Other User", { timeout: 10000 });
 
-    // Verify context menu shows "Unmute Account"
+    // Verify context menu shows muted state
     await profileView.locator(".ellipsis-button").click();
     await expect(
-      page.locator("context-menu-item", { hasText: "Unmute Account" }),
+      page.locator(
+        '[data-testid="menu-action-profile-mute"][data-teststate="muted"]',
+      ),
     ).toBeVisible({ timeout: 5000 });
   });
 
@@ -162,9 +162,7 @@ test.describe("Mute user flow", () => {
     ).toContainText("Other User", { timeout: 10000 });
 
     await profileView.locator(".ellipsis-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Unmute Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-profile-mute"]').click();
 
     // Navigate to home and verify posts reappear
     await page.goto("/");

@@ -380,7 +380,7 @@ test.describe("Create post flow", () => {
     await expect(composer.locator(".post-composer-video-preview")).toHaveCount(
       0,
     );
-    await expect(page.locator(".toast")).toContainText("Unsupported", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
   });

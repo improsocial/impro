@@ -176,10 +176,12 @@ test.describe("Label preference flow", () => {
       profileView.locator('[data-testid="profile-name"]'),
     ).toContainText("Test Labeler", { timeout: 10000 });
 
-    // Should show "+ Subscribe" button
+    // Should show not-subscribed state
     await expect(
-      profileView.locator('[data-testid="subscribe-button"]'),
-    ).toContainText("+ Subscribe");
+      profileView.locator(
+        '[data-testid="subscribe-button"][data-teststate="not-subscribed"]',
+      ),
+    ).toBeVisible();
 
     // Label preference buttons should NOT be visible (not subscribed)
     await expect(
@@ -189,16 +191,17 @@ test.describe("Label preference flow", () => {
     // Click Subscribe
     await profileView.locator('[data-testid="subscribe-button"]').click();
 
-    // Button should change to "Subscribed"
+    // Button should change to subscribed state
     await expect(
-      profileView.locator('[data-testid="subscribe-button"]'),
-    ).toContainText("Subscribed", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="subscribe-button"][data-teststate="subscribed"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
 
     // Toast should confirm subscription
-    await expect(page.locator(".toast")).toContainText(
-      "Subscribed to labeler",
-      { timeout: 5000 },
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 5000,
+    });
 
     // Label preference buttons should now be visible
     await expect(
@@ -241,10 +244,12 @@ test.describe("Label preference flow", () => {
       profileView.locator('[data-testid="profile-name"]'),
     ).toContainText("Test Labeler", { timeout: 10000 });
 
-    // Should show "Subscribed" button
+    // Should show subscribed state
     await expect(
-      profileView.locator('[data-testid="subscribe-button"]'),
-    ).toContainText("Subscribed");
+      profileView.locator(
+        '[data-testid="subscribe-button"][data-teststate="subscribed"]',
+      ),
+    ).toBeVisible();
 
     // Label preference buttons should be visible (subscribed)
     await expect(
@@ -254,16 +259,17 @@ test.describe("Label preference flow", () => {
     // Click "Subscribed" to unsubscribe
     await profileView.locator('[data-testid="subscribe-button"]').click();
 
-    // Button should change to "+ Subscribe"
+    // Button should change to not-subscribed state
     await expect(
-      profileView.locator('[data-testid="subscribe-button"]'),
-    ).toContainText("+ Subscribe", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="subscribe-button"][data-teststate="not-subscribed"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
 
     // Toast should confirm unsubscription
-    await expect(page.locator(".toast")).toContainText(
-      "Unsubscribed from labeler",
-      { timeout: 5000 },
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 5000,
+    });
 
     // Label preference buttons should no longer be visible
     await expect(

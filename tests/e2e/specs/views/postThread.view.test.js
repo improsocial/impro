@@ -284,7 +284,7 @@ test.describe("Post thread view", () => {
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
     await largePost.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+    await page.locator('[data-testid="menu-action-repost"]').click();
 
     await expect(
       largePost.locator('[data-testid="repost-button"].reposted'),
@@ -430,7 +430,7 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".error-state")).toContainText("Post not found", {
+    await expect(view.locator('[data-testid="post-not-found"]')).toBeVisible({
       timeout: 10000,
     });
   });
@@ -455,10 +455,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading thread",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="thread-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test.describe("Logged-out behavior", () => {
@@ -1360,7 +1359,7 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Hide post for me" }),
+        page.locator('[data-testid="menu-action-post-hide"]'),
       ).toBeVisible();
     });
 
@@ -1382,7 +1381,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Mute account" }),
+        page.locator(
+          '[data-testid="menu-action-post-mute"][data-teststate="unmuted"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1410,7 +1411,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Unmute account" }),
+        page.locator(
+          '[data-testid="menu-action-post-mute"][data-teststate="muted"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1432,7 +1435,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Block account" }),
+        page.locator(
+          '[data-testid="menu-action-post-block"][data-teststate="not-blocking"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1463,7 +1468,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Unblock account" }),
+        page.locator(
+          '[data-testid="menu-action-post-block"][data-teststate="blocking"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1483,7 +1490,7 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Report post" }),
+        page.locator('[data-testid="menu-action-post-report"]'),
       ).toBeVisible();
     });
 
@@ -1514,18 +1521,18 @@ test.describe("Post thread view", () => {
 
       // Moderation actions should not be present on own post
       await expect(
-        page.locator("context-menu-item", { hasText: "Mute account" }),
+        page.locator('[data-testid="menu-action-post-mute"]'),
       ).not.toBeAttached();
       await expect(
-        page.locator("context-menu-item", { hasText: "Block account" }),
+        page.locator('[data-testid="menu-action-post-block"]'),
       ).not.toBeAttached();
       await expect(
-        page.locator("context-menu-item", { hasText: "Report post" }),
+        page.locator('[data-testid="menu-action-post-report"]'),
       ).not.toBeAttached();
 
       // Delete post should be available on own post
       await expect(
-        page.locator("context-menu-item", { hasText: "Delete post" }),
+        page.locator('[data-testid="menu-action-post-delete"]'),
       ).toBeVisible();
     });
   });

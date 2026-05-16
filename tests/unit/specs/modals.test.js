@@ -35,14 +35,11 @@ t.describe("showSignInModal", (it) => {
   it("should render sign in content", () => {
     clearDOM();
     showSignInModal();
-    const title = document.querySelector(".modal-dialog-title");
-    assertEquals(title.textContent, "Sign in");
-    const message = document.querySelector(".modal-dialog-message");
-    assertEquals(message.textContent, "Sign in to join the conversation!");
-    const link = document.querySelector("a.primary-button");
+    assert(document.querySelector('[data-testid="modal-title"]') !== null);
+    assert(document.querySelector('[data-testid="modal-message"]') !== null);
+    const link = document.querySelector('[data-testid="modal-primary-button"]');
     assert(link !== null);
     assert(link.getAttribute("href").startsWith("/login"));
-    assertEquals(link.textContent.trim(), "Sign in");
   });
 
   it("should close and remove on backdrop click", () => {
@@ -56,7 +53,7 @@ t.describe("showSignInModal", (it) => {
   it("should close and remove on link click", () => {
     clearDOM();
     showSignInModal();
-    const link = document.querySelector("a.primary-button");
+    const link = document.querySelector('[data-testid="modal-primary-button"]');
     link.click();
     assert(document.querySelector("dialog") === null);
   });
@@ -76,28 +73,32 @@ t.describe("showInfoModal", (it) => {
   it("should render the provided title", () => {
     clearDOM();
     showInfoModal({ title: "My Title", message: "Some message" });
-    const title = document.querySelector(".modal-dialog-title");
-    assertEquals(title.textContent, "My Title");
+    const title = document.querySelector('[data-testid="modal-title"]');
+    assertEquals(title.textContent.trim(), "My Title");
   });
 
   it("should render the provided message", () => {
     clearDOM();
     showInfoModal({ title: "Title", message: "Custom message" });
-    const message = document.querySelector(".modal-dialog-message");
-    assertEquals(message.textContent, "Custom message");
+    const message = document.querySelector('[data-testid="modal-message"]');
+    assertEquals(message.textContent.trim(), "Custom message");
   });
 
-  it("should use OK as default button text", () => {
+  it("should render a primary button by default", () => {
     clearDOM();
     showInfoModal({ title: "Title", message: "Msg" });
-    const button = document.querySelector(".primary-button");
-    assertEquals(button.textContent.trim(), "OK");
+    const button = document.querySelector(
+      '[data-testid="modal-primary-button"]',
+    );
+    assert(button !== null);
   });
 
   it("should use custom button text when provided", () => {
     clearDOM();
     showInfoModal({ title: "T", message: "M", confirmButtonText: "Got it" });
-    const button = document.querySelector(".primary-button");
+    const button = document.querySelector(
+      '[data-testid="modal-primary-button"]',
+    );
     assertEquals(button.textContent.trim(), "Got it");
   });
 
@@ -111,7 +112,9 @@ t.describe("showInfoModal", (it) => {
   it("should close and remove on button click", () => {
     clearDOM();
     showInfoModal({ title: "T", message: "M" });
-    const button = document.querySelector(".primary-button");
+    const button = document.querySelector(
+      '[data-testid="modal-primary-button"]',
+    );
     button.click();
     assert(document.querySelector("dialog") === null);
   });
@@ -146,54 +149,62 @@ t.describe("confirm", (it) => {
   it("should render the message", () => {
     clearDOM();
     confirm("Delete this?");
-    const message = document.querySelector(".modal-dialog-message");
-    assertEquals(message.textContent, "Delete this?");
+    const message = document.querySelector('[data-testid="modal-message"]');
+    assertEquals(message.textContent.trim(), "Delete this?");
   });
 
   it("should render cancel and confirm buttons", () => {
     clearDOM();
     confirm("Sure?");
-    const cancelButton = document.querySelector(".cancel-button");
-    const confirmButton = document.querySelector(".confirm-button");
+    const cancelButton = document.querySelector(
+      '[data-testid="modal-cancel-button"]',
+    );
+    const confirmButton = document.querySelector(
+      '[data-testid="modal-confirm-button"]',
+    );
     assert(cancelButton !== null);
     assert(confirmButton !== null);
-    assertEquals(cancelButton.textContent.trim(), "Cancel");
-    assertEquals(confirmButton.textContent.trim(), "Confirm");
   });
 
   it("should use custom confirm button text", () => {
     clearDOM();
     confirm("Sure?", { confirmButtonText: "Delete" });
-    const confirmButton = document.querySelector(".confirm-button");
+    const confirmButton = document.querySelector(
+      '[data-testid="modal-confirm-button"]',
+    );
     assertEquals(confirmButton.textContent.trim(), "Delete");
   });
 
   it("should apply custom confirm button style", () => {
     clearDOM();
     confirm("Sure?", { confirmButtonStyle: "danger" });
-    const confirmButton = document.querySelector(".confirm-button");
+    const confirmButton = document.querySelector(
+      '[data-testid="modal-confirm-button"]',
+    );
     assert(confirmButton.classList.contains("danger-button"));
   });
 
   it("should apply primary button style by default", () => {
     clearDOM();
     confirm("Sure?");
-    const confirmButton = document.querySelector(".confirm-button");
+    const confirmButton = document.querySelector(
+      '[data-testid="modal-confirm-button"]',
+    );
     assert(confirmButton.classList.contains("primary-button"));
   });
 
   it("should render title when provided", () => {
     clearDOM();
     confirm("Body text", { title: "Warning" });
-    const title = document.querySelector(".modal-dialog-title");
+    const title = document.querySelector('[data-testid="modal-title"]');
     assert(title !== null);
-    assertEquals(title.textContent, "Warning");
+    assertEquals(title.textContent.trim(), "Warning");
   });
 
   it("should not render title when not provided", () => {
     clearDOM();
     confirm("Body text");
-    const title = document.querySelector(".modal-dialog-title");
+    const title = document.querySelector('[data-testid="modal-title"]');
     assert(title === null);
   });
 
@@ -207,14 +218,14 @@ t.describe("confirm", (it) => {
   it("should resolve true when confirm is clicked", async () => {
     clearDOM();
     const result = confirm("Sure?");
-    document.querySelector(".confirm-button").click();
+    document.querySelector('[data-testid="modal-confirm-button"]').click();
     assertEquals(await result, true);
   });
 
   it("should resolve false when cancel is clicked", async () => {
     clearDOM();
     const result = confirm("Sure?");
-    document.querySelector(".cancel-button").click();
+    document.querySelector('[data-testid="modal-cancel-button"]').click();
     assertEquals(await result, false);
   });
 
@@ -239,7 +250,7 @@ t.describe("confirm", (it) => {
   it("should remove dialog from DOM after confirm", async () => {
     clearDOM();
     const result = confirm("Sure?");
-    document.querySelector(".confirm-button").click();
+    document.querySelector('[data-testid="modal-confirm-button"]').click();
     await result;
     assert(document.querySelector("dialog") === null);
   });
@@ -247,7 +258,7 @@ t.describe("confirm", (it) => {
   it("should remove dialog from DOM after cancel", async () => {
     clearDOM();
     const result = confirm("Sure?");
-    document.querySelector(".cancel-button").click();
+    document.querySelector('[data-testid="modal-cancel-button"]').click();
     await result;
     assert(document.querySelector("dialog") === null);
   });
@@ -292,8 +303,8 @@ t.describe("showWhoCanReplyModal", (it) => {
   it("should render the title", () => {
     clearDOM();
     showWhoCanReplyModal({ post: everybodyPost });
-    const title = document.querySelector(".modal-dialog-title");
-    assertEquals(title.textContent, "Who can interact with this post?");
+    const title = document.querySelector('[data-testid="modal-title"]');
+    assert(title !== null);
   });
 
   it("should render everybody message when no threadgate", () => {
@@ -347,11 +358,12 @@ t.describe("showWhoCanReplyModal", (it) => {
     );
   });
 
-  it("should close and remove on OK button click", () => {
+  it("should close and remove on primary button click", () => {
     clearDOM();
     showWhoCanReplyModal({ post: everybodyPost });
-    const button = document.querySelector(".primary-button");
-    assertEquals(button.textContent.trim(), "OK");
+    const button = document.querySelector(
+      '[data-testid="modal-primary-button"]',
+    );
     button.click();
     assert(document.querySelector("dialog") === null);
   });

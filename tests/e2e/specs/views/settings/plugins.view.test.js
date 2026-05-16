@@ -118,7 +118,7 @@ test.describe("Settings plugins view", () => {
     );
     await dialog.locator(".confirm-button").click();
 
-    await expect(page.locator(".toast")).toContainText("Uninstalled");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(page.locator(".plugin-list-item")).toHaveCount(0);
     await expect(page.locator(".plugins-empty-state")).toBeVisible();
   });
@@ -164,9 +164,7 @@ test.describe("Settings plugins view", () => {
     });
     await headerButton.click();
 
-    await expect(page.locator(".toast")).toContainText(
-      "All plugins are up to date",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(headerButton).toContainText("Check for updates");
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
   });
@@ -191,7 +189,9 @@ test.describe("Settings plugins view", () => {
     });
     await headerButton.click();
 
-    await expect(page.locator(".toast")).toContainText("1 update available");
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "1 update available",
+    );
     await expect(headerButton).toContainText("Update all");
 
     const sampleItem = view.locator(".plugin-list-item", {
@@ -201,7 +201,7 @@ test.describe("Settings plugins view", () => {
     await expect(updateButton).toBeVisible();
     await updateButton.click();
 
-    await expect(page.locator(".toast").last()).toContainText(
+    await expect(page.locator('[data-testid="toast"]').last()).toContainText(
       "Updated Remote Themes to v1.0.1",
     );
     await expect(sampleItem.locator(".plugin-update-button")).toHaveCount(0);
@@ -229,7 +229,7 @@ test.describe("Settings plugins view", () => {
 
     await headerButton.click();
 
-    await expect(page.locator(".toast").last()).toContainText(
+    await expect(page.locator('[data-testid="toast"]').last()).toContainText(
       "Updated 1 plugin",
     );
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);

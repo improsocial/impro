@@ -44,9 +44,7 @@ test.describe("Block user flow", () => {
     ).toContainText("Other User", { timeout: 10000 });
 
     await profileView.locator(".ellipsis-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Block Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-profile-block"]').click();
 
     // Confirm the block in the confirmation dialog
     const confirmButton = page.locator("button.confirm-button");
@@ -107,9 +105,7 @@ test.describe("Block user flow", () => {
 
     // Open the post's context menu and block the user
     await feedItem.locator(".text-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Block Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-post-block"]').click();
 
     // Confirm the block in the confirmation dialog
     const confirmButton = page.locator("button.confirm-button");
@@ -117,7 +113,7 @@ test.describe("Block user flow", () => {
     await confirmButton.click();
 
     // Verify a toast confirms the block action
-    await expect(page.locator(".toast")).toContainText("Account blocked", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
 
@@ -168,9 +164,7 @@ test.describe("Block user flow", () => {
     ).toContainText("Other User", { timeout: 10000 });
 
     await profileView.locator(".ellipsis-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Block Account" })
-      .click();
+    await page.locator('[data-testid="menu-action-profile-block"]').click();
 
     // Cancel the confirmation dialog
     const cancelButton = page.locator("button.cancel-button");

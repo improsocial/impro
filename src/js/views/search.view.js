@@ -179,7 +179,12 @@ class SearchView extends View {
         </div>`;
       }
       if (!postSearchResults || postSearchResults.length === 0) {
-        return html`<div class="search-status-message">No posts found.</div>`;
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
+          No posts found.
+        </div>`;
       }
       return html`<infinite-scroll-container
         lookahead="2500px"
@@ -233,7 +238,10 @@ class SearchView extends View {
         </div>`;
       }
       if (!profileSearchResults || profileSearchResults.length === 0) {
-        return html`<div class="search-status-message">
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
           No profiles found.
         </div>`;
       }
@@ -276,7 +284,12 @@ class SearchView extends View {
         </div>`;
       }
       if (!feedSearchResults || feedSearchResults.length === 0) {
-        return html`<div class="search-status-message">No feeds found.</div>`;
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
+          No feeds found.
+        </div>`;
       }
       return html`<infinite-scroll-container
         lookahead="2500px"

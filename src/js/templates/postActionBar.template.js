@@ -40,6 +40,7 @@ function postContextMenuTemplate({
   return html`
     <context-menu-item-group>
       <context-menu-item
+        data-testid="menu-action-post-open-in-bsky"
         @click=${() => {
           window.open(getBlueskyLinkForPost(post), "_blank");
         }}
@@ -47,6 +48,7 @@ function postContextMenuTemplate({
         Open in bsky.app
       </context-menu-item>
       <context-menu-item
+        data-testid="menu-action-post-copy-link"
         @click=${() => {
           navigator.clipboard.writeText(getPermalinkForPost(post));
           showToast("Link copied to clipboard", { style: "success" });
@@ -57,6 +59,7 @@ function postContextMenuTemplate({
       ${post.record?.text
         ? html`
             <context-menu-item
+              data-testid="menu-action-post-copy-text"
               @click=${() => {
                 navigator.clipboard.writeText(
                   richTextToString(post.record.text, post.record.facets),
@@ -76,10 +79,16 @@ function postContextMenuTemplate({
           ${enableFeedFeedback
             ? html`
                 <context-menu-item-group>
-                  <context-menu-item @click=${() => onClickShowMore(post)}>
+                  <context-menu-item
+                    data-testid="menu-action-post-show-more"
+                    @click=${() => onClickShowMore(post)}
+                  >
                     Show more like this
                   </context-menu-item>
-                  <context-menu-item @click=${() => onClickShowLess(post)}>
+                  <context-menu-item
+                    data-testid="menu-action-post-show-less"
+                    @click=${() => onClickShowLess(post)}
+                  >
                     Show less like this
                   </context-menu-item>
                 </context-menu-item-group>
@@ -91,6 +100,7 @@ function postContextMenuTemplate({
                   ? html`
                       <context-menu-item-group>
                         <context-menu-item
+                          data-testid="menu-action-post-hide"
                           @click=${() => onClickHidePost(post)}
                         >
                           Hide ${post.record?.reply ? "reply" : "post"} for me
@@ -100,6 +110,10 @@ function postContextMenuTemplate({
                   : null}
                 <context-menu-item-group>
                   <context-menu-item
+                    data-testid="menu-action-post-mute"
+                    data-teststate=${post.author.viewer?.muted
+                      ? "muted"
+                      : "unmuted"}
                     @click=${() =>
                       onClickMute(post.author, !post.author.viewer?.muted)}
                   >
@@ -108,6 +122,10 @@ function postContextMenuTemplate({
                       : "Mute account"}
                   </context-menu-item>
                   <context-menu-item
+                    data-testid="menu-action-post-block"
+                    data-teststate=${post.author.viewer?.blocking
+                      ? "blocking"
+                      : "not-blocking"}
                     @click=${() =>
                       onClickBlock(post.author, !post.author.viewer?.blocking)}
                   >
@@ -115,7 +133,10 @@ function postContextMenuTemplate({
                       ? "Unblock account"
                       : "Block account"}
                   </context-menu-item>
-                  <context-menu-item @click=${() => onClickReport(post)}>
+                  <context-menu-item
+                    data-testid="menu-action-post-report"
+                    @click=${() => onClickReport(post)}
+                  >
                     Report post
                   </context-menu-item>
                 </context-menu-item-group>
@@ -127,6 +148,10 @@ function postContextMenuTemplate({
                   ${canPin
                     ? html`
                         <context-menu-item
+                          data-testid="menu-action-post-pin"
+                          data-teststate=${isPinnedToProfile
+                            ? "pinned"
+                            : "unpinned"}
                           @click=${() => onClickPin(post, !isPinnedToProfile)}
                         >
                           ${isPinnedToProfile
@@ -135,7 +160,10 @@ function postContextMenuTemplate({
                         </context-menu-item>
                       `
                     : null}
-                  <context-menu-item @click=${() => onClickDelete(post)}>
+                  <context-menu-item
+                    data-testid="menu-action-post-delete"
+                    @click=${() => onClickDelete(post)}
+                  >
                     Delete post
                   </context-menu-item>
                 </context-menu-item-group>
@@ -256,6 +284,8 @@ export function postActionBarTemplate({
         </button>
         <context-menu>
           <context-menu-item
+            data-testid="menu-action-repost"
+            data-teststate=${isReposted ? "reposted" : "not-reposted"}
             @click=${() => {
               if (!isAuthenticated) {
                 showSignInModal();
@@ -267,6 +297,7 @@ export function postActionBarTemplate({
             ${isReposted ? "Undo repost" : "Repost"}
           </context-menu-item>
           <context-menu-item
+            data-testid="menu-action-quote-post"
             ?disabled=${!canQuotePost || !currentUser}
             @click=${() => {
               if (!isAuthenticated) {

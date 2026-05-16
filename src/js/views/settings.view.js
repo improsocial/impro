@@ -28,24 +28,28 @@ class SettingsView extends View {
 
     const menuItems = [
       {
+        key: "appearance",
         icon: eyeIconTemplate,
         label: "Appearance",
         url: "/settings/appearance",
         enabled: true,
       },
       {
+        key: "muted-words",
         icon: mutedWordIconTemplate,
         label: "Muted words",
         url: "/settings/muted-words",
         enabled: true,
       },
       {
+        key: "muted-accounts",
         icon: eyeSlashIconTemplate,
         label: "Muted accounts",
         url: "/settings/muted-accounts",
         enabled: true,
       },
       {
+        key: "blocked-accounts",
         icon: restrictedIconTemplate,
         label: "Blocked accounts",
         url: "/settings/blocked-accounts",
@@ -54,6 +58,7 @@ class SettingsView extends View {
       ...(window.env.environment === "development"
         ? [
             {
+              key: "plugins",
               icon: boxIconTemplate,
               label: "Plugins (beta)",
               url: "/settings/plugins",
@@ -62,6 +67,7 @@ class SettingsView extends View {
           ]
         : []),
       {
+        key: "advanced",
         icon: codeIconTemplate,
         label: "Advanced",
         url: "/settings/advanced",
@@ -98,6 +104,7 @@ class SettingsView extends View {
                         class=${classnames("vertical-nav-item", {
                           disabled: !item.enabled,
                         })}
+                        data-testid="settings-nav-${item.key}"
                       >
                         <span class="vertical-nav-icon">${item.icon()}</span>
                         <span class="vertical-nav-label">${item.label}</span>
@@ -110,6 +117,7 @@ class SettingsView extends View {
                   <hr />
                   <button
                     class="vertical-nav-item danger-button"
+                    data-testid="settings-sign-out"
                     @click=${async () => {
                       if (
                         !(await confirm("Are you sure you want to sign out?", {
@@ -127,17 +135,29 @@ class SettingsView extends View {
                     Sign out
                   </button>
                 </nav>
-                <div class="version-info">
+                <div class="version-info" data-testid="version-info">
                   Impro v${window.env.version} - ${window.env.gitCommit}
                 </div>
                 <div class="settings-footer-links">
-                  <a href="/tos.html" data-external="true">Terms</a>
+                  <a
+                    href="/tos.html"
+                    data-testid="footer-link-terms"
+                    data-external="true"
+                    >Terms</a
+                  >
                   <span class="settings-footer-separator">·</span>
-                  <a href="/privacy.html" data-external="true"
+                  <a
+                    href="/privacy.html"
+                    data-testid="footer-link-privacy"
+                    data-external="true"
                     >Privacy Policy</a
                   >
                   <span class="settings-footer-separator">·</span>
-                  <a href="https://github.com/improsocial/impro">GitHub</a>
+                  <a
+                    href="https://github.com/improsocial/impro"
+                    data-testid="footer-link-github"
+                    >GitHub</a
+                  >
                 </div>
               </main>`,
           })}

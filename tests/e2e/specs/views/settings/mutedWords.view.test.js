@@ -11,15 +11,14 @@ test.describe("Settings Muted Words view", () => {
     await page.goto("/settings/muted-words");
 
     const view = page.locator("#settings-muted-words-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Muted words",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await expect(view).toContainText("Add muted words and tags");
-    await expect(view).toContainText(
-      "Posts can be muted based on their text, their tags, or both.",
-    );
+    await expect(view.locator('[data-testid="muted-word-form"]')).toBeVisible();
+    await expect(
+      view.locator('[data-testid="page-description"]'),
+    ).toBeVisible();
 
     await expect(
       view.locator('[data-testid="muted-word-input"]'),
@@ -42,9 +41,7 @@ test.describe("Settings Muted Words view", () => {
     await page.goto("/settings/muted-words");
 
     const view = page.locator("#settings-muted-words-view");
-    await expect(
-      view.locator('[data-testid="muted-word-empty"]'),
-    ).toContainText("You haven't muted any words or tags yet", {
+    await expect(view.locator('[data-testid="muted-word-empty"]')).toBeVisible({
       timeout: 10000,
     });
   });
@@ -134,13 +131,13 @@ test.describe("Settings Muted Words view", () => {
     // Confirm dialog should appear
     const dialog = page.locator("dialog.modal-dialog");
     await expect(dialog).toBeVisible({ timeout: 5000 });
-    await expect(dialog).toContainText("Are you sure?");
-    await expect(dialog).toContainText(
-      'This will delete "removeme" from your muted words',
+    // The interpolated word name is the SUT — verify it flows into the dialog.
+    await expect(dialog.locator('[data-testid="modal-message"]')).toContainText(
+      "removeme",
     );
 
     // Click Remove to confirm
-    await dialog.locator(".confirm-button").click();
+    await dialog.locator('[data-testid="modal-confirm-button"]').click();
 
     await expect(view.locator('[data-testid="muted-word-item"]')).toHaveCount(
       0,

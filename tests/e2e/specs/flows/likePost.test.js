@@ -39,11 +39,11 @@ test.describe("Like post flow", () => {
 
     const profileView = page.locator("#profile-view");
     const tabBar = profileView.locator(".tab-bar");
-    await expect(
-      tabBar.locator(".tab-bar-button", { hasText: "Likes" }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(tabBar.locator('[data-testid="tab-likes"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await tabBar.locator(".tab-bar-button", { hasText: "Likes" }).click();
+    await tabBar.locator('[data-testid="tab-likes"]').click();
 
     await expect(profileView.locator('[data-testid="feed-item"]')).toHaveCount(
       1,
@@ -76,11 +76,11 @@ test.describe("Like post flow", () => {
 
     const profileView = page.locator("#profile-view");
     const tabBar = profileView.locator(".tab-bar");
-    await expect(
-      tabBar.locator(".tab-bar-button", { hasText: "Likes" }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(tabBar.locator('[data-testid="tab-likes"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await tabBar.locator(".tab-bar-button", { hasText: "Likes" }).click();
+    await tabBar.locator('[data-testid="tab-likes"]').click();
 
     await expect(profileView.locator('[data-testid="feed-item"]')).toHaveCount(
       1,
@@ -105,11 +105,11 @@ test.describe("Like post flow", () => {
     // Navigate back to own profile Likes tab
     await page.goto(`/profile/${userProfile.did}`);
 
-    await expect(
-      tabBar.locator(".tab-bar-button", { hasText: "Likes" }),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(tabBar.locator('[data-testid="tab-likes"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    await tabBar.locator(".tab-bar-button", { hasText: "Likes" }).click();
+    await tabBar.locator('[data-testid="tab-likes"]').click();
 
     await expect(
       profileView.locator(

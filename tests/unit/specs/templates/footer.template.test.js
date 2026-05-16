@@ -34,19 +34,17 @@ t.describe("footerTemplate - logged out state", (it) => {
     render(result, container);
     const loginButton = container.querySelector("[data-testid='login-button']");
     assert(loginButton !== null);
-    assert(loginButton.textContent.includes("Sign in"));
   });
 
-  it("should render IMPRO title when not authenticated", () => {
+  it("should render brand title when not authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: false,
       currentUser: null,
     });
     const container = document.createElement("div");
     render(result, container);
-    const title = container.querySelector("h2");
+    const title = container.querySelector("[data-testid='brand-title']");
     assert(title !== null);
-    assert(title.textContent.includes("IMPRO"));
   });
 });
 

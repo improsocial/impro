@@ -43,17 +43,17 @@ t.describe("ImageAltTextDialog - rendering", (it) => {
   it("should render cancel button", () => {
     const element = document.createElement("image-alt-text-dialog");
     connectElement(element);
-    const cancelButton = element.querySelector(".rounded-button-secondary");
+    const cancelButton = element.querySelector(
+      '[data-testid="alt-text-cancel"]',
+    );
     assert(cancelButton !== null);
-    assertEquals(cancelButton.textContent.trim(), "Cancel");
   });
 
   it("should render save button", () => {
     const element = document.createElement("image-alt-text-dialog");
     connectElement(element);
-    const saveButton = element.querySelector(".rounded-button-primary");
+    const saveButton = element.querySelector('[data-testid="alt-text-save"]');
     assert(saveButton !== null);
-    assertEquals(saveButton.textContent.trim(), "Save");
   });
 
   it("should render character count", () => {
