@@ -351,7 +351,7 @@ class SettingsMutedWordsView extends View {
                   </label>
 
                   <button
-                    class="muted-word-add-button"
+                    class="settings-button"
                     data-testid="muted-word-add"
                     type="submit"
                     ?disabled=${state.isSaving || !state.hasValue}

@@ -66,11 +66,13 @@ class SettingsAppearanceView extends View {
               })}
               <main>
                 <section
-                  class="settings-section"
+                  class="settings-section settings-section-row"
                   data-testid="settings-section-color-scheme"
                 >
-                  <h2>Color scheme</h2>
-                  <p>Choose between light and dark mode.</p>
+                  <div class="settings-section-text">
+                    <h2>Color scheme</h2>
+                    <p>Choose between light and dark mode.</p>
+                  </div>
                   <select
                     class="settings-select"
                     @change=${(e) => {
@@ -99,11 +101,13 @@ class SettingsAppearanceView extends View {
                   </select>
                 </section>
                 <section
-                  class="settings-section"
+                  class="settings-section settings-section-row"
                   data-testid="settings-section-highlight-color"
                 >
-                  <h2>Highlight color</h2>
-                  <p>Choose the highlight color for buttons and links.</p>
+                  <div class="settings-section-text">
+                    <h2>Highlight color</h2>
+                    <p>Choose the highlight color for buttons and links.</p>
+                  </div>
                   <div class="settings-color-picker">
                     <input
                       @change=${(e) => {
@@ -123,11 +127,13 @@ class SettingsAppearanceView extends View {
                   </div>
                 </section>
                 <section
-                  class="settings-section"
+                  class="settings-section settings-section-row"
                   data-testid="settings-section-like-color"
                 >
-                  <h2>Like color</h2>
-                  <p>Choose the color for liked posts.</p>
+                  <div class="settings-section-text">
+                    <h2>Like color</h2>
+                    <p>Choose the color for liked posts.</p>
+                  </div>
                   <div class="settings-color-picker">
                     <input
                       @change=${(e) => {

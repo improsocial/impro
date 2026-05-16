@@ -227,6 +227,7 @@ class SettingsAdvancedView extends View {
                     <div class="button-group">
                       <button
                         type="submit"
+                        class="settings-button"
                         ?disabled=${state.loading || !isDirty()}
                       >
                         Save and reload
@@ -277,6 +278,7 @@ class SettingsAdvancedView extends View {
                     <div class="button-group">
                       <button
                         type="submit"
+                        class="settings-button"
                         data-testid="install-unregistered-plugin-submit"
                         ?disabled=${state.pluginInstallLoading}
                       >

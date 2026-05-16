@@ -459,7 +459,7 @@ main {
 
 .danger-button {
   color: var(--error-color);
-  font-size: 14px;
+  font-size: 15px;
 }
 
 .back-button {
@@ -5546,6 +5546,21 @@ img[data-lightbox] {
   position: relative;
 }
 
+.settings-section-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.settings-section-row .settings-section-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.settings-section-row .settings-section-text > :last-child {
+  margin-bottom: 0;
+}
+
 .settings-section h2 {
   font-size: 16px;
   font-weight: 500;
@@ -5563,10 +5578,8 @@ img[data-lightbox] {
   display: flex;
   flex-direction: column;
   align-items: center;
-  position: absolute;
-  right: 16px;
-  top: 12px;
   overflow: hidden;
+  flex-shrink: 0;
 }
 
 .settings-color-picker-reset {
@@ -5579,9 +5592,6 @@ img[data-lightbox] {
 }
 
 .settings-select {
-  position: absolute;
-  right: 16px;
-  top: 16px;
   padding: 8px 12px;
   border-radius: var(--text-input-border-radius);
   border: var(--hair) solid var(--post-border-color);
@@ -5589,6 +5599,7 @@ img[data-lightbox] {
   color: var(--text-color);
   font-size: 14px;
   cursor: pointer;
+  flex-shrink: 0;
 }
 
 .settings-footer-links {
@@ -5707,10 +5718,10 @@ img[data-lightbox] {
   margin: 0;
 }
 
-.muted-word-add-button {
+.settings-button {
   width: 100%;
   padding: 10px;
-  border-radius: 8px;
+  border-radius: var(--pill-button-border-radius);
   border: none;
   background: var(--highlight-color);
   color: white;
@@ -5720,7 +5731,7 @@ img[data-lightbox] {
   gap: 6px;
 }
 
-.muted-word-add-button:disabled {
+.settings-button:disabled {
   opacity: 0.5;
   cursor: default;
 }
@@ -5730,7 +5741,7 @@ img[data-lightbox] {
   bottom: 1px;
 }
 
-.muted-word-add-button .loading-spinner {
+.settings-button .loading-spinner {
   border-color: rgba(255, 255, 255, 0.3);
   border-top-color: white;
   margin: 0 auto;
@@ -6153,6 +6164,10 @@ moderation-warning .toggle-content {
 
 .settings-section .button-group {
   margin-top: 16px;
+}
+
+.settings-section button {
+  flex: 1;
 }
 
 #login-advanced {
