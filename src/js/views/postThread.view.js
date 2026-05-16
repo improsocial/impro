@@ -21,6 +21,7 @@ import { ApiError } from "/js/api.js";
 import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { linkToPostFromUri } from "/js/navigation.js";
 
 class PostThreadView extends View {
   async render({
@@ -349,7 +350,11 @@ class PostThreadView extends View {
         const parents = flattenParents(postThread);
         // A post might still have a parent even if it isn't loaded by the appview -
         // this happens if the client has malformed reply refs.
-        const hasParent = postThread.post?.record?.reply?.parent;
+        const replyParent = postThread.post?.record?.reply?.parent;
+        const hasParent = !!replyParent;
+        // Don't set this to true unless the full post thread has loaded
+        const hasBrokenReplyRef =
+          hasParent && !postThread.__isPrefill && parents.length === 0;
         const root = getReplyRootFromPost(postThread.post);
         const replies = postThread.replies;
         const postAuthor = postThread.post?.author;
@@ -383,6 +388,16 @@ class PostThreadView extends View {
                 }),
               });
             })}
+            ${hasBrokenReplyRef
+              ? html`<div class="load-more-link">
+                  <div class="load-more-spacer">
+                    <div class="reply-context-ellipsis"></div>
+                  </div>
+                  <a href=${linkToPostFromUri(replyParent.uri)}
+                    >Load parent post</a
+                  >
+                </div>`
+              : ""}
             ${hiddenUnauthenticated
               ? noUnauthenticatedLargePostTemplate()
               : largePostTemplate({
@@ -468,6 +483,7 @@ class PostThreadView extends View {
         const post = dataLayer.selectors.getPost(postUri);
         if (post) {
           postThread = {
+            __isPrefill: true,
             post,
             parent: null,
             replies: null,

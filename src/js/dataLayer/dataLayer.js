@@ -1,22 +1,23 @@
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
-import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
 import { Selectors } from "/js/dataLayer/selectors.js";
 import { Declarative } from "/js/dataLayer/declarative.js";
 
 export class DataLayer {
-  constructor(api) {
+  constructor(api, pluginService, preferencesProvider) {
     this.api = api;
+    this.pluginService = pluginService;
     this.isAuthenticated = api.isAuthenticated;
     this.dataStore = new DataStore();
     this.patchStore = new PatchStore();
-    this.preferencesProvider = new PreferencesProvider(this.api);
+    this.preferencesProvider = preferencesProvider;
     this.requests = new Requests(
       this.api,
       this.dataStore,
       this.preferencesProvider,
+      this.pluginService,
     );
     this.mutations = new Mutations(
       this.api,

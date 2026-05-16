@@ -1159,9 +1159,12 @@ test.describe("Home view", () => {
       await sendInteractionsRequest;
       await expect(
         visibleFeed.locator('[data-testid="feed-feedback-message"]'),
-      ).toContainText("Your feedback has been sent to the feed operator.", {
-        timeout: 10000,
-      });
+      ).toContainText(
+        "Thank you for your feedback! It has been sent to the feed operator.",
+        {
+          timeout: 10000,
+        },
+      );
     });
 
     test("should send Show More interaction and show toast", async ({

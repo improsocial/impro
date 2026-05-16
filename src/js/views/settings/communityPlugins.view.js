@@ -1,0 +1,193 @@
+import { View } from "/js/views/view.js";
+import { html, render } from "/js/lib/lit-html.js";
+import { headerTemplate } from "/js/templates/header.template.js";
+import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
+import { requireAuth } from "/js/auth.js";
+import { showToast } from "/js/toasts.js";
+import { confirm } from "/js/modals.js";
+
+class SettingsCommunityPluginsView extends View {
+  async render({
+    root,
+    context: {
+      dataLayer,
+      notificationService,
+      chatNotificationService,
+      postComposerService,
+      pluginService,
+    },
+  }) {
+    await requireAuth();
+
+    const state = {
+      entries: null,
+      error: null,
+      pending: new Set(),
+    };
+
+    async function loadEntries() {
+      state.error = null;
+      renderPage();
+      try {
+        state.entries = await pluginService.listRegistryPlugins();
+      } catch (error) {
+        console.error(error);
+        state.error = error.message ?? String(error);
+      }
+      renderPage();
+    }
+
+    async function toggleInstall(entry) {
+      const wasInstalled = entry.installed;
+      if (wasInstalled) {
+        const confirmed = await confirm(
+          `"${entry.name}" will be disabled and uninstalled.`,
+          {
+            title: "Uninstall plugin?",
+            confirmButtonStyle: "danger",
+            confirmButtonText: "Uninstall",
+          },
+        );
+        if (!confirmed) return;
+      }
+      state.pending.add(entry.id);
+      renderPage();
+      try {
+        if (wasInstalled) {
+          await pluginService.uninstallPlugin(entry.id);
+        } else {
+          await pluginService.installPlugin(entry.id);
+        }
+        state.entries = await pluginService.listRegistryPlugins();
+        showToast(
+          wasInstalled
+            ? `Uninstalled ${entry.name}`
+            : `Installed ${entry.name}`,
+          { style: wasInstalled ? "default" : "success" },
+        );
+      } catch (e) {
+        console.error(e);
+        showToast(
+          wasInstalled
+            ? `Failed to uninstall ${entry.name}`
+            : `Failed to install ${entry.name}`,
+          { style: "error" },
+        );
+      }
+      state.pending.delete(entry.id);
+      renderPage();
+    }
+
+    function renderPage() {
+      const currentUser = dataLayer.selectors.getCurrentUser();
+      const numNotifications =
+        notificationService?.getNumNotifications() ?? null;
+      const numChatNotifications =
+        chatNotificationService?.getNumNotifications() ?? null;
+      render(
+        html`<div id="settings-community-plugins-view">
+          ${mainLayoutTemplate({
+            onClickComposeButton: () =>
+              postComposerService.composePost({ currentUser }),
+            currentUser,
+            numNotifications,
+            numChatNotifications,
+            pluginService,
+            activeNavItem: "settings",
+            onClickActiveNavItem: () => window.router.go("/settings"),
+            children: html`${headerTemplate({
+                title: "Community plugins",
+                onClickBackButton: () => window.router.go("/settings/plugins"),
+              })}
+              <main>
+                ${state.error
+                  ? html`<div class="error-state">
+                      <div>Failed to load plugins</div>
+                      <button @click=${() => loadEntries()}>Try again</button>
+                    </div>`
+                  : !state.entries
+                    ? "" // loading is usually quick, so don't show a loading state
+                    : state.entries.length === 0
+                      ? html`<div class="plugins-empty-state">
+                          <div class="plugins-empty-state-title">
+                            No community plugins to show
+                          </div>
+                          <p class="plugins-empty-state-message">
+                            The registry is empty right now.
+                          </p>
+                        </div>`
+                      : html`<ul class="plugin-list">
+                          ${state.entries.map((entry) => {
+                            const pending = state.pending.has(entry.id);
+                            const buttonClass = entry.installed
+                              ? "plugin-install-button rounded-button"
+                              : "plugin-install-button rounded-button rounded-button-primary";
+                            return html`
+                              <li class="plugin-list-item">
+                                <div class="plugin-list-item-info">
+                                  <div class="plugin-list-item-name">
+                                    ${entry.name}
+                                    ${entry.id.endsWith("__LOCAL")
+                                      ? html`<span class="plugin-local-badge"
+                                          >local</span
+                                        >`
+                                      : ""}
+                                  </div>
+                                  ${entry.description
+                                    ? html`<div
+                                        class="plugin-list-item-description"
+                                      >
+                                        ${entry.description}
+                                      </div>`
+                                    : ""}
+                                  <div class="plugin-list-item-version">
+                                    By ${entry.author}
+                                  </div>
+                                </div>
+                                <div class="plugin-list-item-controls">
+                                  <button
+                                    class=${buttonClass}
+                                    ?disabled=${pending}
+                                    @click=${() => toggleInstall(entry)}
+                                  >
+                                    ${pending
+                                      ? html`${entry.installed
+                                            ? "Uninstalling"
+                                            : "Installing"}
+                                          <div
+                                            class="loading-spinner"
+                                            data-testid="loading-spinner"
+                                          ></div>`
+                                      : entry.installed
+                                        ? "Uninstall"
+                                        : "Install"}
+                                  </button>
+                                </div>
+                              </li>
+                            `;
+                          })}
+                        </ul>`}
+              </main>`,
+          })}
+        </div>`,
+        root,
+      );
+    }
+
+    root.addEventListener("page-enter", async () => {
+      renderPage();
+      dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
+      await loadEntries();
+    });
+
+    root.addEventListener("page-restore", () => {
+      window.scrollTo(0, 0);
+      loadEntries();
+    });
+
+    notificationService?.on("update", () => renderPage());
+    chatNotificationService?.on("update", () => renderPage());
+  }
+}
+
+export default new SettingsCommunityPluginsView();

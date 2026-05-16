@@ -74,7 +74,7 @@ test.describe("Create post flow", () => {
     // Upload a 1x1 pixel PNG via file input
     const pngBase64 =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
-    const fileInput = composer.locator('input[type="file"]');
+    const fileInput = composer.locator(".media-picker-input");
     await fileInput.setInputFiles({
       name: "test-image.png",
       mimeType: "image/png",
@@ -321,5 +321,67 @@ test.describe("Create post flow", () => {
     );
     await expect(profileView).toContainText("@alice.bsky.social");
     await expect(profileView).toContainText("#testing");
+  });
+
+  test("media picker is disabled once 4 images are selected", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/intent/compose");
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const pickerButton = composer.locator(".image-picker-button");
+    await expect(pickerButton).toBeVisible();
+    await expect(pickerButton).toBeEnabled();
+
+    const pngBase64 =
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==";
+    const mediaInput = composer.locator(".media-picker-input");
+    await mediaInput.setInputFiles(
+      [0, 1, 2, 3].map((index) => ({
+        name: `tiny-${index}.png`,
+        mimeType: "image/png",
+        buffer: Buffer.from(pngBase64, "base64"),
+      })),
+    );
+    await expect(composer.locator(".image-preview-item")).toHaveCount(4, {
+      timeout: 10000,
+    });
+    await expect(pickerButton).toBeDisabled();
+
+    await composer.locator(".image-preview-remove-button").first().click();
+    await expect(pickerButton).toBeEnabled();
+  });
+
+  test("rejects unsupported video file types with a toast", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/intent/compose");
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const videoInput = composer.locator(".media-picker-input");
+    await videoInput.setInputFiles({
+      name: "not-a-video.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("nope"),
+    });
+
+    await expect(composer.locator(".post-composer-video-preview")).toHaveCount(
+      0,
+    );
+    await expect(page.locator(".toast")).toContainText("Unsupported", {
+      timeout: 5000,
+    });
   });
 });

@@ -1,13 +1,21 @@
 import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
-import {
+import { ImageCompressor } from "/js/imageCompressor.js";
+
+const t = new TestSuite("imageCompressor");
+const imageCompressor = new ImageCompressor();
+const {
   constrainImageSize,
   estimateDataUrlSize,
   dataUrlToBlob,
   compressImage,
-} from "/js/imageUtils.js";
-
-const t = new TestSuite("imageUtils");
+} = {
+  constrainImageSize: imageCompressor.constrainImageSize.bind(imageCompressor),
+  estimateDataUrlSize:
+    imageCompressor.estimateDataUrlSize.bind(imageCompressor),
+  dataUrlToBlob: imageCompressor.dataUrlToBlob.bind(imageCompressor),
+  compressImage: imageCompressor.compressImage.bind(imageCompressor),
+};
 
 const originalImage = globalThis.Image;
 const originalCreateElement = document.createElement;

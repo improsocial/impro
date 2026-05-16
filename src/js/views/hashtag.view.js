@@ -99,7 +99,7 @@ class HashtagView extends View {
             activeNavItem: null,
             pluginService,
             children: html` <main>
-              ${headerTemplate({ title: `#${hashtag}` })}
+              ${headerTemplate({ title: `#${hashtag}`, fixedHeight: true })}
               <div class="hashtag-tab-bar-container">
                 ${tabBarTemplate({
                   tabs: sortOptions,

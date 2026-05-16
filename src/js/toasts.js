@@ -23,12 +23,60 @@ function restackToasts() {
   }
 }
 
-export async function showToast(
+function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
+  toast.setAttribute("popover", "manual");
+  document.body.appendChild(toast);
+
+  let entry = null;
+  let shown = false;
+  let dismissed = false;
+  let timeoutId = null;
+
+  function dismiss() {
+    if (dismissed) return;
+    dismissed = true;
+    if (timeoutId != null) clearTimeout(timeoutId);
+    toast.classList.remove("active");
+    if (entry) {
+      const index = activeToasts.indexOf(entry);
+      if (index !== -1) {
+        activeToasts.splice(index, 1);
+        restackToasts();
+      }
+    }
+    if (shown) toast.hidePopover();
+    setTimeout(() => toast.remove(), 1000);
+    onDismiss();
+  }
+
+  async function show() {
+    await raf();
+    await raf();
+    if (dismissed) {
+      toast.remove();
+      return;
+    }
+    toast.showPopover(); // this puts the element in the top layer, so it will be displayed above dialogs
+    shown = true;
+    entry = { element: toast, height: toast.offsetHeight };
+    activeToasts.unshift(entry);
+    restackToasts();
+    toast.classList.add("active");
+    if (timeout) {
+      timeoutId = setTimeout(dismiss, timeout);
+    }
+  }
+
+  show();
+
+  return { dismiss, element: toast };
+}
+
+export function showToast(
   message,
   { style = "default", timeout = 3000, iconTemplate } = {},
 ) {
   const toast = document.createElement("div");
-  toast.setAttribute("popover", "manual");
   toast.classList.add("toast", style);
   const resolvedIconTemplate =
     iconTemplate ?? STYLE_ICONS[style] ?? STYLE_ICONS.default;
@@ -39,27 +87,29 @@ export async function showToast(
     `,
     toast,
   );
-  document.body.appendChild(toast);
-  await raf();
-  await raf();
-  toast.showPopover(); // this puts the element in the top layer, so it will be displayed above dialogs
+  return mountToast(toast, { timeout });
+}
 
-  const entry = { element: toast, height: toast.offsetHeight };
-  activeToasts.unshift(entry);
-  restackToasts();
+const pluginToasts = new Map();
 
-  toast.classList.add("active");
-  if (timeout) {
-    await wait(timeout);
-    toast.classList.remove("active");
-    const index = activeToasts.indexOf(entry);
-    if (index !== -1) {
-      activeToasts.splice(index, 1);
-      restackToasts();
-    }
-    toast.hidePopover();
-    await wait(1000);
-    toast.remove();
-  }
-  // todo - toast can be dismissed by the user
+export function showPluginToast({
+  pluginRenderer,
+  pluginId,
+  toastId,
+  element,
+  timeout,
+}) {
+  const key = `${pluginId}:${toastId}`;
+  if (pluginToasts.has(key)) return;
+  const toast = pluginRenderer.renderNode(element, pluginId);
+  const handle = mountToast(toast, {
+    timeout,
+    onDismiss: () => pluginToasts.delete(key),
+  });
+  pluginToasts.set(key, handle);
+}
+
+export function hidePluginToast({ pluginId, toastId }) {
+  const handle = pluginToasts.get(`${pluginId}:${toastId}`);
+  if (handle) handle.dismiss();
 }

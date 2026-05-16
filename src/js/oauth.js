@@ -71,6 +71,100 @@ async function fetchAuthServerMetadata(authServerUrl) {
   return await response.json();
 }
 
+const SESSION_KEY_PREFIX = "oauth_session:";
+const ACCOUNTS_KEY = "oauth_accounts";
+const CURRENT_DID_KEY = "oauth_current_did";
+const IN_FLIGHT_PREFIX = "oauth_in_flight_";
+const IN_FLIGHT_MAX_AGE_MS = 10 * 60 * 1000;
+const LEGACY_SESSION_KEY = "oauth_session";
+
+function readAccounts() {
+  const raw = localStorage.getItem(ACCOUNTS_KEY);
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function writeAccounts(accounts) {
+  if (accounts.length === 0) {
+    localStorage.removeItem(ACCOUNTS_KEY);
+  } else {
+    localStorage.setItem(ACCOUNTS_KEY, JSON.stringify(accounts));
+  }
+}
+
+function upsertAccount(account) {
+  const accounts = readAccounts();
+  const index = accounts.findIndex((entry) => entry.did === account.did);
+  if (index >= 0) {
+    accounts[index] = { ...accounts[index], ...account };
+  } else {
+    accounts.push(account);
+  }
+  writeAccounts(accounts);
+}
+
+function getAccount(did) {
+  return readAccounts().find((entry) => entry.did === did) ?? null;
+}
+
+function deleteAccount(did) {
+  const accounts = readAccounts();
+  writeAccounts(accounts.filter((entry) => entry.did !== did));
+}
+
+function migrateLegacySession() {
+  const legacySessionData = localStorage.getItem(LEGACY_SESSION_KEY);
+  if (!legacySessionData) return;
+  if (localStorage.getItem(ACCOUNTS_KEY) !== null) {
+    // This shouldn't happen
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+    return;
+  }
+  try {
+    const sessionData = JSON.parse(legacySessionData);
+    if (!sessionData?.did) {
+      localStorage.removeItem(LEGACY_SESSION_KEY);
+      return;
+    }
+    localStorage.setItem(
+      SESSION_KEY_PREFIX + sessionData.did,
+      legacySessionData,
+    );
+    writeAccounts([
+      {
+        did: sessionData.did,
+        handle: null,
+        pdsUrl: sessionData.serviceEndpoint ?? null,
+      },
+    ]);
+    localStorage.setItem(CURRENT_DID_KEY, sessionData.did);
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+  } catch {
+    localStorage.removeItem(LEGACY_SESSION_KEY);
+  }
+}
+
+function removeStaleInFlightData() {
+  const now = Date.now();
+  for (let index = localStorage.length - 1; index >= 0; index--) {
+    const key = localStorage.key(index);
+    if (!key?.startsWith(IN_FLIGHT_PREFIX)) continue;
+    let stale = false;
+    try {
+      const data = JSON.parse(localStorage.getItem(key));
+      stale = !data?.createdAt || now - data.createdAt > IN_FLIGHT_MAX_AGE_MS;
+    } catch {
+      stale = true;
+    }
+    if (stale) localStorage.removeItem(key);
+  }
+}
+
 async function loadOrGenerateDPoPKeypair() {
   const dpopKeypairStr = localStorage.getItem("dpop_keypair");
   if (dpopKeypairStr) {
@@ -215,8 +309,11 @@ class Session {
     this.pendingRefresh = null;
   }
 
-  static async load(dpopRequests) {
-    const sessionDataStr = localStorage.getItem("oauth_session");
+  static async load(dpopRequests, did) {
+    if (!did) {
+      return null;
+    }
+    const sessionDataStr = localStorage.getItem(SESSION_KEY_PREFIX + did);
     if (!sessionDataStr) {
       return null;
     }
@@ -225,7 +322,10 @@ class Session {
   }
 
   save() {
-    localStorage.setItem("oauth_session", JSON.stringify(this.sessionData));
+    localStorage.setItem(
+      SESSION_KEY_PREFIX + this.sessionData.did,
+      JSON.stringify(this.sessionData),
+    );
   }
 
   async refreshToken({ retryCount = 0 } = {}) {
@@ -282,12 +382,12 @@ class Session {
     return this.sessionData.did;
   }
 
-  get serviceEndpoint() {
-    return this.sessionData.serviceEndpoint;
+  get handle() {
+    return getAccount(this.sessionData.did)?.handle ?? null;
   }
 
-  logout() {
-    localStorage.removeItem("oauth_session");
+  get serviceEndpoint() {
+    return this.sessionData.serviceEndpoint;
   }
 }
 
@@ -379,6 +479,7 @@ export class OauthClient {
 
   static async load({ clientId, redirectUri }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
+    migrateLegacySession();
     return new OauthClient({
       clientId,
       redirectUri,
@@ -415,13 +516,15 @@ export class OauthClient {
     const inFlightData = {
       codeVerifier,
       did,
+      handle,
       serviceEndpoint,
       authServerUrl,
       authServerMetadata,
       redirectUri: this.redirectUri,
+      createdAt: Date.now(),
     };
     localStorage.setItem(
-      `oauth_in_flight_${requestId}`,
+      `${IN_FLIGHT_PREFIX}${requestId}`,
       JSON.stringify(inFlightData),
     );
 
@@ -457,7 +560,7 @@ export class OauthClient {
 
     const { requestId } = JSON.parse(decodeURIComponent(stateStr));
     const inFlightDataStr = localStorage.getItem(
-      `oauth_in_flight_${requestId}`,
+      `${IN_FLIGHT_PREFIX}${requestId}`,
     );
     if (!inFlightDataStr) {
       throw new Error("No in-flight data found for requestId");
@@ -499,24 +602,51 @@ export class OauthClient {
     const session = new Session(sessionData, this.dpopRequests);
     session.save();
 
-    for (let i = localStorage.length - 1; i >= 0; i--) {
-      const key = localStorage.key(i);
-      if (key?.startsWith("oauth_in_flight_")) {
-        localStorage.removeItem(key);
-      }
-    }
+    upsertAccount({
+      did: tokenResponse.sub,
+      handle: inFlightData.handle ?? null,
+      pdsUrl: inFlightData.serviceEndpoint,
+    });
+    localStorage.setItem(CURRENT_DID_KEY, tokenResponse.sub);
+
+    localStorage.removeItem(`${IN_FLIGHT_PREFIX}${requestId}`);
+    removeStaleInFlightData();
 
     return session;
   }
 
-  async getSession() {
-    return Session.load(this.dpopRequests);
+  async getSession(did = null) {
+    const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
+    if (!targetDid) return null;
+    return Session.load(this.dpopRequests, targetDid);
   }
 
-  async logout() {
-    const session = await this.getSession();
-    if (session) {
-      await session.logout();
+  listAccounts() {
+    return readAccounts();
+  }
+
+  switchToAccount(did) {
+    const accounts = readAccounts();
+    if (!accounts.some((entry) => entry.did === did)) {
+      throw new Error(`No stored account for did: ${did}`);
+    }
+    localStorage.setItem(CURRENT_DID_KEY, did);
+  }
+
+  async logout(did) {
+    const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
+    if (!targetDid) return;
+    const accounts = readAccounts();
+    if (!accounts.some((entry) => entry.did === targetDid)) return;
+    localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
+    deleteAccount(targetDid);
+    const remaining = readAccounts();
+    if (localStorage.getItem(CURRENT_DID_KEY) === targetDid) {
+      if (remaining.length === 0) {
+        localStorage.removeItem(CURRENT_DID_KEY);
+      } else {
+        localStorage.setItem(CURRENT_DID_KEY, remaining[0].did);
+      }
     }
   }
 }

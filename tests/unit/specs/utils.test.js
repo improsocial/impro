@@ -2,6 +2,7 @@ import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals } from "../testHelpers.js";
 import {
   unique,
+  groupBy,
   noop,
   sliceByByte,
   formatLargeNumber,
@@ -13,6 +14,8 @@ import {
   differenceInDays,
   buildQueryString,
   ImageLoader,
+  compareVersions,
+  getPostLangs,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -84,6 +87,59 @@ t.describe("unique", (it) => {
       { name: "Jane", age: 25 },
       { name: "Bob", age: 35 },
     ]);
+  });
+});
+
+t.describe("groupBy", (it) => {
+  it("should group items by key string", () => {
+    const input = [
+      { pluginId: "a", title: "1" },
+      { pluginId: "b", title: "2" },
+      { pluginId: "a", title: "3" },
+    ];
+    const result = groupBy(input, "pluginId");
+    assertEquals(
+      [...result.entries()],
+      [
+        [
+          "a",
+          [
+            { pluginId: "a", title: "1" },
+            { pluginId: "a", title: "3" },
+          ],
+        ],
+        ["b", [{ pluginId: "b", title: "2" }]],
+      ],
+    );
+  });
+
+  it("should group items by function", () => {
+    const input = [1, 2, 3, 4, 5];
+    const result = groupBy(input, (n) => (n % 2 === 0 ? "even" : "odd"));
+    assertEquals(
+      [...result.entries()],
+      [
+        ["odd", [1, 3, 5]],
+        ["even", [2, 4]],
+      ],
+    );
+  });
+
+  it("should preserve insertion order of keys", () => {
+    const input = [
+      { id: "b" },
+      { id: "a" },
+      { id: "b" },
+      { id: "c" },
+      { id: "a" },
+    ];
+    const result = groupBy(input, "id");
+    assertEquals([...result.keys()], ["b", "a", "c"]);
+  });
+
+  it("should return empty Map for empty array", () => {
+    const result = groupBy([], "id");
+    assertEquals([...result.entries()], []);
   });
 });
 
@@ -538,6 +594,97 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     assertEquals(loader.hasFailed("f.jpg"), true);
     await assertRejects(loader.load("f.jpg"));
     assertEquals(MockImage.instances.length, 1);
+  });
+});
+
+t.describe("compareVersions", (it) => {
+  it("returns 0 for equal versions", () => {
+    assertEquals(compareVersions("1.2.3", "1.2.3"), 0);
+    assertEquals(compareVersions("0.0.0", "0.0.0"), 0);
+  });
+
+  it("returns 1 when first is greater", () => {
+    assertEquals(compareVersions("1.2.4", "1.2.3"), 1);
+    assertEquals(compareVersions("1.3.0", "1.2.99"), 1);
+    assertEquals(compareVersions("2.0.0", "1.99.99"), 1);
+  });
+
+  it("returns -1 when first is less", () => {
+    assertEquals(compareVersions("1.2.3", "1.2.4"), -1);
+    assertEquals(compareVersions("0.0.0", "0.0.1"), -1);
+  });
+
+  it("pads missing parts with 0", () => {
+    assertEquals(compareVersions("1", "1.0.0"), 0);
+    assertEquals(compareVersions("1.2", "1.2.0"), 0);
+    assertEquals(compareVersions("1.2.0", "1.2.1"), -1);
+  });
+
+  it("ignores prerelease tags", () => {
+    assertEquals(compareVersions("1.2.3-beta", "1.2.3"), 0);
+    assertEquals(compareVersions("1.2.3-rc.1", "1.2.4-alpha"), -1);
+  });
+
+  it("coerces malformed parts to 0", () => {
+    assertEquals(compareVersions("abc", "0.0.0"), 0);
+    assertEquals(compareVersions("1.x.3", "1.0.3"), 0);
+    assertEquals(compareVersions(undefined, "0.0.1"), -1);
+    assertEquals(compareVersions(null, null), 0);
+  });
+});
+
+t.describe("getPostLangs", (it, { beforeEach, afterEach }) => {
+  let originalLanguages;
+  let originalLanguage;
+
+  beforeEach(() => {
+    originalLanguages = Object.getOwnPropertyDescriptor(navigator, "languages");
+    originalLanguage = Object.getOwnPropertyDescriptor(navigator, "language");
+  });
+
+  afterEach(() => {
+    if (originalLanguages) {
+      Object.defineProperty(navigator, "languages", originalLanguages);
+    }
+    if (originalLanguage) {
+      Object.defineProperty(navigator, "language", originalLanguage);
+    }
+  });
+
+  function setLanguages(languages, language) {
+    Object.defineProperty(navigator, "languages", {
+      value: languages,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "language", {
+      value: language,
+      configurable: true,
+    });
+  }
+
+  it("returns base language codes from navigator.languages", () => {
+    setLanguages(["en-US", "fr-FR"], "en-US");
+    assertEquals(getPostLangs(), ["en", "fr"]);
+  });
+
+  it("dedupes language codes", () => {
+    setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
+    assertEquals(getPostLangs(), ["en", "fr"]);
+  });
+
+  it("limits to top 3 codes", () => {
+    setLanguages(["en", "fr", "de", "es", "ja"], "en");
+    assertEquals(getPostLangs(), ["en", "fr", "de"]);
+  });
+
+  it("falls back to navigator.language when languages is empty", () => {
+    setLanguages([], "es-MX");
+    assertEquals(getPostLangs(), ["es"]);
+  });
+
+  it("falls back to ['en'] when no locale info is available", () => {
+    setLanguages([], "");
+    assertEquals(getPostLangs(), ["en"]);
   });
 });
 

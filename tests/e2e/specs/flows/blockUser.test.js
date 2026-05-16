@@ -48,6 +48,11 @@ test.describe("Block user flow", () => {
       .locator("context-menu-item", { hasText: "Block Account" })
       .click();
 
+    // Confirm the block in the confirmation dialog
+    const confirmButton = page.locator("button.confirm-button");
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
+
     // Wait for the profile to show blocked state
     await expect(
       profileView.locator('[data-testid="blocked-badge"]'),
@@ -106,6 +111,11 @@ test.describe("Block user flow", () => {
       .locator("context-menu-item", { hasText: "Block Account" })
       .click();
 
+    // Confirm the block in the confirmation dialog
+    const confirmButton = page.locator("button.confirm-button");
+    await expect(confirmButton).toBeVisible({ timeout: 5000 });
+    await confirmButton.click();
+
     // Verify a toast confirms the block action
     await expect(page.locator(".toast")).toContainText("Account blocked", {
       timeout: 5000,
@@ -125,6 +135,63 @@ test.describe("Block user flow", () => {
     await expect(
       profileView.locator('[data-testid="unblock-button"]'),
     ).toContainText("Unblock");
+  });
+
+  test("should not block the user when the confirmation dialog is cancelled", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const otherUser = createProfile({
+      did: "did:plc:otheruser1",
+      handle: "otheruser.bsky.social",
+      displayName: "Other User",
+      followersCount: 10,
+      followsCount: 5,
+      postsCount: 3,
+    });
+    const post = createPost({
+      uri: "at://did:plc:otheruser1/app.bsky.feed.post/post1",
+      text: "Post that should remain visible",
+      authorHandle: otherUser.handle,
+      authorDisplayName: otherUser.displayName,
+    });
+    mockServer.addProfile(otherUser);
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await login(page);
+
+    await page.goto(`/profile/${otherUser.did}`);
+    const profileView = page.locator("#profile-view");
+    await expect(
+      profileView.locator('[data-testid="profile-name"]'),
+    ).toContainText("Other User", { timeout: 10000 });
+
+    await profileView.locator(".ellipsis-button").click();
+    await page
+      .locator("context-menu-item", { hasText: "Block Account" })
+      .click();
+
+    // Cancel the confirmation dialog
+    const cancelButton = page.locator("button.cancel-button");
+    await expect(cancelButton).toBeVisible({ timeout: 5000 });
+    await cancelButton.click();
+
+    // Profile should remain unblocked
+    await expect(
+      profileView.locator('[data-testid="blocked-badge"]'),
+    ).not.toBeVisible();
+    await expect(
+      profileView.locator('[data-testid="follow-button"]'),
+    ).toBeVisible();
+
+    // Posts should still appear on home
+    await page.goto("/");
+    const homeView = page.locator("#home-view");
+    await expect(homeView.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(homeView).toContainText("Post that should remain visible");
   });
 
   test("should show content again after unblocking a user", async ({

@@ -75,6 +75,11 @@ export class BasicAuthSession {
     return decoded.sub;
   }
 
+  get handle() {
+    // TODO: persist handle on login so plugins can read it under basic auth
+    return null;
+  }
+
   async fetch(url, options) {
     const res = await fetch(url, {
       ...options,

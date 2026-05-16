@@ -7,6 +7,8 @@ import {
   PUBLIC_SERVICE_ENDPOINT_URL,
   BSKY_APPVIEW_SERVICE_DID,
   BSKY_CHAT_SERVICE_DID,
+  VIDEO_SERVICE_URL,
+  VIDEO_SERVICE_DID,
 } from "/js/config.js";
 
 export class ApiError extends Error {
@@ -849,6 +851,21 @@ export class Api {
     return res.data;
   }
 
+  async getBlocks({ limit = 50, cursor, labelers = [] } = {}) {
+    const query = { limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("app.bsky.graph.getBlocks", {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async unblockActor(profile) {
     const block = profile.viewer.blocking;
     const rkey = block.split("/").pop();
@@ -863,11 +880,12 @@ export class Api {
     return res.data;
   }
 
-  async createPost({ text, facets, embed, reply }) {
+  async createPost({ text, facets, embed, reply, langs }) {
     const record = {
       text,
       facets,
       createdAt: getCurrentTimestamp(),
+      langs,
     };
     if (embed) {
       record.embed = embed;
@@ -908,6 +926,90 @@ export class Api {
       stringifyBody: false,
     });
     return res.data.blob;
+  }
+
+  async getServiceAuthToken({ aud, lxm, exp }) {
+    const res = await this.request("com.atproto.server.getServiceAuth", {
+      query: { aud, lxm, exp: exp ?? Math.floor(Date.now() / 1000) + 60 },
+    });
+    return res.data.token;
+  }
+
+  async serviceRequest(
+    url,
+    { token, method = "GET", query, body, headers = {} } = {},
+  ) {
+    let queryString = "";
+    if (query) {
+      queryString = "?" + buildQueryString(query);
+    }
+    const res = await fetch(`${url}${queryString}`, {
+      method,
+      headers: {
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        ...headers,
+      },
+      body,
+    });
+    const data = await res.json();
+    res.data = data;
+    if (!res.ok) {
+      throw new ApiError(res);
+    }
+    return res;
+  }
+
+  async getVideoUploadLimits() {
+    const token = await this.getServiceAuthToken({
+      aud: VIDEO_SERVICE_DID,
+      lxm: "app.bsky.video.getUploadLimits",
+    });
+    const res = await this.serviceRequest(
+      `${VIDEO_SERVICE_URL}/xrpc/app.bsky.video.getUploadLimits`,
+      { token },
+    );
+    return res.data;
+  }
+
+  async uploadVideoBlob(file) {
+    const pdsHostname = new URL(this.session.serviceEndpoint).hostname;
+    const token = await this.getServiceAuthToken({
+      aud: `did:web:${pdsHostname}`,
+      lxm: "com.atproto.repo.uploadBlob",
+      exp: Math.floor(Date.now() / 1000) + 60 * 30,
+    });
+    try {
+      const res = await this.serviceRequest(
+        `${VIDEO_SERVICE_URL}/xrpc/app.bsky.video.uploadVideo`,
+        {
+          token,
+          method: "POST",
+          query: { did: this.session.did, name: file.name },
+          headers: { "Content-Type": file.type },
+          body: file,
+        },
+      );
+      return res.data;
+    } catch (error) {
+      // If the same video has been uploaded before, the service returns 409
+      // Treat this as a success
+      if (
+        error instanceof ApiError &&
+        error.data?.error === "already_exists" &&
+        error.data.jobId
+      ) {
+        return error.data;
+      }
+      throw error;
+    }
+  }
+
+  async getVideoJobStatus(jobId) {
+    const res = await this.serviceRequest(
+      `${VIDEO_SERVICE_URL}/xrpc/app.bsky.video.getJobStatus`,
+      { query: { jobId } },
+    );
+    return res.data.jobStatus;
   }
 
   async getProfileRecord() {

@@ -13,6 +13,7 @@ test.describe("New chat from profile flow", () => {
       did: "did:plc:alice1",
       handle: "alice.bsky.social",
       displayName: "Alice",
+      viewer: { following: "at://follow" },
     });
     mockServer.addProfile({ ...alice, canChat: true });
     await mockServer.setup(page);

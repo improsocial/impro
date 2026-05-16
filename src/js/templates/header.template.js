@@ -8,11 +8,16 @@ export function headerTemplate({
   avatarTemplate = null,
   showLoadingSpinner = false,
   leftButton = "back",
+  onClickBackButton = null,
   onClickMenuButton = null,
   rightItemTemplate = null,
   bottomItemTemplate = null,
+  fixedHeight = false,
 } = {}) {
-  return html`<header class="header" data-testid="header">
+  return html`<header
+    class=${classnames("header", { "fixed-height-header": fixedHeight })}
+    data-testid="header"
+  >
     <div
       class=${classnames("header-row", {
         "has-bottom-row": !!bottomItemTemplate,
@@ -29,7 +34,9 @@ export function headerTemplate({
         : html`<button
             class="back-button"
             data-testid="back-button"
-            @click=${() => router.back()}
+            @click=${onClickBackButton
+              ? () => onClickBackButton()
+              : () => router.back()}
           >
             ←
           </button>`}

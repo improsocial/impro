@@ -1,49 +1,97 @@
-import { PluginHost } from "/js/plugins/pluginHost.js";
+import { PluginBridge } from "/js/plugins/pluginBridge.js";
 import { showPluginModal, hidePluginModal } from "/js/modals.js";
+import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
+import {
+  RemotePluginRegistry,
+  LocalPluginRegistry,
+} from "/js/plugins/pluginRegistry.js";
+import { PluginCache } from "/js/plugins/pluginCache.js";
+import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
+import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import { compareVersions, isDev } from "/js/utils.js";
+import { EventEmitter } from "/js/eventEmitter.js";
+import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
-const ENABLED_PLUGINS_KEY = "enabled-plugins";
-
-export class PluginService {
-  constructor() {
+export class PluginService extends EventEmitter {
+  constructor(preferencesProvider, session) {
+    super();
     this.registries = {
       sidebarItems: new Set(),
-      postContextMenuItems: new Set(),
+      eventListeners: new Map(),
+      feedFilters: new Set(),
+      settingTabs: new Map(),
     };
-    this.pluginHost = new PluginHost();
-    this.pluginRenderer = new PluginRenderer(this.pluginHost);
+    this._availableUpdates = null;
+    this.localPluginsEnabled = isDev();
+    this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
+    this.localRegistry = this.localPluginsEnabled
+      ? new LocalPluginRegistry()
+      : null;
+    this.pluginCache = new PluginCache();
+    this.sourceProvider = new SourceProvider(this.pluginCache);
+    this.pluginBridge = new PluginBridge(this.sourceProvider);
+    this.pluginRenderer = new PluginRenderer(this.pluginBridge);
+    this.prefManager = new PluginPreferencesManager(preferencesProvider);
+    this.session = session;
     this._setupRegistries();
     this._setupHostMethods();
   }
 
   _setupRegistries() {
-    this.pluginHost.addRegistrationTarget("sidebarItem", (plugin, message) => {
-      const entry = {
-        pluginId: plugin.pluginId,
-        icon: message.icon,
-        title: message.title,
-        invoke: () => plugin.call(message.handlerId),
-      };
-      this.registries.sidebarItems.add(entry);
-      return () => this.registries.sidebarItems.delete(entry);
-    });
-    this.pluginHost.addRegistrationTarget(
-      "postContextMenuItem",
+    this.pluginBridge.addRegistrationTarget(
+      "sidebarItem",
       (plugin, message) => {
         const entry = {
           pluginId: plugin.pluginId,
           icon: message.icon,
           title: message.title,
-          invoke: (post) => plugin.call(message.handlerId, post),
+          invoke: () => plugin.call(message.handlerId),
         };
-        this.registries.postContextMenuItems.add(entry);
-        return () => this.registries.postContextMenuItems.delete(entry);
+        this.registries.sidebarItems.add(entry);
+        return () => this.registries.sidebarItems.delete(entry);
       },
     );
+    this.pluginBridge.addRegistrationTarget(
+      "eventListener",
+      (plugin, message) => {
+        let listeners = this.registries.eventListeners.get(message.event);
+        if (!listeners) {
+          listeners = new Map();
+          this.registries.eventListeners.set(message.event, listeners);
+        }
+        const handler = (...args) => plugin.call(message.handlerId, ...args);
+        listeners.set(plugin.pluginId, handler);
+        return () => listeners.delete(plugin.pluginId);
+      },
+    );
+    this.pluginBridge.addRegistrationTarget("settingTab", (plugin, message) => {
+      const entry = {
+        pluginId: plugin.pluginId,
+        name: message.name,
+        display: () => plugin.call(message.displayHandlerId),
+        hide: () => plugin.call(message.hideHandlerId),
+      };
+      this.registries.settingTabs.set(plugin.pluginId, entry);
+      return () => {
+        if (this.registries.settingTabs.get(plugin.pluginId) === entry) {
+          this.registries.settingTabs.delete(plugin.pluginId);
+        }
+      };
+    });
+    this.pluginBridge.addRegistrationTarget("feedFilter", (plugin, message) => {
+      const entry = {
+        pluginId: plugin.pluginId,
+        invoke: (feedURI, feedItems) =>
+          plugin.call(message.handlerId, feedURI, feedItems),
+      };
+      this.registries.feedFilters.add(entry);
+      return () => this.registries.feedFilters.delete(entry);
+    });
   }
 
   _setupHostMethods() {
-    this.pluginHost.addHostMethod(
+    this.pluginBridge.addHostMethod(
       "openModal",
       (plugin, { modalId, title, content }) => {
         showPluginModal({
@@ -61,44 +109,287 @@ export class PluginService {
       },
     );
 
-    this.pluginHost.addHostMethod("closeModal", (plugin, { modalId }) => {
+    this.pluginBridge.addHostMethod("closeModal", (plugin, { modalId }) => {
       hidePluginModal({ pluginId: plugin.pluginId, modalId });
+    });
+
+    this.pluginBridge.addHostMethod("loadData", (plugin) => {
+      return this.prefManager.readSettingsForPlugin(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod("saveData", async (plugin, { data }) => {
+      await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
+    });
+
+    this.pluginBridge.addHostMethod("refreshSettingTab", (plugin) => {
+      this.emit("settingTabRefresh", { pluginId: plugin.pluginId });
+    });
+
+    this.pluginBridge.addHostMethod(
+      "showToast",
+      (plugin, { toastId, element, timeout }) => {
+        showPluginToast({
+          pluginRenderer: this.pluginRenderer,
+          pluginId: plugin.pluginId,
+          toastId,
+          element,
+          timeout,
+        });
+      },
+    );
+
+    this.pluginBridge.addHostMethod("hideToast", (plugin, { toastId }) => {
+      hidePluginToast({ pluginId: plugin.pluginId, toastId });
+    });
+
+    this.pluginBridge.addHostMethod("getCurrentUser", () => {
+      if (!this.session) return null;
+      return {
+        did: this.session.did,
+        handle: this.session.handle,
+      };
     });
   }
 
   async loadEnabledPlugins() {
-    const enabledIds = this.getEnabledPlugins();
-    await this.pluginHost.loadPluginIndex("/plugins-local/index.json");
-    await this.pluginHost.loadPlugins(enabledIds);
+    const enabledPlugins = this.prefManager
+      .getEnabledPlugins()
+      .filter(
+        (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
+      );
+    const { erroredPlugins } =
+      await this.pluginBridge.loadPlugins(enabledPlugins);
+    if (erroredPlugins.length) {
+      const failedPluginIds = erroredPlugins.map(({ pluginId }) => pluginId);
+      showToast(`Failed to load plugin(s): ${failedPluginIds.join(", ")}`, {
+        style: "error",
+      });
+      // Disable plugins that failed to load
+      await Promise.all(
+        failedPluginIds.map((pluginId) =>
+          this.prefManager.setPluginDisabled(pluginId),
+        ),
+      );
+    }
+    // Reconcile against all installed plugins (not just enabled) so disabled
+    // plugins keep their cached assets on re-enable
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    await this._reconcileCache(installedPlugins);
   }
 
-  getEnabledPlugins() {
+  getAvailableUpdates() {
+    return this._availableUpdates;
+  }
+
+  async checkForUpdates() {
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const results = await Promise.allSettled(
+      installedPlugins.map(async (entry) => {
+        const liveManifest = await this.sourceProvider.getLiveManifest(
+          entry.id,
+          entry.repo,
+        );
+        if (compareVersions(liveManifest.version, entry.version) > 0) {
+          return { id: entry.id, version: liveManifest.version };
+        }
+        return null;
+      }),
+    );
+    const updates = new Map();
+    for (const result of results) {
+      if (result.status === "fulfilled" && result.value) {
+        updates.set(result.value.id, result.value.version);
+      }
+    }
+    this._availableUpdates = updates;
+    return updates;
+  }
+
+  async reloadPlugins() {
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const results = await Promise.allSettled(
+      installedPlugins
+        .filter((entry) => entry.enabled === true)
+        .map(async (entry) => {
+          try {
+            await this.pluginBridge.reloadPlugin(
+              entry.id,
+              entry.version,
+              entry.repo,
+            );
+          } catch (e) {
+            await this.prefManager.setPluginDisabled(entry.id);
+            throw e;
+          }
+        }),
+    );
+    const failure = results.find((result) => result.status === "rejected");
+    if (failure) throw failure.reason;
+  }
+
+  getPluginsInfo() {
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const visiblePlugins = this.localPluginsEnabled
+      ? installedPlugins
+      : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
+    return visiblePlugins.map((entry) => {
+      return {
+        id: entry.id,
+        name: entry.name,
+        description: entry.description,
+        version: entry.version,
+        author: entry.author,
+        enabled: entry.enabled,
+        loaded: this.pluginBridge.isLoaded(entry.id),
+        hasSettings: this.registries.settingTabs.has(entry.id),
+      };
+    });
+  }
+
+  async getManifest(pluginId) {
+    const installedPlugin = this.prefManager
+      .getInstalledPlugins()
+      .find((plugin) => plugin.id === pluginId);
+    return this.sourceProvider
+      .getManifest(pluginId, installedPlugin?.version, installedPlugin?.repo)
+      .catch(() => null);
+  }
+
+  async _reconcileCache(installed) {
+    const urlLists = await Promise.all(
+      installed.map((entry) =>
+        this.sourceProvider.getCacheUrls(entry.id, entry.version, entry.repo),
+      ),
+    );
+    await this.pluginCache.reconcile(urlLists.flat());
+  }
+
+  async installPlugin(pluginId) {
+    let repo = null;
+    if (!pluginId.endsWith("__LOCAL")) {
+      const listing = await this.remoteRegistry.getListing(pluginId);
+      if (!listing) {
+        throw new Error(`unknown plugin: ${pluginId}`);
+      }
+      repo = listing.repo;
+    }
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    if (installedPlugins.some((plugin) => plugin.id === pluginId)) {
+      console.warn(`Plugin ${pluginId} already installed`);
+      return;
+    }
+    let manifest = null;
     try {
-      const raw = localStorage.getItem(ENABLED_PLUGINS_KEY);
-      if (!raw) return [];
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed)
-        ? parsed.filter((id) => typeof id === "string")
-        : [];
-    } catch {
-      return [];
+      manifest = await this.sourceProvider.getLiveManifest(pluginId, repo);
+    } catch (e) {
+      console.error("Failed to fetch manifest", e);
+      throw new Error("Failed to fetch manifest");
+    }
+    const { name, version, author, description } = manifest;
+    await this.prefManager.addInstalledPlugin({
+      id: pluginId,
+      name,
+      version,
+      author,
+      description,
+      repo,
+      enabled: true,
+    });
+    try {
+      await this.pluginBridge.loadPlugin(pluginId, version, repo);
+    } catch (e) {
+      console.error(e);
+      await this.prefManager.removeInstalledPlugin(pluginId);
+      throw e;
     }
   }
 
-  setEnabledPlugins(ids) {
-    localStorage.setItem(ENABLED_PLUGINS_KEY, JSON.stringify(ids));
+  async uninstallPlugin(pluginId) {
+    this.pluginBridge.unloadPlugin(pluginId);
+    await this.prefManager.removeInstalledPlugin(pluginId);
+    await this.prefManager.clearSettingsForPlugin(pluginId);
+    await this._reconcileCache(this.prefManager.getInstalledPlugins());
   }
 
-  enablePlugin(pluginId) {
-    const ids = this.getEnabledPlugins();
-    if (!ids.includes(pluginId)) {
-      this.setEnabledPlugins([...ids, pluginId]);
+  async enablePlugin(pluginId) {
+    await this.prefManager.setPluginEnabled(pluginId);
+    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    try {
+      await this.pluginBridge.loadPlugin(
+        pluginId,
+        installedPlugin.version,
+        installedPlugin.repo,
+      );
+    } catch (e) {
+      await this.prefManager.setPluginDisabled(pluginId);
+      throw e;
     }
   }
 
-  disablePlugin(pluginId) {
-    const ids = this.getEnabledPlugins();
-    this.setEnabledPlugins(ids.filter((id) => id !== pluginId));
+  async disablePlugin(pluginId) {
+    this.pluginBridge.unloadPlugin(pluginId);
+    await this.prefManager.setPluginDisabled(pluginId);
+  }
+
+  async updatePlugin(pluginId) {
+    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    if (!installedPlugin) return null;
+    const liveManifest = await this.sourceProvider.getLiveManifest(
+      pluginId,
+      installedPlugin.repo,
+    );
+    if (compareVersions(liveManifest.version, installedPlugin.version) > 0) {
+      const { name, version, author, description } = liveManifest;
+      await this.prefManager.updateInstalledPlugin(pluginId, (entry) => ({
+        ...entry,
+        name,
+        version,
+        author,
+        description,
+      }));
+      await this.pluginBridge.reloadPlugin(
+        pluginId,
+        version,
+        installedPlugin.repo,
+      );
+      this._availableUpdates?.delete(pluginId);
+      return { updated: true, version };
+    }
+    this._availableUpdates?.delete(pluginId);
+    return { updated: false };
+  }
+
+  async updateAllPlugins() {
+    if (!this._availableUpdates || this._availableUpdates.size === 0) {
+      return { updated: [], failed: [] };
+    }
+    const ids = [...this._availableUpdates.keys()];
+    const updated = [];
+    const failed = [];
+    // Serial to avoid racing read-modify-write on installed plugin preferences
+    for (const pluginId of ids) {
+      try {
+        const result = await this.updatePlugin(pluginId);
+        if (result?.updated) updated.push(pluginId);
+      } catch {
+        failed.push(pluginId);
+      }
+    }
+    return { updated, failed };
+  }
+
+  async listRegistryPlugins() {
+    const remoteListings = await this.remoteRegistry.getListings();
+    const localListings = this.localRegistry
+      ? await this.localRegistry.getListings()
+      : [];
+    const installedIds = this.prefManager
+      .getInstalledPlugins()
+      .map((entry) => entry.id);
+    return [...remoteListings, ...localListings].map((listing) => ({
+      ...listing,
+      installed: installedIds.includes(listing.id),
+    }));
   }
 
   // Registry convenience methods
@@ -107,7 +398,61 @@ export class PluginService {
     return [...this.registries.sidebarItems];
   }
 
-  getPostContextMenuItems() {
-    return [...this.registries.postContextMenuItems];
+  getSettingTabs() {
+    return [...this.registries.settingTabs.values()];
+  }
+
+  getSettingTab(pluginId) {
+    return this.registries.settingTabs.get(pluginId) ?? null;
+  }
+
+  async getPostContextMenuItems(post) {
+    return this._collectContextMenuItems("post-context-menu", post);
+  }
+
+  async getProfileContextMenuItems(profile) {
+    return this._collectContextMenuItems("profile-context-menu", profile);
+  }
+
+  async _collectContextMenuItems(event, arg) {
+    const listeners = this.registries.eventListeners.get(event);
+    if (!listeners || listeners.size === 0) return [];
+    const results = await Promise.all(
+      [...listeners].map(async ([pluginId, handler]) => {
+        try {
+          const items = await handler(arg);
+          return (items ?? []).map((item) => ({
+            pluginId,
+            icon: item.icon,
+            title: item.title,
+            invoke: () =>
+              this.pluginBridge.getInstance(pluginId).call(item.handlerId, arg),
+          }));
+        } catch (error) {
+          console.error(`Plugin ${pluginId} ${event} handler failed:`, error);
+          return [];
+        }
+      }),
+    );
+    return results.flat();
+  }
+
+  // RPC
+
+  async getFilteredFeedItems(feedUri, feed) {
+    let filteredFeedItems = {};
+    for (const feedFilter of this.registries.feedFilters) {
+      try {
+        const results = await feedFilter.invoke(feedUri, feed.feed);
+        if (typeof results !== "object") continue;
+        filteredFeedItems = { ...filteredFeedItems, ...results };
+      } catch (e) {
+        console.error(
+          `Plugin ${feedFilter.pluginId} feed filter raised an exception`,
+          e,
+        );
+      }
+    }
+    return filteredFeedItems;
   }
 }

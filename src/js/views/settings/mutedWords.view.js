@@ -260,6 +260,7 @@ class SettingsMutedWordsView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Muted words",
+                onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
                 <form class="muted-word-form" @submit=${(e) => handleSubmit(e)}>

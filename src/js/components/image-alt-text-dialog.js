@@ -52,9 +52,11 @@ class ImageAltTextDialog extends Component {
             <h2>Add alt text</h2>
           </div>
           <div class="image-alt-text-dialog-body">
-            <div class="image-alt-text-dialog-image-container">
-              <img src="${this.imageUrl}" alt="Preview" />
-            </div>
+            ${this.imageUrl
+              ? html`<div class="image-alt-text-dialog-image-container">
+                  <img src="${this.imageUrl}" alt="Preview" />
+                </div>`
+              : ""}
             <div class="image-alt-text-dialog-input-container">
               <textarea
                 class="image-alt-text-dialog-textarea"

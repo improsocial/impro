@@ -10,5 +10,6 @@ export default {
   gitCommit: () => execSync("git rev-parse --short=8 HEAD").toString().trim(),
   hostName: process.env.HOST_NAME ?? "dev.impro.social",
   environment: process.env.ENVIRONMENT ?? "development",
+  playwright: process.env.PLAYWRIGHT ? "true" : "",
   oauthScopes: OAUTH_SCOPES,
 };

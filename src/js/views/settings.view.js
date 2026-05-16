@@ -2,7 +2,9 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
+import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
+import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
 import { getAuth, requireAuth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -37,6 +39,12 @@ class SettingsView extends View {
         enabled: true,
       },
       {
+        icon: restrictedIconTemplate,
+        label: "Blocked accounts",
+        url: "/settings/blocked-accounts",
+        enabled: true,
+      },
+      {
         icon: codeIconTemplate,
         label: "Advanced",
         url: "/settings/advanced",
@@ -44,6 +52,14 @@ class SettingsView extends View {
       },
     ];
 
+    if (window.env.environment === "development") {
+      menuItems.push({
+        icon: boxIconTemplate,
+        label: "Plugins (beta)",
+        url: "/settings/plugins",
+        enabled: true,
+      });
+    }
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =

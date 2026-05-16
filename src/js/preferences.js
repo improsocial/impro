@@ -445,6 +445,66 @@ export class Preferences {
     return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs));
   }
 
+  getPluginSettings(pluginId) {
+    const pref = Preferences.getPluginSettingsPreference(this.obj, pluginId);
+    return pref ? pref.data : null;
+  }
+
+  setPluginSettings(pluginId, data) {
+    const clone = this.clone();
+    const existing = Preferences.getPluginSettingsPreference(
+      clone.obj,
+      pluginId,
+    );
+    if (existing) {
+      existing.data = data;
+    } else {
+      clone.obj.push({
+        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        pluginId,
+        data,
+      });
+    }
+    return clone;
+  }
+
+  clearPluginSettings(pluginId) {
+    const clone = this.clone();
+    clone.obj = clone.obj.filter(
+      (pref) =>
+        !(
+          pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
+          pref.pluginId === pluginId
+        ),
+    );
+    return clone;
+  }
+
+  getInstalledPlugins() {
+    const pref = Preferences.getPreferenceByType(
+      this.obj,
+      "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    return pref?.plugins ?? [];
+  }
+
+  setInstalledPlugins(plugins) {
+    const clone = this.clone();
+    const existing = Preferences.getPreferenceByType(
+      clone.obj,
+      "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    if (existing) {
+      existing.plugins = plugins;
+    } else {
+      clone.obj.push({
+        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        plugins,
+      });
+    }
+    return clone;
+  }
+
   getFollowingFeedPreference() {
     const followingFeedPreference = this.obj.find(
       (preference) =>
@@ -493,6 +553,14 @@ export class Preferences {
   static getContentLabelPreferences(obj) {
     return obj.filter(
       (pref) => pref.$type === "app.bsky.actor.defs#contentLabelPref",
+    );
+  }
+
+  static getPluginSettingsPreference(obj, pluginId) {
+    return obj.find(
+      (pref) =>
+        pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
+        pref.pluginId === pluginId,
     );
   }
 

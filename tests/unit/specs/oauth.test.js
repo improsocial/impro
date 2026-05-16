@@ -61,7 +61,22 @@ function writeSession(overrides = {}) {
     clientId: "https://app.example.com/client-metadata.json",
     ...overrides,
   };
-  localStorage.setItem("oauth_session", JSON.stringify(sessionData));
+  localStorage.setItem(
+    `oauth_session:${sessionData.did}`,
+    JSON.stringify(sessionData),
+  );
+  const accountsRaw = localStorage.getItem("oauth_accounts");
+  const accounts = accountsRaw ? JSON.parse(accountsRaw) : [];
+  if (!accounts.some((entry) => entry.did === sessionData.did)) {
+    accounts.push({
+      did: sessionData.did,
+      handle: null,
+      pdsUrl: sessionData.serviceEndpoint,
+    });
+    localStorage.setItem("oauth_accounts", JSON.stringify(accounts));
+  }
+  localStorage.setItem("oauth_current_did", sessionData.did);
+  return sessionData;
 }
 
 const TOKEN_URL = "https://auth.example.com/token";
@@ -155,17 +170,19 @@ t.describe("OauthClient.getSession", (it) => {
 });
 
 t.describe("OauthClient.logout", (it) => {
-  it("should remove oauth_session from localStorage", async () => {
+  it("should remove the current session and clear the current did", async () => {
     const client = await buildClient();
-    writeSession();
+    writeSession({ did: "did:plc:test" });
     await client.logout();
-    assertEquals(localStorage.getItem("oauth_session"), null);
+    assertEquals(localStorage.getItem("oauth_session:did:plc:test"), null);
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
+    assertEquals(localStorage.getItem("oauth_accounts"), null);
   });
 
   it("should be a no-op when no session exists", async () => {
     const client = await buildClient();
     await client.logout();
-    assertEquals(localStorage.getItem("oauth_session"), null);
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
   });
 });
 
@@ -174,12 +191,14 @@ t.describe("OauthClient.handleCallback", (it) => {
     const inFlightData = {
       codeVerifier: "code-verifier-123",
       did: "did:plc:test",
+      handle: "test.bsky.social",
       serviceEndpoint: "https://pds.example.com",
       authServerUrl: "https://auth.example.com",
       authServerMetadata: {
         token_endpoint: "https://auth.example.com/token",
       },
       redirectUri: "https://app.example.com/callback",
+      createdAt: Date.now(),
       ...overrides,
     };
     localStorage.setItem(
@@ -295,10 +314,9 @@ t.describe("OauthClient.handleCallback", (it) => {
     assert(threw.message.includes("Token exchange failed"));
   });
 
-  it("should save session and clear all in-flight entries on success", async () => {
+  it("should save session and clear the matching in-flight entry on success", async () => {
     const client = await buildClient();
     writeInFlight("req1", { did: "did:plc:test" });
-    writeInFlight("req_stale", { did: "did:plc:other" });
     globalThis.fetch.__interceptJson(TOKEN_URL, {
       access_token: "new-at",
       refresh_token: "new-rt",
@@ -316,8 +334,9 @@ t.describe("OauthClient.handleCallback", (it) => {
     assertEquals(session.did, "did:plc:test");
     assertEquals(session.serviceEndpoint, "https://pds.example.com");
     assertEquals(localStorage.getItem("oauth_in_flight_req1"), null);
-    assertEquals(localStorage.getItem("oauth_in_flight_req_stale"), null);
-    const stored = JSON.parse(localStorage.getItem("oauth_session"));
+    const stored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:test"),
+    );
     assertEquals(stored.accessToken, "new-at");
     assertEquals(stored.refreshToken, "new-rt");
     assertEquals(stored.did, "did:plc:test");
@@ -325,6 +344,7 @@ t.describe("OauthClient.handleCallback", (it) => {
       stored.clientId,
       "https://app.example.com/client-metadata.json",
     );
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:test");
   });
 });
 
@@ -346,7 +366,9 @@ t.describe("Session.fetch token refresh", (it) => {
     const response = await session.fetch("https://pds.example.com/xrpc/foo");
     assert(response.ok);
     assert(globalThis.fetch.calls[0].url.includes("/token"));
-    const stored = JSON.parse(localStorage.getItem("oauth_session"));
+    const stored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:test"),
+    );
     assertEquals(stored.accessToken, "new-at");
     assertEquals(stored.refreshToken, "new-rt");
   });
@@ -483,6 +505,466 @@ t.describe("OauthClient.getAuthorizationUrl", (it) => {
       threw = error;
     }
     assert(threw instanceof HandleNotFoundError);
+  });
+});
+
+async function runCallback(
+  client,
+  {
+    requestId,
+    sub,
+    handle = "user.bsky.social",
+    serviceEndpoint = "https://pds.example.com",
+    authServerUrl = "https://auth.example.com",
+    tokenUrl = `https://auth.example.com/token/${requestId}`,
+    accessToken = "at-" + sub,
+    refreshToken = "rt-" + sub,
+    expiresIn = 3600,
+    createdAt = Date.now(),
+  } = {},
+) {
+  const inFlightData = {
+    codeVerifier: "verifier-" + requestId,
+    did: sub,
+    handle,
+    serviceEndpoint,
+    authServerUrl,
+    authServerMetadata: { token_endpoint: tokenUrl },
+    redirectUri: "https://app.example.com/callback",
+    createdAt,
+  };
+  localStorage.setItem(
+    `oauth_in_flight_${requestId}`,
+    JSON.stringify(inFlightData),
+  );
+  globalThis.fetch.__interceptJson(tokenUrl, {
+    access_token: accessToken,
+    refresh_token: refreshToken,
+    expires_in: expiresIn,
+    sub,
+    scope: "atproto",
+  });
+  const state = encodeURIComponent(JSON.stringify({ requestId }));
+  return await client.handleCallback({
+    code: "code-" + requestId,
+    state,
+    iss: authServerUrl,
+  });
+}
+
+t.describe("multi-account storage and indexing", (it) => {
+  it("two callbacks for different subs produce two retrievable sessions", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    const alice = await client.getSession("did:plc:alice");
+    const bob = await client.getSession("did:plc:bob");
+    assert(alice !== null);
+    assert(bob !== null);
+    assertEquals(alice.did, "did:plc:alice");
+    assertEquals(bob.did, "did:plc:bob");
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 2);
+  });
+
+  it("callback for known did updates the index entry rather than duplicating", async () => {
+    const client = await buildClient();
+    await runCallback(client, {
+      requestId: "r1",
+      sub: "did:plc:alice",
+      handle: "alice.old",
+      serviceEndpoint: "https://pds-old.example.com",
+    });
+    await runCallback(client, {
+      requestId: "r2",
+      sub: "did:plc:alice",
+      handle: "alice.new",
+      serviceEndpoint: "https://pds-new.example.com",
+    });
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 1);
+    assertEquals(accounts[0].handle, "alice.new");
+    assertEquals(accounts[0].pdsUrl, "https://pds-new.example.com");
+  });
+
+  it("callback for known did overwrites the stored session blob", async () => {
+    const client = await buildClient();
+    await runCallback(client, {
+      requestId: "r1",
+      sub: "did:plc:alice",
+      accessToken: "old-at",
+    });
+    await runCallback(client, {
+      requestId: "r2",
+      sub: "did:plc:alice",
+      accessToken: "new-at",
+    });
+    const stored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:alice"),
+    );
+    assertEquals(stored.accessToken, "new-at");
+  });
+
+  it("index order is preserved when re-authing an existing did", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    await runCallback(client, {
+      requestId: "r3",
+      sub: "did:plc:alice",
+      handle: "alice.updated",
+    });
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 2);
+    assertEquals(accounts[0].did, "did:plc:alice");
+    assertEquals(accounts[0].handle, "alice.updated");
+    assertEquals(accounts[1].did, "did:plc:bob");
+  });
+
+  it("listAccounts returns empty array when no accounts stored", async () => {
+    const client = await buildClient();
+    assertEquals(client.listAccounts(), []);
+  });
+
+  it("listAccounts entries include handle and pdsUrl from in-flight data", async () => {
+    const client = await buildClient();
+    await runCallback(client, {
+      requestId: "r1",
+      sub: "did:plc:alice",
+      handle: "alice.bsky.social",
+      serviceEndpoint: "https://pds.example.com",
+    });
+    const accounts = client.listAccounts();
+    assertEquals(accounts[0].did, "did:plc:alice");
+    assertEquals(accounts[0].handle, "alice.bsky.social");
+    assertEquals(accounts[0].pdsUrl, "https://pds.example.com");
+  });
+});
+
+t.describe("current account pointer", (it) => {
+  it("getSession() returns most recent login; switchToAccount changes it", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    const current = await client.getSession();
+    assertEquals(current.did, "did:plc:bob");
+    client.switchToAccount("did:plc:alice");
+    const afterSwitch = await client.getSession();
+    assertEquals(afterSwitch.did, "did:plc:alice");
+  });
+
+  it("getSession() returns null when no current did set", async () => {
+    const client = await buildClient();
+    assertEquals(await client.getSession(), null);
+  });
+
+  it("getSession(unknownDid) returns null", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    assertEquals(await client.getSession("did:plc:bob"), null);
+  });
+
+  it("switchToAccount(unknownDid) throws and does not change current", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    let threw = null;
+    try {
+      client.switchToAccount("did:plc:nobody");
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw !== null);
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+  });
+
+  it("switchToAccount(currentDid) is a no-op", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    client.switchToAccount("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+  });
+});
+
+t.describe("multi-account logout", (it) => {
+  it("logout(nonCurrent) removes that account and leaves current intact", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    // current is bob
+    await client.logout("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:bob");
+    assert(localStorage.getItem("oauth_session:did:plc:bob") !== null);
+    assertEquals(client.listAccounts().length, 1);
+    assertEquals(client.listAccounts()[0].did, "did:plc:bob");
+  });
+
+  it("logout(current) with others present rolls current to first remaining", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    // current is bob
+    await client.logout("did:plc:bob");
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_session:did:plc:bob"), null);
+  });
+
+  it("logout() no-arg with current set behaves like logout(current)", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    await client.logout();
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+  });
+
+  it("logout of last account clears the current did key", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await client.logout("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
+    assertEquals(localStorage.getItem("oauth_accounts"), null);
+  });
+
+  it("logout(unknownDid) is a no-op", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await client.logout("did:plc:nobody");
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+    assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
+  });
+
+  it("logout() with no current set is a no-op", async () => {
+    const client = await buildClient();
+    await client.logout();
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
+  });
+});
+
+t.describe("multi-account session refresh", (it) => {
+  it("refresh on a non-current account writes to the correct keyed slot", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    // bob is current; refresh alice manually
+    const alice = await client.getSession("did:plc:alice");
+    // Force expiry
+    alice.sessionData.expiresAt = Date.now() + 30000;
+    // Reset MockFetch so the new intercept isn't shadowed by the initial
+    // exchange route registered during runCallback.
+    globalThis.fetch = new MockFetch();
+    globalThis.fetch.__interceptJson(
+      alice.sessionData.authServerMetadata.token_endpoint,
+      {
+        access_token: "alice-new-at",
+        refresh_token: "alice-new-rt",
+        expires_in: 3600,
+      },
+    );
+    globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+    await alice.fetch("https://pds.example.com/xrpc/foo");
+    const aliceStored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:alice"),
+    );
+    assertEquals(aliceStored.accessToken, "alice-new-at");
+    const bobStored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:bob"),
+    );
+    assertEquals(bobStored.accessToken, "at-did:plc:bob");
+  });
+});
+
+t.describe("multi-account in-flight cleanup", (it) => {
+  it("completing one callback preserves another concurrent in-flight blob", async () => {
+    const client = await buildClient();
+    // Pre-seed a concurrent in-flight blob for another flow
+    localStorage.setItem(
+      "oauth_in_flight_concurrent",
+      JSON.stringify({
+        codeVerifier: "v",
+        did: "did:plc:other",
+        handle: "other",
+        serviceEndpoint: "https://pds.example.com",
+        authServerUrl: "https://auth.example.com",
+        authServerMetadata: { token_endpoint: TOKEN_URL },
+        redirectUri: "https://app.example.com/callback",
+        createdAt: Date.now(),
+      }),
+    );
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    assertEquals(localStorage.getItem("oauth_in_flight_r1"), null);
+    assert(localStorage.getItem("oauth_in_flight_concurrent") !== null);
+  });
+
+  it("callback removes stale in-flight entries older than 10 minutes", async () => {
+    const client = await buildClient();
+    localStorage.setItem(
+      "oauth_in_flight_old",
+      JSON.stringify({
+        codeVerifier: "v",
+        createdAt: Date.now() - 11 * 60 * 1000,
+      }),
+    );
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    assertEquals(localStorage.getItem("oauth_in_flight_old"), null);
+  });
+
+  it("callback removes multiple stale in-flight entries in one pass", async () => {
+    const client = await buildClient();
+    const staleAt = Date.now() - 11 * 60 * 1000;
+    for (const suffix of ["a", "b", "c", "d"]) {
+      localStorage.setItem(
+        `oauth_in_flight_old_${suffix}`,
+        JSON.stringify({ codeVerifier: "v", createdAt: staleAt }),
+      );
+    }
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    for (const suffix of ["a", "b", "c", "d"]) {
+      assertEquals(localStorage.getItem(`oauth_in_flight_old_${suffix}`), null);
+    }
+  });
+
+  it("callback preserves fresh in-flight entries for unrelated flows", async () => {
+    const client = await buildClient();
+    localStorage.setItem(
+      "oauth_in_flight_fresh",
+      JSON.stringify({
+        codeVerifier: "v",
+        createdAt: Date.now() - 60 * 1000,
+      }),
+    );
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    assert(localStorage.getItem("oauth_in_flight_fresh") !== null);
+  });
+
+  it("callback succeeds with no stale entries present", async () => {
+    const client = await buildClient();
+    const session = await runCallback(client, {
+      requestId: "r1",
+      sub: "did:plc:alice",
+    });
+    assert(session !== null);
+  });
+});
+
+t.describe("legacy session migration", (it) => {
+  function writeLegacySession(overrides = {}) {
+    const sessionData = {
+      accessToken: "legacy-at",
+      refreshToken: "legacy-rt",
+      expiresAt: Date.now() + 3600000,
+      did: "did:plc:legacy",
+      scope: "atproto",
+      serviceEndpoint: "https://pds.example.com",
+      authServerUrl: "https://auth.example.com",
+      authServerMetadata: { token_endpoint: TOKEN_URL },
+      clientId: "https://app.example.com/client-metadata.json",
+      ...overrides,
+    };
+    localStorage.setItem("oauth_session", JSON.stringify(sessionData));
+    return sessionData;
+  }
+
+  it("migrates a bare oauth_session into the keyed layout on load", async () => {
+    const sessionData = writeLegacySession();
+    const client = await OauthClient.load({
+      clientId: "cid",
+      redirectUri: "ruri",
+    });
+    assertEquals(localStorage.getItem("oauth_session"), null);
+    const migrated = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:legacy"),
+    );
+    assertEquals(migrated.accessToken, sessionData.accessToken);
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:legacy");
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 1);
+    assertEquals(accounts[0].did, "did:plc:legacy");
+    assertEquals(accounts[0].pdsUrl, "https://pds.example.com");
+  });
+
+  it("migrated account is usable: getSession returns and refresh writes to keyed slot", async () => {
+    writeLegacySession({ expiresAt: Date.now() + 30000 });
+    const client = await OauthClient.load({
+      clientId: "cid",
+      redirectUri: "ruri",
+    });
+    const session = await client.getSession();
+    assert(session !== null);
+    assertEquals(session.did, "did:plc:legacy");
+    globalThis.fetch.__interceptJson(TOKEN_URL, {
+      access_token: "refreshed-at",
+      refresh_token: "refreshed-rt",
+      expires_in: 3600,
+    });
+    globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+    await session.fetch("https://pds.example.com/xrpc/foo");
+    const stored = JSON.parse(
+      localStorage.getItem("oauth_session:did:plc:legacy"),
+    );
+    assertEquals(stored.accessToken, "refreshed-at");
+  });
+
+  it("is idempotent: a second load after migration changes nothing", async () => {
+    writeLegacySession();
+    await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+    const snapshot = {
+      session: localStorage.getItem("oauth_session:did:plc:legacy"),
+      accounts: localStorage.getItem("oauth_accounts"),
+      current: localStorage.getItem("oauth_current_did"),
+      legacy: localStorage.getItem("oauth_session"),
+    };
+    await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+    assertEquals(
+      localStorage.getItem("oauth_session:did:plc:legacy"),
+      snapshot.session,
+    );
+    assertEquals(localStorage.getItem("oauth_accounts"), snapshot.accounts);
+    assertEquals(localStorage.getItem("oauth_current_did"), snapshot.current);
+    assertEquals(localStorage.getItem("oauth_session"), snapshot.legacy);
+  });
+
+  it("removes stale legacy key when accounts index already exists", async () => {
+    writeLegacySession();
+    localStorage.setItem(
+      "oauth_accounts",
+      JSON.stringify([
+        { did: "did:plc:other", handle: null, pdsUrl: "https://x" },
+      ]),
+    );
+    await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+    assertEquals(localStorage.getItem("oauth_session"), null);
+    const accounts = JSON.parse(localStorage.getItem("oauth_accounts"));
+    assertEquals(accounts.length, 1);
+    assertEquals(accounts[0].did, "did:plc:other");
+  });
+
+  it("creates no keys when there is no legacy or multi-account state", async () => {
+    await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+    assertEquals(localStorage.getItem("oauth_accounts"), null);
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
+  });
+});
+
+t.describe("DPoP sanity across accounts", (it) => {
+  it("two accounts share the same DPoP public key", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+    const alice = await client.getSession("did:plc:alice");
+    await alice.fetch("https://pds.example.com/xrpc/foo");
+    const aliceProof = globalThis.fetch.calls.at(-1).options.headers.DPoP;
+    const bob = await client.getSession("did:plc:bob");
+    await bob.fetch("https://pds.example.com/xrpc/foo");
+    const bobProof = globalThis.fetch.calls.at(-1).options.headers.DPoP;
+    const aliceJwk = JSON.parse(
+      atob(aliceProof.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")),
+    ).jwk;
+    const bobJwk = JSON.parse(
+      atob(bobProof.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")),
+    ).jwk;
+    assertEquals(aliceJwk.x, bobJwk.x);
+    assertEquals(aliceJwk.y, bobJwk.y);
   });
 });
 

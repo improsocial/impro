@@ -20,6 +20,20 @@ export function unique(array, { by: keyOrFn } = {}) {
   return uniqueArray;
 }
 
+export function groupBy(array, keyOrFn) {
+  const getKey =
+    typeof keyOrFn === "function" ? keyOrFn : (item) => item[keyOrFn];
+  const groups = new Map();
+  array.forEach((item) => {
+    const key = getKey(item);
+    if (!groups.has(key)) {
+      groups.set(key, []);
+    }
+    groups.get(key).push(item);
+  });
+  return groups;
+}
+
 export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
 export const isSafari = () =>
@@ -274,6 +288,24 @@ export function getCurrentTimestamp() {
   return new Date().toISOString();
 }
 
+export function getBrowserLanguages() {
+  if (navigator.languages && navigator.languages.length) {
+    return [...navigator.languages];
+  }
+  if (navigator.language) {
+    return [navigator.language];
+  }
+  return [];
+}
+
+export function getPostLangs() {
+  const tags = getBrowserLanguages()
+    .map((tag) => tag.split("-")[0].toLowerCase())
+    .filter(Boolean);
+  const deduped = unique(tags);
+  return deduped.length ? deduped.slice(0, 3) : ["en"];
+}
+
 export function sanitizeUri(uri) {
   let parsedUri = null;
   try {
@@ -466,4 +498,25 @@ export class SimpleUUID {
   create() {
     return this._id++;
   }
+}
+
+function parseVersion(version) {
+  const base = String(version ?? "").split("-")[0];
+  const parts = base.split(".").map((part) => {
+    const num = parseInt(part, 10);
+    return Number.isFinite(num) && num >= 0 ? num : 0;
+  });
+  while (parts.length < 3) parts.push(0);
+  return parts.slice(0, 3);
+}
+
+// Compares two semver strings. Returns -1 / 0 / 1.
+export function compareVersions(versionA, versionB) {
+  const partsA = parseVersion(versionA);
+  const partsB = parseVersion(versionB);
+  for (let index = 0; index < 3; index++) {
+    if (partsA[index] > partsB[index]) return 1;
+    if (partsA[index] < partsB[index]) return -1;
+  }
+  return 0;
 }

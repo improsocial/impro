@@ -44,6 +44,7 @@ export class PostComposerService {
           replyRoot,
           quotedPost,
           images,
+          video,
           successCallback,
           errorCallback,
         } = e.detail;
@@ -56,6 +57,7 @@ export class PostComposerService {
             replyRoot,
             quotedPost,
             images,
+            video,
           });
           successCallback(result);
           resolve(result);
@@ -84,6 +86,7 @@ export class PostComposerService {
     replyRoot,
     quotedPost,
     images,
+    video,
   }) {
     try {
       const facets = await resolveFacets(
@@ -98,6 +101,7 @@ export class PostComposerService {
         replyRoot,
         quotedPost,
         images,
+        video,
       });
       showToast(
         html`<div class="toast-with-link">

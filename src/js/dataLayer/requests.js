@@ -64,8 +64,15 @@ class StatusStore {
 
 // Handles making requests to the API and storing the data in the data store.
 export class Requests {
-  constructor(api, dataStore, preferencesProvider, { constellation } = {}) {
+  constructor(
+    api,
+    dataStore,
+    preferencesProvider,
+    pluginService,
+    { constellation } = {},
+  ) {
     this.api = api;
+    this.pluginService = pluginService;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
     this.constellation = constellation ?? new Constellation();
@@ -123,6 +130,7 @@ export class Requests {
       this.loadProfileFollows,
       (profileDid) => "loadProfileFollows-" + profileDid,
     );
+    this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
   }
 
   requireLabelers() {
@@ -361,6 +369,15 @@ export class Requests {
     if (blockedPostUris.length > 0) {
       await this._loadBlockedPosts(blockedPostUris);
     }
+    // Filter posts with plugins
+    const pluginFilteredFeedItems =
+      await this.pluginService.getFilteredFeedItems(feedURI, feed);
+    const existingFilteredFeedItems =
+      this.dataStore.getPluginFilteredFeedItems(feedURI) ?? {};
+    this.dataStore.setPluginFilteredFeedItems(feedURI, {
+      ...existingFilteredFeedItems,
+      ...pluginFilteredFeedItems,
+    });
     if (existingFeed && !reload) {
       // Append to existing feed
       this.dataStore.setFeed(feedURI, {
@@ -1025,6 +1042,21 @@ export class Requests {
     } else {
       // Set new follows
       this.dataStore.setProfileFollows(profileDid, res);
+    }
+  }
+
+  async loadBlockedProfiles({ cursor } = {}) {
+    const labelers = this.requireLabelers();
+    const existing = this.dataStore.getBlockedProfiles();
+    const res = await this.api.getBlocks({ cursor, labelers });
+
+    if (existing && cursor) {
+      this.dataStore.setBlockedProfiles({
+        blocks: [...existing.blocks, ...res.blocks],
+        cursor: res.cursor,
+      });
+    } else {
+      this.dataStore.setBlockedProfiles(res);
     }
   }
 

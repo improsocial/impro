@@ -2568,4 +2568,135 @@ t.describe(
   },
 );
 
+t.describe("Preferences plugin settings", (it) => {
+  it("returns null when no settings record exists", () => {
+    const preferences = new Preferences([], []);
+    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+  });
+
+  it("returns stored data for a plugin", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        pluginId: "my-plugin",
+        data: { foo: "bar" },
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getPluginSettings("my-plugin"), { foo: "bar" });
+  });
+
+  it("does not return data scoped to a different plugin", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        pluginId: "plugin-a",
+        data: { foo: "bar" },
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getPluginSettings("plugin-b"), null);
+  });
+
+  it("inserts a new record when none exists", () => {
+    const preferences = new Preferences([], []);
+    const updated = preferences.setPluginSettings("my-plugin", { count: 1 });
+    assertEquals(updated.getPluginSettings("my-plugin"), { count: 1 });
+    // Original unchanged
+    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+  });
+
+  it("updates an existing record", () => {
+    const preferences = new Preferences([], []).setPluginSettings("my-plugin", {
+      count: 1,
+    });
+    const updated = preferences.setPluginSettings("my-plugin", { count: 2 });
+    assertEquals(updated.getPluginSettings("my-plugin"), { count: 2 });
+    // Only one record stored
+    const records = updated.obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+    );
+    assertEquals(records.length, 1);
+  });
+
+  it("keeps settings for multiple plugins isolated", () => {
+    const updated = new Preferences([], [])
+      .setPluginSettings("plugin-a", { a: 1 })
+      .setPluginSettings("plugin-b", { b: 2 });
+    assertEquals(updated.getPluginSettings("plugin-a"), { a: 1 });
+    assertEquals(updated.getPluginSettings("plugin-b"), { b: 2 });
+  });
+
+  it("clears settings for a single plugin", () => {
+    const preferences = new Preferences([], [])
+      .setPluginSettings("plugin-a", { a: 1 })
+      .setPluginSettings("plugin-b", { b: 2 });
+    const updated = preferences.clearPluginSettings("plugin-a");
+    assertEquals(updated.getPluginSettings("plugin-a"), null);
+    assertEquals(updated.getPluginSettings("plugin-b"), { b: 2 });
+    // Original unchanged
+    assertEquals(preferences.getPluginSettings("plugin-a"), { a: 1 });
+  });
+
+  it("is a no-op when clearing settings for an unknown plugin", () => {
+    const preferences = new Preferences([], []).setPluginSettings("plugin-a", {
+      a: 1,
+    });
+    const updated = preferences.clearPluginSettings("plugin-b");
+    assertEquals(updated.getPluginSettings("plugin-a"), { a: 1 });
+  });
+});
+
+t.describe("Preferences installed plugins", (it) => {
+  it("returns empty array when no record exists", () => {
+    const preferences = new Preferences([], []);
+    assertEquals(preferences.getInstalledPlugins(), []);
+  });
+
+  it("returns stored plugins list", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        plugins: [
+          { id: "alpha", version: "1.0.0", enabled: true },
+          { id: "beta", version: "2.0.0", enabled: false },
+        ],
+      },
+    ];
+    const preferences = new Preferences(obj, []);
+    assertEquals(preferences.getInstalledPlugins(), [
+      { id: "alpha", version: "1.0.0", enabled: true },
+      { id: "beta", version: "2.0.0", enabled: false },
+    ]);
+  });
+
+  it("inserts a new record when none exists", () => {
+    const preferences = new Preferences([], []);
+    const updated = preferences.setInstalledPlugins([
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    assertEquals(updated.getInstalledPlugins(), [
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    // Original unchanged
+    assertEquals(preferences.getInstalledPlugins(), []);
+  });
+
+  it("updates an existing record without duplicating", () => {
+    const preferences = new Preferences([], []).setInstalledPlugins([
+      { id: "alpha", version: "1.0.0", enabled: true },
+    ]);
+    const updated = preferences.setInstalledPlugins([
+      { id: "alpha", version: "1.1.0", enabled: true },
+    ]);
+    assertEquals(updated.getInstalledPlugins(), [
+      { id: "alpha", version: "1.1.0", enabled: true },
+    ]);
+    const records = updated.obj.filter(
+      (pref) => pref.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+    );
+    assertEquals(records.length, 1);
+  });
+});
+
 await t.run();

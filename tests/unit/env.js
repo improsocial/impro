@@ -17,6 +17,7 @@ globalThis.Node = dom.window.Node;
 globalThis.DocumentFragment = dom.window.DocumentFragment;
 globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
+globalThis.MutationObserver = dom.window.MutationObserver;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 
 // Mock requestAnimationFrame
@@ -47,10 +48,17 @@ globalThis.window.HTMLDialogElement.prototype.showModal = function () {
 };
 globalThis.window.HTMLDialogElement.prototype.close = function () {
   this.removeAttribute("open");
+  this.dispatchEvent(new globalThis.Event("close"));
 };
 
 globalThis.window.HTMLElement.prototype.showPopover = function () {};
 globalThis.window.HTMLElement.prototype.hidePopover = function () {};
+
+globalThis.window.HTMLMediaElement.prototype.play = function () {
+  return Promise.resolve();
+};
+globalThis.window.HTMLMediaElement.prototype.pause = function () {};
+globalThis.window.HTMLMediaElement.prototype.load = function () {};
 
 // Prevent network requests. We can mock this in individual tests as needed.
 delete globalThis.fetch;

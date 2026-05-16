@@ -76,7 +76,7 @@ test.describe("Post Composer Edge Cases", () => {
     await expect(composer).toBeVisible({ timeout: 10000 });
 
     // Upload 3 images at once
-    const fileInput = composer.locator('input[type="file"]');
+    const fileInput = composer.locator(`.media-picker-input`);
     await fileInput.setInputFiles([
       createTestImage("image1.png"),
       createTestImage("image2.png"),
@@ -123,7 +123,7 @@ test.describe("Post Composer Edge Cases", () => {
     await expect(composer).toBeVisible({ timeout: 10000 });
 
     // Upload an image
-    const fileInput = composer.locator('input[type="file"]');
+    const fileInput = composer.locator(`.media-picker-input`);
     await fileInput.setInputFiles(createTestImage("photo.png"));
 
     await expect(composer.locator(".image-preview-item")).toHaveCount(1, {
@@ -434,5 +434,167 @@ test.describe("Post Composer Edge Cases", () => {
     await page.waitForTimeout(500);
 
     expect(pageErrors).toHaveLength(0);
+  });
+
+  test.describe("Video upload failure modes", () => {
+    // Stub video metadata loading so we can exercise the upload state machine
+    // without a real playable video buffer. Our test "video" file is just a few
+    // bytes — the real <video> element would fire `error`, not `loadedmetadata`.
+    async function stubVideoMetadataLoading(page) {
+      await page.addInitScript(() => {
+        const proto = HTMLMediaElement.prototype;
+        const desc = Object.getOwnPropertyDescriptor(proto, "src");
+        const origSet = desc.set;
+        Object.defineProperty(proto, "src", {
+          configurable: true,
+          get: desc.get,
+          set(val) {
+            origSet.call(this, val);
+            queueMicrotask(() => {
+              if (this.tagName !== "VIDEO") return;
+              Object.defineProperty(this, "videoWidth", {
+                value: 1280,
+                configurable: true,
+              });
+              Object.defineProperty(this, "videoHeight", {
+                value: 720,
+                configurable: true,
+              });
+              Object.defineProperty(this, "duration", {
+                value: 5,
+                configurable: true,
+              });
+              this.dispatchEvent(new Event("loadedmetadata"));
+            });
+          },
+        });
+      });
+    }
+
+    function fakeVideoFile(name = "clip.mp4") {
+      return {
+        name,
+        mimeType: "video/mp4",
+        buffer: Buffer.from("fake-video-data"),
+      };
+    }
+
+    test("unreadable video file shows a toast and no preview", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/intent/compose");
+
+      const composer = page.locator("post-composer .post-composer");
+      await expect(composer).toBeVisible({ timeout: 10000 });
+
+      // No metadata stub — the browser will fire `error` on the bogus buffer.
+      const videoInput = composer.locator(".media-picker-input");
+      await videoInput.setInputFiles(fakeVideoFile());
+
+      await expect(page.locator(".toast")).toContainText(
+        "Could not read video file",
+        { timeout: 5000 },
+      );
+      await expect(
+        composer.locator(".post-composer-video-preview"),
+      ).toHaveCount(0);
+    });
+
+    test("rejects upload when service reports canUpload=false", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.videoCanUpload = false;
+      mockServer.videoUploadMessage = "Daily video limit reached";
+      await stubVideoMetadataLoading(page);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/intent/compose");
+
+      const composer = page.locator("post-composer .post-composer");
+      await expect(composer).toBeVisible({ timeout: 10000 });
+
+      const videoInput = composer.locator(".media-picker-input");
+      await videoInput.setInputFiles(fakeVideoFile());
+
+      // Preview appears (metadata stub succeeded), then upload fails with the
+      // service message and the overlay flips to the error state.
+      const preview = composer.locator(".post-composer-video-preview");
+      await expect(preview).toBeVisible({ timeout: 5000 });
+      await expect(preview).toContainText("Daily video limit reached", {
+        timeout: 10000,
+      });
+      await expect(page.locator(".toast")).toContainText(
+        "Daily video limit reached",
+      );
+    });
+
+    test("surfaces an error when video processing job fails", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.videoJobShouldFail = true;
+      await stubVideoMetadataLoading(page);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/intent/compose");
+
+      const composer = page.locator("post-composer .post-composer");
+      await expect(composer).toBeVisible({ timeout: 10000 });
+
+      const videoInput = composer.locator(".media-picker-input");
+      await videoInput.setInputFiles(fakeVideoFile());
+
+      const preview = composer.locator(".post-composer-video-preview");
+      await expect(preview).toBeVisible({ timeout: 5000 });
+      await expect(preview).toContainText("mock failure", { timeout: 10000 });
+      await expect(page.locator(".toast")).toContainText("mock failure");
+
+      // Remove button still works after the error.
+      await preview.locator(".image-preview-remove-button").click();
+      await expect(preview).toHaveCount(0);
+    });
+
+    test("removing a video while it is processing does not throw", async ({
+      page,
+    }) => {
+      const pageErrors = [];
+      page.on("pageerror", (error) => pageErrors.push(error));
+
+      const mockServer = new MockServer();
+      // Always stay in encoding so the poll never resolves before we remove.
+      mockServer.videoJobPollCounts = {
+        get: () => 0,
+        set: () => {},
+      };
+      await stubVideoMetadataLoading(page);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/intent/compose");
+
+      const composer = page.locator("post-composer .post-composer");
+      await expect(composer).toBeVisible({ timeout: 10000 });
+
+      const videoInput = composer.locator(".media-picker-input");
+      await videoInput.setInputFiles(fakeVideoFile());
+
+      const preview = composer.locator(".post-composer-video-preview");
+      await expect(preview).toBeVisible({ timeout: 5000 });
+
+      // Remove the video while polling is still in flight.
+      await preview.locator(".image-preview-remove-button").click();
+      await expect(preview).toHaveCount(0);
+
+      // Give the in-flight poll(s) a chance to resolve into a removed-video state.
+      await page.waitForTimeout(2000);
+      expect(pageErrors).toHaveLength(0);
+    });
   });
 });

@@ -2,6 +2,7 @@ import {
   filterFollowingFeed,
   filterAlgorithmicFeed,
   filterAuthorFeed,
+  filterBookmarksFeed,
 } from "/js/feedFilters.js";
 import {
   createUnavailablePost,
@@ -75,6 +76,8 @@ export class Selectors {
       feed: hydratedFeedItems,
       cursor: feed.cursor,
     };
+    const pluginFilteredFeedItems =
+      this.dataStore.getPluginFilteredFeedItems(feedURI) ?? {};
     if (feedURI === "following") {
       const currentUser = this.getCurrentUser();
       const preferences = this.getPreferences();
@@ -82,10 +85,14 @@ export class Selectors {
         hydratedFeed,
         currentUser,
         preferences,
-        this.isAuthenticated,
+        pluginFilteredFeedItems,
       );
     } else {
-      return filterAlgorithmicFeed(hydratedFeed, this.isAuthenticated);
+      return filterAlgorithmicFeed(
+        hydratedFeed,
+        this.isAuthenticated,
+        pluginFilteredFeedItems,
+      );
     }
   }
 
@@ -587,10 +594,14 @@ export class Selectors {
         post,
       });
     }
-    return {
+    return filterBookmarksFeed({
       feed: hydratedBookmarksFeed,
       cursor: bookmarks.cursor,
-    };
+    });
+  }
+
+  getBlockedProfiles() {
+    return this.dataStore.getBlockedProfiles();
   }
 
   getProfileFollowers(profileDid) {

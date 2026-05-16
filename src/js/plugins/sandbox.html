@@ -18,19 +18,21 @@
           if (event.source !== window.parent) return;
           const message = event.data;
           if (!message || typeof message !== "object") return;
-          if (message.type === "init") init(message.source);
+          if (message.type === "init") init(message.workerSource);
           else if (message.type === "send" && worker)
             worker.postMessage(message.payload);
           else if (message.type === "terminate" && worker) worker.terminate();
         });
 
-        function init(source) {
+        function init(workerSource) {
           if (worker) return;
           try {
-            const blob = new Blob([source], { type: "text/javascript" });
-            const url = URL.createObjectURL(blob);
-            worker = new Worker(url, { type: "module" });
-            URL.revokeObjectURL(url);
+            const blob = new Blob([workerSource], {
+              type: "text/javascript",
+            });
+            const workerUrl = URL.createObjectURL(blob);
+            worker = new Worker(workerUrl, { type: "module" });
+            URL.revokeObjectURL(workerUrl);
           } catch (error) {
             window.parent.postMessage(
               {

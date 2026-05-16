@@ -7,9 +7,10 @@ import { Preferences } from "/js/preferences.js";
 const t = new TestSuite("Requests");
 
 const stubConstellation = { getLinks: async () => [] };
+const stubPluginService = { getFilteredFeedItems: async () => ({}) };
 
 function createRequests(api, dataStore, preferencesProvider) {
-  return new Requests(api, dataStore, preferencesProvider, {
+  return new Requests(api, dataStore, preferencesProvider, stubPluginService, {
     constellation: stubConstellation,
   });
 }

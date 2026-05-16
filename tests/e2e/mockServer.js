@@ -1,5 +1,10 @@
 import { createPost } from "./factories.js";
 import { bskyLabeler, userProfile } from "./fixtures.js";
+import {
+  TEST_PLUGIN_ID,
+  TEST_PLUGIN_MANIFEST,
+  getTestPluginSource,
+} from "./testPlugin.js";
 
 export class MockServer {
   constructor() {
@@ -19,6 +24,7 @@ export class MockServer {
     this.labelerSubscriptions = [];
     this.labelerViews = [bskyLabeler];
     this.mutedWords = [];
+    this.blockedProfiles = [];
     this.contentLabelPrefs = [];
     this.notifications = [];
     this.notificationCursor = undefined;
@@ -39,6 +45,10 @@ export class MockServer {
     this.searchPosts = [];
     this.searchProfiles = [];
     this.timelinePosts = [];
+    this.pluginSettings = new Map();
+    this.installedPlugins = [];
+    this.registryEntries = [];
+    this.liveManifest = null;
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -160,6 +170,94 @@ export class MockServer {
   }
 
   async setup(page) {
+    // Plugin fixture routes — serve a self-contained test plugin so plugin
+    // e2e tests don't depend on plugins-local/.
+    await page.route("**/plugins-local/index.json", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([
+          {
+            id: TEST_PLUGIN_MANIFEST.id,
+            name: TEST_PLUGIN_MANIFEST.name,
+            author: TEST_PLUGIN_MANIFEST.author,
+            description: TEST_PLUGIN_MANIFEST.description,
+          },
+        ]),
+      }),
+    );
+    await page.route(
+      `**/plugins-local/${TEST_PLUGIN_ID}/manifest.json`,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(TEST_PLUGIN_MANIFEST),
+        }),
+    );
+    await page.route(`**/plugins-local/${TEST_PLUGIN_ID}/main.js`, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/javascript",
+        body: getTestPluginSource(),
+      }),
+    );
+
+    // Remote plugin registry routes — serve a fake registry and matching
+    // GitHub release assets so flow tests can install remote plugins.
+    await page.route(
+      "**/improsocial/impro-releases/**/community-plugins.json",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(this.registryEntries),
+        }),
+    );
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/*/manifest.json",
+      (route) => {
+        const match = route
+          .request()
+          .url()
+          .match(/\/([^/]+)\/manifest\.json$/);
+        const version = match?.[1] ?? "0.0.0";
+        const id = this.registryEntries[0]?.id ?? "remote-plugin";
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id,
+            name: this.registryEntries[0]?.name ?? "Remote Plugin",
+            version,
+            description: this.registryEntries[0]?.description,
+          }),
+        });
+      },
+    );
+    await page.route("**/raw.githubusercontent.com/*/*/*/main.js", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/javascript",
+        body: getTestPluginSource(),
+      }),
+    );
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/main/manifest.json",
+      (route) => {
+        const live = this.liveManifest ?? {
+          id: this.registryEntries[0]?.id ?? "remote-plugin",
+          name: this.registryEntries[0]?.name ?? "Remote Plugin",
+          version: "1.0.0",
+        };
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(live),
+        });
+      },
+    );
+
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
     );
@@ -236,6 +334,19 @@ export class MockServer {
                   {
                     $type: "app.bsky.actor.defs#mutedWordsPref",
                     items: this.mutedWords,
+                  },
+                ]
+              : []),
+            ...[...this.pluginSettings.entries()].map(([pluginId, data]) => ({
+              $type: "app.bsky.actor.defs#improPluginSettingsPref",
+              pluginId,
+              data,
+            })),
+            ...(this.installedPlugins.length > 0
+              ? [
+                  {
+                    $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+                    plugins: this.installedPlugins,
                   },
                 ]
               : []),
@@ -984,6 +1095,31 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.getBlocks*", (route) => {
+      const url = new URL(route.request().url());
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      let blocks, nextCursor;
+      if (limit) {
+        blocks = this.blockedProfiles.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < this.blockedProfiles.length
+            ? String(offset + limit)
+            : "";
+      } else {
+        blocks = this.blockedProfiles;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ blocks, cursor: nextCursor }),
+      });
+    });
+
     await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
       const url = new URL(route.request().url());
       const handle = url.searchParams.get("handle");
@@ -1134,6 +1270,14 @@ export class MockServer {
               alt: img.alt || "",
               aspectRatio: img.aspectRatio,
             })),
+          };
+        } else if (recordEmbed?.$type === "app.bsky.embed.video") {
+          embed = {
+            $type: "app.bsky.embed.video#view",
+            cid: recordEmbed.video.ref.$link,
+            playlist: "",
+            alt: recordEmbed.alt || "",
+            aspectRatio: recordEmbed.aspectRatio,
           };
         } else if (recordEmbed?.$type === "app.bsky.embed.external") {
           embed = {
@@ -1323,6 +1467,18 @@ export class MockServer {
       if (mutedWordsPref) {
         this.mutedWords = mutedWordsPref.items || [];
       }
+      const installedPluginsPref = body?.preferences?.find(
+        (p) => p.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+      );
+      if (installedPluginsPref) {
+        this.installedPlugins = installedPluginsPref.plugins || [];
+      }
+      const pluginSettingsPrefs = (body?.preferences || []).filter(
+        (p) => p.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+      );
+      this.pluginSettings = new Map(
+        pluginSettingsPrefs.map((p) => [p.pluginId, p.data]),
+      );
       return route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -1428,6 +1584,101 @@ export class MockServer {
         }),
       }),
     );
+
+    await page.route("**/xrpc/com.atproto.server.getServiceAuth*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ token: "mock-service-auth-token" }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.video.getUploadLimits*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          canUpload: this.videoCanUpload !== false,
+          remainingDailyVideos: 25,
+          remainingDailyBytes: 100_000_000,
+          message: this.videoUploadMessage || "",
+        }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.video.uploadVideo*", (route) => {
+      this.videoJobCounter = (this.videoJobCounter || 0) + 1;
+      const jobId = `mock-video-job-${this.videoJobCounter}`;
+      this.videoJobPollCounts = this.videoJobPollCounts || new Map();
+      this.videoJobPollCounts.set(jobId, 0);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          jobId,
+          did: userProfile.did,
+          state: "JOB_STATE_ENCODING",
+          progress: 0,
+        }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.video.getJobStatus*", (route) => {
+      const url = new URL(route.request().url());
+      const jobId = url.searchParams.get("jobId");
+      if (this.videoJobShouldFail) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            jobStatus: {
+              jobId,
+              did: userProfile.did,
+              state: "JOB_STATE_FAILED",
+              progress: 0,
+              error: "mock failure",
+              message: "mock failure",
+            },
+          }),
+        });
+      }
+      this.videoJobPollCounts = this.videoJobPollCounts || new Map();
+      const count = (this.videoJobPollCounts.get(jobId) || 0) + 1;
+      this.videoJobPollCounts.set(jobId, count);
+      // Complete on the second poll
+      if (count >= 2) {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            jobStatus: {
+              jobId,
+              did: userProfile.did,
+              state: "JOB_STATE_COMPLETED",
+              progress: 1,
+              blob: {
+                $type: "blob",
+                ref: { $link: `bafkreimockvideo${this.videoJobCounter}` },
+                mimeType: "video/mp4",
+                size: 1024,
+              },
+            },
+          }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          jobStatus: {
+            jobId,
+            did: userProfile.did,
+            state: "JOB_STATE_ENCODING",
+            progress: 0.5,
+          },
+        }),
+      });
+    });
 
     await page.route(
       (url) => url.toString().includes("cardyb.bsky.app/v1/extract"),

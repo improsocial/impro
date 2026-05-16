@@ -32,6 +32,11 @@ export class PreferencesProvider extends EventEmitter {
     this._setPreferences(preferences);
   }
 
+  async savePreferences(preferences) {
+    await this.api.updatePreferences(preferences.obj);
+    this._preferences = preferences;
+  }
+
   _setPreferences(preferences) {
     this._preferences = preferences;
     this.emit("setPreferences", preferences);

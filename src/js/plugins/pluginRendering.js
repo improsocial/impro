@@ -1,4 +1,5 @@
 import { lightningBoltIconTemplate } from "/js/templates/icons/lightningBoltIcon.template.js";
+import "/js/components/toggle-switch.js";
 
 const ALLOWED_TAGS = [
   "div",
@@ -20,15 +21,35 @@ const ALLOWED_TAGS = [
   "br",
   "hr",
   "button",
+  "input",
+  "select",
+  "option",
+  "label",
+  "textarea",
 ];
 
-const ALLOWED_EVENTS = ["click"];
+const ALLOWED_EVENTS = ["click", "change", "input"];
 
 function isAllowedTag(tag) {
   return ALLOWED_TAGS.includes(tag);
 }
 
-const ALLOWED_ATTRS = ["class", "title", "role", "lang", "dir"];
+const ALLOWED_ATTRS = [
+  "class",
+  "title",
+  "role",
+  "lang",
+  "dir",
+  "type",
+  "value",
+  "placeholder",
+  "checked",
+  "selected",
+  "disabled",
+  "name",
+  "for",
+  "id",
+];
 
 function isAllowedAttr(name) {
   return (
@@ -43,9 +64,15 @@ const PLUGIN_ICON_TEMPLATES = {
 };
 
 function createVirtualEvent(e) {
-  // Create a serializeable event object - can extend this later if needed
+  const target = e.target ?? {};
+  const virtualTarget = {};
+  if (typeof target.value === "string") virtualTarget.value = target.value;
+  if (typeof target.checked === "boolean") {
+    virtualTarget.checked = target.checked;
+  }
   return {
     type: e.type,
+    target: virtualTarget,
   };
 }
 
@@ -53,8 +80,8 @@ function createVirtualEvent(e) {
 // real element. Text and children are mutually exclusive on
 // the worker side (setText() clears children).
 export class PluginRenderer {
-  constructor(pluginHost) {
-    this.pluginHost = pluginHost;
+  constructor(pluginBridge) {
+    this.pluginBridge = pluginBridge;
   }
   renderNode(node, pluginId) {
     let tag = typeof node.tag === "string" ? node.tag.toLowerCase() : "div";
@@ -64,7 +91,18 @@ export class PluginRenderer {
       );
       tag = "span";
     }
+    const aliasedAsToggle = tag === "input" && node.attrs?.type === "checkbox";
+    if (aliasedAsToggle) {
+      tag = "toggle-switch";
+    }
     const element = document.createElement(tag);
+    if (aliasedAsToggle) {
+      // toggle-switch is controlled — flip its state here since the plugin
+      // worker can't observe events synchronously to re-render.
+      element.addEventListener("change", (e) => {
+        element.checked = e.detail?.checked ?? !element.checked;
+      });
+    }
     if (node.attrs) {
       for (const [name, value] of Object.entries(node.attrs)) {
         if (!isAllowedAttr(name)) {
@@ -85,7 +123,7 @@ export class PluginRenderer {
           continue;
         }
         element.addEventListener(name, (e) => {
-          this.pluginHost.handleNodeEvent(
+          this.pluginBridge.handleNodeEvent(
             pluginId,
             handlerId,
             createVirtualEvent(e),

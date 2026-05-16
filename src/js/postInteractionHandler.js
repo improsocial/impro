@@ -195,6 +195,15 @@ export class PostInteractionHandler {
 
   async handleBlockAuthor(profile, doBlock) {
     if (doBlock) {
+      const confirmed = await confirm(
+        "Blocked accounts cannot reply in your threads, mention you, or otherwise interact with you.",
+        {
+          title: "Block Account?",
+          confirmButtonText: "Block",
+          confirmButtonStyle: "danger",
+        },
+      );
+      if (!confirmed) return;
       try {
         const promise = this.dataLayer.mutations.blockProfile(profile);
         // Render optimistic update

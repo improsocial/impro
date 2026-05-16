@@ -15,6 +15,12 @@ import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { showToast } from "/js/toasts.js";
+import {
+  validateVideoFile,
+  readVideoMetadata,
+  VideoUploader,
+  VideoValidationError,
+} from "/js/videoUtils.js";
 import { IN_APP_LINK_DOMAINS, LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { quotedPostTemplate } from "/js/templates/postEmbed.template.js";
 import { createEmbedFromPost } from "/js/dataHelpers.js";
@@ -95,6 +101,53 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
   `;
 }
 
+function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
+  const isReady = video.status === "done";
+  const isError = video.status === "error";
+  let progressLabel = "";
+  if (video.status === "uploading") {
+    progressLabel = "Uploading...";
+  } else if (video.status === "processing") {
+    progressLabel =
+      video.progress > 0 ? `Processing... ${video.progress}%` : "Processing...";
+  } else if (isError) {
+    progressLabel = video.error || "Upload failed";
+  }
+  return html`
+    <div class="post-composer-video-preview">
+      <div class="video-preview-item">
+        <video src="${video.previewUrl}" controls playsinline></video>
+        <button
+          class="image-preview-remove-button"
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onRemove();
+          }}
+        >
+          <span>×</span>
+        </button>
+        ${!isReady
+          ? html`<div class="video-preview-overlay">
+              ${!isError ? html`<div class="loading-spinner"></div>` : ""}
+              <span>${progressLabel}</span>
+            </div>`
+          : ""}
+        <button
+          class="alt-indicator ${video.alt ? "has-alt" : "no-alt"}"
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onEditAltText();
+          }}
+        >
+          ${video.alt ? "✓ ALT" : "+ ALT"}
+        </button>
+      </div>
+    </div>
+  `;
+}
+
 function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
   return html`
     <div class="post-composer-image-preview">
@@ -143,6 +196,7 @@ class PostComposer extends Component {
     this._externalLinkEmbedData = null;
     this._rejectedLinkEmbeds = new Set();
     this._selectedImages = [];
+    this._selectedVideo = null;
     this.render();
     this.initialized = true;
   }
@@ -155,6 +209,11 @@ class PostComposer extends Component {
       100,
     );
     const isAboveCharLimit = currentCharCount > 300;
+    const isVideoUploading =
+      this._selectedVideo &&
+      (this._selectedVideo.status === "uploading" ||
+        this._selectedVideo.status === "processing");
+    const hasVideo = !!this._selectedVideo;
     render(
       html`
         <dialog
@@ -177,6 +236,7 @@ class PostComposer extends Component {
               if (
                 !this._isSending &&
                 !isAboveCharLimit &&
+                !isVideoUploading &&
                 this._postText.length > 0
               ) {
                 this.send();
@@ -199,7 +259,9 @@ class PostComposer extends Component {
               <button
                 class="rounded-button rounded-button-primary"
                 @click=${() => this.send()}
-                .disabled=${this._isSending || isAboveCharLimit}
+                .disabled=${this._isSending ||
+                isAboveCharLimit ||
+                isVideoUploading}
               >
                 ${this._isSending
                   ? html`Sending... <span>&nbsp;&nbsp;</span>
@@ -244,6 +306,13 @@ class PostComposer extends Component {
                       onEditAltText: (index) => this.handleEditAltText(index),
                     })
                   : ""}
+                ${this._selectedVideo
+                  ? videoPreviewTemplate({
+                      video: this._selectedVideo,
+                      onRemove: () => this.handleRemoveVideo(),
+                      onEditAltText: () => this.handleEditVideoAltText(),
+                    })
+                  : ""}
                 ${this.quotedPost
                   ? html`<div class="post-composer-embed-preview">
                       <button
@@ -267,18 +336,19 @@ class PostComposer extends Component {
                 <div class="post-composer-bottom-bar-left">
                   <input
                     type="file"
-                    accept="image/*"
+                    accept="image/*,video/*"
+                    class="media-picker-input"
                     multiple
                     style="display: none;"
-                    @change=${(e) => this.handleImageSelect(e)}
+                    @change=${(e) => this.handleMediaSelect(e)}
                     @cancel=${(e) => {
                       e.stopPropagation();
                     }}
                   />
                   <button
                     class="image-picker-button"
-                    @click=${() => this.handleImageButtonClick()}
-                    .disabled=${this._selectedImages.length >= 4}
+                    @click=${() => this.handleMediaButtonClick()}
+                    .disabled=${hasVideo || this._selectedImages.length >= 4}
                   >
                     ${imageIconTemplate()}
                   </button>
@@ -337,15 +407,61 @@ class PostComposer extends Component {
     }
   }
 
-  handleImageButtonClick() {
-    const input = this.querySelector('input[type="file"]');
+  handleMediaButtonClick() {
+    const input = this.querySelector(".media-picker-input");
     if (input) {
       input.click();
     }
   }
 
-  async handleImageSelect(e) {
+  async handleMediaSelect(e) {
     const files = Array.from(e.target.files);
+    e.target.value = "";
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter((file) => file.type.startsWith("image/"));
+    const videoFiles = files.filter((file) => file.type.startsWith("video/"));
+
+    if (imageFiles.length + videoFiles.length < files.length) {
+      showToast("Unsupported file type", { style: "warning" });
+      return;
+    }
+
+    if (imageFiles.length > 0 && videoFiles.length > 0) {
+      showToast("Selecting multiple media types is not supported", {
+        style: "warning",
+      });
+      return;
+    }
+
+    if (videoFiles.length > 0) {
+      if (this._selectedImages.length > 0) {
+        showToast("Selecting multiple media types is not supported", {
+          style: "warning",
+        });
+        return;
+      }
+      if (videoFiles.length > 1) {
+        showToast("You can only select one video at a time", {
+          style: "warning",
+        });
+      }
+      await this.processVideoFile(videoFiles[0]);
+      return;
+    }
+
+    if (imageFiles.length > 0) {
+      if (this._selectedVideo) {
+        showToast("Selecting multiple media types is not supported", {
+          style: "warning",
+        });
+        return;
+      }
+      await this.addImageFiles(imageFiles);
+    }
+  }
+
+  async addImageFiles(files) {
     const maxImages = 4;
     const remainingSlots = maxImages - this._selectedImages.length;
 
@@ -355,13 +471,11 @@ class PostComposer extends Component {
 
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const file = files[i];
-      if (file.type.startsWith("image/")) {
-        const dataUrl = await this.readFileAsDataUrl(file);
-        this._selectedImages.push({
-          file,
-          dataUrl,
-        });
-      }
+      const dataUrl = await this.readFileAsDataUrl(file);
+      this._selectedImages.push({
+        file,
+        dataUrl,
+      });
     }
 
     // Reject external link embed if images are added
@@ -371,8 +485,6 @@ class PostComposer extends Component {
       this._externalLinkEmbedData = null;
     }
 
-    // Reset the input so the same file can be selected again
-    e.target.value = "";
     this.render();
   }
 
@@ -399,6 +511,105 @@ class PostComposer extends Component {
     dialog.addEventListener("alt-text-saved", (e) => {
       this._selectedImages[index].alt = e.detail.altText;
       this.render();
+      dialog.remove();
+    });
+
+    dialog.addEventListener("alt-text-dialog-closed", () => {
+      dialog.remove();
+    });
+
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  async processVideoFile(file) {
+    try {
+      validateVideoFile(file);
+    } catch (error) {
+      const msg =
+        error instanceof VideoValidationError
+          ? error.message
+          : "Could not load video";
+      showToast(msg, { style: "warning" });
+      return;
+    }
+    let metadata;
+    try {
+      metadata = await readVideoMetadata(file);
+    } catch (error) {
+      const msg =
+        error instanceof VideoValidationError
+          ? error.message
+          : "Could not load video";
+      showToast(msg, { style: "warning" });
+      return;
+    }
+    this._selectedVideo = {
+      file,
+      previewUrl: URL.createObjectURL(file),
+      alt: "",
+      aspectRatio: metadata.aspectRatio,
+      status: "uploading",
+      progress: 0,
+      jobId: null,
+      blob: null,
+      error: null,
+    };
+    this.render();
+    this.uploadSelectedVideo();
+  }
+
+  async uploadSelectedVideo() {
+    const video = this._selectedVideo;
+    if (!video) return;
+    try {
+      const uploader = new VideoUploader(this.dataLayer.api);
+      const blob = await uploader.upload(video.file, {
+        onJobStart: (job) => {
+          if (this._selectedVideo !== video) return;
+          this._selectedVideo.jobId = job.jobId;
+          this._selectedVideo.status = "processing";
+          this.render();
+        },
+        onProgress: (_state, progress) => {
+          if (this._selectedVideo !== video) return;
+          this._selectedVideo.progress = progress;
+          this.render();
+        },
+      });
+      if (this._selectedVideo !== video) return;
+      this._selectedVideo.blob = blob;
+      this._selectedVideo.status = "done";
+      this.render();
+    } catch (error) {
+      console.error("Video upload error: ", error);
+      if (this._selectedVideo !== video) return;
+      this._selectedVideo.status = "error";
+      this._selectedVideo.error = error.message || "Upload failed";
+      this.render();
+      showToast(this._selectedVideo.error, { style: "error" });
+    }
+  }
+
+  handleRemoveVideo() {
+    if (this._selectedVideo?.previewUrl) {
+      URL.revokeObjectURL(this._selectedVideo.previewUrl);
+    }
+    this._selectedVideo = null;
+    this.render();
+  }
+
+  handleEditVideoAltText() {
+    const video = this._selectedVideo;
+    if (!video) return;
+    const dialog = document.createElement("image-alt-text-dialog");
+    dialog.value = video.alt || "";
+
+    dialog.addEventListener("alt-text-saved", (e) => {
+      if (this._selectedVideo === video) {
+        this._selectedVideo.alt = e.detail.altText;
+        this.render();
+      }
       dialog.remove();
     });
 
@@ -580,6 +791,7 @@ class PostComposer extends Component {
           replyRoot: this.replyRoot,
           quotedPost: this.quotedPost,
           images: this._selectedImages,
+          video: this._selectedVideo,
           successCallback,
           errorCallback,
         },
@@ -589,7 +801,11 @@ class PostComposer extends Component {
 
   confirmClose() {
     // Todo - check for other unsaved changes
-    if (this._postText.length === 0) {
+    if (
+      this._postText.length === 0 &&
+      this._selectedImages.length === 0 &&
+      !this._selectedVideo
+    ) {
       return true;
     }
     return confirm("Are you sure you'd like to discard this draft?", {

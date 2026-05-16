@@ -1,47 +1,7 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
 
-const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
-
-const WORKER_PREFIX = `
-delete self.BroadcastChannel;
-delete self.SharedWorker;
-`;
-
 const SANDBOX_URL = "/js/plugins/sandbox.html";
-
-async function fetchPluginIndex(indexUrl) {
-  const response = await fetch(indexUrl);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  const body = await response.json();
-  return Array.isArray(body.ids) ? body.ids : [];
-}
-
-async function fetchPluginSource(id) {
-  const response = await fetch(`/plugins-local/${id}/main.js`);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return await response.text();
-}
-
-async function fetchPluginManifest(id) {
-  const response = await fetch(`/plugins-local/${id}/manifest.json`);
-  if (!response.ok) throw new Error(`HTTP ${response.status}`);
-  return parsePluginManifest(id, await response.json());
-}
-
-function parsePluginManifest(pluginId, manifest) {
-  for (const field of REQUIRED_MANIFEST_FIELDS) {
-    if (typeof manifest[field] !== "string") {
-      throw new Error(`missing required field "${field}"`);
-    }
-  }
-  if (manifest.id !== pluginId) {
-    throw new Error(
-      `manifest id "${manifest.id}" does not match directory name`,
-    );
-  }
-  return manifest;
-}
 
 class Logger {
   static LEVELS = { info: 10, warn: 20, error: 30, silent: 40 };
@@ -76,7 +36,10 @@ class SandboxedWorker extends EventTarget {
     this._handleWindowMessage = this._handleWindowMessage.bind(this);
     window.addEventListener("message", this._handleWindowMessage);
     this.frame.addEventListener("load", () => {
-      this.frame.contentWindow.postMessage({ type: "init", source }, "*");
+      this.frame.contentWindow.postMessage(
+        { type: "init", workerSource: wrapWorkerSource(source) },
+        "*",
+      );
     });
     document.body.appendChild(this.frame);
   }
@@ -115,10 +78,26 @@ class SandboxedWorker extends EventTarget {
   }
 }
 
+export function wrapWorkerSource(source) {
+  const prelude = `
+    delete self.BroadcastChannel;
+    delete self.SharedWorker;
+  `;
+  return `${prelude}\n${source}`;
+}
+
 async function createSandboxedWorker(source) {
   const worker = new SandboxedWorker(source);
   // in the future, we could add a handshake here to ensure worker has loaded
   return worker;
+}
+
+// Direct (unsandboxed) Worker for e2e tests
+async function createDirectWorker(source) {
+  const blob = new Blob([wrapWorkerSource(source)], {
+    type: "text/javascript",
+  });
+  return new Worker(URL.createObjectURL(blob), { type: "module" });
 }
 
 class PluginInstance {
@@ -136,8 +115,9 @@ class PluginInstance {
     this.worker.addEventListener("error", (event) =>
       logger.error(`"${this.pluginId}" worker error:`, event.message),
     );
-    this._readyPromise = new Promise((resolve) => {
+    this._readyPromise = new Promise((resolve, reject) => {
       this._setReady = () => resolve();
+      this._setFailed = (e) => reject(e);
     });
   }
 
@@ -146,7 +126,7 @@ class PluginInstance {
     if (!message || typeof message !== "object") return;
     switch (message.type) {
       case "ready": {
-        this._setReady();
+        message.error ? this._setFailed(message.error) : this._setReady();
         return;
       }
       case "register": {
@@ -168,13 +148,23 @@ class PluginInstance {
   }
 
   static async loadFromSource(pluginId, source, callbacks) {
-    const worker = await createSandboxedWorker(WORKER_PREFIX + source);
+    const worker = !window.env.playwright // don't sandbox in e2e tests
+      ? await createSandboxedWorker(source)
+      : await createDirectWorker(source);
     const instance = new PluginInstance(pluginId, worker, callbacks);
-    return instance.waitForReady();
+    try {
+      return await instance.waitForReady(2000);
+    } catch (err) {
+      instance.unload();
+      throw err;
+    }
   }
 
-  async waitForReady() {
-    await this._readyPromise;
+  async waitForReady(timeout) {
+    const timeoutPromise = new Promise((resolve, reject) =>
+      setTimeout(() => reject(new Error("Timed out")), timeout),
+    );
+    await Promise.race([this._readyPromise, timeoutPromise]);
     return this;
   }
 
@@ -213,12 +203,20 @@ class PluginInstance {
   }
 }
 
-export class PluginHost {
-  constructor() {
-    this._availablePlugins = null;
+export class PluginBridge {
+  constructor(sourceProvider) {
+    this._provider = sourceProvider;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
+  }
+
+  isLoaded(pluginId) {
+    return this._loadedPlugins.has(pluginId);
+  }
+
+  getInstance(pluginId) {
+    return this._loadedPlugins.get(pluginId) ?? null;
   }
 
   addRegistrationTarget(target, handler) {
@@ -237,55 +235,44 @@ export class PluginHost {
     return handler(pluginInstance, message);
   }
 
-  async loadPluginIndex(indexUrl) {
-    try {
-      this._availablePlugins = await fetchPluginIndex(indexUrl);
-      logger.info(
-        `discovered ${this._availablePlugins.length} plugin(s):`,
-        this._availablePlugins,
-      );
-    } catch (error) {
-      throw new Error(`failed to load plugin index: ${error.message}`);
-    }
+  // Request: {id, version, repo?}
+  async loadPlugins(pluginRequests) {
+    const loadedPlugins = [];
+    const erroredPlugins = [];
+    await Promise.all(
+      pluginRequests.map(async ({ id, version, repo }) => {
+        try {
+          const plugin = await this.loadPlugin(id, version, repo);
+          loadedPlugins.push(plugin);
+        } catch (error) {
+          erroredPlugins.push({ pluginId: id, version, error });
+        }
+      }),
+    );
+    return {
+      loadedPlugins,
+      erroredPlugins,
+    };
   }
 
-  async loadPlugins(pluginIds) {
-    if (this._availablePlugins === null) {
-      logger.info("Plugin index not loaded");
-      return;
-    }
-    const toLoad = [];
-    for (const pluginId of pluginIds) {
-      if (!this._availablePlugins.includes(pluginId)) {
-        logger.warn("skipping unregistered plugin:", pluginId);
-        continue;
-      }
-      toLoad.push(pluginId);
-    }
-    await Promise.all(toLoad.map((id) => this.loadPlugin(id)));
-  }
-
-  async loadPlugin(pluginId) {
+  async loadPlugin(pluginId, version, repo) {
     if (this._loadedPlugins.has(pluginId)) return;
     let manifest;
     try {
-      manifest = await fetchPluginManifest(pluginId);
+      manifest = await this._provider.getManifest(pluginId, version, repo);
     } catch (error) {
-      logger.warn(
-        `failed to load "${pluginId}": invalid manifest:`,
-        error.message,
-      );
-      return;
+      logger.warn(`failed to load "${pluginId}": invalid manifest`, error);
+      throw new Error("Failed to load plugin manifest");
     }
     let source;
     try {
-      source = await fetchPluginSource(pluginId);
+      source = await this._provider.getSource(pluginId, version, repo);
     } catch (error) {
       logger.error(
         `failed to load "${pluginId}": could not fetch main.js`,
         error,
       );
-      return;
+      throw new Error("Failed to load plugin source");
     }
     try {
       const pluginInstance = await PluginInstance.loadFromSource(
@@ -300,8 +287,10 @@ export class PluginHost {
       );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
+      return pluginInstance;
     } catch (error) {
-      logger.error(`"${pluginId}" failed during initialize:`, error.message);
+      logger.error(`"${pluginId}" failed during initialization:`, error);
+      throw new Error("Plugin failed during initialization");
     }
   }
 
@@ -311,21 +300,35 @@ export class PluginHost {
 
   _handleHostCall(pluginInstance, message) {
     const handler = this._hostCallHandlers.get(message.method);
+    const hostCallId = message.hostCallId;
+    const sendResult = (result) => {
+      if (hostCallId == null) return;
+      pluginInstance.worker.postMessage({
+        type: "hostResult",
+        hostCallId,
+        ...result,
+      });
+    };
     if (!handler) {
       logger.warn(
         `"${pluginInstance.pluginId}" called unknown host method "${message.method}"`,
       );
+      sendResult({ error: `unknown host method "${message.method}"` });
       return;
     }
     const args = message.args ?? [];
-    try {
-      handler(pluginInstance, ...args);
-    } catch (error) {
-      logger.error(
-        `"${pluginInstance.pluginId}" host method "${message.method}" threw:`,
-        error,
+    Promise.resolve()
+      .then(() => handler(pluginInstance, ...args))
+      .then(
+        (value) => sendResult({ value }),
+        (error) => {
+          logger.error(
+            `"${pluginInstance.pluginId}" host method "${message.method}" threw:`,
+            error,
+          );
+          sendResult({ error: error?.message ?? String(error) });
+        },
       );
-    }
   }
 
   handleNodeEvent(pluginId, handlerId, virtualEvent) {
@@ -346,5 +349,10 @@ export class PluginHost {
     if (!instance) return;
     instance.unload();
     this._loadedPlugins.delete(pluginId);
+  }
+
+  async reloadPlugin(pluginId, version, repo) {
+    this.unloadPlugin(pluginId);
+    return this.loadPlugin(pluginId, version, repo);
   }
 }

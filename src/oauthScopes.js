@@ -139,7 +139,10 @@ const CHAT_OAUTH_RPC_SCOPES = [
 
 const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
 
-const ATPROTO_OAUTH_RPC_SCOPES = ["rpc:com.atproto.moderation.createReport"];
+const ATPROTO_OAUTH_RPC_SCOPES = [
+  "rpc:com.atproto.moderation.createReport",
+  "rpc:com.atproto.repo.uploadBlob",
+];
 
 function buildOauthScopesString() {
   let scopesString = "atproto blob:*/*";

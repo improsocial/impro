@@ -1,6 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
+import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 
 const t = new TestSuite("DataLayer");
 
@@ -14,10 +15,14 @@ function createMockApi(options = {}) {
   };
 }
 
+function createDataLayer(api) {
+  return new DataLayer(api, null, new PreferencesProvider(api));
+}
+
 t.describe("constructor", (it) => {
   it("should initialize all components", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     assert(dataLayer.api !== undefined);
     assert(dataLayer.dataStore !== undefined);
@@ -31,14 +36,14 @@ t.describe("constructor", (it) => {
 
   it("should set isAuthenticated from api", () => {
     const mockApi = createMockApi({ isAuthenticated: true });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     assertEquals(dataLayer.isAuthenticated, true);
   });
 
   it("should initialize empty subscribers array", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     assertEquals(dataLayer.subscribers, []);
   });
@@ -47,7 +52,7 @@ t.describe("constructor", (it) => {
 t.describe("initializePreferences", (it) => {
   it("should call preferencesProvider.fetchPreferences", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     await dataLayer.initializePreferences();
 
@@ -64,7 +69,7 @@ t.describe("initializePreferences", (it) => {
       isAuthenticated: true,
       preferences: mockPreferences,
     });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     await dataLayer.initializePreferences();
 
@@ -76,7 +81,7 @@ t.describe("initializePreferences", (it) => {
 t.describe("hasCachedFeed", (it) => {
   it("should return false when feed not cached", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     const result = dataLayer.hasCachedFeed("at://feed/uri");
 
@@ -85,7 +90,7 @@ t.describe("hasCachedFeed", (it) => {
 
   it("should return true when feed is cached", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
     const feedURI = "at://feed/uri";
 
     dataLayer.dataStore.setFeed(feedURI, { feed: [], cursor: null });
@@ -99,7 +104,7 @@ t.describe("hasCachedFeed", (it) => {
 t.describe("hasCachedAuthorFeed", (it) => {
   it("should return false when author feed not cached", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     const result = dataLayer.hasCachedAuthorFeed("did:test:user", "posts");
 
@@ -108,7 +113,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
 
   it("should return true when author feed is cached", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
     const profileDid = "did:test:user";
     const feedType = "posts";
 
@@ -124,7 +129,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
 
   it("should construct correct feed URI from profileDid and feedType", () => {
     const mockApi = createMockApi();
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
     const profileDid = "did:test:user";
     const feedType = "replies";
 
@@ -143,7 +148,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
 t.describe("component integration", (it) => {
   it("should pass dataStore to selectors", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, text: "test", likeCount: 5 };
 
@@ -160,7 +165,7 @@ t.describe("component integration", (it) => {
 
   it("should pass patchStore to selectors", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
 
@@ -182,7 +187,7 @@ t.describe("component integration", (it) => {
         "did:test:user": { did: "did:test:user", handle: "test.user" },
       },
     });
-    const dataLayer = new DataLayer(mockApi);
+    const dataLayer = createDataLayer(mockApi);
 
     // Initialize preferences first
     await dataLayer.initializePreferences();

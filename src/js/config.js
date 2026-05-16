@@ -9,6 +9,10 @@ export const DISCOVER_FEED_URI =
   "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
 export const CHAT_MESSAGES_PAGE_SIZE = 100;
 
+// Plugins
+export const PLUGIN_REGISTRY_URL =
+  "https://raw.githubusercontent.com/improsocial/impro-releases/main/community-plugins.json";
+
 // Appview dids
 export const BSKY_APPVIEW_SERVICE_DID = "did:web:api.bsky.app#bsky_appview";
 export const BSKY_CHAT_SERVICE_DID = "did:web:api.bsky.chat#bsky_chat";
@@ -22,6 +26,8 @@ export const OG_CARD_SERVICE_URL = "https://ogcard.cdn.bsky.app";
 export const TENOR_GIF_PROXY_URL = "https://t.gifs.bsky.app";
 export const KLIPY_GIF_PROXY_HOSTNAME = "k.gifs.bsky.app";
 export const PLC_DIRECTORY_URL = "https://plc.directory";
+export const VIDEO_SERVICE_URL = "https://video.bsky.app";
+export const VIDEO_SERVICE_DID = "did:web:video.bsky.app";
 
 export const BSKY_LABELER_DID = "did:plc:ar7c4by46qjdydhdevvrndac";
 
