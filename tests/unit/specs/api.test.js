@@ -1,5 +1,5 @@
 import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { assert, assertEquals, MockFetch } from "../testHelpers.js";
 import { Api, ApiError } from "/js/api.js";
 
 const t = new TestSuite("Api");
@@ -157,6 +157,89 @@ t.describe("request", (it) => {
 
     assert(thrownError instanceof ApiError);
     assertEquals(thrownError.status, 400);
+  });
+
+  it("should expose error data and status text on ApiError for non-200", async () => {
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async () => ({
+        ok: false,
+        status: 500,
+        statusText: "Internal Server Error",
+        json: async () => ({ error: "InternalServerError", message: "boom" }),
+      }),
+    };
+    const api = new Api(session);
+
+    let thrownError = null;
+    try {
+      await api.request("com.example.method");
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert(thrownError instanceof ApiError);
+    assertEquals(thrownError.status, 500);
+    assertEquals(thrownError.statusText, "Internal Server Error");
+    assertEquals(thrownError.data.error, "InternalServerError");
+  });
+
+  it("should re-throw non-refresh errors raised during fetch", async () => {
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async () => {
+        throw new Error("network down");
+      },
+    };
+    const api = new Api(session);
+
+    let thrownError = null;
+    try {
+      await api.request("com.example.method");
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert(thrownError !== null);
+    assertEquals(thrownError.message, "network down");
+  });
+
+  it("should inject atproto-proxy header on AppView-routed requests", async () => {
+    const session = createMockSession({
+      did: "did:plc:test",
+      handle: "test.user",
+    });
+    const api = new Api(session);
+
+    await api.getProfile("did:plc:test");
+
+    const { options } = session.getLastFetchOptions();
+    assertEquals(
+      options.headers["atproto-proxy"],
+      "did:web:api.bsky.app#bsky_appview",
+    );
+  });
+
+  it("should use response data set by oauth library without re-reading", async () => {
+    const cachedData = { result: "from-oauth-lib" };
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async () => ({
+        ok: true,
+        data: cachedData,
+        json: async () => {
+          throw new Error("should not be called");
+        },
+      }),
+    };
+    const api = new Api(session);
+
+    const res = await api.request("com.example.method");
+
+    assertEquals(res.data, cachedData);
   });
 });
 
@@ -1338,6 +1421,421 @@ t.describe("createModerationReport", (it) => {
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
     assert(body.reason === undefined);
+  });
+});
+
+t.describe("getBlocks", (it) => {
+  it("should fetch blocked accounts", async () => {
+    const session = createMockSession({
+      blocks: [{ did: "did:plc:a" }],
+      cursor: "next",
+    });
+    const api = new Api(session);
+
+    const result = await api.getBlocks();
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.graph.getBlocks"));
+    assert(url.includes("limit=50"));
+    assertEquals(result.blocks.length, 1);
+    assertEquals(result.cursor, "next");
+  });
+
+  it("should pass cursor when provided", async () => {
+    const session = createMockSession({ blocks: [], cursor: "" });
+    const api = new Api(session);
+
+    await api.getBlocks({ cursor: "abc" });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("cursor=abc"));
+  });
+});
+
+t.describe("searchFeedGenerators", (it) => {
+  it("should search popular feed generators", async () => {
+    const session = createMockSession({
+      feeds: [{ uri: "feed1" }],
+      cursor: "next",
+    });
+    const api = new Api(session);
+
+    const result = await api.searchFeedGenerators("news");
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.unspecced.getPopularFeedGenerators"));
+    assert(url.includes("query=news"));
+    assert(url.includes("limit=15"));
+    assertEquals(
+      options.headers["atproto-proxy"],
+      "did:web:api.bsky.app#bsky_appview",
+    );
+    assertEquals(result.feeds.length, 1);
+  });
+
+  it("should pass cursor when provided", async () => {
+    const session = createMockSession({ feeds: [] });
+    const api = new Api(session);
+
+    await api.searchFeedGenerators("news", { cursor: "abc" });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("cursor=abc"));
+  });
+});
+
+t.describe("getActorFeeds", (it) => {
+  it("should fetch feeds created by an actor", async () => {
+    const session = createMockSession({
+      feeds: [{ uri: "feed1" }],
+      cursor: "next",
+    });
+    const api = new Api(session);
+
+    const result = await api.getActorFeeds("did:plc:user");
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.feed.getActorFeeds"));
+    assert(url.includes("actor=did%3Aplc%3Auser"));
+    assert(url.includes("limit=50"));
+    assertEquals(result.feeds.length, 1);
+  });
+
+  it("should pass cursor when provided", async () => {
+    const session = createMockSession({ feeds: [] });
+    const api = new Api(session);
+
+    await api.getActorFeeds("did:plc:user", { cursor: "abc" });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("cursor=abc"));
+  });
+});
+
+t.describe("getReposts", (it) => {
+  it("should fetch repost records and skip failures", async () => {
+    let callCount = 0;
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      fetch: async (url) => {
+        callCount += 1;
+        if (callCount === 2) {
+          return {
+            ok: false,
+            status: 404,
+            statusText: "Not Found",
+            json: async () => ({ error: "RecordNotFound" }),
+          };
+        }
+        return {
+          ok: true,
+          json: async () => ({
+            uri: url,
+            value: { subject: { uri: "post1", cid: "cid1" } },
+          }),
+        };
+      },
+    };
+    const api = new Api(session);
+
+    const reposts = await api.getReposts([
+      "at://did:plc:a/app.bsky.feed.repost/1",
+      "at://did:plc:b/app.bsky.feed.repost/2",
+      "at://did:plc:c/app.bsky.feed.repost/3",
+    ]);
+
+    assertEquals(reposts.length, 2);
+  });
+});
+
+t.describe("putProfileRecord", (it) => {
+  it("should put profile record with $type and null swapRecord by default", async () => {
+    const session = createMockSession({ uri: "rec", cid: "cid" });
+    const api = new Api(session);
+
+    await api.putProfileRecord({ displayName: "Alice" });
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.repo.putRecord"));
+    assertEquals(options.method, "POST");
+    const body = JSON.parse(options.body);
+    assertEquals(body.repo, "did:plc:testuser");
+    assertEquals(body.collection, "app.bsky.actor.profile");
+    assertEquals(body.rkey, "self");
+    assertEquals(body.record.$type, "app.bsky.actor.profile");
+    assertEquals(body.record.displayName, "Alice");
+    assertEquals(body.swapRecord, null);
+  });
+
+  it("should include swapRecord cid for conditional write", async () => {
+    const session = createMockSession({ uri: "rec", cid: "cid" });
+    const api = new Api(session);
+
+    await api.putProfileRecord({ displayName: "Bob" }, "previouscid");
+
+    const { options } = session.getLastFetchOptions();
+    const body = JSON.parse(options.body);
+    assertEquals(body.swapRecord, "previouscid");
+  });
+});
+
+t.describe("putActivitySubscription", (it) => {
+  it("should put activity subscription with subject and subscription", async () => {
+    const session = createMockSession({ subject: "did:plc:target" });
+    const api = new Api(session);
+    const activitySubscription = { post: true, reply: false };
+
+    await api.putActivitySubscription("did:plc:target", activitySubscription);
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("app.bsky.notification.putActivitySubscription"));
+    assertEquals(options.method, "POST");
+    assertEquals(
+      options.headers["atproto-proxy"],
+      "did:web:api.bsky.app#bsky_appview",
+    );
+    const body = JSON.parse(options.body);
+    assertEquals(body.subject, "did:plc:target");
+    assertEquals(body.activitySubscription, activitySubscription);
+  });
+});
+
+t.describe("getServiceAuthToken", (it) => {
+  it("should fetch service auth token with aud and lxm", async () => {
+    const session = createMockSession({ token: "service-token-123" });
+    const api = new Api(session);
+
+    const token = await api.getServiceAuthToken({
+      aud: "did:web:video.bsky.app",
+      lxm: "app.bsky.video.getUploadLimits",
+    });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("com.atproto.server.getServiceAuth"));
+    assert(url.includes("aud=did%3Aweb%3Avideo.bsky.app"));
+    assert(url.includes("lxm=app.bsky.video.getUploadLimits"));
+    assert(url.includes("exp="));
+    assertEquals(token, "service-token-123");
+  });
+
+  it("should use provided exp value", async () => {
+    const session = createMockSession({ token: "service-token-123" });
+    const api = new Api(session);
+
+    await api.getServiceAuthToken({
+      aud: "did:web:video.bsky.app",
+      lxm: "com.atproto.repo.uploadBlob",
+      exp: 1234567890,
+    });
+
+    const { url } = session.getLastFetchOptions();
+    assert(url.includes("exp=1234567890"));
+  });
+});
+
+t.describe("serviceRequest", (it, hooks) => {
+  let originalFetch = null;
+  hooks.beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+  hooks.afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should send request with bearer token to external service", async () => {
+    const mockFetch = new MockFetch();
+    mockFetch.__interceptJson("https://video.example.com", { ok: true });
+    globalThis.fetch = mockFetch;
+    const api = new Api(createMockSession({}));
+
+    await api.serviceRequest("https://video.example.com/xrpc/some.method", {
+      token: "abc-token",
+      query: { foo: "bar" },
+    });
+
+    const lastCall = mockFetch.calls[0];
+    assertEquals(
+      lastCall.url,
+      "https://video.example.com/xrpc/some.method?foo=bar",
+    );
+    assertEquals(lastCall.options.headers.Authorization, "Bearer abc-token");
+    assertEquals(lastCall.options.method, "GET");
+  });
+
+  it("should omit Authorization when no token is provided", async () => {
+    const mockFetch = new MockFetch();
+    mockFetch.__interceptJson("https://video.example.com", { ok: true });
+    globalThis.fetch = mockFetch;
+    const api = new Api(createMockSession({}));
+
+    await api.serviceRequest("https://video.example.com/xrpc/some.method");
+
+    const lastCall = mockFetch.calls[0];
+    assert(lastCall.options.headers.Authorization === undefined);
+  });
+
+  it("should throw ApiError when response is not ok", async () => {
+    const mockFetch = new MockFetch();
+    mockFetch.__intercept("https://video.example.com", async () => ({
+      ok: false,
+      status: 400,
+      statusText: "Bad Request",
+      json: async () => ({ error: "BadRequest" }),
+    }));
+    globalThis.fetch = mockFetch;
+    const api = new Api(createMockSession({}));
+
+    let thrownError = null;
+    try {
+      await api.serviceRequest("https://video.example.com/xrpc/some.method", {
+        token: "abc",
+      });
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert(thrownError instanceof ApiError);
+    assertEquals(thrownError.status, 400);
+  });
+});
+
+t.describe("getVideoUploadLimits", (it, hooks) => {
+  let originalFetch = null;
+  hooks.beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+  hooks.afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should fetch upload limits using a service auth token", async () => {
+    const session = createMockSession({ token: "video-token" });
+    const mockFetch = new MockFetch();
+    mockFetch.__interceptJson("https://video.bsky.app", {
+      canUpload: true,
+      remainingDailyVideos: 5,
+    });
+    globalThis.fetch = mockFetch;
+    const api = new Api(session);
+
+    const result = await api.getVideoUploadLimits();
+
+    const videoCall = mockFetch.calls[0];
+    assert(videoCall.url.includes("app.bsky.video.getUploadLimits"));
+    assertEquals(videoCall.options.headers.Authorization, "Bearer video-token");
+    assertEquals(result.canUpload, true);
+    assertEquals(result.remainingDailyVideos, 5);
+  });
+});
+
+t.describe("getVideoJobStatus", (it, hooks) => {
+  let originalFetch = null;
+  hooks.beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+  hooks.afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should fetch job status by jobId", async () => {
+    const mockFetch = new MockFetch();
+    mockFetch.__interceptJson("https://video.bsky.app", {
+      jobStatus: { jobId: "job1", state: "JOB_STATE_COMPLETED" },
+    });
+    globalThis.fetch = mockFetch;
+    const api = new Api(createMockSession({}));
+
+    const result = await api.getVideoJobStatus("job1");
+
+    const videoCall = mockFetch.calls[0];
+    assert(videoCall.url.includes("app.bsky.video.getJobStatus"));
+    assert(videoCall.url.includes("jobId=job1"));
+    assertEquals(result.jobId, "job1");
+    assertEquals(result.state, "JOB_STATE_COMPLETED");
+  });
+});
+
+t.describe("uploadVideoBlob", (it, hooks) => {
+  let originalFetch = null;
+  hooks.beforeEach(() => {
+    originalFetch = globalThis.fetch;
+  });
+  hooks.afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  it("should upload video using service auth token and return job data", async () => {
+    const session = createMockSession({ token: "upload-token" });
+    const mockFetch = new MockFetch();
+    mockFetch.__interceptJson("https://video.bsky.app", {
+      jobId: "job1",
+      state: "JOB_STATE_CREATED",
+    });
+    globalThis.fetch = mockFetch;
+    const api = new Api(session);
+    const file = new Blob(["video-bytes"], { type: "video/mp4" });
+    file.name = "clip.mp4";
+
+    const result = await api.uploadVideoBlob(file);
+
+    const videoCall = mockFetch.calls[0];
+    assert(videoCall.url.includes("app.bsky.video.uploadVideo"));
+    assert(videoCall.url.includes("did=did%3Aplc%3Atestuser"));
+    assert(videoCall.url.includes("name=clip.mp4"));
+    assertEquals(videoCall.options.method, "POST");
+    assertEquals(
+      videoCall.options.headers.Authorization,
+      "Bearer upload-token",
+    );
+    assertEquals(videoCall.options.headers["Content-Type"], "video/mp4");
+    assertEquals(videoCall.options.body, file);
+    assertEquals(result.jobId, "job1");
+  });
+
+  it("should treat already_exists 409 as success and return existing job", async () => {
+    const session = createMockSession({ token: "upload-token" });
+    const mockFetch = new MockFetch();
+    mockFetch.__intercept("https://video.bsky.app", async () => ({
+      ok: false,
+      status: 409,
+      statusText: "Conflict",
+      json: async () => ({ error: "already_exists", jobId: "existing-job" }),
+    }));
+    globalThis.fetch = mockFetch;
+    const api = new Api(session);
+    const file = new Blob(["video"], { type: "video/mp4" });
+    file.name = "clip.mp4";
+
+    const result = await api.uploadVideoBlob(file);
+
+    assertEquals(result.error, "already_exists");
+    assertEquals(result.jobId, "existing-job");
+  });
+
+  it("should re-throw non-409 errors", async () => {
+    const session = createMockSession({ token: "upload-token" });
+    const mockFetch = new MockFetch();
+    mockFetch.__intercept("https://video.bsky.app", async () => ({
+      ok: false,
+      status: 500,
+      statusText: "Server Error",
+      json: async () => ({ error: "InternalError" }),
+    }));
+    globalThis.fetch = mockFetch;
+    const api = new Api(session);
+    const file = new Blob(["video"], { type: "video/mp4" });
+    file.name = "clip.mp4";
+
+    let thrownError = null;
+    try {
+      await api.uploadVideoBlob(file);
+    } catch (e) {
+      thrownError = e;
+    }
+
+    assert(thrownError instanceof ApiError);
+    assertEquals(thrownError.status, 500);
   });
 });
 

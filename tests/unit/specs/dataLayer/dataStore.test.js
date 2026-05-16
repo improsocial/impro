@@ -410,4 +410,387 @@ t.describe("Labeler Info Management", (it) => {
   });
 });
 
+t.describe("Blocked Profiles Management", (it) => {
+  const blockedList = {
+    blocks: [{ did: "did:plc:b", handle: "b.bsky.social" }],
+    cursor: "next",
+  };
+
+  it("should return null before any blocked profiles are set", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasBlockedProfiles(), false);
+    assertEquals(dataStore.getBlockedProfiles(), null);
+  });
+
+  it("should set and get blocked profiles", () => {
+    const dataStore = new DataStore();
+    dataStore.setBlockedProfiles(blockedList);
+    assertEquals(dataStore.hasBlockedProfiles(), true);
+    assertEquals(dataStore.getBlockedProfiles(), blockedList);
+  });
+
+  it("should clear blocked profiles", () => {
+    const dataStore = new DataStore();
+    dataStore.setBlockedProfiles(blockedList);
+    dataStore.clearBlockedProfiles();
+    assertEquals(dataStore.hasBlockedProfiles(), false);
+    assertEquals(dataStore.getBlockedProfiles(), null);
+  });
+});
+
+t.describe("Notifications Management", (it) => {
+  const notifications = [{ uri: "at://did:test/notif/1", reason: "like" }];
+
+  it("should return null before notifications are set", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasNotifications(), false);
+    assertEquals(dataStore.getNotifications(), null);
+  });
+
+  it("should set and get notifications", () => {
+    const dataStore = new DataStore();
+    dataStore.setNotifications(notifications);
+    assertEquals(dataStore.hasNotifications(), true);
+    assertEquals(dataStore.getNotifications(), notifications);
+  });
+
+  it("should clear notifications without clearing the cursor", () => {
+    const dataStore = new DataStore();
+    dataStore.setNotifications(notifications);
+    dataStore.setNotificationCursor("cursor-1");
+    dataStore.clearNotifications();
+    assertEquals(dataStore.hasNotifications(), false);
+    assertEquals(dataStore.getNotifications(), null);
+    assertEquals(dataStore.hasNotificationCursor(), true);
+    assertEquals(dataStore.getNotificationCursor(), "cursor-1");
+  });
+
+  it("should set and clear the notification cursor independently", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasNotificationCursor(), false);
+    dataStore.setNotificationCursor("cursor-2");
+    assertEquals(dataStore.hasNotificationCursor(), true);
+    assertEquals(dataStore.getNotificationCursor(), "cursor-2");
+    dataStore.clearNotificationCursor();
+    assertEquals(dataStore.hasNotificationCursor(), false);
+    assertEquals(dataStore.getNotificationCursor(), null);
+  });
+
+  it("should emit setNotifications event", () => {
+    const dataStore = new DataStore();
+    let emitted = null;
+    dataStore.on("setNotifications", (value) => {
+      emitted = value;
+    });
+    dataStore.setNotifications(notifications);
+    assertEquals(emitted, notifications);
+  });
+});
+
+t.describe("Mention Notifications Management", (it) => {
+  const mentions = [{ uri: "at://did:test/notif/mention", reason: "mention" }];
+
+  it("should default to undefined before being set", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.getMentionNotifications(), null);
+    assertEquals(dataStore.getMentionNotificationCursor(), null);
+  });
+
+  it("should set and get mention notifications", () => {
+    const dataStore = new DataStore();
+    dataStore.setMentionNotifications(mentions);
+    assertEquals(dataStore.getMentionNotifications(), mentions);
+  });
+
+  it("should clear mention notifications without clearing cursor", () => {
+    const dataStore = new DataStore();
+    dataStore.setMentionNotifications(mentions);
+    dataStore.setMentionNotificationCursor("m-cursor");
+    dataStore.clearMentionNotifications();
+    assertEquals(dataStore.getMentionNotifications(), null);
+    assertEquals(dataStore.getMentionNotificationCursor(), "m-cursor");
+  });
+
+  it("should set the mention notification cursor", () => {
+    const dataStore = new DataStore();
+    dataStore.setMentionNotificationCursor("m-cursor-2");
+    assertEquals(dataStore.getMentionNotificationCursor(), "m-cursor-2");
+  });
+});
+
+t.describe("ConvoList Management", (it) => {
+  const convos = [{ id: "convo-1" }, { id: "convo-2" }];
+
+  it("should return null before convo list is set", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasConvoList(), false);
+    assertEquals(dataStore.getConvoList(), null);
+  });
+
+  it("should set and get the convo list", () => {
+    const dataStore = new DataStore();
+    dataStore.setConvoList(convos);
+    assertEquals(dataStore.hasConvoList(), true);
+    assertEquals(dataStore.getConvoList(), convos);
+  });
+
+  it("should clear the convo list without clearing the cursor", () => {
+    const dataStore = new DataStore();
+    dataStore.setConvoList(convos);
+    dataStore.setConvoListCursor("c-cursor");
+    dataStore.clearConvoList();
+    assertEquals(dataStore.hasConvoList(), false);
+    assertEquals(dataStore.getConvoList(), null);
+    assertEquals(dataStore.hasConvoListCursor(), true);
+    assertEquals(dataStore.getConvoListCursor(), "c-cursor");
+  });
+
+  it("should set and clear the convo list cursor independently", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasConvoListCursor(), false);
+    dataStore.setConvoListCursor("c-cursor-2");
+    assertEquals(dataStore.hasConvoListCursor(), true);
+    assertEquals(dataStore.getConvoListCursor(), "c-cursor-2");
+    dataStore.clearConvoListCursor();
+    assertEquals(dataStore.hasConvoListCursor(), false);
+    assertEquals(dataStore.getConvoListCursor(), null);
+  });
+});
+
+t.describe("Convo Management", (it) => {
+  const convoId = "convo-123";
+  const convo = { id: convoId, members: [{ did: "did:plc:a" }] };
+
+  it("should set, get, and check existence of a convo", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasConvo(convoId), false);
+    dataStore.setConvo(convoId, convo);
+    assertEquals(dataStore.hasConvo(convoId), true);
+    assertEquals(dataStore.getConvo(convoId), convo);
+  });
+
+  it("should clear a convo", () => {
+    const dataStore = new DataStore();
+    dataStore.setConvo(convoId, convo);
+    dataStore.clearConvo(convoId);
+    assertEquals(dataStore.hasConvo(convoId), false);
+    assertEquals(dataStore.getConvo(convoId), undefined);
+  });
+
+  it("should return all convos", () => {
+    const dataStore = new DataStore();
+    const convoA = { id: "a" };
+    const convoB = { id: "b" };
+    dataStore.setConvo("a", convoA);
+    dataStore.setConvo("b", convoB);
+    assertEquals(dataStore.getAllConvos(), [convoA, convoB]);
+  });
+});
+
+t.describe("ConvoMessages and Message Mapping", (it) => {
+  const convoId = "convo-xyz";
+  const messageA = { id: "msg-1", text: "hello" };
+  const messageB = { id: "msg-2", text: "world" };
+  const payload = { messages: [messageA, messageB], cursor: "next" };
+
+  it("should set and get convo messages", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasConvoMessages(convoId), false);
+    assertEquals(dataStore.getConvoMessages(convoId), null);
+    dataStore.setConvoMessages(convoId, payload);
+    assertEquals(dataStore.hasConvoMessages(convoId), true);
+    assertEquals(dataStore.getConvoMessages(convoId), payload);
+  });
+
+  it("should clear convo messages", () => {
+    const dataStore = new DataStore();
+    dataStore.setConvoMessages(convoId, payload);
+    dataStore.clearConvoMessages(convoId);
+    assertEquals(dataStore.hasConvoMessages(convoId), false);
+    assertEquals(dataStore.getConvoMessages(convoId), null);
+  });
+
+  it("should set, get, and clear individual messages by id", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.hasMessage(messageA.id), false);
+    dataStore.setMessage(messageA.id, messageA);
+    assertEquals(dataStore.hasMessage(messageA.id), true);
+    assertEquals(dataStore.getMessage(messageA.id), messageA);
+    dataStore.clearMessage(messageA.id);
+    assertEquals(dataStore.hasMessage(messageA.id), false);
+    assertEquals(dataStore.getMessage(messageA.id), undefined);
+  });
+
+  it("should keep message ids isolated from convo messages buckets", () => {
+    const dataStore = new DataStore();
+    dataStore.setConvoMessages(convoId, payload);
+    assertEquals(dataStore.hasMessage(messageA.id), false);
+    dataStore.setMessage(messageA.id, messageA);
+    assertEquals(dataStore.hasMessage(messageA.id), true);
+    assertEquals(dataStore.hasConvoMessages(convoId), true);
+  });
+});
+
+t.describe("ShowLess and ShowMore Interactions", (it) => {
+  const interactionA = { item: "post-a", event: "less" };
+  const interactionB = { item: "post-b", event: "less" };
+  const interactionC = { item: "post-c", event: "more" };
+
+  it("should start with empty interaction lists", () => {
+    const dataStore = new DataStore();
+    assertEquals(dataStore.getShowLessInteractions(), []);
+    assertEquals(dataStore.getShowMoreInteractions(), []);
+  });
+
+  it("should append show-less interactions in order", () => {
+    const dataStore = new DataStore();
+    dataStore.addShowLessInteraction(interactionA);
+    assertEquals(dataStore.getShowLessInteractions(), [interactionA]);
+    dataStore.addShowLessInteraction(interactionB);
+    assertEquals(dataStore.getShowLessInteractions(), [
+      interactionA,
+      interactionB,
+    ]);
+  });
+
+  it("should append show-more interactions independently of show-less", () => {
+    const dataStore = new DataStore();
+    dataStore.addShowLessInteraction(interactionA);
+    dataStore.addShowMoreInteraction(interactionC);
+    assertEquals(dataStore.getShowLessInteractions(), [interactionA]);
+    assertEquals(dataStore.getShowMoreInteractions(), [interactionC]);
+  });
+});
+
+t.describe("setPosts bulk insert", (it) => {
+  it("should insert multiple posts and emit setPost for each", () => {
+    const dataStore = new DataStore();
+    const emittedUris = [];
+    dataStore.on("setPost", (post) => {
+      emittedUris.push(post.uri);
+    });
+    const posts = [
+      { uri: "at://did:test/app.bsky.feed.post/1", record: { text: "one" } },
+      { uri: "at://did:test/app.bsky.feed.post/2", record: { text: "two" } },
+      { uri: "at://did:test/app.bsky.feed.post/3", record: { text: "three" } },
+    ];
+    dataStore.setPosts(posts);
+    posts.forEach((post) => {
+      assertEquals(dataStore.hasPost(post.uri), true);
+      assertEquals(dataStore.getPost(post.uri), post);
+    });
+    assertEquals(
+      emittedUris,
+      posts.map((post) => post.uri),
+    );
+  });
+
+  it("should match setPost behavior when given a single post", () => {
+    const dataStoreA = new DataStore();
+    const dataStoreB = new DataStore();
+    const post = {
+      uri: "at://did:test/app.bsky.feed.post/solo",
+      record: { text: "solo" },
+    };
+    dataStoreA.setPost(post.uri, post);
+    dataStoreB.setPosts([post]);
+    assertEquals(dataStoreA.getPost(post.uri), dataStoreB.getPost(post.uri));
+    assertEquals(dataStoreA.getAllPosts(), dataStoreB.getAllPosts());
+  });
+});
+
+t.describe("Event emission for set* methods", (it) => {
+  it("should emit setNotifications when notifications are set", () => {
+    const dataStore = new DataStore();
+    let emitted = null;
+    dataStore.on("setNotifications", (value) => {
+      emitted = value;
+    });
+    const notifications = [{ uri: "at://did:test/notif/1" }];
+    dataStore.setNotifications(notifications);
+    assertEquals(emitted, notifications);
+  });
+
+  it("should emit setProfileSearchResults when profile search results are set", () => {
+    const dataStore = new DataStore();
+    let emitted = null;
+    dataStore.on("setProfileSearchResults", (value) => {
+      emitted = value;
+    });
+    const results = { actors: [{ did: "did:plc:a" }], cursor: "next" };
+    dataStore.setProfileSearchResults(results);
+    assertEquals(emitted, results);
+  });
+
+  it("should emit setFeedGenerator when a feed generator is set", () => {
+    const dataStore = new DataStore();
+    let emitted = null;
+    dataStore.on("setFeedGenerator", (value) => {
+      emitted = value;
+    });
+    const feedGenerator = {
+      uri: "at://did:test/app.bsky.feed.generator/test",
+      displayName: "Test",
+    };
+    dataStore.setFeedGenerator(feedGenerator.uri, feedGenerator);
+    assertEquals(emitted, feedGenerator);
+  });
+});
+
+t.describe("Trivial accessor pairs", (it) => {
+  const accessors = [
+    { name: "ProfileFollowers", key: "did:plc:a", value: { followers: [] } },
+    { name: "ProfileFollows", key: "did:plc:b", value: { follows: [] } },
+    { name: "ProfileChatStatus", key: "did:plc:c", value: { status: "all" } },
+    {
+      name: "PluginFilteredFeedItems",
+      key: "at://did:test/app.bsky.feed.generator/x",
+      value: { items: ["a", "b"] },
+    },
+    {
+      name: "AuthorFeed",
+      key: "at://did:test/app.bsky.feed.generator/author",
+      value: { feed: [], cursor: null },
+    },
+    {
+      name: "FeedGenerator",
+      key: "at://did:test/app.bsky.feed.generator/fg",
+      value: { uri: "at://did:test/app.bsky.feed.generator/fg" },
+    },
+    { name: "ActorFeeds", key: "did:plc:d", value: { feeds: [] } },
+    { name: "HashtagFeed", key: "#test", value: { posts: [] } },
+  ];
+
+  for (const accessor of accessors) {
+    it(`should has/get/set/clear ${accessor.name}`, () => {
+      const dataStore = new DataStore();
+      const hasFn = `has${accessor.name}`;
+      const getFn = `get${accessor.name}`;
+      const setFn = `set${accessor.name}`;
+      const clearFn = `clear${accessor.name}`;
+      assertEquals(dataStore[hasFn](accessor.key), false);
+      assertEquals(dataStore[getFn](accessor.key), undefined);
+      dataStore[setFn](accessor.key, accessor.value);
+      assertEquals(dataStore[hasFn](accessor.key), true);
+      assertEquals(dataStore[getFn](accessor.key), accessor.value);
+      dataStore[clearFn](accessor.key);
+      assertEquals(dataStore[hasFn](accessor.key), false);
+      assertEquals(dataStore[getFn](accessor.key), undefined);
+    });
+  }
+
+  it("should has/get/set/clear PinnedFeedGenerators (singleton)", () => {
+    const dataStore = new DataStore();
+    const value = [{ uri: "at://did:test/app.bsky.feed.generator/pinned" }];
+    assertEquals(dataStore.hasPinnedFeedGenerators(), false);
+    assertEquals(dataStore.getPinnedFeedGenerators(), null);
+    dataStore.setPinnedFeedGenerators(value);
+    assertEquals(dataStore.hasPinnedFeedGenerators(), true);
+    assertEquals(dataStore.getPinnedFeedGenerators(), value);
+    dataStore.clearPinnedFeedGenerators();
+    assertEquals(dataStore.hasPinnedFeedGenerators(), false);
+    assertEquals(dataStore.getPinnedFeedGenerators(), null);
+  });
+});
+
 await t.run();

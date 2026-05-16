@@ -1365,4 +1365,1345 @@ t.describe("unmuteProfile", (it) => {
   });
 });
 
+t.describe("blockProfile", (it) => {
+  const profile = {
+    did: "did:plc:target",
+    handle: "target.bsky.social",
+    viewer: {},
+  };
+  const blockUri = "at://did:plc:me/app.bsky.graph.block/123";
+
+  function setup(mockApi = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      { blockActor: async () => ({ uri: blockUri }), ...mockApi },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore };
+  }
+
+  it("should set viewer.blocking on the profile", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.blockProfile(profile);
+    assertEquals(dataStore.getProfile(profile.did).viewer.blocking, blockUri);
+  });
+
+  it("should prepend blocked profile to the cached list", async () => {
+    const { mutations, dataStore } = setup();
+    const existing = {
+      did: "did:plc:other",
+      viewer: { blocking: "at://existing-block" },
+    };
+    dataStore.setBlockedProfiles({ blocks: [existing], cursor: "abc" });
+
+    await mutations.blockProfile(profile);
+
+    const stored = dataStore.getBlockedProfiles();
+    assertEquals(stored.blocks.length, 2);
+    assertEquals(stored.blocks[0].did, profile.did);
+    assertEquals(stored.blocks[0].viewer.blocking, blockUri);
+    assertEquals(stored.blocks[1].did, existing.did);
+    assertEquals(stored.cursor, "abc");
+  });
+
+  it("should not duplicate when already present in the cached list", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.setBlockedProfiles({
+      blocks: [{ ...profile, viewer: { blocking: blockUri } }],
+      cursor: null,
+    });
+
+    await mutations.blockProfile(profile);
+
+    assertEquals(dataStore.getBlockedProfiles().blocks.length, 1);
+  });
+
+  it("should not initialize the cached list if it was not loaded", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.blockProfile(profile);
+    assertEquals(dataStore.getBlockedProfiles(), null);
+  });
+
+  it("should update author viewer.blocking on cached posts by that author", async () => {
+    const { mutations, dataStore } = setup();
+    const post = {
+      uri: "at://did:plc:target/app.bsky.feed.post/1",
+      author: { did: profile.did, viewer: {} },
+    };
+    const otherPost = {
+      uri: "at://did:plc:someone/app.bsky.feed.post/1",
+      author: { did: "did:plc:someone", viewer: {} },
+    };
+    dataStore.setPost(post.uri, post);
+    dataStore.setPost(otherPost.uri, otherPost);
+
+    await mutations.blockProfile(profile);
+
+    assertEquals(dataStore.getPost(post.uri).author.viewer.blocking, blockUri);
+    assertEquals(
+      dataStore.getPost(otherPost.uri).author.viewer.blocking,
+      undefined,
+    );
+  });
+});
+
+t.describe("unblockProfile", (it) => {
+  const profile = {
+    did: "did:plc:target",
+    handle: "target.bsky.social",
+    viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/123" },
+  };
+
+  function setup(mockApi = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      { unblockActor: async () => ({}), ...mockApi },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore };
+  }
+
+  it("should clear viewer.blocking on the profile", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.unblockProfile(profile);
+    assertEquals(dataStore.getProfile(profile.did).viewer.blocking, null);
+  });
+
+  it("should remove profile from the cached list", async () => {
+    const { mutations, dataStore } = setup();
+    const other = {
+      did: "did:plc:other",
+      viewer: { blocking: "at://other-block" },
+    };
+    dataStore.setBlockedProfiles({
+      blocks: [profile, other],
+      cursor: "abc",
+    });
+
+    await mutations.unblockProfile(profile);
+
+    const stored = dataStore.getBlockedProfiles();
+    assertEquals(stored.blocks.length, 1);
+    assertEquals(stored.blocks[0].did, other.did);
+    assertEquals(stored.cursor, "abc");
+  });
+
+  it("should be a no-op on the cached list when not present", async () => {
+    const { mutations, dataStore } = setup();
+    const other = {
+      did: "did:plc:other",
+      viewer: { blocking: "at://other-block" },
+    };
+    dataStore.setBlockedProfiles({ blocks: [other], cursor: null });
+
+    await mutations.unblockProfile(profile);
+
+    assertEquals(dataStore.getBlockedProfiles().blocks.length, 1);
+  });
+
+  it("should clear author viewer.blocking on cached posts by that author", async () => {
+    const { mutations, dataStore } = setup();
+    const post = {
+      uri: "at://did:plc:target/app.bsky.feed.post/1",
+      author: { did: profile.did, viewer: { blocking: "at://old" } },
+    };
+    dataStore.setPost(post.uri, post);
+
+    await mutations.unblockProfile(profile);
+
+    assertEquals(dataStore.getPost(post.uri).author.viewer.blocking, null);
+  });
+});
+
+t.describe("addBookmark", (it) => {
+  const testPost = {
+    uri: "at://did:test/app.bsky.feed.post/test",
+    bookmarkCount: 2,
+    viewer: { bookmarked: false },
+  };
+
+  function setup(mockApi = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      { createBookmark: async () => ({}), ...mockApi },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add optimistic patch immediately", () => {
+    const { mutations, patchStore } = setup({
+      createBookmark: () => new Promise((resolve) => setTimeout(resolve, 100)),
+    });
+    mutations.addBookmark(testPost);
+    const patched = patchStore.applyPostPatches(testPost);
+    assertEquals(patched.viewer.bookmarked, true);
+    assertEquals(patched.bookmarkCount, 3);
+  });
+
+  it("should update dataStore and remove patch on success", async () => {
+    const { mutations, dataStore, patchStore } = setup();
+    await mutations.addBookmark(testPost);
+    const stored = dataStore.getPost(testPost.uri);
+    assertEquals(stored.viewer.bookmarked, true);
+    assertEquals(stored.bookmarkCount, 3);
+    assertEquals(patchStore.applyPostPatches(stored), stored);
+  });
+
+  it("should prepend post to the cached bookmarks feed", async () => {
+    const { mutations, dataStore } = setup();
+    const existingItem = {
+      post: { uri: "at://did:test/app.bsky.feed.post/other" },
+    };
+    dataStore.setBookmarks({ feed: [existingItem], cursor: "abc" });
+
+    await mutations.addBookmark(testPost);
+
+    const bookmarks = dataStore.getBookmarks();
+    assertEquals(bookmarks.feed.length, 2);
+    assertEquals(bookmarks.feed[0].post.uri, testPost.uri);
+    assertEquals(bookmarks.feed[1].post.uri, existingItem.post.uri);
+    assertEquals(bookmarks.cursor, "abc");
+  });
+
+  it("should not initialize the bookmarks feed if it was not loaded", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.addBookmark(testPost);
+    assertEquals(dataStore.getBookmarks(), null);
+  });
+});
+
+t.describe("removeBookmark", (it) => {
+  const testPost = {
+    uri: "at://did:test/app.bsky.feed.post/test",
+    bookmarkCount: 3,
+    viewer: { bookmarked: true },
+  };
+
+  function setup(mockApi = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      { deleteBookmark: async () => ({}), ...mockApi },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add optimistic patch immediately", () => {
+    const { mutations, patchStore } = setup({
+      deleteBookmark: () => new Promise((resolve) => setTimeout(resolve, 100)),
+    });
+    mutations.removeBookmark(testPost);
+    const patched = patchStore.applyPostPatches(testPost);
+    assertEquals(patched.viewer.bookmarked, false);
+    assertEquals(patched.bookmarkCount, 2);
+  });
+
+  it("should update dataStore and remove patch on success", async () => {
+    const { mutations, dataStore, patchStore } = setup();
+    await mutations.removeBookmark(testPost);
+    const stored = dataStore.getPost(testPost.uri);
+    assertEquals(stored.viewer.bookmarked, false);
+    assertEquals(stored.bookmarkCount, 2);
+    assertEquals(patchStore.applyPostPatches(stored), stored);
+  });
+
+  it("should remove post from the cached bookmarks feed", async () => {
+    const { mutations, dataStore } = setup();
+    const otherItem = {
+      post: { uri: "at://did:test/app.bsky.feed.post/other" },
+    };
+    dataStore.setBookmarks({
+      feed: [{ post: testPost }, otherItem],
+      cursor: "abc",
+    });
+
+    await mutations.removeBookmark(testPost);
+
+    const bookmarks = dataStore.getBookmarks();
+    assertEquals(bookmarks.feed.length, 1);
+    assertEquals(bookmarks.feed[0].post.uri, otherItem.post.uri);
+    assertEquals(bookmarks.cursor, "abc");
+  });
+});
+
+t.describe("createRepost", (it) => {
+  const currentUser = {
+    did: "did:plc:me",
+    handle: "me.test",
+    viewer: {},
+  };
+  const testPost = {
+    uri: "at://did:plc:author/app.bsky.feed.post/1",
+    cid: "cid-1",
+    author: { did: "did:plc:author", viewer: {} },
+    repostCount: 4,
+    viewer: { repost: null },
+  };
+
+  function setup(mockApi = {}, { authorFeed } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setCurrentUser(currentUser);
+    if (authorFeed) {
+      dataStore.setAuthorFeed(`${currentUser.did}-posts`, authorFeed);
+    }
+    const mutations = new Mutations(
+      {
+        createRepostRecord: async () => ({
+          uri: "at://did:plc:me/app.bsky.feed.repost/abc",
+          cid: "repost-cid",
+        }),
+        ...mockApi,
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add optimistic patch immediately", () => {
+    const { mutations, patchStore } = setup({
+      createRepostRecord: () =>
+        new Promise((resolve) =>
+          setTimeout(() => resolve({ uri: "x", cid: "y" }), 100),
+        ),
+    });
+    mutations.createRepost(testPost);
+    const patched = patchStore.applyPostPatches(testPost);
+    assertEquals(patched.repostCount, 5);
+    assertEquals(patched.viewer.repost, "fake repost");
+  });
+
+  it("should update dataStore with repost uri and incremented count", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.createRepost(testPost);
+    const stored = dataStore.getPost(testPost.uri);
+    assertEquals(
+      stored.viewer.repost,
+      "at://did:plc:me/app.bsky.feed.repost/abc",
+    );
+    assertEquals(stored.repostCount, 5);
+  });
+
+  it("should add a reasonRepost feed item to the current user's author feed", async () => {
+    const { mutations, dataStore } = setup(
+      {},
+      { authorFeed: { feed: [], cursor: "c1" } },
+    );
+    await mutations.createRepost(testPost);
+    const feed = dataStore.getAuthorFeed(`${currentUser.did}-posts`);
+    assertEquals(feed.feed.length, 1);
+    assertEquals(feed.feed[0].post.uri, testPost.uri);
+    assertEquals(feed.feed[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
+    assertEquals(feed.feed[0].reason.by.did, currentUser.did);
+    assertEquals(
+      feed.feed[0].reason.uri,
+      "at://did:plc:me/app.bsky.feed.repost/abc",
+    );
+    assertEquals(feed.cursor, "c1");
+  });
+});
+
+t.describe("deleteRepost", (it) => {
+  const currentUser = {
+    did: "did:plc:me",
+    handle: "me.test",
+    viewer: {},
+  };
+  const repostUri = "at://did:plc:me/app.bsky.feed.repost/abc";
+  const testPost = {
+    uri: "at://did:plc:author/app.bsky.feed.post/1",
+    cid: "cid-1",
+    author: { did: "did:plc:author", viewer: {} },
+    repostCount: 5,
+    viewer: { repost: repostUri },
+  };
+
+  function setup(mockApi = {}, { authorFeed } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setCurrentUser(currentUser);
+    if (authorFeed) {
+      dataStore.setAuthorFeed(`${currentUser.did}-posts`, authorFeed);
+    }
+    const mutations = new Mutations(
+      { deleteRepostRecord: async () => ({}), ...mockApi },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add optimistic patch immediately", () => {
+    const { mutations, patchStore } = setup({
+      deleteRepostRecord: () =>
+        new Promise((resolve) => setTimeout(resolve, 100)),
+    });
+    mutations.deleteRepost(testPost);
+    const patched = patchStore.applyPostPatches(testPost);
+    assertEquals(patched.repostCount, 4);
+    assertEquals(patched.viewer.repost, null);
+  });
+
+  it("should update dataStore clearing repost uri and decrementing count", async () => {
+    const { mutations, dataStore } = setup();
+    await mutations.deleteRepost(testPost);
+    const stored = dataStore.getPost(testPost.uri);
+    assertEquals(stored.viewer.repost, null);
+    assertEquals(stored.repostCount, 4);
+  });
+
+  it("should remove the matching repost feed item from the author feed", async () => {
+    const matchingItem = {
+      post: testPost,
+      reason: {
+        $type: "app.bsky.feed.defs#reasonRepost",
+        uri: repostUri,
+      },
+    };
+    const otherItem = {
+      post: {
+        uri: "at://did:plc:other/app.bsky.feed.post/2",
+      },
+    };
+    const { mutations, dataStore } = setup(
+      {},
+      { authorFeed: { feed: [matchingItem, otherItem], cursor: "c1" } },
+    );
+
+    await mutations.deleteRepost(testPost);
+
+    const feed = dataStore.getAuthorFeed(`${currentUser.did}-posts`);
+    assertEquals(feed.feed.length, 1);
+    assertEquals(feed.feed[0].post.uri, otherItem.post.uri);
+    assertEquals(feed.cursor, "c1");
+  });
+});
+
+t.describe("pinFeed", (it) => {
+  const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
+
+  function setupWithPreferences(preferencesObj) {
+    let updatedPreferences = null;
+    const preferences = new Preferences(preferencesObj, []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return {
+      mutations,
+      patchStore,
+      getUpdatedPreferences: () => updatedPreferences,
+    };
+  }
+
+  it("should append a pinned saved-feed entry when not previously saved", async () => {
+    const { mutations, getUpdatedPreferences } = setupWithPreferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [],
+      },
+    ]);
+    await mutations.pinFeed(feedUri);
+    const pinned = getUpdatedPreferences().getPinnedFeeds();
+    assertEquals(pinned.length, 1);
+    assertEquals(pinned[0].value, feedUri);
+    assertEquals(pinned[0].pinned, true);
+  });
+
+  it("should pin an existing saved-feed entry without duplicating it", async () => {
+    const { mutations, getUpdatedPreferences } = setupWithPreferences([
+      {
+        $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+        items: [
+          { id: "1", value: feedUri, type: "feed", pinned: false },
+          {
+            id: "2",
+            value: "at://did:plc:feed/app.bsky.feed.generator/other",
+            type: "feed",
+            pinned: true,
+          },
+        ],
+      },
+    ]);
+    await mutations.pinFeed(feedUri);
+    const updated = getUpdatedPreferences();
+    const allItems = updated.obj[0].items;
+    assertEquals(allItems.length, 2);
+    assertEquals(updated.isFeedPinned(feedUri), true);
+  });
+
+  it("should add an optimistic patch and remove it on success", async () => {
+    let updateResolve;
+    const updatePromise = new Promise((resolve) => {
+      updateResolve = resolve;
+    });
+    const preferences = new Preferences(
+      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: () => updatePromise,
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    const promise = mutations.pinFeed(feedUri);
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "pinFeed");
+    assertEquals(patches[0].body.feedUri, feedUri);
+
+    updateResolve();
+    await promise;
+    assertEquals(patchStore._getPreferencePatches().length, 0);
+  });
+});
+
+t.describe("unpinFeed", (it) => {
+  const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
+
+  it("should clear the pinned flag on the saved-feed entry", async () => {
+    let updatedPreferences = null;
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+        },
+      ],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.unpinFeed(feedUri);
+    assertEquals(updatedPreferences.isFeedPinned(feedUri), false);
+    assertEquals(updatedPreferences.obj[0].items.length, 1);
+  });
+
+  it("should add an optimistic patch and remove it on success", async () => {
+    let updateResolve;
+    const updatePromise = new Promise((resolve) => {
+      updateResolve = resolve;
+    });
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [{ id: "1", value: feedUri, type: "feed", pinned: true }],
+        },
+      ],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: () => updatePromise,
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    const promise = mutations.unpinFeed(feedUri);
+    const patches = patchStore._getPreferencePatches();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "unpinFeed");
+    assertEquals(patches[0].body.feedUri, feedUri);
+
+    updateResolve();
+    await promise;
+    assertEquals(patchStore._getPreferencePatches().length, 0);
+  });
+});
+
+t.describe("hidePost", (it) => {
+  const testPost = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
+
+  it("should write a preference adding the post to the hidden list", async () => {
+    let updatedPreferences = null;
+    const preferences = new Preferences([], []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.hidePost(testPost);
+
+    assertEquals(updatedPreferences.isPostHidden(testPost.uri), true);
+  });
+
+  it("should add an optimistic post patch and remove it on success", async () => {
+    let updateResolve;
+    const updatePromise = new Promise((resolve) => {
+      updateResolve = resolve;
+    });
+    const preferences = new Preferences([], []);
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: () => updatePromise,
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    const promise = mutations.hidePost(testPost);
+    const patches = patchStore._getPostPatches(testPost.uri);
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "hidePost");
+
+    updateResolve();
+    await promise;
+    assertEquals(patchStore._getPostPatches(testPost.uri).length, 0);
+  });
+});
+
+t.describe("updateMutedWord", (it) => {
+  it("should call updatePreferences with the word updated", async () => {
+    let updatedPreferences = null;
+    const existingPrefs = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#mutedWordsPref",
+          items: [
+            {
+              id: "word-1",
+              value: "old-value",
+              targets: ["content"],
+              actorTarget: "all",
+            },
+          ],
+        },
+      ],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => existingPrefs,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.updateMutedWord("word-1", {
+      value: "new-value",
+      targets: ["tag"],
+    });
+
+    const words = updatedPreferences.getMutedWords();
+    assertEquals(words.length, 1);
+    assertEquals(words[0].value, "new-value");
+    assertEquals(words[0].targets[0], "tag");
+    assertEquals(words[0].actorTarget, "all");
+  });
+});
+
+t.describe("updatePostNotificationSubscription", (it) => {
+  const profile = {
+    did: "did:plc:target",
+    handle: "target.bsky.social",
+    viewer: {},
+  };
+
+  it("should set viewer.activitySubscription on the profile", async () => {
+    const subscription = { post: true, reply: false };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    let calledWith = null;
+    const mutations = new Mutations(
+      {
+        putActivitySubscription: async (did, sub) => {
+          calledWith = { did, sub };
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.updatePostNotificationSubscription(profile, subscription);
+
+    assertEquals(calledWith.did, profile.did);
+    assertEquals(calledWith.sub, subscription);
+    assertEquals(
+      dataStore.getProfile(profile.did).viewer.activitySubscription,
+      subscription,
+    );
+  });
+
+  it("should remove the patch on failure and rethrow", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      {
+        putActivitySubscription: async () => {
+          throw new Error("api error");
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let threw = false;
+    try {
+      await mutations.updatePostNotificationSubscription(profile, {
+        post: true,
+      });
+    } catch (e) {
+      threw = true;
+    }
+    assertEquals(threw, true);
+    assertEquals(patchStore._getProfilePatches(profile.did).length, 0);
+  });
+});
+
+t.describe("createPost", (it) => {
+  const currentUserDid = "did:plc:me";
+  const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
+
+  function setup({ replyPostThread, authorFeed, replyAuthorFeed } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    const fullPost = {
+      uri: newPostUri,
+      cid: "cid-new",
+      author: { did: currentUserDid, viewer: {} },
+      record: { text: "hello" },
+      viewer: {},
+    };
+    mutations.postCreator = {
+      createPost: async () => fullPost,
+    };
+    if (replyPostThread) {
+      dataStore.setPostThread(replyPostThread.post.uri, replyPostThread);
+    }
+    if (authorFeed) {
+      dataStore.setAuthorFeed(`${currentUserDid}-posts`, authorFeed);
+    }
+    if (replyAuthorFeed) {
+      dataStore.setAuthorFeed(`${currentUserDid}-replies`, replyAuthorFeed);
+    }
+    return { mutations, dataStore, fullPost };
+  }
+
+  it("should store the new post and mark priorityReply", async () => {
+    const { mutations, dataStore } = setup();
+    const result = await mutations.createPost({ postText: "hello" });
+    assertEquals(result.uri, newPostUri);
+    const stored = dataStore.getPost(newPostUri);
+    assertEquals(stored.uri, newPostUri);
+    assertEquals(stored.viewer.priorityReply, true);
+  });
+
+  it("should add the new post to the author posts feed when loaded", async () => {
+    const { mutations, dataStore } = setup({
+      authorFeed: { feed: [], cursor: "c1" },
+    });
+    await mutations.createPost({ postText: "hello" });
+    const feed = dataStore.getAuthorFeed(`${currentUserDid}-posts`);
+    assertEquals(feed.feed.length, 1);
+    assertEquals(feed.feed[0].post.uri, newPostUri);
+    assertEquals(feed.cursor, "c1");
+  });
+
+  it("should prepend the reply to the parent's post thread when present", async () => {
+    const replyTo = {
+      uri: "at://did:plc:other/app.bsky.feed.post/parent",
+      cid: "cid-parent",
+    };
+    const replyRoot = replyTo;
+    const replyPostThread = {
+      post: replyTo,
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: "at://did:plc:other/app.bsky.feed.post/existing" },
+          replies: [],
+        },
+      ],
+    };
+    const { mutations, dataStore } = setup({
+      replyPostThread,
+      replyAuthorFeed: { feed: [], cursor: "c1" },
+    });
+
+    await mutations.createPost({ postText: "hi", replyTo, replyRoot });
+
+    const updatedThread = dataStore.getPostThread(replyTo.uri);
+    assertEquals(updatedThread.replies.length, 2);
+    assertEquals(updatedThread.replies[0].post.uri, newPostUri);
+    const repliesFeed = dataStore.getAuthorFeed(`${currentUserDid}-replies`);
+    assertEquals(repliesFeed.feed.length, 1);
+    assertEquals(repliesFeed.feed[0].post.uri, newPostUri);
+  });
+});
+
+t.describe("deletePost", (it) => {
+  it("should call api.deletePost and replace the stored post with a not-found post", async () => {
+    const post = {
+      uri: "at://did:plc:me/app.bsky.feed.post/abc",
+      cid: "cid-abc",
+    };
+    let apiCalledWith = null;
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setPost(post.uri, { ...post, record: { text: "hi" } });
+    const mutations = new Mutations(
+      {
+        deletePost: async (passed) => {
+          apiCalledWith = passed;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.deletePost(post);
+
+    assertEquals(apiCalledWith, post);
+    const stored = dataStore.getPost(post.uri);
+    assertEquals(stored.uri, post.uri);
+    assertEquals(stored.$type, "app.bsky.feed.defs#notFoundPost");
+  });
+});
+
+t.describe("createMessage", (it) => {
+  const convoId = "convo-1";
+  const sentMessage = {
+    id: "msg-1",
+    text: "hello",
+    sender: { did: "did:plc:me" },
+  };
+
+  function setup({ convoMessages, convo } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    if (convoMessages) {
+      dataStore.setConvoMessages(convoId, convoMessages);
+    }
+    if (convo) {
+      dataStore.setConvo(convoId, convo);
+    }
+    const mutations = new Mutations(
+      { sendMessage: async () => sentMessage },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore };
+  }
+
+  it("should store the new message and return it", async () => {
+    const { mutations, dataStore } = setup();
+    const result = await mutations.createMessage(convoId, { text: "hello" });
+    assertEquals(result, sentMessage);
+    assertEquals(dataStore.getMessage(sentMessage.id), sentMessage);
+  });
+
+  it("should prepend the message to the cached convo messages", async () => {
+    const existingMessage = { id: "msg-old", text: "earlier" };
+    const { mutations, dataStore } = setup({
+      convoMessages: { messages: [existingMessage], cursor: "c1" },
+    });
+    await mutations.createMessage(convoId, { text: "hello" });
+    const stored = dataStore.getConvoMessages(convoId);
+    assertEquals(stored.messages.length, 2);
+    assertEquals(stored.messages[0].id, sentMessage.id);
+    assertEquals(stored.messages[1].id, existingMessage.id);
+    assertEquals(stored.cursor, "c1");
+  });
+
+  it("should update the convo's lastMessage", async () => {
+    const convo = { id: convoId, unreadCount: 0 };
+    const { mutations, dataStore } = setup({ convo });
+    await mutations.createMessage(convoId, { text: "hello" });
+    const stored = dataStore.getConvo(convoId);
+    assertEquals(stored.lastMessage.id, sentMessage.id);
+    assertEquals(stored.lastMessage.$type, "chat.bsky.convo.defs#messageView");
+  });
+});
+
+t.describe("acceptConvo", (it) => {
+  const convo = { id: "convo-1", status: "request" };
+
+  function setup({ convoList } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    if (convoList) {
+      dataStore.setConvoList(convoList);
+    }
+    let acceptCalledWith = null;
+    const mutations = new Mutations(
+      {
+        acceptConvo: async (id) => {
+          acceptCalledWith = id;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, getAcceptArg: () => acceptCalledWith };
+  }
+
+  it("should set the convo status to accepted in the store", async () => {
+    const { mutations, dataStore, getAcceptArg } = setup();
+    const result = await mutations.acceptConvo(convo);
+    assertEquals(getAcceptArg(), convo.id);
+    assertEquals(result.status, "accepted");
+    assertEquals(dataStore.getConvo(convo.id).status, "accepted");
+  });
+
+  it("should update the matching convo in the convo list", async () => {
+    const otherConvo = { id: "convo-2", status: "accepted" };
+    const { mutations, dataStore } = setup({
+      convoList: [convo, otherConvo],
+    });
+    await mutations.acceptConvo(convo);
+    const list = dataStore.getConvoList();
+    assertEquals(list.length, 2);
+    assertEquals(list.find((c) => c.id === convo.id).status, "accepted");
+    assertEquals(list.find((c) => c.id === otherConvo.id).status, "accepted");
+  });
+});
+
+t.describe("rejectConvo", (it) => {
+  const convo = { id: "convo-1", status: "request" };
+
+  it("should clear the convo and remove it from the convo list", async () => {
+    const otherConvo = { id: "convo-2", status: "accepted" };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setConvo(convo.id, convo);
+    dataStore.setConvoList([convo, otherConvo]);
+    let leaveCalledWith = null;
+    const mutations = new Mutations(
+      {
+        leaveConvo: async (id) => {
+          leaveCalledWith = id;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.rejectConvo(convo);
+
+    assertEquals(leaveCalledWith, convo.id);
+    assertEquals(dataStore.getConvo(convo.id), undefined);
+    const list = dataStore.getConvoList();
+    assertEquals(list.length, 1);
+    assertEquals(list[0].id, otherConvo.id);
+  });
+});
+
+t.describe("markConvoAsRead", (it) => {
+  it("should call api.markConvoAsRead and zero the unread count", async () => {
+    const convoId = "convo-1";
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.setConvo(convoId, { id: convoId, unreadCount: 4 });
+    let calledWith = null;
+    const mutations = new Mutations(
+      {
+        markConvoAsRead: async (id) => {
+          calledWith = id;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.markConvoAsRead(convoId);
+
+    assertEquals(calledWith, convoId);
+    assertEquals(dataStore.getConvo(convoId).unreadCount, 0);
+  });
+
+  it("should not throw when the convo is not cached", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      { markConvoAsRead: async () => {} },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    await mutations.markConvoAsRead("missing");
+    assertEquals(dataStore.getConvo("missing"), undefined);
+  });
+});
+
+t.describe("addMessageReaction", (it) => {
+  const convoId = "convo-1";
+  const messageId = "msg-1";
+  const currentUserDid = "did:plc:me";
+  const emoji = "👍";
+  const updatedMessage = {
+    id: messageId,
+    reactions: [{ value: emoji, sender: { did: currentUserDid } }],
+  };
+
+  function setup({ convo } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    if (convo) {
+      dataStore.setConvo(convoId, convo);
+    }
+    const mutations = new Mutations(
+      { addMessageReaction: async () => updatedMessage },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add an optimistic patch with the reaction", () => {
+    const { mutations, patchStore } = setup();
+    mutations.addMessageReaction(convoId, messageId, emoji, currentUserDid);
+    const patches = patchStore._getMessagePatches(messageId);
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "addReaction");
+    assertEquals(patches[0].body.reaction.value, emoji);
+    assertEquals(patches[0].body.reaction.sender.did, currentUserDid);
+  });
+
+  it("should store the returned message and clear the patch on success", async () => {
+    const { mutations, dataStore, patchStore } = setup();
+    await mutations.addMessageReaction(
+      convoId,
+      messageId,
+      emoji,
+      currentUserDid,
+    );
+    assertEquals(dataStore.getMessage(messageId), updatedMessage);
+    assertEquals(patchStore._getMessagePatches(messageId).length, 0);
+  });
+
+  it("should update the convo's lastReaction when the convo is cached", async () => {
+    const { mutations, dataStore } = setup({
+      convo: { id: convoId, unreadCount: 0 },
+    });
+    await mutations.addMessageReaction(
+      convoId,
+      messageId,
+      emoji,
+      currentUserDid,
+    );
+    const convo = dataStore.getConvo(convoId);
+    assertEquals(
+      convo.lastReaction.$type,
+      "chat.bsky.convo.defs#messageAndReactionView",
+    );
+    assertEquals(convo.lastReaction.message.id, messageId);
+    assertEquals(convo.lastReaction.reaction.value, emoji);
+  });
+});
+
+t.describe("removeMessageReaction", (it) => {
+  const convoId = "convo-1";
+  const messageId = "msg-1";
+  const currentUserDid = "did:plc:me";
+  const emoji = "👍";
+  const updatedMessage = { id: messageId, reactions: [] };
+
+  function setup({ convo } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    if (convo) {
+      dataStore.setConvo(convoId, convo);
+    }
+    const mutations = new Mutations(
+      { removeMessageReaction: async () => updatedMessage },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return { mutations, dataStore, patchStore };
+  }
+
+  it("should add an optimistic removeReaction patch", () => {
+    const { mutations, patchStore } = setup();
+    mutations.removeMessageReaction(convoId, messageId, emoji, currentUserDid);
+    const patches = patchStore._getMessagePatches(messageId);
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "removeReaction");
+    assertEquals(patches[0].body.value, emoji);
+    assertEquals(patches[0].body.currentUserDid, currentUserDid);
+  });
+
+  it("should store the returned message and clear the patch on success", async () => {
+    const { mutations, dataStore, patchStore } = setup();
+    await mutations.removeMessageReaction(
+      convoId,
+      messageId,
+      emoji,
+      currentUserDid,
+    );
+    assertEquals(dataStore.getMessage(messageId), updatedMessage);
+    assertEquals(patchStore._getMessagePatches(messageId).length, 0);
+  });
+
+  it("should clear the convo's lastReaction when the convo is cached", async () => {
+    const { mutations, dataStore } = setup({
+      convo: {
+        id: convoId,
+        lastReaction: { existing: true },
+      },
+    });
+    await mutations.removeMessageReaction(
+      convoId,
+      messageId,
+      emoji,
+      currentUserDid,
+    );
+    assertEquals(dataStore.getConvo(convoId).lastReaction, null);
+  });
+});
+
+t.describe("sendShowLessInteraction", (it) => {
+  const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedContext = "ctx";
+  const feedProxyUrl = "https://feed.example/xrpc";
+
+  it("should append the interaction to the dataStore (empty list branch)", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    let sendArgs = null;
+    const mutations = new Mutations(
+      {
+        sendInteractions: async (interactions, proxy) => {
+          sendArgs = { interactions, proxy };
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
+
+    const stored = dataStore.getShowLessInteractions();
+    assertEquals(stored.length, 1);
+    assertEquals(stored[0].item, postURI);
+    assertEquals(stored[0].event, "app.bsky.feed.defs#requestLess");
+    assertEquals(stored[0].feedContext, feedContext);
+    assertEquals(sendArgs.interactions.length, 1);
+    assertEquals(sendArgs.interactions[0].item, postURI);
+    assertEquals(sendArgs.proxy, feedProxyUrl);
+  });
+
+  it("should append to an existing list (non-empty branch)", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.addShowLessInteraction({ item: "existing", event: "x" });
+    const mutations = new Mutations(
+      { sendInteractions: async () => {} },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
+
+    const stored = dataStore.getShowLessInteractions();
+    assertEquals(stored.length, 2);
+    assertEquals(stored[1].item, postURI);
+  });
+});
+
+t.describe("sendShowMoreInteraction", (it) => {
+  const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedContext = "ctx";
+  const feedProxyUrl = "https://feed.example/xrpc";
+
+  it("should append the interaction to the dataStore (empty list branch)", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    let sendArgs = null;
+    const mutations = new Mutations(
+      {
+        sendInteractions: async (interactions, proxy) => {
+          sendArgs = { interactions, proxy };
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
+
+    const stored = dataStore.getShowMoreInteractions();
+    assertEquals(stored.length, 1);
+    assertEquals(stored[0].item, postURI);
+    assertEquals(stored[0].event, "app.bsky.feed.defs#requestMore");
+    assertEquals(stored[0].feedContext, feedContext);
+    assertEquals(sendArgs.interactions[0].item, postURI);
+    assertEquals(sendArgs.proxy, feedProxyUrl);
+  });
+
+  it("should append to an existing list (non-empty branch)", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.addShowMoreInteraction({ item: "existing", event: "x" });
+    const mutations = new Mutations(
+      { sendInteractions: async () => {} },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
+
+    const stored = dataStore.getShowMoreInteractions();
+    assertEquals(stored.length, 2);
+    assertEquals(stored[1].item, postURI);
+  });
+});
+
 await t.run();
