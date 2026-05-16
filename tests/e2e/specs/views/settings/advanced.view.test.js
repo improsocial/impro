@@ -59,7 +59,9 @@ test.describe("Settings Advanced view", () => {
     await select.selectOption("custom");
     await expect(view.locator('input[name="appViewServiceDid"]')).toBeVisible();
     await expect(view.locator('input[name="chatServiceDid"]')).toBeVisible();
-    await expect(view.locator(".warning-area")).toBeVisible();
+    await expect(
+      view.locator('[data-testid="custom-appview-warning"]'),
+    ).toBeVisible();
 
     await select.selectOption("bluesky");
     await expect(view.locator('input[name="appViewServiceDid"]')).toHaveCount(
@@ -203,6 +205,83 @@ test.describe("Settings Advanced view", () => {
     );
     expect(storedConfig).not.toBeNull();
     expect(JSON.parse(storedConfig).id).toBe("blacksky");
+  });
+
+  test.describe("Install plugin from URL section", () => {
+    test("renders the URL input and submit button", async ({ page }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const view = page.locator("#settings-advanced-view");
+      await expect(view).toContainText("Install plugin from URL", {
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="install-unregistered-plugin-input"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="install-unregistered-plugin-submit"]'),
+      ).toBeVisible();
+    });
+
+    test("shows an error toast when the URL is not a GitHub URL", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const view = page.locator("#settings-advanced-view");
+      await view
+        .locator('[data-testid="install-unregistered-plugin-input"]')
+        .fill("https://example.com/owner/repo");
+      await view
+        .locator('[data-testid="install-unregistered-plugin-submit"]')
+        .click();
+
+      await expect(page.locator('[data-testid="toast"]')).toContainText(
+        "Invalid GitHub URL",
+      );
+    });
+
+    test("shows an error toast when the plugin id is already in the registry", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.registryEntries = [
+        {
+          id: "remote-plugin",
+          name: "Remote Plugin",
+          repo: "alice/remote-plugin",
+        },
+      ];
+      mockServer.liveManifest = {
+        id: "remote-plugin",
+        name: "Remote Plugin",
+        version: "1.0.0",
+      };
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/settings/advanced");
+
+      const view = page.locator("#settings-advanced-view");
+      await view
+        .locator('[data-testid="install-unregistered-plugin-input"]')
+        .fill("https://github.com/alice/remote-plugin");
+      await view
+        .locator('[data-testid="install-unregistered-plugin-submit"]')
+        .click();
+
+      await expect(page.locator('[data-testid="toast"]')).toContainText(
+        "in the registry",
+      );
+    });
   });
 
   test.describe("Logged-out behavior", () => {

@@ -53,6 +53,17 @@ export class SourceProvider {
     return parsePluginManifest(pluginId, await response.json());
   }
 
+  async getLiveManifestFromRepo(repo) {
+    if (!repo) {
+      throw new Error("Repo is required");
+    }
+    const url = remoteAssetUrl(repo, "main", "manifest.json");
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json();
+    return parsePluginManifest(manifest.id, manifest);
+  }
+
   async getSource(pluginId, version, repo) {
     if (pluginId.endsWith("__LOCAL")) {
       const response = await fetch(`/plugins-local/${pluginId}/main.js`);

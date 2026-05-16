@@ -20,6 +20,30 @@ export function arePluginsDisabledByQueryParam() {
   return params.has(DISABLE_PLUGINS_QUERY_PARAM);
 }
 
+export function parseGithubRepoUrl(input) {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return null;
+  }
+  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") {
+    return null;
+  }
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  const owner = segments[0];
+  const repo = segments[1].replace(/\.git$/, "");
+  if (!owner || !repo) return null;
+  return `${owner}/${repo}`;
+}
+
 export class PluginService extends EventEmitter {
   constructor(preferencesProvider, session) {
     super();
@@ -316,6 +340,48 @@ export class PluginService extends EventEmitter {
       await this.prefManager.removeInstalledPlugin(pluginId);
       throw e;
     }
+  }
+
+  async installUnregisteredPlugin(url) {
+    const repo = parseGithubRepoUrl(url);
+    if (!repo) {
+      throw new Error("Invalid GitHub URL");
+    }
+    let manifest = null;
+    try {
+      manifest = await this.sourceProvider.getLiveManifestFromRepo(repo);
+    } catch (e) {
+      console.error("Failed to fetch manifest", e);
+      throw new Error("Failed to fetch manifest");
+    }
+    const { id, name, version, author, description } = manifest;
+    if (await this.remoteRegistry.getListing(id)) {
+      throw new Error(`Plugin ${id} is in the registry; install it from there`);
+    }
+    if (this.localRegistry && (await this.localRegistry.getListing(id))) {
+      throw new Error(`Plugin ${id} is in the registry; install it from there`);
+    }
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    if (installedPlugins.some((plugin) => plugin.id === id)) {
+      throw new Error(`Plugin ${id} already installed`);
+    }
+    await this.prefManager.addInstalledPlugin({
+      id,
+      name,
+      version,
+      author,
+      description,
+      repo,
+      enabled: true,
+    });
+    try {
+      await this.pluginBridge.loadPlugin(id, version, repo);
+    } catch (e) {
+      console.error(e);
+      await this.prefManager.removeInstalledPlugin(id);
+      throw e;
+    }
+    return { id, name };
   }
 
   async uninstallPlugin(pluginId) {

@@ -11,6 +11,7 @@ import {
   CUSTOM_APP_VIEW_CONFIG_ID,
 } from "/js/appViewConfig.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
+import { showToast } from "/js/toasts.js";
 
 class SettingsAdvancedView extends View {
   async render({
@@ -36,6 +37,7 @@ class SettingsAdvancedView extends View {
         ? storedConfig.appViewServiceDid
         : "",
       customChatServiceDid: isStoredCustom ? storedConfig.chatServiceDid : "",
+      pluginInstallLoading: false,
     };
 
     function resolveSelectedAppViewConfig() {
@@ -92,6 +94,27 @@ class SettingsAdvancedView extends View {
     function handleCustomChatDidInput(e) {
       state.customChatServiceDid = e.target.value;
       renderPage();
+    }
+
+    async function handleInstallPlugin(e) {
+      e.preventDefault();
+      const input = e.target.elements.pluginUrl;
+      const url = input.value.trim();
+      if (!url) return;
+      state.pluginInstallLoading = true;
+      renderPage();
+      try {
+        const { name } = await pluginService.installUnregisteredPlugin(url);
+        input.value = "";
+        showToast(`Installed ${name}`, { style: "success" });
+      } catch (error) {
+        showToast(error?.message ?? "Failed to install plugin", {
+          style: "error",
+        });
+      } finally {
+        state.pluginInstallLoading = false;
+        renderPage();
+      }
     }
 
     function renderPage() {
@@ -159,7 +182,10 @@ class SettingsAdvancedView extends View {
                     </div>
                     ${isCustom
                       ? html`
-                          <div class="warning-area">
+                          <div
+                            class="warning-area"
+                            data-testid="custom-appview-warning"
+                          >
                             <h4>${alertIconTemplate()} Warning</h4>
                             Only set these values if you know what they mean!
                           </div>
@@ -215,6 +241,50 @@ class SettingsAdvancedView extends View {
                             ${state.errorMessage}
                           </div>`
                         : ""}
+                    </div>
+                  </section>
+                </form>
+                <form
+                  id="install-unregistered-plugin-form"
+                  @submit=${(e) => handleInstallPlugin(e)}
+                >
+                  <section class="settings-section">
+                    <h2>Install plugin from URL</h2>
+                    <p>
+                      Install a plugin directly from a public GitHub repository.
+                      The repo must contain a valid manifest.json on its main
+                      branch.
+                    </p>
+                    <div class="warning-area">
+                      <h4>${alertIconTemplate()} Warning</h4>
+                      Unregistered plugins have not been reviewed. Only install
+                      plugins from sources you trust.
+                    </div>
+                    <div class="form-group">
+                      <label for="pluginUrl">GitHub repo URL</label>
+                      <input
+                        id="pluginUrl"
+                        name="pluginUrl"
+                        type="url"
+                        placeholder="https://github.com/owner/repo"
+                        required
+                        autocorrect="off"
+                        autocapitalize="off"
+                        spellcheck="false"
+                        data-testid="install-unregistered-plugin-input"
+                      />
+                    </div>
+                    <div class="button-group">
+                      <button
+                        type="submit"
+                        data-testid="install-unregistered-plugin-submit"
+                        ?disabled=${state.pluginInstallLoading}
+                      >
+                        ${state.pluginInstallLoading
+                          ? html`Installing
+                              <div class="loading-spinner"></div>`
+                          : "Install"}
+                      </button>
                     </div>
                   </section>
                 </form>

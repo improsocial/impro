@@ -45,6 +45,7 @@ function makeService({
   remoteListings = [],
   localListings = null,
   liveManifests = {},
+  liveManifestsByRepo = {},
 } = {}) {
   const { state, provider } = makeProvider();
   const service = new PluginService(provider, null);
@@ -75,12 +76,22 @@ function makeService({
   };
   service.localPluginsEnabled = localListings != null;
   service.localRegistry = localListings
-    ? { getListings: async () => localListings }
+    ? {
+        getListings: async () => localListings,
+        getListing: async (id) =>
+          localListings.find((listing) => listing.id === id) ?? null,
+      }
     : null;
   service.sourceProvider = {
     getLiveManifest: async (id) => {
       if (!liveManifests[id]) throw new Error(`no manifest for ${id}`);
       return liveManifests[id];
+    },
+    getLiveManifestFromRepo: async (repo) => {
+      if (!liveManifestsByRepo[repo]) {
+        throw new Error(`no manifest for ${repo}`);
+      }
+      return liveManifestsByRepo[repo];
     },
     getCacheUrls: async (id, version, repo) => [
       `https://cache.test/${id}/${version}/${repo}`,
@@ -601,6 +612,180 @@ t.describe("listRegistryPlugins", (it) => {
     const listings = await service.listRegistryPlugins();
     assertEquals(listings.length, 1);
     assertEquals(listings[0].id, "alpha");
+  });
+});
+
+t.describe("installUnregisteredPlugin", (it) => {
+  it("installs from a github.com URL using manifest metadata", async () => {
+    const { service, state, loadCalls } = makeService({
+      liveManifestsByRepo: {
+        "ow/alpha": {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          author: "ow",
+          description: "the first",
+        },
+      },
+    });
+    const result = await service.installUnregisteredPlugin(
+      "https://github.com/ow/alpha",
+    );
+    assertEquals(result, { id: "alpha", name: "Alpha" });
+    assertEquals(state.installedPlugins, [
+      {
+        id: "alpha",
+        name: "Alpha",
+        version: "1.0.0",
+        author: "ow",
+        description: "the first",
+        repo: "ow/alpha",
+        enabled: true,
+      },
+    ]);
+    assertEquals(loadCalls, [
+      { id: "alpha", version: "1.0.0", repo: "ow/alpha" },
+    ]);
+  });
+
+  it("strips .git and extra path segments from the URL", async () => {
+    const { service, state } = makeService({
+      liveManifestsByRepo: {
+        "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
+      },
+    });
+    await service.installUnregisteredPlugin(
+      "https://github.com/ow/alpha.git/tree/main",
+    );
+    assertEquals(state.installedPlugins[0].repo, "ow/alpha");
+  });
+
+  it("rejects non-GitHub URLs", async () => {
+    const { service, state } = makeService();
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin("https://example.com/ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("Invalid GitHub URL"));
+    assertEquals(state.installedPlugins, []);
+  });
+
+  it("rejects malformed URL strings", async () => {
+    const { service } = makeService();
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin("not a url");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("Invalid GitHub URL"));
+  });
+
+  it("throws when manifest is missing required fields", async () => {
+    const { service, state } = makeService();
+    service.sourceProvider.getLiveManifestFromRepo = async () => {
+      throw new Error('missing required field "version"');
+    };
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin("https://github.com/ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("Failed to fetch manifest"));
+    assertEquals(state.installedPlugins, []);
+  });
+
+  it("rejects when the plugin id is already installed", async () => {
+    const { service, state } = makeService({
+      liveManifestsByRepo: {
+        "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
+      },
+    });
+    state.installedPlugins = [
+      {
+        id: "alpha",
+        name: "Alpha",
+        version: "0.9.0",
+        repo: "ow/alpha",
+        enabled: true,
+      },
+    ];
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin("https://github.com/ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("already installed"));
+    assertEquals(state.installedPlugins.length, 1);
+  });
+
+  it("rolls back the preference entry when load fails", async () => {
+    const { service, state } = makeService({
+      liveManifestsByRepo: {
+        "ow/alpha": { id: "alpha", name: "Alpha", version: "1.0.0" },
+      },
+    });
+    service.pluginBridge.loadPlugin = async () => {
+      throw new Error("boom");
+    };
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin("https://github.com/ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("boom"));
+    assertEquals(state.installedPlugins, []);
+  });
+
+  it("rejects when the plugin id is already in the remote registry", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifestsByRepo: {
+        "someone/alpha-fork": {
+          id: "alpha",
+          name: "Alpha Fork",
+          version: "1.0.0",
+        },
+      },
+    });
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin(
+        "https://github.com/someone/alpha-fork",
+      );
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("in the registry"));
+    assertEquals(state.installedPlugins, []);
+  });
+
+  it("rejects when the plugin id is in the local registry", async () => {
+    const { service, state } = makeService({
+      localListings: [{ id: "alpha", repo: "ow/alpha-local" }],
+      liveManifestsByRepo: {
+        "someone/alpha-fork": {
+          id: "alpha",
+          name: "Alpha Fork",
+          version: "1.0.0",
+        },
+      },
+    });
+    let caught = null;
+    try {
+      await service.installUnregisteredPlugin(
+        "https://github.com/someone/alpha-fork",
+      );
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes("in the registry"));
+    assertEquals(state.installedPlugins, []);
   });
 });
 
