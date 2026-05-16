@@ -79,22 +79,6 @@ class SettingsBlockedAccountsView extends View {
       const status = dataLayer.requests.getStatus("loadBlockedProfiles");
       const hasMore = blockedProfiles?.cursor ? true : false;
 
-      let body;
-      if (status.error) {
-        body = errorTemplate({ error: status.error });
-      } else if (!blockedProfiles) {
-        body = skeletonTemplate();
-      } else if (blockedProfiles.blocks.length === 0) {
-        body = html`<div
-          class="blocked-account-empty"
-          data-testid="blocked-account-empty"
-        >
-          You haven't blocked any accounts.
-        </div>`;
-      } else {
-        body = listTemplate({ blocks: blockedProfiles.blocks, hasMore });
-      }
-
       render(
         html`<div id="settings-blocked-accounts-view">
           ${mainLayoutTemplate({
@@ -115,7 +99,25 @@ class SettingsBlockedAccountsView extends View {
                   Blocked accounts cannot reply to your posts, mention you, or
                   interact with you. You won't see their content.
                 </p>
-                ${body}
+                ${(() => {
+                  if (status.error) {
+                    return errorTemplate({ error: status.error });
+                  } else if (!blockedProfiles) {
+                    return skeletonTemplate();
+                  } else if (blockedProfiles.blocks.length === 0) {
+                    return html`<div
+                      class="empty-state-message"
+                      data-testid="blocked-account-empty"
+                    >
+                      You haven't blocked any accounts.
+                    </div>`;
+                  } else {
+                    return listTemplate({
+                      blocks: blockedProfiles.blocks,
+                      hasMore,
+                    });
+                  }
+                })()}
               </main>`,
           })}
         </div>`,
