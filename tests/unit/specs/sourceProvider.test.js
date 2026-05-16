@@ -118,6 +118,27 @@ t.describe("SourceProvider with local plugins", (it, { afterEach }) => {
     assertEquals(await provider.getCacheUrls("alpha__LOCAL"), []);
   });
 
+  it("getStyles returns local styles.css text", async () => {
+    stub = stubFetch(async () => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return "body{color:red}";
+      },
+    }));
+    const provider = new SourceProvider(null);
+    const styles = await provider.getStyles("alpha__LOCAL");
+    assertEquals(stub.calls[0].url, "/plugins-local/alpha__LOCAL/styles.css");
+    assertEquals(styles, "body{color:red}");
+  });
+
+  it("getStyles returns null when local styles.css is missing", async () => {
+    stub = stubFetch(async () => ({ ok: false, status: 404 }));
+    const provider = new SourceProvider(null);
+    const styles = await provider.getStyles("alpha__LOCAL");
+    assertEquals(styles, null);
+  });
+
   it("getLiveManifest delegates to getManifest for local plugins", async () => {
     stub = stubFetch(async () =>
       jsonResponse({ id: "alpha", name: "Alpha", version: "9.9.9" }),
@@ -193,13 +214,44 @@ t.describe("SourceProvider with remote plugins", (it) => {
     assert(caught?.message.includes("does not match"));
   });
 
-  it("getCacheUrls returns both manifest and main.js URLs", async () => {
+  it("getCacheUrls includes manifest, main.js, and styles.css URLs", async () => {
     const provider = new SourceProvider(null);
     const urls = await provider.getCacheUrls("alpha", "1.2.3", "ow/alpha");
     assertEquals(urls, [
       "https://raw.githubusercontent.com/ow/alpha/1.2.3/manifest.json",
       "https://raw.githubusercontent.com/ow/alpha/1.2.3/main.js",
+      "https://raw.githubusercontent.com/ow/alpha/1.2.3/styles.css",
     ]);
+  });
+
+  it("getStyles fetches styles.css for remote plugins via the cache", async () => {
+    const pluginCache = fakePluginCache(async () => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return "body{color:blue}";
+      },
+    }));
+    const provider = new SourceProvider(pluginCache);
+    const styles = await provider.getStyles("alpha", "1.0.0", "ow/alpha");
+    assertEquals(
+      pluginCache.calls[0],
+      "https://raw.githubusercontent.com/ow/alpha/1.0.0/styles.css",
+    );
+    assertEquals(styles, "body{color:blue}");
+  });
+
+  it("getStyles returns null when remote styles.css 404s", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error(
+        "HTTP 404 https://raw.githubusercontent.com/ow/alpha/1.0.0/styles.css",
+      );
+      error.status = 404;
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    const styles = await provider.getStyles("alpha", "1.0.0", "ow/alpha");
+    assertEquals(styles, null);
   });
 });
 

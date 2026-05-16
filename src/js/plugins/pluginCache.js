@@ -13,7 +13,11 @@ export class PluginCache {
     let response = await cache.match(url);
     if (!response) {
       response = await fetch(url, { redirect: "follow" });
-      if (!response.ok) throw new Error(`HTTP ${response.status} ${url}`);
+      if (!response.ok) {
+        const error = new Error(`HTTP ${response.status} ${url}`);
+        error.status = response.status;
+        throw error;
+      }
       await cache.put(url, response.clone());
     }
     return response;

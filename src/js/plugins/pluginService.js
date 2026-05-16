@@ -9,6 +9,7 @@ import {
 import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
 import { compareVersions, isDev } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
@@ -61,7 +62,11 @@ export class PluginService extends EventEmitter {
       : null;
     this.pluginCache = new PluginCache();
     this.sourceProvider = new SourceProvider(this.pluginCache);
-    this.pluginBridge = new PluginBridge(this.sourceProvider);
+    this.pluginStylesLoader = new PluginStylesLoader();
+    this.pluginBridge = new PluginBridge(
+      this.sourceProvider,
+      this.pluginStylesLoader,
+    );
     this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
