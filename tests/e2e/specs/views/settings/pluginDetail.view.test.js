@@ -5,14 +5,13 @@ import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_NAME,
   TEST_PLUGIN_DEFAULTS,
+  TEST_PLUGIN_MANIFEST,
 } from "../../../testPlugin.js";
 
 const PLUGIN_ID = TEST_PLUGIN_ID;
 
 function seedEnabled(mockServer) {
-  mockServer.installedPlugins = [
-    { id: PLUGIN_ID, version: "1.0.0", enabled: true },
-  ];
+  mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: true }];
 }
 
 async function gotoDetailView(page) {

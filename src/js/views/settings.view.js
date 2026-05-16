@@ -44,6 +44,16 @@ class SettingsView extends View {
         url: "/settings/blocked-accounts",
         enabled: true,
       },
+      ...(window.env.environment === "development"
+        ? [
+            {
+              icon: boxIconTemplate,
+              label: "Plugins (beta)",
+              url: "/settings/plugins",
+              enabled: true,
+            },
+          ]
+        : []),
       {
         icon: codeIconTemplate,
         label: "Advanced",
@@ -52,14 +62,6 @@ class SettingsView extends View {
       },
     ];
 
-    if (window.env.environment === "development") {
-      menuItems.push({
-        icon: boxIconTemplate,
-        label: "Plugins (beta)",
-        url: "/settings/plugins",
-        enabled: true,
-      });
-    }
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =

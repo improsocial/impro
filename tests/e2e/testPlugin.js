@@ -7,7 +7,8 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const pluginWorkerPath = path.resolve(__dirname, "..", "..", "pluginWorker.js");
 
-export const TEST_PLUGIN_ID = "test-plugin";
+const TEST_PLUGIN_BASE_ID = "test-plugin";
+export const TEST_PLUGIN_ID = `${TEST_PLUGIN_BASE_ID}__LOCAL`;
 export const TEST_PLUGIN_NAME = "Test Plugin";
 
 export const TEST_PLUGIN_DEFAULTS = {
@@ -16,11 +17,20 @@ export const TEST_PLUGIN_DEFAULTS = {
   theme: "light",
 };
 
-export const TEST_PLUGIN_MANIFEST = {
-  id: TEST_PLUGIN_ID,
+// Manifest as served by the local plugin endpoint — matches the on-disk
+// format, where the id has no __LOCAL suffix (the runtime appends it).
+export const TEST_PLUGIN_RAW_MANIFEST = {
+  id: TEST_PLUGIN_BASE_ID,
   name: TEST_PLUGIN_NAME,
   version: "1.0.0",
+  author: "Test Author",
   description: "A test fixture plugin",
+};
+
+// Manifest as it appears in installed-plugin preferences and at runtime.
+export const TEST_PLUGIN_MANIFEST = {
+  ...TEST_PLUGIN_RAW_MANIFEST,
+  id: TEST_PLUGIN_ID,
 };
 
 const TEST_PLUGIN_BODY = /* js */ `

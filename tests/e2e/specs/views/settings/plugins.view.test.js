@@ -1,12 +1,10 @@
 import { test, expect } from "../../../base.js";
 import { login } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
-import { TEST_PLUGIN_ID } from "../../../testPlugin.js";
+import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../../testPlugin.js";
 
 function seedInstalled(mockServer) {
-  mockServer.installedPlugins = [
-    { id: TEST_PLUGIN_ID, version: "1.0.0", enabled: false },
-  ];
+  mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
 }
 
 const REMOTE_ID = "remote-themes";
@@ -21,7 +19,15 @@ const REMOTE_REGISTRY_ENTRY = {
 function seedRemoteInstalled(mockServer, { installedVersion, liveVersion }) {
   mockServer.registryEntries = [REMOTE_REGISTRY_ENTRY];
   mockServer.installedPlugins = [
-    { id: REMOTE_ID, version: installedVersion, enabled: false },
+    {
+      id: REMOTE_ID,
+      name: REMOTE_REGISTRY_ENTRY.name,
+      author: REMOTE_REGISTRY_ENTRY.author,
+      description: REMOTE_REGISTRY_ENTRY.description,
+      repo: REMOTE_REGISTRY_ENTRY.repo,
+      version: installedVersion,
+      enabled: false,
+    },
   ];
   mockServer.liveManifest = {
     id: REMOTE_ID,
@@ -247,7 +253,7 @@ test.describe("Settings plugins view", () => {
     await sampleItem.locator(".plugin-toggle").click();
     await sampleItem.locator(".plugin-settings-link").click();
 
-    await expect(page).toHaveURL("/settings/plugins/test-plugin", {
+    await expect(page).toHaveURL(`/settings/plugins/${TEST_PLUGIN_ID}`, {
       timeout: 10000,
     });
   });

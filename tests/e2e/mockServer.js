@@ -3,6 +3,7 @@ import { bskyLabeler, userProfile } from "./fixtures.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_MANIFEST,
+  TEST_PLUGIN_RAW_MANIFEST,
   getTestPluginSource,
 } from "./testPlugin.js";
 
@@ -192,7 +193,7 @@ export class MockServer {
         route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify(TEST_PLUGIN_MANIFEST),
+          body: JSON.stringify(TEST_PLUGIN_RAW_MANIFEST),
         }),
     );
     await page.route(`**/plugins-local/${TEST_PLUGIN_ID}/main.js`, (route) =>
