@@ -370,7 +370,7 @@ class ProfileView extends View {
                   <div class="feed-end-message">Posts hidden</div>
                 </div>`
               : html`
-                  <div class="profile-tab-bar">
+                  <div class="profile-tab-bar" data-scroll-lock-sticky>
                     ${tabBarTemplate({
                       tabs: [
                         ...(isLabeler

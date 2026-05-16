@@ -825,17 +825,6 @@ header {
   height: var(--chat-detail-header-height);
 }
 
-body.scroll-locked header {
-  position: fixed;
-}
-
-/* @media (min-width: 800px) {
-  body.scroll-locked header {
-    border-left: var(--hair) solid var(--post-border-color);
-    border-right: var(--hair) solid var(--post-border-color);
-  }
-} */
-
 .header > .header-row {
   display: flex;
   flex-direction: row;
@@ -938,13 +927,20 @@ body.scroll-locked header {
   scrollbar-width: none;
 }
 
+.profile-card {
+  margin-bottom: 8px;
+}
+
 .profile-tab-bar {
-  margin-top: 8px;
   position: sticky;
   top: 0;
   background: var(--background-color);
   z-index: var(--header-z-index);
   border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+.scroll-lock-pinned {
+  position: fixed;
 }
 
 .sidebar::backdrop {
