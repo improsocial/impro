@@ -135,6 +135,7 @@ class SettingsBlockedAccountsView extends View {
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
+      renderPage();
     });
 
     notificationService?.on("update", () => {
