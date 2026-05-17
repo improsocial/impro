@@ -520,7 +520,7 @@ t.describe(
     it("should render plugin-provided context menu items in the action bar", async () => {
       const customPluginService = {
         getPostContextMenuItems: async () => [
-          { title: "Translate post", invoke: () => {} },
+          { title: "Custom plugin item", invoke: () => {} },
           { title: "Save to Notion", invoke: () => {} },
         ],
       };
@@ -538,8 +538,8 @@ t.describe(
       );
       const itemTexts = items.map((el) => el.textContent.trim());
       assert(
-        itemTexts.includes("Translate post"),
-        `expected "Translate post" in ${JSON.stringify(itemTexts)}`,
+        itemTexts.includes("Custom plugin item"),
+        `expected "Custom plugin item" in ${JSON.stringify(itemTexts)}`,
       );
       assert(
         itemTexts.includes("Save to Notion"),
@@ -553,7 +553,7 @@ t.describe(
       const customPluginService = {
         getPostContextMenuItems: async () => [
           {
-            title: "Translate post",
+            title: "Custom plugin item",
             invoke: () => {
               invoked = true;
             },
@@ -573,7 +573,7 @@ t.describe(
         postContextMenu.querySelectorAll("context-menu-item"),
       );
       const target = items.find(
-        (el) => el.textContent.trim() === "Translate post",
+        (el) => el.textContent.trim() === "Custom plugin item",
       );
       assert(target !== null && target !== undefined);
       target.click();
@@ -595,7 +595,7 @@ t.describe(
       );
       const itemTexts = items.map((el) => el.textContent.trim());
       assert(
-        !itemTexts.includes("Translate post"),
+        !itemTexts.includes("Custom plugin item"),
         "plugin item should not render",
       );
       container.remove();

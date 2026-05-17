@@ -16,6 +16,7 @@ import {
   ImageLoader,
   compareVersions,
   getPostLangs,
+  getBrowserLanguageCodes,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -685,6 +686,56 @@ t.describe("getPostLangs", (it, { beforeEach, afterEach }) => {
   it("falls back to ['en'] when no locale info is available", () => {
     setLanguages([], "");
     assertEquals(getPostLangs(), ["en"]);
+  });
+});
+
+t.describe("getBrowserLanguageCodes", (it, { beforeEach, afterEach }) => {
+  let originalLanguages;
+  let originalLanguage;
+
+  beforeEach(() => {
+    originalLanguages = Object.getOwnPropertyDescriptor(navigator, "languages");
+    originalLanguage = Object.getOwnPropertyDescriptor(navigator, "language");
+  });
+
+  afterEach(() => {
+    if (originalLanguages) {
+      Object.defineProperty(navigator, "languages", originalLanguages);
+    }
+    if (originalLanguage) {
+      Object.defineProperty(navigator, "language", originalLanguage);
+    }
+  });
+
+  function setLanguages(languages, language) {
+    Object.defineProperty(navigator, "languages", {
+      value: languages,
+      configurable: true,
+    });
+    Object.defineProperty(navigator, "language", {
+      value: language,
+      configurable: true,
+    });
+  }
+
+  it("returns deduped base language codes from navigator.languages", () => {
+    setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
+    assertEquals(getBrowserLanguageCodes(), ["en", "fr"]);
+  });
+
+  it("does not limit the number of codes", () => {
+    setLanguages(["en", "fr", "de", "es", "ja"], "en");
+    assertEquals(getBrowserLanguageCodes(), ["en", "fr", "de", "es", "ja"]);
+  });
+
+  it("falls back to navigator.language when languages is empty", () => {
+    setLanguages([], "es-MX");
+    assertEquals(getBrowserLanguageCodes(), ["es"]);
+  });
+
+  it("returns an empty array when no locale info is available", () => {
+    setLanguages([], "");
+    assertEquals(getBrowserLanguageCodes(), []);
   });
 });
 

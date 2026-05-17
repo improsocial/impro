@@ -1339,6 +1339,72 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test.describe("Translate post", () => {
+    test("should open Google Translate in a new tab with the post text", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addPosts([mainPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(largePost).toBeVisible({ timeout: 10000 });
+
+      await largePost
+        .locator(".post-action-button", { hasText: "..." })
+        .click();
+
+      const translateItem = page.locator(
+        '[data-testid="menu-action-post-translate"]',
+      );
+      await expect(translateItem).toBeVisible();
+
+      const popupPromise = page.waitForEvent("popup");
+      await translateItem.click();
+      const popup = await popupPromise;
+
+      const url = new URL(popup.url());
+      expect(url.origin + url.pathname).toBe("https://translate.google.com/");
+      expect(url.searchParams.get("sl")).toBe("auto");
+      expect(url.searchParams.get("tl")).toBeTruthy();
+      expect(url.searchParams.get("text")).toBe("This is the main post");
+    });
+
+    test("should not show 'Translate post' for posts with no text", async ({
+      page,
+    }) => {
+      const emptyTextPost = createPost({
+        uri: postUri,
+        text: "",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([emptyTextPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(largePost).toBeVisible({ timeout: 10000 });
+
+      await largePost
+        .locator(".post-action-button", { hasText: "..." })
+        .click();
+
+      await expect(
+        page.locator('[data-testid="menu-action-post-translate"]'),
+      ).toHaveCount(0);
+    });
+  });
+
   test.describe("Moderation actions", () => {
     test("should show 'Hide post for me' in context menu for non-user posts", async ({
       page,
