@@ -94,6 +94,17 @@ class SettingsView extends View {
             pluginService,
             children: html`${headerTemplate({
                 title: "Settings",
+                onClickBackButton: () => {
+                  // If navigating from settings detail page, go home instead of navigating back
+                  if (
+                    window.router.previousRoute &&
+                    window.router.previousRoute.startsWith("/settings/")
+                  ) {
+                    window.router.go("/");
+                  } else {
+                    window.router.back();
+                  }
+                },
               })}
               <main>
                 <nav class="vertical-nav">
