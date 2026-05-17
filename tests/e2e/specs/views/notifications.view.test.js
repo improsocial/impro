@@ -1018,7 +1018,7 @@ test.describe("Notifications view", () => {
       // Switch to Mentions tab
       await view.locator(".tab-bar-button").nth(1).click();
 
-      const activePanel = view.locator("main.notifications-main:not([hidden])");
+      const activePanel = view.locator(".notifications-feed:not([hidden])");
 
       // Only the mention and reply posts should appear — follow should not
       await expect(activePanel.locator(".small-post")).toHaveCount(2, {
@@ -1058,7 +1058,7 @@ test.describe("Notifications view", () => {
 
       await view.locator(".tab-bar-button").nth(1).click();
 
-      const activePanel = view.locator("main.notifications-main:not([hidden])");
+      const activePanel = view.locator(".notifications-feed:not([hidden])");
       await expect(activePanel.locator(".feed-end-message")).toContainText(
         "No notifications yet!",
         { timeout: 10000 },
