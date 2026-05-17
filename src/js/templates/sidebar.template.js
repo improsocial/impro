@@ -138,7 +138,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
       })}
       <a
         href=${linkToLogin()}
-        class="square-button primary-button login-button"
+        class="rounded-button rounded-button-primary login-button"
         data-testid="login-button"
         >Sign in</a
       >

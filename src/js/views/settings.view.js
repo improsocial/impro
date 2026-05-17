@@ -132,6 +132,7 @@ class SettingsView extends View {
                     @click=${async () => {
                       if (
                         !(await confirm("Are you sure you want to sign out?", {
+                          title: "Sign out?",
                           confirmButtonStyle: "danger",
                           confirmButtonText: "Sign out",
                         }))

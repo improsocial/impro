@@ -137,18 +137,23 @@ html {
   --list-avatar-border-radius: 4px;
   --icon-button-border-radius: 4px;
   --feed-feedback-inner-border-radius: 6px;
-  --text-input-border-radius: 6px;
-  --moderation-warning-border-radius: 6px;
-  --blocked-post-radius: 6px;
-  --square-button-radius: 6px;
+  --text-input-border-radius: 8px;
+  --moderation-warning-border-radius: 8px;
+  --blocked-post-radius: 8px;
+  --context-menu-button-radius: 8px;
+  --sidebar-nav-item-border-radius: 8px;
+  --context-menu-item-group-border-radius: 8px;
+  --report-selected-item-border-radius: 8px;
   --toast-border-radius: 8px;
   --image-preview-border-radius: 8px;
   --typeahead-border-radius: 8px;
+  --card-border-radius: 8px;
   --image-border-radius: 10px;
   --video-border-radius: 10px;
   --embed-border-radius: 10px;
   --context-menu-border-radius: 10px;
   --dialog-border-radius: 12px;
+  --callout-border-radius: 12px;
   --message-bubble-border-radius: 18px;
   --sheet-border-radius: 20px;
   --message-input-border-radius: 24px;
@@ -439,24 +444,6 @@ main {
   font-weight: 600;
   top: -4px;
 }
-
-.square-button {
-  padding: 10px 20px;
-  border-radius: var(--square-button-radius);
-  border: none;
-  font-size: 14px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  text-decoration: none;
-  display: inline-block;
-  text-align: center;
-}
-
-.square-button.primary-button {
-  background-color: var(--primary-button-color);
-  color: var(--off-white);
-}
-
 .danger-button {
   color: var(--error-color);
   font-size: 15px;
@@ -561,11 +548,15 @@ form button {
   gap: 8px;
   padding: 10px 20px;
   font-size: 15px;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--pill-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: var(--background-color);
   color: var(--text-color);
   cursor: pointer;
+}
+
+form button.rounded-button {
+  padding: 10px 20px;
 }
 
 form button[type="submit"] {
@@ -1129,7 +1120,7 @@ header {
   transition: background-color 0.2s;
   cursor: pointer;
   font-size: 20px;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--sidebar-nav-item-border-radius);
 }
 
 @media (min-width: 800px) {
@@ -1317,6 +1308,7 @@ button.sidebar-plugin-nav-item {
   width: fit-content;
   margin-left: 16px;
   margin-top: 6px;
+  padding: 10px 20px;
   white-space: nowrap;
 }
 
@@ -2993,7 +2985,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   height: 100px;
   aspect-ratio: 1;
   object-fit: cover;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--image-preview-border-radius);
   background-color: var(--generic-border-color);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -3014,7 +3006,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   height: 100%;
   width: 100%;
   object-fit: cover;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--image-preview-border-radius);
   background-color: var(--generic-border-color);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -4943,7 +4935,7 @@ context-menu-item:last-child .context-menu-item {
 
 .context-menu-item-group {
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--square-button-radius);
+  border-radius: var(--context-menu-item-group-border-radius);
   overflow: hidden;
 }
 
@@ -4969,7 +4961,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   cursor: pointer;
   flex: 1;
   padding: 14px;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--context-menu-button-radius);
 }
 
 .context-menu-item-group .context-menu-item button {
@@ -5090,7 +5082,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 .modal-dialog-message {
   font-size: 14px;
   line-height: 1.5;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
   color: var(--text-color);
 }
 
@@ -5109,8 +5101,8 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .modal-dialog-button {
-  padding: 10px 20px;
-  border-radius: var(--square-button-radius);
+  padding: 12px 20px;
+  border-radius: var(--pill-button-border-radius);
   border: none;
   font-size: 14px;
   cursor: pointer;
@@ -5158,9 +5150,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .modal-dialog-buttons {
+  padding-top: 8px;
   display: flex;
-  gap: 12px;
+  gap: 8px;
   justify-content: flex-end;
+  flex-direction: column-reverse;
 }
 
 .image-alt-text-dialog {
@@ -5675,7 +5669,7 @@ img[data-lightbox] {
   align-items: center;
   gap: 8px;
   padding: 12px 12px;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   background: var(--post-hover-color);
   cursor: pointer;
   font-size: 14px;
@@ -5699,7 +5693,7 @@ img[data-lightbox] {
   align-items: center;
   gap: 8px;
   padding: 12px 12px;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   background: var(--post-hover-color);
   cursor: pointer;
   font-size: 14px;
@@ -5756,7 +5750,7 @@ img[data-lightbox] {
 .muted-word-error {
   margin-top: 8px;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   background: var(--error-color, #ef4444);
   color: white;
   font-size: 13px;
@@ -5822,7 +5816,7 @@ img[data-lightbox] {
 
 .muted-word-renew-button {
   padding: 4px 12px;
-  border-radius: 14px;
+  border-radius: var(--pill-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: none;
   color: var(--link-color);
@@ -5861,7 +5855,7 @@ img[data-lightbox] {
 .muted-word-empty {
   padding: 12px 16px;
   margin: 0 16px 16px;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   background: var(--post-hover-color);
   color: var(--text-color);
   font-style: italic;
@@ -6111,7 +6105,7 @@ moderation-warning .toggle-content {
 }
 
 #login-form .button-group {
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .select-wrapper {
@@ -6292,7 +6286,7 @@ moderation-warning .toggle-content {
 
 .error-state button {
   border: none;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--pill-button-border-radius);
   color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
@@ -6623,7 +6617,7 @@ moderation-warning .toggle-content {
   gap: 4px;
   padding: 12px 16px;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--square-button-radius);
+  border-radius: var(--card-border-radius);
   background-color: transparent;
   cursor: pointer;
   transition: background-color 0.15s;
@@ -6684,7 +6678,7 @@ moderation-warning .toggle-content {
   gap: 8px;
   padding: 8px 12px;
   background-color: light-dark(var(--lightest-gray), var(--dark-gray));
-  border-radius: var(--square-button-radius);
+  border-radius: var(--report-selected-item-border-radius);
 }
 
 .report-selected-title {
@@ -6768,7 +6762,7 @@ moderation-warning .toggle-content {
   font-size: 14px;
   color: var(--error-color);
   padding: 8px 12px;
-  border-radius: var(--square-button-radius);
+  border-radius: var(--card-border-radius);
 }
 
 .report-submit-button {
@@ -6800,7 +6794,7 @@ toggle-switch {
 .toggle-switch-track {
   width: 44px;
   height: 26px;
-  border-radius: 13px;
+  border-radius: var(--pill-button-border-radius);
   background-color: light-dark(var(--lighter-gray), var(--light-gray));
   position: relative;
   cursor: pointer;
@@ -7043,7 +7037,7 @@ toggle-switch {
   position: relative;
   width: 100%;
   aspect-ratio: 3 / 1;
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   overflow: hidden;
   background-color: light-dark(var(--lightest-gray), var(--gray));
   cursor: pointer;
@@ -7191,7 +7185,7 @@ toggle-switch {
   color: var(--danger-color, #dc3545);
   font-size: 14px;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--card-border-radius);
   background-color: light-dark(#fef2f2, #3b1111);
 }
 
@@ -7258,7 +7252,7 @@ image-cropper {
 }
 
 .edit-profile-cropper-container {
-  border-radius: 8px;
+  border-radius: var(--image-preview-border-radius);
   overflow: hidden;
 }
 
@@ -7268,7 +7262,7 @@ image-cropper {
   gap: 14px;
   margin: 12px 16px;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--callout-border-radius);
   background: var(--post-hover-color);
   color: var(--text-color);
   text-decoration: none;
@@ -7351,7 +7345,7 @@ image-cropper {
 .plugins-empty-state {
   margin: 16px;
   padding: 24px 20px;
-  border-radius: 12px;
+  border-radius: var(--callout-border-radius);
   background: var(--post-hover-color);
   text-align: center;
   display: flex;
