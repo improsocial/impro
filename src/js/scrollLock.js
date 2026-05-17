@@ -30,8 +30,11 @@ function lockScroll(container) {
   if (header) {
     const columnEl = header.parentElement;
     const columnRect = columnEl.getBoundingClientRect();
-    header.style.left = columnRect.left + "px";
-    header.style.width = columnRect.width + "px";
+    const columnStyle = window.getComputedStyle(columnEl);
+    const borderLeft = parseFloat(columnStyle.borderLeftWidth) || 0;
+    const borderRight = parseFloat(columnStyle.borderRightWidth) || 0;
+    header.style.left = columnRect.left + borderLeft + "px";
+    header.style.width = columnRect.width - borderLeft - borderRight + "px";
     header.style.right = "auto";
   }
 }
@@ -41,13 +44,15 @@ function unlockScroll(container) {
   let headerHeight = 0;
   if (header) {
     headerHeight = header.getBoundingClientRect().height;
-    header.classList.remove("scroll-lock-pinned");
   }
   let scrollTo = 0;
   const main = container.querySelector("main");
   if (main) {
     scrollTo = -1 * (main.getBoundingClientRect().top - headerHeight);
     main.style.marginTop = "0";
+  }
+  if (header) {
+    header.classList.remove("scroll-lock-pinned");
   }
   if (header) {
     header.style.left = "";

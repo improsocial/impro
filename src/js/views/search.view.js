@@ -405,53 +405,52 @@ class SearchView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
+              ${headerTemplate({
+                title: "Search",
+                bottomItemTemplate: () => html`
+                  <div class="search-input-container">
+                    ${searchIconTemplate()}
+                    <input
+                      class="search-input"
+                      type="search"
+                      autocapitalize="none"
+                      autocomplete="off"
+                      autocorrect="off"
+                      placeholder=${isAuthenticated
+                        ? "Search for users, posts, and feeds"
+                        : "Search for users"}
+                      .value=${state.searchQuery}
+                      @input=${(event) => handleSearchInput(event.target.value)}
+                    />
+                    ${state.searchQuery.length > 0
+                      ? html`
+                          <button
+                            class="search-clear-button"
+                            @click=${() => handleClearSearch()}
+                          >
+                            <span>×</span>
+                          </button>
+                        `
+                      : ""}
+                    ${showResults
+                      ? tabBarTemplate({
+                          tabs: [
+                            { value: "profiles", label: "Profiles" },
+                            ...(isAuthenticated
+                              ? [
+                                  { value: "posts", label: "Posts" },
+                                  { value: "feeds", label: "Feeds" },
+                                ]
+                              : []),
+                          ],
+                          activeTab: state.activeTab,
+                          onTabClick: handleTabChange,
+                        })
+                      : ""}
+                  </div>
+                `,
+              })}
               <main>
-                ${headerTemplate({
-                  title: "Search",
-                  bottomItemTemplate: () => html`
-                    <div class="search-input-container">
-                      ${searchIconTemplate()}
-                      <input
-                        class="search-input"
-                        type="search"
-                        autocapitalize="none"
-                        autocomplete="off"
-                        autocorrect="off"
-                        placeholder=${isAuthenticated
-                          ? "Search for users, posts, and feeds"
-                          : "Search for users"}
-                        .value=${state.searchQuery}
-                        @input=${(event) =>
-                          handleSearchInput(event.target.value)}
-                      />
-                      ${state.searchQuery.length > 0
-                        ? html`
-                            <button
-                              class="search-clear-button"
-                              @click=${() => handleClearSearch()}
-                            >
-                              <span>×</span>
-                            </button>
-                          `
-                        : ""}
-                      ${showResults
-                        ? tabBarTemplate({
-                            tabs: [
-                              { value: "profiles", label: "Profiles" },
-                              ...(isAuthenticated
-                                ? [
-                                    { value: "posts", label: "Posts" },
-                                    { value: "feeds", label: "Feeds" },
-                                  ]
-                                : []),
-                            ],
-                            activeTab: state.activeTab,
-                            onTabClick: handleTabChange,
-                          })
-                        : ""}
-                    </div>
-                  `,
-                })}
                 <div class="search-results-container">
                   ${showResults
                     ? html`
