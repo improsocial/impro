@@ -2016,6 +2016,11 @@ button.sidebar-plugin-nav-item {
   padding-bottom: 7px;
 }
 
+.post-action-button[disabled] {
+  opacity: 0.5;
+  cursor: auto;
+}
+
 animated-button {
   display: contents;
 }

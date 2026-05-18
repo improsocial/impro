@@ -24,6 +24,7 @@ import {
   hasValidHandle,
   INVALID_HANDLE,
   MISSING_HANDLE,
+  canReplyToPost,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -1133,6 +1134,49 @@ t.describe("isEmptyPost", (it) => {
   it("should return false for normal post views", () => {
     const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
     assertEquals(isEmptyPost(post), false);
+  });
+});
+
+t.describe("canReplyToPost", (it) => {
+  it("should return true for a normal post view with no restrictions", () => {
+    const post = {
+      $type: "app.bsky.feed.defs#postView",
+      uri: "at://x",
+      viewer: {},
+    };
+    assertEquals(canReplyToPost(post), true);
+  });
+
+  it("should return false for a blocked post", () => {
+    const post = { $type: "app.bsky.feed.defs#blockedPost", uri: "at://x" };
+    assertEquals(canReplyToPost(post), false);
+  });
+
+  it("should return false for a not-found post", () => {
+    const post = { $type: "app.bsky.feed.defs#notFoundPost", uri: "at://x" };
+    assertEquals(canReplyToPost(post), false);
+  });
+
+  it("should return false for an unavailable post", () => {
+    const post = {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: "at://x",
+    };
+    assertEquals(canReplyToPost(post), false);
+  });
+
+  it("should return false when viewer.replyDisabled is true", () => {
+    const post = {
+      $type: "app.bsky.feed.defs#postView",
+      uri: "at://x",
+      viewer: { replyDisabled: true },
+    };
+    assertEquals(canReplyToPost(post), false);
+  });
+
+  it("should return true when viewer is missing", () => {
+    const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
+    assertEquals(canReplyToPost(post), true);
   });
 });
 

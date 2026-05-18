@@ -670,3 +670,13 @@ export function unpinPostInFeed(feed, post) {
       : item,
   );
 }
+
+export function canReplyToPost(post) {
+  if (isBlockedPost(post) || isNotFoundPost(post) || isUnavailablePost(post)) {
+    return false;
+  }
+  if (post.viewer?.replyDisabled) {
+    return false;
+  }
+  return true;
+}

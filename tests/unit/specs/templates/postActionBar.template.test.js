@@ -246,6 +246,53 @@ t.describe("postActionBarTemplate", (it) => {
     container.remove();
   });
 
+  it("should disable reply button when viewer.replyDisabled is true", () => {
+    const replyDisabledPost = {
+      ...post,
+      viewer: { ...post.viewer, replyDisabled: true },
+    };
+    const result = postActionBarTemplate({
+      post: replyDisabledPost,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const replyButton = container.querySelector("[data-testid='reply-button']");
+    assert(replyButton.hasAttribute("disabled"));
+  });
+
+  it("should disable reply button for a blocked post", () => {
+    const blockedPost = {
+      ...post,
+      $type: "app.bsky.feed.defs#blockedPost",
+    };
+    const result = postActionBarTemplate({
+      post: blockedPost,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const replyButton = container.querySelector("[data-testid='reply-button']");
+    assert(replyButton.hasAttribute("disabled"));
+  });
+
+  it("should not disable reply button for a normal post with a current user", () => {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      onClickLike: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const replyButton = container.querySelector("[data-testid='reply-button']");
+    assert(!replyButton.hasAttribute("disabled"));
+  });
+
   it("should not have active class when post is not bookmarked", () => {
     const notBookmarkedPost = {
       ...post,

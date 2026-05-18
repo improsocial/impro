@@ -15,6 +15,7 @@ import {
   isMutedPost,
   getReplyRootFromPost,
   doHideAuthorOnUnauthenticated,
+  canReplyToPost,
 } from "/js/dataHelpers.js";
 import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
@@ -206,20 +207,6 @@ class PostThreadView extends View {
           });
         })}
       </div>`;
-    }
-
-    function canReplyToPost(post) {
-      if (
-        isBlockedPost(post) ||
-        isNotFoundPost(post) ||
-        isUnavailablePost(post)
-      ) {
-        return false;
-      }
-      if (post.viewer?.replyDisabled) {
-        return false;
-      }
-      return true;
     }
 
     async function handleClickReply(post, replyRoot, currentUser) {

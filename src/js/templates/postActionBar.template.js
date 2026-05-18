@@ -12,7 +12,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
-import { getRKey } from "/js/dataHelpers.js";
+import { getRKey, canReplyToPost } from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
 import { showSignInModal } from "/js/modals.js";
 import "/js/components/context-menu.js";
@@ -253,6 +253,7 @@ export function postActionBarTemplate({
   const isLiked = !!post.viewer?.like;
   const isBookmarked = !!post.viewer?.bookmarked;
   const canQuotePost = !post.viewer?.embeddingDisabled;
+  const canReply = canReplyToPost(post);
   return html`
     <div
       class="post-actions"
@@ -265,6 +266,7 @@ export function postActionBarTemplate({
         <button
           class="post-action-button"
           data-testid="reply-button"
+          ?disabled=${!canReply}
           @click=${() => {
             if (!isAuthenticated) {
               return showSignInModal();
