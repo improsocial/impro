@@ -6171,12 +6171,12 @@ moderation-warning .toggle-content {
 
 #login-advanced {
   width: 100%;
+  padding: 4px 0;
 }
 
 #login-advanced summary {
   font-size: 14px;
   cursor: pointer;
-  padding: 4px 0;
   user-select: none;
   color: var(--text-color-muted);
 }
