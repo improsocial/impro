@@ -3,9 +3,10 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 export function profileListItemTemplate({ actor }) {
-  const displayName = actor.displayName || actor.handle;
+  const displayName = getDisplayName(actor);
   return html`<div
     @click=${(e) => {
       if (e.target.closest("a")) return;

@@ -125,6 +125,70 @@ t.describe("profileListItemTemplate - no display name", (it) => {
   });
 });
 
+t.describe("profileListItemTemplate - special handles", (it) => {
+  it("should render 'Deleted Account' for missing handle without displayName", () => {
+    const deletedActor = {
+      ...mockActor,
+      handle: "missing.invalid",
+      displayName: null,
+    };
+    const result = profileListItemTemplate({ actor: deletedActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Deleted Account"));
+  });
+
+  it("should render 'Invalid Handle' for invalid handle without displayName", () => {
+    const invalidActor = {
+      ...mockActor,
+      handle: "handle.invalid",
+      displayName: null,
+    };
+    const result = profileListItemTemplate({ actor: invalidActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Invalid Handle"));
+  });
+});
+
+t.describe("profileListItemTemplate - displayName sanitization", (it) => {
+  it("should strip check marks from displayName", () => {
+    const actorWithCheckmark = {
+      ...mockActor,
+      displayName: "Test User ✓",
+    };
+    const result = profileListItemTemplate({ actor: actorWithCheckmark });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(!displayName.textContent.includes("✓"));
+    assert(displayName.textContent.includes("Test User"));
+  });
+
+  it("should collapse repeated whitespace in displayName", () => {
+    const actorWithExtraSpaces = {
+      ...mockActor,
+      displayName: "Test   User",
+    };
+    const result = profileListItemTemplate({ actor: actorWithExtraSpaces });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Test User"));
+    assert(!displayName.textContent.includes("Test   User"));
+  });
+});
+
 t.describe("profileListItemSkeletonTemplate", (it) => {
   it("should render skeleton avatar", () => {
     const result = profileListItemSkeletonTemplate();

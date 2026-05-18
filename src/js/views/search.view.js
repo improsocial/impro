@@ -3,17 +3,14 @@ import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames, debounce } from "/js/utils.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { linkToProfile, linkToFeed } from "/js/navigation.js";
+import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
-import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
-import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { profileListItemTemplate } from "/js/templates/profileListItem.template.js";
 
 class SearchView extends View {
   async render({
@@ -143,26 +140,6 @@ class SearchView extends View {
       }
     }
 
-    function profileResultTemplate({ profile }) {
-      const displayName = getDisplayName(profile);
-      return html`<div
-        @click=${() => window.router.go(linkToProfile(profile))}
-        class="profile-list-item"
-      >
-        ${avatarTemplate({ author: profile })}
-        <div class="profile-list-item-body">
-          <div class="profile-list-item-name">
-            <span class="profile-list-item-display-name">
-              ${displayName || profile.handle}${verificationBadgeTemplate({
-                profile,
-              })}${automatedAccountBadgeTemplate({ profile })}
-            </span>
-          </div>
-          <div class="profile-list-item-handle">@${profile.handle}</div>
-        </div>
-      </div>`;
-    }
-
     function postSearchResultsTemplate({
       status,
       postSearchResults,
@@ -257,7 +234,7 @@ class SearchView extends View {
       >
         <div class="profile-list">
           ${profileSearchResults.map((profile) =>
-            profileResultTemplate({ profile }),
+            profileListItemTemplate({ actor: profile }),
           )}
           ${profileSearchHasMore
             ? html`<div class="feed-loading-indicator">
