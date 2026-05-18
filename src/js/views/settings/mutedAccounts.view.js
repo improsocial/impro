@@ -3,10 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsMutedAccountsView extends View {
@@ -29,34 +26,6 @@ class SettingsMutedAccountsView extends View {
       renderPage();
       await loadingPromise;
       renderPage();
-    }
-
-    function listTemplate({ mutes, hasMore }) {
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadMore();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list" data-testid="muted-account-list">
-          ${mutes.map((profile) => profileListItemTemplate({ actor: profile }))}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 3 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function skeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 6 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
     }
 
     function errorTemplate({ error }) {
@@ -103,21 +72,13 @@ class SettingsMutedAccountsView extends View {
                 ${(() => {
                   if (status.error) {
                     return errorTemplate({ error: status.error });
-                  } else if (!mutedProfiles) {
-                    return skeletonTemplate();
-                  } else if (mutedProfiles.mutes.length === 0) {
-                    return html`<div
-                      class="empty-state-message"
-                      data-testid="muted-account-empty"
-                    >
-                      You have not muted any accounts yet.
-                    </div>`;
-                  } else {
-                    return listTemplate({
-                      mutes: mutedProfiles.mutes,
-                      hasMore,
-                    });
                   }
+                  return profileFeedTemplate({
+                    profiles: mutedProfiles?.mutes ?? null,
+                    hasMore,
+                    onLoadMore: loadMore,
+                    emptyMessage: "You have not muted any accounts yet.",
+                  });
                 })()}
               </main>`,
           })}

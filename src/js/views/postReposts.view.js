@@ -3,10 +3,7 @@ import { requireAuth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -33,37 +30,6 @@ class PostRepostsView extends View {
       authorDid = await identityResolver.resolveHandle(handleOrDid);
     }
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
-
-    function repostsListTemplate({ reposts, hasMore }) {
-      if (!reposts || reposts.length === 0) {
-        return html`<div class="search-status-message">No reposts yet.</div>`;
-      }
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadReposts();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list">
-          ${reposts.map((repost) => profileListItemTemplate({ actor: repost }))}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function repostsSkeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
-    }
 
     function repostsErrorTemplate({ error }) {
       console.error(error);
@@ -111,14 +77,13 @@ class PostRepostsView extends View {
                     return repostsErrorTemplate({
                       error: postRepostsRequestStatus.error,
                     });
-                  } else if (postReposts && postReposts.reposts) {
-                    return repostsListTemplate({
-                      reposts: postReposts.reposts,
-                      hasMore,
-                    });
-                  } else {
-                    return repostsSkeletonTemplate();
                   }
+                  return profileFeedTemplate({
+                    profiles: postReposts?.reposts ?? null,
+                    hasMore,
+                    onLoadMore: loadReposts,
+                    emptyMessage: "No reposts yet.",
+                  });
                 })()}
               </main>`,
           })}

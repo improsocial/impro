@@ -48,3 +48,44 @@ export function profileListItemSkeletonTemplate() {
     </div>
   </div>`;
 }
+
+export function profileFeedTemplate({
+  profiles,
+  hasMore,
+  onLoadMore,
+  emptyMessage = "No profiles.",
+}) {
+  if (!profiles) {
+    return html`<div class="profile-list">
+      ${Array.from({ length: 10 }).map(() => profileListItemSkeletonTemplate())}
+    </div>`;
+  }
+  if (profiles.length === 0) {
+    return html`<div class="feed-end-message" data-testid="feed-end-message">
+      ${emptyMessage}
+    </div>`;
+  }
+  return html`<infinite-scroll-container
+    lookahead="2500px"
+    @load-more=${async (e) => {
+      if (hasMore && onLoadMore) {
+        await onLoadMore();
+        e.detail.resume();
+      }
+    }}
+  >
+    <div class="profile-list" data-testid="profile-feed">
+      ${profiles.map((profile) => profileListItemTemplate({ actor: profile }))}
+    </div>
+    ${hasMore
+      ? html`<div
+          class="feed-loading-indicator"
+          data-testid="feed-loading-indicator"
+        >
+          <div class="loading-spinner"></div>
+        </div>`
+      : html`<div class="feed-end-message" data-testid="feed-end-message">
+          End of feed
+        </div>`}
+  </infinite-scroll-container>`;
+}

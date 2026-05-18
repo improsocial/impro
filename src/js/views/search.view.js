@@ -10,7 +10,7 @@ import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
-import { profileListItemTemplate } from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 
 class SearchView extends View {
   async render({
@@ -222,27 +222,11 @@ class SearchView extends View {
           No profiles found.
         </div>`;
       }
-      return html`<infinite-scroll-container
-        lookahead="2500px"
-        @load-more=${async (event) => {
-          if (profileSearchHasMore) {
-            await loadMoreProfiles();
-            event.detail.resume();
-          }
-        }}
-        ?disabled=${!profileSearchHasMore}
-      >
-        <div class="profile-list">
-          ${profileSearchResults.map((profile) =>
-            profileListItemTemplate({ actor: profile }),
-          )}
-          ${profileSearchHasMore
-            ? html`<div class="feed-loading-indicator">
-                <div class="loading-spinner"></div>
-              </div>`
-            : ""}
-        </div>
-      </infinite-scroll-container>`;
+      return profileFeedTemplate({
+        profiles: profileSearchResults,
+        hasMore: profileSearchHasMore,
+        onLoadMore: loadMoreProfiles,
+      });
     }
 
     function feedSearchResultsTemplate({

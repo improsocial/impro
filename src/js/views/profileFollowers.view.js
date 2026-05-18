@@ -3,10 +3,7 @@ import { requireAuth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -32,39 +29,6 @@ class ProfileFollowersView extends View {
       profileDid = handleOrDid;
     } else {
       profileDid = await identityResolver.resolveHandle(handleOrDid);
-    }
-
-    function followersListTemplate({ followers, hasMore }) {
-      if (!followers || followers.length === 0) {
-        return html`<div class="search-status-message">No followers yet.</div>`;
-      }
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadFollowers();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list">
-          ${followers.map((follower) =>
-            profileListItemTemplate({ actor: follower }),
-          )}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function followersSkeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
     }
 
     function followersErrorTemplate({ error }) {
@@ -114,14 +78,13 @@ class ProfileFollowersView extends View {
                     return followersErrorTemplate({
                       error: profileFollowersRequestStatus.error,
                     });
-                  } else if (profileFollowers && profileFollowers.followers) {
-                    return followersListTemplate({
-                      followers: profileFollowers.followers,
-                      hasMore,
-                    });
-                  } else {
-                    return followersSkeletonTemplate();
                   }
+                  return profileFeedTemplate({
+                    profiles: profileFollowers?.followers ?? null,
+                    hasMore,
+                    onLoadMore: loadFollowers,
+                    emptyMessage: "No followers yet.",
+                  });
                 })()}
               </main>`,
           })}

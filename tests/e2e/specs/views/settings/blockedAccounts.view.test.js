@@ -44,9 +44,9 @@ test.describe("Settings Blocked Accounts view", () => {
     await page.goto("/settings/blocked-accounts");
 
     const view = page.locator("#settings-blocked-accounts-view");
-    await expect(
-      view.locator('[data-testid="blocked-account-empty"]'),
-    ).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should list blocked accounts", async ({ page }) => {

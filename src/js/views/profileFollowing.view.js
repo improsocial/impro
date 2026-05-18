@@ -3,10 +3,7 @@ import { requireAuth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -32,39 +29,6 @@ class ProfileFollowingView extends View {
       profileDid = handleOrDid;
     } else {
       profileDid = await identityResolver.resolveHandle(handleOrDid);
-    }
-
-    function followingListTemplate({ follows, hasMore }) {
-      if (!follows || follows.length === 0) {
-        return html`<div class="search-status-message">
-          Not following anyone yet.
-        </div>`;
-      }
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadFollowing();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list">
-          ${follows.map((follow) => profileListItemTemplate({ actor: follow }))}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function followingSkeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
     }
 
     function followingErrorTemplate({ error }) {
@@ -112,14 +76,13 @@ class ProfileFollowingView extends View {
                     return followingErrorTemplate({
                       error: profileFollowingRequestStatus.error,
                     });
-                  } else if (profileFollowing && profileFollowing.follows) {
-                    return followingListTemplate({
-                      follows: profileFollowing.follows,
-                      hasMore,
-                    });
-                  } else {
-                    return followingSkeletonTemplate();
                   }
+                  return profileFeedTemplate({
+                    profiles: profileFollowing?.follows ?? null,
+                    hasMore,
+                    onLoadMore: loadFollowing,
+                    emptyMessage: "Not following anyone yet.",
+                  });
                 })()}
               </main>`,
           })}

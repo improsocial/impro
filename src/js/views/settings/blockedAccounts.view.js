@@ -3,10 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { requireAuth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsBlockedAccountsView extends View {
@@ -29,36 +26,6 @@ class SettingsBlockedAccountsView extends View {
       renderPage();
       await loadingPromise;
       renderPage();
-    }
-
-    function listTemplate({ blocks, hasMore }) {
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadMore();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list" data-testid="blocked-account-list">
-          ${blocks.map((profile) =>
-            profileListItemTemplate({ actor: profile }),
-          )}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 3 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function skeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 6 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
     }
 
     function errorTemplate({ error }) {
@@ -105,21 +72,13 @@ class SettingsBlockedAccountsView extends View {
                 ${(() => {
                   if (status.error) {
                     return errorTemplate({ error: status.error });
-                  } else if (!blockedProfiles) {
-                    return skeletonTemplate();
-                  } else if (blockedProfiles.blocks.length === 0) {
-                    return html`<div
-                      class="empty-state-message"
-                      data-testid="blocked-account-empty"
-                    >
-                      You haven't blocked any accounts.
-                    </div>`;
-                  } else {
-                    return listTemplate({
-                      blocks: blockedProfiles.blocks,
-                      hasMore,
-                    });
                   }
+                  return profileFeedTemplate({
+                    profiles: blockedProfiles?.blocks ?? null,
+                    hasMore,
+                    onLoadMore: loadMore,
+                    emptyMessage: "You haven't blocked any accounts.",
+                  });
                 })()}
               </main>`,
           })}

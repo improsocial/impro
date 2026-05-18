@@ -3,7 +3,8 @@ import { assert, assertEquals } from "../../testHelpers.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+  profileFeedTemplate,
+} from "/js/templates/profileFeed.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 const t = new TestSuite("profileListItemTemplate");
@@ -195,6 +196,45 @@ t.describe("profileListItemSkeletonTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='skeleton-avatar']") !== null);
+  });
+});
+
+t.describe("profileFeedTemplate", (it, { beforeEach }) => {
+  let container;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+  });
+
+  it("should render skeleton when profiles is null", () => {
+    const result = profileFeedTemplate({ profiles: null, hasMore: false });
+    render(result, container);
+    assert(container.querySelector("[data-testid='skeleton-avatar']") !== null);
+  });
+
+  it("should render empty message when profiles is empty", () => {
+    const result = profileFeedTemplate({
+      profiles: [],
+      hasMore: false,
+      emptyMessage: "Nothing here.",
+    });
+    render(result, container);
+    const msg = container.querySelector("[data-testid='feed-end-message']");
+    assert(msg !== null);
+    assert(msg.textContent.includes("Nothing here."));
+  });
+
+  it("should render profile list items when profiles is non-empty", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+    });
+    render(result, container);
+    assert(
+      container.querySelector(
+        "[data-testid='profile-list-item-display-name']",
+      ) !== null,
+    );
   });
 });
 
