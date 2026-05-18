@@ -131,6 +131,7 @@ export class Requests {
       (profileDid) => "loadProfileFollows-" + profileDid,
     );
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
+    this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
 
   requireLabelers() {
@@ -1057,6 +1058,21 @@ export class Requests {
       });
     } else {
       this.dataStore.setBlockedProfiles(res);
+    }
+  }
+
+  async loadMutedProfiles({ cursor } = {}) {
+    const labelers = this.requireLabelers();
+    const existing = this.dataStore.getMutedProfiles();
+    const res = await this.api.getMutes({ cursor, labelers });
+
+    if (existing && cursor) {
+      this.dataStore.setMutedProfiles({
+        mutes: [...existing.mutes, ...res.mutes],
+        cursor: res.cursor,
+      });
+    } else {
+      this.dataStore.setMutedProfiles(res);
     }
   }
 

@@ -12,12 +12,8 @@ export function headerTemplate({
   onClickMenuButton = null,
   rightItemTemplate = null,
   bottomItemTemplate = null,
-  fixedHeight = false,
 } = {}) {
-  return html`<header
-    class=${classnames("header", { "fixed-height-header": fixedHeight })}
-    data-testid="header"
-  >
+  return html`<header class="header" data-testid="header">
     <div
       class=${classnames("header-row", {
         "has-bottom-row": !!bottomItemTemplate,

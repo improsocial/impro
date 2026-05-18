@@ -53,6 +53,17 @@ export class SourceProvider {
     return parsePluginManifest(pluginId, await response.json());
   }
 
+  async getLiveManifestFromRepo(repo) {
+    if (!repo) {
+      throw new Error("Repo is required");
+    }
+    const url = remoteAssetUrl(repo, "main", "manifest.json");
+    const response = await fetch(url, { cache: "no-store" });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const manifest = await response.json();
+    return parsePluginManifest(manifest.id, manifest);
+  }
+
   async getSource(pluginId, version, repo) {
     if (pluginId.endsWith("__LOCAL")) {
       const response = await fetch(`/plugins-local/${pluginId}/main.js`);
@@ -67,6 +78,27 @@ export class SourceProvider {
     return await response.text();
   }
 
+  // Returns CSS text if the plugin includes a styles.css, otherwise null.
+  async getStyles(pluginId, version, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      const response = await fetch(`/plugins-local/${pluginId}/styles.css`);
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    }
+    if (!version || !repo) {
+      throw new Error("Version and repo are required");
+    }
+    const url = remoteAssetUrl(repo, version, "styles.css");
+    try {
+      const response = await this.pluginCache.fetch(url);
+      return await response.text();
+    } catch (error) {
+      if (error?.status === 404) return null;
+      throw error;
+    }
+  }
+
   // URLs that should be retained in the cache
   // Local plugins have no cached URLs
   async getCacheUrls(pluginId, version, repo) {
@@ -76,6 +108,7 @@ export class SourceProvider {
     return [
       remoteAssetUrl(repo, version, "manifest.json"),
       remoteAssetUrl(repo, version, "main.js"),
+      remoteAssetUrl(repo, version, "styles.css"),
     ];
   }
 }

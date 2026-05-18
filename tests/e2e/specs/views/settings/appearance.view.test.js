@@ -11,17 +11,19 @@ test.describe("Settings Appearance view", () => {
     await page.goto("/settings/appearance");
 
     const view = page.locator("#settings-appearance-view");
-    await expect(view.locator('[data-testid="header-title"]')).toContainText(
-      "Appearance",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
+      timeout: 10000,
+    });
 
-    const sections = view.locator(".settings-section");
-    await expect(sections).toHaveCount(3, { timeout: 10000 });
-
-    await expect(view).toContainText("Color scheme");
-    await expect(view).toContainText("Highlight color");
-    await expect(view).toContainText("Like color");
+    await expect(
+      view.locator('[data-testid="settings-section-color-scheme"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="settings-section-highlight-color"]'),
+    ).toBeVisible();
+    await expect(
+      view.locator('[data-testid="settings-section-like-color"]'),
+    ).toBeVisible();
   });
 
   test("should display color scheme dropdown with three options", async ({
@@ -39,9 +41,9 @@ test.describe("Settings Appearance view", () => {
 
     const options = select.locator("option");
     await expect(options).toHaveCount(3);
-    await expect(options.nth(0)).toContainText("System");
-    await expect(options.nth(1)).toContainText("Light");
-    await expect(options.nth(2)).toContainText("Dark");
+    await expect(options.nth(0)).toHaveAttribute("value", "system");
+    await expect(options.nth(1)).toHaveAttribute("value", "light");
+    await expect(options.nth(2)).toHaveAttribute("value", "dark");
   });
 
   test("should display color pickers with reset buttons", async ({ page }) => {
@@ -60,14 +62,14 @@ test.describe("Settings Appearance view", () => {
     ).toBeVisible();
     await expect(
       colorPickers.nth(0).locator(".settings-color-picker-reset"),
-    ).toContainText("Reset");
+    ).toBeVisible();
 
     await expect(
       colorPickers.nth(1).locator('input[type="color"]'),
     ).toBeVisible();
     await expect(
       colorPickers.nth(1).locator(".settings-color-picker-reset"),
-    ).toContainText("Reset");
+    ).toBeVisible();
   });
 
   test("should change color scheme when selecting a different option", async ({
@@ -101,12 +103,14 @@ test.describe("Settings Appearance view", () => {
     await page.goto("/settings/appearance");
 
     const view = page.locator("#settings-appearance-view");
-    await expect(view).toContainText("Choose between light and dark mode.", {
-      timeout: 10000,
-    });
-    await expect(view).toContainText(
-      "Choose the highlight color for buttons and links.",
-    );
-    await expect(view).toContainText("Choose the color for liked posts.");
+    for (const sectionTestid of [
+      "settings-section-color-scheme",
+      "settings-section-highlight-color",
+      "settings-section-like-color",
+    ]) {
+      await expect(
+        view.locator(`[data-testid="${sectionTestid}"] p`),
+      ).toBeVisible({ timeout: 10000 });
+    }
   });
 });

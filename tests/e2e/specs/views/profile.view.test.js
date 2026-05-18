@@ -177,10 +177,9 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${followedUser.did}`);
 
     const view = page.locator("#profile-view");
-    await expect(view.locator('[data-testid="follow-button"]')).toContainText(
-      "Following",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="follow-button"][data-teststate="following"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should display posts in the author feed", async ({ page }) => {
@@ -269,7 +268,7 @@ test.describe("Profile view", () => {
     const view = page.locator("#profile-view");
     await expect(
       view.locator('[data-testid="feed-end-message"]').first(),
-    ).toContainText("Feed is empty.", { timeout: 10000 });
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should show Posts, Replies, and Media tabs", async ({ page }) => {
@@ -308,27 +307,27 @@ test.describe("Profile view", () => {
     const tabBar = view.locator(".tab-bar");
 
     // Posts tab should be active by default
-    await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
-      "Posts",
+    await expect(tabBar.locator('[data-testid="tab-posts"]')).toHaveClass(
+      /active/,
       { timeout: 10000 },
     );
 
     // Click Replies tab
-    await tabBar.locator(".tab-bar-button", { hasText: "Replies" }).click();
-    await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
-      "Replies",
+    await tabBar.locator('[data-testid="tab-replies"]').click();
+    await expect(tabBar.locator('[data-testid="tab-replies"]')).toHaveClass(
+      /active/,
     );
 
     // Click Media tab
-    await tabBar.locator(".tab-bar-button", { hasText: "Media" }).click();
-    await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
-      "Media",
+    await tabBar.locator('[data-testid="tab-media"]').click();
+    await expect(tabBar.locator('[data-testid="tab-media"]')).toHaveClass(
+      /active/,
     );
 
     // Click back to Posts tab
-    await tabBar.locator(".tab-bar-button", { hasText: "Posts" }).click();
-    await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
-      "Posts",
+    await tabBar.locator('[data-testid="tab-posts"]').click();
+    await expect(tabBar.locator('[data-testid="tab-posts"]')).toHaveClass(
+      /active/,
     );
   });
 
@@ -628,22 +627,22 @@ test.describe("Profile view", () => {
       timeout: 5000,
     });
     await expect(
-      menu.locator("context-menu-item", { hasText: "Open in bsky.app" }),
+      menu.locator('[data-testid="menu-action-profile-open-in-bsky"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Copy link to profile" }),
+      menu.locator('[data-testid="menu-action-profile-copy-link"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Search posts" }),
+      menu.locator('[data-testid="menu-action-profile-search-posts"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Mute Account" }),
+      menu.locator('[data-testid="menu-action-profile-mute"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Block Account" }),
+      menu.locator('[data-testid="menu-action-profile-block"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Report account" }),
+      menu.locator('[data-testid="menu-action-profile-report"]'),
     ).toBeVisible();
   });
 
@@ -674,10 +673,14 @@ test.describe("Profile view", () => {
 
     const menu = page.locator(".profile-context-menu");
     await expect(
-      menu.locator("context-menu-item", { hasText: "Unmute Account" }),
+      menu.locator(
+        '[data-testid="menu-action-profile-mute"][data-teststate="muted"]',
+      ),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      menu.locator("context-menu-item", { hasText: /^Mute Account$/ }),
+      menu.locator(
+        '[data-testid="menu-action-profile-mute"][data-teststate="unmuted"]',
+      ),
     ).not.toBeVisible();
   });
 
@@ -707,10 +710,14 @@ test.describe("Profile view", () => {
 
     const menu = page.locator(".profile-context-menu");
     await expect(
-      menu.locator("context-menu-item", { hasText: "Unblock Account" }),
+      menu.locator(
+        '[data-testid="menu-action-profile-block"][data-teststate="blocking"]',
+      ),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      menu.locator("context-menu-item", { hasText: /^Block Account$/ }),
+      menu.locator(
+        '[data-testid="menu-action-profile-block"][data-teststate="not-blocking"]',
+      ),
     ).not.toBeVisible();
   });
 
@@ -743,16 +750,16 @@ test.describe("Profile view", () => {
       timeout: 5000,
     });
     await expect(
-      menu.locator("context-menu-item", { hasText: "Search posts" }),
+      menu.locator('[data-testid="menu-action-profile-search-posts"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Mute Account" }),
+      menu.locator('[data-testid="menu-action-profile-mute"]'),
     ).not.toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Block Account" }),
+      menu.locator('[data-testid="menu-action-profile-block"]'),
     ).not.toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Report account" }),
+      menu.locator('[data-testid="menu-action-profile-report"]'),
     ).not.toBeVisible();
   });
 
@@ -775,7 +782,7 @@ test.describe("Profile view", () => {
 
     const menu = page.locator(".profile-context-menu");
     await menu
-      .locator("context-menu-item", { hasText: "Search posts" })
+      .locator('[data-testid="menu-action-profile-search-posts"]')
       .click();
 
     await expect(page).toHaveURL(
@@ -810,7 +817,7 @@ test.describe("Profile view", () => {
 
     const menu = page.locator(".profile-context-menu");
     await menu
-      .locator("context-menu-item", { hasText: "Search posts" })
+      .locator('[data-testid="menu-action-profile-search-posts"]')
       .click();
 
     await expect(page).toHaveURL(
@@ -1322,8 +1329,10 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       await expect(
-        view.locator('[data-testid="subscribe-button"]'),
-      ).toContainText("+ Subscribe", { timeout: 10000 });
+        view.locator(
+          '[data-testid="subscribe-button"][data-teststate="not-subscribed"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
     });
 
     test("should show 'Labels' tab and 'Subscribed' button when subscribed to a labeler", async ({
@@ -1378,12 +1387,14 @@ test.describe("Profile view", () => {
       const view = page.locator("#profile-view");
       const tabBar = view.locator(".tab-bar");
       await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Labels" }),
+        tabBar.locator('[data-testid="tab-labeler-settings"]'),
       ).toBeVisible({ timeout: 10000 });
 
       await expect(
-        view.locator('[data-testid="subscribe-button"]'),
-      ).toContainText("Subscribed");
+        view.locator(
+          '[data-testid="subscribe-button"][data-teststate="subscribed"]',
+        ),
+      ).toBeVisible();
     });
 
     test("should list configurable labels in the labeler settings tab", async ({
@@ -1692,10 +1703,10 @@ test.describe("Profile view", () => {
         timeout: 5000,
       });
       await expect(
-        menu.locator("context-menu-item", { hasText: "Open in bsky.app" }),
+        menu.locator('[data-testid="menu-action-profile-open-in-bsky"]'),
       ).toBeVisible();
       await expect(
-        menu.locator("context-menu-item", { hasText: "Copy link to profile" }),
+        menu.locator('[data-testid="menu-action-profile-copy-link"]'),
       ).toBeVisible();
     });
 
@@ -1812,9 +1823,9 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       const tabBar = view.locator(".tab-bar");
-      await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
+        timeout: 10000,
+      });
     });
 
     test("should not show Feeds tab when profile has no feed generators", async ({
@@ -1832,7 +1843,7 @@ test.describe("Profile view", () => {
         timeout: 10000,
       });
       await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+        tabBar.locator('[data-testid="tab-feeds"]'),
       ).not.toBeVisible();
     });
 
@@ -1848,11 +1859,11 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       const tabBar = view.locator(".tab-bar");
-      await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
+        timeout: 10000,
+      });
 
-      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+      await tabBar.locator('[data-testid="tab-feeds"]').click();
       await expect(tabBar.locator(".tab-bar-button.active")).toContainText(
         "Feeds",
       );
@@ -1879,11 +1890,11 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       const tabBar = view.locator(".tab-bar");
-      await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
+        timeout: 10000,
+      });
 
-      await tabBar.locator(".tab-bar-button", { hasText: "Feeds" }).click();
+      await tabBar.locator('[data-testid="tab-feeds"]').click();
 
       const feedsList = view.locator(".feeds-list");
       await expect(feedsList.locator(".feeds-list-item")).toHaveCount(1, {
@@ -1927,9 +1938,9 @@ test.describe("Profile view", () => {
 
       const view = page.locator("#profile-view");
       const tabBar = view.locator(".tab-bar");
-      await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
-      ).toBeVisible({ timeout: 10000 });
+      await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
+        timeout: 10000,
+      });
     });
 
     test("should not show Feeds tab on own profile when user has no feed generators", async ({
@@ -1946,7 +1957,7 @@ test.describe("Profile view", () => {
         timeout: 10000,
       });
       await expect(
-        tabBar.locator(".tab-bar-button", { hasText: "Feeds" }),
+        tabBar.locator('[data-testid="tab-feeds"]'),
       ).not.toBeVisible();
     });
   });

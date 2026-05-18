@@ -99,14 +99,15 @@ class HashtagView extends View {
             activeNavItem: null,
             pluginService,
             children: html` <main>
-              ${headerTemplate({ title: `#${hashtag}`, fixedHeight: true })}
-              <div class="hashtag-tab-bar-container">
-                ${tabBarTemplate({
-                  tabs: sortOptions,
-                  activeTab: state.currentSort,
-                  onTabClick: handleTabClick,
-                })}
-              </div>
+              ${headerTemplate({
+                title: `#${hashtag}`,
+                bottomItemTemplate: () =>
+                  tabBarTemplate({
+                    tabs: sortOptions,
+                    activeTab: state.currentSort,
+                    onTabClick: handleTabClick,
+                  }),
+              })}
               ${sortOptions.map((sort) => {
                 const feed = dataLayer.selectors.getHashtagFeed(
                   hashtag,

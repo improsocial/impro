@@ -81,6 +81,7 @@
       import settingsAppearanceView from "/js/views/settings/appearance.view.js";
       import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
       import settingsBlockedAccountsView from "/js/views/settings/blockedAccounts.view.js";
+      import settingsMutedAccountsView from "/js/views/settings/mutedAccounts.view.js";
       import settingsAdvancedView from "/js/views/settings/advanced.view.js";
       import settingsPluginsView from "/js/views/settings/plugins.view.js";
       import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
@@ -268,6 +269,10 @@
         router.addRoute("/settings", () => settingsView);
         router.addRoute("/settings/appearance", () => settingsAppearanceView);
         router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
+        router.addRoute(
+          "/settings/muted-accounts",
+          () => settingsMutedAccountsView,
+        );
         router.addRoute(
           "/settings/blocked-accounts",
           () => settingsBlockedAccountsView,

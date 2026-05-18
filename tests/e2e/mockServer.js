@@ -3,6 +3,7 @@ import { bskyLabeler, userProfile } from "./fixtures.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_MANIFEST,
+  TEST_PLUGIN_RAW_MANIFEST,
   getTestPluginSource,
 } from "./testPlugin.js";
 
@@ -25,6 +26,7 @@ export class MockServer {
     this.labelerViews = [bskyLabeler];
     this.mutedWords = [];
     this.blockedProfiles = [];
+    this.mutedProfiles = [];
     this.contentLabelPrefs = [];
     this.notifications = [];
     this.notificationCursor = undefined;
@@ -192,7 +194,7 @@ export class MockServer {
         route.fulfill({
           status: 200,
           contentType: "application/json",
-          body: JSON.stringify(TEST_PLUGIN_MANIFEST),
+          body: JSON.stringify(TEST_PLUGIN_RAW_MANIFEST),
         }),
     );
     await page.route(`**/plugins-local/${TEST_PLUGIN_ID}/main.js`, (route) =>
@@ -241,6 +243,9 @@ export class MockServer {
         contentType: "text/javascript",
         body: getTestPluginSource(),
       }),
+    );
+    await page.route("**/raw.githubusercontent.com/*/*/*/styles.css", (route) =>
+      route.fulfill({ status: 404, body: "Not Found" }),
     );
     await page.route(
       "**/raw.githubusercontent.com/*/*/main/manifest.json",
@@ -1120,6 +1125,31 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.getMutes*", (route) => {
+      const url = new URL(route.request().url());
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+
+      let mutes, nextCursor;
+      if (limit) {
+        mutes = this.mutedProfiles.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < this.mutedProfiles.length
+            ? String(offset + limit)
+            : "";
+      } else {
+        mutes = this.mutedProfiles;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ mutes, cursor: nextCursor }),
+      });
+    });
+
     await page.route("**/xrpc/com.atproto.identity.resolveHandle*", (route) => {
       const url = new URL(route.request().url());
       const handle = url.searchParams.get("handle");
@@ -1521,17 +1551,21 @@ export class MockServer {
       const rkey = url.searchParams.get("rkey");
       if (collection === "app.bsky.actor.profile" && rkey === "self") {
         const profile = this.profiles.get(userProfile.did) || userProfile;
+        const value = {
+          $type: "app.bsky.actor.profile",
+          displayName: profile.displayName || "",
+          description: profile.description || "",
+        };
+        if (profile.pinnedPost) {
+          value.pinnedPost = profile.pinnedPost;
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",
           body: JSON.stringify({
             uri: `at://${userProfile.did}/${collection}/${rkey}`,
             cid: "bafyreiprofilerecord",
-            value: {
-              $type: "app.bsky.actor.profile",
-              displayName: profile.displayName || "",
-              description: profile.description || "",
-            },
+            value,
           }),
         });
       }
@@ -1557,6 +1591,11 @@ export class MockServer {
           profile.banner = "mock-banner-url";
         } else if (!record.banner && record.banner !== undefined) {
           profile.banner = "";
+        }
+        if (record.pinnedPost) {
+          profile.pinnedPost = record.pinnedPost;
+        } else {
+          delete profile.pinnedPost;
         }
         this.profiles.set(userProfile.did, profile);
       }

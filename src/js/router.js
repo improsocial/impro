@@ -137,17 +137,25 @@ export class Router extends EventEmitter {
 
   async go(path) {
     this.scrollStates.set(window.location.pathname, window.scrollY);
-    window.history.pushState({ canGoBack: true }, "", path);
+    window.history.pushState(
+      { previousRoute: window.location.pathname },
+      "",
+      path,
+    );
     this.emit("navigate");
     await this.load(path);
   }
 
   async back() {
     this.scrollStates.set(window.location.pathname, window.scrollY);
-    if (window.history.state?.canGoBack) {
+    if (!!window.history.state?.previousRoute) {
       window.history.back();
     } else {
       this.go("/");
     }
+  }
+
+  get previousRoute() {
+    return window.history.state?.previousRoute ?? null;
   }
 }

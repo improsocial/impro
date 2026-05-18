@@ -219,6 +219,8 @@ export function smallPostTemplate({
             onClickDelete: (post) => {
               postInteractionHandler.handleDeletePost(post);
             },
+            onClickPin: (post, doPin) =>
+              postInteractionHandler.handlePinPost(post, doPin),
             onClickReport: (post) => postInteractionHandler.handleReport(post),
             enableFeedFeedback,
             pluginService,

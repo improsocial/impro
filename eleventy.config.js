@@ -21,7 +21,9 @@ export default async function (eleventyConfig) {
     })) {
       if (!entry.isSymbolicLink()) continue;
       const realPath = fs.realpathSync(path.join("plugins-local", entry.name));
-      eleventyConfig.addWatchTarget(`${realPath}/{manifest.json,main.js}`);
+      eleventyConfig.addWatchTarget(
+        `${realPath}/{manifest.json,main.js,styles.css}`,
+      );
     }
   }
 
@@ -51,6 +53,10 @@ export default async function (eleventyConfig) {
       fs.mkdirSync(destDir, { recursive: true });
       fs.copyFileSync(manifestPath, path.join(destDir, "manifest.json"));
       fs.copyFileSync(mainPath, path.join(destDir, "main.js"));
+      const stylesPath = path.join(pluginPath, "styles.css");
+      if (fs.existsSync(stylesPath)) {
+        fs.copyFileSync(stylesPath, path.join(destDir, "styles.css"));
+      }
     }
     fs.writeFileSync(
       "build/plugins-local/index.json",

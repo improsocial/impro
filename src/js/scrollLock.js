@@ -1,8 +1,17 @@
+function getHeaderElement(container) {
+  const stickyElement = container.querySelector("[data-scroll-lock-sticky]");
+  if (stickyElement && stickyElement.getBoundingClientRect().top <= 0) {
+    return stickyElement;
+  }
+  return container.querySelector("header");
+}
+
 function lockScroll(container) {
-  const header = container.querySelector("header");
+  const header = getHeaderElement(container);
   let headerHeight = 0;
   if (header) {
     headerHeight = header.getBoundingClientRect().height;
+    header.classList.add("scroll-lock-pinned");
   }
   // https://stackoverflow.com/a/19667968
   const main = container.querySelector("main");
@@ -11,7 +20,6 @@ function lockScroll(container) {
     main.style.marginTop = topMargin + "px";
   }
   const body = document.body;
-  body.classList.add("scroll-locked");
   body.style.position = "fixed";
   body.style.overflow = "hidden";
   body.style.top = "0";
@@ -22,14 +30,17 @@ function lockScroll(container) {
   if (header) {
     const columnEl = header.parentElement;
     const columnRect = columnEl.getBoundingClientRect();
-    header.style.left = columnRect.left + "px";
-    header.style.width = columnRect.width + "px";
+    const columnStyle = window.getComputedStyle(columnEl);
+    const borderLeft = parseFloat(columnStyle.borderLeftWidth) || 0;
+    const borderRight = parseFloat(columnStyle.borderRightWidth) || 0;
+    header.style.left = columnRect.left + borderLeft + "px";
+    header.style.width = columnRect.width - borderLeft - borderRight + "px";
     header.style.right = "auto";
   }
 }
 
 function unlockScroll(container) {
-  const header = container.querySelector("header");
+  const header = getHeaderElement(container);
   let headerHeight = 0;
   if (header) {
     headerHeight = header.getBoundingClientRect().height;
@@ -41,13 +52,14 @@ function unlockScroll(container) {
     main.style.marginTop = "0";
   }
   if (header) {
+    header.classList.remove("scroll-lock-pinned");
+  }
+  if (header) {
     header.style.left = "";
     header.style.width = "";
     header.style.right = "";
   }
   const body = document.body;
-  // const top = body.getBoundingClientRect().top - headerHeight;
-  body.classList.remove("scroll-locked");
   body.style.position = "";
   body.style.overflow = "";
   body.style.top = "";

@@ -9,7 +9,7 @@ import {
 } from "/js/templates/profileListItem.template.js";
 import "/js/components/infinite-scroll-container.js";
 
-class SettingsBlockedAccountsView extends View {
+class SettingsMutedAccountsView extends View {
   async render({
     root,
     context: {
@@ -23,15 +23,15 @@ class SettingsBlockedAccountsView extends View {
     await requireAuth();
 
     async function loadMore() {
-      const blockedProfiles = dataLayer.selectors.getBlockedProfiles();
-      const cursor = blockedProfiles?.cursor;
-      const loadingPromise = dataLayer.requests.loadBlockedProfiles({ cursor });
+      const mutedProfiles = dataLayer.selectors.getMutedProfiles();
+      const cursor = mutedProfiles?.cursor;
+      const loadingPromise = dataLayer.requests.loadMutedProfiles({ cursor });
       renderPage();
       await loadingPromise;
       renderPage();
     }
 
-    function listTemplate({ blocks, hasMore }) {
+    function listTemplate({ mutes, hasMore }) {
       return html`<infinite-scroll-container
         @load-more=${async (e) => {
           if (hasMore) {
@@ -40,10 +40,8 @@ class SettingsBlockedAccountsView extends View {
           }
         }}
       >
-        <div class="profile-list" data-testid="blocked-account-list">
-          ${blocks.map((profile) =>
-            profileListItemTemplate({ actor: profile }),
-          )}
+        <div class="profile-list" data-testid="muted-account-list">
+          ${mutes.map((profile) => profileListItemTemplate({ actor: profile }))}
         </div>
         ${hasMore
           ? Array.from({ length: 3 }).map(() =>
@@ -64,7 +62,7 @@ class SettingsBlockedAccountsView extends View {
     function errorTemplate({ error }) {
       console.error(error);
       return html`<div class="error-state">
-        <div>Error loading blocked accounts</div>
+        <div>Error loading muted accounts</div>
         <button @click=${() => window.location.reload()}>Try again</button>
       </div>`;
     }
@@ -75,12 +73,12 @@ class SettingsBlockedAccountsView extends View {
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
         chatNotificationService?.getNumNotifications() ?? null;
-      const blockedProfiles = dataLayer.selectors.getBlockedProfiles();
-      const status = dataLayer.requests.getStatus("loadBlockedProfiles");
-      const hasMore = blockedProfiles?.cursor ? true : false;
+      const mutedProfiles = dataLayer.selectors.getMutedProfiles();
+      const status = dataLayer.requests.getStatus("loadMutedProfiles");
+      const hasMore = mutedProfiles?.cursor ? true : false;
 
       render(
-        html`<div id="settings-blocked-accounts-view">
+        html`<div id="settings-muted-accounts-view">
           ${mainLayoutTemplate({
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
@@ -91,32 +89,32 @@ class SettingsBlockedAccountsView extends View {
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
-                title: "Blocked accounts",
+                title: "Muted accounts",
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
                 <p
-                  class="blocked-account-description"
+                  class="muted-account-description"
                   data-testid="page-description"
                 >
-                  Blocked accounts cannot reply to your posts, mention you, or
-                  interact with you. You won't see their content.
+                  Muted accounts have their posts removed from your feed and
+                  from your notifications. Mutes are completely private.
                 </p>
                 ${(() => {
                   if (status.error) {
                     return errorTemplate({ error: status.error });
-                  } else if (!blockedProfiles) {
+                  } else if (!mutedProfiles) {
                     return skeletonTemplate();
-                  } else if (blockedProfiles.blocks.length === 0) {
+                  } else if (mutedProfiles.mutes.length === 0) {
                     return html`<div
                       class="empty-state-message"
-                      data-testid="blocked-account-empty"
+                      data-testid="muted-account-empty"
                     >
-                      You haven't blocked any accounts.
+                      You have not muted any accounts yet.
                     </div>`;
                   } else {
                     return listTemplate({
-                      blocks: blockedProfiles.blocks,
+                      mutes: mutedProfiles.mutes,
                       hasMore,
                     });
                   }
@@ -151,4 +149,4 @@ class SettingsBlockedAccountsView extends View {
   }
 }
 
-export default new SettingsBlockedAccountsView();
+export default new SettingsMutedAccountsView();

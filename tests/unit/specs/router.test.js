@@ -261,6 +261,7 @@ t.describe("load", (it) => {
 t.describe("go", (it) => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
 
   it("should emit navigate event before loading the new page", async () => {
     const router = new Router();
@@ -275,11 +276,126 @@ t.describe("go", (it) => {
     try {
       await router.go("/go-test");
     } finally {
-      window.history.replaceState(null, "", originalPath);
+      window.history.replaceState(originalState, "", originalPath);
     }
 
     assertEquals(order[0], "navigate");
     assertEquals(order[1], "page-shown");
+  });
+
+  it("should store the previous route in history state", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/go-prev-test", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", "/starting-path");
+
+    try {
+      await router.go("/go-prev-test");
+      assertEquals(window.history.state?.previousRoute, "/starting-path");
+      assertEquals(window.location.pathname, "/go-prev-test");
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+});
+
+t.describe("previousRoute", (it) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
+
+  it("should return null when history state has no previousRoute", () => {
+    const router = new Router();
+    window.history.replaceState(null, "", originalPath);
+    try {
+      assertEquals(router.previousRoute, null);
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should return the previousRoute stored in history state", () => {
+    const router = new Router();
+    window.history.replaceState(
+      { previousRoute: "/some/prior/path" },
+      "",
+      originalPath,
+    );
+    try {
+      assertEquals(router.previousRoute, "/some/prior/path");
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should reflect the previousRoute after a go() call", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/prev-getter-test", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", "/origin-path");
+
+    try {
+      await router.go("/prev-getter-test");
+      assertEquals(router.previousRoute, "/origin-path");
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+});
+
+t.describe("back", (it) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
+
+  it("should call window.history.back when a previousRoute exists", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+
+    window.history.replaceState({ previousRoute: "/prior" }, "", originalPath);
+
+    const originalBack = window.history.back.bind(window.history);
+    let backCalled = false;
+    window.history.back = () => {
+      backCalled = true;
+    };
+
+    try {
+      await router.back();
+      assert(backCalled);
+    } finally {
+      window.history.back = originalBack;
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should navigate to / when no previousRoute exists", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", originalPath);
+
+    const originalBack = window.history.back.bind(window.history);
+    let backCalled = false;
+    window.history.back = () => {
+      backCalled = true;
+    };
+
+    try {
+      await router.back();
+      assert(!backCalled);
+      assertEquals(window.location.pathname, "/");
+    } finally {
+      window.history.back = originalBack;
+      window.history.replaceState(originalState, "", originalPath);
+    }
   });
 });
 

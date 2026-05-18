@@ -263,9 +263,13 @@ class SettingsMutedWordsView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
-                <form class="muted-word-form" @submit=${(e) => handleSubmit(e)}>
+                <form
+                  class="muted-word-form"
+                  data-testid="muted-word-form"
+                  @submit=${(e) => handleSubmit(e)}
+                >
                   <h2>Add muted words and tags</h2>
-                  <p>
+                  <p data-testid="page-description">
                     Posts can be muted based on their text, their tags, or both.
                   </p>
                   <input
@@ -347,7 +351,7 @@ class SettingsMutedWordsView extends View {
                   </label>
 
                   <button
-                    class="muted-word-add-button"
+                    class="settings-button"
                     data-testid="muted-word-add"
                     type="submit"
                     ?disabled=${state.isSaving || !state.hasValue}

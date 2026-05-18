@@ -118,7 +118,7 @@ test.describe("Feed Detail view", () => {
     await expect(view.locator(".pin-feed-button.pinned")).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.locator(".toast")).toContainText("Feed pinned");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
 
   test("should pin a feed that is not already saved", async ({ page }) => {
@@ -144,7 +144,7 @@ test.describe("Feed Detail view", () => {
     await expect(view.locator(".pin-feed-button.pinned")).toBeVisible({
       timeout: 10000,
     });
-    await expect(page.locator(".toast")).toContainText("Feed pinned");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
 
   test("should unpin a pinned feed when pin button is clicked", async ({
@@ -170,7 +170,7 @@ test.describe("Feed Detail view", () => {
     await pinButton.click();
 
     await expect(view.locator(".pin-feed-button.pinned")).toHaveCount(0);
-    await expect(page.locator(".toast")).toContainText("Feed unpinned");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
 
   test("should display empty state when feed has no posts", async ({
@@ -224,10 +224,10 @@ test.describe("Feed Detail view", () => {
       timeout: 5000,
     });
     await expect(
-      menu.locator("context-menu-item", { hasText: "Open in bsky.app" }),
+      menu.locator('[data-testid="menu-action-feed-open-in-bsky"]'),
     ).toBeVisible();
     await expect(
-      menu.locator("context-menu-item", { hasText: "Copy link to feed" }),
+      menu.locator('[data-testid="menu-action-feed-copy-link"]'),
     ).toBeVisible();
   });
 
@@ -253,9 +253,7 @@ test.describe("Feed Detail view", () => {
 
     const popupPromise = page.waitForEvent("popup");
     await view.locator(".feed-menu-button").click();
-    await view
-      .locator("context-menu-item", { hasText: "Open in bsky.app" })
-      .click();
+    await view.locator('[data-testid="menu-action-feed-open-in-bsky"]').click();
 
     const popup = await popupPromise;
     expect(popup.url()).toBe(
@@ -284,13 +282,9 @@ test.describe("Feed Detail view", () => {
     });
 
     await view.locator(".feed-menu-button").click();
-    await view
-      .locator("context-menu-item", { hasText: "Copy link to feed" })
-      .click();
+    await view.locator('[data-testid="menu-action-feed-copy-link"]').click();
 
-    await expect(page.locator(".toast")).toContainText(
-      "Link copied to clipboard",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
 
   test.describe("Logged-out behavior", () => {

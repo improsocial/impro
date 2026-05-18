@@ -222,10 +222,18 @@ class LoginView extends View {
                     : ""}
                 </details>
                 <div class="button-group">
-                  <button type="button" @click=${() => router.go("/")}>
+                  <button
+                    class="rounded-button rounded-button-secondary"
+                    type="button"
+                    @click=${() => router.go("/")}
+                  >
                     Back
                   </button>
-                  <button type="submit" ?disabled=${state.loading}>
+                  <button
+                    class="rounded-button rounded-button-primary"
+                    type="submit"
+                    ?disabled=${state.loading}
+                  >
                     Next
                     ${state.loading
                       ? html`<div class="loading-spinner"></div>`

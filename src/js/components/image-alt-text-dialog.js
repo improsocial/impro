@@ -89,12 +89,14 @@ class ImageAltTextDialog extends Component {
             <div class="image-alt-text-dialog-footer-buttons">
               <button
                 class="rounded-button rounded-button-secondary"
+                data-testid="alt-text-cancel"
                 @click=${() => this.close()}
               >
                 Cancel
               </button>
               <button
                 class="rounded-button rounded-button-primary"
+                data-testid="alt-text-save"
                 @click=${() => this.save()}
                 .disabled=${isAboveCharLimit}
               >

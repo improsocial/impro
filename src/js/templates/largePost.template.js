@@ -211,6 +211,8 @@ export function largePostTemplate({
               afterDelete(post);
             }
           },
+          onClickPin: (post, doPin) =>
+            postInteractionHandler.handlePinPost(post, doPin),
           onClickReport: (post) => postInteractionHandler.handleReport(post),
           pluginService,
         })}

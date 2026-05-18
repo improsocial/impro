@@ -65,9 +65,14 @@ class SettingsAppearanceView extends View {
                 onClickBackButton: () => window.router.go("/settings"),
               })}
               <main>
-                <section class="settings-section">
-                  <h2>Color scheme</h2>
-                  <p>Choose between light and dark mode.</p>
+                <section
+                  class="settings-section settings-section-row"
+                  data-testid="settings-section-color-scheme"
+                >
+                  <div class="settings-section-text">
+                    <h2>Color scheme</h2>
+                    <p>Choose between light and dark mode.</p>
+                  </div>
                   <select
                     class="settings-select"
                     @change=${(e) => {
@@ -95,9 +100,14 @@ class SettingsAppearanceView extends View {
                     </option>
                   </select>
                 </section>
-                <section class="settings-section">
-                  <h2>Highlight color</h2>
-                  <p>Choose the highlight color for buttons and links.</p>
+                <section
+                  class="settings-section settings-section-row"
+                  data-testid="settings-section-highlight-color"
+                >
+                  <div class="settings-section-text">
+                    <h2>Highlight color</h2>
+                    <p>Choose the highlight color for buttons and links.</p>
+                  </div>
                   <div class="settings-color-picker">
                     <input
                       @change=${(e) => {
@@ -116,9 +126,14 @@ class SettingsAppearanceView extends View {
                     </button>
                   </div>
                 </section>
-                <section class="settings-section">
-                  <h2>Like color</h2>
-                  <p>Choose the color for liked posts.</p>
+                <section
+                  class="settings-section settings-section-row"
+                  data-testid="settings-section-like-color"
+                >
+                  <div class="settings-section-text">
+                    <h2>Like color</h2>
+                    <p>Choose the color for liked posts.</p>
+                  </div>
                   <div class="settings-color-picker">
                     <input
                       @change=${(e) => {

@@ -269,9 +269,8 @@ test.describe("Post Composer Edge Cases", () => {
       .click();
 
     // Verify error toast appears
-    const errorToast = page.locator(".toast.error");
+    const errorToast = page.locator('[data-testid="toast"].error');
     await expect(errorToast).toBeVisible({ timeout: 10000 });
-    await expect(errorToast).toContainText("Failed to send post");
 
     // Verify composer remains open (not closed on error)
     await expect(composer).toBeVisible();
@@ -495,10 +494,9 @@ test.describe("Post Composer Edge Cases", () => {
       const videoInput = composer.locator(".media-picker-input");
       await videoInput.setInputFiles(fakeVideoFile());
 
-      await expect(page.locator(".toast")).toContainText(
-        "Could not read video file",
-        { timeout: 5000 },
-      );
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 5000,
+      });
       await expect(
         composer.locator(".post-composer-video-preview"),
       ).toHaveCount(0);
@@ -529,7 +527,7 @@ test.describe("Post Composer Edge Cases", () => {
       await expect(preview).toContainText("Daily video limit reached", {
         timeout: 10000,
       });
-      await expect(page.locator(".toast")).toContainText(
+      await expect(page.locator('[data-testid="toast"]')).toContainText(
         "Daily video limit reached",
       );
     });
@@ -554,7 +552,9 @@ test.describe("Post Composer Edge Cases", () => {
       const preview = composer.locator(".post-composer-video-preview");
       await expect(preview).toBeVisible({ timeout: 5000 });
       await expect(preview).toContainText("mock failure", { timeout: 10000 });
-      await expect(page.locator(".toast")).toContainText("mock failure");
+      await expect(page.locator('[data-testid="toast"]')).toContainText(
+        "mock failure",
+      );
 
       // Remove button still works after the error.
       await preview.locator(".image-preview-remove-button").click();

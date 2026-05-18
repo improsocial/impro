@@ -866,6 +866,21 @@ export class Api {
     return res.data;
   }
 
+  async getMutes({ limit = 50, cursor, labelers = [] } = {}) {
+    const query = { limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("app.bsky.graph.getMutes", {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async unblockActor(profile) {
     const block = profile.viewer.blocking;
     const rkey = block.split("/").pop();

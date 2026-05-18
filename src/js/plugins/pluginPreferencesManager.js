@@ -55,6 +55,23 @@ export class PluginPreferencesManager {
     }));
   }
 
+  async setPluginsDisabled(pluginIds) {
+    const ids = new Set(pluginIds);
+    if (ids.size === 0) return;
+    const installedPlugins = this.getInstalledPlugins();
+    for (const pluginId of ids) {
+      if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
+        throw new Error(
+          `Tried to update preference for uninstalled plugin: ${pluginId}`,
+        );
+      }
+    }
+    const updated = installedPlugins.map((plugin) =>
+      ids.has(plugin.id) ? { ...plugin, enabled: false } : plugin,
+    );
+    await this.setInstalledPlugins(updated);
+  }
+
   async setPluginEnabled(pluginId) {
     await this.updateInstalledPlugin(pluginId, (entry) => ({
       ...entry,

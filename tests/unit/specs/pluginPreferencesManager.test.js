@@ -185,6 +185,51 @@ t.describe("updateInstalledPlugin", (it) => {
     await manager.setPluginEnabled("a");
     assertEquals(state.installedPlugins, [{ id: "a", enabled: true }]);
   });
+
+  it("setPluginsDisabled flips enabled to false for each given id in one save", async () => {
+    const { provider, state, saveCalls } = makeProvider({
+      installedPlugins: [
+        { id: "a", enabled: true },
+        { id: "b", enabled: true },
+        { id: "c", enabled: true },
+      ],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    await manager.setPluginsDisabled(["a", "c"]);
+    assertEquals(state.installedPlugins, [
+      { id: "a", enabled: false },
+      { id: "b", enabled: true },
+      { id: "c", enabled: false },
+    ]);
+    assertEquals(saveCalls.length, 1);
+  });
+
+  it("setPluginsDisabled is a no-op (no save) for an empty list", async () => {
+    const { provider, state, saveCalls } = makeProvider({
+      installedPlugins: [{ id: "a", enabled: true }],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    await manager.setPluginsDisabled([]);
+    assertEquals(state.installedPlugins, [{ id: "a", enabled: true }]);
+    assertEquals(saveCalls.length, 0);
+  });
+
+  it("setPluginsDisabled throws when any id is not installed", async () => {
+    const { provider, state } = makeProvider({
+      installedPlugins: [{ id: "a", enabled: true }],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    let caught = null;
+    try {
+      await manager.setPluginsDisabled(["a", "missing"]);
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught instanceof Error);
+    assert(caught.message.includes("missing"));
+    // Should not have mutated state when any id is invalid
+    assertEquals(state.installedPlugins, [{ id: "a", enabled: true }]);
+  });
 });
 
 t.describe("plugin settings", (it) => {

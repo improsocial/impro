@@ -1,4 +1,5 @@
 import { deepClone, SimpleUUID } from "/js/utils.js";
+import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
 
 // The store saves patch data for optimistic updates.
 export class PatchStore {
@@ -7,6 +8,8 @@ export class PatchStore {
     this.profilePatches = new Map();
     this.messagePatches = new Map();
     this.preferencePatches = [];
+    this.currentUserPatches = [];
+    this.authorFeedPatches = new Map();
     this.uuid = new SimpleUUID();
   }
 
@@ -315,6 +318,85 @@ export class PatchStore {
           visibility: patchBody.visibility,
           labelerDid: patchBody.labelerDid,
         });
+      default:
+        throw new Error("Unknown patch type", patchBody.type);
+    }
+  }
+
+  /* Current User Patches */
+
+  addCurrentUserPatch(patchBody) {
+    const patchId = this.uuid.create();
+    this.currentUserPatches.push({ id: patchId, body: patchBody });
+    return patchId;
+  }
+
+  removeCurrentUserPatch(patchId) {
+    this.currentUserPatches = this.currentUserPatches.filter(
+      ({ id }) => id !== patchId,
+    );
+  }
+
+  applyCurrentUserPatches(user) {
+    if (!user) return user;
+    let patched = deepClone(user);
+    for (const patch of this.currentUserPatches) {
+      patched = this.applyCurrentUserPatch(patched, patch.body);
+    }
+    return patched;
+  }
+
+  applyCurrentUserPatch(user, patchBody) {
+    switch (patchBody.type) {
+      case "setPinnedPost":
+        return { ...user, pinnedPost: patchBody.pinnedPost };
+      case "clearPinnedPost": {
+        const { pinnedPost: _, ...rest } = user;
+        return rest;
+      }
+      default:
+        throw new Error("Unknown patch type", patchBody.type);
+    }
+  }
+
+  /* Author Feed Patches */
+
+  _getAuthorFeedPatches(feedURI) {
+    return this.authorFeedPatches.get(feedURI) || [];
+  }
+
+  addAuthorFeedPatch(feedURI, patchBody) {
+    const patchId = this.uuid.create();
+    const patches = this._getAuthorFeedPatches(feedURI);
+    patches.push({ id: patchId, body: patchBody });
+    this.authorFeedPatches.set(feedURI, patches);
+    return patchId;
+  }
+
+  removeAuthorFeedPatch(feedURI, patchId) {
+    const patches = this._getAuthorFeedPatches(feedURI);
+    this.authorFeedPatches.set(
+      feedURI,
+      patches.filter(({ id }) => id !== patchId),
+    );
+  }
+
+  applyAuthorFeedPatches(feedURI, feed) {
+    if (!feed) return feed;
+    const patches = this._getAuthorFeedPatches(feedURI);
+    let patched = { feed: [...feed.feed], cursor: feed.cursor };
+    for (const patch of patches) {
+      patched = this.applyAuthorFeedPatch(patched, patch.body);
+    }
+    return patched;
+  }
+
+  applyAuthorFeedPatch(feed, patchBody) {
+    switch (patchBody.type) {
+      case "pinPost":
+        return { ...feed, feed: pinPostInFeed(feed.feed, patchBody.post) };
+      case "unpinPost":
+        return { ...feed, feed: unpinPostInFeed(feed.feed, patchBody.post) };
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

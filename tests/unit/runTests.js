@@ -15,6 +15,7 @@ if (process.argv.length > 2) {
 }
 
 const results = [];
+const startTime = Date.now();
 
 for (const testFile of testFiles) {
   try {
@@ -35,6 +36,9 @@ console.info(`${failed.length} failed`);
 for (const result of failed) {
   console.error(`${result.name} - ${result.error}`);
 }
+
+const totalRunTime = ((Date.now() - startTime) / 1000).toFixed(2);
+console.info(`Run time: ${totalRunTime}s`);
 
 const success = failed.length === 0;
 

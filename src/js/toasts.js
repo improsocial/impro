@@ -78,6 +78,7 @@ export function showToast(
 ) {
   const toast = document.createElement("div");
   toast.classList.add("toast", style);
+  toast.dataset.testid = "toast";
   const resolvedIconTemplate =
     iconTemplate ?? STYLE_ICONS[style] ?? STYLE_ICONS.default;
   render(

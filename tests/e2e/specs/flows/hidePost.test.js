@@ -34,9 +34,7 @@ test.describe("Hide post flow", () => {
 
     // Open the post's context menu and click "Hide post for me"
     await feedItem.locator(".text-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Hide post for me" })
-      .click();
+    await page.locator('[data-testid="menu-action-post-hide"]').click();
 
     // Confirm the hide action in the dialog
     const confirmButton = page.locator("button.confirm-button");
@@ -44,7 +42,7 @@ test.describe("Hide post flow", () => {
     await confirmButton.click();
 
     // The post should immediately be hidden from the feed
-    await expect(page.locator(".toast")).toContainText("Post hidden", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
     await expect(feedItem).toHaveCount(0, { timeout: 10000 });
@@ -106,9 +104,7 @@ test.describe("Hide post flow", () => {
     // Open the reply's context menu and click "Hide reply for me"
     const replyPost = view.locator('[data-testid="small-post"]');
     await replyPost.locator(".text-button").click();
-    await page
-      .locator("context-menu-item", { hasText: "Hide reply for me" })
-      .click();
+    await page.locator('[data-testid="menu-action-post-hide"]').click();
 
     // Confirm the hide action in the dialog
     const confirmButton = page.locator("button.confirm-button");

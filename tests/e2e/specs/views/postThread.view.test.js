@@ -284,7 +284,7 @@ test.describe("Post thread view", () => {
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
     await largePost.locator('[data-testid="repost-button"]').click();
-    await page.locator("context-menu-item", { hasText: "Repost" }).click();
+    await page.locator('[data-testid="menu-action-repost"]').click();
 
     await expect(
       largePost.locator('[data-testid="repost-button"].reposted'),
@@ -430,7 +430,7 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".error-state")).toContainText("Post not found", {
+    await expect(view.locator('[data-testid="post-not-found"]')).toBeVisible({
       timeout: 10000,
     });
   });
@@ -455,10 +455,9 @@ test.describe("Post thread view", () => {
     await page.goto("/profile/author1.bsky.social/post/abc123");
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator(".error-state")).toContainText(
-      "Error loading thread",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="thread-error"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test.describe("Logged-out behavior", () => {
@@ -1340,6 +1339,72 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test.describe("Translate post", () => {
+    test("should open Google Translate in a new tab with the post text", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addPosts([mainPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(largePost).toBeVisible({ timeout: 10000 });
+
+      await largePost
+        .locator(".post-action-button", { hasText: "..." })
+        .click();
+
+      const translateItem = page.locator(
+        '[data-testid="menu-action-post-translate"]',
+      );
+      await expect(translateItem).toBeVisible();
+
+      const popupPromise = page.waitForEvent("popup");
+      await translateItem.click();
+      const popup = await popupPromise;
+
+      const url = new URL(popup.url());
+      expect(url.origin + url.pathname).toBe("https://translate.google.com/");
+      expect(url.searchParams.get("sl")).toBe("auto");
+      expect(url.searchParams.get("tl")).toBeTruthy();
+      expect(url.searchParams.get("text")).toBe("This is the main post");
+    });
+
+    test("should not show 'Translate post' for posts with no text", async ({
+      page,
+    }) => {
+      const emptyTextPost = createPost({
+        uri: postUri,
+        text: "",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addPosts([emptyTextPost]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/author1.bsky.social/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      const largePost = view.locator('[data-testid="large-post"]');
+      await expect(largePost).toBeVisible({ timeout: 10000 });
+
+      await largePost
+        .locator(".post-action-button", { hasText: "..." })
+        .click();
+
+      await expect(
+        page.locator('[data-testid="menu-action-post-translate"]'),
+      ).toHaveCount(0);
+    });
+  });
+
   test.describe("Moderation actions", () => {
     test("should show 'Hide post for me' in context menu for non-user posts", async ({
       page,
@@ -1360,7 +1425,7 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Hide post for me" }),
+        page.locator('[data-testid="menu-action-post-hide"]'),
       ).toBeVisible();
     });
 
@@ -1382,7 +1447,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Mute account" }),
+        page.locator(
+          '[data-testid="menu-action-post-mute"][data-teststate="unmuted"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1410,7 +1477,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Unmute account" }),
+        page.locator(
+          '[data-testid="menu-action-post-mute"][data-teststate="muted"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1432,7 +1501,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Block account" }),
+        page.locator(
+          '[data-testid="menu-action-post-block"][data-teststate="not-blocking"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1463,7 +1534,9 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Unblock account" }),
+        page.locator(
+          '[data-testid="menu-action-post-block"][data-teststate="blocking"]',
+        ),
       ).toBeVisible();
     });
 
@@ -1483,7 +1556,7 @@ test.describe("Post thread view", () => {
         .locator(".post-action-button", { hasText: "..." })
         .click();
       await expect(
-        page.locator("context-menu-item", { hasText: "Report post" }),
+        page.locator('[data-testid="menu-action-post-report"]'),
       ).toBeVisible();
     });
 
@@ -1514,18 +1587,18 @@ test.describe("Post thread view", () => {
 
       // Moderation actions should not be present on own post
       await expect(
-        page.locator("context-menu-item", { hasText: "Mute account" }),
+        page.locator('[data-testid="menu-action-post-mute"]'),
       ).not.toBeAttached();
       await expect(
-        page.locator("context-menu-item", { hasText: "Block account" }),
+        page.locator('[data-testid="menu-action-post-block"]'),
       ).not.toBeAttached();
       await expect(
-        page.locator("context-menu-item", { hasText: "Report post" }),
+        page.locator('[data-testid="menu-action-post-report"]'),
       ).not.toBeAttached();
 
       // Delete post should be available on own post
       await expect(
-        page.locator("context-menu-item", { hasText: "Delete post" }),
+        page.locator('[data-testid="menu-action-post-delete"]'),
       ).toBeVisible();
     });
   });

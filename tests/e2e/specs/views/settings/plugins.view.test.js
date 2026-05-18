@@ -1,12 +1,10 @@
 import { test, expect } from "../../../base.js";
 import { login } from "../../../helpers.js";
 import { MockServer } from "../../../mockServer.js";
-import { TEST_PLUGIN_ID } from "../../../testPlugin.js";
+import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../../testPlugin.js";
 
 function seedInstalled(mockServer) {
-  mockServer.installedPlugins = [
-    { id: TEST_PLUGIN_ID, version: "1.0.0", enabled: false },
-  ];
+  mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
 }
 
 const REMOTE_ID = "remote-themes";
@@ -21,7 +19,15 @@ const REMOTE_REGISTRY_ENTRY = {
 function seedRemoteInstalled(mockServer, { installedVersion, liveVersion }) {
   mockServer.registryEntries = [REMOTE_REGISTRY_ENTRY];
   mockServer.installedPlugins = [
-    { id: REMOTE_ID, version: installedVersion, enabled: false },
+    {
+      id: REMOTE_ID,
+      name: REMOTE_REGISTRY_ENTRY.name,
+      author: REMOTE_REGISTRY_ENTRY.author,
+      description: REMOTE_REGISTRY_ENTRY.description,
+      repo: REMOTE_REGISTRY_ENTRY.repo,
+      version: installedVersion,
+      enabled: false,
+    },
   ];
   mockServer.liveManifest = {
     id: REMOTE_ID,
@@ -112,7 +118,7 @@ test.describe("Settings plugins view", () => {
     );
     await dialog.locator(".confirm-button").click();
 
-    await expect(page.locator(".toast")).toContainText("Uninstalled");
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(page.locator(".plugin-list-item")).toHaveCount(0);
     await expect(page.locator(".plugins-empty-state")).toBeVisible();
   });
@@ -158,9 +164,7 @@ test.describe("Settings plugins view", () => {
     });
     await headerButton.click();
 
-    await expect(page.locator(".toast")).toContainText(
-      "All plugins are up to date",
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
     await expect(headerButton).toContainText("Check for updates");
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
   });
@@ -185,7 +189,9 @@ test.describe("Settings plugins view", () => {
     });
     await headerButton.click();
 
-    await expect(page.locator(".toast")).toContainText("1 update available");
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "1 update available",
+    );
     await expect(headerButton).toContainText("Update all");
 
     const sampleItem = view.locator(".plugin-list-item", {
@@ -195,7 +201,7 @@ test.describe("Settings plugins view", () => {
     await expect(updateButton).toBeVisible();
     await updateButton.click();
 
-    await expect(page.locator(".toast").last()).toContainText(
+    await expect(page.locator('[data-testid="toast"]').last()).toContainText(
       "Updated Remote Themes to v1.0.1",
     );
     await expect(sampleItem.locator(".plugin-update-button")).toHaveCount(0);
@@ -223,7 +229,7 @@ test.describe("Settings plugins view", () => {
 
     await headerButton.click();
 
-    await expect(page.locator(".toast").last()).toContainText(
+    await expect(page.locator('[data-testid="toast"]').last()).toContainText(
       "Updated 1 plugin",
     );
     await expect(view.locator(".plugin-update-button")).toHaveCount(0);
@@ -247,7 +253,7 @@ test.describe("Settings plugins view", () => {
     await sampleItem.locator(".plugin-toggle").click();
     await sampleItem.locator(".plugin-settings-link").click();
 
-    await expect(page).toHaveURL("/settings/plugins/test-plugin", {
+    await expect(page).toHaveURL(`/settings/plugins/${TEST_PLUGIN_ID}`, {
       timeout: 10000,
     });
   });

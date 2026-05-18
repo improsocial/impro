@@ -9,9 +9,41 @@ import {
 import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
+import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
 import { compareVersions, isDev } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
+
+const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
+
+export function arePluginsDisabledByQueryParam() {
+  const params = new URLSearchParams(window.location.search);
+  return params.has(DISABLE_PLUGINS_QUERY_PARAM);
+}
+
+export function parseGithubRepoUrl(input) {
+  if (typeof input !== "string") return null;
+  const trimmed = input.trim();
+  if (!trimmed) return null;
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "https:" && url.protocol !== "http:") {
+    return null;
+  }
+  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") {
+    return null;
+  }
+  const segments = url.pathname.split("/").filter(Boolean);
+  if (segments.length < 2) return null;
+  const owner = segments[0];
+  const repo = segments[1].replace(/\.git$/, "");
+  if (!owner || !repo) return null;
+  return `${owner}/${repo}`;
+}
 
 export class PluginService extends EventEmitter {
   constructor(preferencesProvider, session) {
@@ -30,7 +62,11 @@ export class PluginService extends EventEmitter {
       : null;
     this.pluginCache = new PluginCache();
     this.sourceProvider = new SourceProvider(this.pluginCache);
-    this.pluginBridge = new PluginBridge(this.sourceProvider);
+    this.pluginStylesLoader = new PluginStylesLoader();
+    this.pluginBridge = new PluginBridge(
+      this.sourceProvider,
+      this.pluginStylesLoader,
+    );
     this.pluginRenderer = new PluginRenderer(this.pluginBridge);
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
@@ -152,6 +188,13 @@ export class PluginService extends EventEmitter {
   }
 
   async loadEnabledPlugins() {
+    if (arePluginsDisabledByQueryParam()) {
+      const enabledPluginIds = this.prefManager
+        .getEnabledPlugins()
+        .map((entry) => entry.id);
+      await this.prefManager.setPluginsDisabled(enabledPluginIds);
+      return;
+    }
     const enabledPlugins = this.prefManager
       .getEnabledPlugins()
       .filter(
@@ -302,6 +345,48 @@ export class PluginService extends EventEmitter {
       await this.prefManager.removeInstalledPlugin(pluginId);
       throw e;
     }
+  }
+
+  async installUnregisteredPlugin(url) {
+    const repo = parseGithubRepoUrl(url);
+    if (!repo) {
+      throw new Error("Invalid GitHub URL");
+    }
+    let manifest = null;
+    try {
+      manifest = await this.sourceProvider.getLiveManifestFromRepo(repo);
+    } catch (e) {
+      console.error("Failed to fetch manifest", e);
+      throw new Error("Failed to fetch manifest");
+    }
+    const { id, name, version, author, description } = manifest;
+    if (await this.remoteRegistry.getListing(id)) {
+      throw new Error(`Plugin ${id} is in the registry; install it from there`);
+    }
+    if (this.localRegistry && (await this.localRegistry.getListing(id))) {
+      throw new Error(`Plugin ${id} is in the registry; install it from there`);
+    }
+    const installedPlugins = this.prefManager.getInstalledPlugins();
+    if (installedPlugins.some((plugin) => plugin.id === id)) {
+      throw new Error(`Plugin ${id} already installed`);
+    }
+    await this.prefManager.addInstalledPlugin({
+      id,
+      name,
+      version,
+      author,
+      description,
+      repo,
+      enabled: true,
+    });
+    try {
+      await this.pluginBridge.loadPlugin(id, version, repo);
+    } catch (e) {
+      console.error(e);
+      await this.prefManager.removeInstalledPlugin(id);
+      throw e;
+    }
+    return { id, name };
   }
 
   async uninstallPlugin(pluginId) {

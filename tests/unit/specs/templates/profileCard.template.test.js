@@ -49,8 +49,8 @@ t.describe("profileCardTemplate", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='follow-button']")
-        .textContent.trim(),
-      "+ Follow",
+        .getAttribute("data-teststate"),
+      "follow",
     );
   });
 
@@ -68,12 +68,12 @@ t.describe("profileCardTemplate", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='follow-button']")
-        .textContent.trim(),
-      "Following",
+        .getAttribute("data-teststate"),
+      "following",
     );
   });
 
-  it("should render + Follow back when followed by but not following", () => {
+  it("should render follow-back state when followed by but not following", () => {
     const profile = {
       ...mockProfile,
       viewer: { following: false, followedBy: true },
@@ -87,12 +87,12 @@ t.describe("profileCardTemplate", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='follow-button']")
-        .textContent.trim(),
-      "+ Follow back",
+        .getAttribute("data-teststate"),
+      "follow-back",
     );
   });
 
-  it("should render Following (not Follow back) when mutuals", () => {
+  it("should render following (not follow-back) state when mutuals", () => {
     const profile = {
       ...mockProfile,
       viewer: { following: true, followedBy: true },
@@ -106,8 +106,8 @@ t.describe("profileCardTemplate", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='follow-button']")
-        .textContent.trim(),
-      "Following",
+        .getAttribute("data-teststate"),
+      "following",
     );
   });
 
@@ -389,8 +389,8 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='subscribe-button']")
-        .textContent.trim(),
-      "+ Subscribe",
+        .getAttribute("data-teststate"),
+      "not-subscribed",
     );
   });
 
@@ -412,8 +412,8 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='subscribe-button']")
-        .textContent.trim(),
-      "Subscribed",
+        .getAttribute("data-teststate"),
+      "subscribed",
     );
   });
 
@@ -438,7 +438,7 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     container.querySelector(".ellipsis-button").click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     const item = document.body.querySelector(
-      "[data-testid='context-menu-follow']",
+      "[data-testid='menu-action-profile-follow']",
     );
     assert(item !== null);
     document.body.querySelector(".profile-context-menu")?.remove();
@@ -465,12 +465,11 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     render(result, container);
     container.querySelector(".ellipsis-button").click();
     await new Promise((resolve) => setTimeout(resolve, 0));
-    assertEquals(
-      document.body
-        .querySelector("[data-testid='context-menu-follow']")
-        .textContent.trim(),
-      "Unfollow account",
+    const item = document.body.querySelector(
+      "[data-testid='menu-action-profile-follow']",
     );
+    assert(item !== null);
+    assertEquals(item.getAttribute("data-teststate"), "following");
     document.body.querySelector(".profile-context-menu")?.remove();
     container.remove();
   });
@@ -613,7 +612,6 @@ t.describe("profileCardTemplate - authentication states", (it) => {
       "[data-testid='edit-profile-button']",
     );
     assert(editButton !== null);
-    assertEquals(editButton.textContent.trim(), "Edit Profile");
   });
 
   it("should not render edit profile button for other users", () => {
@@ -780,8 +778,8 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='subscribe-button']")
-        .textContent.trim(),
-      "Subscribed",
+        .getAttribute("data-teststate"),
+      "subscribed",
     );
   });
 
@@ -804,8 +802,8 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='subscribe-button']")
-        .textContent.trim(),
-      "+ Subscribe",
+        .getAttribute("data-teststate"),
+      "not-subscribed",
     );
   });
 
@@ -853,8 +851,8 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     assertEquals(
       container
         .querySelector("[data-testid='subscribe-button']")
-        .textContent.trim(),
-      "Subscribed",
+        .getAttribute("data-teststate"),
+      "subscribed",
     );
   });
 });

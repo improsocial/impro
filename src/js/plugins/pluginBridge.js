@@ -204,8 +204,9 @@ class PluginInstance {
 }
 
 export class PluginBridge {
-  constructor(sourceProvider) {
+  constructor(sourceProvider, pluginStylesLoader) {
     this._provider = sourceProvider;
+    this._pluginStylesLoader = pluginStylesLoader;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
@@ -274,6 +275,24 @@ export class PluginBridge {
       );
       throw new Error("Failed to load plugin source");
     }
+    let cssText;
+    try {
+      cssText = await this._provider.getStyles(pluginId, version, repo);
+    } catch (error) {
+      logger.error(
+        `failed to load "${pluginId}": could not fetch styles.css`,
+        error,
+      );
+      throw new Error("Failed to load plugin styles");
+    }
+    if (cssText != null) {
+      try {
+        this._pluginStylesLoader.mount(pluginId, cssText);
+      } catch (error) {
+        logger.error(`failed to load "${pluginId}": invalid styles.css`, error);
+        throw new Error("Plugin styles failed validation");
+      }
+    }
     try {
       const pluginInstance = await PluginInstance.loadFromSource(
         pluginId,
@@ -289,6 +308,7 @@ export class PluginBridge {
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
       return pluginInstance;
     } catch (error) {
+      this._pluginStylesLoader.unmount(pluginId);
       logger.error(`"${pluginId}" failed during initialization:`, error);
       throw new Error("Plugin failed during initialization");
     }
@@ -349,6 +369,7 @@ export class PluginBridge {
     if (!instance) return;
     instance.unload();
     this._loadedPlugins.delete(pluginId);
+    this._pluginStylesLoader.unmount(pluginId);
   }
 
   async reloadPlugin(pluginId, version, repo) {

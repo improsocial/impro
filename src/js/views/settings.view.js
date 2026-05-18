@@ -1,6 +1,7 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
+import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
@@ -27,24 +28,46 @@ class SettingsView extends View {
 
     const menuItems = [
       {
+        key: "appearance",
         icon: eyeIconTemplate,
         label: "Appearance",
         url: "/settings/appearance",
         enabled: true,
       },
       {
+        key: "muted-words",
         icon: mutedWordIconTemplate,
         label: "Muted words",
         url: "/settings/muted-words",
         enabled: true,
       },
       {
+        key: "muted-accounts",
+        icon: eyeSlashIconTemplate,
+        label: "Muted accounts",
+        url: "/settings/muted-accounts",
+        enabled: true,
+      },
+      {
+        key: "blocked-accounts",
         icon: restrictedIconTemplate,
         label: "Blocked accounts",
         url: "/settings/blocked-accounts",
         enabled: true,
       },
+      ...(window.env.environment === "development"
+        ? [
+            {
+              key: "plugins",
+              icon: boxIconTemplate,
+              label: "Plugins (beta)",
+              url: "/settings/plugins",
+              enabled: true,
+            },
+          ]
+        : []),
       {
+        key: "advanced",
         icon: codeIconTemplate,
         label: "Advanced",
         url: "/settings/advanced",
@@ -52,14 +75,6 @@ class SettingsView extends View {
       },
     ];
 
-    if (window.env.environment === "development") {
-      menuItems.push({
-        icon: boxIconTemplate,
-        label: "Plugins (beta)",
-        url: "/settings/plugins",
-        enabled: true,
-      });
-    }
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
@@ -79,6 +94,17 @@ class SettingsView extends View {
             pluginService,
             children: html`${headerTemplate({
                 title: "Settings",
+                onClickBackButton: () => {
+                  // If navigating from settings detail page, go home instead of navigating back
+                  if (
+                    window.router.previousRoute &&
+                    window.router.previousRoute.startsWith("/settings/")
+                  ) {
+                    window.router.go("/");
+                  } else {
+                    window.router.back();
+                  }
+                },
               })}
               <main>
                 <nav class="vertical-nav">
@@ -89,6 +115,7 @@ class SettingsView extends View {
                         class=${classnames("vertical-nav-item", {
                           disabled: !item.enabled,
                         })}
+                        data-testid="settings-nav-${item.key}"
                       >
                         <span class="vertical-nav-icon">${item.icon()}</span>
                         <span class="vertical-nav-label">${item.label}</span>
@@ -101,9 +128,11 @@ class SettingsView extends View {
                   <hr />
                   <button
                     class="vertical-nav-item danger-button"
+                    data-testid="settings-sign-out"
                     @click=${async () => {
                       if (
                         !(await confirm("Are you sure you want to sign out?", {
+                          title: "Sign out?",
                           confirmButtonStyle: "danger",
                           confirmButtonText: "Sign out",
                         }))
@@ -118,17 +147,29 @@ class SettingsView extends View {
                     Sign out
                   </button>
                 </nav>
-                <div class="version-info">
+                <div class="version-info" data-testid="version-info">
                   Impro v${window.env.version} - ${window.env.gitCommit}
                 </div>
                 <div class="settings-footer-links">
-                  <a href="/tos.html" data-external="true">Terms</a>
+                  <a
+                    href="/tos.html"
+                    data-testid="footer-link-terms"
+                    data-external="true"
+                    >Terms</a
+                  >
                   <span class="settings-footer-separator">·</span>
-                  <a href="/privacy.html" data-external="true"
+                  <a
+                    href="/privacy.html"
+                    data-testid="footer-link-privacy"
+                    data-external="true"
                     >Privacy Policy</a
                   >
                   <span class="settings-footer-separator">·</span>
-                  <a href="https://github.com/improsocial/impro">GitHub</a>
+                  <a
+                    href="https://github.com/improsocial/impro"
+                    data-testid="footer-link-github"
+                    >GitHub</a
+                  >
                 </div>
               </main>`,
           })}

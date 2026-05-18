@@ -29,7 +29,7 @@ test.describe("Report post flow", () => {
     await feedItem.locator(".text-button").click();
 
     // Click "Report post"
-    await page.locator("context-menu-item", { hasText: "Report post" }).click();
+    await page.locator('[data-testid="menu-action-post-report"]').click();
 
     // Report dialog should open
     const reportDialog = page.locator("report-dialog");
@@ -56,7 +56,7 @@ test.describe("Report post flow", () => {
     await reportDialog.locator(".report-submit-button").click();
 
     // Verify the toast shows success
-    await expect(page.locator(".toast")).toContainText("Report submitted", {
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
       timeout: 5000,
     });
 

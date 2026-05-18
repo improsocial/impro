@@ -63,13 +63,13 @@ class PostThreadView extends View {
         error.status === 400 &&
         error.data?.error === "NotFound"
       ) {
-        return html`<div class="error-state">
+        return html`<div class="error-state" data-testid="post-not-found">
           <div>Post not found</div>
           <button @click=${() => window.location.reload()}>Try again</button>
         </div>`;
       } else {
         console.error(error);
-        return html`<div class="error-state">
+        return html`<div class="error-state" data-testid="thread-error">
           <div>Error loading thread</div>
           <button @click=${() => window.location.reload()}>Try again</button>
         </div>`;

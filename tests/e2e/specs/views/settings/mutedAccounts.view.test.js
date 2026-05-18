@@ -7,25 +7,25 @@ const alice = createProfile({
   did: "did:plc:alice1",
   handle: "alice.bsky.social",
   displayName: "Alice",
-  viewer: { blocking: "at://did:plc:user/app.bsky.graph.block/blockalice" },
+  viewer: { muted: true },
 });
 
 const bob = createProfile({
   did: "did:plc:bob1",
   handle: "bob.bsky.social",
   displayName: "Bob",
-  viewer: { blocking: "at://did:plc:user/app.bsky.graph.block/blockbob" },
+  viewer: { muted: true },
 });
 
-test.describe("Settings Blocked Accounts view", () => {
+test.describe("Settings Muted Accounts view", () => {
   test("should display header and description", async ({ page }) => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/blocked-accounts");
+    await page.goto("/settings/muted-accounts");
 
-    const view = page.locator("#settings-blocked-accounts-view");
+    const view = page.locator("#settings-muted-accounts-view");
     await expect(view.locator('[data-testid="header-title"]')).toBeVisible({
       timeout: 10000,
     });
@@ -34,32 +34,32 @@ test.describe("Settings Blocked Accounts view", () => {
     ).toBeVisible();
   });
 
-  test("should display empty state when no accounts are blocked", async ({
+  test("should display empty state when no accounts are muted", async ({
     page,
   }) => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/blocked-accounts");
+    await page.goto("/settings/muted-accounts");
 
-    const view = page.locator("#settings-blocked-accounts-view");
+    const view = page.locator("#settings-muted-accounts-view");
     await expect(
-      view.locator('[data-testid="blocked-account-empty"]'),
+      view.locator('[data-testid="muted-account-empty"]'),
     ).toBeVisible({ timeout: 10000 });
   });
 
-  test("should list blocked accounts", async ({ page }) => {
+  test("should list muted accounts", async ({ page }) => {
     const mockServer = new MockServer();
-    mockServer.blockedProfiles = [alice, bob];
+    mockServer.mutedProfiles = [alice, bob];
     mockServer.addProfile(alice);
     mockServer.addProfile(bob);
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/blocked-accounts");
+    await page.goto("/settings/muted-accounts");
 
-    const view = page.locator("#settings-blocked-accounts-view");
+    const view = page.locator("#settings-muted-accounts-view");
     await expect(view.locator(".profile-list-item")).toHaveCount(2, {
       timeout: 10000,
     });

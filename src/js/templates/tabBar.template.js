@@ -10,6 +10,7 @@ export function tabBarTemplate({ tabs, activeTab, onTabClick }) {
             class=${classnames("tab-bar-button", {
               active: activeTab === tab.value,
             })}
+            data-testid="tab-${tab.value}"
             @click=${() => onTabClick(tab.value)}
           >
             <span class="tab-bar-button-label">${tab.label}</span>

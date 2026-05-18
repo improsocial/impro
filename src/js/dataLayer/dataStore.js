@@ -43,6 +43,7 @@ export class DataStore extends EventEmitter {
     this.pinnedFeedGenerators = null;
     this.bookmarks = null;
     this.blockedProfiles = null;
+    this.mutedProfiles = null;
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
     this.profileChatStatus = new Map();
@@ -602,6 +603,22 @@ export class DataStore extends EventEmitter {
 
   clearBlockedProfiles() {
     this.blockedProfiles = null;
+  }
+
+  hasMutedProfiles() {
+    return this.mutedProfiles !== null;
+  }
+
+  getMutedProfiles() {
+    return this.mutedProfiles;
+  }
+
+  setMutedProfiles(value) {
+    this.mutedProfiles = value;
+  }
+
+  clearMutedProfiles() {
+    this.mutedProfiles = null;
   }
 
   hasProfileFollowers(profileDid) {

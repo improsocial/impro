@@ -179,7 +179,12 @@ class SearchView extends View {
         </div>`;
       }
       if (!postSearchResults || postSearchResults.length === 0) {
-        return html`<div class="search-status-message">No posts found.</div>`;
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
+          No posts found.
+        </div>`;
       }
       return html`<infinite-scroll-container
         lookahead="2500px"
@@ -233,7 +238,10 @@ class SearchView extends View {
         </div>`;
       }
       if (!profileSearchResults || profileSearchResults.length === 0) {
-        return html`<div class="search-status-message">
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
           No profiles found.
         </div>`;
       }
@@ -276,7 +284,12 @@ class SearchView extends View {
         </div>`;
       }
       if (!feedSearchResults || feedSearchResults.length === 0) {
-        return html`<div class="search-status-message">No feeds found.</div>`;
+        return html`<div
+          class="search-status-message"
+          data-testid="empty-state"
+        >
+          No feeds found.
+        </div>`;
       }
       return html`<infinite-scroll-container
         lookahead="2500px"
@@ -392,48 +405,52 @@ class SearchView extends View {
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             children: html`
+              ${headerTemplate({
+                title: "Search",
+                bottomItemTemplate: () => html`
+                  <div class="search-input-container">
+                    ${searchIconTemplate()}
+                    <input
+                      class="search-input"
+                      type="search"
+                      autocapitalize="none"
+                      autocomplete="off"
+                      autocorrect="off"
+                      placeholder=${isAuthenticated
+                        ? "Search for users, posts, and feeds"
+                        : "Search for users"}
+                      .value=${state.searchQuery}
+                      @input=${(event) => handleSearchInput(event.target.value)}
+                    />
+                    ${state.searchQuery.length > 0
+                      ? html`
+                          <button
+                            class="search-clear-button"
+                            @click=${() => handleClearSearch()}
+                          >
+                            <span>×</span>
+                          </button>
+                        `
+                      : ""}
+                    ${showResults
+                      ? tabBarTemplate({
+                          tabs: [
+                            { value: "profiles", label: "Profiles" },
+                            ...(isAuthenticated
+                              ? [
+                                  { value: "posts", label: "Posts" },
+                                  { value: "feeds", label: "Feeds" },
+                                ]
+                              : []),
+                          ],
+                          activeTab: state.activeTab,
+                          onTabClick: handleTabChange,
+                        })
+                      : ""}
+                  </div>
+                `,
+              })}
               <main>
-                ${headerTemplate({ title: "Search", fixedHeight: true })}
-                <div class="search-input-container">
-                  ${searchIconTemplate()}
-                  <input
-                    class="search-input"
-                    type="search"
-                    autocapitalize="none"
-                    autocomplete="off"
-                    autocorrect="off"
-                    placeholder=${isAuthenticated
-                      ? "Search for users, posts, and feeds"
-                      : "Search for users"}
-                    .value=${state.searchQuery}
-                    @input=${(event) => handleSearchInput(event.target.value)}
-                  />
-                  ${state.searchQuery.length > 0
-                    ? html`
-                        <button
-                          class="search-clear-button"
-                          @click=${() => handleClearSearch()}
-                        >
-                          <span>×</span>
-                        </button>
-                      `
-                    : ""}
-                  ${showResults
-                    ? tabBarTemplate({
-                        tabs: [
-                          { value: "profiles", label: "Profiles" },
-                          ...(isAuthenticated
-                            ? [
-                                { value: "posts", label: "Posts" },
-                                { value: "feeds", label: "Feeds" },
-                              ]
-                            : []),
-                        ],
-                        activeTab: state.activeTab,
-                        onTabClick: handleTabChange,
-                      })
-                    : ""}
-                </div>
                 <div class="search-results-container">
                   ${showResults
                     ? html`

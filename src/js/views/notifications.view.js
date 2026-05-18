@@ -751,46 +751,48 @@ class NotificationsView extends View {
                     onTabClick: handleTabClick,
                   }),
               })}
-              <main class="notifications-main" ?hidden=${activeTab !== "all"}>
-                ${(() => {
-                  if (notificationsRequestStatus.error) {
-                    return notificationsErrorTemplate({
-                      error: notificationsRequestStatus.error,
-                    });
-                  } else if (groupedNotifications) {
-                    return notificationsTemplate({
-                      groupedNotifications,
-                      currentUser,
-                      hasMore,
-                      loadMore: loadNotifications,
-                    });
-                  } else {
-                    return notificationsSkeletonTemplate();
-                  }
-                })()}
-              </main>
-              <main
-                class="notifications-main"
-                ?hidden=${activeTab !== "mentions"}
-              >
-                ${(() => {
-                  if (mentionNotificationsRequestStatus.error) {
-                    return notificationsErrorTemplate({
-                      error: mentionNotificationsRequestStatus.error,
-                    });
-                  } else if (groupedMentionNotifications) {
-                    return notificationsTemplate({
-                      groupedNotifications: groupedMentionNotifications,
-                      currentUser,
-                      hasMore: mentionHasMore,
-                      loadMore: loadMentionNotifications,
-                    });
-                  } else if (activeTab === "mentions") {
-                    return notificationsSkeletonTemplate();
-                  } else {
-                    return "";
-                  }
-                })()}
+              <main>
+                <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
+                  ${(() => {
+                    if (notificationsRequestStatus.error) {
+                      return notificationsErrorTemplate({
+                        error: notificationsRequestStatus.error,
+                      });
+                    } else if (groupedNotifications) {
+                      return notificationsTemplate({
+                        groupedNotifications,
+                        currentUser,
+                        hasMore,
+                        loadMore: loadNotifications,
+                      });
+                    } else {
+                      return notificationsSkeletonTemplate();
+                    }
+                  })()}
+                </div>
+                <div
+                  class="notifications-feed"
+                  ?hidden=${activeTab !== "mentions"}
+                >
+                  ${(() => {
+                    if (mentionNotificationsRequestStatus.error) {
+                      return notificationsErrorTemplate({
+                        error: mentionNotificationsRequestStatus.error,
+                      });
+                    } else if (groupedMentionNotifications) {
+                      return notificationsTemplate({
+                        groupedNotifications: groupedMentionNotifications,
+                        currentUser,
+                        hasMore: mentionHasMore,
+                        loadMore: loadMentionNotifications,
+                      });
+                    } else if (activeTab === "mentions") {
+                      return notificationsSkeletonTemplate();
+                    } else {
+                      return "";
+                    }
+                  })()}
+                </div>
               </main>
             `,
           })}

@@ -298,12 +298,17 @@ export function getBrowserLanguages() {
   return [];
 }
 
+export function getBrowserLanguageCodes() {
+  return unique(
+    getBrowserLanguages()
+      .map((tag) => tag.split("-")[0].toLowerCase())
+      .filter(Boolean),
+  );
+}
+
 export function getPostLangs() {
-  const tags = getBrowserLanguages()
-    .map((tag) => tag.split("-")[0].toLowerCase())
-    .filter(Boolean);
-  const deduped = unique(tags);
-  return deduped.length ? deduped.slice(0, 3) : ["en"];
+  const codes = getBrowserLanguageCodes();
+  return codes.length ? codes.slice(0, 3) : ["en"];
 }
 
 export function sanitizeUri(uri) {
