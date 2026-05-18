@@ -222,24 +222,29 @@ class ProfileView extends View {
       `;
     }
 
+    function isNotFoundError(error) {
+      return error instanceof ApiError && error.status === 400;
+    }
+
+    function getNotFoundMessage(notFoundError) {
+      if (
+        notFoundError.data.message ===
+        "Error: actor must be a valid did or a handle"
+      )
+        return "Invalid handle";
+      if (notFoundError.data.error === "AccountTakedown")
+        return "Account has been suspended";
+      if (notFoundError.data.error === "AccountDeactivated")
+        return "Account is deactivated";
+      return "Profile not found";
+    }
+
     function profileErrorTemplate({ error }) {
-      if (
-        error instanceof ApiError &&
-        error.status === 400 &&
-        error.data.message === "Error: actor must be a valid did or a handle"
-      ) {
+      if (isNotFoundError(error)) {
+        const message = getNotFoundMessage(error);
         return html`<div class="error-state">
-          <div>Error: Invalid handle</div>
-          <button @click=${() => window.location.reload()}>Try again</button>
-        </div>`;
-      }
-      if (
-        error instanceof ApiError &&
-        error.status === 400 &&
-        error.data.error === "AccountTakedown"
-      ) {
-        return html`<div class="error-state">
-          <div>Account has been suspended</div>
+          <h3>Not Found</h3>
+          <div>${message}</div>
           <button @click=${() => window.location.reload()}>Try again</button>
         </div>`;
       }

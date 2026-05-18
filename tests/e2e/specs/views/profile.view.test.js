@@ -862,7 +862,6 @@ test.describe("Profile view", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
-    // Override getProfile to return 400 with invalid handle message
     await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
@@ -883,9 +882,102 @@ test.describe("Profile view", () => {
     await page.goto("/profile/did:plc:invaliduser");
 
     const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
+      timeout: 10000,
+    });
+    await expect(view.locator(".error-state")).toContainText("Invalid handle");
+  });
+
+  test("should display suspended account error for AccountTakedown", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      if (actor === "did:plc:suspendeduser") {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "AccountTakedown" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/profile/did:plc:suspendeduser");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
+      timeout: 10000,
+    });
     await expect(view.locator(".error-state")).toContainText(
-      "Error: Invalid handle",
-      { timeout: 10000 },
+      "Account has been suspended",
+    );
+  });
+
+  test("should display deactivated account error for AccountDeactivated", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      if (actor === "did:plc:deactivateduser") {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "AccountDeactivated" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/profile/did:plc:deactivateduser");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
+      timeout: 10000,
+    });
+    await expect(view.locator(".error-state")).toContainText(
+      "Account is deactivated",
+    );
+  });
+
+  test("should display generic not found error for unknown 400 errors", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await page.route("**/xrpc/app.bsky.actor.getProfile*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      if (actor === "did:plc:missinguser") {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "SomeUnknownError" }),
+        });
+      }
+      return route.fallback();
+    });
+
+    await login(page);
+    await page.goto("/profile/did:plc:missinguser");
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator(".error-state h3")).toContainText("Not Found", {
+      timeout: 10000,
+    });
+    await expect(view.locator(".error-state")).toContainText(
+      "Profile not found",
     );
   });
 
