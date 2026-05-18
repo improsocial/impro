@@ -162,6 +162,13 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod(
+      "refreshFeedFilters",
+      (plugin, feedURI = null) => {
+        this.emit("feedFiltersRefresh", { pluginId: plugin.pluginId, feedURI });
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
       "showToast",
       (plugin, { toastId, element, timeout }) => {
         showPluginToast({
@@ -527,16 +534,18 @@ export class PluginService extends EventEmitter {
   async getFilteredFeedItems(feedUri, feed) {
     let filteredFeedItems = {};
     for (const feedFilter of this.registries.feedFilters) {
+      const feedItems = feed.feed;
+      let results = null;
       try {
-        const results = await feedFilter.invoke(feedUri, feed.feed);
-        if (typeof results !== "object") continue;
-        filteredFeedItems = { ...filteredFeedItems, ...results };
+        results = await feedFilter.invoke(feedUri, feedItems);
       } catch (e) {
         console.error(
           `Plugin ${feedFilter.pluginId} feed filter raised an exception`,
           e,
         );
       }
+      if (!results || typeof results !== "object") continue;
+      filteredFeedItems = { ...filteredFeedItems, ...results };
     }
     return filteredFeedItems;
   }

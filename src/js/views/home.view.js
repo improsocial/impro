@@ -365,6 +365,28 @@ class HomeView extends View {
     chatNotificationService?.on("update", () => {
       renderPage();
     });
+
+    pluginService.on("feedFiltersRefresh", async ({ feedURI }) => {
+      let feedUrisToLoad = null;
+      if (feedURI) {
+        feedUrisToLoad = [feedURI];
+      } else {
+        // If no feedURI is provided, reload all feeds
+        const feedGenerators =
+          dataLayer.selectors.getPinnedFeedGenerators() ?? [];
+        feedUrisToLoad = feedGenerators.map(
+          (feedGenerator) => feedGenerator.uri,
+        );
+      }
+      await Promise.all(
+        feedUrisToLoad.map((uri) =>
+          dataLayer.requests.loadPluginFilteredFeedItems(uri, {
+            reload: true,
+          }),
+        ),
+      );
+      renderPage();
+    });
   }
 }
 

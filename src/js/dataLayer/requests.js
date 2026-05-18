@@ -391,6 +391,22 @@ export class Requests {
     }
   }
 
+  async loadPluginFilteredFeedItems(feedURI, { reload = false } = {}) {
+    const feed = this.dataStore.getFeed(feedURI);
+    if (!feed) {
+      return;
+    }
+    const pluginFilteredFeedItems =
+      await this.pluginService.getFilteredFeedItems(feedURI, feed);
+    const existingFilteredFeedItems = reload
+      ? {}
+      : (this.dataStore.getPluginFilteredFeedItems(feedURI) ?? {});
+    this.dataStore.setPluginFilteredFeedItems(feedURI, {
+      ...existingFilteredFeedItems,
+      ...pluginFilteredFeedItems,
+    });
+  }
+
   async _getReplyUrisForPostFromBacklinks(post) {
     const backlinks = await this.constellation.getLinks({
       subject: post.uri,

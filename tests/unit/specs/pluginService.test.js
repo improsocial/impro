@@ -789,4 +789,87 @@ t.describe("installUnregisteredPlugin", (it) => {
   });
 });
 
+t.describe("getFilteredFeedItems", (it) => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  function addFilter(service, pluginId, invoke) {
+    const entry = { pluginId, invoke };
+    service.registries.feedFilters.add(entry);
+    return entry;
+  }
+
+  it("returns an empty object when no filters are registered", async () => {
+    const { service } = makeService();
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+    assertEquals(result, {});
+  });
+
+  it("passes feed.feed (not the wrapper) to each filter", async () => {
+    const { service } = makeService();
+    const feedItems = [{ post: { uri: "p1" } }];
+    let captured = null;
+    addFilter(service, "alpha", async (_uri, items) => {
+      captured = items;
+      return {};
+    });
+
+    await service.getFilteredFeedItems(feedURI, { feed: feedItems });
+
+    assertEquals(captured, feedItems);
+  });
+
+  it("merges results from multiple filters", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => ({ p1: { hidden: true } }));
+    addFilter(service, "beta", async () => ({ p2: { hidden: true } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
+  });
+
+  it("lets later filters override earlier ones for the same key", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => ({ p1: { hidden: true } }));
+    addFilter(service, "beta", async () => ({ p1: { hidden: false } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, { p1: { hidden: false } });
+  });
+
+  it("continues past filters that throw", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => {
+      throw new Error("boom");
+    });
+    addFilter(service, "beta", async () => ({ p1: { hidden: true } }));
+
+    const originalError = console.error;
+    console.error = () => {};
+    let result;
+    try {
+      result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+    } finally {
+      console.error = originalError;
+    }
+
+    assertEquals(result, { p1: { hidden: true } });
+  });
+
+  it("skips filters that return null or non-object values", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => null);
+    addFilter(service, "beta", async () => "not-an-object");
+    addFilter(service, "gamma", async () => ({ p1: { hidden: true } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, { p1: { hidden: true } });
+  });
+});
+
 await t.run();

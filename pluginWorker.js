@@ -98,6 +98,10 @@ class App {
   on(event, listener) {
     addEventListener(event, listener);
   }
+
+  refreshFeedFilters(feedURI = null) {
+    return hostCall("refreshFeedFilters", feedURI);
+  }
 }
 
 export class Notice {
