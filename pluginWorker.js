@@ -132,6 +132,25 @@ export class Notice {
   }
 }
 
+export class StyleSnippet {
+  constructor(cssText) {
+    this._snippetId = uuid.create();
+    this._removed = false;
+    queueMicrotask(() => {
+      if (this._removed) return;
+      hostCall("applyStyleSnippet", {
+        snippetId: this._snippetId,
+        cssText,
+      });
+    });
+  }
+  remove() {
+    if (this._removed) return;
+    this._removed = true;
+    hostCall("removeStyleSnippet", { snippetId: this._snippetId });
+  }
+}
+
 let registered = false;
 
 export class Plugin {

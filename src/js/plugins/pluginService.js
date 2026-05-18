@@ -169,6 +169,24 @@ export class PluginService extends EventEmitter {
     );
 
     this.pluginBridge.addHostMethod(
+      "applyStyleSnippet",
+      (plugin, { snippetId, cssText }) => {
+        this.pluginStylesLoader.mountSnippet(
+          plugin.pluginId,
+          snippetId,
+          cssText,
+        );
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "removeStyleSnippet",
+      (plugin, { snippetId }) => {
+        this.pluginStylesLoader.unmountSnippet(plugin.pluginId, snippetId);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
       "showToast",
       (plugin, { toastId, element, timeout }) => {
         showPluginToast({

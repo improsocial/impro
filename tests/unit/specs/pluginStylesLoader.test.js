@@ -272,4 +272,115 @@ t.describe("PluginStylesLoader.unmount", (it, { beforeEach, afterEach }) => {
   });
 });
 
+t.describe(
+  "PluginStylesLoader.mountSnippet",
+  (it, { beforeEach, afterEach }) => {
+    let env;
+    beforeEach(() => {
+      env = stubCssEnv();
+    });
+    afterEach(() => env.restore());
+
+    it("adopts a sheet alongside the manifest sheet", () => {
+      const loader = new PluginStylesLoader();
+      loader.mount("plugin-a", ".a { color: red; }");
+      loader.mountSnippet("plugin-a", 1, ".snip { color: blue; }");
+      assertEquals(env.adoptedStyleSheets.length, 2);
+    });
+
+    it("adopts independent sheets for multiple snippet ids", () => {
+      const loader = new PluginStylesLoader();
+      loader.mountSnippet("plugin-a", 1, ".one { color: red; }");
+      loader.mountSnippet("plugin-a", 2, ".two { color: blue; }");
+      assertEquals(env.adoptedStyleSheets.length, 2);
+      assert(env.adoptedStyleSheets[0] !== env.adoptedStyleSheets[1]);
+    });
+
+    it("replaces the prior sheet when the same snippet id mounts twice", () => {
+      const loader = new PluginStylesLoader();
+      loader.mountSnippet("plugin-a", 1, ".a { color: red; }");
+      const firstSheet = env.adoptedStyleSheets[0];
+      loader.mountSnippet("plugin-a", 1, ".a { color: green; }");
+      assertEquals(env.adoptedStyleSheets.length, 1);
+      assert(env.adoptedStyleSheets[0] !== firstSheet);
+    });
+
+    it("throws and does not adopt when CSS is invalid", () => {
+      const loader = new PluginStylesLoader();
+      expectThrow(
+        () => loader.mountSnippet("plugin-a", 1, '@import url("x.css");'),
+        "@import not allowed",
+      );
+      assertEquals(env.adoptedStyleSheets.length, 0);
+    });
+  },
+);
+
+t.describe(
+  "PluginStylesLoader.unmountSnippet",
+  (it, { beforeEach, afterEach }) => {
+    let env;
+    beforeEach(() => {
+      env = stubCssEnv();
+    });
+    afterEach(() => env.restore());
+
+    it("removes only the named snippet", () => {
+      const loader = new PluginStylesLoader();
+      loader.mountSnippet("plugin-a", 1, ".one { color: red; }");
+      loader.mountSnippet("plugin-a", 2, ".two { color: blue; }");
+      const sheetTwo = env.adoptedStyleSheets[1];
+      loader.unmountSnippet("plugin-a", 1);
+      assertEquals(env.adoptedStyleSheets.length, 1);
+      assert(env.adoptedStyleSheets[0] === sheetTwo);
+    });
+
+    it("leaves the manifest sheet untouched", () => {
+      const loader = new PluginStylesLoader();
+      loader.mount("plugin-a", ".a { color: red; }");
+      const manifestSheet = env.adoptedStyleSheets[0];
+      loader.mountSnippet("plugin-a", 1, ".snip { color: blue; }");
+      loader.unmountSnippet("plugin-a", 1);
+      assertEquals(env.adoptedStyleSheets.length, 1);
+      assert(env.adoptedStyleSheets[0] === manifestSheet);
+    });
+
+    it("is a no-op for unknown plugin or snippet ids", () => {
+      const loader = new PluginStylesLoader();
+      loader.mountSnippet("plugin-a", 1, ".a { color: red; }");
+      loader.unmountSnippet("plugin-missing", 1);
+      loader.unmountSnippet("plugin-a", 999);
+      assertEquals(env.adoptedStyleSheets.length, 1);
+    });
+  },
+);
+
+t.describe("PluginStylesLoader.unmount with snippets", (it, hooks) => {
+  let env;
+  hooks.beforeEach(() => {
+    env = stubCssEnv();
+  });
+  hooks.afterEach(() => env.restore());
+
+  it("removes the manifest sheet and all snippets for that plugin", () => {
+    const loader = new PluginStylesLoader();
+    loader.mount("plugin-a", ".a { color: red; }");
+    loader.mountSnippet("plugin-a", 1, ".one { color: blue; }");
+    loader.mountSnippet("plugin-a", 2, ".two { color: green; }");
+    loader.mount("plugin-b", ".b { color: yellow; }");
+    loader.mountSnippet("plugin-b", 1, ".b-snip { color: pink; }");
+    loader.unmount("plugin-a");
+    assertEquals(env.adoptedStyleSheets.length, 2);
+  });
+
+  it("allows remounting snippets for a plugin after unmount", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountSnippet("plugin-a", 1, ".a { color: red; }");
+    loader.unmount("plugin-a");
+    assertEquals(env.adoptedStyleSheets.length, 0);
+    loader.mountSnippet("plugin-a", 1, ".a { color: green; }");
+    assertEquals(env.adoptedStyleSheets.length, 1);
+  });
+});
+
 await t.run();
