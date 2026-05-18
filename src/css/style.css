@@ -187,6 +187,7 @@ html {
   --chat-detail-header-height: 56px;
   --footer-height: 55px;
   --message-input-min-height: 70px;
+  --sidebar-max-width: 300px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
 
   /* overlays */
@@ -323,9 +324,9 @@ main {
   }
 
   .view-column-left {
-    flex: 1 1 300px;
+    flex: 1 1 var(--sidebar-max-width);
     min-width: 0;
-    max-width: 300px;
+    max-width: var(--sidebar-max-width);
     display: flex;
     flex-direction: row;
     justify-content: flex-end;
@@ -342,9 +343,9 @@ main {
   }
 
   .view-column-right {
-    flex: 1 1 300px;
+    flex: 1 1 var(--sidebar-max-width);
     min-width: 0;
-    max-width: 300px;
+    max-width: var(--sidebar-max-width);
   }
 }
 
@@ -943,7 +944,7 @@ header {
   position: fixed;
   top: 0;
   left: 0;
-  width: 300px;
+  width: var(--sidebar-max-width);
   max-width: 80%;
   height: 100%;
   max-height: 100%;
@@ -964,13 +965,17 @@ header {
     position: sticky;
     top: 0;
     height: 100vh;
-    max-width: 300px;
+    max-width: var(--sidebar-max-width);
     transform: none;
     border-right: none;
     overflow-y: auto;
     z-index: 1;
     transition: none;
     width: fit-content;
+  }
+
+  .sidebar-content {
+    padding-right: 0 !important;
   }
 
   .sidebar .sidebar-profile {
@@ -1236,7 +1241,6 @@ button.sidebar-plugin-nav-item {
   min-height: 100%;
   height: 100%;
   padding: 0 20px 0 20px;
-  padding-top: 10px;
 }
 
 .sidebar-header {
@@ -1307,7 +1311,7 @@ button.sidebar-plugin-nav-item {
 .logged-out-sidebar .login-button {
   width: fit-content;
   margin-left: 16px;
-  margin-top: 6px;
+  margin-top: 8px;
   padding: 10px 20px;
   white-space: nowrap;
 }
@@ -3517,9 +3521,9 @@ chat-input {
   .message-input-wrapper::before,
   .message-input-wrapper::after {
     content: "";
-    flex: 1 1 300px;
+    flex: 1 1 var(--sidebar-max-width);
     min-width: 0;
-    max-width: 300px;
+    max-width: var(--sidebar-max-width);
   }
   chat-input {
     flex: 1;
@@ -7629,4 +7633,28 @@ image-cropper {
 
 .modal-dialog.confirm-modal {
   max-width: 320px;
+}
+
+.sidebar-action-items {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+@media (min-width: 1200px) {
+  .sidebar-action-items {
+    /* align-items: center; */
+  }
+}
+
+@media (min-width: 800px) and (max-width: 1199.98px) {
+  .logged-out-sidebar .sidebar-footer,
+  .logged-out-sidebar .sidebar-action-items,
+  .logged-out-sidebar .sidebar-title {
+    display: none;
+  }
+
+  .footer-nav.logged-out-footer {
+    display: flex !important;
+  }
 }
