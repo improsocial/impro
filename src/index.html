@@ -345,6 +345,12 @@
           }
           const parsedUrl = new URL(anchor.href);
           const currentHostname = window.location.hostname;
+          // Handle direct .bsky.social links
+          if (parsedUrl.hostname.endsWith(".bsky.social")) {
+            const handle = parsedUrl.hostname;
+            e.preventDefault();
+            return router.go(`/profile/${handle}`);
+          }
           if (
             currentHostname === parsedUrl.hostname ||
             IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)
