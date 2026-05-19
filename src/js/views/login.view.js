@@ -6,6 +6,7 @@ import {
   AuthError,
 } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { withTimeout, TimeoutError } from "/js/utils.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
   getAppViewConfig,
@@ -81,14 +82,18 @@ class LoginView extends View {
           fullHandle = fullHandle.slice(1);
         }
         const returnTo = getCurrentReturnTo();
-        if (isBasicAuth) {
-          await auth.provider.login(fullHandle, password);
-        } else {
-          await auth.provider.login(fullHandle, { returnTo });
-        }
+        await withTimeout(async () => {
+          if (isBasicAuth) {
+            await auth.provider.login(fullHandle, password);
+          } else {
+            await auth.provider.login(fullHandle, { returnTo });
+          }
+        }, 10000);
         window.location.href = returnTo ?? "/";
       } catch (error) {
-        if (error instanceof InvalidUsernameError) {
+        if (error instanceof TimeoutError) {
+          state.errorMessage = "Request timed out";
+        } else if (error instanceof InvalidUsernameError) {
           state.errorMessage = "Invalid username";
         } else if (error instanceof AuthError) {
           state.errorMessage = "Authorization failed";

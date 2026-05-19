@@ -17,6 +17,8 @@ import {
   compareVersions,
   getPostLangs,
   getBrowserLanguageCodes,
+  withTimeout,
+  TimeoutError,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -736,6 +738,80 @@ t.describe("getBrowserLanguageCodes", (it, { beforeEach, afterEach }) => {
   it("returns an empty array when no locale info is available", () => {
     setLanguages([], "");
     assertEquals(getBrowserLanguageCodes(), []);
+  });
+});
+
+t.describe("withTimeout", (it) => {
+  it("resolves with the value when fn completes before the timeout", async () => {
+    const result = await withTimeout(async () => "ok", 50);
+    assertEquals(result, "ok");
+  });
+
+  it("rejects with TimeoutError when fn exceeds the timeout", async () => {
+    let caught;
+    try {
+      await withTimeout(
+        () => new Promise((resolve) => setTimeout(resolve, 50)),
+        5,
+      );
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught instanceof TimeoutError, "expected a TimeoutError");
+    assertEquals(caught.name, "TimeoutError");
+    assertEquals(caught.message, "Timed out");
+  });
+
+  it("passes an AbortSignal to fn", async () => {
+    let receivedSignal;
+    await withTimeout(async (signal) => {
+      receivedSignal = signal;
+    }, 50);
+    assert(
+      receivedSignal instanceof AbortSignal,
+      "expected fn to receive an AbortSignal",
+    );
+    assertEquals(receivedSignal.aborted, false);
+  });
+
+  it("aborts the signal when the timeout fires", async () => {
+    let receivedSignal;
+    try {
+      await withTimeout(
+        (signal) =>
+          new Promise((resolve) => {
+            receivedSignal = signal;
+            setTimeout(resolve, 50);
+          }),
+        5,
+      );
+    } catch {
+      // expected
+    }
+    assertEquals(receivedSignal.aborted, true);
+  });
+
+  it("does not abort the signal when fn resolves first", async () => {
+    let receivedSignal;
+    await withTimeout(async (signal) => {
+      receivedSignal = signal;
+    }, 50);
+    // Wait past the timeout to confirm the timer was cleared.
+    await new Promise((resolve) => setTimeout(resolve, 75));
+    assertEquals(receivedSignal.aborted, false);
+  });
+
+  it("propagates errors thrown by fn", async () => {
+    const boom = new Error("boom");
+    let caught;
+    try {
+      await withTimeout(async () => {
+        throw boom;
+      }, 50);
+    } catch (error) {
+      caught = error;
+    }
+    assertEquals(caught, boom);
   });
 });
 
