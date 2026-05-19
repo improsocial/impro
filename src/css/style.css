@@ -2168,6 +2168,7 @@ animated-button {
 }
 
 .post-action-count {
+  font-size: 14px;
   vertical-align: top;
   font-size: 13px;
   left: -2px;
