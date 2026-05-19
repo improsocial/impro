@@ -148,10 +148,10 @@ const t = new TestSuite("pluginBridge");
 
 t.describe("PluginBridge:wrapWorkerSource", (it) => {
   it("prepends a prelude that removes BroadcastChannel/SharedWorker", () => {
-    const wrapped = wrapWorkerSource("console.log('hi')");
+    const wrapped = wrapWorkerSource("console.info('hi')");
     assert(wrapped.includes("delete self.BroadcastChannel"));
     assert(wrapped.includes("delete self.SharedWorker"));
-    assert(wrapped.includes("console.log('hi')"));
+    assert(wrapped.includes("console.info('hi')"));
   });
 });
 
