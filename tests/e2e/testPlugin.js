@@ -98,9 +98,6 @@ class TestPlugin extends Plugin {
     const saved = await this.loadData();
     this.settings = { ...DEFAULTS, ...(saved ?? {}) };
     this.addSettingTab(new TestSettingTab());
-    this.onSettingsChange((data) => {
-      this.settings = { ...DEFAULTS, ...(data ?? {}) };
-    });
   }
 }
 
