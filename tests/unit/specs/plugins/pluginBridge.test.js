@@ -144,9 +144,9 @@ async function expectError(promise) {
   throw new Error("expected promise to reject");
 }
 
-const suite = new TestSuite("pluginBridge");
+const t = new TestSuite("pluginBridge");
 
-suite.describe("PluginBridge:wrapWorkerSource", (it) => {
+t.describe("PluginBridge:wrapWorkerSource", (it) => {
   it("prepends a prelude that removes BroadcastChannel/SharedWorker", () => {
     const wrapped = wrapWorkerSource("console.log('hi')");
     assert(wrapped.includes("delete self.BroadcastChannel"));
@@ -155,7 +155,7 @@ suite.describe("PluginBridge:wrapWorkerSource", (it) => {
   });
 });
 
-suite.describe("PluginBridge:isLoaded / getInstance", (it) => {
+t.describe("PluginBridge:isLoaded / getInstance", (it) => {
   it("returns false/null when no plugin is loaded", () => {
     const { bridge } = makeBridge();
     assertEquals(bridge.isLoaded("missing"), false);
@@ -171,7 +171,7 @@ suite.describe("PluginBridge:isLoaded / getInstance", (it) => {
   });
 });
 
-suite.describe("PluginBridge:registration targets", (it) => {
+t.describe("PluginBridge:registration targets", (it) => {
   it("dispatches to a registered target handler with instance and message", () => {
     const { bridge } = makeBridge();
     const calls = [];
@@ -200,7 +200,7 @@ suite.describe("PluginBridge:registration targets", (it) => {
   });
 });
 
-suite.describe("PluginBridge:host calls", (it) => {
+t.describe("PluginBridge:host calls", (it) => {
   it("invokes the handler and posts a hostResult with the value", async () => {
     const { bridge } = makeBridge();
     bridge.addHostMethod("ping", (instance, ...args) => {
@@ -281,7 +281,7 @@ suite.describe("PluginBridge:host calls", (it) => {
   });
 });
 
-suite.describe("PluginBridge:handleNodeEvent", (it) => {
+t.describe("PluginBridge:handleNodeEvent", (it) => {
   it("forwards the event to instance.call with handlerId and virtualEvent", () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("p1");
@@ -308,7 +308,7 @@ suite.describe("PluginBridge:handleNodeEvent", (it) => {
   });
 });
 
-suite.describe("PluginBridge:unloadPlugin", (it) => {
+t.describe("PluginBridge:unloadPlugin", (it) => {
   it("unloads the instance, removes it, and unmounts styles", () => {
     const { bridge, stylesLoader } = makeBridge();
     const instance = makeFakeInstance("demo");
@@ -326,7 +326,7 @@ suite.describe("PluginBridge:unloadPlugin", (it) => {
   });
 });
 
-suite.describe("PluginBridge:loadPlugin error paths", (it) => {
+t.describe("PluginBridge:loadPlugin error paths", (it) => {
   it("throws a manifest error when getManifest rejects", async () => {
     const provider = makeProvider({ manifest: new Error("bad json") });
     const { bridge } = makeBridge({ provider });
@@ -399,7 +399,7 @@ suite.describe("PluginBridge:loadPlugin error paths", (it) => {
   });
 });
 
-suite.describe("PluginBridge:loadPlugin success path", (it) => {
+t.describe("PluginBridge:loadPlugin success path", (it) => {
   it("mounts styles, stores the instance, and returns it", async () => {
     const provider = makeProvider({
       source: "// js",
@@ -520,7 +520,7 @@ suite.describe("PluginBridge:loadPlugin success path", (it) => {
   });
 });
 
-suite.describe("PluginBridge:loadPlugins", (it) => {
+t.describe("PluginBridge:loadPlugins", (it) => {
   it("aggregates loaded and errored plugins", async () => {
     const { bridge } = makeBridge();
     const fakeInstance = makeFakeInstance("good");
@@ -541,7 +541,7 @@ suite.describe("PluginBridge:loadPlugins", (it) => {
   });
 });
 
-suite.describe("PluginBridge:reloadPlugin", (it) => {
+t.describe("PluginBridge:reloadPlugin", (it) => {
   it("unloads the existing instance before calling loadPlugin", async () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("demo");
@@ -558,7 +558,7 @@ suite.describe("PluginBridge:reloadPlugin", (it) => {
   });
 });
 
-suite.describe("PluginInstance:waitForReady", (it) => {
+t.describe("PluginInstance:waitForReady", (it) => {
   it("resolves when a ready message arrives without an error", async () => {
     const { instance, worker } = makeRealInstance();
     const promise = instance.waitForReady(1000);
@@ -593,7 +593,7 @@ suite.describe("PluginInstance:waitForReady", (it) => {
   });
 });
 
-suite.describe("PluginInstance:worker message dispatch", (it) => {
+t.describe("PluginInstance:worker message dispatch", (it) => {
   it("forwards register messages to onRegister and stores returned disposers", () => {
     const disposed = [];
     const dispose = () => disposed.push("yes");
@@ -656,7 +656,7 @@ suite.describe("PluginInstance:worker message dispatch", (it) => {
   });
 });
 
-suite.describe("PluginInstance:call()", (it) => {
+t.describe("PluginInstance:call()", (it) => {
   it("posts a call message and resolves with the result value", async () => {
     const { instance, worker } = makeRealInstance();
     const promise = instance.call(7, "arg1", "arg2");
@@ -714,19 +714,19 @@ suite.describe("PluginInstance:call()", (it) => {
   });
 });
 
-suite.describe("PluginInstance:sendEvent", (it) => {
+t.describe("PluginInstance:sendEvent", (it) => {
   it("posts an event message verbatim", () => {
     const { instance, worker } = makeRealInstance();
-    instance.sendEvent("settingsChanged", { theme: "dark" });
+    instance.sendEvent("modalDismissed", { modalId: "m1" });
     assertEquals(worker.posted[0], {
       type: "event",
-      event: "settingsChanged",
-      data: { theme: "dark" },
+      event: "modalDismissed",
+      data: { modalId: "m1" },
     });
   });
 });
 
-suite.describe("PluginInstance:unload", (it) => {
+t.describe("PluginInstance:unload", (it) => {
   it("runs each disposer once and terminates the worker", () => {
     const { instance, worker } = makeRealInstance();
     const calls = [];
@@ -738,7 +738,7 @@ suite.describe("PluginInstance:unload", (it) => {
   });
 });
 
-suite.describe("internals:Logger", (it) => {
+t.describe("internals:Logger", (it) => {
   it("prefixes each log line with the configured prefix", () => {
     const logger = new Logger("[test]", "info");
     const calls = captureConsole("info", () => logger.info("hello", 1));
@@ -785,7 +785,7 @@ suite.describe("internals:Logger", (it) => {
   });
 });
 
-suite.describe("internals:wrapWorkerSource ordering", (it) => {
+t.describe("internals:wrapWorkerSource ordering", (it) => {
   it("places the prelude before the user source so it runs first", () => {
     const wrapped = wrapWorkerSource("user();");
     const preludeIndex = wrapped.indexOf("delete self.BroadcastChannel");
@@ -795,7 +795,7 @@ suite.describe("internals:wrapWorkerSource ordering", (it) => {
   });
 });
 
-suite.describe("internals:SandboxedWorker", (it) => {
+t.describe("internals:SandboxedWorker", (it) => {
   it("appends a sandboxed iframe to document.body and posts init on load", () => {
     const before = document.body.querySelectorAll("iframe").length;
     const worker = new SandboxedWorker("// source");
@@ -893,4 +893,4 @@ suite.describe("internals:SandboxedWorker", (it) => {
   });
 });
 
-await suite.run();
+await t.run();

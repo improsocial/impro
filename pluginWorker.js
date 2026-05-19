@@ -21,8 +21,6 @@ function hostCall(method, ...args) {
   });
 }
 
-const settingsChangeListeners = new Set();
-
 const eventListeners = new Map();
 
 function addEventListener(event, listener) {
@@ -193,10 +191,6 @@ export class Plugin {
       displayHandlerId,
     });
     this._settingTab = tab;
-  }
-
-  onSettingsChange(callback) {
-    settingsChangeListeners.add(callback);
   }
 
   addFeedFilter(callback = () => {}) {
@@ -550,16 +544,6 @@ self.addEventListener("message", async (event) => {
         if (modal) {
           openModals.delete(message.data.modalId);
           modal.onClose();
-        }
-        return;
-      }
-      case "settingsChanged": {
-        for (const listener of settingsChangeListeners) {
-          try {
-            listener(message.data.data);
-          } catch (error) {
-            console.error("settingsChanged listener threw:", error);
-          }
         }
         return;
       }

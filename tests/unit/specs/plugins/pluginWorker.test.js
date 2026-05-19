@@ -47,9 +47,9 @@ function flushMicrotasks() {
   return Promise.resolve().then(() => Promise.resolve());
 }
 
-const suite = new TestSuite("pluginWorker");
+const t = new TestSuite("pluginWorker");
 
-suite.describe("SimpleUUID", (it) => {
+t.describe("SimpleUUID", (it) => {
   it("returns sequential ids starting from 0", () => {
     const uuid = new SimpleUUID();
     assertEquals(uuid.create(), 0);
@@ -58,7 +58,7 @@ suite.describe("SimpleUUID", (it) => {
   });
 });
 
-suite.describe("MenuItem", (it) => {
+t.describe("MenuItem", (it) => {
   it("setters return the item for chaining and apply values", () => {
     const item = new MenuItem();
     const result = item
@@ -80,7 +80,7 @@ suite.describe("MenuItem", (it) => {
   });
 });
 
-suite.describe("Menu", (it) => {
+t.describe("Menu", (it) => {
   it("addItem invokes the builder and serializes items with handlerIds", () => {
     const menu = new Menu();
     menu.addItem((item) => item.setTitle("One").setIcon("a"));
@@ -102,7 +102,7 @@ suite.describe("Menu", (it) => {
   });
 });
 
-suite.describe("VirtualEl (via Setting & friends)", (it) => {
+t.describe("VirtualEl (via Setting & friends)", (it) => {
   it("setText replaces content and createEl appends children with attrs", () => {
     const container = new Setting(
       new (class {
@@ -170,7 +170,7 @@ function makeVirtualEl() {
   return new Modal().contentEl;
 }
 
-suite.describe("Plugin sidebar/feedFilter registration", (it) => {
+t.describe("Plugin sidebar/feedFilter registration", (it) => {
   it("addSidebarItem posts a register message with title and icon", () => {
     clearMessages();
     const plugin = new Plugin();
@@ -206,7 +206,7 @@ suite.describe("Plugin sidebar/feedFilter registration", (it) => {
   });
 });
 
-suite.describe("hostCall round-trip", (it) => {
+t.describe("hostCall round-trip", (it) => {
   it("loadData posts a hostCall and resolves with the host result", async () => {
     clearMessages();
     const plugin = new Plugin();
@@ -254,7 +254,7 @@ suite.describe("hostCall round-trip", (it) => {
   });
 });
 
-suite.describe("Notice", (it) => {
+t.describe("Notice", (it) => {
   it("posts a showToast hostCall on next microtask", async () => {
     clearMessages();
     new Notice("Saved!", 1000);
@@ -295,7 +295,7 @@ suite.describe("Notice", (it) => {
   });
 });
 
-suite.describe("StyleSnippet", (it) => {
+t.describe("StyleSnippet", (it) => {
   it("posts applyStyleSnippet on next microtask", async () => {
     clearMessages();
     new StyleSnippet(".x { color: red; }");
@@ -331,7 +331,7 @@ suite.describe("StyleSnippet", (it) => {
   });
 });
 
-suite.describe("Modal", (it) => {
+t.describe("Modal", (it) => {
   it("open() posts openModal hostCall and invokes onOpen", () => {
     clearMessages();
     const modal = new Modal();
@@ -387,7 +387,7 @@ suite.describe("Modal", (it) => {
   });
 });
 
-suite.describe("message dispatch — call handlers", (it) => {
+t.describe("message dispatch — call handlers", (it) => {
   it("invokes a registered handler and posts the result", async () => {
     clearMessages();
     const plugin = new Plugin();
@@ -442,42 +442,7 @@ suite.describe("message dispatch — call handlers", (it) => {
   });
 });
 
-suite.describe("settingsChanged event", (it) => {
-  it("invokes registered onSettingsChange callbacks with new data", () => {
-    const plugin = new Plugin();
-    const received = [];
-    plugin.onSettingsChange((data) => received.push(data));
-    dispatch({
-      type: "event",
-      event: "settingsChanged",
-      data: { data: { theme: "dark" } },
-    });
-    assertEquals(received, [{ theme: "dark" }]);
-  });
-
-  it("a throwing listener does not block subsequent listeners", () => {
-    const plugin = new Plugin();
-    const received = [];
-    const originalConsoleError = console.error;
-    console.error = () => {};
-    try {
-      plugin.onSettingsChange(() => {
-        throw new Error("boom");
-      });
-      plugin.onSettingsChange((data) => received.push(data));
-      dispatch({
-        type: "event",
-        event: "settingsChanged",
-        data: { data: { ok: true } },
-      });
-    } finally {
-      console.error = originalConsoleError;
-    }
-    assert(received.some((value) => value.ok === true));
-  });
-});
-
-suite.describe("app.on event listeners", (it) => {
+t.describe("app.on event listeners", (it) => {
   it("registers an eventListener target and returns serialized menu items", async () => {
     clearMessages();
     const plugin = new Plugin();
@@ -506,7 +471,7 @@ suite.describe("app.on event listeners", (it) => {
   });
 });
 
-suite.describe("PluginSettingTab.refresh", (it) => {
+t.describe("PluginSettingTab.refresh", (it) => {
   it("posts a refreshSettingTab hostCall", () => {
     clearMessages();
     const tab = new PluginSettingTab();
@@ -517,7 +482,7 @@ suite.describe("PluginSettingTab.refresh", (it) => {
   });
 });
 
-suite.describe("Setting components", (it) => {
+t.describe("Setting components", (it) => {
   it("addText creates a text input with placeholder and value", () => {
     const container = makeVirtualEl();
     const setting = new Setting(container);
@@ -573,4 +538,4 @@ suite.describe("Setting components", (it) => {
   });
 });
 
-await suite.run();
+await t.run();
