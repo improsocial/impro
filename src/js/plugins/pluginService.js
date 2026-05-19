@@ -55,6 +55,7 @@ export class PluginService extends EventEmitter {
       settingTabs: new Map(),
     };
     this._availableUpdates = null;
+    this._registryListings = null;
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -488,17 +489,22 @@ export class PluginService extends EventEmitter {
     return { updated, failed };
   }
 
-  async listRegistryPlugins() {
+  async loadRegistryListings() {
     const remoteListings = await this.remoteRegistry.getListings();
     const localListings = this.localRegistry
       ? await this.localRegistry.getListings()
       : [];
-    const installedIds = this.prefManager
-      .getInstalledPlugins()
-      .map((entry) => entry.id);
-    return [...remoteListings, ...localListings].map((listing) => ({
+    this._registryListings = [...remoteListings, ...localListings];
+  }
+
+  getRegistryListings() {
+    if (!this._registryListings) return null;
+    const installedIds = new Set(
+      this.prefManager.getInstalledPlugins().map((entry) => entry.id),
+    );
+    return this._registryListings.map((listing) => ({
       ...listing,
-      installed: installedIds.includes(listing.id),
+      installed: installedIds.has(listing.id),
     }));
   }
 

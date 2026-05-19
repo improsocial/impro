@@ -20,16 +20,15 @@ class SettingsCommunityPluginsView extends View {
     await auth.requireAuth();
 
     const state = {
-      entries: null,
       error: null,
       pending: new Set(),
     };
 
-    async function loadEntries() {
+    async function loadListings() {
       state.error = null;
       renderPage();
       try {
-        state.entries = await pluginService.listRegistryPlugins();
+        await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
         state.error = error.message ?? String(error);
@@ -37,11 +36,11 @@ class SettingsCommunityPluginsView extends View {
       renderPage();
     }
 
-    async function toggleInstall(entry) {
-      const wasInstalled = entry.installed;
+    async function toggleInstall(listing) {
+      const wasInstalled = listing.installed;
       if (wasInstalled) {
         const confirmed = await confirm(
-          `"${entry.name}" will be disabled and uninstalled.`,
+          `"${listing.name}" will be disabled and uninstalled.`,
           {
             title: "Uninstall plugin?",
             confirmButtonStyle: "danger",
@@ -50,36 +49,36 @@ class SettingsCommunityPluginsView extends View {
         );
         if (!confirmed) return;
       }
-      state.pending.add(entry.id);
+      state.pending.add(listing.id);
       renderPage();
       try {
         if (wasInstalled) {
-          await pluginService.uninstallPlugin(entry.id);
+          await pluginService.uninstallPlugin(listing.id);
         } else {
-          await pluginService.installPlugin(entry.id);
+          await pluginService.installPlugin(listing.id);
         }
-        state.entries = await pluginService.listRegistryPlugins();
         showToast(
           wasInstalled
-            ? `Uninstalled ${entry.name}`
-            : `Installed ${entry.name}`,
+            ? `Uninstalled ${listing.name}`
+            : `Installed ${listing.name}`,
           { style: wasInstalled ? "default" : "success" },
         );
       } catch (e) {
         console.error(e);
         showToast(
           wasInstalled
-            ? `Failed to uninstall ${entry.name}`
-            : `Failed to install ${entry.name}`,
+            ? `Failed to uninstall ${listing.name}`
+            : `Failed to install ${listing.name}`,
           { style: "error" },
         );
       }
-      state.pending.delete(entry.id);
+      state.pending.delete(listing.id);
       renderPage();
     }
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();
+      const listings = pluginService.getRegistryListings();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
       const numChatNotifications =
@@ -103,11 +102,19 @@ class SettingsCommunityPluginsView extends View {
                 ${state.error
                   ? html`<div class="error-state">
                       <div>Failed to load plugins</div>
-                      <button @click=${() => loadEntries()}>Try again</button>
+                      <button @click=${() => loadListings()}>Try again</button>
                     </div>`
-                  : !state.entries
-                    ? "" // loading is usually quick, so don't show a loading state
-                    : state.entries.length === 0
+                  : !listings
+                    ? html`<div
+                        class="plugins-loading-state"
+                        data-testid="plugins-loading-state"
+                      >
+                        <div
+                          class="loading-spinner"
+                          data-testid="loading-spinner"
+                        ></div>
+                      </div>`
+                    : listings.length === 0
                       ? html`<div class="plugins-empty-state">
                           <div class="plugins-empty-state-title">
                             No community plugins to show
@@ -117,48 +124,48 @@ class SettingsCommunityPluginsView extends View {
                           </p>
                         </div>`
                       : html`<ul class="plugin-list">
-                          ${state.entries.map((entry) => {
-                            const pending = state.pending.has(entry.id);
-                            const buttonClass = entry.installed
+                          ${listings.map((listing) => {
+                            const pending = state.pending.has(listing.id);
+                            const buttonClass = listing.installed
                               ? "plugin-install-button rounded-button"
                               : "plugin-install-button rounded-button rounded-button-primary";
                             return html`
                               <li class="plugin-list-item">
                                 <div class="plugin-list-item-info">
                                   <div class="plugin-list-item-name">
-                                    ${entry.name}
-                                    ${entry.id.endsWith("__LOCAL")
+                                    ${listing.name}
+                                    ${listing.id.endsWith("__LOCAL")
                                       ? html`<span class="plugin-local-badge"
                                           >local</span
                                         >`
                                       : ""}
                                   </div>
-                                  ${entry.description
+                                  ${listing.description
                                     ? html`<div
                                         class="plugin-list-item-description"
                                       >
-                                        ${entry.description}
+                                        ${listing.description}
                                       </div>`
                                     : ""}
                                   <div class="plugin-list-item-version">
-                                    By ${entry.author}
+                                    By ${listing.author}
                                   </div>
                                 </div>
                                 <div class="plugin-list-item-controls">
                                   <button
                                     class=${buttonClass}
                                     ?disabled=${pending}
-                                    @click=${() => toggleInstall(entry)}
+                                    @click=${() => toggleInstall(listing)}
                                   >
                                     ${pending
-                                      ? html`${entry.installed
+                                      ? html`${listing.installed
                                             ? "Uninstalling"
                                             : "Installing"}
                                           <div
                                             class="loading-spinner"
                                             data-testid="loading-spinner"
                                           ></div>`
-                                      : entry.installed
+                                      : listing.installed
                                         ? "Uninstall"
                                         : "Install"}
                                   </button>
@@ -177,12 +184,12 @@ class SettingsCommunityPluginsView extends View {
     root.addEventListener("page-enter", async () => {
       renderPage();
       dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
-      await loadEntries();
+      await loadListings();
     });
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-      loadEntries();
+      loadListings();
     });
 
     notificationService?.on("update", () => renderPage());

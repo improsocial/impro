@@ -583,7 +583,14 @@ t.describe("getPluginsInfo", (it) => {
   });
 });
 
-t.describe("listRegistryPlugins", (it) => {
+t.describe("registry listings loader/selector", (it) => {
+  it("returns null from the selector before the loader runs", () => {
+    const { service } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+    });
+    assertEquals(service.getRegistryListings(), null);
+  });
+
   it("merges remote + local listings and marks installed entries", async () => {
     const { service, state } = makeService({
       remoteListings: [
@@ -595,7 +602,8 @@ t.describe("listRegistryPlugins", (it) => {
     state.installedPlugins = [
       { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
     ];
-    const listings = await service.listRegistryPlugins();
+    await service.loadRegistryListings();
+    const listings = service.getRegistryListings();
     assertEquals(listings.length, 3);
     const byId = Object.fromEntries(
       listings.map((listing) => [listing.id, listing]),
@@ -605,11 +613,24 @@ t.describe("listRegistryPlugins", (it) => {
     assertEquals(byId.gamma__LOCAL.installed, false);
   });
 
+  it("reflects updated install state on subsequent selector reads", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+    });
+    await service.loadRegistryListings();
+    assertEquals(service.getRegistryListings()[0].installed, false);
+    state.installedPlugins = [
+      { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+    ];
+    assertEquals(service.getRegistryListings()[0].installed, true);
+  });
+
   it("returns only remote listings when localRegistry is absent", async () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
-    const listings = await service.listRegistryPlugins();
+    await service.loadRegistryListings();
+    const listings = service.getRegistryListings();
     assertEquals(listings.length, 1);
     assertEquals(listings[0].id, "alpha");
   });

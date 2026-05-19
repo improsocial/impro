@@ -7352,6 +7352,12 @@ image-cropper {
   font-size: 14px;
 }
 
+.plugins-loading-state {
+  display: flex;
+  justify-content: center;
+  padding: 32px 16px;
+}
+
 .plugins-empty-state {
   margin: 16px;
   padding: 24px 20px;
