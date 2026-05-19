@@ -5736,6 +5736,10 @@ img[data-lightbox] {
 }
 
 .settings-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
   padding: 10px;
   border-radius: var(--pill-button-border-radius);
@@ -5745,7 +5749,6 @@ img[data-lightbox] {
   font-size: 15px;
   font-weight: 600;
   cursor: pointer;
-  gap: 6px;
 }
 
 .settings-button:disabled {
@@ -5761,7 +5764,6 @@ img[data-lightbox] {
 .settings-button .loading-spinner {
   border-color: rgba(255, 255, 255, 0.3);
   border-top-color: white;
-  margin: 0 auto;
 }
 
 .muted-word-delete-button .loading-spinner {
@@ -7567,7 +7569,8 @@ image-cropper {
 }
 
 .plugin-setting-text-input,
-.plugin-setting-dropdown {
+.plugin-setting-dropdown,
+.plugin-settings-tab textarea {
   font-size: 16px;
   padding: 8px 10px;
   border-radius: var(--text-input-border-radius);
@@ -7576,11 +7579,20 @@ image-cropper {
   color: var(--text-color);
 }
 
+.plugin-settings-tab textarea {
+  font-family: inherit;
+  resize: vertical;
+}
+
 .plugin-setting-text-input {
   min-width: 180px;
 }
 
 .plugin-setting-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   font-size: 14px;
   padding: 8px 14px;
   border-radius: var(--pill-button-border-radius, 999px);
@@ -7597,12 +7609,28 @@ image-cropper {
   border-color: transparent;
 }
 
+.plugin-setting-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.plugin-setting-button .loading-spinner {
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+  vertical-align: middle;
+}
+
+.plugin-setting-button.primary-button .loading-spinner {
+  border-top-color: var(--primary-button-text-color);
+}
+
 @media (min-width: 800px) {
-  .plugin-setting-button:hover {
+  .plugin-setting-button:not(:disabled):hover {
     background: var(--primary-button-muted-hover-color);
   }
 
-  .plugin-setting-button.primary-button:hover {
+  .plugin-setting-button.primary-button:not(:disabled):hover {
     background: var(--primary-button-hover-color);
   }
 }

@@ -463,7 +463,7 @@ class VirtualEl {
   }
 
   setAttr(name, value) {
-    this.attrs[name] = value;
+    this.attrs[name] = value === undefined ? "" : value;
     return this;
   }
 

@@ -133,6 +133,13 @@ t.describe("VirtualEl (via Setting & friends)", (it) => {
     assertEquals(serialized.attrs["data-x"], "1");
   });
 
+  it("setAttr with an omitted value still sets the attribute as an empty string", () => {
+    const el = makeVirtualEl();
+    el.setAttr("disabled");
+    const serialized = el._serialize();
+    assertEquals(serialized.attrs.disabled, "");
+  });
+
   it("empty() clears text and children", () => {
     const el = makeVirtualEl();
     el.createDiv({ text: "child" });
