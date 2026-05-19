@@ -1,6 +1,17 @@
 import { linkHtml } from "./modulepreload.js";
+import pkg from "./package.json" with { type: "json" };
 import fs from "node:fs";
 import path from "node:path";
+
+async function transformGlob(pattern, replacer) {
+  await Promise.all(
+    fs.globSync(pattern).map(async (filePath) => {
+      const content = await fs.promises.readFile(filePath, "utf-8");
+      const updated = replacer(content);
+      if (content !== updated) await fs.promises.writeFile(filePath, updated);
+    }),
+  );
+}
 
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
@@ -93,6 +104,35 @@ export default async function (eleventyConfig) {
       return content;
     },
   );
+
+  // Cache busting query params
+  eleventyConfig.on("eleventy.after", async ({ dir }) => {
+    const bust = `?v=${pkg.version}`;
+    const addBust = (_, before, ref, after) => `${before}${ref}${bust}${after}`;
+
+    // JS module refs: `import ... from "x.js"`, `export ... from "x.js"`,
+    // bare `import "x.js"`, and dynamic `import("x.js")`.
+    const jsModuleRefs =
+      /(\b(?:import|export)\b[^'"`;\n]*?from\s+['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(?!https?:\/\/|\/\/)([^'"`\n]+?\.m?js)(['"])/g;
+    // CSS `@import "x.css"`
+    const cssImports =
+      /(@import\s+['"])(?!https?:\/\/|\/\/)([^'"\n]+?\.css)(['"])/g;
+    // HTML attribute refs: <script src>, <link href>, etc.
+    const htmlAttrRefs =
+      /((?:src|href)\s*=\s*["'])(?!https?:\/\/|\/\/)([^"']+?\.(?:m?js|css))(["'])/g;
+
+    await Promise.all([
+      transformGlob(`${dir.output}/**/*.js`, (content) =>
+        content.replace(jsModuleRefs, addBust),
+      ),
+      transformGlob(`${dir.output}/**/*.css`, (content) =>
+        content.replace(cssImports, addBust),
+      ),
+      transformGlob(`${dir.output}/**/*.html`, (content) =>
+        content.replace(htmlAttrRefs, addBust).replace(jsModuleRefs, addBust),
+      ),
+    ]);
+  });
 
   return {
     dir: {
