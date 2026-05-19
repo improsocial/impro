@@ -134,11 +134,13 @@ export class StyleSnippet {
   constructor(cssText) {
     this._snippetId = uuid.create();
     this._removed = false;
-    queueMicrotask(() => {
-      if (this._removed) return;
-      hostCall("applyStyleSnippet", {
-        snippetId: this._snippetId,
-        cssText,
+    this.ready = new Promise((resolve, reject) => {
+      queueMicrotask(() => {
+        if (this._removed) return resolve();
+        hostCall("applyStyleSnippet", {
+          snippetId: this._snippetId,
+          cssText,
+        }).then(resolve, reject);
       });
     });
   }
