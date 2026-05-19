@@ -26,8 +26,6 @@ class StreamingVideo extends Component {
     this.controls = this.getAttribute("controls") !== null;
     this.autoplay = this.getAttribute("autoplay") !== null;
     this.muted = this.getAttribute("muted") !== null;
-    this.height = this.getAttribute("height") ?? "";
-    this.width = this.getAttribute("width") ?? "";
     this._streamingEnabled = false;
     this.render();
     this.initialized = true;
@@ -39,12 +37,7 @@ class StreamingVideo extends Component {
 
   render() {
     render(
-      html`<video
-        controls=${this.controls}
-        muted=${this.muted}
-        height=${this.height}
-        width=${this.width}
-      ></video>`,
+      html`<video controls=${this.controls} muted=${this.muted}></video>`,
       this,
     );
     const video = this.querySelector("video");

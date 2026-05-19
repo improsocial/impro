@@ -81,6 +81,43 @@ t.describe("video embed preparation", (it) => {
     assertEquals(embed.aspectRatio.height, 9);
   });
 
+  it("omits aspectRatio when missing", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api);
+    await pc.createPost({
+      postText: "hi",
+      video: { ...videoFixture(), aspectRatio: null },
+    });
+    assert(!("aspectRatio" in api.lastEmbed));
+  });
+
+  it("omits aspectRatio when width or height is zero", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api);
+    await pc.createPost({
+      postText: "hi",
+      video: { ...videoFixture(), aspectRatio: { width: 0, height: 9 } },
+    });
+    assert(!("aspectRatio" in api.lastEmbed));
+
+    await pc.createPost({
+      postText: "hi",
+      video: { ...videoFixture(), aspectRatio: { width: 16, height: 0 } },
+    });
+    assert(!("aspectRatio" in api.lastEmbed));
+  });
+
+  it("preserves raw (unclamped) dimensions", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api);
+    await pc.createPost({
+      postText: "hi",
+      video: { ...videoFixture(), aspectRatio: { width: 1080, height: 100 } },
+    });
+    assertEquals(api.lastEmbed.aspectRatio.width, 1080);
+    assertEquals(api.lastEmbed.aspectRatio.height, 100);
+  });
+
   it("omits alt when empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(api);

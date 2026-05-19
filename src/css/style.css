@@ -2229,6 +2229,14 @@ animated-button {
   transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
+.post-video streaming-video,
+.post-video > video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .alt-indicator {
   pointer-events: none;
   position: absolute;

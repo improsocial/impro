@@ -40,8 +40,8 @@ export function readVideoMetadata(file) {
     video.src = url;
     video.onloadedmetadata = () => {
       const duration = video.duration;
-      const width = video.videoWidth || 1;
-      const height = video.videoHeight || 1;
+      const width = video.videoWidth;
+      const height = video.videoHeight;
       URL.revokeObjectURL(url);
       if (duration > VIDEO_MAX_DURATION_S) {
         reject(
@@ -52,12 +52,11 @@ export function readVideoMetadata(file) {
         );
         return;
       }
-      resolve({
-        duration,
-        width,
-        height,
-        aspectRatio: clampAspectRatio(width, height),
-      });
+      // Leave aspectRatio unset when dimensions are missing - matches
+      // social-app, which prefers an absent field to a 0 value that would
+      // fail lexicon validation.
+      const aspectRatio = width > 0 && height > 0 ? { width, height } : null;
+      resolve({ duration, width, height, aspectRatio });
     };
     video.onerror = () => {
       URL.revokeObjectURL(url);
@@ -66,21 +65,6 @@ export function readVideoMetadata(file) {
       );
     };
   });
-}
-
-// Clamp aspect ratio between 1:1 and 3:1 to match social-app
-function clampAspectRatio(width, height) {
-  if (width <= 0 || height <= 0) {
-    return { width: 1, height: 1 };
-  }
-  const ratio = width / height;
-  if (ratio > 3) {
-    return { width: 3, height: 1 };
-  }
-  if (ratio < 1 / 3) {
-    return { width: 1, height: 3 };
-  }
-  return { width, height };
 }
 
 export class VideoUploader {

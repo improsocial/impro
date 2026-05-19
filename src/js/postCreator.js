@@ -142,7 +142,11 @@ export class PostCreator {
     if (video.alt) {
       embed.alt = video.alt;
     }
-    if (video.aspectRatio) {
+    if (
+      video.aspectRatio &&
+      video.aspectRatio.width > 0 &&
+      video.aspectRatio.height > 0
+    ) {
       embed.aspectRatio = {
         $type: "app.bsky.embed.defs#aspectRatio",
         width: video.aspectRatio.width,
