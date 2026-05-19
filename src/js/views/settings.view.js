@@ -55,17 +55,13 @@ class SettingsView extends View {
         url: "/settings/blocked-accounts",
         enabled: true,
       },
-      ...(window.env.environment === "development"
-        ? [
-            {
-              key: "plugins",
-              icon: boxIconTemplate,
-              label: "Plugins (beta)",
-              url: "/settings/plugins",
-              enabled: true,
-            },
-          ]
-        : []),
+      {
+        key: "plugins",
+        icon: boxIconTemplate,
+        label: "Plugins (beta)",
+        url: "/settings/plugins",
+        enabled: true,
+      },
       {
         key: "advanced",
         icon: codeIconTemplate,
