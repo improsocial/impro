@@ -34,6 +34,7 @@ export class Router extends EventEmitter {
   }
 
   mount(container) {
+    container.innerHTML = "";
     this.container = container;
   }
 
