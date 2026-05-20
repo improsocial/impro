@@ -7417,7 +7417,7 @@ image-cropper {
   justify-content: space-between;
   gap: 24px;
   padding: 16px;
-  border-bottom: 1px solid var(--border-color, #e0e0e0);
+  border-bottom: var(--hair) solid var(--post-border-color);
 }
 
 .plugin-list-item-name {
