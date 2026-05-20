@@ -113,7 +113,7 @@ export default async function (eleventyConfig) {
     // JS module refs: `import ... from "x.js"`, `export ... from "x.js"`,
     // bare `import "x.js"`, and dynamic `import("x.js")`.
     const jsModuleRefs =
-      /(\b(?:import|export)\b[^'"`;\n]*?from\s+['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(?!https?:\/\/|\/\/)([^'"`\n]+?\.m?js)(['"])/g;
+      /(\b(?:import|export)\b[^'"`;]*?from\s+['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(?!https?:\/\/|\/\/)([^'"`\n]+?\.m?js)(['"])/g;
     // CSS `@import "x.css"`
     const cssImports =
       /(@import\s+['"])(?!https?:\/\/|\/\/)([^'"\n]+?\.css)(['"])/g;
