@@ -221,6 +221,92 @@ function threadgateRuleTemplate({ post }) {
   return null;
 }
 
+export async function showExternalLinkWarningModal({ href }) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.classList.add("modal-dialog", "external-link-warning-modal");
+
+    const url = new URL(href);
+
+    render(
+      html`
+        <div class="modal-dialog-content">
+          <h2
+            class="modal-dialog-title"
+            data-testid="external-link-warning-title"
+          >
+            Leave this app?
+          </h2>
+          <p
+            class="modal-dialog-message"
+            data-testid="external-link-warning-message"
+          >
+            This link will take you to:
+          </p>
+          <a
+            class="external-link-warning-href"
+            href=${href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="external-link-warning-href"
+            @click=${(event) => {
+              event.stopPropagation();
+              dismiss(true);
+            }}
+          >
+            <span class="external-link-warning-host">${url.host}</span
+            ><span class="external-link-warning-path"
+              >${url.pathname}${url.search}${url.hash}</span
+            >
+          </a>
+          <div class="modal-dialog-buttons">
+            <button
+              class="modal-dialog-button cancel-button"
+              data-testid="external-link-warning-cancel-button"
+            >
+              Cancel
+            </button>
+            <button
+              class="modal-dialog-button confirm-button primary-button"
+              data-testid="external-link-warning-visit-button"
+            >
+              Visit site
+            </button>
+          </div>
+        </div>
+      `,
+      dialog,
+    );
+
+    const cancelButton = dialog.querySelector(".cancel-button");
+    const visitButton = dialog.querySelector(".confirm-button");
+
+    const dismiss = (result) => {
+      dialog.close();
+      dialog.remove();
+      resolve(result);
+    };
+
+    cancelButton.addEventListener("click", () => dismiss(false));
+    visitButton.addEventListener("click", () => {
+      window.open(href, "_blank", "noopener,noreferrer");
+      dismiss(true);
+    });
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target.tagName === "DIALOG") dismiss(false);
+    });
+
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      dismiss(false);
+    });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  });
+}
+
 export function showWhoCanReplyModal({ post }) {
   const dialog = document.createElement("dialog");
   dialog.classList.add("modal-dialog", "info-modal");

@@ -7525,6 +7525,10 @@ image-cropper {
   margin: 8px 0;
 }
 
+.plugin-settings-tab a {
+  color: var(--text-link-color);
+}
+
 .plugin-setting-item {
   display: flex;
   flex-wrap: wrap;
@@ -7682,6 +7686,30 @@ image-cropper {
 .plugin-reload-button .icon {
   width: 24px;
   height: 24px;
+}
+
+.external-link-warning-href {
+  display: block;
+  padding: 12px;
+  margin-bottom: 16px;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: 8px;
+  background-color: light-dark(var(--lightest-gray), var(--gray));
+  color: var(--text-color);
+  font-size: 16px;
+  text-decoration: none;
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+.external-link-warning-host {
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.external-link-warning-path {
+  color: var(--text-color-secondary, var(--text-color));
+  opacity: 0.75;
 }
 
 .modal-dialog.confirm-modal {
