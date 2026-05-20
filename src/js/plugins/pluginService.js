@@ -10,7 +10,7 @@ import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { compareVersions, isDev } from "/js/utils.js";
+import { compareVersions, isDev, sortBy } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -310,7 +310,8 @@ export class PluginService extends EventEmitter {
     const visiblePlugins = this.localPluginsEnabled
       ? installedPlugins
       : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
-    return visiblePlugins.map((entry) => {
+    const sortedVisiblePlugins = sortBy(visiblePlugins, "name");
+    return sortedVisiblePlugins.map((entry) => {
       return {
         id: entry.id,
         name: entry.name,
