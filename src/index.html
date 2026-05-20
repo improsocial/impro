@@ -94,6 +94,8 @@
       import { Router } from "/js/router.js";
       import { Api } from "/js/api.js";
       import { auth } from "/js/auth.js";
+      import { TokenRefreshError } from "/js/oauth.js";
+      import { linkToLogin } from "/js/navigation.js";
       import { NotificationService } from "/js/notificationService.js";
       import { ChatNotificationService } from "/js/chatNotificationService.js";
       import { PostComposerService } from "/js/postComposerService.js";
@@ -375,8 +377,17 @@
         dispatchNativeRefreshEnded();
       }
 
-      main().catch((error) => {
+      main().catch(async (error) => {
         console.error("Error in main function:", error);
+        if (error instanceof TokenRefreshError) {
+          try {
+            await auth.logout();
+          } catch (logoutError) {
+            console.error("Error during logout:", logoutError);
+          }
+          window.location.href = linkToLogin();
+          return;
+        }
         window.showGlobalErrorState();
       });
     </script>
