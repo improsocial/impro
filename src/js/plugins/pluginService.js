@@ -55,6 +55,7 @@ export class PluginService extends EventEmitter {
       settingTabs: new Map(),
     };
     this._availableUpdates = null;
+    this._registryListings = null;
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -67,11 +68,20 @@ export class PluginService extends EventEmitter {
       this.sourceProvider,
       this.pluginStylesLoader,
     );
-    this.pluginRenderer = new PluginRenderer(this.pluginBridge);
+    this._pluginRenderers = new Map();
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
     this._setupRegistries();
     this._setupHostMethods();
+  }
+
+  getRenderer(pluginId) {
+    let renderer = this._pluginRenderers.get(pluginId);
+    if (!renderer) {
+      renderer = new PluginRenderer(this.pluginBridge, pluginId);
+      this._pluginRenderers.set(pluginId, renderer);
+    }
+    return renderer;
   }
 
   _setupRegistries() {
@@ -131,7 +141,7 @@ export class PluginService extends EventEmitter {
       "openModal",
       (plugin, { modalId, title, content }) => {
         showPluginModal({
-          pluginRenderer: this.pluginRenderer,
+          pluginRenderer: this.getRenderer(plugin.pluginId),
           pluginId: plugin.pluginId,
           modalId,
           title,
@@ -162,10 +172,35 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod(
+      "refreshFeedFilters",
+      (plugin, feedURI = null) => {
+        this.emit("feedFiltersRefresh", { pluginId: plugin.pluginId, feedURI });
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "applyStyleSnippet",
+      (plugin, { snippetId, cssText }) => {
+        this.pluginStylesLoader.mountSnippet(
+          plugin.pluginId,
+          snippetId,
+          cssText,
+        );
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "removeStyleSnippet",
+      (plugin, { snippetId }) => {
+        this.pluginStylesLoader.unmountSnippet(plugin.pluginId, snippetId);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
       "showToast",
       (plugin, { toastId, element, timeout }) => {
         showPluginToast({
-          pluginRenderer: this.pluginRenderer,
+          pluginRenderer: this.getRenderer(plugin.pluginId),
           pluginId: plugin.pluginId,
           toastId,
           element,
@@ -391,6 +426,7 @@ export class PluginService extends EventEmitter {
 
   async uninstallPlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
+    this._pluginRenderers.delete(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
     await this._reconcileCache(this.prefManager.getInstalledPlugins());
@@ -413,6 +449,7 @@ export class PluginService extends EventEmitter {
 
   async disablePlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
+    this._pluginRenderers.delete(pluginId);
     await this.prefManager.setPluginDisabled(pluginId);
   }
 
@@ -463,17 +500,22 @@ export class PluginService extends EventEmitter {
     return { updated, failed };
   }
 
-  async listRegistryPlugins() {
+  async loadRegistryListings() {
     const remoteListings = await this.remoteRegistry.getListings();
     const localListings = this.localRegistry
       ? await this.localRegistry.getListings()
       : [];
-    const installedIds = this.prefManager
-      .getInstalledPlugins()
-      .map((entry) => entry.id);
-    return [...remoteListings, ...localListings].map((listing) => ({
+    this._registryListings = [...remoteListings, ...localListings];
+  }
+
+  getRegistryListings() {
+    if (!this._registryListings) return null;
+    const installedIds = new Set(
+      this.prefManager.getInstalledPlugins().map((entry) => entry.id),
+    );
+    return this._registryListings.map((listing) => ({
       ...listing,
-      installed: installedIds.includes(listing.id),
+      installed: installedIds.has(listing.id),
     }));
   }
 
@@ -527,16 +569,18 @@ export class PluginService extends EventEmitter {
   async getFilteredFeedItems(feedUri, feed) {
     let filteredFeedItems = {};
     for (const feedFilter of this.registries.feedFilters) {
+      const feedItems = feed.feed;
+      let results = null;
       try {
-        const results = await feedFilter.invoke(feedUri, feed.feed);
-        if (typeof results !== "object") continue;
-        filteredFeedItems = { ...filteredFeedItems, ...results };
+        results = await feedFilter.invoke(feedUri, feedItems);
       } catch (e) {
         console.error(
           `Plugin ${feedFilter.pluginId} feed filter raised an exception`,
           e,
         );
       }
+      if (!results || typeof results !== "object") continue;
+      filteredFeedItems = { ...filteredFeedItems, ...results };
     }
     return filteredFeedItems;
   }

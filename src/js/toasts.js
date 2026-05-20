@@ -102,7 +102,7 @@ export function showPluginToast({
 }) {
   const key = `${pluginId}:${toastId}`;
   if (pluginToasts.has(key)) return;
-  const toast = pluginRenderer.renderNode(element, pluginId);
+  const toast = pluginRenderer.createRoot().render(element);
   const handle = mountToast(toast, {
     timeout,
     onDismiss: () => pluginToasts.delete(key),

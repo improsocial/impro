@@ -3,9 +3,10 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 export function profileListItemTemplate({ actor }) {
-  const displayName = actor.displayName || actor.handle;
+  const displayName = getDisplayName(actor);
   return html`<div
     @click=${(e) => {
       if (e.target.closest("a")) return;
@@ -46,4 +47,45 @@ export function profileListItemSkeletonTemplate() {
       <div class="skeleton-line-shorter skeleton-animate"></div>
     </div>
   </div>`;
+}
+
+export function profileFeedTemplate({
+  profiles,
+  hasMore,
+  onLoadMore,
+  emptyMessage = "No profiles.",
+}) {
+  if (!profiles) {
+    return html`<div class="profile-list">
+      ${Array.from({ length: 10 }).map(() => profileListItemSkeletonTemplate())}
+    </div>`;
+  }
+  if (profiles.length === 0) {
+    return html`<div class="feed-end-message" data-testid="feed-end-message">
+      ${emptyMessage}
+    </div>`;
+  }
+  return html`<infinite-scroll-container
+    lookahead="2500px"
+    @load-more=${async (e) => {
+      if (hasMore && onLoadMore) {
+        await onLoadMore();
+        e.detail.resume();
+      }
+    }}
+  >
+    <div class="profile-list" data-testid="profile-feed">
+      ${profiles.map((profile) => profileListItemTemplate({ actor: profile }))}
+    </div>
+    ${hasMore
+      ? html`<div
+          class="feed-loading-indicator"
+          data-testid="feed-loading-indicator"
+        >
+          <div class="loading-spinner"></div>
+        </div>`
+      : html`<div class="feed-end-message" data-testid="feed-end-message">
+          End of feed
+        </div>`}
+  </infinite-scroll-container>`;
 }

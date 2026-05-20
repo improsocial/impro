@@ -327,6 +327,58 @@ t.describe("RichTextInput - mention suggestions navigation", (it) => {
   });
 });
 
+t.describe("RichTextInput - link click suppression", (it) => {
+  it("should prevent default on click of links inside the editor", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+
+    const input = element.querySelector(".rich-text-input");
+    input.innerHTML = '<a href="https://example.com">https://example.com</a>';
+    const anchor = input.querySelector("a");
+
+    const event = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    anchor.dispatchEvent(event);
+
+    assert(event.defaultPrevented);
+  });
+
+  it("should prevent default on auxclick of links inside the editor", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+
+    const input = element.querySelector(".rich-text-input");
+    input.innerHTML = '<a href="https://example.com">https://example.com</a>';
+    const anchor = input.querySelector("a");
+
+    const event = new window.MouseEvent("auxclick", {
+      bubbles: true,
+      cancelable: true,
+    });
+    anchor.dispatchEvent(event);
+
+    assert(event.defaultPrevented);
+  });
+
+  it("should not prevent default on clicks that are not on a link", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+
+    const input = element.querySelector(".rich-text-input");
+    input.textContent = "just some text";
+
+    const event = new window.MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+    });
+    input.dispatchEvent(event);
+
+    assert(!event.defaultPrevented);
+  });
+});
+
 t.describe("RichTextInput - reinitialization protection", (it) => {
   it("should not reinitialize when connectedCallback is called multiple times", () => {
     const element = document.createElement("rich-text-input");

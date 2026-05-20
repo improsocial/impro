@@ -2,7 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
@@ -42,7 +42,7 @@ class NotificationsView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     function postPreviewTemplate({ post }) {
       if (!post) {

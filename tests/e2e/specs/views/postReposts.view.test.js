@@ -107,10 +107,9 @@ test.describe("Post reposts view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator(".search-status-message")).toContainText(
-      "No reposts yet.",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should display error state when reposts fail to load", async ({

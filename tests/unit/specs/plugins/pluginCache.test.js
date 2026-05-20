@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert, assertEquals } from "../../testHelpers.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
 
 class FakeCache {

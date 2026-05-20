@@ -21,8 +21,6 @@ function hostCall(method, ...args) {
   });
 }
 
-const settingsChangeListeners = new Set();
-
 const eventListeners = new Map();
 
 function addEventListener(event, listener) {
@@ -98,6 +96,10 @@ class App {
   on(event, listener) {
     addEventListener(event, listener);
   }
+
+  refreshFeedFilters(feedURI = null) {
+    return hostCall("refreshFeedFilters", feedURI);
+  }
 }
 
 export class Notice {
@@ -125,6 +127,27 @@ export class Notice {
     if (this._hidden) return;
     this._hidden = true;
     hostCall("hideToast", { toastId: this._toastId });
+  }
+}
+
+export class StyleSnippet {
+  constructor(cssText) {
+    this._snippetId = uuid.create();
+    this._removed = false;
+    this.ready = new Promise((resolve, reject) => {
+      queueMicrotask(() => {
+        if (this._removed) return resolve();
+        hostCall("applyStyleSnippet", {
+          snippetId: this._snippetId,
+          cssText,
+        }).then(resolve, reject);
+      });
+    });
+  }
+  remove() {
+    if (this._removed) return;
+    this._removed = true;
+    hostCall("removeStyleSnippet", { snippetId: this._snippetId });
   }
 }
 
@@ -170,10 +193,6 @@ export class Plugin {
       displayHandlerId,
     });
     this._settingTab = tab;
-  }
-
-  onSettingsChange(callback) {
-    settingsChangeListeners.add(callback);
   }
 
   addFeedFilter(callback = () => {}) {
@@ -444,7 +463,7 @@ class VirtualEl {
   }
 
   setAttr(name, value) {
-    this.attrs[name] = value;
+    this.attrs[name] = value === undefined ? "" : value;
     return this;
   }
 
@@ -527,16 +546,6 @@ self.addEventListener("message", async (event) => {
         if (modal) {
           openModals.delete(message.data.modalId);
           modal.onClose();
-        }
-        return;
-      }
-      case "settingsChanged": {
-        for (const listener of settingsChangeListeners) {
-          try {
-            listener(message.data.data);
-          } catch (error) {
-            console.error("settingsChanged listener threw:", error);
-          }
         }
         return;
       }

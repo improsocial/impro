@@ -93,7 +93,7 @@
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
       import { Api } from "/js/api.js";
-      import { getAuth, OAuth } from "/js/auth.js";
+      import { auth } from "/js/auth.js";
       import { NotificationService } from "/js/notificationService.js";
       import { ChatNotificationService } from "/js/chatNotificationService.js";
       import { PostComposerService } from "/js/postComposerService.js";
@@ -125,7 +125,8 @@
 
         handleAppViewResetQueryParam();
 
-        const auth = await getAuth();
+        await auth.handleForceLogoutParam();
+
         const session = await auth.getSession();
         const appViewConfig = getAppViewConfig();
         const api = new Api(session ?? null, {
@@ -344,6 +345,12 @@
           }
           const parsedUrl = new URL(anchor.href);
           const currentHostname = window.location.hostname;
+          // Handle direct .bsky.social links
+          if (parsedUrl.hostname.endsWith(".bsky.social")) {
+            const handle = parsedUrl.hostname;
+            e.preventDefault();
+            return router.go(`/profile/${handle}`);
+          }
           if (
             currentHostname === parsedUrl.hostname ||
             IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)

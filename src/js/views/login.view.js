@@ -1,12 +1,12 @@
 import { View } from "/js/views/view.js";
 import {
-  getAuth,
-  requireNoAuth,
-  BasicAuth,
+  auth,
+  BasicAuthProvider,
   InvalidUsernameError,
   AuthError,
 } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { withTimeout, TimeoutError } from "/js/utils.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
   getAppViewConfig,
@@ -19,7 +19,7 @@ import { validateReturnToParam } from "/js/navigation.js";
 
 class LoginView extends View {
   async render({ root, params, context }) {
-    await requireNoAuth();
+    await auth.requireNoAuth();
 
     const storedConfig = getAppViewConfig();
     const isStoredCustom = storedConfig.id === CUSTOM_APP_VIEW_CONFIG_ID;
@@ -40,8 +40,7 @@ class LoginView extends View {
       return validateReturnToParam(params.get("returnTo"));
     }
 
-    const auth = await getAuth();
-    const isBasicAuth = auth instanceof BasicAuth;
+    const isBasicAuth = auth.provider instanceof BasicAuthProvider;
 
     function resolveSelectedAppViewConfig() {
       if (state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID) {
@@ -83,10 +82,18 @@ class LoginView extends View {
           fullHandle = fullHandle.slice(1);
         }
         const returnTo = getCurrentReturnTo();
-        await auth.login(fullHandle, password, { returnTo });
+        await withTimeout(async () => {
+          if (isBasicAuth) {
+            await auth.provider.login(fullHandle, password);
+          } else {
+            await auth.provider.login(fullHandle, { returnTo });
+          }
+        }, 10000);
         window.location.href = returnTo ?? "/";
       } catch (error) {
-        if (error instanceof InvalidUsernameError) {
+        if (error instanceof TimeoutError) {
+          state.errorMessage = "Request timed out";
+        } else if (error instanceof InvalidUsernameError) {
           state.errorMessage = "Invalid username";
         } else if (error instanceof AuthError) {
           state.errorMessage = "Authorization failed";

@@ -103,10 +103,9 @@ test.describe("Profile followers view", () => {
       { timeout: 10000 },
     );
 
-    await expect(view.locator(".search-status-message")).toContainText(
-      "No followers yet.",
-      { timeout: 10000 },
-    );
+    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+      timeout: 10000,
+    });
   });
 
   test("should load more followers when scrolling to the bottom", async ({

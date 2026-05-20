@@ -308,6 +308,16 @@ export class RichTextInput extends Component {
               );
               document.execCommand("insertText", false, text);
             }}
+            @click=${(e) => {
+              if (e.target.closest("a")) {
+                e.preventDefault();
+              }
+            }}
+            @auxclick=${(e) => {
+              if (e.target.closest("a")) {
+                e.preventDefault();
+              }
+            }}
           ></div>
           <div
             class="rich-text-input-placeholder ${this.text.length > 0

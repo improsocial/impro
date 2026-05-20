@@ -2,7 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 
 class SettingsPluginDetailView extends View {
   async render({
@@ -16,7 +16,7 @@ class SettingsPluginDetailView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     const { pluginId } = params;
     const state = {
@@ -60,9 +60,11 @@ class SettingsPluginDetailView extends View {
       }
     });
 
+    const tabRoot = pluginService.getRenderer(pluginId).createRoot();
+
     function renderTabContent(containerNode) {
       if (!containerNode) return null;
-      return pluginService.pluginRenderer.renderNode(containerNode, pluginId);
+      return tabRoot.render(containerNode);
     }
 
     function renderPage() {

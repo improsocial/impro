@@ -2,10 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import {
-  profileListItemTemplate,
-  profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -32,37 +29,6 @@ class PostLikesView extends View {
       authorDid = await identityResolver.resolveHandle(handleOrDid);
     }
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
-
-    function likesListTemplate({ likes, hasMore }) {
-      if (!likes || likes.length === 0) {
-        return html`<div class="search-status-message">No likes yet.</div>`;
-      }
-      return html`<infinite-scroll-container
-        @load-more=${async (e) => {
-          if (hasMore) {
-            await loadLikes();
-            e.detail.resume();
-          }
-        }}
-      >
-        <div class="profile-list">
-          ${likes.map((like) => profileListItemTemplate({ actor: like.actor }))}
-        </div>
-        ${hasMore
-          ? Array.from({ length: 5 }).map(() =>
-              profileListItemSkeletonTemplate(),
-            )
-          : ""}
-      </infinite-scroll-container>`;
-    }
-
-    function likesSkeletonTemplate() {
-      return html`<div class="profile-list">
-        ${Array.from({ length: 10 }).map(() =>
-          profileListItemSkeletonTemplate(),
-        )}
-      </div>`;
-    }
 
     function likesErrorTemplate({ error }) {
       console.error(error);
@@ -111,14 +77,14 @@ class PostLikesView extends View {
                     return likesErrorTemplate({
                       error: postLikesRequestStatus.error,
                     });
-                  } else if (postLikes && postLikes.likes) {
-                    return likesListTemplate({
-                      likes: postLikes.likes,
-                      hasMore,
-                    });
-                  } else {
-                    return likesSkeletonTemplate();
                   }
+                  return profileFeedTemplate({
+                    profiles:
+                      postLikes?.likes?.map((like) => like.actor) ?? null,
+                    hasMore,
+                    onLoadMore: loadLikes,
+                    emptyMessage: "No likes yet.",
+                  });
                 })()}
               </main>`,
           })}

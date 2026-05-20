@@ -1,7 +1,7 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import {
   theme,
@@ -21,7 +21,7 @@ class SettingsAppearanceView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     function handleHighlightColorChange(newHighlightColor) {
       theme.updateHighlightColor(newHighlightColor);

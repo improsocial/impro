@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
@@ -16,7 +16,7 @@ class FeedsView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     function renderPage() {
       const currentUser = dataLayer.selectors.getCurrentUser();

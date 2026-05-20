@@ -3,7 +3,7 @@ import { SimpleUUID, isDev } from "/js/utils.js";
 
 const SANDBOX_URL = "/js/plugins/sandbox.html";
 
-class Logger {
+export class Logger {
   static LEVELS = { info: 10, warn: 20, error: 30, silent: 40 };
 
   constructor(prefix, logLevel = "warn") {
@@ -27,7 +27,7 @@ class Logger {
 const logger = new Logger("[plugins]", isDev() ? "info" : "warn");
 
 // Has same API as Worker, but runs code in a sandboxed iframe
-class SandboxedWorker extends EventTarget {
+export class SandboxedWorker extends EventTarget {
   constructor(source) {
     super();
     this.source = source;
@@ -100,7 +100,7 @@ async function createDirectWorker(source) {
   return new Worker(URL.createObjectURL(blob), { type: "module" });
 }
 
-class PluginInstance {
+export class PluginInstance {
   constructor(pluginId, worker, { onRegister, onHostCall }) {
     this.pluginId = pluginId;
     this.worker = worker;
@@ -204,9 +204,14 @@ class PluginInstance {
 }
 
 export class PluginBridge {
-  constructor(sourceProvider, pluginStylesLoader) {
+  constructor(
+    sourceProvider,
+    pluginStylesLoader,
+    loadPluginInstance = PluginInstance.loadFromSource,
+  ) {
     this._provider = sourceProvider;
     this._pluginStylesLoader = pluginStylesLoader;
+    this._loadPluginInstance = loadPluginInstance;
     this._registrationTargets = new Map();
     this._loadedPlugins = new Map();
     this._hostCallHandlers = new Map();
@@ -294,16 +299,12 @@ export class PluginBridge {
       }
     }
     try {
-      const pluginInstance = await PluginInstance.loadFromSource(
-        pluginId,
-        source,
-        {
-          onRegister: (instance, message) =>
-            this._handleRegistration(instance, message),
-          onHostCall: (instance, message) =>
-            this._handleHostCall(instance, message),
-        },
-      );
+      const pluginInstance = await this._loadPluginInstance(pluginId, source, {
+        onRegister: (instance, message) =>
+          this._handleRegistration(instance, message),
+        onHostCall: (instance, message) =>
+          this._handleHostCall(instance, message),
+      });
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
       return pluginInstance;

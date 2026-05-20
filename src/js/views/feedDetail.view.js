@@ -2,7 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -30,7 +30,7 @@ class FeedDetailView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     const { handleOrDid, rkey } = params;
 

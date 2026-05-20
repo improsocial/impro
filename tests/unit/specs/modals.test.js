@@ -10,8 +10,8 @@ import {
 } from "/js/modals.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 
-const pluginRenderer = new PluginRenderer(null);
 function showPluginModal(opts) {
+  const pluginRenderer = new PluginRenderer(null, opts.pluginId);
   return _showPluginModal({ pluginRenderer, ...opts });
 }
 

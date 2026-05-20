@@ -525,3 +525,26 @@ export function compareVersions(versionA, versionB) {
   }
   return 0;
 }
+
+export class TimeoutError extends Error {
+  constructor(message = "Timed out") {
+    super(message);
+    this.name = "TimeoutError";
+  }
+}
+
+export async function withTimeout(fn, timeoutMs) {
+  const controller = new AbortController();
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new TimeoutError());
+    }, timeoutMs);
+  });
+  try {
+    return await Promise.race([fn(controller.signal), timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}

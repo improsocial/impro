@@ -2,7 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -23,7 +23,7 @@ class SettingsPluginsView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     const state = {
       uninstallingIds: new Set(),
@@ -304,10 +304,11 @@ class SettingsPluginsView extends View {
                                         @click=${() => updatePlugin(plugin)}
                                       >
                                         ${isUpdating
-                                          ? html`<div
-                                              class="loading-spinner"
-                                              data-testid="loading-spinner"
-                                            ></div>`
+                                          ? html`Updating
+                                              <div
+                                                class="loading-spinner"
+                                                data-testid="loading-spinner"
+                                              ></div>`
                                           : "Update"}
                                       </button>`
                                     : ""}

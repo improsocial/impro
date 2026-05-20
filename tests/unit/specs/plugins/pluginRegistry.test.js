@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assertEquals } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assertEquals } from "../../testHelpers.js";
 import {
   RemotePluginRegistry,
   LocalPluginRegistry,

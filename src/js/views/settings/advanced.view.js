@@ -1,7 +1,7 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
@@ -24,7 +24,7 @@ class SettingsAdvancedView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     const storedConfig = getAppViewConfig();
     const isStoredCustom = storedConfig.id === CUSTOM_APP_VIEW_CONFIG_ID;

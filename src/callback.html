@@ -6,10 +6,14 @@
 
   <body>
     <script type="module">
-      import { getAuth } from "/js/auth.js";
+      import { auth, OAuthProvider } from "/js/auth.js";
       import { validateReturnToParam } from "/js/navigation.js";
 
       async function main() {
+        if (!(auth.provider instanceof OAuthProvider)) {
+          throw new Error("callback.html requires an OAuth provider on auth");
+        }
+
         const params = new URLSearchParams(window.location.search);
 
         const code = params.get("code");
@@ -33,9 +37,8 @@
           return;
         }
         const returnTo = validateReturnToParam(parsedState.returnTo);
-        const auth = await getAuth();
         try {
-          await auth.handleOauthCallback(window.location.href);
+          await auth.provider.handleOauthCallback(window.location.href);
           window.location.href = returnTo ?? "/";
           return;
         } catch (error) {

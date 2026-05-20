@@ -98,21 +98,32 @@ t.describe("showToast", (it) => {
   });
 });
 
-function makePluginRenderer() {
+function makePluginRenderer(pluginId = "test-plugin") {
   const calls = [];
-  const renderer = {
-    renderNode(node, pluginId) {
-      calls.push({ node, pluginId });
-      const element = document.createElement(node.tag ?? "div");
-      const className = node.attrs?.class;
-      if (className) element.className = className;
-      if (node.text != null) element.textContent = node.text;
-      if (Array.isArray(node.children)) {
-        for (const child of node.children) {
-          element.appendChild(this.renderNode(child, pluginId));
-        }
+  function renderNodeImpl(node) {
+    calls.push({ node, pluginId });
+    const element = document.createElement(node.tag ?? "div");
+    const className = node.attrs?.class;
+    if (className) element.className = className;
+    if (node.text != null) element.textContent = node.text;
+    if (Array.isArray(node.children)) {
+      for (const child of node.children) {
+        element.appendChild(renderNodeImpl(child));
       }
-      return element;
+    }
+    return element;
+  }
+  const renderer = {
+    createRoot() {
+      return {
+        tree: null,
+        el: null,
+        render(node) {
+          this.el = renderNodeImpl(node);
+          this.tree = node;
+          return this.el;
+        },
+      };
     },
     isEmptyNode(node) {
       if (!node) return true;
@@ -144,8 +155,8 @@ function uniqueIds() {
 t.describe("showPluginToast", (it) => {
   it("should render the element via the pluginRenderer and mount it", () => {
     clearDOM();
-    const { renderer, calls } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer, calls } = makePluginRenderer(pluginId);
     showPluginToast({
       pluginRenderer: renderer,
       pluginId,
@@ -162,8 +173,8 @@ t.describe("showPluginToast", (it) => {
 
   it("should set the popover attribute on the toast element", () => {
     clearDOM();
-    const { renderer } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer } = makePluginRenderer(pluginId);
     showPluginToast({
       pluginRenderer: renderer,
       pluginId,
@@ -177,8 +188,8 @@ t.describe("showPluginToast", (it) => {
 
   it("should preserve plugin-supplied classes on the toast", () => {
     clearDOM();
-    const { renderer } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer } = makePluginRenderer(pluginId);
     showPluginToast({
       pluginRenderer: renderer,
       pluginId,
@@ -193,8 +204,8 @@ t.describe("showPluginToast", (it) => {
 
   it("should ignore a second call with the same plugin+toast id", () => {
     clearDOM();
-    const { renderer, calls } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer, calls } = makePluginRenderer(pluginId);
     const args = {
       pluginRenderer: renderer,
       pluginId,
@@ -235,8 +246,8 @@ t.describe("showPluginToast", (it) => {
 t.describe("hidePluginToast", (it) => {
   it("should dismiss the matching toast", () => {
     clearDOM();
-    const { renderer } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer } = makePluginRenderer(pluginId);
     showPluginToast({
       pluginRenderer: renderer,
       pluginId,
@@ -289,8 +300,8 @@ t.describe("hidePluginToast", (it) => {
 
   it("should allow re-showing a toast with the same id after hide", () => {
     clearDOM();
-    const { renderer } = makePluginRenderer();
     const { pluginId, toastId } = uniqueIds();
+    const { renderer } = makePluginRenderer(pluginId);
     showPluginToast({
       pluginRenderer: renderer,
       pluginId,

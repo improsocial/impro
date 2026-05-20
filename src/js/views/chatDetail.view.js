@@ -3,7 +3,7 @@ import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
-import { requireAuth } from "/js/auth.js";
+import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -55,7 +55,7 @@ class ChatDetailView extends View {
       pluginService,
     },
   }) {
-    await requireAuth();
+    await auth.requireAuth();
 
     const convoId = params.convoId;
 

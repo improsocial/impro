@@ -1,5 +1,5 @@
 import { parseUri } from "/js/dataHelpers.js";
-import { RefreshTokenError, getAuth } from "/js/auth.js";
+import { RefreshTokenError, auth } from "/js/auth.js";
 import { TokenRefreshError as OauthRefreshTokenError } from "/js/oauth.js";
 import { batch, buildQueryString, getCurrentTimestamp } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
@@ -90,7 +90,6 @@ export class Api {
         error instanceof OauthRefreshTokenError
       ) {
         console.error("Token refresh error", error);
-        const auth = await getAuth();
         await auth.logout();
         window.location.href = linkToLogin();
         await new Promise(() => {});

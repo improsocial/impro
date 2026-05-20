@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert, assertEquals } from "../../testHelpers.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 
 // A minimal fake of the Preferences object the manager interacts with.

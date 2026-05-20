@@ -77,6 +77,53 @@ t.describe("postEmbedTemplate - images", (it) => {
   });
 });
 
+t.describe("postEmbedTemplate - video", (it) => {
+  function videoEmbed(aspectRatio) {
+    return {
+      $type: "app.bsky.embed.video#view",
+      playlist: "https://example.com/video.m3u8",
+      aspectRatio,
+    };
+  }
+
+  function renderVideo(aspectRatio) {
+    const result = postEmbedTemplate({
+      embed: videoEmbed(aspectRatio),
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    return container.querySelector(".post-video");
+  }
+
+  it("renders the aspect ratio inline on .post-video", () => {
+    const el = renderVideo({ width: 16, height: 9 });
+    assert(el !== null);
+    assertEquals(el.style.aspectRatio, String(16 / 9));
+  });
+
+  it("caps tall videos at a 1:2 ratio", () => {
+    const el = renderVideo({ width: 1, height: 4 });
+    assertEquals(el.style.aspectRatio, String(1 / 2));
+  });
+
+  it("passes through wide videos without clamping", () => {
+    const el = renderVideo({ width: 5, height: 1 });
+    assertEquals(el.style.aspectRatio, "5");
+  });
+
+  it("falls back to a square when aspectRatio is missing", () => {
+    const el = renderVideo(undefined);
+    assertEquals(el.style.aspectRatio, "1");
+  });
+
+  it("falls back to a square when aspectRatio is invalid", () => {
+    const el = renderVideo({ width: 0, height: 0 });
+    assertEquals(el.style.aspectRatio, "1");
+  });
+});
+
 t.describe("postEmbedTemplate - external links", (it) => {
   it("should render external link embed", () => {
     const embed = {

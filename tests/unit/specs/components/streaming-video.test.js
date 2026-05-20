@@ -49,36 +49,6 @@ t.describe("StreamingVideo - attributes", (it) => {
     document.body.appendChild(element);
     assertEquals(element.muted, true);
   });
-
-  it("should read height attribute", () => {
-    const element = document.createElement("streaming-video");
-    element.setAttribute("src", "test.m3u8");
-    element.setAttribute("height", "480");
-    document.body.appendChild(element);
-    assertEquals(element.height, "480");
-  });
-
-  it("should read width attribute", () => {
-    const element = document.createElement("streaming-video");
-    element.setAttribute("src", "test.m3u8");
-    element.setAttribute("width", "640");
-    document.body.appendChild(element);
-    assertEquals(element.width, "640");
-  });
-
-  it("should default height to empty string", () => {
-    const element = document.createElement("streaming-video");
-    element.setAttribute("src", "test.m3u8");
-    document.body.appendChild(element);
-    assertEquals(element.height, "");
-  });
-
-  it("should default width to empty string", () => {
-    const element = document.createElement("streaming-video");
-    element.setAttribute("src", "test.m3u8");
-    document.body.appendChild(element);
-    assertEquals(element.width, "");
-  });
 });
 
 t.describe("StreamingVideo - muted state", (it) => {

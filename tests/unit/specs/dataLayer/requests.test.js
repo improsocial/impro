@@ -251,6 +251,108 @@ t.describe("loadNextFeedPage", (it) => {
   });
 });
 
+t.describe("loadPluginFilteredFeedItems", (it) => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  function makePluginService(getFilteredFeedItems) {
+    return { getFilteredFeedItems };
+  }
+
+  function createRequestsWithPluginService(dataStore, pluginService) {
+    return new Requests(
+      {},
+      dataStore,
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+      pluginService,
+      { constellation: stubConstellation },
+    );
+  }
+
+  it("should return early without writing when feed is missing", async () => {
+    const dataStore = new DataStore();
+    let invoked = false;
+    const pluginService = makePluginService(async () => {
+      invoked = true;
+      return { a: { hidden: true } };
+    });
+    const requests = createRequestsWithPluginService(dataStore, pluginService);
+
+    await requests.loadPluginFilteredFeedItems(feedURI);
+
+    assertEquals(invoked, false);
+    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), undefined);
+  });
+
+  it("should pass the feed to the plugin service and store results", async () => {
+    const dataStore = new DataStore();
+    const storedFeed = {
+      feed: [{ post: { uri: "p1" } }],
+      cursor: "c1",
+    };
+    dataStore.setFeed(feedURI, storedFeed);
+
+    let capturedUri = null;
+    let capturedFeed = null;
+    const pluginService = makePluginService(async (uri, feed) => {
+      capturedUri = uri;
+      capturedFeed = feed;
+      return { p1: { hidden: true } };
+    });
+    const requests = createRequestsWithPluginService(dataStore, pluginService);
+
+    await requests.loadPluginFilteredFeedItems(feedURI);
+
+    assertEquals(capturedUri, feedURI);
+    assertEquals(capturedFeed, storedFeed);
+    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+      p1: { hidden: true },
+    });
+  });
+
+  it("should merge with existing filtered items by default", async () => {
+    const dataStore = new DataStore();
+    dataStore.setFeed(feedURI, { feed: [], cursor: null });
+    dataStore.setPluginFilteredFeedItems(feedURI, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
+
+    const pluginService = makePluginService(async () => ({
+      p2: { hidden: false },
+      p3: { hidden: true },
+    }));
+    const requests = createRequestsWithPluginService(dataStore, pluginService);
+
+    await requests.loadPluginFilteredFeedItems(feedURI);
+
+    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+      p1: { hidden: true },
+      p2: { hidden: false },
+      p3: { hidden: true },
+    });
+  });
+
+  it("should replace existing filtered items when reload is true", async () => {
+    const dataStore = new DataStore();
+    dataStore.setFeed(feedURI, { feed: [], cursor: null });
+    dataStore.setPluginFilteredFeedItems(feedURI, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
+
+    const pluginService = makePluginService(async () => ({
+      p3: { hidden: true },
+    }));
+    const requests = createRequestsWithPluginService(dataStore, pluginService);
+
+    await requests.loadPluginFilteredFeedItems(feedURI, { reload: true });
+
+    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+      p3: { hidden: true },
+    });
+  });
+});
+
 t.describe("loadProfile", (it) => {
   const profileDID = "did:test:profile";
 

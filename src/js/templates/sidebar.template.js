@@ -136,21 +136,23 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
         activeNavItem,
         onClickActiveItem,
       })}
-      <a
-        href=${linkToLogin()}
-        class="rounded-button rounded-button-primary login-button"
-        data-testid="login-button"
-        >Sign in</a
-      >
-      <button
-        class="sidebar-about-link sidebar-text-link"
-        data-testid="sidebar-about-link"
-        @click=${() => {
-          showAboutModal();
-        }}
-      >
-        About
-      </button>
+      <div class="sidebar-action-items">
+        <a
+          href=${linkToLogin()}
+          class="rounded-button rounded-button-primary login-button"
+          data-testid="login-button"
+          >Sign in</a
+        >
+        <button
+          class="sidebar-about-link sidebar-text-link"
+          data-testid="sidebar-about-link"
+          @click=${() => {
+            showAboutModal();
+          }}
+        >
+          About
+        </button>
+      </div>
       <div class="sidebar-spacer"></div>
       <div class="sidebar-footer" data-testid="sidebar-footer">
         <a href="/tos.html" class="sidebar-text-link" data-external="true"

@@ -130,12 +130,17 @@ export class BasicAuthSession {
   }
 }
 
-export class BasicAuth {
+export class BasicAuthProvider {
   constructor() {
-    this.session = BasicAuthSession.fromLocalStorage();
+    this.session = null;
+    this._loaded = false;
   }
 
   async getSession() {
+    if (!this._loaded) {
+      this.session = BasicAuthSession.fromLocalStorage();
+      this._loaded = true;
+    }
     return this.session;
   }
 
@@ -157,17 +162,20 @@ export class BasicAuth {
     const data = await res.json();
     const session = new BasicAuthSession(data.accessJwt, data.refreshJwt);
     this.session = session;
+    this._loaded = true;
     this.session.save();
     return session;
   }
 
   async logout() {
-    await this.session.delete();
+    const session = await this.getSession();
+    if (!session) return;
+    await session.delete();
     this.session = null;
   }
 }
 
-export class OAuth {
+export class OAuthProvider {
   constructor() {
     this._client = null;
   }
@@ -187,7 +195,7 @@ export class OAuth {
     return client.getSession();
   }
 
-  async login(handle, _password, { returnTo } = {}) {
+  async login(handle, { returnTo } = {}) {
     const client = await this.getClient();
     let authUrl = null;
     try {
@@ -237,34 +245,67 @@ export class OAuth {
   }
 }
 
-export async function getAuth() {
-  if (isNative()) {
-    return new BasicAuth();
-  } else {
-    return new OAuth();
-  }
-}
+const FORCE_LOGOUT_QUERY_PARAM = "force-logout";
 
-export async function requireAuth() {
-  const auth = await getAuth();
-  const session = await auth.getSession();
-  if (!session) {
-    window.location.href = linkToLogin();
-    // no resolve, just wait for redirect
-    return new Promise(() => {});
+export class Auth {
+  constructor(provider) {
+    if (!provider) {
+      throw new Error("Auth requires a provider");
+    }
+    this.provider = provider;
   }
-  return session;
-}
 
-export async function requireNoAuth() {
-  const auth = await getAuth();
-  const session = await auth.getSession();
-  if (session) {
+  getSession() {
+    return this.provider.getSession();
+  }
+
+  logout() {
+    return this.provider.logout();
+  }
+
+  async requireAuth() {
+    const session = await this.provider.getSession();
+    if (!session) {
+      window.location.href = linkToLogin();
+      return new Promise(() => {});
+    }
+    return session;
+  }
+
+  async requireNoAuth() {
+    const session = await this.provider.getSession();
+    if (session) {
+      const params = new URLSearchParams(window.location.search);
+      const returnTo = validateReturnToParam(params.get("returnTo"));
+      window.location.href = returnTo ?? "/";
+      return new Promise(() => {});
+    }
+    return null;
+  }
+
+  async handleForceLogoutParam() {
     const params = new URLSearchParams(window.location.search);
-    const returnTo = validateReturnToParam(params.get("returnTo"));
-    window.location.href = returnTo ?? "/";
-    // no resolve, just wait for redirect
+    if (!params.has(FORCE_LOGOUT_QUERY_PARAM)) {
+      return;
+    }
+    try {
+      await this.provider.logout();
+    } catch (error) {
+      console.error(error);
+    }
+    // Strip the param before building returnTo so login doesn't redirect back into a logout loop
+    params.delete(FORCE_LOGOUT_QUERY_PARAM);
+    const cleanSearch = params.size ? "?" + params.toString() : "";
+    window.history.replaceState(
+      null,
+      "",
+      window.location.pathname + cleanSearch + window.location.hash,
+    );
+    window.location.href = linkToLogin();
     return new Promise(() => {});
   }
-  return null;
 }
+
+export const auth = new Auth(
+  isNative() ? new BasicAuthProvider() : new OAuthProvider(),
+);

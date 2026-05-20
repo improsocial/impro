@@ -114,9 +114,8 @@ test.describe("Follow/Unfollow flow", () => {
     // Navigate back to own Following list
     await page.goto(`/profile/${userProfile.did}/following`);
 
-    await expect(followingView.locator(".search-status-message")).toContainText(
-      "Not following anyone yet.",
-      { timeout: 10000 },
-    );
+    await expect(
+      followingView.locator('[data-testid="feed-end-message"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 });

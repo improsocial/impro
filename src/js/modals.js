@@ -106,7 +106,7 @@ export async function confirm(
 ) {
   return new Promise((resolve) => {
     const dialog = document.createElement("dialog");
-    dialog.classList.add("modal-dialog");
+    dialog.classList.add("modal-dialog", "confirm-modal");
 
     render(
       html`
@@ -318,18 +318,18 @@ export function showPluginModal({
 
   modal.contentEl.replaceChildren();
   if (!pluginRenderer.isEmptyNode(title)) {
-    const titleEl = pluginRenderer.renderNode(title, pluginId);
+    const titleEl = pluginRenderer.createRoot().render(title);
     titleEl.classList.add("modal-dialog-title");
     modal.contentEl.appendChild(titleEl);
   }
   if (content?.children?.length) {
     for (const childNode of content.children) {
       modal.contentEl.appendChild(
-        pluginRenderer.renderNode(childNode, pluginId),
+        pluginRenderer.createRoot().render(childNode),
       );
     }
   } else if (!pluginRenderer.isEmptyNode(content)) {
-    modal.contentEl.appendChild(pluginRenderer.renderNode(content, pluginId));
+    modal.contentEl.appendChild(pluginRenderer.createRoot().render(content));
   }
   modal.isOpen = true;
   modal.dialog.showModal();

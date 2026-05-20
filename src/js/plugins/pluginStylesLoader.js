@@ -30,22 +30,64 @@ function walk(rules) {
 
 export class PluginStylesLoader {
   constructor() {
-    this._sheets = new Map();
+    this._manifestSheets = new Map();
+    this._snippetSheets = new Map();
   }
 
   mount(pluginId, cssText) {
-    if (this._sheets.has(pluginId)) this.unmount(pluginId);
+    if (this._manifestSheets.has(pluginId)) this._unmountManifest(pluginId);
     const sheet = validatePluginCss(cssText);
     document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
-    this._sheets.set(pluginId, sheet);
+    this._manifestSheets.set(pluginId, sheet);
   }
 
   unmount(pluginId) {
-    const sheet = this._sheets.get(pluginId);
+    this._unmountManifest(pluginId);
+    const snippets = this._snippetSheets.get(pluginId);
+    if (snippets && snippets.size) {
+      const toRemove = new Set(snippets.values());
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+        (entry) => !toRemove.has(entry),
+      );
+    }
+    this._snippetSheets.delete(pluginId);
+  }
+
+  mountSnippet(pluginId, snippetId, cssText) {
+    const sheet = validatePluginCss(cssText);
+    let snippets = this._snippetSheets.get(pluginId);
+    if (!snippets) {
+      snippets = new Map();
+      this._snippetSheets.set(pluginId, snippets);
+    }
+    const existing = snippets.get(snippetId);
+    if (existing) {
+      document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+        (entry) => entry !== existing,
+      );
+    }
+    document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    snippets.set(snippetId, sheet);
+  }
+
+  unmountSnippet(pluginId, snippetId) {
+    const snippets = this._snippetSheets.get(pluginId);
+    if (!snippets) return;
+    const sheet = snippets.get(snippetId);
     if (!sheet) return;
     document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
       (entry) => entry !== sheet,
     );
-    this._sheets.delete(pluginId);
+    snippets.delete(snippetId);
+    if (snippets.size === 0) this._snippetSheets.delete(pluginId);
+  }
+
+  _unmountManifest(pluginId) {
+    const sheet = this._manifestSheets.get(pluginId);
+    if (!sheet) return;
+    document.adoptedStyleSheets = document.adoptedStyleSheets.filter(
+      (entry) => entry !== sheet,
+    );
+    this._manifestSheets.delete(pluginId);
   }
 }

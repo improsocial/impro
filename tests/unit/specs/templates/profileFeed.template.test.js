@@ -3,7 +3,8 @@ import { assert, assertEquals } from "../../testHelpers.js";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
-} from "/js/templates/profileListItem.template.js";
+  profileFeedTemplate,
+} from "/js/templates/profileFeed.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 const t = new TestSuite("profileListItemTemplate");
@@ -125,12 +126,115 @@ t.describe("profileListItemTemplate - no display name", (it) => {
   });
 });
 
+t.describe("profileListItemTemplate - special handles", (it) => {
+  it("should render 'Deleted Account' for missing handle without displayName", () => {
+    const deletedActor = {
+      ...mockActor,
+      handle: "missing.invalid",
+      displayName: null,
+    };
+    const result = profileListItemTemplate({ actor: deletedActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Deleted Account"));
+  });
+
+  it("should render 'Invalid Handle' for invalid handle without displayName", () => {
+    const invalidActor = {
+      ...mockActor,
+      handle: "handle.invalid",
+      displayName: null,
+    };
+    const result = profileListItemTemplate({ actor: invalidActor });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Invalid Handle"));
+  });
+});
+
+t.describe("profileListItemTemplate - displayName sanitization", (it) => {
+  it("should strip check marks from displayName", () => {
+    const actorWithCheckmark = {
+      ...mockActor,
+      displayName: "Test User ✓",
+    };
+    const result = profileListItemTemplate({ actor: actorWithCheckmark });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(!displayName.textContent.includes("✓"));
+    assert(displayName.textContent.includes("Test User"));
+  });
+
+  it("should collapse repeated whitespace in displayName", () => {
+    const actorWithExtraSpaces = {
+      ...mockActor,
+      displayName: "Test   User",
+    };
+    const result = profileListItemTemplate({ actor: actorWithExtraSpaces });
+    const container = document.createElement("div");
+    render(result, container);
+    const displayName = container.querySelector(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(displayName.textContent.includes("Test User"));
+    assert(!displayName.textContent.includes("Test   User"));
+  });
+});
+
 t.describe("profileListItemSkeletonTemplate", (it) => {
   it("should render skeleton avatar", () => {
     const result = profileListItemSkeletonTemplate();
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='skeleton-avatar']") !== null);
+  });
+});
+
+t.describe("profileFeedTemplate", (it, { beforeEach }) => {
+  let container;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+  });
+
+  it("should render skeleton when profiles is null", () => {
+    const result = profileFeedTemplate({ profiles: null, hasMore: false });
+    render(result, container);
+    assert(container.querySelector("[data-testid='skeleton-avatar']") !== null);
+  });
+
+  it("should render empty message when profiles is empty", () => {
+    const result = profileFeedTemplate({
+      profiles: [],
+      hasMore: false,
+      emptyMessage: "Nothing here.",
+    });
+    render(result, container);
+    const msg = container.querySelector("[data-testid='feed-end-message']");
+    assert(msg !== null);
+    assert(msg.textContent.includes("Nothing here."));
+  });
+
+  it("should render profile list items when profiles is non-empty", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+    });
+    render(result, container);
+    assert(
+      container.querySelector(
+        "[data-testid='profile-list-item-display-name']",
+      ) !== null,
+    );
   });
 });
 

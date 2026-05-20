@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { TestSuite } from "../../testSuite.js";
+import { assert, assertEquals } from "../../testHelpers.js";
 import { PluginService } from "/js/plugins/pluginService.js";
 
 class FakePreferences {
@@ -583,7 +583,14 @@ t.describe("getPluginsInfo", (it) => {
   });
 });
 
-t.describe("listRegistryPlugins", (it) => {
+t.describe("registry listings loader/selector", (it) => {
+  it("returns null from the selector before the loader runs", () => {
+    const { service } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+    });
+    assertEquals(service.getRegistryListings(), null);
+  });
+
   it("merges remote + local listings and marks installed entries", async () => {
     const { service, state } = makeService({
       remoteListings: [
@@ -595,7 +602,8 @@ t.describe("listRegistryPlugins", (it) => {
     state.installedPlugins = [
       { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
     ];
-    const listings = await service.listRegistryPlugins();
+    await service.loadRegistryListings();
+    const listings = service.getRegistryListings();
     assertEquals(listings.length, 3);
     const byId = Object.fromEntries(
       listings.map((listing) => [listing.id, listing]),
@@ -605,11 +613,24 @@ t.describe("listRegistryPlugins", (it) => {
     assertEquals(byId.gamma__LOCAL.installed, false);
   });
 
+  it("reflects updated install state on subsequent selector reads", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+    });
+    await service.loadRegistryListings();
+    assertEquals(service.getRegistryListings()[0].installed, false);
+    state.installedPlugins = [
+      { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+    ];
+    assertEquals(service.getRegistryListings()[0].installed, true);
+  });
+
   it("returns only remote listings when localRegistry is absent", async () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
-    const listings = await service.listRegistryPlugins();
+    await service.loadRegistryListings();
+    const listings = service.getRegistryListings();
     assertEquals(listings.length, 1);
     assertEquals(listings[0].id, "alpha");
   });
@@ -786,6 +807,89 @@ t.describe("installUnregisteredPlugin", (it) => {
     }
     assert(caught?.message.includes("in the registry"));
     assertEquals(state.installedPlugins, []);
+  });
+});
+
+t.describe("getFilteredFeedItems", (it) => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  function addFilter(service, pluginId, invoke) {
+    const entry = { pluginId, invoke };
+    service.registries.feedFilters.add(entry);
+    return entry;
+  }
+
+  it("returns an empty object when no filters are registered", async () => {
+    const { service } = makeService();
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+    assertEquals(result, {});
+  });
+
+  it("passes feed.feed (not the wrapper) to each filter", async () => {
+    const { service } = makeService();
+    const feedItems = [{ post: { uri: "p1" } }];
+    let captured = null;
+    addFilter(service, "alpha", async (_uri, items) => {
+      captured = items;
+      return {};
+    });
+
+    await service.getFilteredFeedItems(feedURI, { feed: feedItems });
+
+    assertEquals(captured, feedItems);
+  });
+
+  it("merges results from multiple filters", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => ({ p1: { hidden: true } }));
+    addFilter(service, "beta", async () => ({ p2: { hidden: true } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
+  });
+
+  it("lets later filters override earlier ones for the same key", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => ({ p1: { hidden: true } }));
+    addFilter(service, "beta", async () => ({ p1: { hidden: false } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, { p1: { hidden: false } });
+  });
+
+  it("continues past filters that throw", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => {
+      throw new Error("boom");
+    });
+    addFilter(service, "beta", async () => ({ p1: { hidden: true } }));
+
+    const originalError = console.error;
+    console.error = () => {};
+    let result;
+    try {
+      result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+    } finally {
+      console.error = originalError;
+    }
+
+    assertEquals(result, { p1: { hidden: true } });
+  });
+
+  it("skips filters that return null or non-object values", async () => {
+    const { service } = makeService();
+    addFilter(service, "alpha", async () => null);
+    addFilter(service, "beta", async () => "not-an-object");
+    addFilter(service, "gamma", async () => ({ p1: { hidden: true } }));
+
+    const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
+
+    assertEquals(result, { p1: { hidden: true } });
   });
 });
 
