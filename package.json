@@ -16,7 +16,7 @@
     "serve:static": "node scripts/serve-static.js",
     "prepare": "husky"
   },
-  "license": "MIT",
+  "license": "0BSD",
   "devDependencies": {
     "@11ty/eleventy": "^3.1.2",
     "@capacitor/cli": "^7.0.0",

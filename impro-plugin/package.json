@@ -3,6 +3,7 @@
   "version": "0.0.3",
   "type": "module",
   "main": "main.js",
+  "license": "0BSD",
   "exports": {
     ".": "./main.js"
   },
