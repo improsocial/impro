@@ -7728,12 +7728,6 @@ image-cropper {
   align-items: flex-start;
 }
 
-@media (min-width: 1200px) {
-  .sidebar-action-items {
-    /* align-items: center; */
-  }
-}
-
 @media (min-width: 800px) and (max-width: 1199.98px) {
   .logged-out-sidebar .sidebar-footer,
   .logged-out-sidebar .sidebar-action-items,
