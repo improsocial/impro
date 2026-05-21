@@ -1,3 +1,4 @@
+// v0.0.2
 export class SimpleUUID {
   constructor() {
     this._id = 0;
@@ -500,7 +501,7 @@ class VirtualEl {
   }
 }
 
-self.addEventListener("message", async (event) => {
+self.onmessage = async (event) => {
   const message = event.data;
   if (!message || typeof message !== "object") return;
 
@@ -552,4 +553,4 @@ self.addEventListener("message", async (event) => {
     }
     return;
   }
-});
+};

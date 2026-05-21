@@ -31,7 +31,7 @@
               type: "text/javascript",
             });
             const workerUrl = URL.createObjectURL(blob);
-            worker = new Worker(workerUrl, { type: "module" });
+            worker = new Worker(workerUrl);
             URL.revokeObjectURL(workerUrl);
           } catch (error) {
             window.parent.postMessage(

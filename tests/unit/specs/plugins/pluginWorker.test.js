@@ -1,9 +1,9 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 
-// pluginWorker.js uses the worker global `self` for postMessage/addEventListener
-// and is imported only for its side effects (registering a message listener).
-// We install a mock `self` BEFORE importing so the listener is captured here.
+// pluginWorker.js uses the worker global `self` for postMessage and assigns
+// `self.onmessage` for incoming messages. We install a mock `self` BEFORE
+// importing so the assigned handler is captured here.
 const postedMessages = [];
 let messageListener = null;
 
@@ -11,8 +11,11 @@ globalThis.self = {
   postMessage(message) {
     postedMessages.push(message);
   },
-  addEventListener(event, listener) {
-    if (event === "message") messageListener = listener;
+  set onmessage(listener) {
+    messageListener = listener;
+  },
+  get onmessage() {
+    return messageListener;
   },
 };
 
