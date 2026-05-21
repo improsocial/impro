@@ -346,7 +346,9 @@ class Session {
       if (response.status === 500 && retryCount === 0) {
         return await this.refreshToken({ retryCount: retryCount + 1 });
       }
-      const error = await response.text();
+      const error = response.data
+        ? JSON.stringify(response.data)
+        : await response.text();
       throw new TokenRefreshError(`Token refresh failed: ${error}`);
     }
 
@@ -428,7 +430,9 @@ class AuthServer {
     });
 
     if (!response.ok) {
-      const error = await response.text();
+      const error = response.data
+        ? JSON.stringify(response.data)
+        : await response.text();
       throw new Error(`Token exchange failed: ${error}`);
     }
 
