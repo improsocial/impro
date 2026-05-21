@@ -1,7 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 
-// pluginWorker.js uses the worker global `self` for postMessage and assigns
+// impro-plugin/main.js uses the worker global `self` for postMessage and assigns
 // `self.onmessage` for incoming messages. We install a mock `self` BEFORE
 // importing so the assigned handler is captured here.
 const postedMessages = [];
@@ -19,7 +19,7 @@ globalThis.self = {
   },
 };
 
-const worker = await import("../../../../pluginWorker.js");
+const worker = await import("../../../../impro-plugin/main.js");
 const {
   SimpleUUID,
   MenuItem,

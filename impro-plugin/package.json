@@ -1,0 +1,12 @@
+{
+  "name": "impro-plugin",
+  "version": "0.0.3",
+  "type": "module",
+  "main": "main.js",
+  "exports": {
+    ".": "./main.js"
+  },
+  "files": [
+    "main.js"
+  ]
+}

@@ -1,4 +1,3 @@
-// v0.0.2
 export class SimpleUUID {
   constructor() {
     this._id = 0;

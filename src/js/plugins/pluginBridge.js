@@ -79,11 +79,19 @@ export class SandboxedWorker extends EventTarget {
 }
 
 export function wrapWorkerSource(source) {
-  const prelude = `
+  return /* js */ `
     delete self.BroadcastChannel;
     delete self.SharedWorker;
+
+    self.module = {}
+
+    ${source}
+
+    const pluginClass = self.module.exports?.default
+    if (pluginClass) {
+      pluginClass.register()
+    }
   `;
-  return `${prelude}\n${source}`;
 }
 
 async function createSandboxedWorker(source) {
