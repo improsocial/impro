@@ -119,10 +119,10 @@ function resolveTag(node, pluginId) {
 
 // Render a serialized VirtualEl node ({ tag, attrs, text, children }) into a DOM element.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId, dataLayer = null) {
+  constructor(pluginBridge, pluginId, renderContext) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
-    this.dataLayer = dataLayer;
+    this.renderContext = renderContext;
   }
 
   createRoot() {
@@ -162,12 +162,11 @@ export class PluginRenderer {
       });
     }
     if (tag === "plugin-profiles-list") {
-      if (!this.dataLayer) {
-        throw new Error(
-          `[plugins] "${pluginId}" rendered <profiles-list> but the renderer was created without a dataLayer`,
-        );
+      const { dataLayer } = this.renderContext;
+      if (!dataLayer) {
+        throw new Error("Datalayer is required");
       }
-      element.dataLayer = this.dataLayer;
+      element.dataLayer = dataLayer;
     }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin

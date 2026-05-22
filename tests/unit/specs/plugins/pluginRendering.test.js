@@ -38,7 +38,7 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
   it("rewrites <profiles-list> as <plugin-profiles-list> and passes dataLayer", () => {
     const { bridge } = makeBridge();
     const dataLayer = { declarative: { ensureProfiles: async () => [] } };
-    const renderer = new PluginRenderer(bridge, "demo", dataLayer);
+    const renderer = new PluginRenderer(bridge, "demo", { dataLayer });
     const element = renderer.createRoot().render({
       tag: "profiles-list",
       attrs: { dids: "did:test:a,did:test:b" },
@@ -50,7 +50,7 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
 
   it("drops disallowed attributes from <profiles-list>", () => {
     const { bridge } = makeBridge();
-    const renderer = new PluginRenderer(bridge, "demo", {});
+    const renderer = new PluginRenderer(bridge, "demo", { dataLayer: {} });
     const element = renderer.createRoot().render({
       tag: "profiles-list",
       attrs: { dids: "did:test:a", onclick: "alert(1)" },

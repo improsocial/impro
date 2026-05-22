@@ -70,12 +70,20 @@ export class PluginService extends EventEmitter {
     );
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
+    this._renderContext = null;
     this._setupRegistries();
     this._setupHostMethods();
   }
 
-  getRenderer(pluginId, dataLayer = null) {
-    return new PluginRenderer(this.pluginBridge, pluginId, dataLayer);
+  setRenderContext(renderContext) {
+    this._renderContext = renderContext;
+  }
+
+  getRenderer(pluginId) {
+    if (!this._renderContext) {
+      throw new Error("Render context not loaded");
+    }
+    return new PluginRenderer(this.pluginBridge, pluginId, this._renderContext);
   }
 
   _setupRegistries() {

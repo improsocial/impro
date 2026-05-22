@@ -225,6 +225,8 @@
           pluginService,
         };
 
+        pluginService.setRenderContext(context);
+
         const router = new Router();
         router.addRoute("/", () => homeView);
         router.addRoute("/intent/compose", () => homeView);

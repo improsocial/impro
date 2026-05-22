@@ -1,5 +1,5 @@
 {
-  "name": "impro-plugin",
+  "name": "@impro.social/impro-plugin",
   "version": "0.0.3",
   "type": "module",
   "main": "main.js",
