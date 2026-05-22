@@ -21,11 +21,10 @@ import {
   linkToLogin,
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
+import "/js/components/plugin-icon.js";
 import { showInfoModal } from "/js/modals.js";
-import { getPluginIconTemplate } from "/js/plugins/pluginRendering.js";
 
 function pluginSidebarItemTemplate({ entry }) {
-  const iconTemplate = getPluginIconTemplate(entry.icon);
   return html`
     <button
       class="sidebar-nav-item sidebar-plugin-nav-item"
@@ -36,9 +35,9 @@ function pluginSidebarItemTemplate({ entry }) {
         entry.invoke();
       }}
     >
-      <span class="sidebar-nav-icon"
-        >${iconTemplate ? iconTemplate() : ""}</span
-      >
+      <span class="sidebar-nav-icon">
+        <plugin-icon icon=${entry.icon}></plugin-icon>
+      </span>
       <span class="sidebar-nav-label">${entry.title}</span>
     </button>
   `;

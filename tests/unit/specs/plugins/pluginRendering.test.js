@@ -317,6 +317,30 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
   });
 });
 
+t.describe("PluginRenderer:plugin-icon", (it) => {
+  it("renders <plugin-icon> with the icon attribute passed through", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell" },
+    });
+    assertEquals(element.tagName.toLowerCase(), "plugin-icon");
+    assertEquals(element.getAttribute("icon"), "bell");
+  });
+
+  it("drops disallowed attributes from <plugin-icon>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell", onclick: "alert(1)" },
+    });
+    assert(!element.hasAttribute("onclick"));
+    assertEquals(element.getAttribute("icon"), "bell");
+  });
+});
+
 t.describe("PluginRenderer:anchor tags", (it) => {
   it("renders <a> with safe https href and forces target/rel", () => {
     const { bridge } = makeBridge();

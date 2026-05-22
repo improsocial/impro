@@ -1,7 +1,7 @@
-import { lightningBoltIconTemplate } from "/js/templates/icons/lightningBoltIcon.template.js";
 import { showExternalLinkWarningModal } from "/js/modals.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
+import "/js/components/plugin-icon.js";
 
 function isExternalHref(href) {
   try {
@@ -38,6 +38,7 @@ const ALLOWED_TAGS = [
   "textarea",
   "a",
   "profiles-list",
+  "plugin-icon",
 ];
 
 const ALLOWED_EVENTS = ["click", "change", "input"];
@@ -63,6 +64,7 @@ const ALLOWED_ATTRS = [
   "id",
   "href",
   "dids",
+  "icon",
 ];
 
 function isSafeHref(value) {
@@ -82,10 +84,6 @@ function isAllowedAttr(name) {
     name.startsWith("aria-")
   );
 }
-
-const PLUGIN_ICON_TEMPLATES = {
-  "lightning-bolt": lightningBoltIconTemplate,
-};
 
 function createVirtualEvent(e) {
   const target = e.target ?? {};
@@ -343,13 +341,4 @@ export class PluginRenderer {
     if (Array.isArray(node.children) && node.children.length > 0) return false;
     return true;
   }
-}
-
-export function getPluginIconTemplate(icon) {
-  const template = PLUGIN_ICON_TEMPLATES[icon];
-  if (!template) {
-    console.warn(`[plugins] requested unknown icon "${icon}"`);
-    return null;
-  }
-  return template;
 }

@@ -1,8 +1,8 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals, mock, MockFetch } from "../../testHelpers.js";
-import "/js/components/impro-icon.js";
+import "/js/components/plugin-icon.js";
 
-const t = new TestSuite("ImproIcon");
+const t = new TestSuite("PluginIcon");
 
 const SAMPLE_SVG =
   '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>';
@@ -31,51 +31,67 @@ function notFoundResponse() {
 
 t.beforeEach(() => {
   document.body.innerHTML = "";
+  customElements.get("plugin-icon").cache = new Map();
 });
 
-t.describe("ImproIcon - set defaulting", (it) => {
-  it("defaults set to majesticons when not specified", async () => {
+t.describe("PluginIcon - iconset resolution", (it) => {
+  it("resolves an icon from the majesticons set", async () => {
     const fetch = new MockFetch();
     fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
     globalThis.fetch = fetch;
 
-    const element = document.createElement("impro-icon");
-    element.setAttribute("name", "default-set-icon");
+    const element = document.createElement("plugin-icon");
+    element.setAttribute("icon", "bell");
     document.body.appendChild(element);
     await flush();
 
-    assertEquals(
-      fetch.calls[0].url,
-      "/img/icons/majesticons/default-set-icon.svg",
-    );
+    assertEquals(fetch.calls[0].url, "/img/icons/majesticons/bell.svg");
   });
 
-  it("uses the provided set", async () => {
+  it("resolves an icon from the custom set", async () => {
     const fetch = new MockFetch();
     fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
     globalThis.fetch = fetch;
 
-    const element = document.createElement("impro-icon");
-    element.setAttribute("set", "custom-set");
-    element.setAttribute("name", "explicit-set-icon");
+    const element = document.createElement("plugin-icon");
+    element.setAttribute("icon", "verified-check");
     document.body.appendChild(element);
     await flush();
 
-    assertEquals(
-      fetch.calls[0].url,
-      "/img/icons/custom-set/explicit-set-icon.svg",
-    );
+    assertEquals(fetch.calls[0].url, "/img/icons/custom/verified-check.svg");
+  });
+
+  it("warns and renders nothing for an unknown icon", async () => {
+    const fetch = new MockFetch();
+    globalThis.fetch = fetch;
+
+    const originalWarn = console.warn;
+    const warnMock = mock();
+    console.warn = warnMock;
+
+    try {
+      const element = document.createElement("plugin-icon");
+      element.setAttribute("icon", "not-a-real-icon");
+      document.body.appendChild(element);
+      await flush();
+
+      assertEquals(fetch.calls.length, 0);
+      assertEquals(element.innerHTML, "");
+      assertEquals(warnMock.calls.length, 1);
+    } finally {
+      console.warn = originalWarn;
+    }
   });
 });
 
-t.describe("ImproIcon - rendering", (it) => {
+t.describe("PluginIcon - rendering", (it) => {
   it("injects the fetched SVG markup", async () => {
     const fetch = new MockFetch();
     fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
     globalThis.fetch = fetch;
 
-    const element = document.createElement("impro-icon");
-    element.setAttribute("name", "render-test");
+    const element = document.createElement("plugin-icon");
+    element.setAttribute("icon", "cake");
     document.body.appendChild(element);
     await flush();
 
@@ -84,11 +100,11 @@ t.describe("ImproIcon - rendering", (it) => {
     assertEquals(svg.getAttribute("viewBox"), "0 0 24 24");
   });
 
-  it("renders nothing when name is empty", async () => {
+  it("renders nothing when icon is empty", async () => {
     const fetch = new MockFetch();
     globalThis.fetch = fetch;
 
-    const element = document.createElement("impro-icon");
+    const element = document.createElement("plugin-icon");
     document.body.appendChild(element);
     await flush();
 
@@ -96,62 +112,40 @@ t.describe("ImproIcon - rendering", (it) => {
     assertEquals(element.innerHTML, "");
   });
 
-  it("swaps the icon when name changes", async () => {
+  it("swaps the icon when icon changes", async () => {
     const fetch = new MockFetch();
-    fetch.__intercept("/img/icons/majesticons/swap-first.svg", async () =>
+    fetch.__intercept("/img/icons/majesticons/bus.svg", async () =>
       okResponse('<svg id="first"></svg>'),
     );
-    fetch.__intercept("/img/icons/majesticons/swap-second.svg", async () =>
+    fetch.__intercept("/img/icons/majesticons/car.svg", async () =>
       okResponse('<svg id="second"></svg>'),
     );
     globalThis.fetch = fetch;
 
-    const element = document.createElement("impro-icon");
-    element.setAttribute("name", "swap-first");
+    const element = document.createElement("plugin-icon");
+    element.setAttribute("icon", "bus");
     document.body.appendChild(element);
     await flush();
     assertEquals(element.querySelector("svg").id, "first");
 
-    element.setAttribute("name", "swap-second");
+    element.setAttribute("icon", "car");
     await flush();
     assertEquals(element.querySelector("svg").id, "second");
   });
-
-  it("refetches when set changes", async () => {
-    const fetch = new MockFetch();
-    fetch.__intercept("/img/icons/set-a/set-swap.svg", async () =>
-      okResponse('<svg id="a"></svg>'),
-    );
-    fetch.__intercept("/img/icons/set-b/set-swap.svg", async () =>
-      okResponse('<svg id="b"></svg>'),
-    );
-    globalThis.fetch = fetch;
-
-    const element = document.createElement("impro-icon");
-    element.setAttribute("set", "set-a");
-    element.setAttribute("name", "set-swap");
-    document.body.appendChild(element);
-    await flush();
-    assertEquals(element.querySelector("svg").id, "a");
-
-    element.setAttribute("set", "set-b");
-    await flush();
-    assertEquals(element.querySelector("svg").id, "b");
-  });
 });
 
-t.describe("ImproIcon - caching", (it) => {
+t.describe("PluginIcon - caching", (it) => {
   it("only fetches once when the same icon is rendered twice", async () => {
     const fetch = new MockFetch();
     fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
     globalThis.fetch = fetch;
 
-    const first = document.createElement("impro-icon");
-    first.setAttribute("name", "cache-shared");
+    const first = document.createElement("plugin-icon");
+    first.setAttribute("icon", "chat");
     document.body.appendChild(first);
 
-    const second = document.createElement("impro-icon");
-    second.setAttribute("name", "cache-shared");
+    const second = document.createElement("plugin-icon");
+    second.setAttribute("icon", "chat");
     document.body.appendChild(second);
 
     await flush();
@@ -162,7 +156,7 @@ t.describe("ImproIcon - caching", (it) => {
   });
 });
 
-t.describe("ImproIcon - error handling", (it) => {
+t.describe("PluginIcon - error handling", (it) => {
   it("warns and renders nothing when the fetch 404s; does not retry", async () => {
     const fetch = new MockFetch();
     fetch.__intercept("/img/icons/", async () => notFoundResponse());
@@ -173,16 +167,16 @@ t.describe("ImproIcon - error handling", (it) => {
     console.warn = warnMock;
 
     try {
-      const element = document.createElement("impro-icon");
-      element.setAttribute("name", "missing-icon");
+      const element = document.createElement("plugin-icon");
+      element.setAttribute("icon", "moon");
       document.body.appendChild(element);
       await flush();
 
       assertEquals(element.innerHTML, "");
       assertEquals(warnMock.calls.length, 1);
 
-      const retry = document.createElement("impro-icon");
-      retry.setAttribute("name", "missing-icon");
+      const retry = document.createElement("plugin-icon");
+      retry.setAttribute("icon", "moon");
       document.body.appendChild(retry);
       await flush();
 

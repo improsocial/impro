@@ -421,6 +421,25 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     assert(invoked);
   });
 
+  it("should render a <plugin-icon> with the entry's icon for each plugin item", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+      pluginSidebarItems: [
+        { title: "Plugin One", icon: "lightning-bolt", invoke: () => {} },
+        { title: "Plugin Two", icon: "bell", invoke: () => {} },
+      ],
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const icons = container.querySelectorAll(
+      ".sidebar-plugin-nav-item plugin-icon",
+    );
+    assertEquals(icons.length, 2);
+    assertEquals(icons[0].getAttribute("icon"), "lightning-bolt");
+    assertEquals(icons[1].getAttribute("icon"), "bell");
+  });
+
   it("should not render plugin sidebar items in logged out sidebar", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,
