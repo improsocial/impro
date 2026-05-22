@@ -2,6 +2,7 @@
 
 import http from "node:http";
 import fs from "node:fs";
+import fsp from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -29,6 +30,7 @@ const MIME = {
 const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf-8");
 
 function send(res, status, body, type) {
+  if (res.headersSent || res.writableEnded) return;
   res.writeHead(status, { "Content-Type": type });
   res.end(body);
 }
@@ -41,18 +43,42 @@ function safeJoin(urlPath) {
 }
 
 http
-  .createServer((req, res) => {
+  .createServer(async (req, res) => {
     const target = safeJoin(req.url);
-    if (target && fs.existsSync(target) && fs.statSync(target).isFile()) {
-      const ext = path.extname(target);
-      const stream = fs.createReadStream(target);
-      res.writeHead(200, {
-        "Content-Type": MIME[ext] || "application/octet-stream",
-      });
-      stream.pipe(res);
-      return;
+    const ext = target ? path.extname(target) : "";
+
+    if (target) {
+      try {
+        const stat = await fsp.stat(target);
+        if (stat.isFile()) {
+          res.writeHead(200, {
+            "Content-Type": MIME[ext] || "application/octet-stream",
+          });
+          const stream = fs.createReadStream(target);
+          stream.on("error", (err) => {
+            console.error(`Stream error for ${req.url}:`, err);
+            // Headers are already sent; destroy the response to surface the
+            // failure to the client rather than leaving it hanging.
+            res.destroy(err);
+          });
+          stream.pipe(res);
+          return;
+        }
+      } catch (err) {
+        if (err.code !== "ENOENT" && err.code !== "ENOTDIR") {
+          console.error(`Stat error for ${req.url}:`, err);
+          send(res, 500, "Internal Server Error", MIME[".html"]);
+          return;
+        }
+        // Fall through to the not-found / SPA-fallback logic below.
+      }
     }
-    send(res, 200, indexHtml, MIME[".html"]);
+
+    if (!ext) {
+      send(res, 200, indexHtml, MIME[".html"]);
+    } else {
+      send(res, 404, `Not found: ${req.url}`, "text/plain; charset=utf-8");
+    }
   })
   .listen(port, () => {
     console.info(`Static server listening on http://localhost:${port}/`);
