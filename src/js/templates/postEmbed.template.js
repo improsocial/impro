@@ -245,9 +245,9 @@ function imagesTemplate({ images, lazyLoad = false }) {
 const MIN_VIDEO_ASPECT_RATIO = 1 / 2;
 
 function getVideoAspectRatio(video) {
-  if (!video.aspectRatio) return 1;
+  if (!video.aspectRatio) return null;
   const aspectRatio = video.aspectRatio.width / video.aspectRatio.height;
-  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) return 1;
+  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) return null;
   return Math.max(aspectRatio, MIN_VIDEO_ASPECT_RATIO);
 }
 
@@ -255,7 +255,7 @@ function videoTemplate({ video }) {
   const aspectRatio = getVideoAspectRatio(video);
   return html`<div
     class="post-video"
-    style="aspect-ratio: ${aspectRatio};"
+    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
     @click=${(e) => {
       e.stopPropagation();
       e.preventDefault();

@@ -199,6 +199,15 @@ export class Requests {
     this.dataStore.setPost(postURI, post);
   }
 
+  async loadPosts(postURIs) {
+    if (postURIs.length === 0) return;
+    const labelers = this.requireLabelers();
+    const posts = await this.api.getPosts(postURIs, { labelers });
+    for (const post of posts) {
+      this.dataStore.setPost(post.uri, post);
+    }
+  }
+
   async _loadParentChain(blockedParent, { labelers = [], rootUri } = {}) {
     if (!rootUri || isBlockingUser(blockedParent)) {
       return await this.loadPostThread(blockedParent.uri, {
