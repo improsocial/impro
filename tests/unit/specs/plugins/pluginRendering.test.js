@@ -341,6 +341,56 @@ t.describe("PluginRenderer:plugin-icon", (it) => {
   });
 });
 
+t.describe("PluginRenderer:custom element observedAttributes", (it) => {
+  it("passes through attrs declared in a custom element's observedAttributes", () => {
+    // plugin-icon declares observedAttributes = ["icon"] — verifies the
+    // observedAttributes lookup is what allows `icon` through now that it
+    // has been removed from the global ALLOWED_ATTRS list.
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell" },
+    });
+    assertEquals(element.getAttribute("icon"), "bell");
+  });
+
+  it("drops custom attrs that aren't in observedAttributes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell", "secret-mode": "on" },
+    });
+    assertEquals(element.getAttribute("icon"), "bell");
+    assert(!element.hasAttribute("secret-mode"));
+  });
+
+  it("does not scope a custom attr from one component onto another", () => {
+    // `dids` is observed by plugin-profiles-list but not by plugin-icon —
+    // it should not leak across tags.
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell", dids: "did:test:a" },
+    });
+    assert(!element.hasAttribute("dids"));
+  });
+
+  it("removes a custom attr on patch when it's dropped from the new tree", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell" },
+    });
+    root.render({ tag: "plugin-icon", attrs: {} });
+    assert(!element.hasAttribute("icon"));
+  });
+});
+
 t.describe("PluginRenderer:anchor tags", (it) => {
   it("renders <a> with safe https href and forces target/rel", () => {
     const { bridge } = makeBridge();

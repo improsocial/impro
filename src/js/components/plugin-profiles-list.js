@@ -4,7 +4,7 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 
 class PluginProfilesList extends Component {
   static get observedAttributes() {
-    return ["dids"];
+    return ["dids", "empty-message"];
   }
 
   connectedCallback() {
@@ -57,12 +57,14 @@ class PluginProfilesList extends Component {
       render(html`<div class="profile-list-error">${this.error}</div>`, this);
       return;
     }
+    const emptyMessage = this.getAttribute("empty-message");
     render(
       profileFeedTemplate({
         profiles: this.profiles,
         hasMore: false,
         showEndMessage: false,
         skeletonCount: this.parseDids().length,
+        ...(emptyMessage ? { emptyMessage } : {}),
       }),
       this,
     );
