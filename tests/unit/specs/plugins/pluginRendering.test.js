@@ -399,6 +399,37 @@ t.describe("PluginRenderer:custom element observedAttributes", (it) => {
   });
 });
 
+t.describe("PluginRenderer:custom element refresh", (it) => {
+  it("calls refresh() on custom elements during patch", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({ tag: "plugin-icon" });
+    let calls = 0;
+    first.refresh = () => {
+      calls++;
+    };
+    root.render({ tag: "plugin-icon" });
+    assertEquals(calls, 1);
+    root.render({ tag: "plugin-icon" });
+    assertEquals(calls, 2);
+  });
+
+  it("does not call refresh on built-in tags", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({ tag: "div" });
+    let called = false;
+    // `refresh` on a plain element should never be invoked.
+    first.refresh = () => {
+      called = true;
+    };
+    root.render({ tag: "div" });
+    assertEquals(called, false);
+  });
+});
+
 t.describe("PluginRenderer:anchor tags", (it) => {
   it("renders <a> with safe https href and forces target/rel", () => {
     const { bridge } = makeBridge();

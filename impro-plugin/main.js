@@ -483,6 +483,21 @@ class ProfilesListComponent {
   }
 }
 
+class PostsFeedComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("plugin-posts-feed");
+  }
+  setUris(uris) {
+    const value = Array.isArray(uris) ? uris.join(",") : String(uris ?? "");
+    this.el.setAttr("uris", value);
+    return this;
+  }
+  setEmptyMessage(message) {
+    this.el.setAttr("empty-message", message);
+    return this;
+  }
+}
+
 class VirtualEl {
   constructor(tag) {
     this.tag = tag;
@@ -559,6 +574,12 @@ class VirtualEl {
 
   createProfilesList(callback) {
     const component = new ProfilesListComponent(this);
+    if (typeof callback === "function") callback(component);
+    return component;
+  }
+
+  createPostsFeed(callback) {
+    const component = new PostsFeedComponent(this);
     if (typeof callback === "function") callback(component);
     return component;
   }

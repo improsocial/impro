@@ -513,6 +513,79 @@ t.describe("getPost", (it) => {
   });
 });
 
+t.describe("getPosts", (it) => {
+  it("returns posts in input order", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const postA = { uri: "at://a", content: "A" };
+    const postB = { uri: "at://b", content: "B" };
+    dataStore.setPost("at://a", postA);
+    dataStore.setPost("at://b", postB);
+
+    const result = selectors.getPosts(["at://b", "at://a"]);
+
+    assertEquals(result, [postB, postA]);
+  });
+
+  it("returns null entries for missing posts", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const postA = { uri: "at://a", content: "A" };
+    dataStore.setPost("at://a", postA);
+
+    const result = selectors.getPosts(["at://a", "at://missing"]);
+
+    assertEquals(result, [postA, null]);
+  });
+
+  it("applies patches to each post", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const selectors = new Selectors(
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+      false,
+    );
+
+    const postA = {
+      uri: "at://a",
+      likeCount: 5,
+      viewer: { like: null },
+    };
+    dataStore.setPost("at://a", postA);
+    patchStore.addPostPatch("at://a", { type: "addLike" });
+
+    const [result] = selectors.getPosts(["at://a"]);
+
+    assertEquals(result.likeCount, 6);
+    assertEquals(result.viewer.like, "fake like");
+  });
+});
+
 t.describe("getProfile", (it) => {
   const profileDID = "did:test:profile";
   const testProfile = {

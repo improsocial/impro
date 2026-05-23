@@ -191,6 +191,10 @@ export class Selectors {
     return this.patchStore.applyPostPatches(post);
   }
 
+  getPosts(postURIs, options) {
+    return postURIs.map((postURI) => this.getPost(postURI, options));
+  }
+
   getProfile(did) {
     const profile = this.dataStore.getProfile(did);
     if (!profile) {
