@@ -1,5 +1,15 @@
-import { lightningBoltIconTemplate } from "/js/templates/icons/lightningBoltIcon.template.js";
+import { showExternalLinkWarningModal } from "/js/modals.js";
 import "/js/components/toggle-switch.js";
+import "/js/components/plugin-profiles-list.js";
+import "/js/components/plugin-icon.js";
+
+function isExternalHref(href) {
+  try {
+    return new URL(href).origin !== window.location.origin;
+  } catch {
+    return false;
+  }
+}
 
 const ALLOWED_TAGS = [
   "div",
@@ -26,6 +36,9 @@ const ALLOWED_TAGS = [
   "option",
   "label",
   "textarea",
+  "a",
+  "profiles-list",
+  "plugin-icon",
 ];
 
 const ALLOWED_EVENTS = ["click", "change", "input"];
@@ -49,7 +62,20 @@ const ALLOWED_ATTRS = [
   "name",
   "for",
   "id",
+  "href",
+  "dids",
+  "icon",
 ];
+
+function isSafeHref(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const url = new URL(value);
+    return url.protocol === "https:";
+  } catch {
+    return false;
+  }
+}
 
 function isAllowedAttr(name) {
   return (
@@ -58,10 +84,6 @@ function isAllowedAttr(name) {
     name.startsWith("aria-")
   );
 }
-
-const PLUGIN_ICON_TEMPLATES = {
-  "lightning-bolt": lightningBoltIconTemplate,
-};
 
 function createVirtualEvent(e) {
   const target = e.target ?? {};
@@ -89,14 +111,16 @@ function resolveTag(node, pluginId) {
     tag = "span";
   }
   if (tag === "input" && node.attrs?.type === "checkbox") tag = "toggle-switch";
+  if (tag === "profiles-list") tag = "plugin-profiles-list";
   return tag;
 }
 
 // Render a serialized VirtualEl node ({ tag, attrs, text, children }) into a DOM element.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId) {
+  constructor(pluginBridge, pluginId, renderContext) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
+    this.renderContext = renderContext;
   }
 
   createRoot() {
@@ -125,6 +149,23 @@ export class PluginRenderer {
   _create(node, pluginId) {
     const tag = resolveTag(node, pluginId);
     const element = document.createElement(tag);
+    if (tag === "a") {
+      element.setAttribute("target", "_blank");
+      element.setAttribute("rel", "noopener noreferrer");
+      element.addEventListener("click", (event) => {
+        const href = element.getAttribute("href");
+        if (!href || !isExternalHref(href)) return;
+        event.preventDefault();
+        showExternalLinkWarningModal({ href });
+      });
+    }
+    if (tag === "plugin-profiles-list") {
+      const { dataLayer } = this.renderContext;
+      if (!dataLayer) {
+        throw new Error("Datalayer is required");
+      }
+      element.dataLayer = dataLayer;
+    }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin
       // worker can't observe events synchronously to re-render.
@@ -137,6 +178,12 @@ export class PluginRenderer {
         if (!isAllowedAttr(name)) {
           console.warn(
             `[plugins] "${pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
+          );
+          continue;
+        }
+        if (name === "href" && !isSafeHref(value)) {
+          console.warn(
+            `[plugins] "${pluginId}" tried to set unsafe href "${value}"`,
           );
           continue;
         }
@@ -178,6 +225,13 @@ export class PluginRenderer {
       }
       // Don't clobber what the user is currently editing.
       if (isFocused && (name === "value" || name === "checked")) continue;
+      if (name === "href" && !isSafeHref(value)) {
+        console.warn(
+          `[plugins] "${pluginId}" tried to set unsafe href "${value}"`,
+        );
+        element.removeAttribute("href");
+        continue;
+      }
       if (oldAttrs[name] !== value) element.setAttribute(name, String(value));
     }
 
@@ -287,13 +341,4 @@ export class PluginRenderer {
     if (Array.isArray(node.children) && node.children.length > 0) return false;
     return true;
   }
-}
-
-export function getPluginIconTemplate(icon) {
-  const template = PLUGIN_ICON_TEMPLATES[icon];
-  if (!template) {
-    console.warn(`[plugins] requested unknown icon "${icon}"`);
-    return null;
-  }
-  return template;
 }

@@ -236,6 +236,69 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
       ) !== null,
     );
   });
+
+  it("should render 10 skeletons by default when loading", () => {
+    const result = profileFeedTemplate({ profiles: null, hasMore: false });
+    render(result, container);
+    assertEquals(
+      container.querySelectorAll("[data-testid='skeleton-avatar']").length,
+      10,
+    );
+  });
+
+  it("should honor skeletonCount when loading", () => {
+    const result = profileFeedTemplate({
+      profiles: null,
+      hasMore: false,
+      skeletonCount: 3,
+    });
+    render(result, container);
+    assertEquals(
+      container.querySelectorAll("[data-testid='skeleton-avatar']").length,
+      3,
+    );
+  });
+
+  it("should render end-of-feed message by default when not hasMore", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+    });
+    render(result, container);
+    const msg = container.querySelector("[data-testid='feed-end-message']");
+    assert(msg !== null);
+    assert(msg.textContent.includes("End of feed"));
+  });
+
+  it("should suppress end-of-feed message when showEndMessage is false", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+      showEndMessage: false,
+    });
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='feed-end-message']"),
+      null,
+    );
+  });
+
+  it("should still render loading indicator when hasMore is true regardless of showEndMessage", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: true,
+      showEndMessage: false,
+    });
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='feed-loading-indicator']") !==
+        null,
+    );
+    assertEquals(
+      container.querySelector("[data-testid='feed-end-message']"),
+      null,
+    );
+  });
 });
 
 await t.run();

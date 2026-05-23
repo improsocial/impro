@@ -54,10 +54,14 @@ export function profileFeedTemplate({
   hasMore,
   onLoadMore,
   emptyMessage = "No profiles.",
+  skeletonCount = 10,
+  showEndMessage = true,
 }) {
   if (!profiles) {
     return html`<div class="profile-list">
-      ${Array.from({ length: 10 }).map(() => profileListItemSkeletonTemplate())}
+      ${Array.from({ length: skeletonCount }).map(() =>
+        profileListItemSkeletonTemplate(),
+      )}
     </div>`;
   }
   if (profiles.length === 0) {
@@ -84,8 +88,10 @@ export function profileFeedTemplate({
         >
           <div class="loading-spinner"></div>
         </div>`
-      : html`<div class="feed-end-message" data-testid="feed-end-message">
-          End of feed
-        </div>`}
+      : showEndMessage
+        ? html`<div class="feed-end-message" data-testid="feed-end-message">
+            End of feed
+          </div>`
+        : null}
   </infinite-scroll-container>`;
 }

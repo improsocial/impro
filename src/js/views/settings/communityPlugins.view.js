@@ -5,6 +5,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
+import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsCommunityPluginsView extends View {
   async render({
@@ -64,13 +65,17 @@ class SettingsCommunityPluginsView extends View {
           { style: wasInstalled ? "default" : "success" },
         );
       } catch (e) {
-        console.error(e);
-        showToast(
-          wasInstalled
-            ? `Failed to uninstall ${listing.name}`
-            : `Failed to install ${listing.name}`,
-          { style: "error" },
-        );
+        if (e instanceof PermissionsDeclinedError) {
+          // User declined the permission prompt; nothing to report.
+        } else {
+          console.error(e);
+          showToast(
+            wasInstalled
+              ? `Failed to uninstall ${listing.name}`
+              : `Failed to install ${listing.name}`,
+            { style: "error" },
+          );
+        }
       }
       state.pending.delete(listing.id);
       renderPage();

@@ -5,7 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const pluginWorkerPath = path.resolve(__dirname, "..", "..", "pluginWorker.js");
+const pluginWorkerPath = path.resolve(
+  __dirname,
+  "..",
+  "..",
+  "impro-plugin",
+  "main.js",
+);
 
 const TEST_PLUGIN_BASE_ID = "test-plugin";
 export const TEST_PLUGIN_ID = `${TEST_PLUGIN_BASE_ID}__LOCAL`;

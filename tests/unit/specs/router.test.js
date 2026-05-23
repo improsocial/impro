@@ -54,6 +54,14 @@ t.describe("mount", (it) => {
     router.mount(container);
     assertEquals(router.container, container);
   });
+
+  it("should clear pre-existing container contents", () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    container.innerHTML = "<p>stale ssr/loading markup</p>";
+    router.mount(container);
+    assertEquals(container.innerHTML, "");
+  });
 });
 
 t.describe("matchPath (static method)", (it) => {

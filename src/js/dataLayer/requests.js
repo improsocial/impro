@@ -453,6 +453,15 @@ export class Requests {
     this.dataStore.setProfile(did, profile);
   }
 
+  async loadProfiles(dids) {
+    if (dids.length === 0) return;
+    const labelers = this.requireLabelers();
+    const profiles = await this.api.getProfiles(dids, { labelers });
+    for (const profile of profiles) {
+      this.dataStore.setProfile(profile.did, profile);
+    }
+  }
+
   async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
     if (!query) {
       this.dataStore.clearProfileSearchResults();

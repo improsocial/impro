@@ -34,6 +34,45 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
       .render({ tag: "input", attrs: { type: "checkbox" } });
     assertEquals(element.tagName.toLowerCase(), "toggle-switch");
   });
+
+  it("rewrites <profiles-list> as <plugin-profiles-list> and passes dataLayer", () => {
+    const { bridge } = makeBridge();
+    const dataLayer = { declarative: { ensureProfiles: async () => [] } };
+    const renderer = new PluginRenderer(bridge, "demo", { dataLayer });
+    const element = renderer.createRoot().render({
+      tag: "profiles-list",
+      attrs: { dids: "did:test:a,did:test:b" },
+    });
+    assertEquals(element.tagName.toLowerCase(), "plugin-profiles-list");
+    assertEquals(element.getAttribute("dids"), "did:test:a,did:test:b");
+    assert(element.dataLayer === dataLayer);
+  });
+
+  it("drops disallowed attributes from <profiles-list>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo", { dataLayer: {} });
+    const element = renderer.createRoot().render({
+      tag: "profiles-list",
+      attrs: { dids: "did:test:a", onclick: "alert(1)" },
+    });
+    assert(!element.hasAttribute("onclick"));
+  });
+
+  it("throws when rendering <profiles-list> without a dataLayer", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    let error = null;
+    try {
+      renderer.createRoot().render({
+        tag: "profiles-list",
+        attrs: { dids: "did:test:a" },
+      });
+    } catch (e) {
+      error = e;
+    }
+    assert(error !== null);
+    assert(error.message.includes("dataLayer"));
+  });
 });
 
 t.describe("PluginRenderer:root reconciliation", (it) => {
@@ -275,6 +314,116 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     });
     assert(element.children[0] !== oldChild);
     assertEquals(element.children[0].tagName.toLowerCase(), "button");
+  });
+});
+
+t.describe("PluginRenderer:plugin-icon", (it) => {
+  it("renders <plugin-icon> with the icon attribute passed through", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell" },
+    });
+    assertEquals(element.tagName.toLowerCase(), "plugin-icon");
+    assertEquals(element.getAttribute("icon"), "bell");
+  });
+
+  it("drops disallowed attributes from <plugin-icon>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-icon",
+      attrs: { icon: "bell", onclick: "alert(1)" },
+    });
+    assert(!element.hasAttribute("onclick"));
+    assertEquals(element.getAttribute("icon"), "bell");
+  });
+});
+
+t.describe("PluginRenderer:anchor tags", (it) => {
+  it("renders <a> with safe https href and forces target/rel", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "a",
+      attrs: { href: "https://example.com/page" },
+      text: "click",
+    });
+    assertEquals(element.tagName.toLowerCase(), "a");
+    assertEquals(element.getAttribute("href"), "https://example.com/page");
+    assertEquals(element.getAttribute("target"), "_blank");
+    assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+  });
+
+  it("strips non-https href schemes on create", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    for (const href of [
+      "http://example.com",
+      "javascript:alert(1)",
+      "data:text/html,<script>1</script>",
+      "mailto:a@b.co",
+      "ftp://example.com",
+      "//example.com",
+      "/relative",
+      "not a url",
+    ]) {
+      const element = renderer
+        .createRoot()
+        .render({ tag: "a", attrs: { href }, text: "x" });
+      assert(!element.hasAttribute("href"), `should reject href: ${href}`);
+      assertEquals(element.getAttribute("target"), "_blank");
+      assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+    }
+  });
+
+  it("ignores plugin-supplied target and rel attributes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "a",
+      attrs: {
+        href: "https://example.com",
+        target: "_self",
+        rel: "opener",
+      },
+    });
+    assertEquals(element.getAttribute("target"), "_blank");
+    assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+  });
+
+  it("shows the external link warning modal when an external <a> is clicked", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "a",
+      attrs: { href: "https://example.com/page" },
+      text: "click",
+    });
+    document.body.appendChild(element);
+    const event = new Event("click", { bubbles: true, cancelable: true });
+    element.dispatchEvent(event);
+    assert(event.defaultPrevented, "click should be prevented");
+    const dialog = document.querySelector(".external-link-warning-modal");
+    assert(dialog, "warning modal should be rendered");
+    dialog.remove();
+    element.remove();
+  });
+
+  it("removes href on patch when it becomes unsafe", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      tag: "a",
+      attrs: { href: "https://example.com/a" },
+    });
+    root.render({
+      tag: "a",
+      attrs: { href: "javascript:alert(1)" },
+    });
+    assert(!element.hasAttribute("href"));
   });
 });
 

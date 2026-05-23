@@ -391,6 +391,21 @@ export class Api {
     return res.data;
   }
 
+  async getProfiles(dids, { labelers = [] } = {}) {
+    const results = await Promise.all(
+      batch(dids, 25).map((chunk) =>
+        this.request(`app.bsky.actor.getProfiles`, {
+          query: { actors: chunk },
+          headers: {
+            "atproto-accept-labelers": labelers.join(","),
+            "atproto-proxy": this.bskyAppViewServiceDid,
+          },
+        }),
+      ),
+    );
+    return results.flatMap((res) => res.data.profiles);
+  }
+
   async searchProfiles(query, { limit = 10, cursor = "", labelers = [] } = {}) {
     const queryParams = { q: query, limit };
     if (cursor) {

@@ -10,6 +10,7 @@ import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.
 import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
 import { confirm } from "/js/modals.js";
 import { showToast } from "/js/toasts.js";
+import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
 class SettingsPluginsView extends View {
@@ -97,16 +98,20 @@ class SettingsPluginsView extends View {
       renderPage();
       try {
         const result = await pluginService.updatePlugin(plugin.id);
-        if (result?.updated) {
+        if (result.updated) {
           showToast(`Updated ${plugin.name} to v${result.version}`, {
             style: "success",
           });
         }
       } catch (e) {
-        console.error(e);
-        showToast(`Failed to update ${plugin.name}`, {
-          style: "error",
-        });
+        if (e instanceof PermissionsDeclinedError) {
+          // User declined the permission prompt; nothing to report.
+        } else {
+          console.error(e);
+          showToast(`Failed to update ${plugin.name}`, {
+            style: "error",
+          });
+        }
       } finally {
         state.updatingIds.delete(plugin.id);
         renderPage();

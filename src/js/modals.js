@@ -165,6 +165,9 @@ export async function confirm(
 
     document.body.appendChild(dialog);
     dialog.showModal();
+
+    // Allow tests to resolve externally
+    globalThis.__testConfirmation?.(resolve);
   });
 }
 
@@ -219,6 +222,92 @@ function threadgateRuleTemplate({ post }) {
     return html`Only ${parts} can reply.`;
   }
   return null;
+}
+
+export async function showExternalLinkWarningModal({ href }) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.classList.add("modal-dialog", "external-link-warning-modal");
+
+    const url = new URL(href);
+
+    render(
+      html`
+        <div class="modal-dialog-content">
+          <h2
+            class="modal-dialog-title"
+            data-testid="external-link-warning-title"
+          >
+            Leave this app?
+          </h2>
+          <p
+            class="modal-dialog-message"
+            data-testid="external-link-warning-message"
+          >
+            This link will take you to:
+          </p>
+          <a
+            class="external-link-warning-href"
+            href=${href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="external-link-warning-href"
+            @click=${(event) => {
+              event.stopPropagation();
+              dismiss(true);
+            }}
+          >
+            <span class="external-link-warning-host">${url.host}</span
+            ><span class="external-link-warning-path"
+              >${url.pathname}${url.search}${url.hash}</span
+            >
+          </a>
+          <div class="modal-dialog-buttons">
+            <button
+              class="modal-dialog-button cancel-button"
+              data-testid="external-link-warning-cancel-button"
+            >
+              Cancel
+            </button>
+            <button
+              class="modal-dialog-button confirm-button primary-button"
+              data-testid="external-link-warning-visit-button"
+            >
+              Visit site
+            </button>
+          </div>
+        </div>
+      `,
+      dialog,
+    );
+
+    const cancelButton = dialog.querySelector(".cancel-button");
+    const visitButton = dialog.querySelector(".confirm-button");
+
+    const dismiss = (result) => {
+      dialog.close();
+      dialog.remove();
+      resolve(result);
+    };
+
+    cancelButton.addEventListener("click", () => dismiss(false));
+    visitButton.addEventListener("click", () => {
+      window.open(href, "_blank", "noopener,noreferrer");
+      dismiss(true);
+    });
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target.tagName === "DIALOG") dismiss(false);
+    });
+
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      dismiss(false);
+    });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+  });
 }
 
 export function showWhoCanReplyModal({ post }) {
@@ -341,4 +430,60 @@ export function hidePluginModal({ pluginId, modalId }) {
     modal.isOpen = false;
     modal.dialog.close();
   }
+}
+
+export async function showPluginInstallPermissionsModal({
+  pluginName,
+  permissions,
+}) {
+  const name = pluginName ?? "This plugin";
+  return confirm(
+    html`<span data-testid="permission-prompt">
+      <span>${name} wants permission to:</span>
+      ${permissionsListTemplate({ permissions })}
+    </span>`,
+    {
+      title: "Grant permissions?",
+      confirmButtonText: "Allow and install",
+    },
+  );
+}
+
+export async function showPluginUpdatePermissionsModal({
+  pluginName,
+  pluginVersion,
+  permissionsDiff,
+}) {
+  const name = pluginName ?? "This plugin";
+  const heading = pluginVersion
+    ? `${name} v${pluginVersion} requests new permissions:`
+    : `${name} requests new permissions:`;
+  return confirm(
+    html`<span data-testid="permission-update-prompt">
+      <span>${heading}</span>
+      ${permissionsListTemplate({ permissions: permissionsDiff })}
+    </span>`,
+    {
+      title: "Grant new permissions?",
+      confirmButtonText: "Allow and update",
+    },
+  );
+}
+
+function permissionsListTemplate({ permissions }) {
+  const sections = [];
+  const fetchPatterns = permissions.fetch ?? [];
+  if (fetchPatterns.length > 0) {
+    sections.push(html`
+      <div class="permission-prompt-section">
+        <div>Send network requests to:</div>
+        <ul class="permission-prompt-list">
+          ${fetchPatterns.map(
+            (pattern) => html`<li><code>${pattern}</code></li>`,
+          )}
+        </ul>
+      </div>
+    `);
+  }
+  return sections;
 }

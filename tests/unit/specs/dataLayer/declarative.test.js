@@ -152,6 +152,68 @@ t.describe("ensureProfile", (it) => {
   });
 });
 
+t.describe("ensureProfiles", (it) => {
+  it("returns cached profiles in input order without loading", async () => {
+    const profileA = { did: "did:test:a", handle: "a.test" };
+    const profileB = { did: "did:test:b", handle: "b.test" };
+    let loadCalled = false;
+
+    const selectors = createMockSelectors({
+      profiles: { [profileA.did]: profileA, [profileB.did]: profileB },
+    });
+    const requests = {
+      loadProfiles: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensureProfiles([
+      profileB.did,
+      profileA.did,
+    ]);
+
+    assertEquals(result, [profileB, profileA]);
+    assertEquals(loadCalled, false);
+  });
+
+  it("loads only missing profiles", async () => {
+    const profileA = { did: "did:test:a", handle: "a.test" };
+    const profileB = { did: "did:test:b", handle: "b.test" };
+    const store = { [profileA.did]: profileA };
+    let loadedWith = null;
+
+    const selectors = {
+      getProfile: (did) => store[did] ?? null,
+    };
+    const requests = {
+      loadProfiles: async (dids) => {
+        loadedWith = dids;
+        store[profileB.did] = profileB;
+      },
+    };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensureProfiles([
+      profileA.did,
+      profileB.did,
+    ]);
+
+    assertEquals(loadedWith, [profileB.did]);
+    assertEquals(result, [profileA, profileB]);
+  });
+
+  it("returns null entries for profiles still missing after load", async () => {
+    const selectors = { getProfile: () => null };
+    const requests = { loadProfiles: async () => {} };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensureProfiles(["did:test:missing"]);
+
+    assertEquals(result, [null]);
+  });
+});
+
 t.describe("ensurePostThread", (it) => {
   it("should return existing post thread without loading", async () => {
     const postURI = "at://did:test/app.bsky.feed.post/123";

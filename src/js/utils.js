@@ -44,16 +44,16 @@ export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   if (typeof fnOrKey === "string") {
     fn = (item) => item[fnOrKey];
   }
+  if (direction !== "asc" && direction !== "desc") {
+    throw new Error(`Invalid direction: ${direction}`);
+  }
+  const sign = direction === "desc" ? -1 : 1;
   const sorted = array.sort((a, b) => {
     const aValue = fn(a);
     const bValue = fn(b);
-    if (direction === "desc") {
-      return bValue - aValue;
-    } else if (direction === "asc") {
-      return aValue - bValue;
-    } else {
-      throw new Error("Invalid direction", direction);
-    }
+    if (aValue < bValue) return -1 * sign;
+    if (aValue > bValue) return 1 * sign;
+    return 0;
   });
   return sorted;
 }

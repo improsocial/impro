@@ -27,6 +27,16 @@ export class Declarative {
     return profile;
   }
 
+  async ensureProfiles(profileDids) {
+    const missing = profileDids.filter(
+      (did) => !this.selectors.getProfile(did),
+    );
+    if (missing.length > 0) {
+      await this.requests.loadProfiles(missing);
+    }
+    return profileDids.map((did) => this.selectors.getProfile(did) ?? null);
+  }
+
   async ensurePostThread(postURI, { labelers = [] } = {}) {
     let postThread = this.selectors.getPostThread(postURI);
     if (!postThread) {

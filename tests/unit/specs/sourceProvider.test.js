@@ -159,7 +159,7 @@ t.describe("SourceProvider with remote plugins", (it) => {
     const manifest = await provider.getManifest("alpha", "1.0.0", "ow/alpha");
     assertEquals(
       pluginCache.calls[0],
-      "https://raw.githubusercontent.com/ow/alpha/1.0.0/manifest.json",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@1.0.0/manifest.json",
     );
     assertEquals(manifest.id, "alpha");
   });
@@ -176,7 +176,7 @@ t.describe("SourceProvider with remote plugins", (it) => {
     const source = await provider.getSource("alpha", "2.5.0", "ow/alpha");
     assertEquals(
       pluginCache.calls[0],
-      "https://raw.githubusercontent.com/ow/alpha/2.5.0/main.js",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@2.5.0/main.js",
     );
     assertEquals(source, "alert(1)");
   });
@@ -218,9 +218,9 @@ t.describe("SourceProvider with remote plugins", (it) => {
     const provider = new SourceProvider(null);
     const urls = await provider.getCacheUrls("alpha", "1.2.3", "ow/alpha");
     assertEquals(urls, [
-      "https://raw.githubusercontent.com/ow/alpha/1.2.3/manifest.json",
-      "https://raw.githubusercontent.com/ow/alpha/1.2.3/main.js",
-      "https://raw.githubusercontent.com/ow/alpha/1.2.3/styles.css",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@1.2.3/manifest.json",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@1.2.3/main.js",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@1.2.3/styles.css",
     ]);
   });
 
@@ -236,15 +236,50 @@ t.describe("SourceProvider with remote plugins", (it) => {
     const styles = await provider.getStyles("alpha", "1.0.0", "ow/alpha");
     assertEquals(
       pluginCache.calls[0],
-      "https://raw.githubusercontent.com/ow/alpha/1.0.0/styles.css",
+      "https://cdn.jsdelivr.net/gh/ow/alpha@1.0.0/styles.css",
     );
     assertEquals(styles, "body{color:blue}");
+  });
+
+  it("getLiveManifest fetches from githubusercontent main branch", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "9.9.9" }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      const manifest = await provider.getLiveManifest("alpha", "ow/alpha");
+      assertEquals(
+        stub.calls[0].url,
+        "https://raw.githubusercontent.com/ow/alpha/main/manifest.json",
+      );
+      assertEquals(stub.calls[0].options?.cache, "no-store");
+      assertEquals(manifest.version, "9.9.9");
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getLiveManifestFromRepo fetches from githubusercontent main branch", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      const manifest = await provider.getLiveManifestFromRepo("ow/alpha");
+      assertEquals(
+        stub.calls[0].url,
+        "https://raw.githubusercontent.com/ow/alpha/main/manifest.json",
+      );
+      assertEquals(manifest.id, "alpha");
+    } finally {
+      stub.restore();
+    }
   });
 
   it("getStyles returns null when remote styles.css 404s", async () => {
     const pluginCache = fakePluginCache(async () => {
       const error = new Error(
-        "HTTP 404 https://raw.githubusercontent.com/ow/alpha/1.0.0/styles.css",
+        "HTTP 404 https://cdn.jsdelivr.net/gh/ow/alpha@1.0.0/styles.css",
       );
       error.status = 404;
       throw error;

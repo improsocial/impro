@@ -14,8 +14,11 @@ function parsePluginManifest(pluginId, manifest) {
   return manifest;
 }
 
-function remoteAssetUrl(repo, tag, file) {
-  return `https://raw.githubusercontent.com/${repo}/${tag}/${file}`;
+function remoteAssetUrl({ repo, file, release = null }) {
+  if (release) {
+    return `https://cdn.jsdelivr.net/gh/${repo}@${release}/${file}`;
+  }
+  return `https://raw.githubusercontent.com/${repo}/main/${file}`;
 }
 
 export class SourceProvider {
@@ -34,7 +37,11 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl(repo, version, "manifest.json");
+    const url = remoteAssetUrl({
+      repo,
+      file: "manifest.json",
+      release: version,
+    });
     const response = await this.pluginCache.fetch(url);
     return parsePluginManifest(pluginId, await response.json());
   }
@@ -47,7 +54,7 @@ export class SourceProvider {
       throw new Error("Repo is required");
     }
     // Fetch from main branch
-    const url = remoteAssetUrl(repo, "main", "manifest.json");
+    const url = remoteAssetUrl({ repo, file: "manifest.json" });
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return parsePluginManifest(pluginId, await response.json());
@@ -57,7 +64,7 @@ export class SourceProvider {
     if (!repo) {
       throw new Error("Repo is required");
     }
-    const url = remoteAssetUrl(repo, "main", "manifest.json");
+    const url = remoteAssetUrl({ repo, file: "manifest.json" });
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const manifest = await response.json();
@@ -73,7 +80,7 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl(repo, version, "main.js");
+    const url = remoteAssetUrl({ repo, file: "main.js", release: version });
     const response = await this.pluginCache.fetch(url);
     return await response.text();
   }
@@ -89,7 +96,7 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl(repo, version, "styles.css");
+    const url = remoteAssetUrl({ repo, file: "styles.css", release: version });
     try {
       const response = await this.pluginCache.fetch(url);
       return await response.text();
@@ -106,9 +113,9 @@ export class SourceProvider {
       return [];
     }
     return [
-      remoteAssetUrl(repo, version, "manifest.json"),
-      remoteAssetUrl(repo, version, "main.js"),
-      remoteAssetUrl(repo, version, "styles.css"),
+      remoteAssetUrl({ repo, file: "manifest.json", release: version }),
+      remoteAssetUrl({ repo, file: "main.js", release: version }),
+      remoteAssetUrl({ repo, file: "styles.css", release: version }),
     ];
   }
 }

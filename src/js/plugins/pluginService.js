@@ -10,7 +10,17 @@ import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { compareVersions, isDev } from "/js/utils.js";
+import { makePluginRequest } from "/js/plugins/pluginRequests.js";
+import {
+  getPermissionsFromManifest,
+  diffPermissions,
+  isEmptyPermissions,
+} from "/js/plugins/pluginPermissions.js";
+import {
+  showPluginInstallPermissionsModal,
+  showPluginUpdatePermissionsModal,
+} from "/js/modals.js";
+import { compareVersions, isDev, sortBy } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -45,6 +55,13 @@ export function parseGithubRepoUrl(input) {
   return `${owner}/${repo}`;
 }
 
+export class PermissionsDeclinedError extends Error {
+  constructor(message = "User declined permissions") {
+    super(message);
+    this.name = "PermissionsDeclinedError";
+  }
+}
+
 export class PluginService extends EventEmitter {
   constructor(preferencesProvider, session) {
     super();
@@ -68,20 +85,22 @@ export class PluginService extends EventEmitter {
       this.sourceProvider,
       this.pluginStylesLoader,
     );
-    this._pluginRenderers = new Map();
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
+    this._renderContext = null;
     this._setupRegistries();
     this._setupHostMethods();
   }
 
+  setRenderContext(renderContext) {
+    this._renderContext = renderContext;
+  }
+
   getRenderer(pluginId) {
-    let renderer = this._pluginRenderers.get(pluginId);
-    if (!renderer) {
-      renderer = new PluginRenderer(this.pluginBridge, pluginId);
-      this._pluginRenderers.set(pluginId, renderer);
+    if (!this._renderContext) {
+      throw new Error("Render context not loaded");
     }
-    return renderer;
+    return new PluginRenderer(this.pluginBridge, pluginId, this._renderContext);
   }
 
   _setupRegistries() {
@@ -213,6 +232,10 @@ export class PluginService extends EventEmitter {
       hidePluginToast({ pluginId: plugin.pluginId, toastId });
     });
 
+    this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
+      return makePluginRequest(plugin, url, init);
+    });
+
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
       if (!this.session) return null;
       return {
@@ -310,7 +333,8 @@ export class PluginService extends EventEmitter {
     const visiblePlugins = this.localPluginsEnabled
       ? installedPlugins
       : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
-    return visiblePlugins.map((entry) => {
+    const sortedVisiblePlugins = sortBy(visiblePlugins, "name");
+    return sortedVisiblePlugins.map((entry) => {
       return {
         id: entry.id,
         name: entry.name,
@@ -353,8 +377,7 @@ export class PluginService extends EventEmitter {
     }
     const installedPlugins = this.prefManager.getInstalledPlugins();
     if (installedPlugins.some((plugin) => plugin.id === pluginId)) {
-      console.warn(`Plugin ${pluginId} already installed`);
-      return;
+      throw new Error(`Plugin ${pluginId} already installed`);
     }
     let manifest = null;
     try {
@@ -362,6 +385,17 @@ export class PluginService extends EventEmitter {
     } catch (e) {
       console.error("Failed to fetch manifest", e);
       throw new Error("Failed to fetch manifest");
+    }
+    const permissions = getPermissionsFromManifest(manifest);
+    if (!isEmptyPermissions(permissions)) {
+      if (
+        !(await showPluginInstallPermissionsModal({
+          pluginName: manifest.name,
+          permissions,
+        }))
+      ) {
+        throw new PermissionsDeclinedError();
+      }
     }
     const { name, version, author, description } = manifest;
     await this.prefManager.addInstalledPlugin({
@@ -372,6 +406,7 @@ export class PluginService extends EventEmitter {
       description,
       repo,
       enabled: true,
+      permissions,
     });
     try {
       await this.pluginBridge.loadPlugin(pluginId, version, repo);
@@ -394,6 +429,17 @@ export class PluginService extends EventEmitter {
       console.error("Failed to fetch manifest", e);
       throw new Error("Failed to fetch manifest");
     }
+    const permissions = getPermissionsFromManifest(manifest);
+    if (!isEmptyPermissions(permissions)) {
+      if (
+        !(await showPluginInstallPermissionsModal({
+          pluginName: manifest.name,
+          permissions,
+        }))
+      ) {
+        throw new PermissionsDeclinedError();
+      }
+    }
     const { id, name, version, author, description } = manifest;
     if (await this.remoteRegistry.getListing(id)) {
       throw new Error(`Plugin ${id} is in the registry; install it from there`);
@@ -413,6 +459,7 @@ export class PluginService extends EventEmitter {
       description,
       repo,
       enabled: true,
+      permissions,
     });
     try {
       await this.pluginBridge.loadPlugin(id, version, repo);
@@ -426,7 +473,6 @@ export class PluginService extends EventEmitter {
 
   async uninstallPlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
-    this._pluginRenderers.delete(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
     await this._reconcileCache(this.prefManager.getInstalledPlugins());
@@ -449,7 +495,6 @@ export class PluginService extends EventEmitter {
 
   async disablePlugin(pluginId) {
     this.pluginBridge.unloadPlugin(pluginId);
-    this._pluginRenderers.delete(pluginId);
     await this.prefManager.setPluginDisabled(pluginId);
   }
 
@@ -461,6 +506,17 @@ export class PluginService extends EventEmitter {
       installedPlugin.repo,
     );
     if (compareVersions(liveManifest.version, installedPlugin.version) > 0) {
+      const currentPermissions = installedPlugin.permissions ?? {};
+      const permissions = getPermissionsFromManifest(liveManifest);
+      const permissionsDiff = diffPermissions(currentPermissions, permissions);
+      if (permissionsDiff) {
+        const accepted = await showPluginUpdatePermissionsModal({
+          pluginName: liveManifest.name,
+          pluginVersion: liveManifest.version,
+          permissionsDiff,
+        });
+        if (!accepted) throw new PermissionsDeclinedError();
+      }
       const { name, version, author, description } = liveManifest;
       await this.prefManager.updateInstalledPlugin(pluginId, (entry) => ({
         ...entry,
@@ -468,6 +524,7 @@ export class PluginService extends EventEmitter {
         version,
         author,
         description,
+        permissions,
       }));
       await this.pluginBridge.reloadPlugin(
         pluginId,
@@ -483,21 +540,26 @@ export class PluginService extends EventEmitter {
 
   async updateAllPlugins() {
     if (!this._availableUpdates || this._availableUpdates.size === 0) {
-      return { updated: [], failed: [] };
+      return { updated: [], failed: [], declined: [] };
     }
     const ids = [...this._availableUpdates.keys()];
     const updated = [];
     const failed = [];
+    const declined = [];
     // Serial to avoid racing read-modify-write on installed plugin preferences
     for (const pluginId of ids) {
       try {
         const result = await this.updatePlugin(pluginId);
         if (result?.updated) updated.push(pluginId);
-      } catch {
-        failed.push(pluginId);
+      } catch (e) {
+        if (e instanceof PermissionsDeclinedError) {
+          declined.push(pluginId);
+        } else {
+          failed.push(pluginId);
+        }
       }
     }
-    return { updated, failed };
+    return { updated, failed, declined };
   }
 
   async loadRegistryListings() {
