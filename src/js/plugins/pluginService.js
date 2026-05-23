@@ -70,6 +70,7 @@ export class PluginService extends EventEmitter {
       eventListeners: new Map(),
       feedFilters: new Set(),
       settingTabs: new Map(),
+      slots: new Map(),
     };
     this._availableUpdates = null;
     this._registryListings = null;
@@ -152,6 +153,28 @@ export class PluginService extends EventEmitter {
       };
       this.registries.feedFilters.add(entry);
       return () => this.registries.feedFilters.delete(entry);
+    });
+    this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
+      let entries = this.registries.slots.get(message.name);
+      if (!entries) {
+        entries = [];
+        this.registries.slots.set(message.name, entries);
+      }
+      const entry = {
+        pluginId: plugin.pluginId,
+        invoke: (context) => plugin.call(message.handlerId, context),
+      };
+      entries.push(entry);
+      this.emit("slotRegistered", { name: message.name });
+      return () => {
+        const list = this.registries.slots.get(message.name);
+        if (!list) return;
+        const index = list.indexOf(entry);
+        if (index === -1) return;
+        list.splice(index, 1);
+        if (list.length === 0) this.registries.slots.delete(message.name);
+        this.emit("slotUnregistered", { name: message.name });
+      };
     });
   }
 
@@ -585,6 +608,10 @@ export class PluginService extends EventEmitter {
 
   getSidebarItems() {
     return [...this.registries.sidebarItems];
+  }
+
+  getSlotEntries(name) {
+    return [...(this.registries.slots.get(name) ?? [])];
   }
 
   getSettingTabs() {

@@ -30,6 +30,7 @@ const {
   Modal,
   PluginSettingTab,
   Setting,
+  VirtualEl,
   fetch: pluginFetch,
 } = worker;
 
@@ -202,6 +203,76 @@ t.describe("Plugin sidebar/feedFilter registration", (it) => {
     assertEquals(msg.type, "register");
     assertEquals(msg.target, "feedFilter");
     assert(typeof msg.handlerId === "number");
+  });
+
+  it("registerSlot posts a register message with the slot name", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("post-thread-view:after-main", () => null);
+    const msg = lastMessage();
+    assertEquals(msg.type, "register");
+    assertEquals(msg.target, "slot");
+    assertEquals(msg.name, "post-thread-view:after-main");
+    assert(typeof msg.handlerId === "number");
+  });
+
+  it("registerSlot serializes the returned VirtualEl when invoked", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    let received = null;
+    plugin.registerSlot("slot:demo", (context) => {
+      received = context;
+      const el = new VirtualEl("div");
+      el.addClass("hello");
+      el.setText("world");
+      return el;
+    });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 42,
+      args: [{ uri: "at://example" }],
+    });
+    assertEquals(received, { uri: "at://example" });
+    const result = postedMessages.find((message) => message.type === "result");
+    assertEquals(result.callId, 42);
+    assertEquals(result.value.tag, "div");
+    assertEquals(result.value.attrs.class, "hello");
+    assertEquals(result.value.text, "world");
+  });
+
+  it("registerSlot returns null when the callback returns null", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("slot:nullable", () => null);
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 1,
+      args: [{}],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assertEquals(result.value, null);
+  });
+
+  it("registerSlot rejects non-VirtualEl return values", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("slot:bad", () => "not a node");
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 1,
+      args: [{}],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert(/must return a VirtualEl/.test(result.error));
   });
 
   it("addSettingTab posts a register message and remembers the tab", () => {

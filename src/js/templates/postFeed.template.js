@@ -192,6 +192,7 @@ export function postFeedTemplate({
   onClickShowMore,
   enableFeedFeedback = false,
   emptyMessage = null,
+  showEndMessage = true,
   pluginService,
 }) {
   if (!feed) {
@@ -252,12 +253,14 @@ export function postFeedTemplate({
                 >
                   <div class="loading-spinner"></div>
                 </div>`
-              : html`<div
-                  class="feed-end-message"
-                  data-testid="feed-end-message"
-                >
-                  End of feed
-                </div>`;
+              : showEndMessage
+                ? html`<div
+                    class="feed-end-message"
+                    data-testid="feed-end-message"
+                  >
+                    End of feed
+                  </div>`
+                : null;
             return html`<div>${content}${endingElement}</div>`;
           })}
         </div>

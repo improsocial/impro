@@ -21,6 +21,7 @@ import { lockIconTemplate } from "/js/templates/icons/lockIcon.template.js";
 import { ApiError } from "/js/api.js";
 import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
+import "/js/components/plugin-slot.js";
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { linkToPostFromUri } from "/js/navigation.js";
 
@@ -243,37 +244,55 @@ class PostThreadView extends View {
         doPutReplyInHiddenSection(reply),
       );
       const replyChains = buildReplyChains(replies, postAuthor);
+      const isEmpty =
+        replyChains.length === 0 && hiddenSectionReplies.length === 0;
       return html`
         <div class="post-thread-replies">
-          <div class="post-thread-reply-chains">
-            ${replyChains.map((replyChain, i) =>
-              // there can be a lot of images in a reply chain, so lazy load them after the first few
-              // TODO: infinite scroll for reply chains? or use v2 endpoint?
-              replyChainTemplate({
-                replyChain,
-                currentUser,
-                lazyLoadImages: i > 20,
-              }),
-            )}
-          </div>
-          ${hiddenSectionReplies.length > 0
-            ? html`<hidden-replies-section>
-          ${hiddenSectionReplies.map((reply) =>
-            smallPostTemplate({
-              post: reply.post,
-              currentUser,
-              isAuthenticated,
-              isUserPost: currentUser?.did === reply.post?.author?.did,
-              postInteractionHandler,
-              ignoreContentWarning: true,
-              ignoreMuteWarning: true,
-              lazyLoadImages: true,
-              pluginService,
-            }),
-          )}
-        </hidden-replies-section>
-        </div>`
-            : ""}
+          ${isEmpty
+            ? html`<plugin-slot
+                name="post-thread-view:replies-empty"
+                context-uri=${postUri}
+                .pluginService=${pluginService}
+              ></plugin-slot>`
+            : html`<plugin-slot
+                  name="post-thread-view:replies-header"
+                  context-uri=${postUri}
+                  .pluginService=${pluginService}
+                ></plugin-slot>
+                <div class="post-thread-reply-chains">
+                  ${replyChains.map((replyChain, i) =>
+                    // there can be a lot of images in a reply chain, so lazy load them after the first few
+                    // TODO: infinite scroll for reply chains? or use v2 endpoint?
+                    replyChainTemplate({
+                      replyChain,
+                      currentUser,
+                      lazyLoadImages: i > 20,
+                    }),
+                  )}
+                </div>
+                ${hiddenSectionReplies.length > 0
+                  ? html`<hidden-replies-section>
+                      ${hiddenSectionReplies.map((reply) =>
+                        smallPostTemplate({
+                          post: reply.post,
+                          currentUser,
+                          isAuthenticated,
+                          isUserPost:
+                            currentUser?.did === reply.post?.author?.did,
+                          postInteractionHandler,
+                          ignoreContentWarning: true,
+                          ignoreMuteWarning: true,
+                          lazyLoadImages: true,
+                          pluginService,
+                        }),
+                      )}
+                    </hidden-replies-section>`
+                  : ""}
+                <plugin-slot
+                  name="post-thread-view:after-replies"
+                  context-uri=${postUri}
+                  .pluginService=${pluginService}
+                ></plugin-slot>`}
           <div class="post-thread-extra-space"></div>
         </div>
       `;
@@ -351,6 +370,11 @@ class PostThreadView extends View {
           doHideAuthorOnUnauthenticated(postThread.post.author);
         return html`
           <div class="post-thread">
+            <plugin-slot
+              name="post-thread-view:top"
+              context-uri=${postUri}
+              .pluginService=${pluginService}
+            ></plugin-slot>
             ${parents.map((parent, i) => {
               const parentPost = parent.post ? parent.post : parent;
               const replyContext = i === 0 ? "root" : "parent";
@@ -385,6 +409,11 @@ class PostThreadView extends View {
                   >
                 </div>`
               : ""}
+            <plugin-slot
+              name="post-thread-view:before-main"
+              context-uri=${postUri}
+              .pluginService=${pluginService}
+            ></plugin-slot>
             ${hiddenUnauthenticated
               ? noUnauthenticatedLargePostTemplate()
               : largePostTemplate({
@@ -407,6 +436,11 @@ class PostThreadView extends View {
                   },
                   replyContext: hasParent ? "reply" : null,
                 })}
+            <plugin-slot
+              name="post-thread-view:after-main"
+              context-uri=${postUri}
+              .pluginService=${pluginService}
+            ></plugin-slot>
             ${isAuthenticated && currentUser && canReplyToPost(postThread.post)
               ? html`
                   <div

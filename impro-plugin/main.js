@@ -249,6 +249,27 @@ export class Plugin {
     });
   }
 
+  registerSlot(name, callback = () => null) {
+    const handlerId = uuid.create();
+    callHandlers.set(handlerId, async (context) => {
+      const result = await callback(context);
+      if (result == null) return null;
+      if (!(result instanceof VirtualEl)) {
+        const description = result?.constructor?.name ?? typeof result;
+        throw new Error(
+          `Slot "${name}" must return a VirtualEl (or null), got ${description}`,
+        );
+      }
+      return result._serialize();
+    });
+    self.postMessage({
+      type: "register",
+      target: "slot",
+      name,
+      handlerId,
+    });
+  }
+
   onload() {}
   onunload() {}
 
@@ -498,7 +519,7 @@ class PostsFeedComponent {
   }
 }
 
-class VirtualEl {
+export class VirtualEl {
   constructor(tag) {
     this.tag = tag;
     this.attrs = {};
