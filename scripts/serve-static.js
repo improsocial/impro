@@ -74,7 +74,7 @@ http
       }
     }
 
-    if (!ext) {
+    if (!ext || !MIME[ext]) {
       send(res, 200, indexHtml, MIME[".html"]);
     } else {
       send(res, 404, `Not found: ${req.url}`, "text/plain; charset=utf-8");
