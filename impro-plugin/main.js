@@ -330,12 +330,12 @@ export class PluginSettingTab {
 
 export class Setting {
   constructor(containerEl) {
-    this.settingEl = containerEl.createDiv({ cls: "plugin-setting-item" });
-    this.infoEl = this.settingEl.createDiv({ cls: "plugin-setting-item-info" });
-    this.nameEl = this.infoEl.createDiv({ cls: "plugin-setting-item-name" });
-    this.descEl = this.infoEl.createDiv({ cls: "plugin-setting-item-desc" });
+    this.settingEl = containerEl.createDiv({ cls: "setting-item" });
+    this.infoEl = this.settingEl.createDiv({ cls: "setting-item-info" });
+    this.nameEl = this.infoEl.createEl("h2", { cls: "setting-item-name" });
+    this.descEl = this.infoEl.createEl("p", { cls: "setting-item-desc" });
     this.controlEl = this.settingEl.createDiv({
-      cls: "plugin-setting-item-control",
+      cls: "setting-item-control",
     });
   }
   setName(text) {
@@ -372,7 +372,7 @@ class TextComponent {
   constructor(containerEl) {
     this.el = containerEl.createEl("input", {
       attr: { type: "text" },
-      cls: "plugin-setting-text-input",
+      cls: "setting-item-text-input",
     });
   }
   setValue(value) {
@@ -391,9 +391,8 @@ class TextComponent {
 
 class ToggleComponent {
   constructor(containerEl) {
-    this.el = containerEl.createEl("input", {
-      attr: { type: "checkbox" },
-      cls: "plugin-setting-toggle",
+    this.el = containerEl.createEl("toggle-switch", {
+      cls: "setting-item-toggle",
     });
   }
   setValue(value) {
@@ -410,7 +409,7 @@ class ToggleComponent {
 class DropdownComponent {
   constructor(containerEl) {
     this.el = containerEl.createEl("select", {
-      cls: "plugin-setting-dropdown",
+      cls: "setting-item-dropdown",
     });
   }
   addOption(value, label) {
@@ -442,7 +441,7 @@ class DropdownComponent {
 class ButtonComponent {
   constructor(containerEl) {
     this.el = containerEl.createEl("button", {
-      cls: "plugin-setting-button",
+      cls: "rounded-button",
     });
   }
   setButtonText(text) {
@@ -450,11 +449,36 @@ class ButtonComponent {
     return this;
   }
   setCta() {
-    this.el.addClass("primary-button");
+    this.el.addClass("rounded-button-primary");
     return this;
   }
   onClick(callback) {
     this.el.onClick(callback);
+    return this;
+  }
+}
+
+class IconComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("plugin-icon");
+  }
+  setIcon(name) {
+    this.el.setAttr("icon", name);
+    return this;
+  }
+}
+
+class ProfilesListComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("plugin-profiles-list");
+  }
+  setDids(dids) {
+    const value = Array.isArray(dids) ? dids.join(",") : String(dids ?? "");
+    this.el.setAttr("dids", value);
+    return this;
+  }
+  setEmptyMessage(message) {
+    this.el.setAttr("empty-message", message);
     return this;
   }
 }
@@ -531,6 +555,18 @@ class VirtualEl {
 
   createSpan(options = {}, callback) {
     return this.createEl("span", options, callback);
+  }
+
+  createProfilesList(callback) {
+    const component = new ProfilesListComponent(this);
+    if (typeof callback === "function") callback(component);
+    return component;
+  }
+
+  createIcon(callback) {
+    const component = new IconComponent(this);
+    if (typeof callback === "function") callback(component);
+    return component;
   }
 
   _serialize() {

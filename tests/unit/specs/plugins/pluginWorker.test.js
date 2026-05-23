@@ -124,7 +124,7 @@ t.describe("VirtualEl (via Setting & friends)", (it) => {
     // settingEl has info + control children
     assertEquals(serialized.children.length, 2);
     const info = serialized.children[0];
-    assertEquals(info.attrs.class, "plugin-setting-item-info");
+    assertEquals(info.attrs.class, "setting-item-info");
     assertEquals(info.children[0].text, "Hello");
     assertEquals(info.children[1].text, "World");
   });
@@ -510,7 +510,7 @@ t.describe("Setting components", (it) => {
     const setting = new Setting(container);
     setting.addToggle((toggle) => toggle.setValue(true));
     let toggle = setting.controlEl.children[0];
-    assertEquals(toggle.attrs.type, "checkbox");
+    assertEquals(toggle.tag, "toggle-switch");
     assert("checked" in toggle.attrs);
 
     const setting2 = new Setting(makeVirtualEl());
@@ -544,8 +544,36 @@ t.describe("Setting components", (it) => {
     const button = setting.controlEl.children[0];
     assertEquals(button.tag, "button");
     assertEquals(button.text, "Save");
-    assert(button.attrs.class.includes("primary-button"));
+    assert(button.attrs.class.includes("rounded-button-primary"));
     assert(typeof button.events.click === "number");
+  });
+
+  it("createProfilesList builds a plugin-profiles-list with array dids", () => {
+    const container = makeVirtualEl();
+    container.createProfilesList((list) =>
+      list
+        .setDids(["did:plc:a", "did:plc:b"])
+        .setEmptyMessage("No one here yet."),
+    );
+    const child = container.children[0]._serialize();
+    assertEquals(child.tag, "plugin-profiles-list");
+    assertEquals(child.attrs.dids, "did:plc:a,did:plc:b");
+    assertEquals(child.attrs["empty-message"], "No one here yet.");
+  });
+
+  it("createIcon builds a plugin-icon with the given name", () => {
+    const container = makeVirtualEl();
+    container.createIcon((icon) => icon.setIcon("alert-circle"));
+    const child = container.children[0]._serialize();
+    assertEquals(child.tag, "plugin-icon");
+    assertEquals(child.attrs.icon, "alert-circle");
+  });
+
+  it("createProfilesList accepts a pre-joined string of dids", () => {
+    const container = makeVirtualEl();
+    container.createProfilesList((list) => list.setDids("did:plc:a,did:plc:b"));
+    const child = container.children[0]._serialize();
+    assertEquals(child.attrs.dids, "did:plc:a,did:plc:b");
   });
 });
 

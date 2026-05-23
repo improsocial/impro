@@ -249,7 +249,7 @@ class SettingsPluginsView extends View {
                                   : "Check for updates"}
                             </button>
                             <button
-                              class="plugin-reload-button"
+                              class="plugin-reload-button icon-button"
                               aria-label="Reload plugins"
                               ?disabled=${state.reloading}
                               @click=${() => reloadPlugins()}
@@ -319,7 +319,7 @@ class SettingsPluginsView extends View {
                                     : ""}
                                   ${plugin.enabled && plugin.hasSettings
                                     ? html`<a
-                                        class="plugin-settings-link"
+                                        class="plugin-settings-link icon-button"
                                         href="/settings/plugins/${plugin.id}"
                                         aria-label="Settings for ${plugin.name}"
                                       >
@@ -327,7 +327,7 @@ class SettingsPluginsView extends View {
                                       </a>`
                                     : ""}
                                   <button
-                                    class="plugin-uninstall-button"
+                                    class="plugin-uninstall-button icon-button"
                                     aria-label="Uninstall ${plugin.name}"
                                     @click=${() => uninstallPlugin(plugin)}
                                   >

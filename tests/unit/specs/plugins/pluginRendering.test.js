@@ -26,21 +26,29 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
     assertEquals(first.getAttribute("class"), "x");
   });
 
-  it("rewrites <input type=checkbox> as <toggle-switch>", () => {
+  it("renders <toggle-switch> directly", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({ tag: "toggle-switch" });
+    assertEquals(element.tagName.toLowerCase(), "toggle-switch");
+  });
+
+  it("renders <input type=checkbox> as a real checkbox", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer
       .createRoot()
       .render({ tag: "input", attrs: { type: "checkbox" } });
-    assertEquals(element.tagName.toLowerCase(), "toggle-switch");
+    assertEquals(element.tagName.toLowerCase(), "input");
+    assertEquals(element.getAttribute("type"), "checkbox");
   });
 
-  it("rewrites <profiles-list> as <plugin-profiles-list> and passes dataLayer", () => {
+  it("renders <plugin-profiles-list> and passes dataLayer", () => {
     const { bridge } = makeBridge();
     const dataLayer = { declarative: { ensureProfiles: async () => [] } };
     const renderer = new PluginRenderer(bridge, "demo", { dataLayer });
     const element = renderer.createRoot().render({
-      tag: "profiles-list",
+      tag: "plugin-profiles-list",
       attrs: { dids: "did:test:a,did:test:b" },
     });
     assertEquals(element.tagName.toLowerCase(), "plugin-profiles-list");
@@ -48,23 +56,23 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
     assert(element.dataLayer === dataLayer);
   });
 
-  it("drops disallowed attributes from <profiles-list>", () => {
+  it("drops disallowed attributes from <plugin-profiles-list>", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo", { dataLayer: {} });
     const element = renderer.createRoot().render({
-      tag: "profiles-list",
+      tag: "plugin-profiles-list",
       attrs: { dids: "did:test:a", onclick: "alert(1)" },
     });
     assert(!element.hasAttribute("onclick"));
   });
 
-  it("throws when rendering <profiles-list> without a dataLayer", () => {
+  it("throws when rendering <plugin-profiles-list> without a dataLayer", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
     let error = null;
     try {
       renderer.createRoot().render({
-        tag: "profiles-list",
+        tag: "plugin-profiles-list",
         attrs: { dids: "did:test:a" },
       });
     } catch (e) {

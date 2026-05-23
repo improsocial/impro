@@ -37,8 +37,9 @@ const ALLOWED_TAGS = [
   "label",
   "textarea",
   "a",
-  "profiles-list",
+  "plugin-profiles-list",
   "plugin-icon",
+  "toggle-switch",
 ];
 
 const ALLOWED_EVENTS = ["click", "change", "input"];
@@ -111,8 +112,6 @@ function resolveTag(node, pluginId) {
     }
     tag = "span";
   }
-  if (tag === "input" && node.attrs?.type === "checkbox") tag = "toggle-switch";
-  if (tag === "profiles-list") tag = "plugin-profiles-list";
   return tag;
 }
 
