@@ -1,6 +1,9 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { PluginService } from "/js/plugins/pluginService.js";
+import {
+  PluginService,
+  PermissionsDeclinedError,
+} from "/js/plugins/pluginService.js";
 
 class FakePreferences {
   constructor(state) {
@@ -114,7 +117,11 @@ function makeService({
 
 const t = new TestSuite("pluginService");
 
-t.describe("installPlugin", (it) => {
+t.describe("installPlugin", (it, { afterEach }) => {
+  afterEach(() => {
+    delete globalThis.__testConfirmation;
+  });
+
   it("persists manifest metadata and loads the plugin", async () => {
     const { service, state, loadCalls } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
@@ -138,6 +145,7 @@ t.describe("installPlugin", (it) => {
         description: "the first",
         repo: "ow/alpha",
         enabled: true,
+        permissions: {},
       },
     ]);
     assertEquals(loadCalls, [
@@ -198,9 +206,56 @@ t.describe("installPlugin", (it) => {
     }
     assert(caught?.message.includes("unknown plugin"));
   });
+
+  it("aborts install when the permission prompt is declined", async () => {
+    const { service, state, loadCalls } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          permissions: { fetch: ["https://api.example.com/*"] },
+        },
+      },
+    });
+    globalThis.__testConfirmation = (resolve) => resolve(false);
+    let caught = null;
+    try {
+      await service.installPlugin("alpha");
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof PermissionsDeclinedError);
+    assertEquals(state.installedPlugins, []);
+    assertEquals(loadCalls, []);
+  });
+
+  it("does not prompt on install when manifest has no permissions", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
+      },
+    });
+    // If the prompt were called, this would force a decline. A successful
+    // install proves the prompt was skipped.
+    globalThis.__testConfirmation = (resolve) => resolve(false);
+    await service.installPlugin("alpha");
+    assertEquals(state.installedPlugins.length, 1);
+  });
 });
 
-t.describe("updatePlugin", (it) => {
+t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
+  // Several tests here seed state via installPlugin() with permissions, then
+  // exercise update. Auto-accept by default; tests override for decline.
+  beforeEach(() => {
+    globalThis.__testConfirmation = (resolve) => resolve(true);
+  });
+  afterEach(() => {
+    delete globalThis.__testConfirmation;
+  });
+
   it("refreshes name/description/author/version from the live manifest", async () => {
     const { service, state, reloadCalls } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
@@ -234,6 +289,7 @@ t.describe("updatePlugin", (it) => {
       description: "new description",
       repo: "ow/alpha",
       enabled: true,
+      permissions: {},
     });
     assertEquals(reloadCalls, [
       { id: "alpha", version: "1.1.0", repo: "ow/alpha" },
@@ -253,6 +309,98 @@ t.describe("updatePlugin", (it) => {
     assertEquals(result, { updated: false });
     assertEquals(state.installedPlugins[0].version, "1.0.0");
     assertEquals(reloadCalls.length, 0);
+  });
+
+  it("does not prompt when no new permissions were added", async () => {
+    const { service } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          permissions: { fetch: ["https://api.example.com/*"] },
+        },
+      },
+    });
+    await service.installPlugin("alpha");
+    service.sourceProvider.getLiveManifest = async () => ({
+      id: "alpha",
+      name: "Alpha",
+      version: "1.1.0",
+      permissions: { fetch: ["https://api.example.com/*"] },
+    });
+
+    // A force-decline that still permits the update proves the prompt was
+    // skipped (no new permissions => no prompt).
+    globalThis.__testConfirmation = (resolve) => resolve(false);
+    const result = await service.updatePlugin("alpha");
+    assertEquals(result, { updated: true, version: "1.1.0" });
+  });
+
+  it("aborts update and keeps old version when the prompt is declined", async () => {
+    const { service, state, reloadCalls } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          permissions: { fetch: ["https://api.example.com/*"] },
+        },
+      },
+    });
+    await service.installPlugin("alpha");
+    service.sourceProvider.getLiveManifest = async () => ({
+      id: "alpha",
+      name: "Alpha",
+      version: "1.1.0",
+      permissions: {
+        fetch: ["https://api.example.com/*", "https://newhost.com/*"],
+      },
+    });
+
+    globalThis.__testConfirmation = (resolve) => resolve(false);
+    let caught = null;
+    try {
+      await service.updatePlugin("alpha");
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught instanceof PermissionsDeclinedError);
+    assertEquals(state.installedPlugins[0].version, "1.0.0");
+    assertEquals(state.installedPlugins[0].permissions, {
+      fetch: ["https://api.example.com/*"],
+    });
+    assertEquals(reloadCalls.length, 0);
+  });
+
+  it("persists updated permissions when the prompt is accepted", async () => {
+    const { service, state } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
+      liveManifests: {
+        alpha: {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+          permissions: { fetch: ["https://api.example.com/*"] },
+        },
+      },
+    });
+    await service.installPlugin("alpha");
+    service.sourceProvider.getLiveManifest = async () => ({
+      id: "alpha",
+      name: "Alpha",
+      version: "1.1.0",
+      permissions: {
+        fetch: ["https://api.example.com/*", "https://newhost.com/*"],
+      },
+    });
+
+    await service.updatePlugin("alpha");
+    assertEquals(state.installedPlugins[0].permissions, {
+      fetch: ["https://api.example.com/*", "https://newhost.com/*"],
+    });
   });
 });
 
@@ -535,7 +683,7 @@ t.describe("updateAllPlugins", (it) => {
   it("returns empty buckets when there are no available updates", async () => {
     const { service } = makeService();
     const result = await service.updateAllPlugins();
-    assertEquals(result, { updated: [], failed: [] });
+    assertEquals(result, { updated: [], failed: [], declined: [] });
   });
 
   it("partitions results into updated and failed buckets", async () => {
@@ -662,6 +810,7 @@ t.describe("installUnregisteredPlugin", (it) => {
         description: "the first",
         repo: "ow/alpha",
         enabled: true,
+        permissions: {},
       },
     ]);
     assertEquals(loadCalls, [

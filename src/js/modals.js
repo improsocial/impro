@@ -165,6 +165,9 @@ export async function confirm(
 
     document.body.appendChild(dialog);
     dialog.showModal();
+
+    // Allow tests to resolve externally
+    globalThis.__testConfirmation?.(resolve);
   });
 }
 
@@ -427,4 +430,60 @@ export function hidePluginModal({ pluginId, modalId }) {
     modal.isOpen = false;
     modal.dialog.close();
   }
+}
+
+export async function showPluginInstallPermissionsModal({
+  pluginName,
+  permissions,
+}) {
+  const name = pluginName ?? "This plugin";
+  return confirm(
+    html`<span data-testid="permission-prompt">
+      <span>${name} wants permission to:</span>
+      ${permissionsListTemplate({ permissions })}
+    </span>`,
+    {
+      title: "Grant permissions?",
+      confirmButtonText: "Allow and install",
+    },
+  );
+}
+
+export async function showPluginUpdatePermissionsModal({
+  pluginName,
+  pluginVersion,
+  permissionsDiff,
+}) {
+  const name = pluginName ?? "This plugin";
+  const heading = pluginVersion
+    ? `${name} v${pluginVersion} requests new permissions:`
+    : `${name} requests new permissions:`;
+  return confirm(
+    html`<span data-testid="permission-update-prompt">
+      <span>${heading}</span>
+      ${permissionsListTemplate({ permissions: permissionsDiff })}
+    </span>`,
+    {
+      title: "Grant new permissions?",
+      confirmButtonText: "Allow and update",
+    },
+  );
+}
+
+function permissionsListTemplate({ permissions }) {
+  const sections = [];
+  const fetchPatterns = permissions.fetch ?? [];
+  if (fetchPatterns.length > 0) {
+    sections.push(html`
+      <div class="permission-prompt-section">
+        <div>Send network requests to:</div>
+        <ul class="permission-prompt-list">
+          ${fetchPatterns.map(
+            (pattern) => html`<li><code>${pattern}</code></li>`,
+          )}
+        </ul>
+      </div>
+    `);
+  }
+  return sections;
 }

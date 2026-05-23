@@ -12,6 +12,7 @@ import {
 } from "/js/appViewConfig.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { showToast } from "/js/toasts.js";
+import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
   async render({
@@ -104,13 +105,17 @@ class SettingsAdvancedView extends View {
       state.pluginInstallLoading = true;
       renderPage();
       try {
-        const { name } = await pluginService.installUnregisteredPlugin(url);
+        const result = await pluginService.installUnregisteredPlugin(url);
         input.value = "";
-        showToast(`Installed ${name}`, { style: "success" });
+        showToast(`Installed ${result.name}`, { style: "success" });
       } catch (error) {
-        showToast(error?.message ?? "Failed to install plugin", {
-          style: "error",
-        });
+        if (error instanceof PermissionsDeclinedError) {
+          // User declined the permission prompt; nothing to report.
+        } else {
+          showToast(error?.message ?? "Failed to install plugin", {
+            style: "error",
+          });
+        }
       } finally {
         state.pluginInstallLoading = false;
         renderPage();

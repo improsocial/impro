@@ -38,23 +38,28 @@ class FakeWorker {
   }
 }
 
-function makeRealInstance({ onRegister, onHostCall } = {}) {
+function makeRealInstance({ onRegister, onHostCall, manifest } = {}) {
   const worker = new FakeWorker();
   const registrations = [];
   const hostCalls = [];
-  const instance = new PluginInstance("demo", worker, {
-    onRegister:
-      onRegister ??
-      ((inst, message) => {
-        registrations.push({ inst, message });
-        return null;
-      }),
-    onHostCall:
-      onHostCall ??
-      ((inst, message) => {
-        hostCalls.push({ inst, message });
-      }),
-  });
+  const instance = new PluginInstance(
+    "demo",
+    manifest ?? { id: "demo", version: "1.0.0" },
+    worker,
+    {
+      onRegister:
+        onRegister ??
+        ((inst, message) => {
+          registrations.push({ inst, message });
+          return null;
+        }),
+      onHostCall:
+        onHostCall ??
+        ((inst, message) => {
+          hostCalls.push({ inst, message });
+        }),
+    },
+  );
   return { instance, worker, registrations, hostCalls };
 }
 
@@ -409,8 +414,13 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     const stylesLoader = makeStylesLoader();
     const fakeInstance = makeFakeInstance("p1");
     const loadCalls = [];
-    const loadPluginInstance = async (pluginId, source, callbacks) => {
-      loadCalls.push({ pluginId, source, callbacks });
+    const loadPluginInstance = async (
+      pluginId,
+      manifest,
+      source,
+      callbacks,
+    ) => {
+      loadCalls.push({ pluginId, manifest, source, callbacks });
       return fakeInstance;
     };
     const { bridge } = makeBridge({
@@ -431,6 +441,8 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     assertEquals(stylesLoader.mounts, [{ pluginId: "p1", css: ".x {}" }]);
     assertEquals(loadCalls.length, 1);
     assertEquals(loadCalls[0].pluginId, "p1");
+    assertEquals(loadCalls[0].manifest.id, "p1");
+    assertEquals(loadCalls[0].manifest.version, "1.2.3");
     assertEquals(loadCalls[0].source, "// js");
     assert(typeof loadCalls[0].callbacks.onRegister === "function");
     assert(typeof loadCalls[0].callbacks.onHostCall === "function");
@@ -453,6 +465,30 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
       console.info = originalInfo;
     }
     assertEquals(stylesLoader.mounts, []);
+  });
+
+  it("forwards the manifest to loadPluginInstance", async () => {
+    const manifest = {
+      id: "p1",
+      version: "1.0.0",
+      permissions: { fetch: ["https://api.example.com/*"] },
+    };
+    const provider = makeProvider({ manifest, source: "// js" });
+    const loadCalls = [];
+    const loadPluginInstance = async (pluginId, mft, source, callbacks) => {
+      loadCalls.push({ pluginId, manifest: mft, source, callbacks });
+      return makeFakeInstance("p1");
+    };
+    const { bridge } = makeBridge({ provider, loadPluginInstance });
+    const originalInfo = console.info;
+    console.info = () => {};
+    try {
+      await bridge.loadPlugin("p1", "1.0.0");
+    } finally {
+      console.info = originalInfo;
+    }
+    assertEquals(loadCalls.length, 1);
+    assert(loadCalls[0].manifest === manifest);
   });
 
   it("unmounts styles and throws an init error when instance loading fails", async () => {
@@ -483,7 +519,12 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     const provider = makeProvider({ source: "// js" });
     let capturedCallbacks;
     const fakeInstance = makeFakeInstance("p1");
-    const loadPluginInstance = async (pluginId, source, callbacks) => {
+    const loadPluginInstance = async (
+      pluginId,
+      manifest,
+      source,
+      callbacks,
+    ) => {
       capturedCallbacks = callbacks;
       return fakeInstance;
     };
@@ -555,6 +596,34 @@ t.describe("PluginBridge:reloadPlugin", (it) => {
     assertEquals(loadCalls, [
       { id: "demo", version: "2.0.0", repo: "owner/repo" },
     ]);
+  });
+});
+
+t.describe("PluginInstance:manifest & permissions", (it) => {
+  it("stores the manifest and parses an empty permissions set by default", () => {
+    const { instance } = makeRealInstance({
+      manifest: { id: "demo", version: "1.0.0" },
+    });
+    assertEquals(instance.manifest.version, "1.0.0");
+    assertEquals(instance.permissions, {});
+  });
+
+  it("parses fetch permissions declared in the manifest", () => {
+    const { instance } = makeRealInstance({
+      manifest: {
+        id: "demo",
+        version: "1.0.0",
+        permissions: { fetch: ["https://api.example.com/*"] },
+      },
+    });
+    assertEquals(instance.permissions.fetch, ["https://api.example.com/*"]);
+  });
+
+  it("tolerates a manifest with no permissions field", () => {
+    const { instance } = makeRealInstance({
+      manifest: { id: "demo", version: "1.0.0" },
+    });
+    assertEquals(instance.permissions, {});
   });
 });
 

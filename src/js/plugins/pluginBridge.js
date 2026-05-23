@@ -1,5 +1,6 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
+import { getPermissionsFromManifest } from "/js/plugins/pluginPermissions.js";
 
 const SANDBOX_URL = "/js/plugins/sandbox.html";
 
@@ -109,8 +110,10 @@ async function createDirectWorker(source) {
 }
 
 export class PluginInstance {
-  constructor(pluginId, worker, { onRegister, onHostCall }) {
+  constructor(pluginId, manifest, worker, { onRegister, onHostCall }) {
     this.pluginId = pluginId;
+    this.manifest = manifest;
+    this.permissions = getPermissionsFromManifest(this.manifest);
     this.worker = worker;
     this._onRegister = onRegister;
     this._onHostCall = onHostCall;
@@ -155,11 +158,11 @@ export class PluginInstance {
     }
   }
 
-  static async loadFromSource(pluginId, source, callbacks) {
+  static async loadFromSource(pluginId, manifest, source, callbacks) {
     const worker = !window.env.playwright // don't sandbox in e2e tests
       ? await createSandboxedWorker(source)
       : await createDirectWorker(source);
-    const instance = new PluginInstance(pluginId, worker, callbacks);
+    const instance = new PluginInstance(pluginId, manifest, worker, callbacks);
     try {
       return await instance.waitForReady(2000);
     } catch (err) {
@@ -307,12 +310,17 @@ export class PluginBridge {
       }
     }
     try {
-      const pluginInstance = await this._loadPluginInstance(pluginId, source, {
-        onRegister: (instance, message) =>
-          this._handleRegistration(instance, message),
-        onHostCall: (instance, message) =>
-          this._handleHostCall(instance, message),
-      });
+      const pluginInstance = await this._loadPluginInstance(
+        pluginId,
+        manifest,
+        source,
+        {
+          onRegister: (instance, message) =>
+            this._handleRegistration(instance, message),
+          onHostCall: (instance, message) =>
+            this._handleHostCall(instance, message),
+        },
+      );
       this._loadedPlugins.set(pluginId, pluginInstance);
       logger.info(`loaded "${pluginId}" v${manifest.version}`);
       return pluginInstance;

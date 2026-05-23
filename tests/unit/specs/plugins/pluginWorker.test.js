@@ -30,6 +30,7 @@ const {
   Modal,
   PluginSettingTab,
   Setting,
+  fetch: pluginFetch,
 } = worker;
 
 function lastMessage() {
@@ -545,6 +546,84 @@ t.describe("Setting components", (it) => {
     assertEquals(button.text, "Save");
     assert(button.attrs.class.includes("primary-button"));
     assert(typeof button.events.click === "number");
+  });
+});
+
+t.describe("fetch — header serialization", (it) => {
+  function findFetchCall() {
+    return postedMessages.find(
+      (message) => message.type === "hostCall" && message.method === "fetch",
+    );
+  }
+
+  it("serializes a plain-object headers init", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", {
+      method: "POST",
+      headers: { "X-Foo": "bar", "X-Baz": "qux" },
+      body: "hi",
+    });
+    const sent = findFetchCall();
+    assertEquals(sent.args[0].url, "https://example.com/");
+    assertEquals(sent.args[0].init.method, "POST");
+    assertEquals(sent.args[0].init.headers, {
+      "X-Foo": "bar",
+      "X-Baz": "qux",
+    });
+    assertEquals(sent.args[0].init.body, "hi");
+  });
+
+  it("serializes a Map headers init via forEach(value, name)", () => {
+    clearMessages();
+    const headers = new Map([
+      ["X-One", "1"],
+      ["X-Two", "2"],
+    ]);
+    pluginFetch("https://example.com/", { headers });
+    const sent = findFetchCall();
+    assertEquals(sent.args[0].init.headers, { "X-One": "1", "X-Two": "2" });
+  });
+
+  it("serializes a Headers-like object that only exposes forEach", () => {
+    clearMessages();
+    const headers = {
+      forEach(callback) {
+        callback("application/json", "content-type");
+        callback("Bearer token", "authorization");
+      },
+    };
+    pluginFetch("https://example.com/", { headers });
+    const sent = findFetchCall();
+    assertEquals(sent.args[0].init.headers, {
+      "content-type": "application/json",
+      authorization: "Bearer token",
+    });
+  });
+
+  it("falls back to Symbol.iterator entries when forEach is absent", () => {
+    clearMessages();
+    const headers = {
+      *[Symbol.iterator]() {
+        yield ["X-Iter", "1"];
+        yield ["X-Iter-2", "2"];
+      },
+    };
+    pluginFetch("https://example.com/", { headers });
+    const sent = findFetchCall();
+    assertEquals(sent.args[0].init.headers, {
+      "X-Iter": "1",
+      "X-Iter-2": "2",
+    });
+  });
+
+  it("omits headers from the serialized init when not provided", () => {
+    clearMessages();
+    pluginFetch("https://example.com/", { method: "GET" });
+    const sent = findFetchCall();
+    assert(
+      !("headers" in sent.args[0].init),
+      "headers should be omitted when init.headers is null",
+    );
   });
 });
 

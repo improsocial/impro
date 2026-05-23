@@ -102,6 +102,50 @@ class App {
   }
 }
 
+export async function fetch(url, init = {}) {
+  const result = await hostCall("fetch", {
+    url,
+    init: serializeFetchInit(init),
+  });
+  return new PluginResponse(result);
+}
+
+function serializeFetchInit(init) {
+  const serialized = {};
+  if (init.method != null) serialized.method = String(init.method);
+  if (init.headers != null) {
+    const headers = {};
+    if (typeof init.headers.forEach === "function") {
+      // Headers, Map, and similar iterables expose forEach(value, name)
+      init.headers.forEach((value, name) => {
+        headers[name] = value;
+      });
+    } else if (typeof init.headers[Symbol.iterator] === "function") {
+      for (const [name, value] of init.headers) headers[name] = value;
+    } else {
+      Object.assign(headers, init.headers);
+    }
+    serialized.headers = headers;
+  }
+  if (init.body != null) serialized.body = init.body;
+  return serialized;
+}
+
+class PluginResponse {
+  constructor({ status, ok, headers, body }) {
+    this.status = status;
+    this.ok = ok;
+    this.headers = new Map(Object.entries(headers ?? {}));
+    this._body = body;
+  }
+  async text() {
+    return this._body;
+  }
+  async json() {
+    return JSON.parse(this._body);
+  }
+}
+
 export class Notice {
   constructor(message, timeout = 0) {
     this._toastId = uuid.create();
