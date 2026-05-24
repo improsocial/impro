@@ -147,6 +147,7 @@ class FeedDetailView extends View {
                     onLoadMore: () => loadFeed(),
                     postInteractionHandler,
                     pluginService,
+                    showEndMessage: true,
                   })}
                 </div>
               </main>`,

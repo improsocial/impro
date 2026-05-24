@@ -5601,21 +5601,6 @@ img[data-lightbox] {
   position: relative;
 }
 
-.settings-section-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 16px;
-}
-
-.settings-section-row .settings-section-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.settings-section-row .settings-section-text > :last-child {
-  margin-bottom: 0;
-}
-
 .settings-section h2 {
   font-size: 16px;
   font-weight: 500;
@@ -5644,17 +5629,6 @@ img[data-lightbox] {
   cursor: pointer;
   border: none;
   background: none;
-}
-
-.settings-select {
-  padding: 8px 12px;
-  border-radius: var(--text-input-border-radius);
-  border: var(--hair) solid var(--post-border-color);
-  background: var(--text-input-background-color);
-  color: var(--text-color);
-  font-size: 14px;
-  cursor: pointer;
-  flex-shrink: 0;
 }
 
 .settings-footer-links {
@@ -7495,20 +7469,7 @@ image-cropper {
   gap: 12px;
 }
 
-.plugin-settings-link {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: inherit;
-  text-decoration: none;
-}
-
-.plugin-settings-link .icon {
-  width: 24px;
-  height: 24px;
-}
-
-.plugin-uninstall-button {
+.icon-button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -7517,15 +7478,21 @@ image-cropper {
   border: none;
   color: inherit;
   cursor: pointer;
+  text-decoration: none;
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.icon-button .icon {
+  width: 24px;
+  height: 24px;
 }
 
 .plugin-list-item.uninstalling {
   opacity: 0.5;
-}
-
-.plugin-uninstall-button .icon {
-  width: 24px;
-  height: 24px;
 }
 
 .plugin-settings-tab h1,
@@ -7560,47 +7527,57 @@ image-cropper {
   margin: 8px 0;
 }
 
-.plugin-setting-item {
+.setting-item {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px 16px;
-  padding: 16px 16px;
+  padding: 16px;
   border-bottom: var(--hair) solid var(--generic-border-color);
 }
 
-.plugin-setting-item:last-child {
+.setting-item:last-child {
   border-bottom: none;
 }
 
-.plugin-setting-item-info {
+.setting-item-info {
   flex: 1 1 200px;
   min-width: 0;
   max-width: 100%;
   overflow-wrap: anywhere;
 }
 
-.plugin-setting-item-name {
+h2.setting-item-name {
+  font-size: inherit;
+  margin: 0;
+  padding: 0;
+}
+
+.setting-item-name {
   font-weight: 600;
   color: var(--text-color);
 }
 
-.plugin-setting-item-desc {
+p.setting-item-desc {
+  margin: 4px 0 0;
+}
+
+.setting-item-desc {
   font-size: 14px;
   color: var(--text-color-secondary);
   margin-top: 4px;
 }
 
-.plugin-setting-item-control {
+.setting-item-control {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.plugin-setting-text-input,
-.plugin-setting-dropdown,
+.setting-item-text-input,
+.setting-item-dropdown,
 .plugin-settings-tab textarea {
   font-size: 16px;
   padding: 8px 10px;
@@ -7615,59 +7592,12 @@ image-cropper {
   resize: vertical;
 }
 
-.plugin-setting-text-input {
+.setting-item-text-input {
   min-width: 180px;
 }
 
-.plugin-setting-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  font-size: 14px;
-  padding: 8px 14px;
-  border-radius: var(--pill-button-border-radius, 999px);
-  border: var(--hair) solid var(--generic-border-color);
-  background: var(--primary-button-muted-color);
-  color: var(--text-color);
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-.plugin-setting-button.primary-button {
-  background: var(--primary-button-color);
-  color: var(--primary-button-text-color);
-  border-color: transparent;
-}
-
-.plugin-setting-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.plugin-setting-button .loading-spinner {
-  border-left-color: transparent;
-  border-right-color: transparent;
-  border-bottom-color: transparent;
-  vertical-align: middle;
-}
-
-.plugin-setting-button.primary-button .loading-spinner {
-  border-top-color: var(--primary-button-text-color);
-}
-
-@media (min-width: 800px) {
-  .plugin-setting-button:not(:disabled):hover {
-    background: var(--primary-button-muted-hover-color);
-  }
-
-  .plugin-setting-button.primary-button:not(:disabled):hover {
-    background: var(--primary-button-hover-color);
-  }
-}
-
 @media (max-width: 600px) {
-  .plugin-setting-text-input {
+  .setting-item-text-input {
     min-width: 0;
   }
 }
@@ -7692,27 +7622,6 @@ image-cropper {
 
 .plugin-check-updates-button {
   min-height: 37px;
-}
-
-.plugin-reload-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-}
-
-.plugin-reload-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.plugin-reload-button .icon {
-  width: 24px;
-  height: 24px;
 }
 
 .external-link-warning-href {

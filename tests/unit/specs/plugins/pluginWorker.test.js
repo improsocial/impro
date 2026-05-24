@@ -30,6 +30,7 @@ const {
   Modal,
   PluginSettingTab,
   Setting,
+  VirtualEl,
   fetch: pluginFetch,
 } = worker;
 
@@ -124,7 +125,7 @@ t.describe("VirtualEl (via Setting & friends)", (it) => {
     // settingEl has info + control children
     assertEquals(serialized.children.length, 2);
     const info = serialized.children[0];
-    assertEquals(info.attrs.class, "plugin-setting-item-info");
+    assertEquals(info.attrs.class, "setting-item-info");
     assertEquals(info.children[0].text, "Hello");
     assertEquals(info.children[1].text, "World");
   });
@@ -204,6 +205,76 @@ t.describe("Plugin sidebar/feedFilter registration", (it) => {
     assert(typeof msg.handlerId === "number");
   });
 
+  it("registerSlot posts a register message with the slot name", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("post-thread-view:after-main", () => null);
+    const msg = lastMessage();
+    assertEquals(msg.type, "register");
+    assertEquals(msg.target, "slot");
+    assertEquals(msg.name, "post-thread-view:after-main");
+    assert(typeof msg.handlerId === "number");
+  });
+
+  it("registerSlot serializes the returned VirtualEl when invoked", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    let received = null;
+    plugin.registerSlot("slot:demo", (context) => {
+      received = context;
+      const el = new VirtualEl("div");
+      el.addClass("hello");
+      el.setText("world");
+      return el;
+    });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 42,
+      args: [{ uri: "at://example" }],
+    });
+    assertEquals(received, { uri: "at://example" });
+    const result = postedMessages.find((message) => message.type === "result");
+    assertEquals(result.callId, 42);
+    assertEquals(result.value.tag, "div");
+    assertEquals(result.value.attrs.class, "hello");
+    assertEquals(result.value.text, "world");
+  });
+
+  it("registerSlot returns null when the callback returns null", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("slot:nullable", () => null);
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 1,
+      args: [{}],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assertEquals(result.value, null);
+  });
+
+  it("registerSlot rejects non-VirtualEl return values", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerSlot("slot:bad", () => "not a node");
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 1,
+      args: [{}],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert(/must return a VirtualEl/.test(result.error));
+  });
+
   it("addSettingTab posts a register message and remembers the tab", () => {
     clearMessages();
     const plugin = new Plugin();
@@ -262,6 +333,58 @@ t.describe("hostCall round-trip", (it) => {
     const sent = lastMessage();
     assertEquals(sent.method, "refreshFeedFilters");
     assertEquals(sent.args[0], "at://example/feed");
+  });
+
+  it("app.data.getPost posts a hostCall and resolves with the host result", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getPost("at://example/post/1");
+    const sent = lastMessage();
+    assertEquals(sent.type, "hostCall");
+    assertEquals(sent.method, "getPost");
+    assertEquals(sent.args[0], { uri: "at://example/post/1" });
+    assert(typeof sent.hostCallId === "number");
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: { uri: "at://example/post/1", record: { text: "hi" } },
+    });
+    assertEquals(await promise, {
+      uri: "at://example/post/1",
+      record: { text: "hi" },
+    });
+  });
+
+  it("app.data.getPost resolves with null when host returns null", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getPost("at://missing");
+    const sent = lastMessage();
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: null,
+    });
+    assertEquals(await promise, null);
+  });
+
+  it("app.data.getProfile posts a hostCall and resolves with the host result", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getProfile("did:plc:abc");
+    const sent = lastMessage();
+    assertEquals(sent.type, "hostCall");
+    assertEquals(sent.method, "getProfile");
+    assertEquals(sent.args[0], { did: "did:plc:abc" });
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: { did: "did:plc:abc", handle: "alice.test" },
+    });
+    assertEquals(await promise, {
+      did: "did:plc:abc",
+      handle: "alice.test",
+    });
   });
 });
 
@@ -510,7 +633,7 @@ t.describe("Setting components", (it) => {
     const setting = new Setting(container);
     setting.addToggle((toggle) => toggle.setValue(true));
     let toggle = setting.controlEl.children[0];
-    assertEquals(toggle.attrs.type, "checkbox");
+    assertEquals(toggle.tag, "toggle-switch");
     assert("checked" in toggle.attrs);
 
     const setting2 = new Setting(makeVirtualEl());
@@ -544,8 +667,36 @@ t.describe("Setting components", (it) => {
     const button = setting.controlEl.children[0];
     assertEquals(button.tag, "button");
     assertEquals(button.text, "Save");
-    assert(button.attrs.class.includes("primary-button"));
+    assert(button.attrs.class.includes("rounded-button-primary"));
     assert(typeof button.events.click === "number");
+  });
+
+  it("createProfilesList builds a plugin-profiles-list with array dids", () => {
+    const container = makeVirtualEl();
+    container.createProfilesList((list) =>
+      list
+        .setDids(["did:plc:a", "did:plc:b"])
+        .setEmptyMessage("No one here yet."),
+    );
+    const child = container.children[0]._serialize();
+    assertEquals(child.tag, "plugin-profiles-list");
+    assertEquals(child.attrs.dids, "did:plc:a,did:plc:b");
+    assertEquals(child.attrs["empty-message"], "No one here yet.");
+  });
+
+  it("createIcon builds a plugin-icon with the given name", () => {
+    const container = makeVirtualEl();
+    container.createIcon((icon) => icon.setIcon("alert-circle"));
+    const child = container.children[0]._serialize();
+    assertEquals(child.tag, "plugin-icon");
+    assertEquals(child.attrs.icon, "alert-circle");
+  });
+
+  it("createProfilesList accepts a pre-joined string of dids", () => {
+    const container = makeVirtualEl();
+    container.createProfilesList((list) => list.setDids("did:plc:a,did:plc:b"));
+    const child = container.children[0]._serialize();
+    assertEquals(child.attrs.dids, "did:plc:a,did:plc:b");
   });
 });
 

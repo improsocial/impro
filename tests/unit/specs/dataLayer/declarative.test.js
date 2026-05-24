@@ -11,6 +11,7 @@ function createMockSelectors(data = {}) {
     getProfile: (did) => data.profiles?.[did] ?? null,
     getPostThread: (uri) => data.postThreads?.[uri] ?? null,
     getPost: (uri) => data.posts?.[uri] ?? null,
+    getPosts: (uris) => uris.map((uri) => data.posts?.[uri] ?? null),
     getFeedGenerator: (uri) => data.feedGenerators?.[uri] ?? null,
     getPinnedFeedGenerators: () => data.pinnedFeedGenerators ?? null,
     getConvoList: () => data.convoList ?? null,
@@ -355,6 +356,66 @@ t.describe("ensurePost", (it) => {
 
     assert(error !== null);
     assertEquals(error.message, "Post not found");
+  });
+});
+
+t.describe("ensurePosts", (it) => {
+  it("returns cached posts in input order without loading", async () => {
+    const postA = { uri: "at://a", text: "A" };
+    const postB = { uri: "at://b", text: "B" };
+    let loadCalled = false;
+
+    const selectors = createMockSelectors({
+      posts: { [postA.uri]: postA, [postB.uri]: postB },
+    });
+    const requests = {
+      loadPosts: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensurePosts([postB.uri, postA.uri]);
+
+    assertEquals(result, [postB, postA]);
+    assertEquals(loadCalled, false);
+  });
+
+  it("loads only missing posts", async () => {
+    const postA = { uri: "at://a", text: "A" };
+    const postB = { uri: "at://b", text: "B" };
+    const store = { [postA.uri]: postA };
+    let loadedWith = null;
+
+    const selectors = {
+      getPost: (uri) => store[uri] ?? null,
+      getPosts: (uris) => uris.map((uri) => store[uri] ?? null),
+    };
+    const requests = {
+      loadPosts: async (uris) => {
+        loadedWith = uris;
+        store[postB.uri] = postB;
+      },
+    };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensurePosts([postA.uri, postB.uri]);
+
+    assertEquals(loadedWith, [postB.uri]);
+    assertEquals(result, [postA, postB]);
+  });
+
+  it("returns null entries for posts still missing after load", async () => {
+    const selectors = {
+      getPost: () => null,
+      getPosts: (uris) => uris.map(() => null),
+    };
+    const requests = { loadPosts: async () => {} };
+
+    const declarative = new Declarative(selectors, requests);
+    const result = await declarative.ensurePosts(["at://missing"]);
+
+    assertEquals(result, [null]);
   });
 });
 

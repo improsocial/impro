@@ -1735,4 +1735,61 @@ test.describe("Post thread view", () => {
       );
     });
   });
+
+  test.describe("Tombstone thread root", () => {
+    test("should render without crashing when thread root is a notFoundPost", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#notFoundPost",
+        uri: postUri,
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/did:plc:author1/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(
+        view.locator('[data-testid="post-tombstone-not-found"]'),
+      ).toBeVisible({ timeout: 10000 });
+      // The view should NOT fall into the generic thread-error template
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+      // No reply prompt should be shown for a tombstone root
+      await expect(view.locator(".post-thread-reply-prompt")).not.toBeVisible();
+    });
+
+    test("should render without crashing when thread root is a blockedPost", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setPostThread(postUri, {
+        $type: "app.bsky.feed.defs#blockedPost",
+        uri: postUri,
+        author: {
+          did: "did:plc:blockedauthor",
+          viewer: {
+            blocking:
+              "at://did:plc:testuser123/app.bsky.graph.block/existing-block",
+          },
+        },
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/did:plc:author1/post/abc123");
+
+      const view = page.locator("#post-detail-view");
+      await expect(
+        view.locator('[data-testid="post-tombstone-blocked"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="thread-error"]'),
+      ).not.toBeAttached();
+      await expect(view.locator(".post-thread-reply-prompt")).not.toBeVisible();
+    });
+  });
 });

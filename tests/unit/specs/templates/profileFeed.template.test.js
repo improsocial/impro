@@ -259,22 +259,10 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
     );
   });
 
-  it("should render end-of-feed message by default when not hasMore", () => {
+  it("should not render end-of-feed message by default when not hasMore", () => {
     const result = profileFeedTemplate({
       profiles: [mockActor],
       hasMore: false,
-    });
-    render(result, container);
-    const msg = container.querySelector("[data-testid='feed-end-message']");
-    assert(msg !== null);
-    assert(msg.textContent.includes("End of feed"));
-  });
-
-  it("should suppress end-of-feed message when showEndMessage is false", () => {
-    const result = profileFeedTemplate({
-      profiles: [mockActor],
-      hasMore: false,
-      showEndMessage: false,
     });
     render(result, container);
     assertEquals(
@@ -283,11 +271,22 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
     );
   });
 
-  it("should still render loading indicator when hasMore is true regardless of showEndMessage", () => {
+  it("should render end-of-feed message when showEndMessage is true and not hasMore", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+      showEndMessage: true,
+    });
+    render(result, container);
+    const msg = container.querySelector("[data-testid='feed-end-message']");
+    assert(msg !== null);
+    assert(msg.textContent.includes("End of feed"));
+  });
+
+  it("should render loading indicator when hasMore is true", () => {
     const result = profileFeedTemplate({
       profiles: [mockActor],
       hasMore: true,
-      showEndMessage: false,
     });
     render(result, container);
     assert(

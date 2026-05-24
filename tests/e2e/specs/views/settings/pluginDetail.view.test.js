@@ -17,7 +17,7 @@ function seedEnabled(mockServer) {
 async function gotoDetailView(page) {
   await page.goto(`/settings/plugins/${PLUGIN_ID}`);
   const view = page.locator("#settings-plugin-detail-view");
-  await expect(view.locator(".plugin-setting-item").first()).toBeVisible({
+  await expect(view.locator(".setting-item").first()).toBeVisible({
     timeout: 10000,
   });
   return view;
@@ -43,7 +43,7 @@ test.describe("Settings plugin detail view", () => {
     seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
-    const settings = view.locator(".plugin-setting-item");
+    const settings = view.locator(".setting-item");
     await expect(settings).toHaveCount(4);
 
     await expect(
@@ -72,7 +72,7 @@ test.describe("Settings plugin detail view", () => {
     seedEnabled(mockServer);
 
     const view = await gotoDetailView(page);
-    const settings = view.locator(".plugin-setting-item");
+    const settings = view.locator(".setting-item");
 
     await expect(
       settings.filter({ hasText: "Greeting" }).locator("input[type=text]"),
@@ -93,7 +93,7 @@ test.describe("Settings plugin detail view", () => {
 
     const view = await gotoDetailView(page);
     const greetingInput = view
-      .locator(".plugin-setting-item")
+      .locator(".setting-item")
       .filter({ hasText: "Greeting" })
       .locator("input[type=text]");
 
@@ -117,7 +117,7 @@ test.describe("Settings plugin detail view", () => {
 
     const view = await gotoDetailView(page);
     const toggle = view
-      .locator(".plugin-setting-item")
+      .locator(".setting-item")
       .filter({ hasText: "Loud mode" })
       .locator("toggle-switch");
 
@@ -140,7 +140,7 @@ test.describe("Settings plugin detail view", () => {
 
     const view = await gotoDetailView(page);
     const dropdown = view
-      .locator(".plugin-setting-item")
+      .locator(".setting-item")
       .filter({ hasText: "Theme" })
       .locator("select");
 
@@ -168,7 +168,7 @@ test.describe("Settings plugin detail view", () => {
 
     const view = await gotoDetailView(page);
     const resetButton = view
-      .locator(".plugin-setting-item")
+      .locator(".setting-item")
       .filter({ hasText: "Reset settings" })
       .locator("button");
 

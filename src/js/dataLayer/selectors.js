@@ -12,6 +12,7 @@ import {
   replaceBlockedQuote,
   createEmbedFromPost,
   isBlockedPost,
+  isEmptyPost,
   isPostView,
   getQuotedPost,
   getLastInteractionTimestamp,
@@ -104,7 +105,7 @@ export class Selectors {
     if (!postThread || !postThreadOther) {
       return null;
     }
-    if (isBlockedPost(postThread) && isBlockingUser(postThread)) {
+    if (isEmptyPost(postThread)) {
       return postThread;
     }
     const hiddenReplyUris = postThreadOther.map((item) => item.uri);
@@ -121,7 +122,7 @@ export class Selectors {
   }
 
   hydratePostThread(postThread, hiddenReplyUris) {
-    if (isBlockedPost(postThread) && isBlockingUser(postThread)) {
+    if (isEmptyPost(postThread)) {
       return postThread;
     }
     const hydratedPostThread = {
@@ -189,6 +190,10 @@ export class Selectors {
     post = this._markIsHidden(post);
     post = this._addLabels(post);
     return this.patchStore.applyPostPatches(post);
+  }
+
+  getPosts(postURIs, options) {
+    return postURIs.map((postURI) => this.getPost(postURI, options));
   }
 
   getProfile(did) {
@@ -636,9 +641,9 @@ export class Selectors {
     // Modifies the post in place.
     const preferences = this.preferencesProvider.requirePreferences();
     const hasMutedWord = preferences.postHasMutedWord(post);
-    // It's safe to assume that the viewer object exists since these are based on preferences.
     if (hasMutedWord) {
       // NOTE: LEXICON DEVIATION
+      if (!post.viewer) post.viewer = {};
       post.viewer.hasMutedWord = true;
     }
     // Also check for muted words in quote posts.
@@ -669,6 +674,7 @@ export class Selectors {
     const isHidden = preferences.isPostHidden(post.uri);
     if (isHidden) {
       // NOTE: LEXICON DEVIATION
+      if (!post.viewer) post.viewer = {};
       post.viewer.isHidden = true;
     }
     // Also check for hidden quotes

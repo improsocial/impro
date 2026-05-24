@@ -1042,4 +1042,165 @@ t.describe("getFilteredFeedItems", (it) => {
   });
 });
 
+t.describe("slot registry", (it) => {
+  // These tests exercise the registration target wired by _setupRegistries,
+  // so they need the real PluginBridge instead of the makeService stub.
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(provider, null);
+  }
+
+  function register(service, plugin, message) {
+    const handler = service.pluginBridge._registrationTargets.get("slot");
+    return handler(plugin, message);
+  }
+
+  function makePlugin(pluginId, calls = []) {
+    return {
+      pluginId,
+      call: (handlerId, ...args) => {
+        calls.push({ handlerId, args });
+        return Promise.resolve({ tag: "div", attrs: {}, text: pluginId });
+      },
+    };
+  }
+
+  it("returns an empty list for unknown slots", () => {
+    const service = makeServiceWithRealBridge();
+    assertEquals(service.getSlotEntries("nope"), []);
+  });
+
+  it("records registrations in order", async () => {
+    const service = makeServiceWithRealBridge();
+    register(service, makePlugin("alpha"), {
+      target: "slot",
+      name: "x",
+      handlerId: 1,
+    });
+    register(service, makePlugin("beta"), {
+      target: "slot",
+      name: "x",
+      handlerId: 2,
+    });
+    const entries = service.getSlotEntries("x");
+    assertEquals(
+      entries.map((entry) => entry.pluginId),
+      ["alpha", "beta"],
+    );
+  });
+
+  it("invokes the plugin handler with the slot context", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    register(service, makePlugin("alpha", calls), {
+      target: "slot",
+      name: "x",
+      handlerId: 7,
+    });
+    const [entry] = service.getSlotEntries("x");
+    await entry.invoke({ uri: "at://test" });
+    assertEquals(calls, [{ handlerId: 7, args: [{ uri: "at://test" }] }]);
+  });
+
+  it("dispose removes the entry and prunes the slot when empty", () => {
+    const service = makeServiceWithRealBridge();
+    const dispose = register(service, makePlugin("alpha"), {
+      target: "slot",
+      name: "x",
+      handlerId: 1,
+    });
+    assertEquals(service.getSlotEntries("x").length, 1);
+    dispose();
+    assertEquals(service.getSlotEntries("x"), []);
+    assert(!service.registries.slots.has("x"));
+  });
+
+  it("emits slotRegistered / slotUnregistered events", () => {
+    const service = makeServiceWithRealBridge();
+    const events = [];
+    service.on("slotRegistered", (data) =>
+      events.push({ type: "reg", ...data }),
+    );
+    service.on("slotUnregistered", (data) =>
+      events.push({ type: "unreg", ...data }),
+    );
+    const dispose = register(service, makePlugin("alpha"), {
+      target: "slot",
+      name: "x",
+      handlerId: 1,
+    });
+    dispose();
+    assertEquals(events, [
+      { type: "reg", name: "x" },
+      { type: "unreg", name: "x" },
+    ]);
+  });
+});
+
+t.describe("app.data host methods", (it) => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(provider, null);
+  }
+
+  it("getPost host method returns selectors.getPost result", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    service.setDataLayer({
+      selectors: {
+        getPost: (uri) => {
+          calls.push(uri);
+          return { uri, record: { text: "cached" } };
+        },
+        getProfile: () => null,
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/1" });
+    assertEquals(calls, ["at://example/post/1"]);
+    assertEquals(result, {
+      uri: "at://example/post/1",
+      record: { text: "cached" },
+    });
+  });
+
+  it("getProfile host method returns selectors.getProfile result", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    service.setDataLayer({
+      selectors: {
+        getPost: () => null,
+        getProfile: (did) => {
+          calls.push(did);
+          return { did, handle: "alice.test" };
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assertEquals(calls, ["did:plc:abc"]);
+    assertEquals(result, { did: "did:plc:abc", handle: "alice.test" });
+  });
+
+  it("getPost returns null when dataLayer has not been set", async () => {
+    const service = makeServiceWithRealBridge();
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example" });
+    assertEquals(result, null);
+  });
+
+  it("getProfile returns null when selector returns null (uncached)", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      selectors: {
+        getPost: () => null,
+        getProfile: () => null,
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:missing" });
+    assertEquals(result, null);
+  });
+});
+
 await t.run();

@@ -427,6 +427,61 @@ t.describe("loadProfile", (it) => {
   });
 });
 
+t.describe("loadPosts", (it) => {
+  it("loads and stores each post by uri", async () => {
+    const postA = { uri: "at://a", content: "A" };
+    const postB = { uri: "at://b", content: "B" };
+    let calledWith = null;
+
+    const mockApi = {
+      getPosts: async (uris) => {
+        calledWith = uris;
+        return [postA, postB];
+      },
+    };
+
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+
+    await requests.loadPosts(["at://a", "at://b"]);
+
+    assertEquals(calledWith, ["at://a", "at://b"]);
+    assertEquals(dataStore.getPost("at://a"), postA);
+    assertEquals(dataStore.getPost("at://b"), postB);
+  });
+
+  it("does not call api when uris is empty", async () => {
+    let called = false;
+    const mockApi = {
+      getPosts: async () => {
+        called = true;
+        return [];
+      },
+    };
+
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+
+    await requests.loadPosts([]);
+
+    assertEquals(called, false);
+  });
+});
+
 t.describe("loadLabelerInfo", (it) => {
   const labelerDid = "did:plc:testlabeler";
 

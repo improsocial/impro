@@ -340,10 +340,23 @@ class Session {
       client_id: this.sessionData.clientId,
     };
 
-    const response = await authServer.refresh(params);
+    const maxRetries = 2;
+    const backoffMs = 500 * Math.pow(2, retryCount);
+
+    let response;
+    try {
+      response = await authServer.refresh(params);
+    } catch (error) {
+      if (retryCount < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        return await this.refreshToken({ retryCount: retryCount + 1 });
+      }
+      throw new TokenRefreshError(`Token refresh failed: ${error.message}`);
+    }
 
     if (!response.ok) {
-      if (response.status === 500 && retryCount === 0) {
+      if (response.status >= 500 && retryCount < maxRetries) {
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return await this.refreshToken({ retryCount: retryCount + 1 });
       }
       const error = response.data
@@ -479,6 +492,7 @@ export class OauthClient {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
     this.dpopRequests = new DPoPRequests(dpopKeypair);
+    this.sessionsByDid = new Map();
   }
 
   static async load({ clientId, redirectUri }) {
@@ -605,6 +619,7 @@ export class OauthClient {
 
     const session = new Session(sessionData, this.dpopRequests);
     session.save();
+    this.sessionsByDid.set(tokenResponse.sub, session);
 
     upsertAccount({
       did: tokenResponse.sub,
@@ -622,7 +637,11 @@ export class OauthClient {
   async getSession(did = null) {
     const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
     if (!targetDid) return null;
-    return Session.load(this.dpopRequests, targetDid);
+    const cached = this.sessionsByDid.get(targetDid);
+    if (cached) return cached;
+    const session = await Session.load(this.dpopRequests, targetDid);
+    if (session) this.sessionsByDid.set(targetDid, session);
+    return session;
   }
 
   listAccounts() {
@@ -643,6 +662,7 @@ export class OauthClient {
     const accounts = readAccounts();
     if (!accounts.some((entry) => entry.did === targetDid)) return;
     localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
+    this.sessionsByDid.delete(targetDid);
     deleteAccount(targetDid);
     const remaining = readAccounts();
     if (localStorage.getItem(CURRENT_DID_KEY) === targetDid) {

@@ -36,7 +36,7 @@ test.describe("Settings Appearance view", () => {
     await page.goto("/settings/appearance");
 
     const view = page.locator("#settings-appearance-view");
-    const select = view.locator(".settings-select");
+    const select = view.locator('[data-testid="color-scheme-select"]');
     await expect(select).toBeVisible({ timeout: 10000 });
 
     const options = select.locator("option");
@@ -82,7 +82,7 @@ test.describe("Settings Appearance view", () => {
     await page.goto("/settings/appearance");
 
     const view = page.locator("#settings-appearance-view");
-    const select = view.locator(".settings-select");
+    const select = view.locator('[data-testid="color-scheme-select"]');
     await expect(select).toBeVisible({ timeout: 10000 });
 
     await select.selectOption("dark");
@@ -109,7 +109,7 @@ test.describe("Settings Appearance view", () => {
       "settings-section-like-color",
     ]) {
       await expect(
-        view.locator(`[data-testid="${sectionTestid}"] p`),
+        view.locator(`[data-testid="${sectionTestid}"] .setting-item-desc`),
       ).toBeVisible({ timeout: 10000 });
     }
   });

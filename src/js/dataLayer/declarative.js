@@ -61,6 +61,14 @@ export class Declarative {
     return post;
   }
 
+  async ensurePosts(postURIs) {
+    const missing = postURIs.filter((uri) => !this.selectors.getPost(uri));
+    if (missing.length > 0) {
+      await this.requests.loadPosts(missing);
+    }
+    return this.selectors.getPosts(postURIs);
+  }
+
   async ensureFeedGenerator(feedUri) {
     let feedGenerator = this.selectors.getFeedGenerator(feedUri);
     if (!feedGenerator) {

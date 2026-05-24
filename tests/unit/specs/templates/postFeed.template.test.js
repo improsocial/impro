@@ -146,11 +146,12 @@ t.describe("postFeedTemplate - pagination", (it) => {
     );
   });
 
-  it("should show end of feed message when hasMore is false", () => {
+  it("should show end of feed message when hasMore is false and showEndMessage is true", () => {
     const result = postFeedTemplate({
       feed: { feed: feed.slice(0, 2), cursor: null },
       currentUser: mockUser,
       postInteractionHandler,
+      showEndMessage: true,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -159,6 +160,20 @@ t.describe("postFeedTemplate - pagination", (it) => {
     );
     assert(endMessage !== null);
     assert(endMessage.textContent.includes("End of feed"));
+  });
+
+  it("should not show end of feed message by default when hasMore is false", () => {
+    const result = postFeedTemplate({
+      feed: { feed: feed.slice(0, 2), cursor: null },
+      currentUser: mockUser,
+      postInteractionHandler,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("[data-testid='feed-end-message']"),
+      null,
+    );
   });
 });
 
