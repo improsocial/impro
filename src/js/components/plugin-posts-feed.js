@@ -65,7 +65,6 @@ class PluginPostsFeed extends Component {
       render(html`<div class="posts-feed-error">${this.error}</div>`, this);
       return;
     }
-    const emptyMessage = this.getAttribute("empty-message");
     const currentUser = this.dataLayer.selectors.getCurrentUser();
     let feed = null;
     if (this.loadedUris) {
@@ -88,7 +87,7 @@ class PluginPostsFeed extends Component {
         postInteractionHandler: this.postInteractionHandler,
         pluginService: this.pluginService,
         showEndMessage: false,
-        ...(emptyMessage ? { emptyMessage } : {}),
+        emptyMessage: this.getAttribute("empty-message"),
       }),
       this,
     );

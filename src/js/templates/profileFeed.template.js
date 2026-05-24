@@ -53,7 +53,7 @@ export function profileFeedTemplate({
   profiles,
   hasMore,
   onLoadMore,
-  emptyMessage = "No profiles.",
+  emptyMessage = null,
   skeletonCount = 10,
   showEndMessage = true,
 }) {
@@ -66,7 +66,7 @@ export function profileFeedTemplate({
   }
   if (profiles.length === 0) {
     return html`<div class="feed-end-message" data-testid="feed-end-message">
-      ${emptyMessage}
+      ${emptyMessage ?? "No profiles."}
     </div>`;
   }
   return html`<infinite-scroll-container

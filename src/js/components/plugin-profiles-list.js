@@ -57,14 +57,13 @@ class PluginProfilesList extends Component {
       render(html`<div class="profile-list-error">${this.error}</div>`, this);
       return;
     }
-    const emptyMessage = this.getAttribute("empty-message");
     render(
       profileFeedTemplate({
         profiles: this.profiles,
         hasMore: false,
         showEndMessage: false,
         skeletonCount: this.parseDids().length,
-        ...(emptyMessage ? { emptyMessage } : {}),
+        emptyMessage: this.getAttribute("empty-message"),
       }),
       this,
     );
