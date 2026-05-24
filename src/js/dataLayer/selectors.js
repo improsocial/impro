@@ -641,9 +641,9 @@ export class Selectors {
     // Modifies the post in place.
     const preferences = this.preferencesProvider.requirePreferences();
     const hasMutedWord = preferences.postHasMutedWord(post);
-    // It's safe to assume that the viewer object exists since these are based on preferences.
     if (hasMutedWord) {
       // NOTE: LEXICON DEVIATION
+      if (!post.viewer) post.viewer = {};
       post.viewer.hasMutedWord = true;
     }
     // Also check for muted words in quote posts.
@@ -674,6 +674,7 @@ export class Selectors {
     const isHidden = preferences.isPostHidden(post.uri);
     if (isHidden) {
       // NOTE: LEXICON DEVIATION
+      if (!post.viewer) post.viewer = {};
       post.viewer.isHidden = true;
     }
     // Also check for hidden quotes
