@@ -86,7 +86,6 @@ class PluginPostsFeed extends Component {
         isAuthenticated: this.isAuthenticated,
         postInteractionHandler: this.postInteractionHandler,
         pluginService: this.pluginService,
-        showEndMessage: false,
         emptyMessage: this.getAttribute("empty-message"),
       }),
       this,

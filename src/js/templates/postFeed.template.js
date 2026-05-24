@@ -192,7 +192,7 @@ export function postFeedTemplate({
   onClickShowMore,
   enableFeedFeedback = false,
   emptyMessage = null,
-  showEndMessage = true,
+  showEndMessage = false,
   pluginService,
 }) {
   if (!feed) {

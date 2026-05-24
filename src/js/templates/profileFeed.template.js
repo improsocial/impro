@@ -55,7 +55,7 @@ export function profileFeedTemplate({
   onLoadMore,
   emptyMessage = null,
   skeletonCount = 10,
-  showEndMessage = true,
+  showEndMessage = false,
 }) {
   if (!profiles) {
     return html`<div class="profile-list">

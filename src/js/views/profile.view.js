@@ -438,6 +438,7 @@ class ProfileView extends View {
                         postInteractionHandler,
                         onLoadMore: () => loadAuthorFeed(),
                         pluginService,
+                        showEndMessage: true,
                       })}
                     </div>`;
                   })}

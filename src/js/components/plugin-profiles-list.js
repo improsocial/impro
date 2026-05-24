@@ -61,7 +61,6 @@ class PluginProfilesList extends Component {
       profileFeedTemplate({
         profiles: this.profiles,
         hasMore: false,
-        showEndMessage: false,
         skeletonCount: this.parseDids().length,
         emptyMessage: this.getAttribute("empty-message"),
       }),

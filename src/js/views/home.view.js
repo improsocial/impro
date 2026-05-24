@@ -261,6 +261,7 @@ class HomeView extends View {
                           enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                           pluginService,
+                          showEndMessage: true,
                         })}
                   </div>`;
                 })}
