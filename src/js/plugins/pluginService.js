@@ -89,12 +89,17 @@ export class PluginService extends EventEmitter {
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
     this.session = session;
     this._renderContext = null;
+    this._dataLayer = null;
     this._setupRegistries();
     this._setupHostMethods();
   }
 
   setRenderContext(renderContext) {
     this._renderContext = renderContext;
+  }
+
+  setDataLayer(dataLayer) {
+    this._dataLayer = dataLayer;
   }
 
   getRenderer(pluginId) {
@@ -257,6 +262,14 @@ export class PluginService extends EventEmitter {
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
       return makePluginRequest(plugin, url, init);
+    });
+
+    this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
+      return this._dataLayer?.selectors.getPost(uri) ?? null;
+    });
+
+    this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
+      return this._dataLayer?.selectors.getProfile(did) ?? null;
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {

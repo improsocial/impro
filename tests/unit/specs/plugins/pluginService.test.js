@@ -1137,4 +1137,70 @@ t.describe("slot registry", (it) => {
   });
 });
 
+t.describe("app.data host methods", (it) => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(provider, null);
+  }
+
+  it("getPost host method returns selectors.getPost result", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    service.setDataLayer({
+      selectors: {
+        getPost: (uri) => {
+          calls.push(uri);
+          return { uri, record: { text: "cached" } };
+        },
+        getProfile: () => null,
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/1" });
+    assertEquals(calls, ["at://example/post/1"]);
+    assertEquals(result, {
+      uri: "at://example/post/1",
+      record: { text: "cached" },
+    });
+  });
+
+  it("getProfile host method returns selectors.getProfile result", async () => {
+    const service = makeServiceWithRealBridge();
+    const calls = [];
+    service.setDataLayer({
+      selectors: {
+        getPost: () => null,
+        getProfile: (did) => {
+          calls.push(did);
+          return { did, handle: "alice.test" };
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assertEquals(calls, ["did:plc:abc"]);
+    assertEquals(result, { did: "did:plc:abc", handle: "alice.test" });
+  });
+
+  it("getPost returns null when dataLayer has not been set", async () => {
+    const service = makeServiceWithRealBridge();
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example" });
+    assertEquals(result, null);
+  });
+
+  it("getProfile returns null when selector returns null (uncached)", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      selectors: {
+        getPost: () => null,
+        getProfile: () => null,
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:missing" });
+    assertEquals(result, null);
+  });
+});
+
 await t.run();

@@ -334,6 +334,58 @@ t.describe("hostCall round-trip", (it) => {
     assertEquals(sent.method, "refreshFeedFilters");
     assertEquals(sent.args[0], "at://example/feed");
   });
+
+  it("app.data.getPost posts a hostCall and resolves with the host result", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getPost("at://example/post/1");
+    const sent = lastMessage();
+    assertEquals(sent.type, "hostCall");
+    assertEquals(sent.method, "getPost");
+    assertEquals(sent.args[0], { uri: "at://example/post/1" });
+    assert(typeof sent.hostCallId === "number");
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: { uri: "at://example/post/1", record: { text: "hi" } },
+    });
+    assertEquals(await promise, {
+      uri: "at://example/post/1",
+      record: { text: "hi" },
+    });
+  });
+
+  it("app.data.getPost resolves with null when host returns null", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getPost("at://missing");
+    const sent = lastMessage();
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: null,
+    });
+    assertEquals(await promise, null);
+  });
+
+  it("app.data.getProfile posts a hostCall and resolves with the host result", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const promise = plugin.app.data.getProfile("did:plc:abc");
+    const sent = lastMessage();
+    assertEquals(sent.type, "hostCall");
+    assertEquals(sent.method, "getProfile");
+    assertEquals(sent.args[0], { did: "did:plc:abc" });
+    dispatch({
+      type: "hostResult",
+      hostCallId: sent.hostCallId,
+      value: { did: "did:plc:abc", handle: "alice.test" },
+    });
+    assertEquals(await promise, {
+      did: "did:plc:abc",
+      handle: "alice.test",
+    });
+  });
 });
 
 t.describe("Notice", (it) => {

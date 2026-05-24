@@ -145,6 +145,7 @@
           pluginService,
           preferencesProvider,
         );
+        pluginService.setDataLayer(dataLayer);
         // put dataLayer on window for easy access in dev tools
         window.dataLayer = dataLayer;
         const identityResolver = new IdentityResolver();

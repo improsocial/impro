@@ -288,12 +288,12 @@ class PostThreadView extends View {
                         }),
                       )}
                     </hidden-replies-section>`
-                  : ""}
-                <plugin-slot
-                  name="post-thread-view:after-replies"
-                  context-uri=${postUri}
-                  .pluginService=${pluginService}
-                ></plugin-slot>`}
+                  : ""} `}
+          <plugin-slot
+            name="post-thread-view:after-replies"
+            context-uri=${postUri}
+            .pluginService=${pluginService}
+          ></plugin-slot>
           <div class="post-thread-extra-space"></div>
         </div>
       `;

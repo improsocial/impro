@@ -89,9 +89,19 @@ export class Menu {
   }
 }
 
+class PluginData {
+  getPost(uri) {
+    return hostCall("getPost", { uri });
+  }
+  getProfile(did) {
+    return hostCall("getProfile", { did });
+  }
+}
+
 class App {
   constructor() {
     this.currentUser = null;
+    this.data = new PluginData();
   }
   on(event, listener) {
     addEventListener(event, listener);
