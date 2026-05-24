@@ -63,8 +63,6 @@ const ALLOWED_ATTRS = [
   "for",
   "id",
   "href",
-  "dids",
-  "icon",
 ];
 
 function isSafeHref(value) {
@@ -77,12 +75,15 @@ function isSafeHref(value) {
   }
 }
 
-function isAllowedAttr(name) {
-  return (
-    ALLOWED_ATTRS.includes(name) ||
-    name.startsWith("data-") ||
-    name.startsWith("aria-")
-  );
+function isAllowedAttr(name, tag) {
+  if (ALLOWED_ATTRS.includes(name)) return true;
+  if (name.startsWith("data-") || name.startsWith("aria-")) return true;
+  if (tag && tag.includes("-")) {
+    // Allow custom elements observed attributes
+    const ctor = customElements.get(tag);
+    if (ctor?.observedAttributes?.includes(name)) return true;
+  }
+  return false;
 }
 
 function createVirtualEvent(e) {
@@ -175,7 +176,7 @@ export class PluginRenderer {
     }
     if (node.attrs) {
       for (const [name, value] of Object.entries(node.attrs)) {
-        if (!isAllowedAttr(name)) {
+        if (!isAllowedAttr(name, tag)) {
           console.warn(
             `[plugins] "${pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
           );
@@ -210,14 +211,15 @@ export class PluginRenderer {
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
     const isFocused = document.activeElement === element;
+    const tag = element.localName;
 
     for (const name of Object.keys(oldAttrs)) {
-      if (!(name in newAttrs) && isAllowedAttr(name)) {
+      if (!(name in newAttrs) && isAllowedAttr(name, tag)) {
         element.removeAttribute(name);
       }
     }
     for (const [name, value] of Object.entries(newAttrs)) {
-      if (!isAllowedAttr(name)) {
+      if (!isAllowedAttr(name, tag)) {
         console.warn(
           `[plugins] "${pluginId}" tried to set disallowed attribute "${name}"`,
         );

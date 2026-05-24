@@ -7528,11 +7528,6 @@ image-cropper {
   height: 24px;
 }
 
-/* .plugin-settings-tab {
-  padding-top: 16px;
-  padding-bottom: 16px;
-} */
-
 .plugin-settings-tab h1,
 .plugin-settings-tab h2,
 .plugin-settings-tab h3,
@@ -7565,10 +7560,6 @@ image-cropper {
   margin: 8px 0;
 }
 
-/* .plugin-settings-tab a {
-  color: var(--text-link-color);
-} */
-
 .plugin-setting-item {
   display: flex;
   flex-wrap: wrap;
@@ -7578,10 +7569,6 @@ image-cropper {
   padding: 16px 16px;
   border-bottom: var(--hair) solid var(--generic-border-color);
 }
-
-/* .plugin-setting-item:first-child {
-  padding-top: 0;
-} */
 
 .plugin-setting-item:last-child {
   border-bottom: none;
