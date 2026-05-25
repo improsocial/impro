@@ -1,29 +1,56 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
+import { EventEmitter } from "/js/eventEmitter.js";
+import * as derived from "/js/dataLayer/derived.js";
 import "/js/components/plugin-posts-feed.js";
 
 const t = new TestSuite("PluginPostsFeed");
 
-function makeDataLayer(ensurePostsImpl, getPostsImpl) {
+function emptyPreferences() {
   return {
-    declarative: { ensurePosts: ensurePostsImpl },
+    postHasMutedWord: () => false,
+    quotedPostHasMutedWord: () => false,
+    isPostHidden: () => false,
+    getBadgeLabels: () => [],
+    getContentLabel: () => null,
+    getMediaLabel: () => null,
+  };
+}
+
+function makeDataLayer({ ensurePosts, getPost, events, preferences } = {}) {
+  const resolved = getPost ?? (() => null);
+  return {
+    events: events ?? new EventEmitter(),
+    declarative: { ensurePosts: ensurePosts ?? (() => new Promise(() => {})) },
+    dataStore: { getPost: resolved },
+    patchStore: { applyPostPatches: (post) => post },
     selectors: {
       getCurrentUser: () => null,
-      getPosts: getPostsImpl ?? ((uris) => uris.map(() => null)),
+      getPreferences: () => preferences ?? emptyPreferences(),
     },
+    base: { getPost: resolved },
+    derived,
   };
 }
 
 function makeHandler() {
-  return { renderFunc: () => {} };
+  return {};
 }
 
-function makeElement({ ensurePosts, getPosts, postInteractionHandler } = {}) {
+function makeElement({
+  ensurePosts,
+  getPost,
+  events,
+  preferences,
+  postInteractionHandler,
+} = {}) {
   const element = document.createElement("plugin-posts-feed");
-  element.dataLayer = makeDataLayer(
-    ensurePosts ?? (() => new Promise(() => {})),
-    getPosts,
-  );
+  element.dataLayer = makeDataLayer({
+    ensurePosts,
+    getPost,
+    events,
+    preferences,
+  });
   element.isAuthenticated = false;
   element.pluginService = null;
   element.postInteractionHandler = postInteractionHandler ?? makeHandler();
@@ -77,7 +104,7 @@ t.describe("PluginPostsFeed - empty uris", (it) => {
 t.describe("PluginPostsFeed - missing postInteractionHandler", (it) => {
   it("throws when connected without a postInteractionHandler", () => {
     const element = document.createElement("plugin-posts-feed");
-    element.dataLayer = makeDataLayer(() => new Promise(() => {}));
+    element.dataLayer = makeDataLayer();
     let error = null;
     try {
       // jsdom swallows throws from appendChild-triggered connectedCallback,
@@ -156,19 +183,24 @@ t.describe("PluginPostsFeed - refresh", (it) => {
     let currentUserCall = 0;
     const element = document.createElement("plugin-posts-feed");
     element.dataLayer = {
+      events: new EventEmitter(),
       declarative: {
         ensurePosts: () => {
           postsCall++;
           return Promise.resolve([]);
         },
       },
+      dataStore: { getPost: () => null },
+      patchStore: { applyPostPatches: (post) => post },
       selectors: {
         getCurrentUser: () => {
           currentUserCall++;
           return null;
         },
-        getPosts: (uris) => uris.map(() => null),
+        getPreferences: () => emptyPreferences(),
       },
+      base: { getPost: () => null },
+      derived,
     };
     element.isAuthenticated = false;
     element.pluginService = null;
@@ -186,9 +218,9 @@ t.describe("PluginPostsFeed - refresh", (it) => {
     const calls = [];
     const element = makeElement({
       ensurePosts: () => Promise.resolve([null]),
-      getPosts: (uris) => {
-        calls.push(uris);
-        return uris.map(() => null);
+      getPost: (uri) => {
+        calls.push(uri);
+        return null;
       },
     });
     element.setAttribute("uris", "at://a");
@@ -200,13 +232,101 @@ t.describe("PluginPostsFeed - refresh", (it) => {
     // refresh() re-selects fresh post data from the store rather than reusing
     // a cached snapshot, so updates flow through without a re-fetch.
     assert(calls.length > callsAfterLoad);
-    assertEquals(calls[calls.length - 1], ["at://a"]);
+    assertEquals(calls[calls.length - 1], "at://a");
   });
 
   it("is a no-op before connectedCallback runs", () => {
     const element = document.createElement("plugin-posts-feed");
     // Should not throw even though required props aren't set yet.
     element.refresh();
+  });
+});
+
+t.describe("PluginPostsFeed - live subscriptions", (it) => {
+  it("subscribes to post:${uri} for each loaded uri and to preferences:changed", async () => {
+    const events = new EventEmitter();
+    const element = makeElement({
+      ensurePosts: () => Promise.resolve([null, null, null]),
+      events,
+    });
+    element.setAttribute("uris", "at://a,at://b,at://c");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    assertEquals(events.__eventListeners.get("post:at://a").length, 1);
+    assertEquals(events.__eventListeners.get("post:at://b").length, 1);
+    assertEquals(events.__eventListeners.get("post:at://c").length, 1);
+    assertEquals(events.__eventListeners.get("preferences:changed").length, 1);
+  });
+
+  it("syncs subscriptions when the uri list changes", async () => {
+    const events = new EventEmitter();
+    const element = makeElement({
+      ensurePosts: () => Promise.resolve([null]),
+      events,
+    });
+    element.setAttribute("uris", "at://a");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    element.setAttribute("uris", "at://b,at://c");
+    await flushMicrotasks();
+    // old subscription removed, new ones added
+    assertEquals(events.__eventListeners.get("post:at://a"), undefined);
+    assertEquals(events.__eventListeners.get("post:at://b").length, 1);
+    assertEquals(events.__eventListeners.get("post:at://c").length, 1);
+  });
+
+  it("removes all live listeners on disconnect", async () => {
+    const events = new EventEmitter();
+    const element = makeElement({
+      ensurePosts: () => Promise.resolve([null, null]),
+      events,
+    });
+    element.setAttribute("uris", "at://a,at://b");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    element.remove();
+    assertEquals(events.__eventListeners.get("post:at://a"), undefined);
+    assertEquals(events.__eventListeners.get("post:at://b"), undefined);
+    assertEquals(events.__eventListeners.get("preferences:changed"), undefined);
+  });
+
+  it("re-renders when post:${uri} fires", async () => {
+    const events = new EventEmitter();
+    const calls = [];
+    const element = makeElement({
+      ensurePosts: () => Promise.resolve([null]),
+      events,
+      getPost: (uri) => {
+        calls.push(uri);
+        return null;
+      },
+    });
+    element.setAttribute("uris", "at://a");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    const before = calls.length;
+    events.emit("post:at://a");
+    assert(calls.length > before);
+  });
+
+  it("re-renders when preferences:changed fires", async () => {
+    const events = new EventEmitter();
+    let prefsCalls = 0;
+    const element = makeElement({
+      ensurePosts: () => Promise.resolve([]),
+      events,
+    });
+    // count preferences accesses to detect re-renders
+    element.dataLayer.selectors.getPreferences = () => {
+      prefsCalls += 1;
+      return emptyPreferences();
+    };
+    element.setAttribute("uris", "");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    const before = prefsCalls;
+    events.emit("preferences:changed");
+    assert(prefsCalls > before);
   });
 });
 

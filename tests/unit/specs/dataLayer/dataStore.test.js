@@ -1,6 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
 const t = new TestSuite("DataStore");
 
@@ -59,6 +60,17 @@ t.describe("Post Management", (it) => {
 
     dataStore.setPost(postURI, testPost);
     assertEquals(setPostEmitted, true);
+  });
+
+  it("should emit post:${uri} on the shared event bus when set", () => {
+    const events = new EventEmitter();
+    const dataStore = new DataStore(events);
+    let fired = false;
+    events.on(`post:${postURI}`, () => {
+      fired = true;
+    });
+    dataStore.setPost(postURI, testPost);
+    assertEquals(fired, true);
   });
 
   it("should set multiple posts", () => {

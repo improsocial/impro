@@ -1,4 +1,5 @@
 import { View } from "/js/views/view.js";
+import { bindToPage } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
@@ -185,13 +186,9 @@ class SettingsView extends View {
       window.scrollTo(0, 0);
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

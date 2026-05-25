@@ -3,8 +3,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { bindToPage } from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
@@ -18,18 +18,13 @@ class BookmarksView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     async function scrollAndReloadBookmarks() {
       if (window.scrollY > 0) {
@@ -106,13 +101,9 @@ class BookmarksView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

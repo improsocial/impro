@@ -1,4 +1,5 @@
 import { View } from "/js/views/view.js";
+import { bindToPage } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -92,9 +93,8 @@ class FeedsView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => renderPage());
-
-    chatNotificationService?.on("update", () => renderPage());
+    bindToPage(root, notificationService, "update", () => renderPage());
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

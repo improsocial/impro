@@ -4,7 +4,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { bindToPage } from "/js/router.js";
 
 class PostQuotesView extends View {
   async render({
@@ -19,6 +19,7 @@ class PostQuotesView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -31,14 +32,8 @@ class PostQuotesView extends View {
     }
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     function quotesErrorTemplate({ error }) {
       console.error(error);
@@ -142,13 +137,9 @@ class PostQuotesView extends View {
       }
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

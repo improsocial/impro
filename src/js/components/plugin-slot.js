@@ -13,8 +13,8 @@ class PluginSlot extends Component {
     if (!this.pluginService) {
       throw new Error("pluginService is required");
     }
-    if (!this.renderFunc) {
-      throw new Error("renderFunc is required");
+    if (!this.interactionHandlers) {
+      throw new Error("interactionHandlers is required");
     }
     this._pluginRoots = new Map();
     this._currentRequest = null;
@@ -37,7 +37,7 @@ class PluginSlot extends Component {
 
   // TODO - automatic?
   static get observedAttributes() {
-    return ["name", "context-uri", "key"];
+    return ["name", "context-uri"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -99,7 +99,9 @@ class PluginSlot extends Component {
       if (!state) {
         const renderer = this.pluginService.getRenderer(entry.pluginId);
         state = {
-          root: renderer.createRoot({ handlerRenderFunc: this.renderFunc }),
+          root: renderer.createRoot({
+            interactionHandlers: this.interactionHandlers,
+          }),
         };
         this._pluginRoots.set(entry.pluginId, state);
       }

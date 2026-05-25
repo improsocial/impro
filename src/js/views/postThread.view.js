@@ -23,8 +23,8 @@ import { ApiError } from "/js/api.js";
 import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { linkToPostFromUri } from "/js/navigation.js";
+import { bindToPage } from "/js/router.js";
 
 class PostThreadView extends View {
   async render({
@@ -39,6 +39,7 @@ class PostThreadView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -51,21 +52,7 @@ class PostThreadView extends View {
     }
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    let slotKey = Math.random().toString(36);
-
-    function pluginRenderFunc() {
-      slotKey = Math.random().toString(36);
-      renderPage();
-    }
+    const { postInteractionHandler } = interactionHandlers;
 
     function postThreadErrorTemplate({ error }) {
       if (
@@ -261,15 +248,13 @@ class PostThreadView extends View {
                 name="post-thread-view:replies-empty"
                 context-uri=${postUri}
                 .pluginService=${pluginService}
-                .renderFunc=${pluginRenderFunc}
-                key=${slotKey}
+                .interactionHandlers=${interactionHandlers}
               ></plugin-slot>`
             : html`<plugin-slot
                   name="post-thread-view:replies-header"
                   context-uri=${postUri}
                   .pluginService=${pluginService}
-                  .renderFunc=${pluginRenderFunc}
-                  key=${slotKey}
+                  .interactionHandlers=${interactionHandlers}
                 ></plugin-slot>
                 <div class="post-thread-reply-chains">
                   ${replyChains.map((replyChain, i) =>
@@ -304,8 +289,7 @@ class PostThreadView extends View {
             name="post-thread-view:after-replies"
             context-uri=${postUri}
             .pluginService=${pluginService}
-            .renderFunc=${pluginRenderFunc}
-            key=${slotKey}
+            .interactionHandlers=${interactionHandlers}
           ></plugin-slot>
           <div class="post-thread-extra-space"></div>
         </div>
@@ -389,8 +373,7 @@ class PostThreadView extends View {
               name="post-thread-view:top"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${parents.map((parent, i) => {
               const parentPost = parent.post ? parent.post : parent;
@@ -430,8 +413,7 @@ class PostThreadView extends View {
               name="post-thread-view:before-main"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${hiddenUnauthenticated
               ? noUnauthenticatedLargePostTemplate()
@@ -459,8 +441,7 @@ class PostThreadView extends View {
               name="post-thread-view:after-main"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${isAuthenticated && currentUser && canReplyToPost(mainPost)
               ? html`
@@ -610,13 +591,10 @@ class PostThreadView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    const onLiveUpdate = () => renderPage();
+    bindToPage(root, notificationService, "update", onLiveUpdate);
+    bindToPage(root, chatNotificationService, "update", onLiveUpdate);
+    bindToPage(root, interactionHandlers, "requestRender", onLiveUpdate);
   }
 }
 

@@ -7,18 +7,15 @@ import {
 import {
   createUnavailablePost,
   getPostUriFromRepost,
-  getBlockedQuote,
-  isBlockingUser,
-  replaceBlockedQuote,
-  createEmbedFromPost,
   isBlockedPost,
+  isBlockingUser,
   isEmptyPost,
   isPostView,
-  getQuotedPost,
   getLastInteractionTimestamp,
-  markBlockedQuoteNotFound,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
+import { hydratePostForView } from "/js/dataLayer/derived.js";
+import { getPost as baseGetPost } from "/js/dataLayer/base.js";
 
 // Selectors are used to get data from the store.
 // They combine the canonical data from the store with the patch data.
@@ -167,29 +164,16 @@ export class Selectors {
   }
 
   getPost(postURI, { required = false } = {}) {
-    // Check for post in store
-    let post = this.dataStore.getPost(postURI);
-    if (!post) {
+    const lookup = (uri) => baseGetPost(this.dataStore, this.patchStore, uri);
+    const current = lookup(postURI);
+    if (!current) {
       if (required) {
         throw new Error(`Post not found: ${postURI}`);
       }
       return null;
     }
-    // Replace blocked quote with full blocked post if necessary
-    const blockedQuote = getBlockedQuote(post);
-    if (blockedQuote && !isBlockingUser(blockedQuote)) {
-      const fullBlockedPost = this.getPost(blockedQuote.uri);
-      if (fullBlockedPost) {
-        const blockedQuoteEmbed = createEmbedFromPost(fullBlockedPost);
-        post = replaceBlockedQuote(post, blockedQuoteEmbed);
-      } else {
-        post = markBlockedQuoteNotFound(post, blockedQuote.uri);
-      }
-    }
-    post = this._markMutedWords(post);
-    post = this._markIsHidden(post);
-    post = this._addLabels(post);
-    return this.patchStore.applyPostPatches(post);
+    const preferences = this.preferencesProvider.requirePreferences();
+    return hydratePostForView(current, { preferences, getPost: lookup });
   }
 
   getPosts(postURIs, options) {
@@ -634,130 +618,5 @@ export class Selectors {
   getLabelerSettings(labelerDid) {
     const preferences = this.getPreferences();
     return preferences.getLabelerSettings(labelerDid);
-  }
-
-  _markMutedWords(post) {
-    // Add attributes to the post to indicate if it has a muted word.
-    // Modifies the post in place.
-    const preferences = this.preferencesProvider.requirePreferences();
-    const hasMutedWord = preferences.postHasMutedWord(post);
-    if (hasMutedWord) {
-      // NOTE: LEXICON DEVIATION
-      if (!post.viewer) post.viewer = {};
-      post.viewer.hasMutedWord = true;
-    }
-    // Also check for muted words in quote posts.
-    const quotedPost = getQuotedPost(post);
-    if (quotedPost) {
-      const quotedPostHasMutedWord =
-        preferences.quotedPostHasMutedWord(quotedPost);
-      if (quotedPostHasMutedWord) {
-        // NOTE: LEXICON DEVIATION
-        quotedPost.hasMutedWord = true;
-      }
-      // Check for nested quoted posts.
-      const nestedQuotedPost = getQuotedPost(quotedPost);
-      if (nestedQuotedPost) {
-        const nestedQuotedPostHasMutedWord =
-          preferences.quotedPostHasMutedWord(nestedQuotedPost);
-        if (nestedQuotedPostHasMutedWord) {
-          // NOTE: LEXICON DEVIATION
-          nestedQuotedPost.hasMutedWord = true;
-        }
-      }
-    }
-    return post;
-  }
-
-  _markIsHidden(post) {
-    const preferences = this.preferencesProvider.requirePreferences();
-    const isHidden = preferences.isPostHidden(post.uri);
-    if (isHidden) {
-      // NOTE: LEXICON DEVIATION
-      if (!post.viewer) post.viewer = {};
-      post.viewer.isHidden = true;
-    }
-    // Also check for hidden quotes
-    const quotedPost = getQuotedPost(post);
-    if (quotedPost) {
-      const quotedPostIsHidden = preferences.isPostHidden(quotedPost.uri);
-      if (quotedPostIsHidden) {
-        // NOTE: LEXICON DEVIATION
-        quotedPost.isHidden = true;
-      }
-      // Also check for nested hidden quotes
-      const nestedQuotedPost = getQuotedPost(quotedPost);
-      if (nestedQuotedPost) {
-        const nestedQuotedPostIsHidden = preferences.isPostHidden(
-          nestedQuotedPost.uri,
-        );
-        if (nestedQuotedPostIsHidden) {
-          // NOTE: LEXICON DEVIATION
-          nestedQuotedPost.isHidden = true;
-        }
-      }
-    }
-    return post;
-  }
-
-  _addLabels(post) {
-    const preferences = this.preferencesProvider.requirePreferences();
-    const badgeLabels = preferences.getBadgeLabels(post);
-    if (badgeLabels.length > 0) {
-      // NOTE: LEXICON DEVIATION
-      post.badgeLabels = badgeLabels;
-    }
-    const contentLabel = preferences.getContentLabel(post);
-    if (contentLabel) {
-      // NOTE: LEXICON DEVIATION
-      post.contentLabel = contentLabel;
-    }
-    const mediaLabel = preferences.getMediaLabel(post);
-    if (mediaLabel) {
-      // NOTE: LEXICON DEVIATION
-      post.mediaLabel = mediaLabel;
-    }
-
-    // Also mark quoted posts
-    const quotedPost = getQuotedPost(post);
-    if (quotedPost) {
-      const quotedBadgeLabels = preferences.getBadgeLabels(quotedPost);
-      if (quotedBadgeLabels.length > 0) {
-        // NOTE: LEXICON DEVIATION
-        quotedPost.badgeLabels = quotedBadgeLabels;
-      }
-      const quotedContentLabel = preferences.getContentLabel(quotedPost);
-      if (quotedContentLabel) {
-        // NOTE: LEXICON DEVIATION
-        quotedPost.contentLabel = quotedContentLabel;
-      }
-      const quotedMediaLabel = preferences.getMediaLabel(quotedPost);
-      if (quotedMediaLabel) {
-        // NOTE: LEXICON DEVIATION
-        quotedPost.mediaLabel = quotedMediaLabel;
-      }
-      // Also check for nested quoted posts
-      const nestedQuotedPost = getQuotedPost(quotedPost);
-      if (nestedQuotedPost) {
-        const nestedBadgeLabels = preferences.getBadgeLabels(nestedQuotedPost);
-        if (nestedBadgeLabels.length > 0) {
-          // NOTE: LEXICON DEVIATION
-          nestedQuotedPost.badgeLabels = nestedBadgeLabels;
-        }
-        const nestedContentLabel =
-          preferences.getContentLabel(nestedQuotedPost);
-        if (nestedContentLabel) {
-          // NOTE: LEXICON DEVIATION
-          nestedQuotedPost.contentLabel = nestedContentLabel;
-        }
-        const nestedMediaLabel = preferences.getMediaLabel(nestedQuotedPost);
-        if (nestedMediaLabel) {
-          // NOTE: LEXICON DEVIATION
-          nestedQuotedPost.mediaLabel = nestedMediaLabel;
-        }
-      }
-    }
-
-    return post;
   }
 }

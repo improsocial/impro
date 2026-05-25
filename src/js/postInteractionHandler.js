@@ -1,20 +1,19 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { noop } from "/js/utils.js";
 import { confirm } from "/js/modals.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
-export class PostInteractionHandler {
-  constructor(
-    dataLayer,
-    postComposerService,
-    reportService,
-    { renderFunc = noop } = {},
-  ) {
+export class PostInteractionHandler extends EventEmitter {
+  constructor(dataLayer, postComposerService, reportService) {
+    super();
     this.dataLayer = dataLayer;
     this.postComposerService = postComposerService;
     this.reportService = reportService;
-    this.renderFunc = renderFunc;
+  }
+
+  renderFunc() {
+    this.emit("requestRender");
   }
 
   async handleLike(post, doLike) {

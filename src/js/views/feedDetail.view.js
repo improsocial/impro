@@ -7,8 +7,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { bindToPage } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
@@ -28,6 +27,7 @@ class FeedDetailView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
@@ -42,18 +42,9 @@ class FeedDetailView extends View {
     }
     const feedUri = `at://${profileDid}/app.bsky.feed.generator/${rkey}`;
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
-      renderFunc: () => renderPage(),
-    });
+    const { postInteractionHandler, feedInteractionHandler } =
+      interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     function renderPage() {
       const showLessInteractions =
@@ -184,13 +175,9 @@ class FeedDetailView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

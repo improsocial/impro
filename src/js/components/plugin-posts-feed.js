@@ -15,8 +15,18 @@ class PluginPostsFeed extends Component {
     }
     this.loadedUris = null;
     this.error = null;
+    this._postUnsubs = new Map();
+    this._onLiveUpdate = () => this.render();
+    this.dataLayer.events.on("preferences:changed", this._onLiveUpdate);
     this.render();
     this.load();
+  }
+
+  disconnectedCallback() {
+    if (!this.initialized) return;
+    this._postUnsubs.forEach((unsub) => unsub());
+    this._postUnsubs.clear();
+    this.dataLayer.events.off("preferences:changed", this._onLiveUpdate);
   }
 
   attributeChangedCallback() {
@@ -36,6 +46,24 @@ class PluginPostsFeed extends Component {
       .filter(Boolean);
   }
 
+  _syncPostSubscriptions(uris) {
+    const next = new Set(uris);
+    for (const uri of [...this._postUnsubs.keys()]) {
+      if (!next.has(uri)) {
+        this._postUnsubs.get(uri)();
+        this._postUnsubs.delete(uri);
+      }
+    }
+    for (const uri of uris) {
+      if (this._postUnsubs.has(uri)) continue;
+      const event = `post:${uri}`;
+      this.dataLayer.events.on(event, this._onLiveUpdate);
+      this._postUnsubs.set(uri, () =>
+        this.dataLayer.events.off(event, this._onLiveUpdate),
+      );
+    }
+  }
+
   async load() {
     const uris = this.parseUris();
     const requestToken = Symbol();
@@ -43,6 +71,7 @@ class PluginPostsFeed extends Component {
     if (uris.length === 0) {
       this.loadedUris = [];
       this.error = null;
+      this._syncPostSubscriptions([]);
       this.render();
       return;
     }
@@ -53,6 +82,7 @@ class PluginPostsFeed extends Component {
       await this.dataLayer.declarative.ensurePosts(uris);
       if (this._requestToken !== requestToken) return;
       this.loadedUris = uris;
+      this._syncPostSubscriptions(uris);
     } catch (error) {
       if (this._requestToken !== requestToken) return;
       this.error = error.message ?? String(error);
@@ -68,7 +98,15 @@ class PluginPostsFeed extends Component {
     const currentUser = this.dataLayer.selectors.getCurrentUser();
     let feed = null;
     if (this.loadedUris) {
-      const selected = this.dataLayer.selectors.getPosts(this.loadedUris);
+      const preferences = this.dataLayer.selectors.getPreferences();
+      const selected = this.loadedUris.map((uri) => {
+        const current = this.dataLayer.base.getPost(uri);
+        if (!current) return null;
+        return this.dataLayer.derived.hydratePostForView(current, {
+          preferences,
+          getPost: this.dataLayer.base.getPost,
+        });
+      });
       const missing = this.loadedUris.filter((_, index) => !selected[index]);
       if (missing.length > 0) {
         console.warn(

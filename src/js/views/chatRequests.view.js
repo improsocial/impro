@@ -1,4 +1,5 @@
 import { View } from "/js/views/view.js";
+import { bindToPage } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -240,13 +241,9 @@ class ChatRequestsView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

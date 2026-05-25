@@ -3,8 +3,9 @@ import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.
 export class DataStore extends EventEmitter {
-  constructor() {
+  constructor(eventBus = null) {
     super();
+    this._eventBus = eventBus;
     this.currentUser = null;
     this.feeds = new Map();
     this.posts = new Map();
@@ -99,6 +100,7 @@ export class DataStore extends EventEmitter {
   setPost(postURI, post) {
     this.posts.set(postURI, post);
     this.emit("setPost", post);
+    this._eventBus?.emit(`post:${postURI}`);
     // Also store quoted post if it exists
     const quotedPost = getQuotedPost(post);
     if (

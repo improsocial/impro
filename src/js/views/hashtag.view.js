@@ -5,8 +5,8 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
+import { bindToPage } from "/js/router.js";
 
 class HashtagView extends View {
   async render({
@@ -20,6 +20,7 @@ class HashtagView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
@@ -35,14 +36,8 @@ class HashtagView extends View {
       currentSort: "top",
     };
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     const feedScrollState = new Map();
 
@@ -158,13 +153,9 @@ class HashtagView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

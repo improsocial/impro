@@ -11,8 +11,7 @@ import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { ApiError } from "/js/api.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
+import { bindToPage } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
@@ -32,6 +31,7 @@ class ProfileView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const defaultAuthorFeeds = [
@@ -76,22 +76,9 @@ class ProfileView extends View {
       profileDid = await identityResolver.resolveHandle(handleOrDid);
     }
 
-    const profileInteractionHandler = new ProfileInteractionHandler(
-      dataLayer,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler, profileInteractionHandler } =
+      interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     async function handleEditProfile(profile) {
       const dialog = document.createElement("edit-profile-dialog");
@@ -630,13 +617,9 @@ class ProfileView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

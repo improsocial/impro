@@ -1,8 +1,63 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
 const t = new TestSuite("PatchStore");
+
+t.describe("Event bus", (it) => {
+  const postURI = "at://did:test/app.bsky.feed.post/test";
+
+  it("emits post:${uri} on addPostPatch", () => {
+    const events = new EventEmitter();
+    const patchStore = new PatchStore(events);
+    let count = 0;
+    events.on(`post:${postURI}`, () => {
+      count += 1;
+    });
+    patchStore.addPostPatch(postURI, { type: "addLike" });
+    assertEquals(count, 1);
+  });
+
+  it("emits post:${uri} on removePostPatch", () => {
+    const events = new EventEmitter();
+    const patchStore = new PatchStore(events);
+    const patchId = patchStore.addPostPatch(postURI, { type: "addLike" });
+    let count = 0;
+    events.on(`post:${postURI}`, () => {
+      count += 1;
+    });
+    patchStore.removePostPatch(postURI, patchId);
+    assertEquals(count, 1);
+  });
+
+  it("emits preferences:changed on add/removePreferencePatch", () => {
+    const events = new EventEmitter();
+    const patchStore = new PatchStore(events);
+    let count = 0;
+    events.on("preferences:changed", () => {
+      count += 1;
+    });
+    const patchId = patchStore.addPreferencePatch({
+      type: "pinFeed",
+      feedUri: "at://feed",
+    });
+    patchStore.removePreferencePatch(patchId);
+    assertEquals(count, 2);
+  });
+
+  it("works without an event bus (backward compatible)", () => {
+    const patchStore = new PatchStore();
+    let threw = false;
+    try {
+      patchStore.addPostPatch("at://x", { type: "addLike" });
+      patchStore.addPreferencePatch({ type: "pinFeed", feedUri: "at://f" });
+    } catch (e) {
+      threw = true;
+    }
+    assertEquals(threw, false);
+  });
+});
 
 t.describe("Post Patches - Patch Management", (it) => {
   const postURI = "at://did:test/app.bsky.feed.post/test";

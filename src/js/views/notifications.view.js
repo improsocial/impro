@@ -11,7 +11,7 @@ import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import { bindToPage } from "/js/router.js";
 import {
   getImagesFromPost,
   getVideoFromPost,
@@ -40,6 +40,7 @@ class NotificationsView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
@@ -98,14 +99,8 @@ class NotificationsView extends View {
       `;
     }
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     async function handleMenuClick() {
       const sidebar = root.querySelector("animated-sidebar");
@@ -844,13 +839,9 @@ class NotificationsView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

@@ -3,7 +3,8 @@ import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
 
 // The store saves patch data for optimistic updates.
 export class PatchStore {
-  constructor() {
+  constructor(eventBus = null) {
+    this._eventBus = eventBus;
     this.postPatches = new Map();
     this.profilePatches = new Map();
     this.messagePatches = new Map();
@@ -24,6 +25,7 @@ export class PatchStore {
     const postPatches = this._getPostPatches(postURI);
     postPatches.push({ id: patchId, body: patchBody });
     this.postPatches.set(postURI, postPatches);
+    this._eventBus?.emit(`post:${postURI}`);
     return patchId;
   }
 
@@ -33,6 +35,7 @@ export class PatchStore {
       postURI,
       postPatches.filter(({ id }) => id !== patchId),
     );
+    this._eventBus?.emit(`post:${postURI}`);
   }
 
   applyPostPatches(post) {
@@ -277,6 +280,7 @@ export class PatchStore {
     const patchId = this.uuid.create();
     const preferencePatches = this._getPreferencePatches();
     preferencePatches.push({ id: patchId, body: patchBody });
+    this._eventBus?.emit("preferences:changed");
     return patchId;
   }
 
@@ -285,6 +289,7 @@ export class PatchStore {
     this.preferencePatches = preferencePatches.filter(
       ({ id }) => id !== patchId,
     );
+    this._eventBus?.emit("preferences:changed");
   }
 
   applyPreferencePatches(preferences) {

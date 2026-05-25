@@ -2,6 +2,15 @@ import { EventEmitter } from "/js/eventEmitter.js";
 
 const MAX_PAGES = 5;
 
+export function bindToPage(root, source, event, handler) {
+  if (!source) return;
+  const attach = () => source.on(event, handler);
+  const detach = () => source.off(event, handler);
+  root.addEventListener("page-enter", attach);
+  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-exit", detach);
+}
+
 export class Router extends EventEmitter {
   constructor() {
     super();

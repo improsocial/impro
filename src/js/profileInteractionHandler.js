@@ -1,15 +1,19 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { noop } from "/js/utils.js";
 import { confirm } from "/js/modals.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 import "/js/components/post-notifications-dialog.js";
 
-export class ProfileInteractionHandler {
-  constructor(dataLayer, reportService, { renderFunc = noop } = {}) {
+export class ProfileInteractionHandler extends EventEmitter {
+  constructor(dataLayer, reportService) {
+    super();
     this.dataLayer = dataLayer;
     this.reportService = reportService;
-    this.renderFunc = renderFunc;
     this._postNotificationsDialog = null;
+  }
+
+  renderFunc() {
+    this.emit("requestRender");
   }
 
   async handleFollow(profile, doFollow, { showSuccessToast = false } = {}) {

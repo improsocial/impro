@@ -6,8 +6,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { classnames, debounce } from "/js/utils.js";
 import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { bindToPage } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -23,6 +22,7 @@ class SearchView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const state = {
@@ -106,18 +106,9 @@ class SearchView extends View {
       renderPage();
     }
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
-      renderFunc: () => renderPage(),
-    });
+    const { postInteractionHandler, feedInteractionHandler } =
+      interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     const handleSearchInput = debounce((value) => {
       state.searchQuery = value;
@@ -503,13 +494,9 @@ class SearchView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

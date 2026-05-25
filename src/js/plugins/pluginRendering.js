@@ -1,10 +1,8 @@
-import { noop } from "/js/utils.js";
 import { showExternalLinkWarningModal } from "/js/modals.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
 import "/js/components/plugin-icon.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 
 function isExternalHref(href) {
   try {
@@ -127,21 +125,10 @@ export class PluginRenderer {
     this.renderContext = renderContext;
   }
 
-  createRoot({ handlerRenderFunc = noop } = {}) {
+  createRoot({ interactionHandlers } = {}) {
     const renderer = this;
     const pluginId = this.pluginId;
-    let postInteractionHandler = null;
-    const getPostInteractionHandler = () => {
-      if (!postInteractionHandler) {
-        postInteractionHandler = new PostInteractionHandler(
-          renderer.renderContext.dataLayer,
-          renderer.renderContext.postComposerService,
-          renderer.renderContext.reportService,
-          { renderFunc: handlerRenderFunc },
-        );
-      }
-      return postInteractionHandler;
-    };
+    const postInteractionHandler = interactionHandlers?.postInteractionHandler;
     return {
       tree: null,
       el: null,
@@ -152,10 +139,10 @@ export class PluginRenderer {
             this.tree,
             node,
             pluginId,
-            getPostInteractionHandler,
+            postInteractionHandler,
           );
         } else {
-          this.el = renderer._create(node, pluginId, getPostInteractionHandler);
+          this.el = renderer._create(node, pluginId, postInteractionHandler);
         }
         this.tree = node;
         return this.el;
@@ -168,7 +155,7 @@ export class PluginRenderer {
     return resolveTag(oldNode) === resolveTag(newNode);
   }
 
-  _create(node, pluginId, getPostInteractionHandler = () => null) {
+  _create(node, pluginId, postInteractionHandler = null) {
     const tag = resolveTag(node, pluginId);
     const element = document.createElement(tag);
     if (tag === "a") {
@@ -196,7 +183,7 @@ export class PluginRenderer {
       element.dataLayer = dataLayer;
       element.isAuthenticated = isAuthenticated;
       element.pluginService = pluginService;
-      element.postInteractionHandler = getPostInteractionHandler();
+      element.postInteractionHandler = postInteractionHandler;
     }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin
@@ -233,20 +220,14 @@ export class PluginRenderer {
       }
       for (const child of children) {
         element.appendChild(
-          this._create(child, pluginId, getPostInteractionHandler),
+          this._create(child, pluginId, postInteractionHandler),
         );
       }
     }
     return element;
   }
 
-  _patch(
-    element,
-    oldNode,
-    newNode,
-    pluginId,
-    getPostInteractionHandler = () => null,
-  ) {
+  _patch(element, oldNode, newNode, pluginId, postInteractionHandler = null) {
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
     const isFocused = document.activeElement === element;
@@ -310,7 +291,7 @@ export class PluginRenderer {
       }
       for (const child of newChildren) {
         element.appendChild(
-          this._create(child, pluginId, getPostInteractionHandler),
+          this._create(child, pluginId, postInteractionHandler),
         );
       }
       return;
@@ -344,7 +325,7 @@ export class PluginRenderer {
       const domChild = domChildren[index + textOffset];
       if (!oldChild && newChild) {
         element.appendChild(
-          this._create(newChild, pluginId, getPostInteractionHandler),
+          this._create(newChild, pluginId, postInteractionHandler),
         );
       } else if (oldChild && !newChild) {
         if (domChild) element.removeChild(domChild);
@@ -354,11 +335,11 @@ export class PluginRenderer {
           oldChild,
           newChild,
           pluginId,
-          getPostInteractionHandler,
+          postInteractionHandler,
         );
       } else {
         element.replaceChild(
-          this._create(newChild, pluginId, getPostInteractionHandler),
+          this._create(newChild, pluginId, postInteractionHandler),
           domChild,
         );
       }

@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
+import { bindToPage } from "/js/router.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -124,13 +125,9 @@ class PostRepostsView extends View {
       }
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

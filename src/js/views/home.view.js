@@ -6,8 +6,8 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { bindToPage } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 
 class HomeView extends View {
@@ -22,6 +22,7 @@ class HomeView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     function createPersistedState(namespace) {
@@ -99,14 +100,8 @@ class HomeView extends View {
       }
     }
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
+    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     async function handleShowLess(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowLessInteraction(
@@ -359,13 +354,9 @@ class HomeView extends View {
       renderPage();
     });
 
-    notificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, notificationService, "update", () => renderPage());
 
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
+    bindToPage(root, chatNotificationService, "update", () => renderPage());
 
     pluginService.on("feedFiltersRefresh", async ({ feedURI }) => {
       let feedUrisToLoad = null;

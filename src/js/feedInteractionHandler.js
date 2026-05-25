@@ -1,11 +1,15 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { noop } from "/js/utils.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
-export class FeedInteractionHandler {
-  constructor(dataLayer, { renderFunc = noop } = {}) {
+export class FeedInteractionHandler extends EventEmitter {
+  constructor(dataLayer) {
+    super();
     this.dataLayer = dataLayer;
-    this.renderFunc = renderFunc;
+  }
+
+  renderFunc() {
+    this.emit("requestRender");
   }
 
   async handlePinFeed(feedUri, doPin) {
