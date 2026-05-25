@@ -8,3 +8,9 @@ export function getPost(dataStore, patchStore, uri) {
   if (!raw) return null;
   return patchStore.applyPostPatches(raw);
 }
+
+export function getProfile(dataStore, patchStore, did) {
+  const raw = dataStore.getProfile(did);
+  if (!raw) return null;
+  return patchStore.applyProfilePatches(raw);
+}

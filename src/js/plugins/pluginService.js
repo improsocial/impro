@@ -269,7 +269,7 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.selectors.getProfile(did) ?? null;
+      return this._dataLayer?.base.getProfile(did) ?? null;
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {

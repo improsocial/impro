@@ -1,7 +1,8 @@
 export class Declarative {
-  constructor(selectors, requests) {
+  constructor(selectors, requests, base) {
     this.selectors = selectors;
     this.requests = requests;
+    this.base = base;
   }
   async ensureCurrentUser() {
     let currentUser = this.selectors.getCurrentUser();
@@ -16,10 +17,10 @@ export class Declarative {
   }
 
   async ensureProfile(profileDid) {
-    let profile = this.selectors.getProfile(profileDid);
+    let profile = this.base.getProfile(profileDid);
     if (!profile) {
       await this.requests.loadProfile(profileDid);
-      profile = this.selectors.getProfile(profileDid);
+      profile = this.base.getProfile(profileDid);
     }
     if (!profile) {
       throw new Error("Profile not found");
@@ -28,13 +29,11 @@ export class Declarative {
   }
 
   async ensureProfiles(profileDids) {
-    const missing = profileDids.filter(
-      (did) => !this.selectors.getProfile(did),
-    );
+    const missing = profileDids.filter((did) => !this.base.getProfile(did));
     if (missing.length > 0) {
       await this.requests.loadProfiles(missing);
     }
-    return profileDids.map((did) => this.selectors.getProfile(did) ?? null);
+    return profileDids.map((did) => this.base.getProfile(did) ?? null);
   }
 
   async ensurePostThread(postURI, { labelers = [] } = {}) {

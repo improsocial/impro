@@ -8,7 +8,6 @@ function createMockSelectors(data = {}) {
   return {
     getCurrentUser: () => data.currentUser ?? null,
     getPreferences: () => data.preferences ?? null,
-    getProfile: (did) => data.profiles?.[did] ?? null,
     getPostThread: (uri) => data.postThreads?.[uri] ?? null,
     getPost: (uri) => data.posts?.[uri] ?? null,
     getPosts: (uris) => uris.map((uri) => data.posts?.[uri] ?? null),
@@ -17,6 +16,12 @@ function createMockSelectors(data = {}) {
     getConvoList: () => data.convoList ?? null,
     getConvo: (id) => data.convos?.[id] ?? null,
     getConvoForProfile: (did) => data.convoForProfile?.[did] ?? null,
+  };
+}
+
+function createMockBase(data = {}) {
+  return {
+    getProfile: (did) => data.profiles?.[did] ?? null,
   };
 }
 
@@ -98,16 +103,15 @@ t.describe("ensureProfile", (it) => {
     const profile = { did: profileDid, handle: "test.profile" };
     let loadCalled = false;
 
-    const selectors = createMockSelectors({
-      profiles: { [profileDid]: profile },
-    });
+    const selectors = createMockSelectors({});
+    const base = createMockBase({ profiles: { [profileDid]: profile } });
     const requests = {
       loadProfile: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative(selectors, requests, base);
     const result = await declarative.ensureProfile(profileDid);
 
     assertEquals(result, profile);
@@ -119,7 +123,7 @@ t.describe("ensureProfile", (it) => {
     const profile = { did: profileDid, handle: "test.profile" };
     let callCount = 0;
 
-    const selectors = {
+    const base = {
       getProfile: (did) => {
         callCount++;
         return callCount > 1 ? profile : null;
@@ -129,7 +133,7 @@ t.describe("ensureProfile", (it) => {
       loadProfile: async (did) => {},
     };
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative({}, requests, base);
     const result = await declarative.ensureProfile(profileDid);
 
     assertEquals(result, profile);
@@ -137,9 +141,10 @@ t.describe("ensureProfile", (it) => {
 
   it("should throw when profile not found after loading", async () => {
     const selectors = createMockSelectors({});
+    const base = createMockBase({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative(selectors, requests, base);
 
     let error = null;
     try {
@@ -159,7 +164,8 @@ t.describe("ensureProfiles", (it) => {
     const profileB = { did: "did:test:b", handle: "b.test" };
     let loadCalled = false;
 
-    const selectors = createMockSelectors({
+    const selectors = createMockSelectors({});
+    const base = createMockBase({
       profiles: { [profileA.did]: profileA, [profileB.did]: profileB },
     });
     const requests = {
@@ -168,7 +174,7 @@ t.describe("ensureProfiles", (it) => {
       },
     };
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative(selectors, requests, base);
     const result = await declarative.ensureProfiles([
       profileB.did,
       profileA.did,
@@ -184,7 +190,7 @@ t.describe("ensureProfiles", (it) => {
     const store = { [profileA.did]: profileA };
     let loadedWith = null;
 
-    const selectors = {
+    const base = {
       getProfile: (did) => store[did] ?? null,
     };
     const requests = {
@@ -194,7 +200,7 @@ t.describe("ensureProfiles", (it) => {
       },
     };
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative({}, requests, base);
     const result = await declarative.ensureProfiles([
       profileA.did,
       profileB.did,
@@ -205,10 +211,10 @@ t.describe("ensureProfiles", (it) => {
   });
 
   it("returns null entries for profiles still missing after load", async () => {
-    const selectors = { getProfile: () => null };
+    const base = { getProfile: () => null };
     const requests = { loadProfiles: async () => {} };
 
-    const declarative = new Declarative(selectors, requests);
+    const declarative = new Declarative({}, requests, base);
     const result = await declarative.ensureProfiles(["did:test:missing"]);
 
     assertEquals(result, [null]);

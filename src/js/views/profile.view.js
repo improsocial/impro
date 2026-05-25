@@ -443,7 +443,7 @@ class ProfileView extends View {
     }
 
     function renderPage() {
-      const profile = dataLayer.selectors.getProfile(profileDid);
+      const profile = dataLayer.base.getProfile(profileDid);
       const currentUser = dataLayer.selectors.getCurrentUser();
       const numNotifications =
         notificationService?.getNumNotifications() ?? null;
@@ -556,7 +556,7 @@ class ProfileView extends View {
 
     // This is async because it needs to resolve mentions
     async function loadProfileDescription() {
-      const profile = dataLayer.selectors.getProfile(profileDid);
+      const profile = dataLayer.base.getProfile(profileDid);
       if (!profile?.description) {
         return;
       }

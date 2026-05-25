@@ -3,6 +3,7 @@ import { assert, assertEquals } from "../../testHelpers.js";
 import { Selectors } from "/js/dataLayer/selectors.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
+import * as base from "/js/dataLayer/base.js";
 import { Preferences } from "/js/preferences.js";
 
 const t = new TestSuite("Selectors");
@@ -586,68 +587,6 @@ t.describe("getPosts", (it) => {
   });
 });
 
-t.describe("getProfile", (it) => {
-  const profileDID = "did:test:profile";
-  const testProfile = {
-    did: profileDID,
-    handle: "test.profile",
-    displayName: "Test Profile",
-    viewer: { following: null },
-  };
-
-  it("should return null when profile does not exist", () => {
-    const dataStore = new DataStore();
-    const patchStore = new PatchStore();
-    const mockPreferencesProvider = {
-      requirePreferences: () => Preferences.createLoggedOutPreferences(),
-    };
-    const selectors = new Selectors(
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-      false,
-    );
-
-    const result = selectors.getProfile(profileDID);
-    assertEquals(result, null);
-  });
-
-  it("should return profile with patches applied", () => {
-    const dataStore = new DataStore();
-    const patchStore = new PatchStore();
-    const selectors = new Selectors(dataStore, patchStore);
-
-    dataStore.setProfile(profileDID, testProfile);
-    patchStore.addProfilePatch(profileDID, { type: "followProfile" });
-
-    const result = selectors.getProfile(profileDID);
-
-    assertEquals(result.viewer.following, "fake following");
-    assertEquals(result.did, profileDID);
-  });
-
-  it("should return profile without patches when no patches exist", () => {
-    const dataStore = new DataStore();
-    const patchStore = new PatchStore();
-    const mockPreferencesProvider = {
-      requirePreferences: () => Preferences.createLoggedOutPreferences(),
-    };
-    const selectors = new Selectors(
-      dataStore,
-      patchStore,
-      mockPreferencesProvider,
-      false,
-    );
-
-    dataStore.setProfile(profileDID, testProfile);
-
-    const result = selectors.getProfile(profileDID);
-
-    assertEquals(result, testProfile);
-    assert(result !== testProfile); // Should be a copy due to patch application
-  });
-});
-
 t.describe("Integration with DataStore and PatchStore", (it) => {
   it("should work with multiple data types and patches", () => {
     const dataStore = new DataStore();
@@ -682,7 +621,7 @@ t.describe("Integration with DataStore and PatchStore", (it) => {
     // Test all selectors
     const feedResult = selectors.getFeed(feedURI);
     const postResult = selectors.getPost(postURI);
-    const profileResult = selectors.getProfile(profileDID);
+    const profileResult = base.getProfile(dataStore, patchStore, profileDID);
 
     assertEquals(feedResult.feed[0].post.likeCount, 6);
     assertEquals(postResult.likeCount, 6);

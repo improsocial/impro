@@ -1,11 +1,26 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 import "/js/components/plugin-profiles-list.js";
 
 const t = new TestSuite("PluginProfilesList");
 
-function makeDataLayer(impl) {
-  return { declarative: { ensureProfiles: impl } };
+function makeDataLayer({ ensureProfiles, getProfile, events } = {}) {
+  const profiles = new Map();
+  const declarative = {
+    ensureProfiles:
+      ensureProfiles ??
+      (async (dids) => dids.map((did) => profiles.get(did) ?? null)),
+  };
+  const base = {
+    getProfile: getProfile ?? ((did) => profiles.get(did) ?? null),
+  };
+  return {
+    events: events ?? new EventEmitter(),
+    declarative,
+    base,
+    __profiles: profiles,
+  };
 }
 
 function makeProfile(did, handle) {
@@ -23,7 +38,9 @@ t.beforeEach(() => {
 t.describe("PluginProfilesList - loading state", (it) => {
   it("renders one skeleton per did before profiles resolve", () => {
     const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(() => new Promise(() => {}));
+    element.dataLayer = makeDataLayer({
+      ensureProfiles: () => new Promise(() => {}),
+    });
     element.setAttribute("dids", "did:test:a,did:test:b,did:test:c");
     document.body.appendChild(element);
     assertEquals(
@@ -35,10 +52,11 @@ t.describe("PluginProfilesList - loading state", (it) => {
 
 t.describe("PluginProfilesList - loaded state", (it) => {
   it("renders profile list items once ensureProfiles resolves", async () => {
-    const profileA = makeProfile("did:test:a", "a.test");
-    const profileB = makeProfile("did:test:b", "b.test");
+    const dataLayer = makeDataLayer();
+    dataLayer.__profiles.set("did:test:a", makeProfile("did:test:a", "a.test"));
+    dataLayer.__profiles.set("did:test:b", makeProfile("did:test:b", "b.test"));
     const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(async () => [profileA, profileB]);
+    element.dataLayer = dataLayer;
     element.setAttribute("dids", "did:test:a,did:test:b");
     document.body.appendChild(element);
     await flushMicrotasks();
@@ -50,10 +68,11 @@ t.describe("PluginProfilesList - loaded state", (it) => {
     assert(items[1].textContent.includes("b.test"));
   });
 
-  it("filters out null entries from ensureProfiles", async () => {
-    const profileA = makeProfile("did:test:a", "a.test");
+  it("filters out missing entries from the selector", async () => {
+    const dataLayer = makeDataLayer();
+    dataLayer.__profiles.set("did:test:a", makeProfile("did:test:a", "a.test"));
     const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(async () => [profileA, null]);
+    element.dataLayer = dataLayer;
     element.setAttribute("dids", "did:test:a,did:test:missing");
     document.body.appendChild(element);
     await flushMicrotasks();
@@ -65,10 +84,10 @@ t.describe("PluginProfilesList - loaded state", (it) => {
   });
 
   it("does not render the end-of-feed message", async () => {
+    const dataLayer = makeDataLayer();
+    dataLayer.__profiles.set("did:test:a", makeProfile("did:test:a", "a.test"));
     const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(async () => [
-      makeProfile("did:test:a", "a.test"),
-    ]);
+    element.dataLayer = dataLayer;
     element.setAttribute("dids", "did:test:a");
     document.body.appendChild(element);
     await flushMicrotasks();
@@ -83,9 +102,11 @@ t.describe("PluginProfilesList - empty dids", (it) => {
   it("renders no skeletons or items when dids is empty", () => {
     const element = document.createElement("plugin-profiles-list");
     let called = false;
-    element.dataLayer = makeDataLayer(async () => {
-      called = true;
-      return [];
+    element.dataLayer = makeDataLayer({
+      ensureProfiles: async () => {
+        called = true;
+        return [];
+      },
     });
     element.setAttribute("dids", "");
     document.body.appendChild(element);
@@ -105,8 +126,10 @@ t.describe("PluginProfilesList - empty dids", (it) => {
 t.describe("PluginProfilesList - error state", (it) => {
   it("renders the error message when ensureProfiles rejects", async () => {
     const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(async () => {
-      throw new Error("boom");
+    element.dataLayer = makeDataLayer({
+      ensureProfiles: async () => {
+        throw new Error("boom");
+      },
     });
     element.setAttribute("dids", "did:test:a");
     document.body.appendChild(element);
@@ -120,11 +143,17 @@ t.describe("PluginProfilesList - error state", (it) => {
 t.describe("PluginProfilesList - did changes", (it) => {
   it("reloads when the dids attribute changes", async () => {
     const calls = [];
-    const element = document.createElement("plugin-profiles-list");
-    element.dataLayer = makeDataLayer(async (dids) => {
-      calls.push(dids);
-      return dids.map((did) => makeProfile(did, did));
+    const dataLayer = makeDataLayer({
+      ensureProfiles: async (dids) => {
+        calls.push(dids);
+        dids.forEach((did) =>
+          dataLayer.__profiles.set(did, makeProfile(did, did)),
+        );
+        return dids.map((did) => dataLayer.__profiles.get(did));
+      },
     });
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
     element.setAttribute("dids", "did:test:a");
     document.body.appendChild(element);
     await flushMicrotasks();
@@ -141,17 +170,22 @@ t.describe("PluginProfilesList - did changes", (it) => {
   });
 
   it("ignores stale ensureProfiles results when dids change mid-flight", async () => {
-    const element = document.createElement("plugin-profiles-list");
+    const dataLayer = makeDataLayer();
     let resolveFirst;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
     });
     let callIndex = 0;
-    element.dataLayer = makeDataLayer((dids) => {
+    dataLayer.declarative.ensureProfiles = (dids) => {
       callIndex++;
       if (callIndex === 1) return firstPromise;
-      return Promise.resolve(dids.map((did) => makeProfile(did, did)));
-    });
+      dids.forEach((did) =>
+        dataLayer.__profiles.set(did, makeProfile(did, did)),
+      );
+      return Promise.resolve(dids.map((did) => dataLayer.__profiles.get(did)));
+    };
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
     element.setAttribute("dids", "did:test:stale");
     document.body.appendChild(element);
     element.setAttribute("dids", "did:test:fresh");
@@ -163,6 +197,72 @@ t.describe("PluginProfilesList - did changes", (it) => {
     );
     assertEquals(items.length, 1);
     assert(items[0].textContent.includes("fresh"));
+  });
+});
+
+t.describe("PluginProfilesList - live subscriptions", (it) => {
+  it("subscribes to profile:${did} for each loaded did", async () => {
+    const events = new EventEmitter();
+    const dataLayer = makeDataLayer({ events });
+    dataLayer.__profiles.set("did:test:a", makeProfile("did:test:a", "a.test"));
+    dataLayer.__profiles.set("did:test:b", makeProfile("did:test:b", "b.test"));
+    dataLayer.__profiles.set("did:test:c", makeProfile("did:test:c", "c.test"));
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
+    element.setAttribute("dids", "did:test:a,did:test:b,did:test:c");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    assertEquals(events.__eventListeners.get("profile:did:test:a").length, 1);
+    assertEquals(events.__eventListeners.get("profile:did:test:b").length, 1);
+    assertEquals(events.__eventListeners.get("profile:did:test:c").length, 1);
+  });
+
+  it("syncs subscriptions when the did list changes", async () => {
+    const events = new EventEmitter();
+    const dataLayer = makeDataLayer({ events });
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
+    element.setAttribute("dids", "did:test:a");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    element.setAttribute("dids", "did:test:b,did:test:c");
+    await flushMicrotasks();
+    assertEquals(events.__eventListeners.get("profile:did:test:a"), undefined);
+    assertEquals(events.__eventListeners.get("profile:did:test:b").length, 1);
+    assertEquals(events.__eventListeners.get("profile:did:test:c").length, 1);
+  });
+
+  it("removes all live listeners on disconnect", async () => {
+    const events = new EventEmitter();
+    const dataLayer = makeDataLayer({ events });
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
+    element.setAttribute("dids", "did:test:a,did:test:b");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    element.remove();
+    assertEquals(events.__eventListeners.get("profile:did:test:a"), undefined);
+    assertEquals(events.__eventListeners.get("profile:did:test:b"), undefined);
+  });
+
+  it("re-renders when profile:${did} fires", async () => {
+    const events = new EventEmitter();
+    const dataLayer = makeDataLayer({ events });
+    dataLayer.__profiles.set("did:test:a", makeProfile("did:test:a", "a.test"));
+    const element = document.createElement("plugin-profiles-list");
+    element.dataLayer = dataLayer;
+    element.setAttribute("dids", "did:test:a");
+    document.body.appendChild(element);
+    await flushMicrotasks();
+    dataLayer.__profiles.set(
+      "did:test:a",
+      makeProfile("did:test:a", "updated"),
+    );
+    events.emit("profile:did:test:a");
+    const items = element.querySelectorAll(
+      "[data-testid='profile-list-item-display-name']",
+    );
+    assert(items[0].textContent.includes("updated"));
   });
 });
 

@@ -31,6 +31,33 @@ t.describe("Event bus", (it) => {
     assertEquals(count, 1);
   });
 
+  it("emits profile:${did} on addProfilePatch", () => {
+    const events = new EventEmitter();
+    const patchStore = new PatchStore(events);
+    const profileDID = "did:test:abc";
+    let count = 0;
+    events.on(`profile:${profileDID}`, () => {
+      count += 1;
+    });
+    patchStore.addProfilePatch(profileDID, { type: "followProfile" });
+    assertEquals(count, 1);
+  });
+
+  it("emits profile:${did} on removeProfilePatch", () => {
+    const events = new EventEmitter();
+    const patchStore = new PatchStore(events);
+    const profileDID = "did:test:abc";
+    const patchId = patchStore.addProfilePatch(profileDID, {
+      type: "followProfile",
+    });
+    let count = 0;
+    events.on(`profile:${profileDID}`, () => {
+      count += 1;
+    });
+    patchStore.removeProfilePatch(profileDID, patchId);
+    assertEquals(count, 1);
+  });
+
   it("emits preferences:changed on add/removePreferencePatch", () => {
     const events = new EventEmitter();
     const patchStore = new PatchStore(events);

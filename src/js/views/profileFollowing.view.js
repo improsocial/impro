@@ -48,7 +48,7 @@ class ProfileFollowingView extends View {
         chatNotificationService?.getNumNotifications() ?? null;
       const profileFollowing =
         dataLayer.selectors.getProfileFollows(profileDid);
-      const profile = dataLayer.selectors.getProfile(profileDid);
+      const profile = dataLayer.base.getProfile(profileDid);
       const profileFollowingRequestStatus = dataLayer.requests.getStatus(
         "loadProfileFollows-" + profileDid,
       );

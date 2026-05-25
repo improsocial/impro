@@ -132,6 +132,7 @@ export class PatchStore {
     const profilePatches = this._getProfilePatches(profileURI);
     profilePatches.push({ id: patchId, body: patchBody });
     this.profilePatches.set(profileURI, profilePatches);
+    this._eventBus?.emit(`profile:${profileURI}`);
     return patchId;
   }
 
@@ -141,6 +142,7 @@ export class PatchStore {
       profileURI,
       profilePatches.filter(({ id }) => id !== patchId),
     );
+    this._eventBus?.emit(`profile:${profileURI}`);
   }
 
   applyProfilePatches(profile) {

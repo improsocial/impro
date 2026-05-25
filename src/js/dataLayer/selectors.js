@@ -180,15 +180,6 @@ export class Selectors {
     return postURIs.map((postURI) => this.getPost(postURI, options));
   }
 
-  getProfile(did) {
-    const profile = this.dataStore.getProfile(did);
-    if (!profile) {
-      return null;
-    }
-    const patchedProfile = this.patchStore.applyProfilePatches(profile);
-    return patchedProfile;
-  }
-
   getProfileSearchResults() {
     const data = this.dataStore.getProfileSearchResults();
     if (!data) return null;

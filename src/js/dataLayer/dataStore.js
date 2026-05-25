@@ -158,6 +158,7 @@ export class DataStore extends EventEmitter {
 
   setProfile(did, profile) {
     this.profiles.set(did, profile);
+    this._eventBus?.emit(`profile:${did}`);
   }
 
   getProfile(did) {
@@ -166,6 +167,7 @@ export class DataStore extends EventEmitter {
 
   clearProfile(did) {
     this.profiles.delete(did);
+    this._eventBus?.emit(`profile:${did}`);
   }
 
   hasProfileSearchResults() {

@@ -40,11 +40,17 @@ export class DataLayer {
       this.preferencesProvider,
       this.isAuthenticated,
     );
-    this.declarative = new Declarative(this.selectors, this.requests);
     this.derived = derived;
     this.base = {
       getPost: (uri) => base.getPost(this.dataStore, this.patchStore, uri),
+      getProfile: (did) =>
+        base.getProfile(this.dataStore, this.patchStore, did),
     };
+    this.declarative = new Declarative(
+      this.selectors,
+      this.requests,
+      this.base,
+    );
     this.subscribers = [];
   }
 

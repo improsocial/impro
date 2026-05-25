@@ -1152,6 +1152,8 @@ t.describe("app.data host methods", (it) => {
           calls.push(uri);
           return { uri, record: { text: "cached" } };
         },
+      },
+      base: {
         getProfile: () => null,
       },
     });
@@ -1164,12 +1166,14 @@ t.describe("app.data host methods", (it) => {
     });
   });
 
-  it("getProfile host method returns selectors.getProfile result", async () => {
+  it("getProfile host method returns base.getProfile result", async () => {
     const service = makeServiceWithRealBridge();
     const calls = [];
     service.setDataLayer({
       selectors: {
         getPost: () => null,
+      },
+      base: {
         getProfile: (did) => {
           calls.push(did);
           return { did, handle: "alice.test" };
@@ -1189,11 +1193,13 @@ t.describe("app.data host methods", (it) => {
     assertEquals(result, null);
   });
 
-  it("getProfile returns null when selector returns null (uncached)", async () => {
+  it("getProfile returns null when base returns null (uncached)", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
       selectors: {
         getPost: () => null,
+      },
+      base: {
         getProfile: () => null,
       },
     });
