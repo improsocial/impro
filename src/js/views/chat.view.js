@@ -242,7 +242,7 @@ class ChatView extends View {
       });
     }
 
-    pageEffect(root, renderPage, "chat-view");
+    pageEffect(root, renderPage);
 
     root.addEventListener("page-enter", async () => {
       await dataLayer.declarative.ensureCurrentUser();

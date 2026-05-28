@@ -12,11 +12,11 @@ export function bindToPage(root, source, event, handler) {
   root.addEventListener("page-exit", detach);
 }
 
-export function pageEffect(root, callback, debugName) {
+export function pageEffect(root, callback, options) {
   let dispose;
   const attach = () => {
     dispose?.();
-    dispose = effect(callback, debugName);
+    dispose = effect(callback, options);
   };
   const detach = () => {
     dispose?.();

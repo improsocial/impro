@@ -82,6 +82,77 @@ test.describe("Post thread view", () => {
     });
   });
 
+  test("should scroll the main post into view on load when it has parents", async ({
+    page,
+  }) => {
+    // Build a deep parent chain so the large (main) post starts below the fold.
+    const NUM_PARENTS = 12;
+    const parents = Array.from({ length: NUM_PARENTS }).map((_, index) =>
+      createPost({
+        uri: `at://did:plc:parent${index}/app.bsky.feed.post/parent${index}`,
+        text: `Parent post number ${index}`,
+        authorHandle: `parent${index}.bsky.social`,
+        authorDisplayName: `Parent ${index}`,
+      }),
+    );
+    const rootParent = parents[0];
+    const immediateParent = parents[NUM_PARENTS - 1];
+
+    const childPost = createPost({
+      uri: postUri,
+      text: "This is the main post we should scroll to",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: immediateParent.uri, cid: immediateParent.cid },
+        root: { uri: rootParent.uri, cid: rootParent.cid },
+      },
+    });
+
+    // Nest the parents so the root ends up deepest in the `parent` chain.
+    let parentNode = null;
+    for (const parentPost of parents) {
+      parentNode = {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: parentPost,
+        parent: parentNode,
+        replies: [],
+      };
+    }
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([childPost, ...parents]);
+    mockServer.setPostThread(postUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: childPost,
+      parent: parentNode,
+      replies: [],
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    // The page should have scrolled down past the parents...
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY), { timeout: 10000 })
+      .toBeGreaterThan(0);
+
+    // ...landing the main post just below the header rather than off-screen.
+    const headerHeight = await view
+      .locator("header")
+      .evaluate((el) => el.offsetHeight);
+    const postTop = await largePost.evaluate(
+      (el) => el.getBoundingClientRect().top,
+    );
+    expect(postTop).toBeGreaterThanOrEqual(headerHeight - 8);
+    expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
+  });
+
   test("should show 'Load parent post' link when reply ref is broken", async ({
     page,
   }) => {

@@ -169,11 +169,12 @@ class Watcher {
 
 export const Signal = { State, Computed, subtle: { Watcher } };
 
-function logEffectTrigger(effectComputed, debugName, lastRunTick) {
+function logEffectTrigger(effectComputed, debugName, debugDepth, lastRunTick) {
   const lines = [`[T${globalTick}] effect(${debugName}) firing, caused by:`];
   const seen = new Set();
   // ancestorBars: for each ancestor level, true if that level still has siblings below
   const walk = (node, ancestorBars, isLast) => {
+    if (debugDepth != null && ancestorBars.length >= debugDepth) return;
     const prefix =
       ancestorBars.map((bar) => (bar ? "│  " : "   ")).join("") +
       (isLast ? "└─ " : "├─ ");
@@ -207,7 +208,7 @@ function logEffectTrigger(effectComputed, debugName, lastRunTick) {
   if (lines.length > 1) console.log(lines.join("\n"));
 }
 
-export const effect = (cb, debugName) => {
+export const effect = (cb, { debugName, debugDepth } = {}) => {
   let cleanup;
   let lastRunTick = 0;
   let hasRun = false;
@@ -220,7 +221,7 @@ export const effect = (cb, debugName) => {
   let pendingFlush = false;
   const run = () => {
     if (hasRun && debugName) {
-      logEffectTrigger(computed, debugName, lastRunTick);
+      logEffectTrigger(computed, debugName, debugDepth, lastRunTick);
     }
     lastRunTick = globalTick;
     hasRun = true;

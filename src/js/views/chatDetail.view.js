@@ -662,7 +662,7 @@ class ChatDetailView extends View {
       chatNotificationService?.markNotificationsAsReadForConvo(convoId);
     }
 
-    pageEffect(root, renderPage, "chat-detail-view");
+    pageEffect(root, renderPage);
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser().then(() => {

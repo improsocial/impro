@@ -219,7 +219,7 @@ class ChatRequestsView extends View {
       );
     }
 
-    pageEffect(root, renderPage, "chat-requests-view");
+    pageEffect(root, renderPage);
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();

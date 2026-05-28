@@ -25,6 +25,7 @@ import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
+import { Signal } from "/js/signals.js";
 
 class PostThreadView extends View {
   async render({
@@ -497,22 +498,30 @@ class PostThreadView extends View {
       </div>`;
     }
 
-    pageEffect(root, () => {
-      let postThread = dataLayer.derived.$hydratedPostThreads
+    const $postThread = new Signal.Computed(() => {
+      const hydratedPostThread = dataLayer.derived.$hydratedPostThreads
         .get(postUri)
         .get();
-      if (!postThread) {
-        // Prefill with saved post if available
-        const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
-        if (post) {
-          postThread = {
-            __isPrefill: true,
-            post,
-            parent: null,
-            replies: null,
-          };
-        }
+      if (hydratedPostThread) {
+        return hydratedPostThread;
       }
+      // Prefill with saved post if available
+      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
+      if (post) {
+        return {
+          __isPrefill: true,
+          post,
+          parent: null,
+          replies: null,
+        };
+      }
+      return null;
+    });
+
+    let hasScrolledToLargePost = false;
+
+    pageEffect(root, () => {
+      const postThread = $postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -550,6 +559,12 @@ class PostThreadView extends View {
         </div>`,
         root,
       );
+
+      // Scroll to the main post once the full thread (with parents) has loaded
+      if (postThread && !postThread.__isPrefill && !hasScrolledToLargePost) {
+        hasScrolledToLargePost = true;
+        scrollToLargePost();
+      }
     });
 
     function scrollToLargePost() {
@@ -562,14 +577,12 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      scrollToLargePost();
       let requests = [];
       if (isAuthenticated) {
         requests.push(dataLayer.requests.loadCurrentUser());
       }
       requests.push(dataLayer.requests.loadPostThread(postUri));
       await Promise.all(requests);
-      scrollToLargePost();
     });
 
     root.addEventListener("page-restore", async (e) => {
