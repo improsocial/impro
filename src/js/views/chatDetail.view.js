@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -11,8 +11,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes } from "/js/utils.js";
-import { EventEmitter } from "/js/eventEmitter.js";
+import { wait, raf, differenceInMinutes, Signal } from "/js/utils.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
@@ -49,7 +48,6 @@ class ChatDetailView extends View {
     context: {
       dataLayer,
       notificationService,
-      api,
       chatNotificationService,
       identityResolver,
       postComposerService,
@@ -60,11 +58,9 @@ class ChatDetailView extends View {
 
     const convoId = params.convoId;
 
-    const state = {
-      loadingEnabled: false,
-      isSendingMessage: false,
-      selectedMessageId: null,
-    };
+    const $loadingEnabled = new Signal.State(false);
+    const $isSendingMessage = new Signal.State(false);
+    const $selectedMessageId = new Signal.State(null);
 
     function focusChatInput() {
       const chatInput = root.querySelector("chat-input");
@@ -110,13 +106,10 @@ class ChatDetailView extends View {
       );
     }
 
-    class MessageFetcher extends EventEmitter {
-      constructor(dataLayer, api, convoId, currentUser) {
-        super();
+    class MessageFetcher {
+      constructor(dataLayer, convoId) {
         this.dataLayer = dataLayer;
-        this.api = api;
         this.convoId = convoId;
-        this.currentUser = currentUser;
         this._isPolling = false;
         this._cursor = "";
       }
@@ -135,47 +128,19 @@ class ChatDetailView extends View {
 
       async runLoop() {
         while (this._isPolling) {
-          await this.fetchMessages();
+          this._cursor = await this.dataLayer.requests.pollConvoMessages(
+            this.convoId,
+            { cursor: this._cursor },
+          );
           await wait(5000);
-        }
-      }
-
-      async fetchMessages() {
-        const res = await this.api.getChatLogs({ cursor: this._cursor });
-        this._cursor = res.cursor;
-        const logsForConvo = res.logs.filter(
-          (log) => log.convoId === this.convoId,
-        );
-        for (const log of logsForConvo) {
-          if (log.$type === "chat.bsky.convo.defs#logCreateMessage") {
-            if (log.message.sender.did === this.currentUser.did) {
-              // Skip if the message is from the current user, since we already set it in the store
-              continue;
-            }
-            const convoMessages = this.dataLayer.selectors.getConvoMessages(
-              this.convoId,
-            );
-            if (!convoMessages) {
-              console.warn("No messages data found for convoId", this.convoId);
-              return;
-            }
-            // set new message in store
-            this.dataLayer.dataStore.setMessage(log.message.id, log.message);
-            this.dataLayer.dataStore.setConvoMessages(this.convoId, {
-              messages: [log.message, ...convoMessages.messages],
-              cursor: convoMessages.cursor,
-            });
-            this.emit("message");
-          }
         }
       }
     }
 
-    let messageFetcher = null;
+    const messageFetcher = new MessageFetcher(dataLayer, convoId);
 
     function closeReactionPalette() {
-      state.selectedMessageId = null;
-      renderPage();
+      $selectedMessageId.set(null);
     }
 
     async function handleEmojiSelect(emoji, messageId, currentUserDid) {
@@ -187,7 +152,6 @@ class ChatDetailView extends View {
           currentUserDid,
         );
         closeReactionPalette();
-        renderPage();
       } catch (error) {
         console.error(error);
         showToast("Failed to add reaction", { style: "error" });
@@ -195,45 +159,34 @@ class ChatDetailView extends View {
     }
 
     async function handleReactionClick(emoji, messageId, isOwnReaction) {
-      if (isOwnReaction) {
-        // Remove reaction
-        try {
-          const promise = dataLayer.mutations.removeMessageReaction(
+      try {
+        if (isOwnReaction) {
+          await dataLayer.mutations.removeMessageReaction(
             convoId,
             messageId,
             emoji,
           );
-          // optimistic update
-          renderPage();
-          await promise;
-          renderPage();
-        } catch (error) {
-          console.error(error);
-          showToast("Failed to remove reaction", { style: "error" });
-        }
-      } else {
-        // Add reaction
-        try {
-          const promise = dataLayer.mutations.addMessageReaction(
+        } else {
+          await dataLayer.mutations.addMessageReaction(
             convoId,
             messageId,
             emoji,
           );
-          // optimistic update
-          renderPage();
-          await promise;
-          renderPage();
-        } catch (error) {
-          console.error(error);
-          showToast("Failed to add reaction", { style: "error" });
         }
+      } catch (error) {
+        console.error(error);
+        showToast(
+          isOwnReaction
+            ? "Failed to remove reaction"
+            : "Failed to add reaction",
+          { style: "error" },
+        );
       }
     }
 
     function handleLongPress(message) {
       hapticsImpactMedium();
-      state.selectedMessageId = message.id;
-      renderPage();
+      $selectedMessageId.set(message.id);
       // close on click outside
       setTimeout(() => {
         document.addEventListener("click", () => closeReactionPalette(), {
@@ -243,22 +196,19 @@ class ChatDetailView extends View {
     }
 
     async function handleSendMessage(messageText) {
-      state.isSendingMessage = true;
-      renderPage();
+      $isSendingMessage.set(true);
       try {
         const facets = await getFacetsFromText(messageText, identityResolver);
         await dataLayer.mutations.createMessage(convoId, {
           text: messageText,
           facets,
         });
-        renderPage();
         scrollToBottom();
       } catch (error) {
         console.error(error);
         showToast("Failed to send message", { style: "error" });
       } finally {
-        state.isSendingMessage = false;
-        renderPage();
+        $isSendingMessage.set(false);
         focusChatInput();
       }
     }
@@ -332,7 +282,7 @@ class ChatDetailView extends View {
         return "";
       }
 
-      const currentUser = dataLayer.selectors.getCurrentUser();
+      const currentUser = dataLayer.signals.$currentUser.get();
 
       // Group reactions by emoji
       const reactionGroups = reactions.reduce((acc, reaction) => {
@@ -507,7 +457,7 @@ class ChatDetailView extends View {
               showAvatar: index === 0,
               otherMember,
               onLongPress: (msg, e) => handleLongPress(msg, e),
-              isSelected: state.selectedMessageId === message.id,
+              isSelected: $selectedMessageId.get() === message.id,
             }),
           )}
           <div
@@ -612,20 +562,21 @@ class ChatDetailView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? 0;
-      const messagesData = dataLayer.selectors.getConvoMessages(convoId);
+        chatNotificationService?.$numNotifications.get() ?? 0;
+      const messagesData = dataLayer.signals.$convoMessages.get(convoId).get();
       const messages = messagesData?.messages ?? null;
-      const messagesRequestStatus = dataLayer.requests.getStatus(
-        "loadConvoMessages-" + convoId,
-      );
+      const messagesRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadConvoMessages-" + convoId)
+        .get();
       const hasMore = !!messagesData?.cursor;
+      const isSendingMessage = $isSendingMessage.get();
 
       // Get convo details to show other member info
-      const convo = dataLayer.selectors.getConvo(convoId);
+      const convo = dataLayer.signals.$convos.get(convoId).get();
       const otherMember = getOtherMember(currentUser, convo);
       const title = otherMember ? getDisplayName(otherMember) : "";
 
@@ -658,7 +609,7 @@ class ChatDetailView extends View {
                     });
                   } else if (messages) {
                     return messagesTemplate({
-                      loadingEnabled: state.loadingEnabled,
+                      loadingEnabled: $loadingEnabled.get(),
                       messages,
                       currentUserDid: currentUser?.did,
                       otherMember,
@@ -689,8 +640,8 @@ class ChatDetailView extends View {
                       }
                     }
                   }}
-                  ?disabled=${!messages || state.isSendingMessage}
-                  ?loading=${state.isSendingMessage}
+                  ?disabled=${!messages || isSendingMessage}
+                  ?loading=${isSendingMessage}
                 ></chat-input>
               </div>
             `,
@@ -700,35 +651,20 @@ class ChatDetailView extends View {
       );
     }
 
-    async function loadMessages({ reload = false, renderOnLoad = true } = {}) {
-      const loadingPromise = dataLayer.requests.loadConvoMessages(convoId, {
+    async function loadMessages({ reload = false } = {}) {
+      await dataLayer.requests.loadConvoMessages(convoId, {
         reload,
         limit: CHAT_MESSAGES_PAGE_SIZE,
       });
-      renderPage();
-      await loadingPromise;
-      if (renderOnLoad) {
-        renderPage();
-      }
       // can be async
       dataLayer.mutations.markConvoAsRead(convoId);
       chatNotificationService?.markNotificationsAsReadForConvo(convoId);
     }
 
+    pageEffect(root, renderPage, "chat-detail-view");
+
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then((currentUser) => {
-        renderPage();
-        // Initialize message fetcher
-        messageFetcher = new MessageFetcher(
-          dataLayer,
-          api,
-          convoId,
-          currentUser,
-        );
-        messageFetcher.on("message", () => {
-          renderPage();
-        });
+      dataLayer.declarative.ensureCurrentUser().then(() => {
         messageFetcher.start();
       });
       await dataLayer.declarative.ensureConvo(convoId);
@@ -736,8 +672,7 @@ class ChatDetailView extends View {
       // Scroll to bottom of messages
       scrollToBottom({ onlyIfNeeded: true });
       // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
-      state.loadingEnabled = true;
-      renderPage();
+      $loadingEnabled.set(true);
       // Sometimes it jumps after the render, so we scroll to bottom again
       scrollToBottom({ onlyIfNeeded: true });
     });
@@ -752,16 +687,11 @@ class ChatDetailView extends View {
         scrollToBottom();
         await loadMessages({ reload: true });
       }
-      renderPage();
     });
 
     root.addEventListener("page-exit", () => {
       messageFetcher.stop();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

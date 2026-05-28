@@ -26,18 +26,18 @@ export class Mutations {
     try {
       const like = await this.api.createLikeRecord(post);
       // update post in store
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, like: like.uri },
         likeCount: post.likeCount + 1,
       });
       // If the "likes" feed is loaded, add the post to it.
-      const currentUser = this.dataStore.getCurrentUser();
+      const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const feedURI = `${currentUser.did}-likes`;
-        const likedFeed = this.dataStore.getAuthorFeed(feedURI);
+        const likedFeed = this.dataStore.$authorFeeds.get(feedURI).get();
         if (likedFeed) {
-          this.dataStore.setAuthorFeed(feedURI, {
+          this.dataStore.$authorFeeds.set(feedURI, {
             feed: [{ post: post }, ...likedFeed.feed],
             cursor: likedFeed.cursor,
           });
@@ -60,7 +60,7 @@ export class Mutations {
     try {
       await this.api.deleteLikeRecord(post);
       // update post in store
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, like: null },
         likeCount: post.likeCount - 1,
@@ -80,16 +80,16 @@ export class Mutations {
     });
     try {
       const repost = await this.api.createRepostRecord(post);
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, repost: repost.uri },
         repostCount: post.repostCount + 1,
       });
       // If the current user's author feed is loaded, add the repost to it.
-      const currentUser = this.dataStore.getCurrentUser();
+      const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
         if (authorFeed) {
           const newFeedItem = {
             post: post,
@@ -101,7 +101,7 @@ export class Mutations {
               indexedAt: new Date().toISOString(),
             },
           };
-          this.dataStore.setAuthorFeed(authorFeedURI, {
+          this.dataStore.$authorFeeds.set(authorFeedURI, {
             feed: addFeedItemToFeed(newFeedItem, authorFeed.feed),
             cursor: authorFeed.cursor,
           });
@@ -122,18 +122,18 @@ export class Mutations {
     });
     try {
       await this.api.deleteRepostRecord(post);
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, repost: null },
         repostCount: post.repostCount - 1,
       });
       // If the current user's author feed is loaded, remove the repost from it.
-      const currentUser = this.dataStore.getCurrentUser();
+      const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
         if (authorFeed) {
-          this.dataStore.setAuthorFeed(authorFeedURI, {
+          this.dataStore.$authorFeeds.set(authorFeedURI, {
             feed: authorFeed.feed.filter((feedItem) => {
               if (
                 feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
@@ -164,15 +164,15 @@ export class Mutations {
     try {
       await this.api.createBookmark(post);
       // update post in store
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, bookmarked: true },
         bookmarkCount: post.bookmarkCount + 1,
       });
       // If the bookmarks feed is loaded, add the post to it.
-      const bookmarks = this.dataStore.getBookmarks();
+      const bookmarks = this.dataStore.$bookmarks.get();
       if (bookmarks) {
-        this.dataStore.setBookmarks({
+        this.dataStore.$bookmarks.set({
           feed: [{ post: { ...post } }, ...bookmarks.feed],
           cursor: bookmarks.cursor,
         });
@@ -194,15 +194,15 @@ export class Mutations {
     try {
       await this.api.deleteBookmark(post);
       // update post in store
-      this.dataStore.setPost(post.uri, {
+      this.dataStore.$posts.set(post.uri, {
         ...post,
         viewer: { ...post.viewer, bookmarked: false },
         bookmarkCount: post.bookmarkCount - 1,
       });
       // If the bookmarks feed is loaded, remove the post from it.
-      const bookmarks = this.dataStore.getBookmarks();
+      const bookmarks = this.dataStore.$bookmarks.get();
       if (bookmarks) {
-        this.dataStore.setBookmarks({
+        this.dataStore.$bookmarks.set({
           feed: bookmarks.feed.filter((item) => item.post?.uri !== post.uri),
           cursor: bookmarks.cursor,
         });
@@ -223,7 +223,7 @@ export class Mutations {
     try {
       const follow = await this.api.createFollowRecord(profile);
       // todo update followers count
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         followersCount: profile.followersCount + 1,
         viewer: { ...profile.viewer, following: follow.uri },
@@ -243,7 +243,7 @@ export class Mutations {
     });
     try {
       await this.api.deleteFollowRecord(profile);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         followersCount: profile.followersCount - 1,
         viewer: { ...profile.viewer, following: null },
@@ -263,7 +263,10 @@ export class Mutations {
       event: "app.bsky.feed.defs#requestLess",
       feedContext,
     };
-    this.dataStore.addShowLessInteraction(showLessInteraction);
+    this.dataStore.$showLessInteractions.set([
+      ...this.dataStore.$showLessInteractions.get(),
+      showLessInteraction,
+    ]);
     try {
       await this.api.sendInteractions([showLessInteraction], feedProxyUrl);
     } catch (error) {
@@ -280,7 +283,10 @@ export class Mutations {
     };
     // Note, we don't really need to store this interaction because we don't use it in the UI (yet).
     // But, let's do it anyway for consistency.
-    this.dataStore.addShowMoreInteraction(showMoreInteraction);
+    this.dataStore.$showMoreInteractions.set([
+      ...this.dataStore.$showMoreInteractions.get(),
+      showMoreInteraction,
+    ]);
     try {
       await this.api.sendInteractions([showMoreInteraction], feedProxyUrl);
     } catch (error) {
@@ -433,7 +439,7 @@ export class Mutations {
     });
     try {
       await this.api.muteActor(profile.did);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         viewer: { ...profile.viewer, muted: true },
       });
@@ -446,13 +452,13 @@ export class Mutations {
           },
         };
       });
-      const mutedProfiles = this.dataStore.getMutedProfiles();
+      const mutedProfiles = this.dataStore.$mutedProfiles.get();
       if (mutedProfiles) {
         const alreadyListed = mutedProfiles.mutes.some(
           (muted) => muted.did === profile.did,
         );
         if (!alreadyListed) {
-          this.dataStore.setMutedProfiles({
+          this.dataStore.$mutedProfiles.set({
             ...mutedProfiles,
             mutes: [
               {
@@ -478,7 +484,7 @@ export class Mutations {
     });
     try {
       await this.api.unmuteActor(profile.did);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         viewer: { ...profile.viewer, muted: false },
       });
@@ -491,9 +497,9 @@ export class Mutations {
           },
         };
       });
-      const mutedProfiles = this.dataStore.getMutedProfiles();
+      const mutedProfiles = this.dataStore.$mutedProfiles.get();
       if (mutedProfiles) {
-        this.dataStore.setMutedProfiles({
+        this.dataStore.$mutedProfiles.set({
           ...mutedProfiles,
           mutes: mutedProfiles.mutes.filter(
             (muted) => muted.did !== profile.did,
@@ -514,7 +520,7 @@ export class Mutations {
     });
     try {
       const block = await this.api.blockActor(profile);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         viewer: { ...profile.viewer, blocking: block.uri },
       });
@@ -527,13 +533,13 @@ export class Mutations {
           },
         };
       });
-      const blockedProfiles = this.dataStore.getBlockedProfiles();
+      const blockedProfiles = this.dataStore.$blockedProfiles.get();
       if (blockedProfiles) {
         const alreadyListed = blockedProfiles.blocks.some(
           (blocked) => blocked.did === profile.did,
         );
         if (!alreadyListed) {
-          this.dataStore.setBlockedProfiles({
+          this.dataStore.$blockedProfiles.set({
             ...blockedProfiles,
             blocks: [
               {
@@ -560,7 +566,7 @@ export class Mutations {
     });
     try {
       await this.api.putActivitySubscription(profile.did, activitySubscription);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         viewer: { ...profile.viewer, activitySubscription },
       });
@@ -578,7 +584,7 @@ export class Mutations {
     });
     try {
       await this.api.unblockActor(profile);
-      this.dataStore.setProfile(profile.did, {
+      this.dataStore.$profiles.set(profile.did, {
         ...profile,
         viewer: { ...profile.viewer, blocking: null },
       });
@@ -591,9 +597,9 @@ export class Mutations {
           },
         };
       });
-      const blockedProfiles = this.dataStore.getBlockedProfiles();
+      const blockedProfiles = this.dataStore.$blockedProfiles.get();
       if (blockedProfiles) {
-        this.dataStore.setBlockedProfiles({
+        this.dataStore.$blockedProfiles.set({
           ...blockedProfiles,
           blocks: blockedProfiles.blocks.filter(
             (blocked) => blocked.did !== profile.did,
@@ -662,10 +668,10 @@ export class Mutations {
     const labelers = preferences.getLabelerDids();
     // Fetch full profile to get updated image urls
     const updatedProfile = await this.api.getProfile(profile.did, { labelers });
-    this.dataStore.setProfile(updatedProfile.did, updatedProfile);
-    const currentUser = this.dataStore.getCurrentUser();
+    this.dataStore.$profiles.set(updatedProfile.did, updatedProfile);
+    const currentUser = this.dataStore.$currentUser.get();
     if (currentUser && currentUser.did === updatedProfile.did) {
-      this.dataStore.setCurrentUser({
+      this.dataStore.$currentUser.set({
         ...currentUser,
         ...updatedProfile,
       });
@@ -673,7 +679,7 @@ export class Mutations {
   }
 
   async pinPost(post) {
-    const currentUser = this.dataStore.getCurrentUser();
+    const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) throw new Error("No current user");
     const authorFeedURI = `${currentUser.did}-posts`;
     const pinnedRef = { uri: post.uri, cid: post.cid };
@@ -697,13 +703,16 @@ export class Mutations {
         swapCid,
       );
       // Commit to dataStore
-      const latestUser = this.dataStore.getCurrentUser();
+      const latestUser = this.dataStore.$currentUser.get();
       if (latestUser) {
-        this.dataStore.setCurrentUser({ ...latestUser, pinnedPost: pinnedRef });
+        this.dataStore.$currentUser.set({
+          ...latestUser,
+          pinnedPost: pinnedRef,
+        });
       }
-      const existingFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
       if (existingFeed) {
-        this.dataStore.setAuthorFeed(authorFeedURI, {
+        this.dataStore.$authorFeeds.set(authorFeedURI, {
           feed: pinPostInFeed(existingFeed.feed, post),
           cursor: existingFeed.cursor,
         });
@@ -715,7 +724,7 @@ export class Mutations {
   }
 
   async unpinPost(post) {
-    const currentUser = this.dataStore.getCurrentUser();
+    const currentUser = this.dataStore.$currentUser.get();
     if (!currentUser) throw new Error("No current user");
     if (currentUser.pinnedPost?.uri !== post.uri) {
       // Already unpinned (or a different post is pinned); nothing to do.
@@ -738,14 +747,14 @@ export class Mutations {
       const { pinnedPost: _, ...updatedRecord } = existingRecord;
       await this.api.putProfileRecord(updatedRecord, swapCid);
       // Commit to dataStore
-      const latestUser = this.dataStore.getCurrentUser();
+      const latestUser = this.dataStore.$currentUser.get();
       if (latestUser) {
         const { pinnedPost: _, ...rest } = latestUser;
-        this.dataStore.setCurrentUser(rest);
+        this.dataStore.$currentUser.set(rest);
       }
-      const existingFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
       if (existingFeed) {
-        this.dataStore.setAuthorFeed(authorFeedURI, {
+        this.dataStore.$authorFeeds.set(authorFeedURI, {
           feed: unpinPostInFeed(existingFeed.feed, post),
           cursor: existingFeed.cursor,
         });
@@ -779,12 +788,14 @@ export class Mutations {
     // NOTE: LEXICON DEVIATION
     post.viewer.priorityReply = true;
     // Update the post in the store
-    this.dataStore.setPost(post.uri, post);
+    this.dataStore.$posts.set(post.uri, post);
     // If it's a reply, update the reply post thread in the store
     if (replyTo) {
-      const replyPostThread = this.dataStore.getPostThread(replyTo.uri);
+      const replyPostThread = this.dataStore.$postThreads
+        .get(replyTo.uri)
+        .get();
       if (replyPostThread) {
-        this.dataStore.setPostThread(replyTo.uri, {
+        this.dataStore.$postThreads.set(replyTo.uri, {
           ...replyPostThread,
           replies: [
             {
@@ -800,9 +811,9 @@ export class Mutations {
     // If the author feed is loaded, add the new post to it
     const { repo: did } = parseUri(post.uri);
     const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
-    const authorFeed = this.dataStore.getAuthorFeed(authorFeedURI);
+    const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
     if (authorFeed) {
-      this.dataStore.setAuthorFeed(authorFeedURI, {
+      this.dataStore.$authorFeeds.set(authorFeedURI, {
         feed: addFeedItemToFeed({ post }, authorFeed.feed),
         cursor: authorFeed.cursor,
       });
@@ -815,7 +826,7 @@ export class Mutations {
     await this.api.deletePost(post);
     // Replace the post with a not found post.
     // This *should* remove the post from all relevant places in the UI.
-    this.dataStore.setPost(post.uri, createNotFoundPost(post.uri));
+    this.dataStore.$posts.set(post.uri, createNotFoundPost(post.uri));
   }
 
   async createMessage(convoId, { text, facets }) {
@@ -824,19 +835,19 @@ export class Mutations {
       text,
       facets,
     });
-    this.dataStore.setMessage(res.id, res);
+    this.dataStore.$messages.set(res.id, res);
     // Add the new message to the chat messages array in the dataStore
-    const convoMessages = this.dataStore.getConvoMessages(convoId);
+    const convoMessages = this.dataStore.$convoMessages.get(convoId).get();
     if (convoMessages) {
-      this.dataStore.setConvoMessages(convoId, {
+      this.dataStore.$convoMessages.set(convoId, {
         messages: [res, ...convoMessages.messages],
         cursor: convoMessages.cursor,
       });
     }
     // Update the last message in the convo
-    const convo = this.dataStore.getConvo(convoId);
+    const convo = this.dataStore.$convos.get(convoId).get();
     if (convo) {
-      this.dataStore.setConvo(convoId, {
+      this.dataStore.$convos.set(convoId, {
         ...convo,
         lastMessage: {
           $type: "chat.bsky.convo.defs#messageView",
@@ -856,15 +867,15 @@ export class Mutations {
       status: "accepted",
     };
 
-    this.dataStore.setConvo(convo.id, updatedConvo);
+    this.dataStore.$convos.set(convo.id, updatedConvo);
 
     // Update the convo in the convo list
-    const convoList = this.dataStore.getConvoList();
+    const convoList = this.dataStore.$convoList.get();
     if (convoList) {
       const updatedList = convoList.map((c) =>
         c.id === convo.id ? updatedConvo : c,
       );
-      this.dataStore.setConvoList(updatedList);
+      this.dataStore.$convoList.set(updatedList);
     }
 
     return updatedConvo;
@@ -872,19 +883,19 @@ export class Mutations {
 
   async rejectConvo(convo) {
     await this.api.leaveConvo(convo.id);
-    this.dataStore.clearConvo(convo.id);
-    const convoList = this.dataStore.getConvoList();
+    this.dataStore.$convos.set(convo.id, null);
+    const convoList = this.dataStore.$convoList.get();
     if (convoList) {
       const updatedList = convoList.filter((c) => c.id !== convo.id);
-      this.dataStore.setConvoList(updatedList);
+      this.dataStore.$convoList.set(updatedList);
     }
   }
 
   async markConvoAsRead(convoId) {
     await this.api.markConvoAsRead(convoId);
-    const convo = this.dataStore.getConvo(convoId);
+    const convo = this.dataStore.$convos.get(convoId).get();
     if (convo) {
-      this.dataStore.setConvo(convoId, {
+      this.dataStore.$convos.set(convoId, {
         ...convo,
         unreadCount: 0,
       });
@@ -906,11 +917,11 @@ export class Mutations {
         messageId,
         emoji,
       );
-      this.dataStore.setMessage(messageId, message);
+      this.dataStore.$messages.set(messageId, message);
       // Update the last reaction in the convo
-      const convo = this.dataStore.getConvo(convoId);
+      const convo = this.dataStore.$convos.get(convoId).get();
       if (convo) {
-        this.dataStore.setConvo(convoId, {
+        this.dataStore.$convos.set(convoId, {
           ...convo,
           lastReaction: {
             $type: "chat.bsky.convo.defs#messageAndReactionView",
@@ -939,11 +950,11 @@ export class Mutations {
         messageId,
         emoji,
       );
-      this.dataStore.setMessage(messageId, message);
+      this.dataStore.$messages.set(messageId, message);
       // Update the last reaction in the convo
-      const convo = this.dataStore.getConvo(convoId);
+      const convo = this.dataStore.$convos.get(convoId).get();
       if (convo) {
-        this.dataStore.setConvo(convoId, {
+        this.dataStore.$convos.set(convoId, {
           ...convo,
           lastReaction: null,
         });
@@ -957,10 +968,9 @@ export class Mutations {
   }
 
   _updatePostsByAuthor(profileDid, updateFunc) {
-    const posts = this.dataStore.getAllPosts();
-    for (const post of posts) {
-      if (post.author?.did === profileDid) {
-        this.dataStore.setPost(post.uri, updateFunc(post));
+    for (const post of this.dataStore.$posts.values()) {
+      if (post?.author?.did === profileDid) {
+        this.dataStore.$posts.set(post.uri, updateFunc(post));
       }
     }
   }

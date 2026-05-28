@@ -11,7 +11,7 @@ import {
   parseUri,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
-import { unique } from "/js/utils.js";
+import { unique, SignalMap, ComputedMap, ReactiveStore } from "/js/utils.js";
 import { ApiError } from "/js/api.js";
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer
@@ -39,26 +39,31 @@ function getBlockedPostUris(posts) {
   }).map((blockedPost) => blockedPost.uri);
 }
 
-class StatusStore {
+class StatusStore extends ReactiveStore {
   constructor() {
-    this.loadingMap = new Map();
-    this.errorMap = new Map();
+    super("statusStore");
+    this.$loading = new SignalMap();
+    this.$errors = new SignalMap();
+    this.$statuses = new ComputedMap((requestId) => ({
+      loading: this.$loading.get(requestId).get() ?? false,
+      error: this.$errors.get(requestId).get() ?? null,
+    }));
   }
 
   setLoading(requestId, loading) {
-    this.loadingMap.set(requestId, loading);
+    this.$loading.set(requestId, loading);
   }
 
   setError(requestId, error) {
-    this.errorMap.set(requestId, error);
+    this.$errors.set(requestId, error);
   }
 
   getLoading(requestId) {
-    return this.loadingMap.get(requestId) ?? false;
+    return this.$loading.get(requestId).get() ?? false;
   }
 
   getError(requestId) {
-    return this.errorMap.get(requestId) ?? null;
+    return this.$errors.get(requestId).get() ?? null;
   }
 }
 
@@ -142,7 +147,7 @@ export class Requests {
   async loadCurrentUser() {
     const session = await this.api.getSession();
     const profile = await this.api.getProfile(session.did);
-    this.dataStore.setCurrentUser(profile);
+    this.dataStore.$currentUser.set(profile);
   }
 
   async loadPostThread(postURI, { depth = 6 } = {}) {
@@ -187,8 +192,8 @@ export class Requests {
       await this._loadBlockedPosts(blockedPostUris);
     }
     // Save post thread
-    this.dataStore.setPostThread(postURI, postThread);
-    this.dataStore.setPostThreadOther(postURI, postThreadOther);
+    this.dataStore.$postThreads.set(postURI, postThread);
+    this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
     // Note - this return value is used by loadParentChain
     return postThread;
   }
@@ -196,16 +201,14 @@ export class Requests {
   async loadPost(postURI) {
     const labelers = this.requireLabelers();
     const post = await this.api.getPost(postURI, { labelers });
-    this.dataStore.setPost(postURI, post);
+    this.dataStore.setPosts([post]);
   }
 
   async loadPosts(postURIs) {
     if (postURIs.length === 0) return;
     const labelers = this.requireLabelers();
     const posts = await this.api.getPosts(postURIs, { labelers });
-    for (const post of posts) {
-      this.dataStore.setPost(post.uri, post);
-    }
+    this.dataStore.setPosts(posts);
   }
 
   async _loadParentChain(blockedParent, { labelers = [], rootUri } = {}) {
@@ -362,7 +365,7 @@ export class Requests {
 
   async loadNextFeedPage(feedURI, { reload = false, limit = 31 } = {}) {
     const labelers = this.requireLabelers();
-    const existingFeed = this.dataStore.getFeed(feedURI);
+    const existingFeed = this.dataStore.$feeds.get(feedURI).get();
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -380,40 +383,25 @@ export class Requests {
       await this._loadBlockedPosts(blockedPostUris);
     }
     // Filter posts with plugins
-    const pluginFilteredFeedItems =
-      await this.pluginService.getFilteredFeedItems(feedURI, feed);
-    const existingFilteredFeedItems =
-      this.dataStore.getPluginFilteredFeedItems(feedURI) ?? {};
-    this.dataStore.setPluginFilteredFeedItems(feedURI, {
-      ...existingFilteredFeedItems,
-      ...pluginFilteredFeedItems,
-    });
+    await this.pluginService.refreshFiltersForFeed(feedURI, feed);
     if (existingFeed && !reload) {
       // Append to existing feed
-      this.dataStore.setFeed(feedURI, {
+      this.dataStore.$feeds.set(feedURI, {
         feed: [...existingFeed.feed, ...feed.feed],
         cursor: feed.cursor,
       });
     } else {
       // Set new feed
-      this.dataStore.setFeed(feedURI, feed);
+      this.dataStore.$feeds.set(feedURI, feed);
     }
   }
 
   async loadPluginFilteredFeedItems(feedURI, { reload = false } = {}) {
-    const feed = this.dataStore.getFeed(feedURI);
+    const feed = this.dataStore.$feeds.get(feedURI).get();
     if (!feed) {
       return;
     }
-    const pluginFilteredFeedItems =
-      await this.pluginService.getFilteredFeedItems(feedURI, feed);
-    const existingFilteredFeedItems = reload
-      ? {}
-      : (this.dataStore.getPluginFilteredFeedItems(feedURI) ?? {});
-    this.dataStore.setPluginFilteredFeedItems(feedURI, {
-      ...existingFilteredFeedItems,
-      ...pluginFilteredFeedItems,
-    });
+    await this.pluginService.refreshFiltersForFeed(feedURI, feed, { reload });
   }
 
   async _getReplyUrisForPostFromBacklinks(post) {
@@ -451,7 +439,7 @@ export class Requests {
     );
     if (notFoundPostUris.length > 0) {
       for (const uri of notFoundPostUris) {
-        this.dataStore.setUnavailablePost(uri, createUnavailablePost(uri));
+        this.dataStore.$unavailablePosts.set(uri, createUnavailablePost(uri));
       }
     }
   }
@@ -459,7 +447,7 @@ export class Requests {
   async loadProfile(did) {
     const labelers = this.requireLabelers();
     const profile = await this.api.getProfile(did, { labelers });
-    this.dataStore.setProfile(did, profile);
+    this.dataStore.$profiles.set(did, profile);
   }
 
   async loadProfiles(dids) {
@@ -467,58 +455,58 @@ export class Requests {
     const labelers = this.requireLabelers();
     const profiles = await this.api.getProfiles(dids, { labelers });
     for (const profile of profiles) {
-      this.dataStore.setProfile(profile.did, profile);
+      this.dataStore.$profiles.set(profile.did, profile);
     }
   }
 
   async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
     if (!query) {
-      this.dataStore.clearProfileSearchResults();
+      this.dataStore.$profileSearchResults.set(null);
       return;
     }
     if (!cursor) {
-      this.dataStore.clearProfileSearchResults();
+      this.dataStore.$profileSearchResults.set(null);
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
-    this.dataStore.setLatestProfileSearchRequestTime(requestTime);
+    this.dataStore.$latestProfileSearchRequestTime.set(requestTime);
     const searchData = await this.api.searchProfiles(query, {
       limit,
       cursor,
       labelers,
     });
-    if (requestTime !== this.dataStore.getLatestProfileSearchRequestTime()) {
+    if (requestTime !== this.dataStore.$latestProfileSearchRequestTime.get()) {
       return;
     }
-    const existingResults = this.dataStore.getProfileSearchResults();
+    const existingResults = this.dataStore.$profileSearchResults.get();
     if (existingResults && cursor) {
-      this.dataStore.setProfileSearchResults({
+      this.dataStore.$profileSearchResults.set({
         actors: [...existingResults.actors, ...searchData.actors],
         cursor: searchData.cursor,
       });
     } else {
-      this.dataStore.setProfileSearchResults(searchData);
+      this.dataStore.$profileSearchResults.set(searchData);
     }
   }
 
   async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
     if (!query) {
-      this.dataStore.clearPostSearchResults();
+      this.dataStore.$postSearchResults.set(null);
       return;
     }
     if (!cursor) {
-      this.dataStore.clearPostSearchResults();
+      this.dataStore.$postSearchResults.set(null);
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
-    this.dataStore.setLatestPostSearchRequestTime(requestTime);
+    this.dataStore.$latestPostSearchRequestTime.set(requestTime);
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
       cursor,
       labelers,
     });
-    if (requestTime !== this.dataStore.getLatestPostSearchRequestTime()) {
+    if (requestTime !== this.dataStore.$latestPostSearchRequestTime.get()) {
       return;
     }
     const searchResults = searchData.posts || [];
@@ -538,14 +526,14 @@ export class Requests {
         await this._loadBlockedPosts(blockedPostUris);
       }
     }
-    const existingResults = this.dataStore.getPostSearchResults();
+    const existingResults = this.dataStore.$postSearchResults.get();
     if (existingResults && cursor) {
-      this.dataStore.setPostSearchResults({
+      this.dataStore.$postSearchResults.set({
         posts: [...existingResults.posts, ...searchResults],
         cursor: searchData.cursor,
       });
     } else {
-      this.dataStore.setPostSearchResults({
+      this.dataStore.$postSearchResults.set({
         posts: searchResults,
         cursor: searchData.cursor,
       });
@@ -554,33 +542,33 @@ export class Requests {
 
   async loadFeedSearch(query, { limit = 15, cursor = "" } = {}) {
     if (!query) {
-      this.dataStore.clearFeedSearchResults();
+      this.dataStore.$feedSearchResults.set(null);
       return;
     }
     if (!cursor) {
-      this.dataStore.clearFeedSearchResults();
+      this.dataStore.$feedSearchResults.set(null);
     }
     const requestTime = Date.now();
-    this.dataStore.setLatestFeedSearchRequestTime(requestTime);
+    this.dataStore.$latestFeedSearchRequestTime.set(requestTime);
     const searchData = await this.api.searchFeedGenerators(query, {
       limit,
       cursor,
     });
-    if (requestTime !== this.dataStore.getLatestFeedSearchRequestTime()) {
+    if (requestTime !== this.dataStore.$latestFeedSearchRequestTime.get()) {
       return;
     }
     const feeds = searchData.feeds || [];
     for (const feed of feeds) {
-      this.dataStore.setFeedGenerator(feed.uri, feed);
+      this.dataStore.$feedGenerators.set(feed.uri, feed);
     }
-    const existingResults = this.dataStore.getFeedSearchResults();
+    const existingResults = this.dataStore.$feedSearchResults.get();
     if (existingResults && cursor) {
-      this.dataStore.setFeedSearchResults({
+      this.dataStore.$feedSearchResults.set({
         feeds: [...existingResults.feeds, ...feeds],
         cursor: searchData.cursor,
       });
     } else {
-      this.dataStore.setFeedSearchResults({
+      this.dataStore.$feedSearchResults.set({
         feeds,
         cursor: searchData.cursor,
       });
@@ -593,7 +581,7 @@ export class Requests {
     { reload = false, limit = 31 } = {},
   ) {
     const feedURI = `${did}-${feedType}`;
-    const existingFeed = this.dataStore.getAuthorFeed(feedURI);
+    const existingFeed = this.dataStore.$authorFeeds.get(feedURI).get();
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -638,18 +626,18 @@ export class Requests {
     // Save feed
     if (existingFeed && !reload) {
       // Append to existing feed
-      this.dataStore.setAuthorFeed(feedURI, {
+      this.dataStore.$authorFeeds.set(feedURI, {
         feed: [...existingFeed.feed, ...feed.feed],
         cursor: feed.cursor,
       });
     } else {
       // Set new feed
-      this.dataStore.setAuthorFeed(feedURI, feed);
+      this.dataStore.$authorFeeds.set(feedURI, feed);
     }
   }
 
   async loadNotifications({ reload = false, limit = 31 } = {}) {
-    let cursor = this.dataStore.getNotificationCursor() ?? "";
+    let cursor = this.dataStore.$notificationCursor.get() ?? "";
     if (reload) {
       cursor = "";
     }
@@ -661,12 +649,12 @@ export class Requests {
       const fetchedPosts = await this.api.getPosts(postUris, { labelers });
       this.dataStore.setPosts(fetchedPosts);
     }
-    const previousCursor = this.dataStore.getNotificationCursor();
+    const previousCursor = this.dataStore.$notificationCursor.get();
     // If the req cursor matches the previous cursor, append
     if (previousCursor && !reload) {
       if (previousCursor === cursor) {
-        const existingNotifications = this.dataStore.getNotifications() ?? [];
-        this.dataStore.setNotifications([
+        const existingNotifications = this.dataStore.$notifications.get() ?? [];
+        this.dataStore.$notifications.set([
           ...existingNotifications,
           ...res.notifications,
         ]);
@@ -680,14 +668,14 @@ export class Requests {
         );
       }
     } else {
-      this.dataStore.setNotifications(res.notifications);
+      this.dataStore.$notifications.set(res.notifications);
     }
-    this.dataStore.setNotificationCursor(res.cursor);
+    this.dataStore.$notificationCursor.set(res.cursor);
   }
 
   async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
     const MENTION_REASONS = ["mention", "reply", "quote"];
-    let cursor = this.dataStore.getMentionNotificationCursor() ?? "";
+    let cursor = this.dataStore.$mentionNotificationCursor.get() ?? "";
     if (reload) {
       cursor = "";
     }
@@ -703,12 +691,12 @@ export class Requests {
       const fetchedPosts = await this.api.getPosts(postUris, { labelers });
       this.dataStore.setPosts(fetchedPosts);
     }
-    const previousCursor = this.dataStore.getMentionNotificationCursor();
+    const previousCursor = this.dataStore.$mentionNotificationCursor.get();
     if (previousCursor && !reload) {
       if (previousCursor === cursor) {
         const existingNotifications =
-          this.dataStore.getMentionNotifications() ?? [];
-        this.dataStore.setMentionNotifications([
+          this.dataStore.$mentionNotifications.get() ?? [];
+        this.dataStore.$mentionNotifications.set([
           ...existingNotifications,
           ...res.notifications,
         ]);
@@ -719,27 +707,27 @@ export class Requests {
         );
       }
     } else {
-      this.dataStore.setMentionNotifications(res.notifications);
+      this.dataStore.$mentionNotifications.set(res.notifications);
     }
-    this.dataStore.setMentionNotificationCursor(res.cursor);
+    this.dataStore.$mentionNotificationCursor.set(res.cursor);
   }
 
   async loadConvoList({ reload = false, limit = 30 } = {}) {
-    let cursor = this.dataStore.getConvoListCursor() ?? "";
+    let cursor = this.dataStore.$convoListCursor.get() ?? "";
     if (reload) {
       cursor = "";
     }
     const res = await this.api.listConvos({ cursor, limit });
-    const previousCursor = this.dataStore.getConvoListCursor();
+    const previousCursor = this.dataStore.$convoListCursor.get();
     // Store individual convos
     for (const convo of res.convos) {
-      this.dataStore.setConvo(convo.id, convo);
+      this.dataStore.$convos.set(convo.id, convo);
     }
     // If the req cursor matches the previous cursor, append
     if (previousCursor && !reload) {
       if (previousCursor === cursor) {
-        const existingConvos = this.dataStore.getConvoList() ?? [];
-        this.dataStore.setConvoList([...existingConvos, ...res.convos]);
+        const existingConvos = this.dataStore.$convoList.get() ?? [];
+        this.dataStore.$convoList.set([...existingConvos, ...res.convos]);
       } else {
         console.warn("loadConvoList: cursor mismatch, discarding response", {
           previousCursor,
@@ -747,23 +735,23 @@ export class Requests {
         });
       }
     } else {
-      this.dataStore.setConvoList(res.convos);
+      this.dataStore.$convoList.set(res.convos);
     }
-    this.dataStore.setConvoListCursor(res.cursor);
+    this.dataStore.$convoListCursor.set(res.cursor);
   }
 
   async loadConvo(convoId) {
     const res = await this.api.getConvo(convoId);
-    this.dataStore.setConvo(convoId, res.convo);
+    this.dataStore.$convos.set(convoId, res.convo);
   }
 
   async loadConvoForProfile(profileDid) {
     const res = await this.api.getConvoForMembers([profileDid]);
-    this.dataStore.setConvo(res.convo.id, res.convo);
+    this.dataStore.$convos.set(res.convo.id, res.convo);
   }
 
   async loadConvoMessages(convoId, { reload = false, limit = 50 } = {}) {
-    const existingMessages = this.dataStore.getConvoMessages(convoId);
+    const existingMessages = this.dataStore.$convoMessages.get(convoId).get();
     let cursor = existingMessages ? existingMessages.cursor : "";
     if (reload) {
       cursor = "";
@@ -782,38 +770,62 @@ export class Requests {
     }
     // Save individual messages
     for (const message of res.messages) {
-      this.dataStore.setMessage(message.id, message);
+      this.dataStore.$messages.set(message.id, message);
     }
     if (existingMessages && !reload) {
-      this.dataStore.setConvoMessages(convoId, {
+      this.dataStore.$convoMessages.set(convoId, {
         messages: [...existingMessages.messages, ...res.messages],
         cursor: res.cursor,
       });
     } else {
-      this.dataStore.setConvoMessages(convoId, res);
+      this.dataStore.$convoMessages.set(convoId, res);
     }
+  }
+
+  async pollConvoMessages(convoId, { cursor = "" } = {}) {
+    const currentUser = this.dataStore.$currentUser.get();
+    const res = await this.api.getChatLogs({ cursor });
+    const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
+    for (const log of logsForConvo) {
+      if (log.$type !== "chat.bsky.convo.defs#logCreateMessage") continue;
+      if (log.message.sender.did === currentUser?.did) {
+        // Skip if the message is from the current user, since we already set it in the store
+        continue;
+      }
+      const convoMessages = this.dataStore.$convoMessages.get(convoId).get();
+      if (!convoMessages) {
+        console.warn("No messages data found for convoId", convoId);
+        return res.cursor;
+      }
+      this.dataStore.$messages.set(log.message.id, log.message);
+      this.dataStore.$convoMessages.set(convoId, {
+        messages: [log.message, ...convoMessages.messages],
+        cursor: convoMessages.cursor,
+      });
+    }
+    return res.cursor;
   }
 
   async loadPostLikes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingLikes = this.dataStore.getPostLikes(postUri);
+    const existingLikes = this.dataStore.$postLikes.get(postUri).get();
     const res = await this.api.getLikes(postUri, { cursor, labelers });
 
     if (existingLikes && cursor) {
       // Append to existing likes
-      this.dataStore.setPostLikes(postUri, {
+      this.dataStore.$postLikes.set(postUri, {
         likes: [...existingLikes.likes, ...res.likes],
         cursor: res.cursor,
       });
     } else {
       // Set new likes
-      this.dataStore.setPostLikes(postUri, res);
+      this.dataStore.$postLikes.set(postUri, res);
     }
   }
 
   async loadPostQuotes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingQuotes = this.dataStore.getPostQuotes(postUri);
+    const existingQuotes = this.dataStore.$postQuotes.get(postUri).get();
     const res = await this.api.getQuotes(postUri, { cursor, labelers });
 
     // if there are posts that are replies, load the parents
@@ -829,30 +841,30 @@ export class Requests {
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
       // Append to existing quotes
-      this.dataStore.setPostQuotes(postUri, {
+      this.dataStore.$postQuotes.set(postUri, {
         posts: [...existingQuotes.posts, ...res.posts],
         cursor: res.cursor,
       });
     } else {
       // Set new quotes
-      this.dataStore.setPostQuotes(postUri, res);
+      this.dataStore.$postQuotes.set(postUri, res);
     }
   }
 
   async loadPostReposts(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingReposts = this.dataStore.getPostReposts(postUri);
+    const existingReposts = this.dataStore.$postReposts.get(postUri).get();
     const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
 
     if (existingReposts && cursor) {
       // Append to existing reposts
-      this.dataStore.setPostReposts(postUri, {
+      this.dataStore.$postReposts.set(postUri, {
         reposts: [...existingReposts.reposts, ...res.repostedBy],
         cursor: res.cursor,
       });
     } else {
       // Set new reposts
-      this.dataStore.setPostReposts(postUri, {
+      this.dataStore.$postReposts.set(postUri, {
         reposts: res.repostedBy,
         cursor: res.cursor,
       });
@@ -894,7 +906,7 @@ export class Requests {
 
   async loadFeedGenerator(feedUri) {
     const feedGeneratorData = await this.api.getFeedGenerator(feedUri);
-    this.dataStore.setFeedGenerator(feedUri, feedGeneratorData);
+    this.dataStore.$feedGenerators.set(feedUri, feedGeneratorData);
   }
 
   async loadPinnedFeedGenerators() {
@@ -907,13 +919,13 @@ export class Requests {
       ? await this.api.getFeedGenerators(feedUris)
       : [];
     for (const feedGenerator of feedGenerators) {
-      this.dataStore.setFeedGenerator(feedGenerator.uri, feedGenerator);
+      this.dataStore.$feedGenerators.set(feedGenerator.uri, feedGenerator);
     }
-    this.dataStore.setPinnedFeedGenerators(feedGenerators);
+    this.dataStore.$pinnedFeedGenerators.set(feedGenerators);
   }
 
   async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
-    const existing = this.dataStore.getActorFeeds(did);
+    const existing = this.dataStore.$actorFeeds.get(did).get();
     let cursor = existing ? existing.cursor : "";
     if (reload) {
       cursor = "";
@@ -923,15 +935,15 @@ export class Requests {
     }
     const data = await this.api.getActorFeeds(did, { limit, cursor });
     for (const feed of data.feeds) {
-      this.dataStore.setFeedGenerator(feed.uri, feed);
+      this.dataStore.$feedGenerators.set(feed.uri, feed);
     }
     if (reload || !existing) {
-      this.dataStore.setActorFeeds(did, {
+      this.dataStore.$actorFeeds.set(did, {
         feeds: data.feeds,
         cursor: data.cursor ?? null,
       });
     } else {
-      this.dataStore.setActorFeeds(did, {
+      this.dataStore.$actorFeeds.set(did, {
         feeds: [...existing.feeds, ...data.feeds],
         cursor: data.cursor ?? null,
       });
@@ -942,7 +954,7 @@ export class Requests {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();
 
-    const existingFeed = this.dataStore.getHashtagFeed(hashtagKey);
+    const existingFeed = this.dataStore.$hashtagFeeds.get(hashtagKey).get();
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -985,18 +997,18 @@ export class Requests {
 
     if (existingFeed && !reload) {
       // Append to existing feed
-      this.dataStore.setHashtagFeed(hashtagKey, {
+      this.dataStore.$hashtagFeeds.set(hashtagKey, {
         feed: [...existingFeed.feed, ...feed.feed],
         cursor: feed.cursor,
       });
     } else {
       // Set new feed
-      this.dataStore.setHashtagFeed(hashtagKey, feed);
+      this.dataStore.$hashtagFeeds.set(hashtagKey, feed);
     }
   }
 
   async loadBookmarks({ reload = false, limit = 31 } = {}) {
-    const existingBookmarks = this.dataStore.getBookmarks();
+    const existingBookmarks = this.dataStore.$bookmarks.get();
     let cursor = existingBookmarks ? existingBookmarks.cursor : "";
     if (reload) {
       cursor = "";
@@ -1036,87 +1048,91 @@ export class Requests {
 
     if (existingBookmarks && !reload) {
       // Append to existing bookmarks
-      this.dataStore.setBookmarks({
+      this.dataStore.$bookmarks.set({
         feed: [...existingBookmarks.feed, ...bookmarksFeed.feed],
         cursor: bookmarksFeed.cursor,
       });
     } else {
       // Set new bookmarks
-      this.dataStore.setBookmarks(bookmarksFeed);
+      this.dataStore.$bookmarks.set(bookmarksFeed);
     }
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollowers = this.dataStore.getProfileFollowers(profileDid);
+    const existingFollowers = this.dataStore.$profileFollowers
+      .get(profileDid)
+      .get();
     const res = await this.api.getFollowers(profileDid, { cursor, labelers });
 
     if (existingFollowers && cursor) {
       // Append to existing followers
-      this.dataStore.setProfileFollowers(profileDid, {
+      this.dataStore.$profileFollowers.set(profileDid, {
         followers: [...existingFollowers.followers, ...res.followers],
         cursor: res.cursor,
       });
     } else {
       // Set new followers
-      this.dataStore.setProfileFollowers(profileDid, res);
+      this.dataStore.$profileFollowers.set(profileDid, res);
     }
   }
 
   async loadProfileFollows(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollows = this.dataStore.getProfileFollows(profileDid);
+    const existingFollows = this.dataStore.$profileFollows
+      .get(profileDid)
+      .get();
     const res = await this.api.getFollows(profileDid, { cursor, labelers });
 
     if (existingFollows && cursor) {
       // Append to existing follows
-      this.dataStore.setProfileFollows(profileDid, {
+      this.dataStore.$profileFollows.set(profileDid, {
         follows: [...existingFollows.follows, ...res.follows],
         cursor: res.cursor,
       });
     } else {
       // Set new follows
-      this.dataStore.setProfileFollows(profileDid, res);
+      this.dataStore.$profileFollows.set(profileDid, res);
     }
   }
 
   async loadBlockedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existing = this.dataStore.getBlockedProfiles();
+    const existing = this.dataStore.$blockedProfiles.get();
     const res = await this.api.getBlocks({ cursor, labelers });
 
     if (existing && cursor) {
-      this.dataStore.setBlockedProfiles({
+      this.dataStore.$blockedProfiles.set({
         blocks: [...existing.blocks, ...res.blocks],
         cursor: res.cursor,
       });
     } else {
-      this.dataStore.setBlockedProfiles(res);
+      this.dataStore.$blockedProfiles.set(res);
     }
   }
 
   async loadMutedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existing = this.dataStore.getMutedProfiles();
+    const existing = this.dataStore.$mutedProfiles.get();
     const res = await this.api.getMutes({ cursor, labelers });
 
     if (existing && cursor) {
-      this.dataStore.setMutedProfiles({
+      this.dataStore.$mutedProfiles.set({
         mutes: [...existing.mutes, ...res.mutes],
         cursor: res.cursor,
       });
     } else {
-      this.dataStore.setMutedProfiles(res);
+      this.dataStore.$mutedProfiles.set(res);
     }
   }
 
   async loadProfileChatStatus(profileDid) {
     const res = await this.api.getConvoAvailability([profileDid]);
-    this.dataStore.setProfileChatStatus(profileDid, res);
+    this.dataStore.$profileChatStatus.set(profileDid, res);
   }
 
   async loadLabelerInfo(labelerDid) {
     const labelerInfo = await this.api.getLabeler(labelerDid);
-    this.dataStore.setLabelerInfo(labelerDid, labelerInfo);
+    this.dataStore.$labelerInfo.set(labelerDid, labelerInfo);
   }
 }

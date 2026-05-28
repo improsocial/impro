@@ -1,8 +1,10 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
+import { Signal } from "/js/utils.js";
 import {
   theme,
   getDefaultHighlightColor,
@@ -23,27 +25,33 @@ class SettingsAppearanceView extends View {
   }) {
     await auth.requireAuth();
 
+    const $themeTick = new Signal.State(0);
+    function bumpTheme() {
+      $themeTick.set($themeTick.get() + 1);
+    }
+
     function handleHighlightColorChange(newHighlightColor) {
       theme.updateHighlightColor(newHighlightColor);
-      renderPage();
+      bumpTheme();
     }
 
     function handleLikeColorChange(newLikeColor) {
       theme.updateLikeColor(newLikeColor);
-      renderPage();
+      bumpTheme();
     }
 
     function handleColorSchemeChange(newColorScheme) {
       theme.updateColorScheme(newColorScheme);
-      renderPage();
+      bumpTheme();
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      $themeTick.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       const currentHighlightColor = theme.highlightColor;
       const defaultHighlightColor = getDefaultHighlightColor();
       const currentLikeColor = theme.likeColor;
@@ -166,26 +174,14 @@ class SettingsAppearanceView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      // Initial empty state
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
     });
 
-    root.addEventListener("page-restore", (e) => {
+    root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

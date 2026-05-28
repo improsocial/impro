@@ -1,90 +1,15 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
-import { EventEmitter } from "/js/eventEmitter.js";
 
 const t = new TestSuite("PatchStore");
 
-t.describe("Event bus", (it) => {
-  const postURI = "at://did:test/app.bsky.feed.post/test";
-
-  it("emits post:${uri} on addPostPatch", () => {
-    const events = new EventEmitter();
-    const patchStore = new PatchStore(events);
-    let count = 0;
-    events.on(`post:${postURI}`, () => {
-      count += 1;
-    });
-    patchStore.addPostPatch(postURI, { type: "addLike" });
-    assertEquals(count, 1);
-  });
-
-  it("emits post:${uri} on removePostPatch", () => {
-    const events = new EventEmitter();
-    const patchStore = new PatchStore(events);
-    const patchId = patchStore.addPostPatch(postURI, { type: "addLike" });
-    let count = 0;
-    events.on(`post:${postURI}`, () => {
-      count += 1;
-    });
-    patchStore.removePostPatch(postURI, patchId);
-    assertEquals(count, 1);
-  });
-
-  it("emits profile:${did} on addProfilePatch", () => {
-    const events = new EventEmitter();
-    const patchStore = new PatchStore(events);
-    const profileDID = "did:test:abc";
-    let count = 0;
-    events.on(`profile:${profileDID}`, () => {
-      count += 1;
-    });
-    patchStore.addProfilePatch(profileDID, { type: "followProfile" });
-    assertEquals(count, 1);
-  });
-
-  it("emits profile:${did} on removeProfilePatch", () => {
-    const events = new EventEmitter();
-    const patchStore = new PatchStore(events);
-    const profileDID = "did:test:abc";
-    const patchId = patchStore.addProfilePatch(profileDID, {
-      type: "followProfile",
-    });
-    let count = 0;
-    events.on(`profile:${profileDID}`, () => {
-      count += 1;
-    });
-    patchStore.removeProfilePatch(profileDID, patchId);
-    assertEquals(count, 1);
-  });
-
-  it("emits preferences:changed on add/removePreferencePatch", () => {
-    const events = new EventEmitter();
-    const patchStore = new PatchStore(events);
-    let count = 0;
-    events.on("preferences:changed", () => {
-      count += 1;
-    });
-    const patchId = patchStore.addPreferencePatch({
-      type: "pinFeed",
-      feedUri: "at://feed",
-    });
-    patchStore.removePreferencePatch(patchId);
-    assertEquals(count, 2);
-  });
-
-  it("works without an event bus (backward compatible)", () => {
-    const patchStore = new PatchStore();
-    let threw = false;
-    try {
-      patchStore.addPostPatch("at://x", { type: "addLike" });
-      patchStore.addPreferencePatch({ type: "pinFeed", feedUri: "at://f" });
-    } catch (e) {
-      threw = true;
-    }
-    assertEquals(threw, false);
-  });
-});
+// applyPostPatches now requires the patches array explicitly. This helper
+// fetches the current patches for a post URI and applies them.
+function applyPostPatches(patchStore, post) {
+  const patches = patchStore.$postPatches.get(post.uri).get() || [];
+  return patchStore.applyPostPatches(post, patches);
+}
 
 t.describe("Post Patches - Patch Management", (it) => {
   const postURI = "at://did:test/app.bsky.feed.post/test";
@@ -113,14 +38,14 @@ t.describe("Post Patches - Patch Management", (it) => {
     const patchId = patchStore.addPostPatch(postURI, { type: "addLike" });
 
     // Verify patch exists
-    const patchedPost = patchStore.applyPostPatches(basePost);
+    const patchedPost = applyPostPatches(patchStore, basePost);
     assertEquals(patchedPost.viewer.like, "fake like");
 
     // Remove patch
     patchStore.removePostPatch(postURI, patchId);
 
     // Verify patch is removed
-    const unpatchedPost = patchStore.applyPostPatches(basePost);
+    const unpatchedPost = applyPostPatches(patchStore, basePost);
     assertEquals(unpatchedPost.viewer.like, null);
   });
 
@@ -148,7 +73,7 @@ t.describe("Post Patches - Like Patches", (it) => {
   it("should apply addLike patch correctly", () => {
     const patchStore = new PatchStore();
     patchStore.addPostPatch(postURI, { type: "addLike" });
-    const result = patchStore.applyPostPatches(basePost);
+    const result = applyPostPatches(patchStore, basePost);
 
     assertEquals(result.viewer.like, "fake like");
     assertEquals(result.likeCount, 6);
@@ -164,7 +89,7 @@ t.describe("Post Patches - Like Patches", (it) => {
     };
 
     patchStore.addPostPatch(postURI, { type: "removeLike" });
-    const result = patchStore.applyPostPatches(likedPost);
+    const result = applyPostPatches(patchStore, likedPost);
 
     assertEquals(result.viewer.like, null);
     assertEquals(result.likeCount, 5);
@@ -176,7 +101,7 @@ t.describe("Post Patches - Like Patches", (it) => {
     patchStore.addPostPatch(postURI, { type: "addLike" });
     patchStore.addPostPatch(postURI, { type: "removeLike" });
 
-    const result = patchStore.applyPostPatches(basePost);
+    const result = applyPostPatches(patchStore, basePost);
 
     assertEquals(result.viewer.like, null);
     assertEquals(result.likeCount, 5); // +1 -1 = 0, so 5 + 0 = 5
@@ -184,7 +109,7 @@ t.describe("Post Patches - Like Patches", (it) => {
 
   it("should preserve original post when no patches exist", () => {
     const patchStore = new PatchStore();
-    const result = patchStore.applyPostPatches(basePost);
+    const result = applyPostPatches(patchStore, basePost);
     assertEquals(result, basePost);
     assert(result !== basePost); // Should be a copy
   });
@@ -205,7 +130,7 @@ t.describe("Post Patches - Error Handling", (it) => {
     let errorThrown = false;
     let errorMessage = "";
     try {
-      patchStore.applyPostPatches(basePost);
+      applyPostPatches(patchStore, basePost);
     } catch (e) {
       errorThrown = true;
       errorMessage = e.message;
@@ -338,8 +263,8 @@ t.describe("Patch Isolation", (it) => {
 
     patchStore.addPostPatch(post1URI, { type: "addLike" });
 
-    const result1 = patchStore.applyPostPatches(basePost1);
-    const result2 = patchStore.applyPostPatches(basePost2);
+    const result1 = applyPostPatches(patchStore, basePost1);
+    const result2 = applyPostPatches(patchStore, basePost2);
 
     assertEquals(result1.likeCount, 6);
     assertEquals(result2.likeCount, 10); // Unchanged
@@ -480,17 +405,17 @@ t.describe("Preference Patches - Patch Management", (it) => {
       did: "did:test2",
     });
 
-    assertEquals(patchStore._getPreferencePatches().length, 2);
+    assertEquals(patchStore.$preferencePatches.get().length, 2);
 
     patchStore.removePreferencePatch(patchId1);
-    assertEquals(patchStore._getPreferencePatches().length, 1);
+    assertEquals(patchStore.$preferencePatches.get().length, 1);
     assertEquals(
-      patchStore._getPreferencePatches()[0].body.type,
+      patchStore.$preferencePatches.get()[0].body.type,
       "unsubscribeLabeler",
     );
 
     patchStore.removePreferencePatch(patchId2);
-    assertEquals(patchStore._getPreferencePatches().length, 0);
+    assertEquals(patchStore.$preferencePatches.get().length, 0);
   });
 
   it("should generate unique IDs for preference patches", () => {

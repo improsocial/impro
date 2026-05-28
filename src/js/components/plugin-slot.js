@@ -1,4 +1,5 @@
 import { Component } from "/js/components/component.js";
+import { effect } from "/js/utils.js";
 
 const CONTEXT_PREFIX = "context-";
 
@@ -18,19 +19,23 @@ class PluginSlot extends Component {
     }
     this._pluginRoots = new Map();
     this._currentRequest = null;
-    this._onSlotChange = ({ name }) => {
-      if (name !== this.getAttribute("name")) return;
+    this._subscribe();
+  }
+
+  _subscribe() {
+    this._disposeEffect?.();
+    const slotName = this.getAttribute("name");
+    if (!slotName) return;
+    this._disposeEffect = effect(() => {
+      this.pluginService.$slots.get(slotName).get();
       this._reconcile();
-    };
-    this.pluginService.on("slotRegistered", this._onSlotChange);
-    this.pluginService.on("slotUnregistered", this._onSlotChange);
-    this._reconcile();
+    }, `plugin-slot[${slotName}]`);
   }
 
   disconnectedCallback() {
     if (!this.initialized) return;
-    this.pluginService.off("slotRegistered", this._onSlotChange);
-    this.pluginService.off("slotUnregistered", this._onSlotChange);
+    this._disposeEffect?.();
+    this._disposeEffect = null;
     this._currentRequest = null;
     this._pluginRoots.clear();
   }
@@ -42,7 +47,11 @@ class PluginSlot extends Component {
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.initialized || oldValue === newValue) return;
-    this._reconcile();
+    if (name === "name") {
+      this._subscribe();
+    } else {
+      this._reconcile();
+    }
   }
 
   _getContext() {

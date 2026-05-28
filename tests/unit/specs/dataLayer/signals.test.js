@@ -1,0 +1,527 @@
+import { TestSuite } from "../../testSuite.js";
+import { assertEquals } from "../../testHelpers.js";
+import { Signals } from "/js/dataLayer/signals.js";
+import { DataStore } from "/js/dataLayer/dataStore.js";
+import { PatchStore } from "/js/dataLayer/patchStore.js";
+import { Preferences } from "/js/preferences.js";
+import { Signal, SignalMap } from "/js/utils.js";
+
+function makeSignals(dataStore, { preferences } = {}) {
+  const patchStore = new PatchStore(dataStore);
+  const prefs = preferences ?? Preferences.createLoggedOutPreferences();
+  const preferencesProvider = {
+    requirePreferences: () => prefs,
+    $preferences: new Signal.State(prefs),
+  };
+  const pluginService = {
+    $pluginFilteredFeedItems: new SignalMap(),
+  };
+  const signals = new Signals(
+    dataStore,
+    patchStore,
+    preferencesProvider,
+    pluginService,
+    false,
+  );
+  return { signals, patchStore };
+}
+
+function fakePreferences(overrides = {}) {
+  return {
+    postHasMutedWord: () => false,
+    quotedPostHasMutedWord: () => false,
+    isPostHidden: () => false,
+    getBadgeLabels: () => [],
+    getContentLabel: () => null,
+    getMediaLabel: () => null,
+    clone() {
+      return this;
+    },
+    ...overrides,
+  };
+}
+
+const t = new TestSuite("Signals");
+
+t.describe("$hydratedFeeds", (it) => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  it("should return null when feed does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedFeeds.get(feedURI).get(), null);
+  });
+
+  it("should hydrate and return a feed with posts", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+
+    const rawFeed = {
+      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      cursor: "cursor123",
+    };
+    const post1 = { uri: "post1", content: "First post", likeCount: 5 };
+    const post2 = { uri: "post2", content: "Second post", likeCount: 10 };
+
+    dataStore.$posts.set("post1", post1);
+    dataStore.$posts.set("post2", post2);
+    dataStore.$feeds.set(feedURI, rawFeed);
+
+    const result = signals.$hydratedFeeds.get(feedURI).get();
+    assertEquals(result, {
+      feed: [{ post: post1 }, { post: post2 }],
+      cursor: "cursor123",
+    });
+  });
+
+  it("should apply patches to posts in feed", () => {
+    const dataStore = new DataStore();
+    const { signals, patchStore } = makeSignals(dataStore);
+
+    const rawFeed = {
+      feed: [{ post: { uri: "post1" } }],
+      cursor: "cursor123",
+    };
+    const post1 = {
+      uri: "post1",
+      content: "Test post",
+      likeCount: 5,
+      viewer: { like: null },
+    };
+
+    dataStore.$posts.set("post1", post1);
+    dataStore.$feeds.set(feedURI, rawFeed);
+    patchStore.addPostPatch("post1", { type: "addLike" });
+
+    const result = signals.$hydratedFeeds.get(feedURI).get();
+    assertEquals(result.feed[0].post.likeCount, 6);
+    assertEquals(result.feed[0].post.viewer.like, "fake like");
+  });
+});
+
+t.describe("$hydratedHashtagFeeds", (it) => {
+  const hashtagKey = "javascript-top";
+
+  it("should return null when feed does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedHashtagFeeds.get(hashtagKey).get(), null);
+  });
+
+  it("should hydrate and return a feed with posts", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+
+    const rawFeed = {
+      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      cursor: "cursor123",
+    };
+    const post1 = { uri: "post1", content: "First post", likeCount: 5 };
+    const post2 = { uri: "post2", content: "Second post", likeCount: 10 };
+
+    dataStore.$posts.set("post1", post1);
+    dataStore.$posts.set("post2", post2);
+    dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
+
+    const result = signals.$hydratedHashtagFeeds.get(hashtagKey).get();
+    assertEquals(result, {
+      feed: [{ post: post1 }, { post: post2 }],
+      cursor: "cursor123",
+    });
+  });
+
+  it("should attach parentAuthor when post is a reply and parent is loaded", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+
+    const parentAuthor = { did: "did:parent", handle: "parent.test" };
+    const parent = {
+      uri: "post-parent",
+      author: parentAuthor,
+    };
+    const reply = {
+      uri: "post-reply",
+      record: {
+        text: "reply text",
+        reply: { parent: { uri: "post-parent" }, root: { uri: "post-parent" } },
+      },
+    };
+    const rawFeed = {
+      feed: [{ post: { uri: "post-reply" } }],
+      cursor: "c",
+    };
+
+    dataStore.$posts.set("post-parent", parent);
+    dataStore.$posts.set("post-reply", reply);
+    dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
+
+    const result = signals.$hydratedHashtagFeeds.get(hashtagKey).get();
+    assertEquals(result.feed[0].post.record.reply.parentAuthor, parentAuthor);
+  });
+
+  it("should apply patches to posts in feed", () => {
+    const dataStore = new DataStore();
+    const { signals, patchStore } = makeSignals(dataStore);
+
+    const rawFeed = {
+      feed: [{ post: { uri: "post1" } }],
+      cursor: "c",
+    };
+    const post1 = {
+      uri: "post1",
+      likeCount: 5,
+      viewer: { like: null },
+    };
+
+    dataStore.$posts.set("post1", post1);
+    dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
+    patchStore.addPostPatch("post1", { type: "addLike" });
+
+    const result = signals.$hydratedHashtagFeeds.get(hashtagKey).get();
+    assertEquals(result.feed[0].post.likeCount, 6);
+    assertEquals(result.feed[0].post.viewer.like, "fake like");
+  });
+});
+
+t.describe("$hydratedProfiles", (it) => {
+  const did = "did:plc:user";
+
+  it("should return null when profile does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedProfiles.get(did).get(), null);
+  });
+
+  it("should return the profile when it exists", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const profile = { did, handle: "user.test", followersCount: 10 };
+    dataStore.$profiles.set(did, profile);
+    const result = signals.$hydratedProfiles.get(did).get();
+    assertEquals(result.did, did);
+    assertEquals(result.handle, "user.test");
+    assertEquals(result.followersCount, 10);
+  });
+
+  it("should apply profile patches", () => {
+    const dataStore = new DataStore();
+    const { signals, patchStore } = makeSignals(dataStore);
+    const profile = {
+      did,
+      handle: "user.test",
+      followersCount: 10,
+      viewer: { following: null },
+    };
+    dataStore.$profiles.set(did, profile);
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    const result = signals.$hydratedProfiles.get(did).get();
+    assertEquals(result.followersCount, 11);
+    assertEquals(result.viewer.following, "fake following");
+  });
+});
+
+t.describe("$hydratedAuthorFeeds", (it) => {
+  const did = "did:plc:author";
+  const feedURI = `${did}-posts`;
+
+  it("should return null when author feed does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedAuthorFeeds.get(feedURI).get(), null);
+  });
+
+  it("should hydrate and return an author feed", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const post1 = { uri: "post1", likeCount: 1 };
+    const post2 = { uri: "post2", likeCount: 2 };
+    dataStore.$posts.set("post1", post1);
+    dataStore.$posts.set("post2", post2);
+    dataStore.$authorFeeds.set(feedURI, {
+      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      cursor: "c",
+    });
+    const result = signals.$hydratedAuthorFeeds.get(feedURI).get();
+    assertEquals(result.feed.length, 2);
+    assertEquals(result.feed[0].post.uri, "post1");
+    assertEquals(result.feed[1].post.uri, "post2");
+    assertEquals(result.cursor, "c");
+  });
+
+  it("should filter to replies-only for replies feed type", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const repliesFeedURI = `${did}-replies`;
+    const post1 = { uri: "post1" };
+    const post2 = { uri: "post2" };
+    dataStore.$posts.set("post1", post1);
+    dataStore.$posts.set("post2", post2);
+    dataStore.$posts.set("parent", { uri: "parent" });
+    dataStore.$authorFeeds.set(repliesFeedURI, {
+      feed: [
+        { post: { uri: "post1" } }, // top-level, should be filtered out
+        {
+          post: { uri: "post2" },
+          reply: { root: { uri: "parent" }, parent: { uri: "parent" } },
+        },
+      ],
+      cursor: "c",
+    });
+    const result = signals.$hydratedAuthorFeeds.get(repliesFeedURI).get();
+    assertEquals(result.feed.length, 1);
+    assertEquals(result.feed[0].post.uri, "post2");
+  });
+
+  it("should apply author feed patches", () => {
+    const dataStore = new DataStore();
+    const { signals, patchStore } = makeSignals(dataStore);
+    const pinnedPost = { uri: "pinned", likeCount: 0 };
+    const otherPost = { uri: "other", likeCount: 0 };
+    dataStore.$posts.set("pinned", pinnedPost);
+    dataStore.$posts.set("other", otherPost);
+    dataStore.$authorFeeds.set(feedURI, {
+      feed: [{ post: { uri: "other" } }, { post: { uri: "pinned" } }],
+      cursor: null,
+    });
+    patchStore.addAuthorFeedPatch(feedURI, {
+      type: "pinPost",
+      post: { uri: "pinned" },
+    });
+    const result = signals.$hydratedAuthorFeeds.get(feedURI).get();
+    assertEquals(result.feed[0].post.uri, "pinned");
+  });
+});
+
+t.describe("$actorFeeds", (it) => {
+  const did = "did:plc:author";
+
+  it("should return null when actor feeds do not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$actorFeeds.get(did).get(), null);
+  });
+
+  it("should return the stored actor feeds", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const actorFeeds = { feeds: [{ uri: "feed-1" }], cursor: "c" };
+    dataStore.$actorFeeds.set(did, actorFeeds);
+    assertEquals(signals.$actorFeeds.get(did).get(), actorFeeds);
+  });
+});
+
+t.describe("$profileChatStatus", (it) => {
+  const did = "did:plc:user";
+
+  it("should return null when chat status does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$profileChatStatus.get(did).get(), null);
+  });
+
+  it("should return the stored chat status", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const status = { canChat: true, convo: null };
+    dataStore.$profileChatStatus.set(did, status);
+    assertEquals(signals.$profileChatStatus.get(did).get(), status);
+  });
+});
+
+t.describe("$labelerInfo", (it) => {
+  const did = "did:plc:labeler";
+
+  it("should return null when labeler info does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$labelerInfo.get(did).get(), null);
+  });
+
+  it("should return the stored labeler info", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const info = { policies: { labelValues: ["spam"] } };
+    dataStore.$labelerInfo.set(did, info);
+    assertEquals(signals.$labelerInfo.get(did).get(), info);
+  });
+});
+
+t.describe("$labelerSettings", (it) => {
+  it("should return labeler settings from preferences", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const labelerDid = "did:plc:labeler";
+    const result = signals.$labelerSettings.get(labelerDid).get();
+    // Logged-out preferences should still return a settings object
+    assertEquals(typeof result, "object");
+  });
+});
+
+t.describe("$hydratedBookmarks", (it) => {
+  it("should return null when bookmarks do not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedBookmarks.get(), null);
+  });
+
+  it("should hydrate and return bookmarks", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const post1 = { uri: "post1", likeCount: 5 };
+    const post2 = { uri: "post2", likeCount: 10 };
+    dataStore.$posts.set("post1", post1);
+    dataStore.$posts.set("post2", post2);
+    dataStore.$bookmarks.set({
+      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      cursor: "c",
+    });
+    const result = signals.$hydratedBookmarks.get();
+    assertEquals(result.feed.length, 2);
+    assertEquals(result.feed[0].post.uri, "post1");
+    assertEquals(result.feed[1].post.uri, "post2");
+    assertEquals(result.cursor, "c");
+  });
+
+  it("should attach parentAuthor when bookmarked post is a reply", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const parentAuthor = { did: "did:parent", handle: "parent.test" };
+    dataStore.$posts.set("post-parent", {
+      uri: "post-parent",
+      author: parentAuthor,
+    });
+    dataStore.$posts.set("post-reply", {
+      uri: "post-reply",
+      record: {
+        text: "reply",
+        reply: { parent: { uri: "post-parent" }, root: { uri: "post-parent" } },
+      },
+    });
+    dataStore.$bookmarks.set({
+      feed: [{ post: { uri: "post-reply" } }],
+      cursor: null,
+    });
+    const result = signals.$hydratedBookmarks.get();
+    assertEquals(result.feed[0].post.record.reply.parentAuthor, parentAuthor);
+  });
+});
+
+t.describe("$hydratedPinnedFeedGenerators", (it) => {
+  it("should return null when pinned feed generators are not set", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedPinnedFeedGenerators.get(), null);
+  });
+
+  it("should hydrate pinned feed generators from the store", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    const fg1 = { uri: "feed-1", displayName: "Feed One" };
+    const fg2 = { uri: "feed-2", displayName: "Feed Two" };
+    dataStore.$feedGenerators.set("feed-1", fg1);
+    dataStore.$feedGenerators.set("feed-2", fg2);
+    dataStore.$pinnedFeedGenerators.set([{ uri: "feed-1" }, { uri: "feed-2" }]);
+    const result = signals.$hydratedPinnedFeedGenerators.get();
+    // isAuthenticated is false in test setup, so no "Following" entry
+    assertEquals(result, [fg1, fg2]);
+  });
+});
+
+t.describe("$hydratedPosts (post hydration)", (it) => {
+  const postURI = "at://did:test/app.bsky.feed.post/x";
+
+  it("should return null when the post does not exist", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore);
+    assertEquals(signals.$hydratedPosts.get(postURI).get(), null);
+  });
+
+  it("should mark the post when it contains a muted word", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences({ postHasMutedWord: () => true }),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.viewer.hasMutedWord, true);
+  });
+
+  it("should not mark the post when there is no muted word match", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.viewer, undefined);
+  });
+
+  it("should mark the post hidden when preferences say so", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences({ isPostHidden: () => true }),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.viewer.isHidden, true);
+  });
+
+  it("should attach badge, content, and media labels from preferences", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabels: () => ["badge"],
+        getContentLabel: () => "warn",
+        getMediaLabel: () => "blur",
+      }),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.badgeLabels, ["badge"]);
+    assertEquals(result.contentLabel, "warn");
+    assertEquals(result.mediaLabel, "blur");
+  });
+
+  it("should leave the post untouched when no labels apply", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.badgeLabels, undefined);
+    assertEquals(result.contentLabel, undefined);
+    assertEquals(result.mediaLabel, undefined);
+  });
+
+  it("should compose muted/hidden/label marks on a single post", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences({
+        postHasMutedWord: () => true,
+        isPostHidden: () => true,
+        getBadgeLabels: () => ["b"],
+      }),
+    });
+    dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
+    const result = signals.$hydratedPosts.get(postURI).get();
+    assertEquals(result.viewer.hasMutedWord, true);
+    assertEquals(result.viewer.isHidden, true);
+    assertEquals(result.badgeLabels, ["b"]);
+  });
+
+  it("should return the post unchanged when there is no blocked quote to resolve", () => {
+    const dataStore = new DataStore();
+    const { signals } = makeSignals(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const post = { uri: postURI, record: { text: "hello" } };
+    dataStore.$posts.set(postURI, post);
+    const result = signals.$hydratedPosts.get(postURI).get();
+    // hydratePostForView always returns a fresh clone
+    assertEquals(result.uri, post.uri);
+    assertEquals(result.record.text, "hello");
+  });
+});
+
+await t.run();

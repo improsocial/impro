@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
@@ -72,12 +72,12 @@ class SettingsView extends View {
       },
     ];
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       render(
         html`<div id="settings-view">
           ${mainLayoutTemplate({
@@ -172,23 +172,15 @@ class SettingsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      // Initial empty state
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
     });
 
-    root.addEventListener("page-restore", (e) => {
+    root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

@@ -1,14 +1,13 @@
 export class Declarative {
-  constructor(selectors, requests, base) {
-    this.selectors = selectors;
+  constructor(signals, requests) {
+    this.signals = signals;
     this.requests = requests;
-    this.base = base;
   }
   async ensureCurrentUser() {
-    let currentUser = this.selectors.getCurrentUser();
+    let currentUser = this.signals.$currentUser.get();
     if (!currentUser) {
       await this.requests.loadCurrentUser();
-      currentUser = this.selectors.getCurrentUser();
+      currentUser = this.signals.$currentUser.get();
     }
     if (!currentUser) {
       throw new Error("Current user not found");
@@ -17,10 +16,11 @@ export class Declarative {
   }
 
   async ensureProfile(profileDid) {
-    let profile = this.base.getProfile(profileDid);
+    const getProfile = (did) => this.signals.$hydratedProfiles.get(did).get();
+    let profile = getProfile(profileDid);
     if (!profile) {
       await this.requests.loadProfile(profileDid);
-      profile = this.base.getProfile(profileDid);
+      profile = getProfile(profileDid);
     }
     if (!profile) {
       throw new Error("Profile not found");
@@ -29,18 +29,19 @@ export class Declarative {
   }
 
   async ensureProfiles(profileDids) {
-    const missing = profileDids.filter((did) => !this.base.getProfile(did));
+    const getProfile = (did) => this.signals.$hydratedProfiles.get(did).get();
+    const missing = profileDids.filter((did) => !getProfile(did));
     if (missing.length > 0) {
       await this.requests.loadProfiles(missing);
     }
-    return profileDids.map((did) => this.base.getProfile(did) ?? null);
+    return profileDids.map((did) => getProfile(did) ?? null);
   }
 
   async ensurePostThread(postURI, { labelers = [] } = {}) {
-    let postThread = this.selectors.getPostThread(postURI);
+    let postThread = this.signals.$hydratedPostThreads.get(postURI).get();
     if (!postThread) {
       await this.requests.loadPostThread(postURI, { labelers });
-      postThread = this.selectors.getPostThread(postURI);
+      postThread = this.signals.$hydratedPostThreads.get(postURI).get();
     }
     if (!postThread) {
       throw new Error("Post thread not found");
@@ -49,10 +50,10 @@ export class Declarative {
   }
 
   async ensurePost(postURI) {
-    let post = this.selectors.getPost(postURI);
+    let post = this.signals.$hydratedPosts.get(postURI).get();
     if (!post) {
       await this.requests.loadPost(postURI);
-      post = this.selectors.getPost(postURI);
+      post = this.signals.$hydratedPosts.get(postURI).get();
     }
     if (!post) {
       throw new Error("Post not found");
@@ -61,18 +62,19 @@ export class Declarative {
   }
 
   async ensurePosts(postURIs) {
-    const missing = postURIs.filter((uri) => !this.selectors.getPost(uri));
+    const getPost = (uri) => this.signals.$hydratedPosts.get(uri).get();
+    const missing = postURIs.filter((uri) => !getPost(uri));
     if (missing.length > 0) {
       await this.requests.loadPosts(missing);
     }
-    return this.selectors.getPosts(postURIs);
+    return postURIs.map((uri) => getPost(uri));
   }
 
   async ensureFeedGenerator(feedUri) {
-    let feedGenerator = this.selectors.getFeedGenerator(feedUri);
+    let feedGenerator = this.signals.$feedGenerators.get(feedUri).get();
     if (!feedGenerator) {
       await this.requests.loadFeedGenerator(feedUri);
-      feedGenerator = this.selectors.getFeedGenerator(feedUri);
+      feedGenerator = this.signals.$feedGenerators.get(feedUri).get();
     }
     if (!feedGenerator) {
       throw new Error("Feed generator not found");
@@ -81,10 +83,10 @@ export class Declarative {
   }
 
   async ensurePinnedFeedGenerators() {
-    let pinnedFeedGenerators = this.selectors.getPinnedFeedGenerators();
+    let pinnedFeedGenerators = this.signals.$hydratedPinnedFeedGenerators.get();
     if (!pinnedFeedGenerators) {
       await this.requests.loadPinnedFeedGenerators();
-      pinnedFeedGenerators = this.selectors.getPinnedFeedGenerators();
+      pinnedFeedGenerators = this.signals.$hydratedPinnedFeedGenerators.get();
     }
     if (!pinnedFeedGenerators) {
       throw new Error("Pinned feed generators not found");
@@ -93,10 +95,10 @@ export class Declarative {
   }
 
   async ensureConvoList() {
-    let convoList = this.selectors.getConvoList();
+    let convoList = this.signals.$convoList.get();
     if (!convoList) {
       await this.requests.loadConvoList();
-      convoList = this.selectors.getConvoList();
+      convoList = this.signals.$convoList.get();
     }
     if (!convoList) {
       throw new Error("Conversation list not found");
@@ -105,10 +107,10 @@ export class Declarative {
   }
 
   async ensureConvo(convoId) {
-    let convo = this.selectors.getConvo(convoId);
+    let convo = this.signals.$convos.get(convoId).get();
     if (!convo) {
       await this.requests.loadConvo(convoId);
-      convo = this.selectors.getConvo(convoId);
+      convo = this.signals.$convos.get(convoId).get();
     }
     if (!convo) {
       throw new Error("Conversation not found");
@@ -117,10 +119,10 @@ export class Declarative {
   }
 
   async ensureConvoForProfile(profileDid) {
-    let convo = this.selectors.getConvoForProfile(profileDid);
+    let convo = this.signals.$convoForProfile.get(profileDid).get();
     if (!convo) {
       await this.requests.loadConvoForProfile(profileDid);
-      convo = this.selectors.getConvoForProfile(profileDid);
+      convo = this.signals.$convoForProfile.get(profileDid).get();
     }
     if (!convo) {
       throw new Error("Conversation not found");

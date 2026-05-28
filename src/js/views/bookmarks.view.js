@@ -4,7 +4,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
@@ -24,7 +24,6 @@ class BookmarksView extends View {
     await auth.requireAuth();
 
     const { postInteractionHandler } = interactionHandlers;
-    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     async function scrollAndReloadBookmarks() {
       if (window.scrollY > 0) {
@@ -33,13 +32,13 @@ class BookmarksView extends View {
       await loadBookmarks({ reload: true });
     }
 
-    function renderPage() {
+    pageEffect(root, () => {
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const currentUser = dataLayer.selectors.getCurrentUser();
-      const bookmarks = dataLayer.selectors.getBookmarks();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const currentUser = dataLayer.signals.$currentUser.get();
+      const bookmarks = dataLayer.signals.$hydratedBookmarks.get();
 
       render(
         html`<div id="bookmarks-view">
@@ -72,38 +71,25 @@ class BookmarksView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadBookmarks({ reload = false } = {}) {
       await dataLayer.requests.loadBookmarks({
         reload,
         limit: BOOKMARKS_PAGE_SIZE + 1,
       });
-      renderPage();
     }
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
-
-      // Initial empty state
-      renderPage();
-
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
-
+      dataLayer.declarative.ensureCurrentUser();
       await loadBookmarks();
     });
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

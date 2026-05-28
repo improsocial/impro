@@ -6,12 +6,12 @@ import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { displayRelativeTime, batch } from "/js/utils.js";
+import { displayRelativeTime, batch, Signal } from "/js/utils.js";
+import { pageEffect } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { bindToPage } from "/js/router.js";
 import {
   getImagesFromPost,
   getVideoFromPost,
@@ -100,7 +100,8 @@ class NotificationsView extends View {
     }
 
     const { postInteractionHandler } = interactionHandlers;
-    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
+
+    const $activeTab = new Signal.State("all");
 
     async function handleMenuClick() {
       const sidebar = root.querySelector("animated-sidebar");
@@ -668,42 +669,42 @@ class NotificationsView extends View {
       }
     }
 
-    let activeTab = "all";
-
     async function handleTabClick(tab) {
-      if (tab === activeTab) return;
-      activeTab = tab;
-      renderPage();
+      if (tab === $activeTab.get()) return;
+      $activeTab.set(tab);
       window.scrollTo(0, 0);
       if (
         tab === "mentions" &&
-        !dataLayer.selectors.getMentionNotifications()
+        !dataLayer.signals.$mentionNotifications.get()
       ) {
         await loadMentionNotifications({ reload: true });
       }
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const activeTab = $activeTab.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const notifications = dataLayer.selectors.getNotifications();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const notifications = dataLayer.signals.$notifications.get();
       const notificationsRequestStatus =
-        dataLayer.requests.getStatus("loadNotifications");
+        dataLayer.requests.statusStore.$statuses.get("loadNotifications").get();
       const groupedNotifications = groupNotificationsByType(notifications);
-      const cursor = dataLayer.selectors.getNotificationCursor();
+      const cursor = dataLayer.dataStore.$notificationCursor.get();
       const hasMore = !!cursor;
 
       const mentionNotifications =
-        dataLayer.selectors.getMentionNotifications();
-      const mentionNotificationsRequestStatus = dataLayer.requests.getStatus(
-        "loadMentionNotifications",
-      );
+        dataLayer.signals.$mentionNotifications.get();
+      const mentionNotificationsRequestStatus =
+        dataLayer.requests.statusStore.$statuses
+          .get("loadMentionNotifications")
+          .get();
       const groupedMentionNotifications =
         groupNotificationsByType(mentionNotifications);
-      const mentionCursor = dataLayer.selectors.getMentionNotificationCursor();
+      const mentionCursor =
+        dataLayer.dataStore.$mentionNotificationCursor.get();
       const mentionHasMore = !!mentionCursor;
 
       const isLoading =
@@ -794,36 +795,26 @@ class NotificationsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadNotifications({ reload = false } = {}) {
-      const loadingPromise = dataLayer.requests.loadNotifications({
+      await dataLayer.requests.loadNotifications({
         reload,
         limit: NOTIFICATIONS_PAGE_SIZE,
       });
-      // Show loading state
-      renderPage();
-      await loadingPromise;
-      renderPage();
       // can be called async
       notificationService.markNotificationsAsRead();
     }
 
     async function loadMentionNotifications({ reload = false } = {}) {
-      const loadingPromise = dataLayer.requests.loadMentionNotifications({
+      await dataLayer.requests.loadMentionNotifications({
         reload,
         limit: NOTIFICATIONS_PAGE_SIZE,
       });
-      renderPage();
-      await loadingPromise;
-      renderPage();
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       await loadNotifications({ reload: true });
     });
 
@@ -836,12 +827,7 @@ class NotificationsView extends View {
         window.scrollTo(0, 0);
         await loadNotifications({ reload: true });
       }
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

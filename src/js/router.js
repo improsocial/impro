@@ -1,4 +1,5 @@
 import { EventEmitter } from "/js/eventEmitter.js";
+import { effect } from "/js/utils.js";
 
 const MAX_PAGES = 5;
 
@@ -6,6 +7,21 @@ export function bindToPage(root, source, event, handler) {
   if (!source) return;
   const attach = () => source.on(event, handler);
   const detach = () => source.off(event, handler);
+  root.addEventListener("page-enter", attach);
+  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-exit", detach);
+}
+
+export function pageEffect(root, callback, debugName) {
+  let dispose;
+  const attach = () => {
+    dispose?.();
+    dispose = effect(callback, debugName);
+  };
+  const detach = () => {
+    dispose?.();
+    dispose = null;
+  };
   root.addEventListener("page-enter", attach);
   root.addEventListener("page-restore", attach);
   root.addEventListener("page-exit", detach);

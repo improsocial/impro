@@ -1,5 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -20,12 +21,9 @@ class SettingsMutedAccountsView extends View {
     await auth.requireAuth();
 
     async function loadMore() {
-      const mutedProfiles = dataLayer.selectors.getMutedProfiles();
+      const mutedProfiles = dataLayer.dataStore.$mutedProfiles.get();
       const cursor = mutedProfiles?.cursor;
-      const loadingPromise = dataLayer.requests.loadMutedProfiles({ cursor });
-      renderPage();
-      await loadingPromise;
-      renderPage();
+      await dataLayer.requests.loadMutedProfiles({ cursor });
     }
 
     function errorTemplate({ error }) {
@@ -36,14 +34,16 @@ class SettingsMutedAccountsView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const mutedProfiles = dataLayer.selectors.getMutedProfiles();
-      const status = dataLayer.requests.getStatus("loadMutedProfiles");
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const mutedProfiles = dataLayer.dataStore.$mutedProfiles.get();
+      const status = dataLayer.requests.statusStore.$statuses
+        .get("loadMutedProfiles")
+        .get();
       const hasMore = mutedProfiles?.cursor ? true : false;
 
       render(
@@ -85,27 +85,15 @@ class SettingsMutedAccountsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       await loadMore();
     });
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

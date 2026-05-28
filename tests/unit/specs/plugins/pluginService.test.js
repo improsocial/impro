@@ -1112,28 +1112,24 @@ t.describe("slot registry", (it) => {
     assertEquals(service.getSlotEntries("x").length, 1);
     dispose();
     assertEquals(service.getSlotEntries("x"), []);
-    assert(!service.registries.slots.has("x"));
+    assertEquals(service.$slots.get("x").get(), null);
   });
 
-  it("emits slotRegistered / slotUnregistered events", () => {
+  it("updates the $slots signal on register and unregister", () => {
     const service = makeServiceWithRealBridge();
-    const events = [];
-    service.on("slotRegistered", (data) =>
-      events.push({ type: "reg", ...data }),
-    );
-    service.on("slotUnregistered", (data) =>
-      events.push({ type: "unreg", ...data }),
-    );
+    const updates = [];
+    const slotSignal = service.$slots.get("x");
+    const initial = slotSignal.get();
     const dispose = register(service, makePlugin("alpha"), {
       target: "slot",
       name: "x",
       handlerId: 1,
     });
+    updates.push(slotSignal.get()?.map((entry) => entry.pluginId) ?? null);
     dispose();
-    assertEquals(events, [
-      { type: "reg", name: "x" },
-      { type: "unreg", name: "x" },
-    ]);
+    updates.push(slotSignal.get()?.map((entry) => entry.pluginId) ?? null);
+    assertEquals(initial, null);
+    assertEquals(updates, [["alpha"], null]);
   });
 });
 
@@ -1143,46 +1139,53 @@ t.describe("app.data host methods", (it) => {
     return new PluginService(provider, null);
   }
 
-  it("getPost host method returns selectors.getPost result", async () => {
-    const service = makeServiceWithRealBridge();
+  function makeStubSignalMap(lookup) {
     const calls = [];
-    service.setDataLayer({
-      selectors: {
-        getPost: (uri) => {
-          calls.push(uri);
-          return { uri, record: { text: "cached" } };
-        },
+    const map = {
+      get: (key) => {
+        calls.push(key);
+        return { get: () => lookup(key) };
       },
-      base: {
-        getProfile: () => null,
+    };
+    return { map, calls };
+  }
+
+  it("getPost host method returns the hydrated post from signals", async () => {
+    const service = makeServiceWithRealBridge();
+    const posts = makeStubSignalMap((uri) => ({
+      uri,
+      record: { text: "cached" },
+    }));
+    service.setDataLayer({
+      signals: {
+        $hydratedPosts: posts.map,
+        $hydratedProfiles: makeStubSignalMap(() => null).map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getPost");
     const result = await handler(null, { uri: "at://example/post/1" });
-    assertEquals(calls, ["at://example/post/1"]);
+    assertEquals(posts.calls, ["at://example/post/1"]);
     assertEquals(result, {
       uri: "at://example/post/1",
       record: { text: "cached" },
     });
   });
 
-  it("getProfile host method returns base.getProfile result", async () => {
+  it("getProfile host method returns the hydrated profile from signals", async () => {
     const service = makeServiceWithRealBridge();
-    const calls = [];
+    const profiles = makeStubSignalMap((did) => ({
+      did,
+      handle: "alice.test",
+    }));
     service.setDataLayer({
-      selectors: {
-        getPost: () => null,
-      },
-      base: {
-        getProfile: (did) => {
-          calls.push(did);
-          return { did, handle: "alice.test" };
-        },
+      signals: {
+        $hydratedPosts: makeStubSignalMap(() => null).map,
+        $hydratedProfiles: profiles.map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:abc" });
-    assertEquals(calls, ["did:plc:abc"]);
+    assertEquals(profiles.calls, ["did:plc:abc"]);
     assertEquals(result, { did: "did:plc:abc", handle: "alice.test" });
   });
 
@@ -1193,14 +1196,12 @@ t.describe("app.data host methods", (it) => {
     assertEquals(result, null);
   });
 
-  it("getProfile returns null when base returns null (uncached)", async () => {
+  it("getProfile returns null when the hydrated profile signal is empty", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
-      selectors: {
-        getPost: () => null,
-      },
-      base: {
-        getProfile: () => null,
+      signals: {
+        $hydratedPosts: makeStubSignalMap(() => null).map,
+        $hydratedProfiles: makeStubSignalMap(() => null).map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");

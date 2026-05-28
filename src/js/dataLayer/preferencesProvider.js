@@ -1,11 +1,11 @@
 import { Preferences } from "/js/preferences.js";
-import { EventEmitter } from "/js/eventEmitter.js";
+import { Signal } from "/js/utils.js";
 
-export class PreferencesProvider extends EventEmitter {
+export class PreferencesProvider {
   constructor(api) {
-    super();
     this.api = api;
     this._preferences = null;
+    this.$preferences = new Signal.State(null);
   }
 
   requirePreferences() {
@@ -34,11 +34,11 @@ export class PreferencesProvider extends EventEmitter {
 
   async savePreferences(preferences) {
     await this.api.updatePreferences(preferences.obj);
-    this._preferences = preferences;
+    this._setPreferences(preferences);
   }
 
   _setPreferences(preferences) {
     this._preferences = preferences;
-    this.emit("setPreferences", preferences);
+    this.$preferences.set(preferences);
   }
 }

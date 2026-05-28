@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -19,14 +19,14 @@ class FeedsView extends View {
   }) {
     await auth.requireAuth();
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       const pinnedFeedGenerators =
-        dataLayer.selectors.getPinnedFeedGenerators();
+        dataLayer.signals.$hydratedPinnedFeedGenerators.get();
 
       render(
         html`<div id="feeds-view">
@@ -76,25 +76,17 @@ class FeedsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       await dataLayer.declarative.ensurePinnedFeedGenerators();
-      renderPage();
     });
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

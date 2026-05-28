@@ -3,10 +3,10 @@ import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { classnames, debounce } from "/js/utils.js";
+import { classnames, debounce, Signal } from "/js/utils.js";
 import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -25,20 +25,19 @@ class SearchView extends View {
       interactionHandlers,
     },
   }) {
-    const state = {
-      activeTab: "profiles",
-      searchQuery: "",
-    };
+    const $activeTab = new Signal.State("profiles");
+    const $searchQuery = new Signal.State("");
 
     const tabScrollState = new Map();
 
     async function loadSearchResults() {
-      const normalizedQuery = state.searchQuery.trim();
+      const searchQuery = $searchQuery.get();
+      const normalizedQuery = searchQuery.trim();
 
       // Update URL query parameter
       const url = new URL(window.location);
-      if (state.searchQuery) {
-        url.searchParams.set("q", state.searchQuery);
+      if (searchQuery) {
+        url.searchParams.set("q", searchQuery);
       } else {
         url.searchParams.delete("q");
       }
@@ -65,65 +64,56 @@ class SearchView extends View {
         );
       }
 
-      renderPage();
-
       try {
         await Promise.all(requests);
       } catch (error) {
         console.error("Failed to load search results", error);
-      } finally {
-        renderPage();
       }
     }
 
     async function loadMoreProfiles() {
-      const cursor = dataLayer.selectors.getProfileSearchCursor();
+      const cursor = dataLayer.signals.$profileSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadProfileSearch(state.searchQuery.trim(), {
+      await dataLayer.requests.loadProfileSearch($searchQuery.get().trim(), {
         limit: 25,
         cursor,
       });
-      renderPage();
     }
 
     async function loadMorePosts() {
-      const cursor = dataLayer.selectors.getPostSearchCursor();
+      const cursor = dataLayer.signals.$postSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadPostSearch(state.searchQuery.trim(), {
+      await dataLayer.requests.loadPostSearch($searchQuery.get().trim(), {
         limit: 25,
         cursor,
       });
-      renderPage();
     }
 
     async function loadMoreFeeds() {
-      const cursor = dataLayer.selectors.getFeedSearchCursor();
+      const cursor = dataLayer.signals.$feedSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadFeedSearch(state.searchQuery.trim(), {
+      await dataLayer.requests.loadFeedSearch($searchQuery.get().trim(), {
         limit: 15,
         cursor,
       });
-      renderPage();
     }
 
     const { postInteractionHandler, feedInteractionHandler } =
       interactionHandlers;
-    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     const handleSearchInput = debounce((value) => {
-      state.searchQuery = value;
+      $searchQuery.set(value);
       loadSearchResults();
     });
 
     function handleClearSearch() {
-      state.searchQuery = "";
+      $searchQuery.set("");
       loadSearchResults();
     }
 
     function handleTabChange(tab) {
-      tabScrollState.set(state.activeTab, window.scrollY);
-      state.activeTab = tab;
-      renderPage();
+      tabScrollState.set($activeTab.get(), window.scrollY);
+      $activeTab.set(tab);
       if (tabScrollState.has(tab)) {
         window.scrollTo(0, tabScrollState.get(tab));
       } else {
@@ -318,32 +308,34 @@ class SearchView extends View {
       </infinite-scroll-container>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const normalizedQuery = state.searchQuery.trim();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const searchQuery = $searchQuery.get();
+      const activeTab = $activeTab.get();
+      const normalizedQuery = searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.getStatus(
-        `loadPostSearch-${normalizedQuery}-top`,
-      );
-      const profileStatus = dataLayer.requests.getStatus(
-        "loadProfileSearch-" + normalizedQuery,
-      );
-      const feedStatus = dataLayer.requests.getStatus(
-        "loadFeedSearch-" + normalizedQuery,
-      );
-      const postSearchResults = dataLayer.selectors.getPostSearchResults();
+      const postStatus = dataLayer.requests.statusStore.$statuses
+        .get(`loadPostSearch-${normalizedQuery}-top`)
+        .get();
+      const profileStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadProfileSearch-" + normalizedQuery)
+        .get();
+      const feedStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadFeedSearch-" + normalizedQuery)
+        .get();
+      const postSearchResults = dataLayer.signals.$postSearchResults.get();
       const profileSearchResults =
-        dataLayer.selectors.getProfileSearchResults();
-      const feedSearchResults = dataLayer.selectors.getFeedSearchResults();
-      const postSearchHasMore = !!dataLayer.selectors.getPostSearchCursor();
+        dataLayer.signals.$profileSearchResults.get();
+      const feedSearchResults = dataLayer.signals.$feedSearchResults.get();
+      const postSearchHasMore = !!dataLayer.signals.$postSearchCursor.get();
       const profileSearchHasMore =
-        !!dataLayer.selectors.getProfileSearchCursor();
-      const feedSearchHasMore = !!dataLayer.selectors.getFeedSearchCursor();
-      const preferences = dataLayer.selectors.getPreferences();
+        !!dataLayer.signals.$profileSearchCursor.get();
+      const feedSearchHasMore = !!dataLayer.signals.$feedSearchCursor.get();
+      const preferences = dataLayer.signals.$preferences.get();
 
       render(
         html`<div id="search-view">
@@ -371,10 +363,10 @@ class SearchView extends View {
                       placeholder=${isAuthenticated
                         ? "Search for users, posts, and feeds"
                         : "Search for users"}
-                      .value=${state.searchQuery}
+                      .value=${searchQuery}
                       @input=${(event) => handleSearchInput(event.target.value)}
                     />
-                    ${state.searchQuery.length > 0
+                    ${searchQuery.length > 0
                       ? html`
                           <button
                             class="search-clear-button"
@@ -395,7 +387,7 @@ class SearchView extends View {
                                 ]
                               : []),
                           ],
-                          activeTab: state.activeTab,
+                          activeTab,
                           onTabClick: handleTabChange,
                         })
                       : ""}
@@ -409,7 +401,7 @@ class SearchView extends View {
                         <div class="search-tab-panels">
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "posts"}
+                            ?hidden=${activeTab !== "posts"}
                           >
                             <div
                               class="search-results-panel search-post-results"
@@ -424,7 +416,7 @@ class SearchView extends View {
                           </div>
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "profiles"}
+                            ?hidden=${activeTab !== "profiles"}
                           >
                             <div class="search-results-panel">
                               ${profileSearchResultsTemplate({
@@ -436,7 +428,7 @@ class SearchView extends View {
                           </div>
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "feeds"}
+                            ?hidden=${activeTab !== "feeds"}
                           >
                             <div class="search-results-panel">
                               ${feedSearchResultsTemplate({
@@ -467,36 +459,28 @@ class SearchView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
       const query = new URLSearchParams(window.location.search);
       if (query.get("q")) {
-        state.searchQuery = query.get("q");
+        $searchQuery.set(query.get("q"));
       }
       if (query.get("tab")) {
-        state.activeTab = query.get("tab");
+        $activeTab.set(query.get("tab"));
       }
-      if (state.searchQuery) {
+      if ($searchQuery.get()) {
         loadSearchResults();
       }
-      renderPage();
       if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser().then(() => {
-          renderPage();
-        });
+        dataLayer.declarative.ensureCurrentUser();
       }
     });
 
     root.addEventListener("page-restore", (event) => {
       const scrollY = event.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

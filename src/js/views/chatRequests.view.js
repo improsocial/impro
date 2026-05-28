@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -31,25 +31,22 @@ class ChatRequestsView extends View {
       } catch (error) {
         console.error(error);
         showToast("Failed to accept chat request", { style: "error" });
-        renderPage();
       }
     }
 
     async function handleReject(convo) {
       try {
         await dataLayer.mutations.rejectConvo(convo);
-        renderPage();
       } catch (error) {
         console.error(error);
         showToast("Failed to reject chat request", { style: "error" });
-        renderPage();
       }
     }
 
     function requestItemTemplate({ convo }) {
       const lastMessage = convo.lastMessage;
       const members = convo.members.filter(
-        (member) => member.did !== dataLayer.selectors.getCurrentUser()?.did,
+        (member) => member.did !== dataLayer.signals.$currentUser.get()?.did,
       );
       const otherMember = members[0];
       const timeAgo = lastMessage
@@ -163,14 +160,16 @@ class ChatRequestsView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const convos = dataLayer.selectors.getConvoList();
-      const convosRequestStatus = dataLayer.requests.getStatus("loadConvoList");
-      const cursor = dataLayer.selectors.getConvoListCursor();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const convos = dataLayer.signals.$convoList.get();
+      const convosRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadConvoList")
+        .get();
+      const cursor = dataLayer.signals.$convoListCursor.get();
       const hasMore = !!cursor;
 
       // Filter to only show chat requests
@@ -220,13 +219,11 @@ class ChatRequestsView extends View {
       );
     }
 
+    pageEffect(root, renderPage, "chat-requests-view");
+
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       await dataLayer.declarative.ensureConvoList();
-      renderPage();
     });
 
     root.addEventListener("page-restore", async (e) => {
@@ -238,12 +235,7 @@ class ChatRequestsView extends View {
         window.scrollTo(0, 0);
         await dataLayer.requests.loadConvoList({ reload: true });
       }
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

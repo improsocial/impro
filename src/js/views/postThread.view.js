@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy } from "/js/utils.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -24,7 +25,6 @@ import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
-import { bindToPage } from "/js/router.js";
 
 class PostThreadView extends View {
   async render({
@@ -190,7 +190,10 @@ class PostThreadView extends View {
       const numReplies = replyChain.length;
       return html`<div class="post-thread-reply-chain">
         ${replyChain.map((reply, i) => {
-          const post = dataLayer.selectors.getPost(reply.post.uri); // todo - map in selector?
+          const post = dataLayer.signals.$hydratedPosts
+            .get(reply.post.uri)
+            .get();
+          if (!post) return "";
           return smallPostTemplate({
             post,
             currentUser,
@@ -211,7 +214,6 @@ class PostThreadView extends View {
         replyTo: post,
         replyRoot,
       });
-      renderPage();
     }
 
     // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
@@ -495,11 +497,13 @@ class PostThreadView extends View {
       </div>`;
     }
 
-    function getPostThread() {
-      let postThread = dataLayer.selectors.getPostThread(postUri);
+    pageEffect(root, () => {
+      let postThread = dataLayer.signals.$hydratedPostThreads
+        .get(postUri)
+        .get();
       if (!postThread) {
-        // prefill with saved post if available
-        const post = dataLayer.selectors.getPost(postUri);
+        // Prefill with saved post if available
+        const post = dataLayer.signals.$hydratedPosts.get(postUri).get();
         if (post) {
           postThread = {
             __isPrefill: true,
@@ -509,28 +513,21 @@ class PostThreadView extends View {
           };
         }
       }
-      return postThread;
-    }
-
-    function renderPage() {
-      const postThread = getPostThread();
-      const currentUser = dataLayer.selectors.getCurrentUser();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const postThreadRequestStatus = dataLayer.requests.getStatus(
-        "loadPostThread-" + postUri,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const postThreadRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadPostThread-" + postUri)
+        .get();
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({
             isAuthenticated,
             showSidebarOverlay: false,
             onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }).then(() => {
-                renderPage();
-              }),
+              postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
             numChatNotifications,
@@ -553,7 +550,7 @@ class PostThreadView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     function scrollToLargePost() {
       const largePost = root.querySelector(".large-post");
@@ -565,22 +562,18 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
       scrollToLargePost();
       let requests = [];
       if (isAuthenticated) {
         requests.push(dataLayer.requests.loadCurrentUser());
       }
-      // Fetch full thread
       requests.push(dataLayer.requests.loadPostThread(postUri));
       await Promise.all(requests);
-      renderPage();
       scrollToLargePost();
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
       if (scrollY > 0) {
         window.scrollTo(0, scrollY);
       } else {
@@ -588,13 +581,7 @@ class PostThreadView extends View {
       }
       // Revalidate
       await dataLayer.requests.loadPostThread(postUri);
-      renderPage();
     });
-
-    const onLiveUpdate = () => renderPage();
-    bindToPage(root, notificationService, "update", onLiveUpdate);
-    bindToPage(root, chatNotificationService, "update", onLiveUpdate);
-    bindToPage(root, interactionHandlers, "requestRender", onLiveUpdate);
   }
 }
 

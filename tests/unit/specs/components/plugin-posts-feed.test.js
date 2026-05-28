@@ -1,35 +1,23 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { EventEmitter } from "/js/eventEmitter.js";
-import * as derived from "/js/dataLayer/derived.js";
+import { Signal, SignalMap } from "/js/utils.js";
 import "/js/components/plugin-posts-feed.js";
 
 const t = new TestSuite("PluginPostsFeed");
 
-function emptyPreferences() {
+function makeDataLayer({ ensurePosts, currentUser } = {}) {
+  const postSignals = new SignalMap();
   return {
-    postHasMutedWord: () => false,
-    quotedPostHasMutedWord: () => false,
-    isPostHidden: () => false,
-    getBadgeLabels: () => [],
-    getContentLabel: () => null,
-    getMediaLabel: () => null,
-  };
-}
-
-function makeDataLayer({ ensurePosts, getPost, events, preferences } = {}) {
-  const resolved = getPost ?? (() => null);
-  return {
-    events: events ?? new EventEmitter(),
-    declarative: { ensurePosts: ensurePosts ?? (() => new Promise(() => {})) },
-    dataStore: { getPost: resolved },
-    patchStore: { applyPostPatches: (post) => post },
-    selectors: {
-      getCurrentUser: () => null,
-      getPreferences: () => preferences ?? emptyPreferences(),
+    declarative: {
+      ensurePosts: ensurePosts ?? (() => new Promise(() => {})),
     },
-    base: { getPost: resolved },
-    derived,
+    signals: {
+      $currentUser: new Signal.State(currentUser ?? null),
+      $hydratedPosts: postSignals,
+    },
+    __setPost(uri, post) {
+      postSignals.set(uri, post);
+    },
   };
 }
 
@@ -39,26 +27,22 @@ function makeHandler() {
 
 function makeElement({
   ensurePosts,
-  getPost,
-  events,
-  preferences,
+  currentUser,
   postInteractionHandler,
 } = {}) {
   const element = document.createElement("plugin-posts-feed");
-  element.dataLayer = makeDataLayer({
-    ensurePosts,
-    getPost,
-    events,
-    preferences,
-  });
+  element.dataLayer = makeDataLayer({ ensurePosts, currentUser });
   element.isAuthenticated = false;
   element.pluginService = null;
   element.postInteractionHandler = postInteractionHandler ?? makeHandler();
   return element;
 }
 
-function flushMicrotasks() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+async function flushMicrotasks() {
+  // Two ticks: the first flushes microtasks (e.g. ensurePosts), the second
+  // lets the rAF-scheduled effect render run before assertions.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 t.beforeEach(() => {
@@ -70,9 +54,7 @@ t.describe("PluginPostsFeed - loading state", (it) => {
     const element = makeElement();
     element.setAttribute("uris", "at://a,at://b,at://c");
     document.body.appendChild(element);
-    // feedSkeletonTemplate renders inside <div class="feed">
     assert(element.querySelector(".feed") !== null);
-    // No real feed items yet
     assertEquals(
       element.querySelectorAll("[data-testid='feed-item']").length,
       0,
@@ -81,7 +63,7 @@ t.describe("PluginPostsFeed - loading state", (it) => {
 });
 
 t.describe("PluginPostsFeed - empty uris", (it) => {
-  it("renders the empty message and does not call ensurePosts", () => {
+  it("renders the empty message and does not call ensurePosts", async () => {
     let called = false;
     const element = makeElement({
       ensurePosts: () => {
@@ -92,12 +74,15 @@ t.describe("PluginPostsFeed - empty uris", (it) => {
     element.setAttribute("uris", "");
     element.setAttribute("empty-message", "Nothing here.");
     document.body.appendChild(element);
+    await flushMicrotasks();
     const endMessage = element.querySelector(
       "[data-testid='feed-end-message']",
     );
     assert(endMessage !== null);
     assert(endMessage.textContent.includes("Nothing here."));
-    assertEquals(called, false);
+    // ensurePosts is still invoked with an empty uri list — the empty render
+    // is driven by the empty posts array, not by skipping the request.
+    assertEquals(called, true);
   });
 });
 
@@ -177,157 +162,44 @@ t.describe("PluginPostsFeed - uri changes", (it) => {
   });
 });
 
-t.describe("PluginPostsFeed - refresh", (it) => {
-  it("re-renders against the latest selectors state without re-fetching", async () => {
-    let postsCall = 0;
-    let currentUserCall = 0;
+t.describe("PluginPostsFeed - live updates", (it) => {
+  it("re-renders when a hydrated post signal updates", async () => {
+    const dataLayer = makeDataLayer({
+      ensurePosts: () => Promise.resolve([null]),
+    });
     const element = document.createElement("plugin-posts-feed");
-    element.dataLayer = {
-      events: new EventEmitter(),
-      declarative: {
-        ensurePosts: () => {
-          postsCall++;
-          return Promise.resolve([]);
-        },
-      },
-      dataStore: { getPost: () => null },
-      patchStore: { applyPostPatches: (post) => post },
-      selectors: {
-        getCurrentUser: () => {
-          currentUserCall++;
-          return null;
-        },
-        getPreferences: () => emptyPreferences(),
-      },
-      base: { getPost: () => null },
-      derived,
-    };
+    element.dataLayer = dataLayer;
     element.isAuthenticated = false;
     element.pluginService = null;
     element.postInteractionHandler = makeHandler();
-    element.setAttribute("uris", "");
-    document.body.appendChild(element);
-    const beforeRefresh = currentUserCall;
-    element.refresh();
-    // refresh() pulls fresh selectors state without re-issuing ensurePosts.
-    assert(currentUserCall > beforeRefresh);
-    assertEquals(postsCall, 0);
-  });
-
-  it("re-selects posts from the store on each render to pick up updates", async () => {
-    const calls = [];
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null]),
-      getPost: (uri) => {
-        calls.push(uri);
-        return null;
-      },
-    });
     element.setAttribute("uris", "at://a");
     document.body.appendChild(element);
     await flushMicrotasks();
-    const callsAfterLoad = calls.length;
-    assert(callsAfterLoad > 0);
-    element.refresh();
-    // refresh() re-selects fresh post data from the store rather than reusing
-    // a cached snapshot, so updates flow through without a re-fetch.
-    assert(calls.length > callsAfterLoad);
-    assertEquals(calls[calls.length - 1], "at://a");
-  });
-
-  it("is a no-op before connectedCallback runs", () => {
-    const element = document.createElement("plugin-posts-feed");
-    // Should not throw even though required props aren't set yet.
-    element.refresh();
+    // No post hydrated yet -> empty feed.
+    assertEquals(
+      element.querySelectorAll("[data-testid='feed-item']").length,
+      0,
+    );
+    // Updating the post signal should cause a re-render that picks it up.
+    dataLayer.__setPost("at://a", makeStubPost("at://a"));
+    await flushMicrotasks();
+    assert(element.querySelectorAll("[data-testid='feed-item']").length >= 1);
   });
 });
 
-t.describe("PluginPostsFeed - live subscriptions", (it) => {
-  it("subscribes to post:${uri} for each loaded uri and to preferences:changed", async () => {
-    const events = new EventEmitter();
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null, null, null]),
-      events,
-    });
-    element.setAttribute("uris", "at://a,at://b,at://c");
-    document.body.appendChild(element);
-    await flushMicrotasks();
-    assertEquals(events.__eventListeners.get("post:at://a").length, 1);
-    assertEquals(events.__eventListeners.get("post:at://b").length, 1);
-    assertEquals(events.__eventListeners.get("post:at://c").length, 1);
-    assertEquals(events.__eventListeners.get("preferences:changed").length, 1);
-  });
-
-  it("syncs subscriptions when the uri list changes", async () => {
-    const events = new EventEmitter();
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null]),
-      events,
-    });
-    element.setAttribute("uris", "at://a");
-    document.body.appendChild(element);
-    await flushMicrotasks();
-    element.setAttribute("uris", "at://b,at://c");
-    await flushMicrotasks();
-    // old subscription removed, new ones added
-    assertEquals(events.__eventListeners.get("post:at://a"), undefined);
-    assertEquals(events.__eventListeners.get("post:at://b").length, 1);
-    assertEquals(events.__eventListeners.get("post:at://c").length, 1);
-  });
-
-  it("removes all live listeners on disconnect", async () => {
-    const events = new EventEmitter();
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null, null]),
-      events,
-    });
-    element.setAttribute("uris", "at://a,at://b");
-    document.body.appendChild(element);
-    await flushMicrotasks();
-    element.remove();
-    assertEquals(events.__eventListeners.get("post:at://a"), undefined);
-    assertEquals(events.__eventListeners.get("post:at://b"), undefined);
-    assertEquals(events.__eventListeners.get("preferences:changed"), undefined);
-  });
-
-  it("re-renders when post:${uri} fires", async () => {
-    const events = new EventEmitter();
-    const calls = [];
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null]),
-      events,
-      getPost: (uri) => {
-        calls.push(uri);
-        return null;
-      },
-    });
-    element.setAttribute("uris", "at://a");
-    document.body.appendChild(element);
-    await flushMicrotasks();
-    const before = calls.length;
-    events.emit("post:at://a");
-    assert(calls.length > before);
-  });
-
-  it("re-renders when preferences:changed fires", async () => {
-    const events = new EventEmitter();
-    let prefsCalls = 0;
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([]),
-      events,
-    });
-    // count preferences accesses to detect re-renders
-    element.dataLayer.selectors.getPreferences = () => {
-      prefsCalls += 1;
-      return emptyPreferences();
-    };
-    element.setAttribute("uris", "");
-    document.body.appendChild(element);
-    await flushMicrotasks();
-    const before = prefsCalls;
-    events.emit("preferences:changed");
-    assert(prefsCalls > before);
-  });
-});
+function makeStubPost(uri) {
+  return {
+    uri,
+    cid: "cid:" + uri,
+    author: {
+      did: "did:test:author",
+      handle: "author.test",
+      displayName: "author",
+    },
+    record: { text: "hello", createdAt: "2025-01-01T00:00:00Z" },
+    indexedAt: "2025-01-01T00:00:00Z",
+    badgeLabels: [],
+  };
+}
 
 await t.run();

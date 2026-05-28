@@ -1,13 +1,12 @@
-import { EventEmitter } from "/js/eventEmitter.js";
-import { wait } from "/js/utils.js";
+import { wait, Signal } from "/js/utils.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
 
-export class NotificationService extends EventEmitter {
+export class NotificationService {
   constructor(api) {
-    super();
     this.api = api;
-    this._numNotifications = 0;
+    this.$numNotifications = new Signal.State(0);
+    this.$numNotifications.__debugName = "$numNotifications";
   }
 
   snooze(timeoutMinutes = 120) {
@@ -34,18 +33,13 @@ export class NotificationService extends EventEmitter {
   }
   async fetchNumNotifications() {
     const numNotifications = await this.api.getNumNotifications();
-    if (numNotifications !== this._numNotifications) {
-      this._numNotifications = numNotifications;
-      this.emit("update");
+    if (numNotifications !== this.$numNotifications.get()) {
+      this.$numNotifications.set(numNotifications);
     }
-  }
-  getNumNotifications() {
-    return this._numNotifications;
   }
   async markNotificationsAsRead() {
     // optimistic update
-    this._numNotifications = 0;
-    this.emit("update");
+    this.$numNotifications.set(0);
     let updated = false;
     let retries = 0;
     // Try this a few times, since the endpoint is pretty unstable

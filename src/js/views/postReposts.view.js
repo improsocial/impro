@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -39,17 +39,17 @@ class PostRepostsView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const postReposts = dataLayer.selectors.getPostReposts(postUri);
-      const post = dataLayer.selectors.getPost(postUri);
-      const postRepostsRequestStatus = dataLayer.requests.getStatus(
-        "loadPostReposts-" + postUri,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const postReposts = dataLayer.dataStore.$postReposts.get(postUri).get();
+      const post = dataLayer.signals.$hydratedPosts.get(postUri).get();
+      const postRepostsRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadPostReposts-" + postUri)
+        .get();
       const hasMore = postReposts?.cursor ? true : false;
       const subtitle = post?.repostCount
         ? `${formatLargeNumber(post.repostCount)} ${
@@ -90,44 +90,29 @@ class PostRepostsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadReposts() {
-      const postReposts = dataLayer.selectors.getPostReposts(postUri);
+      const postReposts = dataLayer.dataStore.$postReposts.get(postUri).get();
       const cursor = postReposts?.cursor;
-      const loadingPromise = dataLayer.requests.loadPostReposts(postUri, {
-        cursor,
-      });
-      renderPage();
-      await loadingPromise;
-      renderPage();
+      await dataLayer.requests.loadPostReposts(postUri, { cursor });
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
       if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser().then(() => {
-          renderPage();
-        });
+        dataLayer.declarative.ensureCurrentUser();
       }
       // Load the post thread to get the post repost count
-      dataLayer.declarative.ensurePostThread(postUri).then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensurePostThread(postUri);
       await loadReposts();
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
       if (scrollY > 0) {
         window.scrollTo(0, scrollY);
       }
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

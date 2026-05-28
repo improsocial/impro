@@ -20,7 +20,7 @@ import {
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
 } from "/js/modals.js";
-import { compareVersions, isDev, sortBy } from "/js/utils.js";
+import { compareVersions, isDev, sortBy, SignalMap } from "/js/utils.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -69,11 +69,12 @@ export class PluginService extends EventEmitter {
       sidebarItems: new Set(),
       eventListeners: new Map(),
       feedFilters: new Set(),
-      settingTabs: new Map(),
-      slots: new Map(),
     };
     this._availableUpdates = null;
     this._registryListings = null;
+    this.$pluginFilteredFeedItems = new SignalMap();
+    this.$settingTabs = new SignalMap();
+    this.$slots = new SignalMap();
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -143,10 +144,10 @@ export class PluginService extends EventEmitter {
         display: () => plugin.call(message.displayHandlerId),
         hide: () => plugin.call(message.hideHandlerId),
       };
-      this.registries.settingTabs.set(plugin.pluginId, entry);
+      this.$settingTabs.set(plugin.pluginId, entry);
       return () => {
-        if (this.registries.settingTabs.get(plugin.pluginId) === entry) {
-          this.registries.settingTabs.delete(plugin.pluginId);
+        if (this.$settingTabs.get(plugin.pluginId).get() === entry) {
+          this.$settingTabs.delete(plugin.pluginId);
         }
       };
     });
@@ -160,25 +161,21 @@ export class PluginService extends EventEmitter {
       return () => this.registries.feedFilters.delete(entry);
     });
     this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
-      let entries = this.registries.slots.get(message.name);
-      if (!entries) {
-        entries = [];
-        this.registries.slots.set(message.name, entries);
-      }
       const entry = {
         pluginId: plugin.pluginId,
         invoke: (context) => plugin.call(message.handlerId, context),
       };
-      entries.push(entry);
-      this.emit("slotRegistered", { name: message.name });
+      const current = this.$slots.get(message.name).get() ?? [];
+      this.$slots.set(message.name, [...current, entry]);
       return () => {
-        const list = this.registries.slots.get(message.name);
+        const list = this.$slots.get(message.name).get();
         if (!list) return;
-        const index = list.indexOf(entry);
-        if (index === -1) return;
-        list.splice(index, 1);
-        if (list.length === 0) this.registries.slots.delete(message.name);
-        this.emit("slotUnregistered", { name: message.name });
+        const next = list.filter((other) => other !== entry);
+        if (next.length === 0) {
+          this.$slots.delete(message.name);
+        } else {
+          this.$slots.set(message.name, next);
+        }
       };
     });
   }
@@ -215,7 +212,10 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod("refreshSettingTab", (plugin) => {
-      this.emit("settingTabRefresh", { pluginId: plugin.pluginId });
+      const current = this.$settingTabs.get(plugin.pluginId).get();
+      if (current) {
+        this.$settingTabs.set(plugin.pluginId, { ...current });
+      }
     });
 
     this.pluginBridge.addHostMethod(
@@ -265,11 +265,11 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
-      return this._dataLayer?.selectors.getPost(uri) ?? null;
+      return this._dataLayer?.signals.$hydratedPosts.get(uri).get() ?? null;
     });
 
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.base.getProfile(did) ?? null;
+      return this._dataLayer?.signals.$hydratedProfiles.get(did).get() ?? null;
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
@@ -379,7 +379,7 @@ export class PluginService extends EventEmitter {
         author: entry.author,
         enabled: entry.enabled,
         loaded: this.pluginBridge.isLoaded(entry.id),
-        hasSettings: this.registries.settingTabs.has(entry.id),
+        hasSettings: this.$settingTabs.get(entry.id).get() !== null,
       };
     });
   }
@@ -624,15 +624,15 @@ export class PluginService extends EventEmitter {
   }
 
   getSlotEntries(name) {
-    return [...(this.registries.slots.get(name) ?? [])];
+    return [...(this.$slots.get(name).get() ?? [])];
   }
 
   getSettingTabs() {
-    return [...this.registries.settingTabs.values()];
+    return [...this.$settingTabs.values()];
   }
 
   getSettingTab(pluginId) {
-    return this.registries.settingTabs.get(pluginId) ?? null;
+    return this.$settingTabs.get(pluginId).get();
   }
 
   async getPostContextMenuItems(post) {
@@ -685,5 +685,13 @@ export class PluginService extends EventEmitter {
       filteredFeedItems = { ...filteredFeedItems, ...results };
     }
     return filteredFeedItems;
+  }
+
+  async refreshFiltersForFeed(feedURI, feed, { reload = false } = {}) {
+    const filtered = await this.getFilteredFeedItems(feedURI, feed);
+    const existing = reload
+      ? {}
+      : (this.$pluginFilteredFeedItems.get(feedURI).get() ?? {});
+    this.$pluginFilteredFeedItems.set(feedURI, { ...existing, ...filtered });
   }
 }

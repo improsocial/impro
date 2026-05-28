@@ -1,5 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
@@ -10,6 +11,7 @@ import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.
 import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
 import { confirm } from "/js/modals.js";
 import { showToast } from "/js/toasts.js";
+import { Signal } from "/js/utils.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
@@ -35,6 +37,11 @@ class SettingsPluginsView extends View {
       updatingAll: false,
       updatingIds: new Set(),
     };
+    const $stateTick = new Signal.State(0);
+    function bumpState() {
+      $stateTick.set($stateTick.get() + 1);
+    }
+
     async function uninstallPlugin(plugin) {
       const confirmed = await confirm(
         `"${plugin.name}" will be uninstalled and its settings will be deleted.`,
@@ -46,20 +53,20 @@ class SettingsPluginsView extends View {
       );
       if (!confirmed) return;
       state.uninstallingIds.add(plugin.id);
-      renderPage();
+      bumpState();
       try {
         await pluginService.uninstallPlugin(plugin.id);
         showToast(`Uninstalled ${plugin.name}`);
       } finally {
         state.uninstallingIds.delete(plugin.id);
-        renderPage();
+        bumpState();
       }
     }
 
     async function reloadPlugins() {
       if (state.reloading) return;
       state.reloading = true;
-      renderPage();
+      bumpState();
       try {
         await pluginService.reloadPlugins();
         showToast("Reloaded plugins");
@@ -68,14 +75,14 @@ class SettingsPluginsView extends View {
         showToast("Failed to reload plugins", { style: "error" });
       } finally {
         state.reloading = false;
-        renderPage();
+        bumpState();
       }
     }
 
     async function checkForUpdates() {
       if (state.checkingForUpdates) return;
       state.checkingForUpdates = true;
-      renderPage();
+      bumpState();
       try {
         const updates = await pluginService.checkForUpdates();
         if (updates.size === 0) {
@@ -89,13 +96,13 @@ class SettingsPluginsView extends View {
         showToast("Failed to check for updates", { style: "error" });
       } finally {
         state.checkingForUpdates = false;
-        renderPage();
+        bumpState();
       }
     }
 
     async function updatePlugin(plugin) {
       state.updatingIds.add(plugin.id);
-      renderPage();
+      bumpState();
       try {
         const result = await pluginService.updatePlugin(plugin.id);
         if (result.updated) {
@@ -114,14 +121,14 @@ class SettingsPluginsView extends View {
         }
       } finally {
         state.updatingIds.delete(plugin.id);
-        renderPage();
+        bumpState();
       }
     }
 
     async function updateAllPlugins() {
       if (state.updatingAll) return;
       state.updatingAll = true;
-      renderPage();
+      bumpState();
       try {
         const { updated, failed } = await pluginService.updateAllPlugins();
         if (failed.length > 0) {
@@ -136,7 +143,7 @@ class SettingsPluginsView extends View {
         }
       } finally {
         state.updatingAll = false;
-        renderPage();
+        bumpState();
       }
     }
 
@@ -145,7 +152,7 @@ class SettingsPluginsView extends View {
         ? state.disablingIds
         : state.enablingIds;
       pendingSet.add(plugin.id);
-      renderPage();
+      bumpState();
       try {
         if (plugin.enabled) {
           await pluginService.disablePlugin(plugin.id);
@@ -162,16 +169,17 @@ class SettingsPluginsView extends View {
         }
       } finally {
         pendingSet.delete(plugin.id);
-        renderPage();
+        bumpState();
       }
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      $stateTick.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       const pluginsInfo = pluginService.getPluginsInfo();
       const availableUpdates = pluginService.getAvailableUpdates();
       const hasAvailableUpdates =
@@ -356,20 +364,15 @@ class SettingsPluginsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
+      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-      renderPage();
     });
-
-    notificationService?.on("update", () => renderPage());
-    chatNotificationService?.on("update", () => renderPage());
   }
 }
 

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -40,18 +40,20 @@ class ProfileFollowingView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const profileFollowing =
-        dataLayer.selectors.getProfileFollows(profileDid);
-      const profile = dataLayer.base.getProfile(profileDid);
-      const profileFollowingRequestStatus = dataLayer.requests.getStatus(
-        "loadProfileFollows-" + profileDid,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const profileFollowing = dataLayer.dataStore.$profileFollows
+        .get(profileDid)
+        .get();
+      const profile = dataLayer.signals.$hydratedProfiles.get(profileDid).get();
+      const profileFollowingRequestStatus =
+        dataLayer.requests.statusStore.$statuses
+          .get("loadProfileFollows-" + profileDid)
+          .get();
       const hasMore = profileFollowing?.cursor ? true : false;
 
       const subtitle = profile?.followsCount
@@ -90,43 +92,29 @@ class ProfileFollowingView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadFollowing() {
-      const profileFollowing =
-        dataLayer.selectors.getProfileFollows(profileDid);
+      const profileFollowing = dataLayer.dataStore.$profileFollows
+        .get(profileDid)
+        .get();
       const cursor = profileFollowing?.cursor;
-      const loadingPromise = dataLayer.requests.loadProfileFollows(profileDid, {
-        cursor,
-      });
-      renderPage();
-      await loadingPromise;
-      renderPage();
+      await dataLayer.requests.loadProfileFollows(profileDid, { cursor });
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       // Load the profile to get the follows count
-      dataLayer.declarative.ensureProfile(profileDid).then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureProfile(profileDid);
       await loadFollowing();
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
       if (scrollY > 0) {
         window.scrollTo(0, scrollY);
       }
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

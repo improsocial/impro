@@ -1,5 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
@@ -12,6 +13,7 @@ import {
 } from "/js/appViewConfig.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { showToast } from "/js/toasts.js";
+import { Signal } from "/js/utils.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
@@ -40,6 +42,10 @@ class SettingsAdvancedView extends View {
       customChatServiceDid: isStoredCustom ? storedConfig.chatServiceDid : "",
       pluginInstallLoading: false,
     };
+    const $stateTick = new Signal.State(0);
+    function bumpState() {
+      $stateTick.set($stateTick.get() + 1);
+    }
 
     function resolveSelectedAppViewConfig() {
       if (state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID) {
@@ -72,29 +78,29 @@ class SettingsAdvancedView extends View {
       const selectedConfig = resolveSelectedAppViewConfig();
       if (!isValidAppViewConfig(selectedConfig)) {
         state.errorMessage = "Invalid App View configuration";
-        renderPage();
+        bumpState();
         return;
       }
       state.loading = true;
       state.errorMessage = null;
-      renderPage();
+      bumpState();
       setAppViewConfig(selectedConfig);
       window.location.reload();
     }
 
     function handleAppViewChange(e) {
       state.appViewSelection = e.target.value;
-      renderPage();
+      bumpState();
     }
 
     function handleCustomAppViewDidInput(e) {
       state.customAppViewServiceDid = e.target.value;
-      renderPage();
+      bumpState();
     }
 
     function handleCustomChatDidInput(e) {
       state.customChatServiceDid = e.target.value;
-      renderPage();
+      bumpState();
     }
 
     async function handleInstallPlugin(e) {
@@ -103,7 +109,7 @@ class SettingsAdvancedView extends View {
       const url = input.value.trim();
       if (!url) return;
       state.pluginInstallLoading = true;
-      renderPage();
+      bumpState();
       try {
         const result = await pluginService.installUnregisteredPlugin(url);
         input.value = "";
@@ -118,16 +124,17 @@ class SettingsAdvancedView extends View {
         }
       } finally {
         state.pluginInstallLoading = false;
-        renderPage();
+        bumpState();
       }
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      $stateTick.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       const isCustom = state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID;
       render(
         html`<div id="settings-advanced-view">
@@ -300,25 +307,14 @@ class SettingsAdvancedView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
     });
 
-    root.addEventListener("page-restore", (e) => {
+    root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

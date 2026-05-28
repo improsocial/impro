@@ -30,7 +30,7 @@ t.describe("constructor", (it) => {
     assert(dataLayer.preferencesProvider !== undefined);
     assert(dataLayer.requests !== undefined);
     assert(dataLayer.mutations !== undefined);
-    assert(dataLayer.selectors !== undefined);
+    assert(dataLayer.signals !== undefined);
     assert(dataLayer.declarative !== undefined);
   });
 
@@ -93,7 +93,7 @@ t.describe("hasCachedFeed", (it) => {
     const dataLayer = createDataLayer(mockApi);
     const feedURI = "at://feed/uri";
 
-    dataLayer.dataStore.setFeed(feedURI, { feed: [], cursor: null });
+    dataLayer.dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
 
     const result = dataLayer.hasCachedFeed(feedURI);
 
@@ -117,7 +117,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
     const profileDid = "did:test:user";
     const feedType = "posts";
 
-    dataLayer.dataStore.setAuthorFeed(`${profileDid}-${feedType}`, {
+    dataLayer.dataStore.$authorFeeds.set(`${profileDid}-${feedType}`, {
       feed: [],
       cursor: null,
     });
@@ -134,7 +134,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
     const feedType = "replies";
 
     // Cache with the expected URI format
-    dataLayer.dataStore.setAuthorFeed("did:test:user-replies", {
+    dataLayer.dataStore.$authorFeeds.set("did:test:user-replies", {
       feed: [],
       cursor: null,
     });
@@ -146,41 +146,41 @@ t.describe("hasCachedAuthorFeed", (it) => {
 });
 
 t.describe("component integration", (it) => {
-  it("should pass dataStore to selectors", async () => {
+  it("should pass dataStore to signals", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, text: "test", likeCount: 5 };
 
-    // Initialize preferences first (required by selectors)
+    // Initialize preferences first (required by signals)
     await dataLayer.initializePreferences();
 
     // Set data through dataStore
-    dataLayer.dataStore.setPost(postURI, post);
+    dataLayer.dataStore.$posts.set(postURI, post);
 
-    // Verify selectors can access it
-    const result = dataLayer.selectors.getPost(postURI);
+    // Verify signals can access it
+    const result = dataLayer.signals.$hydratedPosts.get(postURI).get();
     assertEquals(result.uri, postURI);
   });
 
-  it("should pass patchStore to selectors", async () => {
+  it("should pass patchStore to signals", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
 
-    // Initialize preferences first (required by selectors)
+    // Initialize preferences first (required by signals)
     await dataLayer.initializePreferences();
 
-    dataLayer.dataStore.setPost(postURI, post);
+    dataLayer.dataStore.$posts.set(postURI, post);
     dataLayer.patchStore.addPostPatch(postURI, { type: "addLike" });
 
-    // Verify selectors apply patches
-    const result = dataLayer.selectors.getPost(postURI);
+    // Verify signals apply patches
+    const result = dataLayer.signals.$hydratedPosts.get(postURI).get();
     assertEquals(result.likeCount, 6);
   });
 
-  it("should pass selectors and requests to declarative", async () => {
+  it("should pass signals and requests to declarative", async () => {
     const mockApi = createMockApi({
       isAuthenticated: false,
       profiles: {
@@ -192,7 +192,7 @@ t.describe("component integration", (it) => {
     // Initialize preferences first
     await dataLayer.initializePreferences();
 
-    // Verify declarative can access selectors
+    // Verify declarative can access signals
     const profile = await dataLayer.declarative.ensureProfile("did:test:user");
     assert(profile !== null);
   });

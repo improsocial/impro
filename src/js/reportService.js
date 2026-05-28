@@ -14,7 +14,7 @@ export class ReportService {
     }
     return new Promise((resolve, reject) => {
       this.currentReportDialog = document.createElement("report-dialog");
-      const preferences = this.dataLayer.selectors.getPreferences();
+      const preferences = this.dataLayer.signals.$preferences.get();
       this.currentReportDialog.labelerDefs = preferences.labelerDefs;
       this.currentReportDialog.subjectType = subjectType;
       this.currentReportDialog.addEventListener("submit-report", async (e) => {

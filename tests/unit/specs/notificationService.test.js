@@ -1,5 +1,5 @@
 import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals, mock } from "../testHelpers.js";
+import { assertEquals, mock } from "../testHelpers.js";
 import { NotificationService } from "/js/notificationService.js";
 
 const t = new TestSuite("notificationService");
@@ -16,7 +16,7 @@ t.describe("constructor", (it) => {
   it("should initialize with zero notifications", () => {
     const api = createMockApi();
     const service = new NotificationService(api);
-    assertEquals(service.getNumNotifications(), 0);
+    assertEquals(service.$numNotifications.get(), 0);
   });
 });
 
@@ -27,48 +27,31 @@ t.describe("fetchNumNotifications", (it) => {
 
     await service.fetchNumNotifications();
 
-    assertEquals(service.getNumNotifications(), 5);
+    assertEquals(service.$numNotifications.get(), 5);
   });
 
-  it("should emit update event when count changes", async () => {
+  it("should update $numNotifications signal when count changes", async () => {
     const api = createMockApi({ numNotifications: 3 });
     const service = new NotificationService(api);
 
-    const updateHandler = mock();
-    service.on("update", updateHandler);
+    assertEquals(service.$numNotifications.get(), 0);
 
     await service.fetchNumNotifications();
 
-    assertEquals(updateHandler.calls.length, 1);
-  });
-
-  it("should not emit update event when count is unchanged", async () => {
-    const api = createMockApi({ numNotifications: 3 });
-    const service = new NotificationService(api);
-
-    // First fetch
-    await service.fetchNumNotifications();
-
-    const updateHandler = mock();
-    service.on("update", updateHandler);
-
-    // Second fetch with same count
-    await service.fetchNumNotifications();
-
-    assertEquals(updateHandler.calls.length, 0);
+    assertEquals(service.$numNotifications.get(), 3);
   });
 });
 
-t.describe("getNumNotifications", (it) => {
-  it("should return current notification count", async () => {
+t.describe("$numNotifications", (it) => {
+  it("should reflect current notification count", async () => {
     const api = createMockApi({ numNotifications: 7 });
     const service = new NotificationService(api);
 
-    assertEquals(service.getNumNotifications(), 0);
+    assertEquals(service.$numNotifications.get(), 0);
 
     await service.fetchNumNotifications();
 
-    assertEquals(service.getNumNotifications(), 7);
+    assertEquals(service.$numNotifications.get(), 7);
   });
 });
 
@@ -78,29 +61,15 @@ t.describe("markNotificationsAsRead", (it) => {
     const service = new NotificationService(api);
 
     await service.fetchNumNotifications();
-    assertEquals(service.getNumNotifications(), 5);
+    assertEquals(service.$numNotifications.get(), 5);
 
     // Start marking as read (don't await)
     const markPromise = service.markNotificationsAsRead();
 
     // Count should immediately be zero
-    assertEquals(service.getNumNotifications(), 0);
+    assertEquals(service.$numNotifications.get(), 0);
 
     await markPromise;
-  });
-
-  it("should emit update event", async () => {
-    const api = createMockApi({ numNotifications: 5 });
-    const service = new NotificationService(api);
-
-    await service.fetchNumNotifications();
-
-    const updateHandler = mock();
-    service.on("update", updateHandler);
-
-    await service.markNotificationsAsRead();
-
-    assertEquals(updateHandler.calls.length, 1);
   });
 
   it("should call api.markNotificationsAsRead", async () => {

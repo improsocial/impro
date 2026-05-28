@@ -1,10 +1,12 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
+import { Signal } from "/js/utils.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsCommunityPluginsView extends View {
@@ -24,17 +26,21 @@ class SettingsCommunityPluginsView extends View {
       error: null,
       pending: new Set(),
     };
+    const $stateTick = new Signal.State(0);
+    function bumpState() {
+      $stateTick.set($stateTick.get() + 1);
+    }
 
     async function loadListings() {
       state.error = null;
-      renderPage();
+      bumpState();
       try {
         await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
         state.error = error.message ?? String(error);
       }
-      renderPage();
+      bumpState();
     }
 
     async function toggleInstall(listing) {
@@ -51,7 +57,7 @@ class SettingsCommunityPluginsView extends View {
         if (!confirmed) return;
       }
       state.pending.add(listing.id);
-      renderPage();
+      bumpState();
       try {
         if (wasInstalled) {
           await pluginService.uninstallPlugin(listing.id);
@@ -78,16 +84,17 @@ class SettingsCommunityPluginsView extends View {
         }
       }
       state.pending.delete(listing.id);
-      renderPage();
+      bumpState();
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      $stateTick.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const listings = pluginService.getRegistryListings();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       render(
         html`<div id="settings-community-plugins-view">
           ${mainLayoutTemplate({
@@ -184,11 +191,10 @@ class SettingsCommunityPluginsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
+      dataLayer.declarative.ensureCurrentUser();
       await loadListings();
     });
 
@@ -196,9 +202,6 @@ class SettingsCommunityPluginsView extends View {
       window.scrollTo(0, 0);
       loadListings();
     });
-
-    notificationService?.on("update", () => renderPage());
-    chatNotificationService?.on("update", () => renderPage());
   }
 }
 

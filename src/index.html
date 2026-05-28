@@ -100,7 +100,7 @@
       import { ReportService } from "/js/reportService.js";
       import { InteractionHandlers } from "/js/interactionHandlers.js";
       import { hapticsImpactLight } from "/js/haptics.js";
-      import { isNative, wait } from "/js/utils.js";
+      import { effect, isNative, wait } from "/js/utils.js";
       import {
         enableNativeRefresh,
         disableNativeRefresh,
@@ -194,18 +194,20 @@
         if (notificationService) {
           notificationService.startPolling();
 
-          notificationService.on("update", () => {
+          effect(() => {
             const numNotifications =
-              notificationService?.getNumNotifications() ?? 0;
+              notificationService.$numNotifications.get() ?? 0;
             // When there are new notifications, preload notifications for the notifs page.
             if (
               numNotifications > 0 &&
               !window.location.pathname.includes("notifications")
             ) {
               const loadedNotifications =
-                dataLayer.selectors.getNotifications();
+                dataLayer.signals.$notifications.get();
               const { loading: notificationsLoading } =
-                dataLayer.requests.getStatus("loadNotifications");
+                dataLayer.requests.statusStore.$statuses
+                  .get("loadNotifications")
+                  .get();
               // Only preload if there are no notifications loaded
               if (!loadedNotifications && !notificationsLoading) {
                 dataLayer.requests.loadNotifications({
@@ -214,7 +216,7 @@
                 });
               }
             }
-          });
+          }, "PRELOAD_NOTIFICATIONS");
         }
 
         if (chatNotificationService) {

@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -165,14 +165,16 @@ class ChatView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const convos = dataLayer.selectors.getConvoList();
-      const convosRequestStatus = dataLayer.requests.getStatus("loadConvoList");
-      const cursor = dataLayer.selectors.getConvoListCursor();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const convos = dataLayer.signals.$convoList.get();
+      const convosRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadConvoList")
+        .get();
+      const cursor = dataLayer.signals.$convoListCursor.get();
       const hasMore = !!cursor;
 
       render(
@@ -234,17 +236,15 @@ class ChatView extends View {
     }
 
     async function loadConvoList({ reload = false } = {}) {
-      const loadingPromise = dataLayer.requests.loadConvoList({
+      await dataLayer.requests.loadConvoList({
         reload,
         limit: 30,
       });
-      renderPage();
-      await loadingPromise;
-      renderPage();
     }
 
+    pageEffect(root, renderPage, "chat-view");
+
     root.addEventListener("page-enter", async () => {
-      renderPage();
       await dataLayer.declarative.ensureCurrentUser();
       await loadConvoList({ reload: true });
     });
@@ -258,12 +258,7 @@ class ChatView extends View {
         window.scrollTo(0, 0);
         await loadConvoList({ reload: true });
       }
-      renderPage();
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 

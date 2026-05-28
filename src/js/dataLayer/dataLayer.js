@@ -2,55 +2,51 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
-import { Selectors } from "/js/dataLayer/selectors.js";
 import { Declarative } from "/js/dataLayer/declarative.js";
-import { EventEmitter } from "/js/eventEmitter.js";
-import * as derived from "/js/dataLayer/derived.js";
-import * as base from "/js/dataLayer/base.js";
+import { Signals } from "/js/dataLayer/signals.js";
 
 export class DataLayer {
   constructor(api, pluginService, preferencesProvider) {
     this.api = api;
     this.pluginService = pluginService;
     this.isAuthenticated = api.isAuthenticated;
-    // Shared bus for per-entity events that span dataStore + patchStore.
-    // Consumers subscribe here for "post:${uri}" or "preferences:changed".
-    this.events = new EventEmitter();
-    this.dataStore = new DataStore(this.events);
-    this.patchStore = new PatchStore(this.events);
+    this.dataStore = new DataStore();
+    this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
-    preferencesProvider.on("setPreferences", () => {
-      this.events.emit("preferences:changed");
-    });
     this.requests = new Requests(
       this.api,
       this.dataStore,
       this.preferencesProvider,
       this.pluginService,
     );
+    this.pluginService?.on("feedFiltersRefresh", async ({ feedURI }) => {
+      const feedURIs = feedURI
+        ? [feedURI]
+        : Array.from(this.dataStore.$feeds.keys());
+      await Promise.all(
+        feedURIs.map((uri) => {
+          const feed = this.dataStore.$feeds.get(uri).get();
+          if (!feed) return;
+          return this.pluginService.refreshFiltersForFeed(uri, feed, {
+            reload: true,
+          });
+        }),
+      );
+    });
     this.mutations = new Mutations(
       this.api,
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
     );
-    this.selectors = new Selectors(
+    this.signals = new Signals(
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
+      this.pluginService,
       this.isAuthenticated,
     );
-    this.derived = derived;
-    this.base = {
-      getPost: (uri) => base.getPost(this.dataStore, this.patchStore, uri),
-      getProfile: (did) =>
-        base.getProfile(this.dataStore, this.patchStore, did),
-    };
-    this.declarative = new Declarative(
-      this.selectors,
-      this.requests,
-      this.base,
-    );
+    this.declarative = new Declarative(this.signals, this.requests);
     this.subscribers = [];
   }
 
@@ -59,11 +55,11 @@ export class DataLayer {
   }
 
   hasCachedFeed(feedURI) {
-    return this.dataStore.hasFeed(feedURI);
+    return this.dataStore.$feeds.get(feedURI).get() !== null;
   }
 
   hasCachedAuthorFeed(profileDid, feedType) {
     const feedURI = `${profileDid}-${feedType}`;
-    return this.dataStore.hasAuthorFeed(feedURI);
+    return this.dataStore.$authorFeeds.get(feedURI).get() !== null;
   }
 }

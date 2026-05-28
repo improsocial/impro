@@ -1,14 +1,18 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
+import { SignalMap } from "/js/utils.js";
 import "/js/components/plugin-slot.js";
 
 const t = new TestSuite("PluginSlot");
 
-// _reconcile awaits plugin invokes via Promise.all; flush twice so the
-// awaited continuation runs before assertions.
+// _reconcile awaits plugin invokes via Promise.all, and signal-driven
+// re-runs are scheduled via requestAnimationFrame (polyfilled to setTimeout
+// in the test env). Flush a few times so the awaited continuations run
+// before assertions.
 async function flushMicrotasks() {
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  await new Promise((resolve) => setTimeout(resolve, 0));
+  for (let i = 0; i < 4; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 }
 
 // Minimal stub renderer that just builds a <div> reflecting node.text so
@@ -31,22 +35,17 @@ function makeRenderer(pluginId, { onCreateRoot } = {}) {
 }
 
 function makePluginService({ entries = {}, onCreateRoot } = {}) {
-  const listeners = { slotRegistered: [], slotUnregistered: [] };
+  const $slots = new SignalMap();
+  for (const [name, list] of Object.entries(entries)) {
+    $slots.set(name, [...list]);
+  }
   return {
-    _entries: entries,
-    on(event, fn) {
-      listeners[event].push(fn);
-    },
-    off(event, fn) {
-      const list = listeners[event];
-      const index = list.indexOf(fn);
-      if (index !== -1) list.splice(index, 1);
-    },
-    emit(event, data) {
-      [...listeners[event]].forEach((fn) => fn(data));
+    $slots,
+    setSlotEntries(name, list) {
+      $slots.set(name, list.length === 0 ? null : [...list]);
     },
     getSlotEntries(name) {
-      return [...(this._entries[name] ?? [])];
+      return [...($slots.get(name).get() ?? [])];
     },
     getRenderer(pluginId) {
       return makeRenderer(pluginId, { onCreateRoot });
@@ -196,10 +195,9 @@ t.describe("PluginSlot - dynamic updates", (it) => {
     await flushMicrotasks();
     assertEquals(slot.children.length, 0);
 
-    pluginService._entries.x = [
+    pluginService.setSlotEntries("x", [
       { pluginId: "alpha", invoke: async () => ({ tag: "div", text: "A" }) },
-    ];
-    pluginService.emit("slotRegistered", { name: "x" });
+    ]);
     await flushMicrotasks();
     assertEquals(slot.children.length, 1);
     assertEquals(slot.children[0].dataset.plugin, "alpha");
@@ -212,7 +210,7 @@ t.describe("PluginSlot - dynamic updates", (it) => {
     await flushMicrotasks();
 
     let invoked = false;
-    pluginService._entries.y = [
+    pluginService.setSlotEntries("y", [
       {
         pluginId: "other",
         invoke: async () => {
@@ -220,8 +218,7 @@ t.describe("PluginSlot - dynamic updates", (it) => {
           return null;
         },
       },
-    ];
-    pluginService.emit("slotRegistered", { name: "y" });
+    ]);
     await flushMicrotasks();
     assertEquals(invoked, false);
   });
@@ -295,16 +292,16 @@ t.describe("PluginSlot - interactionHandlers", (it) => {
 });
 
 t.describe("PluginSlot - cleanup", (it) => {
-  it("removes its event listeners on disconnect", async () => {
+  it("unsubscribes from the slot signal on disconnect", async () => {
     const pluginService = makePluginService({ entries: { x: [] } });
     const slot = makeSlot({ pluginService, name: "x" });
     document.body.appendChild(slot);
     await flushMicrotasks();
     slot.remove();
 
-    // After removal, emitting should not throw or attempt to mutate the slot.
+    // After removal, signal updates should not trigger reconcile.
     let invoked = false;
-    pluginService._entries.x = [
+    pluginService.setSlotEntries("x", [
       {
         pluginId: "alpha",
         invoke: async () => {
@@ -312,8 +309,7 @@ t.describe("PluginSlot - cleanup", (it) => {
           return null;
         },
       },
-    ];
-    pluginService.emit("slotRegistered", { name: "x" });
+    ]);
     await flushMicrotasks();
     assertEquals(invoked, false);
   });

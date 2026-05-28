@@ -1,8 +1,10 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
+import { Signal } from "/js/utils.js";
 
 class SettingsPluginDetailView extends View {
   async render({
@@ -21,47 +23,48 @@ class SettingsPluginDetailView extends View {
     const { pluginId } = params;
     const state = {
       manifest: null,
-      tab: null,
       containerNode: null,
       error: null,
     };
-
-    async function loadTab() {
-      state.manifest = await pluginService.getManifest(pluginId);
-      if (!state.manifest) {
-        state.error = "Plugin not found.";
-        renderPage();
-        return;
-      }
-      if (!pluginService.pluginBridge.isLoaded(pluginId)) {
-        state.error = "This plugin is not enabled.";
-        renderPage();
-        return;
-      }
-      const tab = pluginService.getSettingTab(pluginId);
-      state.tab = tab;
-      if (!tab) {
-        state.error = "This plugin has no settings.";
-        renderPage();
-        return;
-      }
-      try {
-        state.containerNode = await tab.display();
-        state.error = null;
-      } catch (error) {
-        state.error = error.message ?? String(error);
-      }
-      renderPage();
+    const $stateTick = new Signal.State(0);
+    function bumpState() {
+      $stateTick.set($stateTick.get() + 1);
     }
 
-    pluginService.on("settingTabRefresh", (event) => {
-      if (event.pluginId === pluginId) {
-        loadTab();
-      }
-    });
+    pageEffect(
+      root,
+      () => {
+        const tab = pluginService.$settingTabs.get(pluginId).get();
+        const installed = pluginService.prefManager.$installedPlugins
+          .get()
+          .find((plugin) => plugin.id === pluginId);
+        state.manifest = installed ?? null;
+        if (!installed) {
+          state.error = "Plugin not found.";
+          bumpState();
+        } else if (!pluginService.pluginBridge.isLoaded(pluginId)) {
+          state.error = "This plugin is not enabled.";
+          bumpState();
+        } else if (!tab) {
+          state.error = "This plugin has no settings.";
+          bumpState();
+        } else {
+          (async () => {
+            try {
+              state.containerNode = await tab.display();
+              state.error = null;
+            } catch (error) {
+              state.error = error.message ?? String(error);
+            }
+            bumpState();
+          })();
+        }
+      },
+      "RELOAD_PLUGIN_SETTING_TAB",
+    );
 
     const tabRoot = pluginService.getRenderer(pluginId).createRoot({
-      handlerRenderFunc: () => renderPage(),
+      handlerRenderFunc: () => bumpState(),
     });
 
     function renderTabContent(containerNode) {
@@ -69,12 +72,13 @@ class SettingsPluginDetailView extends View {
       return tabRoot.render(containerNode);
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      $stateTick.get();
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       const title = state.manifest?.name ?? pluginId;
       render(
         html`<div id="settings-plugin-detail-view">
@@ -102,21 +106,15 @@ class SettingsPluginDetailView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
-    root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
-      await loadTab();
+    root.addEventListener("page-enter", () => {
+      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
-      loadTab();
     });
-
-    notificationService?.on("update", () => renderPage());
-    chatNotificationService?.on("update", () => renderPage());
   }
 }
 

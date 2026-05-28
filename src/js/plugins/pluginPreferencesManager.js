@@ -1,7 +1,12 @@
+import { Signal } from "/js/utils.js";
+
 // Handles persisting plugin settings in user preferences
 export class PluginPreferencesManager {
   constructor(preferencesProvider) {
     this.preferencesProvider = preferencesProvider;
+    this.$installedPlugins = new Signal.Computed(
+      () => preferencesProvider.$preferences.get()?.getInstalledPlugins() ?? [],
+    );
   }
 
   getInstalledPlugins() {

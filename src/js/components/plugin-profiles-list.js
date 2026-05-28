@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
+import { Signal, effect } from "/js/utils.js";
 
 class PluginProfilesList extends Component {
   static get observedAttributes() {
@@ -10,22 +11,59 @@ class PluginProfilesList extends Component {
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
-    this.loadedDids = null;
-    this.error = null;
-    this._profileUnsubs = new Map();
-    this._onLiveUpdate = () => this.render();
-    this.render();
-    this.load();
+    this.attribs = {
+      dids: new Signal.State(this.parseDids()),
+      emptyMessage: new Signal.State(this.getAttribute("empty-message")),
+    };
+    this.state = {
+      loaded: new Signal.State(false),
+      profiles: new Signal.Computed(() => {
+        if (!this.state.loaded.get()) return null;
+        const dids = this.attribs.dids.get();
+        return dids
+          .map((did) => this.dataLayer.signals.$hydratedProfiles.get(did).get())
+          .filter(Boolean);
+      }),
+      error: new Signal.State(null),
+    };
+    this._disposers = [
+      effect(() => {
+        const error = this.state.error.get();
+        const profiles = this.state.profiles.get();
+        const emptyMessage = this.attribs.emptyMessage.get();
+        const dids = this.attribs.dids.get();
+        if (error) {
+          render(html`<div class="profile-list-error">${error}</div>`, this);
+          return;
+        }
+        render(
+          profileFeedTemplate({
+            profiles,
+            hasMore: false,
+            skeletonCount: dids.length,
+            emptyMessage,
+          }),
+          this,
+        );
+      }),
+      effect(() => {
+        this.attribs.dids.get();
+        this.load();
+      }),
+    ];
   }
 
   disconnectedCallback() {
     if (!this.initialized) return;
-    this._profileUnsubs.forEach((unsub) => unsub());
-    this._profileUnsubs.clear();
+    this._disposers?.forEach((dispose) => dispose());
+    this._disposers = null;
   }
 
   attributeChangedCallback() {
-    if (this.initialized) this.load();
+    if (this.initialized) {
+      this.attribs.dids.set(this.parseDids());
+      this.attribs.emptyMessage.set(this.getAttribute("empty-message"));
+    }
   }
 
   parseDids() {
@@ -36,70 +74,24 @@ class PluginProfilesList extends Component {
       .filter(Boolean);
   }
 
-  _syncProfileSubscriptions(dids) {
-    const next = new Set(dids);
-    for (const did of [...this._profileUnsubs.keys()]) {
-      if (!next.has(did)) {
-        this._profileUnsubs.get(did)();
-        this._profileUnsubs.delete(did);
-      }
-    }
-    for (const did of dids) {
-      if (this._profileUnsubs.has(did)) continue;
-      const event = `profile:${did}`;
-      this.dataLayer.events.on(event, this._onLiveUpdate);
-      this._profileUnsubs.set(did, () =>
-        this.dataLayer.events.off(event, this._onLiveUpdate),
-      );
-    }
-  }
-
   async load() {
-    const dids = this.parseDids();
+    const dids = this.attribs.dids.get();
     const requestToken = Symbol();
     this._requestToken = requestToken;
+    this.state.error.set(null);
     if (dids.length === 0) {
-      this.loadedDids = [];
-      this.error = null;
-      this._syncProfileSubscriptions([]);
-      this.render();
+      this.state.loaded.set(true);
       return;
     }
-    this.loadedDids = null;
-    this.error = null;
-    this.render();
+    this.state.loaded.set(false);
     try {
       await this.dataLayer.declarative.ensureProfiles(dids);
       if (this._requestToken !== requestToken) return;
-      this.loadedDids = dids;
-      this._syncProfileSubscriptions(dids);
+      this.state.loaded.set(true);
     } catch (error) {
       if (this._requestToken !== requestToken) return;
-      this.error = error.message ?? String(error);
+      this.state.error.set(error.message ?? String(error));
     }
-    this.render();
-  }
-
-  render() {
-    if (this.error) {
-      render(html`<div class="profile-list-error">${this.error}</div>`, this);
-      return;
-    }
-    let profiles = null;
-    if (this.loadedDids) {
-      profiles = this.loadedDids
-        .map((did) => this.dataLayer.base.getProfile(did))
-        .filter(Boolean);
-    }
-    render(
-      profileFeedTemplate({
-        profiles,
-        hasMore: false,
-        skeletonCount: this.parseDids().length,
-        emptyMessage: this.getAttribute("empty-message"),
-      }),
-      this,
-    );
   }
 }
 

@@ -4,7 +4,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { bindToPage } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 
 class PostQuotesView extends View {
   async render({
@@ -33,7 +33,6 @@ class PostQuotesView extends View {
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
     const { postInteractionHandler } = interactionHandlers;
-    bindToPage(root, interactionHandlers, "requestRender", () => renderPage());
 
     function quotesErrorTemplate({ error }) {
       console.error(error);
@@ -43,17 +42,19 @@ class PostQuotesView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.signals.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const postQuotes = dataLayer.selectors.getPostQuotes(postUri);
-      const post = dataLayer.selectors.getPost(postUri);
-      const postQuotesRequestStatus = dataLayer.requests.getStatus(
-        "loadPostQuotes-" + postUri,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const postQuotes = dataLayer.signals.$hydratedPostQuotes
+        .get(postUri)
+        .get();
+      const post = dataLayer.signals.$hydratedPosts.get(postUri).get();
+      const postQuotesRequestStatus = dataLayer.requests.statusStore.$statuses
+        .get("loadPostQuotes-" + postUri)
+        .get();
 
       const subtitle = post?.quoteCount
         ? `${formatLargeNumber(post.quoteCount)} ${
@@ -102,44 +103,29 @@ class PostQuotesView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadQuotes() {
-      const postQuotes = dataLayer.selectors.getPostQuotes(postUri);
+      const postQuotes = dataLayer.dataStore.$postQuotes.get(postUri).get();
       const cursor = postQuotes?.cursor;
-      const loadingPromise = dataLayer.requests.loadPostQuotes(postUri, {
-        cursor,
-      });
-      renderPage();
-      await loadingPromise;
-      renderPage();
+      await dataLayer.requests.loadPostQuotes(postUri, { cursor });
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
       if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser().then(() => {
-          renderPage();
-        });
+        dataLayer.declarative.ensureCurrentUser();
       }
       // Load the post thread to get the post quote count
-      dataLayer.declarative.ensurePostThread(postUri).then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensurePostThread(postUri);
       await loadQuotes();
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
       if (scrollY > 0) {
         window.scrollTo(0, scrollY);
       }
     });
-
-    bindToPage(root, notificationService, "update", () => renderPage());
-
-    bindToPage(root, chatNotificationService, "update", () => renderPage());
   }
 }
 
