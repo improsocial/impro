@@ -95,6 +95,7 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
         description: data.description,
         image: data.image,
         showCloseButton: true,
+        disableNavigation: true,
         onClose,
       })}
     </div>

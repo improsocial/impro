@@ -159,6 +159,35 @@ t.describe("externalLinkTemplate", (it) => {
     const link = container.querySelector("a");
     assertEquals(link.getAttribute("target"), "_blank");
   });
+
+  it("should not prevent navigation by default", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "Example",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    const event = new Event("click", { cancelable: true, bubbles: true });
+    link.dispatchEvent(event);
+    assertEquals(event.defaultPrevented, false);
+  });
+
+  it("should prevent navigation when disableNavigation is true", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "Example",
+      description: "Test",
+      disableNavigation: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    const event = new Event("click", { cancelable: true, bubbles: true });
+    link.dispatchEvent(event);
+    assertEquals(event.defaultPrevented, true);
+  });
 });
 
 await t.run();
