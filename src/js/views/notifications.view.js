@@ -103,6 +103,8 @@ class NotificationsView extends View {
     const { postInteractionHandler } = interactionHandlers;
 
     const $activeTab = new Signal.State("all");
+    const $isReloadingNotifications = new Signal.State(false);
+    const $isReloadingMentionNotifications = new Signal.State(false);
 
     async function handleMenuClick() {
       const sidebar = root.querySelector("animated-sidebar");
@@ -670,8 +672,22 @@ class NotificationsView extends View {
       }
     }
 
+    async function scrollAndReloadNotifications() {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      }
+      if ($activeTab.get() === "all") {
+        await loadNotifications({ reload: true });
+      } else {
+        await loadMentionNotifications({ reload: true });
+      }
+    }
+
     async function handleTabClick(tab) {
-      if (tab === $activeTab.get()) return;
+      if (tab === $activeTab.get()) {
+        scrollAndReloadNotifications();
+        return;
+      }
       $activeTab.set(tab);
       window.scrollTo(0, 0);
       if (
@@ -710,8 +726,12 @@ class NotificationsView extends View {
 
       const isLoading =
         activeTab === "all"
-          ? notificationsRequestStatus.loading && !!notifications
-          : mentionNotificationsRequestStatus.loading && !!mentionNotifications;
+          ? notificationsRequestStatus.loading &&
+            $isReloadingNotifications.get() &&
+            !!notifications
+          : mentionNotificationsRequestStatus.loading &&
+            $isReloadingMentionNotifications.get() &&
+            !!mentionNotifications;
 
       render(
         html`<div id="notifications-view">
@@ -720,13 +740,8 @@ class NotificationsView extends View {
             numNotifications,
             numChatNotifications,
             activeNavItem: "notifications",
-            onClickActiveNavItem: async () => {
-              window.scrollTo(0, 0);
-              if (activeTab === "all") {
-                await loadNotifications({ reload: true });
-              } else {
-                await loadMentionNotifications({ reload: true });
-              }
+            onClickActiveNavItem: () => {
+              scrollAndReloadNotifications();
             },
             showFloatingComposeButton: true,
             onClickComposeButton: () =>
@@ -799,19 +814,29 @@ class NotificationsView extends View {
     });
 
     async function loadNotifications({ reload = false } = {}) {
-      await dataLayer.requests.loadNotifications({
-        reload,
-        limit: NOTIFICATIONS_PAGE_SIZE,
-      });
+      if (reload) $isReloadingNotifications.set(true);
+      try {
+        await dataLayer.requests.loadNotifications({
+          reload,
+          limit: NOTIFICATIONS_PAGE_SIZE,
+        });
+      } finally {
+        if (reload) $isReloadingNotifications.set(false);
+      }
       // can be called async
       notificationService.markNotificationsAsRead();
     }
 
     async function loadMentionNotifications({ reload = false } = {}) {
-      await dataLayer.requests.loadMentionNotifications({
-        reload,
-        limit: NOTIFICATIONS_PAGE_SIZE,
-      });
+      if (reload) $isReloadingMentionNotifications.set(true);
+      try {
+        await dataLayer.requests.loadMentionNotifications({
+          reload,
+          limit: NOTIFICATIONS_PAGE_SIZE,
+        });
+      } finally {
+        if (reload) $isReloadingMentionNotifications.set(false);
+      }
     }
 
     root.addEventListener("page-enter", async () => {
