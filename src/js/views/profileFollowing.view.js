@@ -41,7 +41,7 @@ class ProfileFollowingView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
@@ -49,7 +49,7 @@ class ProfileFollowingView extends View {
       const profileFollowing = dataLayer.dataStore.$profileFollows
         .get(profileDid)
         .get();
-      const profile = dataLayer.signals.$hydratedProfiles.get(profileDid).get();
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
       const profileFollowingRequestStatus =
         dataLayer.requests.statusStore.$statuses
           .get("loadProfileFollows-" + profileDid)

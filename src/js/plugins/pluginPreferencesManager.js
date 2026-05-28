@@ -1,4 +1,4 @@
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 // Handles persisting plugin settings in user preferences
 export class PluginPreferencesManager {

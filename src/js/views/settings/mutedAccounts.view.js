@@ -35,7 +35,7 @@ class SettingsMutedAccountsView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =

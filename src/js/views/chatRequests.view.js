@@ -46,7 +46,7 @@ class ChatRequestsView extends View {
     function requestItemTemplate({ convo }) {
       const lastMessage = convo.lastMessage;
       const members = convo.members.filter(
-        (member) => member.did !== dataLayer.signals.$currentUser.get()?.did,
+        (member) => member.did !== dataLayer.derived.$currentUser.get()?.did,
       );
       const otherMember = members[0];
       const timeAgo = lastMessage
@@ -160,16 +160,16 @@ class ChatRequestsView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const convos = dataLayer.signals.$convoList.get();
+      const convos = dataLayer.derived.$convoList.get();
       const convosRequestStatus = dataLayer.requests.statusStore.$statuses
         .get("loadConvoList")
         .get();
-      const cursor = dataLayer.signals.$convoListCursor.get();
+      const cursor = dataLayer.derived.$convoListCursor.get();
       const hasMore = !!cursor;
 
       // Filter to only show chat requests

@@ -18,15 +18,14 @@ import {
   markBlockedQuoteNotFound,
   replaceBlockedQuote,
 } from "/js/dataHelpers.js";
+import { sortBy, deepClone } from "/js/utils.js";
 import {
-  sortBy,
   effect,
-  deepClone,
   Signal,
   SignalMap,
   ComputedMap,
   ReactiveStore,
-} from "/js/utils.js";
+} from "/js/signals.js";
 
 function resolveBlockedQuote(post, { getPost }) {
   const blockedQuote = getBlockedQuote(post);
@@ -232,7 +231,7 @@ function hydratePostThreadParent(parent, { getPost, isUnavailable }) {
   return hydratedParent;
 }
 
-export class Signals extends ReactiveStore {
+export class Derived extends ReactiveStore {
   constructor(
     dataStore,
     patchStore,
@@ -240,7 +239,7 @@ export class Signals extends ReactiveStore {
     pluginService,
     isAuthenticated,
   ) {
-    super("signals");
+    super("derived");
     this.dataStore = dataStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;

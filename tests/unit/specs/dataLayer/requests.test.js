@@ -4,7 +4,7 @@ import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
-import { SignalMap } from "/js/utils.js";
+import { SignalMap } from "/js/signals.js";
 
 const t = new TestSuite("Requests");
 

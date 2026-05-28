@@ -100,7 +100,8 @@
       import { ReportService } from "/js/reportService.js";
       import { InteractionHandlers } from "/js/interactionHandlers.js";
       import { hapticsImpactLight } from "/js/haptics.js";
-      import { effect, isNative, wait } from "/js/utils.js";
+      import { isNative, wait } from "/js/utils.js";
+      import { effect } from "/js/signals.js";
       import {
         enableNativeRefresh,
         disableNativeRefresh,
@@ -203,7 +204,7 @@
               !window.location.pathname.includes("notifications")
             ) {
               const loadedNotifications =
-                dataLayer.signals.$notifications.get();
+                dataLayer.derived.$notifications.get();
               const { loading: notificationsLoading } =
                 dataLayer.requests.statusStore.$statuses
                   .get("loadNotifications")

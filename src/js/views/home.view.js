@@ -9,7 +9,7 @@ import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 class HomeView extends View {
   async render({
@@ -188,7 +188,7 @@ class HomeView extends View {
 
     pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.signals.$showLessInteractions.get() ?? [];
+        dataLayer.derived.$showLessInteractions.get() ?? [];
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
@@ -196,9 +196,9 @@ class HomeView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const feedGenerators =
-        dataLayer.signals.$hydratedPinnedFeedGenerators.get() ?? [];
+        dataLayer.derived.$hydratedPinnedFeedGenerators.get() ?? [];
       const currentFeedUri = state.$currentFeedUri.get();
       const feedGenerator =
         feedGenerators.find((fg) => fg.uri === currentFeedUri) ?? null;
@@ -241,7 +241,7 @@ class HomeView extends View {
                   const acceptsInteractions =
                     feedGenerator.acceptsInteractions ||
                     feedGenerator.uri === DISCOVER_FEED_URI;
-                  const feed = dataLayer.signals.$hydratedFeeds
+                  const feed = dataLayer.derived.$hydratedFeeds
                     .get(feedGenerator.uri)
                     .get();
                   const feedRequestStatus =

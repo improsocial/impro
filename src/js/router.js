@@ -1,5 +1,5 @@
 import { EventEmitter } from "/js/eventEmitter.js";
-import { effect } from "/js/utils.js";
+import { effect } from "/js/signals.js";
 
 const MAX_PAGES = 5;
 

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { Signal, effect } from "/js/utils.js";
+import { Signal, effect } from "/js/signals.js";
 
 class PluginPostsFeed extends Component {
   static get observedAttributes() {
@@ -19,14 +19,14 @@ class PluginPostsFeed extends Component {
       emptyMessage: new Signal.State(this.getAttribute("empty-message")),
     };
     this.state = {
-      currentUser: this.dataLayer.signals.$currentUser,
+      currentUser: this.dataLayer.derived.$currentUser,
       loaded: new Signal.State(false),
       posts: new Signal.Computed(() => {
         if (!this.state.loaded.get()) return null;
         const uris = this.attribs.uris.get();
         if (!uris) return null;
         return uris
-          .map((uri) => this.dataLayer.signals.$hydratedPosts.get(uri).get())
+          .map((uri) => this.dataLayer.derived.$hydratedPosts.get(uri).get())
           .filter(Boolean);
       }),
       error: new Signal.State(null),

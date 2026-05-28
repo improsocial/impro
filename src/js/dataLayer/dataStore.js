@@ -1,4 +1,4 @@
-import { Signal, SignalMap, ReactiveStore } from "/js/utils.js";
+import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { getQuotedPost, embedViewRecordToPostView } from "/js/dataHelpers.js";
 
 // The store saves canonical data from the server. Patches are layered on top of this.

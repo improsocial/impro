@@ -1,6 +1,6 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { Signal, SignalMap } from "/js/utils.js";
+import { Signal, SignalMap } from "/js/signals.js";
 import "/js/components/plugin-posts-feed.js";
 
 const t = new TestSuite("PluginPostsFeed");
@@ -11,7 +11,7 @@ function makeDataLayer({ ensurePosts, currentUser } = {}) {
     declarative: {
       ensurePosts: ensurePosts ?? (() => new Promise(() => {})),
     },
-    signals: {
+    derived: {
       $currentUser: new Signal.State(currentUser ?? null),
       $hydratedPosts: postSignals,
     },

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
-import { Signal, effect } from "/js/utils.js";
+import { Signal, effect } from "/js/signals.js";
 
 class PluginProfilesList extends Component {
   static get observedAttributes() {
@@ -21,7 +21,7 @@ class PluginProfilesList extends Component {
         if (!this.state.loaded.get()) return null;
         const dids = this.attribs.dids.get();
         return dids
-          .map((did) => this.dataLayer.signals.$hydratedProfiles.get(did).get())
+          .map((did) => this.dataLayer.derived.$hydratedProfiles.get(did).get())
           .filter(Boolean);
       }),
       error: new Signal.State(null),

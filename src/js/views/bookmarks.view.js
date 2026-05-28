@@ -37,8 +37,8 @@ class BookmarksView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const currentUser = dataLayer.signals.$currentUser.get();
-      const bookmarks = dataLayer.signals.$hydratedBookmarks.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const bookmarks = dataLayer.derived.$hydratedBookmarks.get();
 
       render(
         html`<div id="bookmarks-view">

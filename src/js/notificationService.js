@@ -1,4 +1,5 @@
-import { wait, Signal } from "/js/utils.js";
+import { wait } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
 

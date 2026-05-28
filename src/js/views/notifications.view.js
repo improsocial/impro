@@ -6,7 +6,8 @@ import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { displayRelativeTime, batch, Signal } from "/js/utils.js";
+import { displayRelativeTime, batch } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import { pageEffect } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
@@ -675,7 +676,7 @@ class NotificationsView extends View {
       window.scrollTo(0, 0);
       if (
         tab === "mentions" &&
-        !dataLayer.signals.$mentionNotifications.get()
+        !dataLayer.derived.$mentionNotifications.get()
       ) {
         await loadMentionNotifications({ reload: true });
       }
@@ -683,12 +684,12 @@ class NotificationsView extends View {
 
     pageEffect(root, () => {
       const activeTab = $activeTab.get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const notifications = dataLayer.signals.$notifications.get();
+      const notifications = dataLayer.derived.$notifications.get();
       const notificationsRequestStatus =
         dataLayer.requests.statusStore.$statuses.get("loadNotifications").get();
       const groupedNotifications = groupNotificationsByType(notifications);
@@ -696,7 +697,7 @@ class NotificationsView extends View {
       const hasMore = !!cursor;
 
       const mentionNotifications =
-        dataLayer.signals.$mentionNotifications.get();
+        dataLayer.derived.$mentionNotifications.get();
       const mentionNotificationsRequestStatus =
         dataLayer.requests.statusStore.$statuses
           .get("loadMentionNotifications")

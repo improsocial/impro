@@ -1150,14 +1150,14 @@ t.describe("app.data host methods", (it) => {
     return { map, calls };
   }
 
-  it("getPost host method returns the hydrated post from signals", async () => {
+  it("getPost host method returns the hydrated post from derived", async () => {
     const service = makeServiceWithRealBridge();
     const posts = makeStubSignalMap((uri) => ({
       uri,
       record: { text: "cached" },
     }));
     service.setDataLayer({
-      signals: {
+      derived: {
         $hydratedPosts: posts.map,
         $hydratedProfiles: makeStubSignalMap(() => null).map,
       },
@@ -1171,14 +1171,14 @@ t.describe("app.data host methods", (it) => {
     });
   });
 
-  it("getProfile host method returns the hydrated profile from signals", async () => {
+  it("getProfile host method returns the hydrated profile from derived", async () => {
     const service = makeServiceWithRealBridge();
     const profiles = makeStubSignalMap((did) => ({
       did,
       handle: "alice.test",
     }));
     service.setDataLayer({
-      signals: {
+      derived: {
         $hydratedPosts: makeStubSignalMap(() => null).map,
         $hydratedProfiles: profiles.map,
       },
@@ -1199,7 +1199,7 @@ t.describe("app.data host methods", (it) => {
   it("getProfile returns null when the hydrated profile signal is empty", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
-      signals: {
+      derived: {
         $hydratedPosts: makeStubSignalMap(() => null).map,
         $hydratedProfiles: makeStubSignalMap(() => null).map,
       },

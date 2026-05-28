@@ -20,13 +20,13 @@ class FeedsView extends View {
     await auth.requireAuth();
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const pinnedFeedGenerators =
-        dataLayer.signals.$hydratedPinnedFeedGenerators.get();
+        dataLayer.derived.$hydratedPinnedFeedGenerators.get();
 
       render(
         html`<div id="feeds-view">

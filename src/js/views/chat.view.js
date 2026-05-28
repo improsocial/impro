@@ -165,16 +165,16 @@ class ChatView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const convos = dataLayer.signals.$convoList.get();
+      const convos = dataLayer.derived.$convoList.get();
       const convosRequestStatus = dataLayer.requests.statusStore.$statuses
         .get("loadConvoList")
         .get();
-      const cursor = dataLayer.signals.$convoListCursor.get();
+      const cursor = dataLayer.derived.$convoListCursor.get();
       const hasMore = !!cursor;
 
       render(

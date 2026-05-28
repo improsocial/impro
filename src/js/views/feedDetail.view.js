@@ -47,7 +47,7 @@ class FeedDetailView extends View {
 
     pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.signals.$showLessInteractions.get() ?? [];
+        dataLayer.derived.$showLessInteractions.get() ?? [];
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
@@ -55,16 +55,16 @@ class FeedDetailView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const currentUser = dataLayer.signals.$currentUser.get();
-      const feedGenerator = dataLayer.signals.$feedGenerators
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const feedGenerator = dataLayer.derived.$feedGenerators
         .get(feedUri)
         .get();
       const feedName = feedGenerator?.displayName || "";
       const feedAuthor = feedGenerator?.creator;
       const feedAuthorHandle = feedAuthor?.handle;
-      const preferences = dataLayer.signals.$preferences.get();
+      const preferences = dataLayer.derived.$preferences.get();
       const isPinned = preferences?.isFeedPinned(feedUri) ?? false;
-      const feed = dataLayer.signals.$hydratedFeeds.get(feedUri).get();
+      const feed = dataLayer.derived.$hydratedFeeds.get(feedUri).get();
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({

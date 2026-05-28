@@ -1,5 +1,5 @@
 import { getQuotedPost } from "/js/dataHelpers.js";
-import { effect, untrack } from "/js/utils.js";
+import { effect, untrack } from "/js/signals.js";
 
 export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   const setDid = (entity) => {
@@ -37,7 +37,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         console.error(error);
       }
     }
-  }, "identityPrecaching:posts");
+  });
 
   const seenFeedGeneratorUris = new Set();
   effect(() => {
@@ -59,7 +59,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         console.error(error);
       }
     }
-  }, "identityPrecaching:feedGenerators");
+  });
 
   effect(() => {
     const profileSearchResults =
@@ -68,7 +68,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
     for (const searchResult of profileSearchResults.actors) {
       setDid(searchResult);
     }
-  }, "identityPrecaching:profileSearch");
+  });
 
   effect(() => {
     const preferences = dataLayer.preferencesProvider.$preferences.get();
@@ -81,7 +81,7 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         console.error(error);
       }
     }
-  }, "identityPrecaching:preferences");
+  });
 
   effect(() => {
     const notifications = dataLayer.dataStore.$notifications.get();
@@ -94,5 +94,5 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         console.error(error);
       }
     }
-  }, "identityPrecaching:notifications");
+  });
 }

@@ -6,7 +6,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsCommunityPluginsView extends View {
@@ -89,7 +89,7 @@ class SettingsCommunityPluginsView extends View {
 
     pageEffect(root, () => {
       $stateTick.get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const listings = pluginService.getRegistryListings();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;

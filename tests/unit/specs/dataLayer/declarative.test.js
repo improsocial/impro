@@ -7,7 +7,7 @@ const t = new TestSuite("Declarative");
 const sig = (getter) => ({ get: getter });
 const mapSig = (getter) => ({ get: (key) => ({ get: () => getter(key) }) });
 
-function createMockSignals(data = {}) {
+function createMockDerived(data = {}) {
   return {
     $currentUser: sig(() => data.currentUser ?? null),
     $hydratedProfiles: mapSig((did) => data.profiles?.[did] ?? null),
@@ -42,14 +42,14 @@ t.describe("ensureCurrentUser", (it) => {
     const currentUser = { did: "did:test:user", handle: "test.user" };
     let loadCalled = false;
 
-    const signals = createMockSignals({ currentUser });
+    const derived = createMockDerived({ currentUser });
     const requests = {
       loadCurrentUser: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureCurrentUser();
 
     assertEquals(result, currentUser);
@@ -60,7 +60,7 @@ t.describe("ensureCurrentUser", (it) => {
     const currentUser = { did: "did:test:user", handle: "test.user" };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $currentUser: sig(() => {
         callCount++;
         return callCount > 1 ? currentUser : null;
@@ -70,7 +70,7 @@ t.describe("ensureCurrentUser", (it) => {
       loadCurrentUser: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureCurrentUser();
 
     assertEquals(result, currentUser);
@@ -78,10 +78,10 @@ t.describe("ensureCurrentUser", (it) => {
   });
 
   it("should throw when user not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -101,14 +101,14 @@ t.describe("ensureProfile", (it) => {
     const profile = { did: profileDid, handle: "test.profile" };
     let loadCalled = false;
 
-    const signals = createMockSignals({ profiles: { [profileDid]: profile } });
+    const derived = createMockDerived({ profiles: { [profileDid]: profile } });
     const requests = {
       loadProfile: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureProfile(profileDid);
 
     assertEquals(result, profile);
@@ -120,7 +120,7 @@ t.describe("ensureProfile", (it) => {
     const profile = { did: profileDid, handle: "test.profile" };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $hydratedProfiles: mapSig(() => {
         callCount++;
         return callCount > 1 ? profile : null;
@@ -130,17 +130,17 @@ t.describe("ensureProfile", (it) => {
       loadProfile: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureProfile(profileDid);
 
     assertEquals(result, profile);
   });
 
   it("should throw when profile not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -160,7 +160,7 @@ t.describe("ensureProfiles", (it) => {
     const profileB = { did: "did:test:b", handle: "b.test" };
     let loadCalled = false;
 
-    const signals = createMockSignals({
+    const derived = createMockDerived({
       profiles: { [profileA.did]: profileA, [profileB.did]: profileB },
     });
     const requests = {
@@ -169,7 +169,7 @@ t.describe("ensureProfiles", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureProfiles([
       profileB.did,
       profileA.did,
@@ -185,7 +185,7 @@ t.describe("ensureProfiles", (it) => {
     const store = { [profileA.did]: profileA };
     let loadedWith = null;
 
-    const signals = {
+    const derived = {
       $hydratedProfiles: mapSig((did) => store[did] ?? null),
     };
     const requests = {
@@ -195,7 +195,7 @@ t.describe("ensureProfiles", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureProfiles([
       profileA.did,
       profileB.did,
@@ -206,10 +206,10 @@ t.describe("ensureProfiles", (it) => {
   });
 
   it("returns null entries for profiles still missing after load", async () => {
-    const signals = { $hydratedProfiles: mapSig(() => null) };
+    const derived = { $hydratedProfiles: mapSig(() => null) };
     const requests = { loadProfiles: async () => {} };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureProfiles(["did:test:missing"]);
 
     assertEquals(result, [null]);
@@ -222,7 +222,7 @@ t.describe("ensurePostThread", (it) => {
     const postThread = { post: { uri: postURI }, replies: [] };
     let loadCalled = false;
 
-    const signals = createMockSignals({
+    const derived = createMockDerived({
       postThreads: { [postURI]: postThread },
     });
     const requests = {
@@ -231,7 +231,7 @@ t.describe("ensurePostThread", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePostThread(postURI);
 
     assertEquals(result, postThread);
@@ -243,7 +243,7 @@ t.describe("ensurePostThread", (it) => {
     const postThread = { post: { uri: postURI }, replies: [] };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $hydratedPostThreads: mapSig(() => {
         callCount++;
         return callCount > 1 ? postThread : null;
@@ -253,7 +253,7 @@ t.describe("ensurePostThread", (it) => {
       loadPostThread: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePostThread(postURI);
 
     assertEquals(result, postThread);
@@ -265,7 +265,7 @@ t.describe("ensurePostThread", (it) => {
     let passedLabelers = null;
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $hydratedPostThreads: mapSig(() => {
         callCount++;
         return callCount > 1 ? postThread : null;
@@ -277,17 +277,17 @@ t.describe("ensurePostThread", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     await declarative.ensurePostThread(postURI, { labelers: ["labeler1"] });
 
     assertEquals(passedLabelers, ["labeler1"]);
   });
 
   it("should throw when post thread not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -307,14 +307,14 @@ t.describe("ensurePost", (it) => {
     const post = { uri: postURI, text: "Hello" };
     let loadCalled = false;
 
-    const signals = createMockSignals({ posts: { [postURI]: post } });
+    const derived = createMockDerived({ posts: { [postURI]: post } });
     const requests = {
       loadPost: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePost(postURI);
 
     assertEquals(result, post);
@@ -326,7 +326,7 @@ t.describe("ensurePost", (it) => {
     const post = { uri: postURI, text: "Hello" };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $hydratedPosts: mapSig(() => {
         callCount++;
         return callCount > 1 ? post : null;
@@ -336,17 +336,17 @@ t.describe("ensurePost", (it) => {
       loadPost: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePost(postURI);
 
     assertEquals(result, post);
   });
 
   it("should throw when post not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -366,7 +366,7 @@ t.describe("ensurePosts", (it) => {
     const postB = { uri: "at://b", text: "B" };
     let loadCalled = false;
 
-    const signals = createMockSignals({
+    const derived = createMockDerived({
       posts: { [postA.uri]: postA, [postB.uri]: postB },
     });
     const requests = {
@@ -375,7 +375,7 @@ t.describe("ensurePosts", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts([postB.uri, postA.uri]);
 
     assertEquals(result, [postB, postA]);
@@ -388,7 +388,7 @@ t.describe("ensurePosts", (it) => {
     const store = { [postA.uri]: postA };
     let loadedWith = null;
 
-    const signals = {
+    const derived = {
       $hydratedPosts: mapSig((uri) => store[uri] ?? null),
     };
     const requests = {
@@ -398,7 +398,7 @@ t.describe("ensurePosts", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts([postA.uri, postB.uri]);
 
     assertEquals(loadedWith, [postB.uri]);
@@ -406,12 +406,12 @@ t.describe("ensurePosts", (it) => {
   });
 
   it("returns null entries for posts still missing after load", async () => {
-    const signals = {
+    const derived = {
       $hydratedPosts: mapSig(() => null),
     };
     const requests = { loadPosts: async () => {} };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts(["at://missing"]);
 
     assertEquals(result, [null]);
@@ -424,7 +424,7 @@ t.describe("ensureFeedGenerator", (it) => {
     const feedGenerator = { uri: feedUri, displayName: "Test Feed" };
     let loadCalled = false;
 
-    const signals = createMockSignals({
+    const derived = createMockDerived({
       feedGenerators: { [feedUri]: feedGenerator },
     });
     const requests = {
@@ -433,7 +433,7 @@ t.describe("ensureFeedGenerator", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureFeedGenerator(feedUri);
 
     assertEquals(result, feedGenerator);
@@ -445,7 +445,7 @@ t.describe("ensureFeedGenerator", (it) => {
     const feedGenerator = { uri: feedUri, displayName: "Test Feed" };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $feedGenerators: mapSig(() => {
         callCount++;
         return callCount > 1 ? feedGenerator : null;
@@ -455,17 +455,17 @@ t.describe("ensureFeedGenerator", (it) => {
       loadFeedGenerator: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureFeedGenerator(feedUri);
 
     assertEquals(result, feedGenerator);
   });
 
   it("should throw when feed generator not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -484,14 +484,14 @@ t.describe("ensurePinnedFeedGenerators", (it) => {
     const pinnedFeedGenerators = [{ uri: "feed1" }, { uri: "feed2" }];
     let loadCalled = false;
 
-    const signals = createMockSignals({ pinnedFeedGenerators });
+    const derived = createMockDerived({ pinnedFeedGenerators });
     const requests = {
       loadPinnedFeedGenerators: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePinnedFeedGenerators();
 
     assertEquals(result, pinnedFeedGenerators);
@@ -502,7 +502,7 @@ t.describe("ensurePinnedFeedGenerators", (it) => {
     const pinnedFeedGenerators = [{ uri: "feed1" }];
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $hydratedPinnedFeedGenerators: sig(() => {
         callCount++;
         return callCount > 1 ? pinnedFeedGenerators : null;
@@ -512,17 +512,17 @@ t.describe("ensurePinnedFeedGenerators", (it) => {
       loadPinnedFeedGenerators: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePinnedFeedGenerators();
 
     assertEquals(result, pinnedFeedGenerators);
   });
 
   it("should throw when pinned feed generators not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -541,14 +541,14 @@ t.describe("ensureConvoList", (it) => {
     const convoList = [{ id: "convo1" }, { id: "convo2" }];
     let loadCalled = false;
 
-    const signals = createMockSignals({ convoList });
+    const derived = createMockDerived({ convoList });
     const requests = {
       loadConvoList: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoList();
 
     assertEquals(result, convoList);
@@ -559,7 +559,7 @@ t.describe("ensureConvoList", (it) => {
     const convoList = [{ id: "convo1" }];
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $convoList: sig(() => {
         callCount++;
         return callCount > 1 ? convoList : null;
@@ -569,17 +569,17 @@ t.describe("ensureConvoList", (it) => {
       loadConvoList: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoList();
 
     assertEquals(result, convoList);
   });
 
   it("should throw when convo list not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -599,14 +599,14 @@ t.describe("ensureConvo", (it) => {
     const convo = { id: convoId, messages: [] };
     let loadCalled = false;
 
-    const signals = createMockSignals({ convos: { [convoId]: convo } });
+    const derived = createMockDerived({ convos: { [convoId]: convo } });
     const requests = {
       loadConvo: async () => {
         loadCalled = true;
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvo(convoId);
 
     assertEquals(result, convo);
@@ -618,7 +618,7 @@ t.describe("ensureConvo", (it) => {
     const convo = { id: convoId, messages: [] };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $convos: mapSig(() => {
         callCount++;
         return callCount > 1 ? convo : null;
@@ -628,17 +628,17 @@ t.describe("ensureConvo", (it) => {
       loadConvo: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvo(convoId);
 
     assertEquals(result, convo);
   });
 
   it("should throw when convo not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {
@@ -658,7 +658,7 @@ t.describe("ensureConvoForProfile", (it) => {
     const convo = { id: "convo123", members: [profileDid] };
     let loadCalled = false;
 
-    const signals = createMockSignals({
+    const derived = createMockDerived({
       convoForProfile: { [profileDid]: convo },
     });
     const requests = {
@@ -667,7 +667,7 @@ t.describe("ensureConvoForProfile", (it) => {
       },
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoForProfile(profileDid);
 
     assertEquals(result, convo);
@@ -679,7 +679,7 @@ t.describe("ensureConvoForProfile", (it) => {
     const convo = { id: "convo123", members: [profileDid] };
     let callCount = 0;
 
-    const signals = {
+    const derived = {
       $convoForProfile: mapSig(() => {
         callCount++;
         return callCount > 1 ? convo : null;
@@ -689,17 +689,17 @@ t.describe("ensureConvoForProfile", (it) => {
       loadConvoForProfile: async () => {},
     };
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoForProfile(profileDid);
 
     assertEquals(result, convo);
   });
 
   it("should throw when convo for profile not found after loading", async () => {
-    const signals = createMockSignals({});
+    const derived = createMockDerived({});
     const requests = createMockRequests({});
 
-    const declarative = new Declarative(signals, requests);
+    const declarative = new Declarative(derived, requests);
 
     let error = null;
     try {

@@ -20,7 +20,8 @@ import {
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
 } from "/js/modals.js";
-import { compareVersions, isDev, sortBy, SignalMap } from "/js/utils.js";
+import { compareVersions, isDev, sortBy } from "/js/utils.js";
+import { SignalMap } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -265,11 +266,11 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
-      return this._dataLayer?.signals.$hydratedPosts.get(uri).get() ?? null;
+      return this._dataLayer?.derived.$hydratedPosts.get(uri).get() ?? null;
     });
 
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.signals.$hydratedProfiles.get(did).get() ?? null;
+      return this._dataLayer?.derived.$hydratedProfiles.get(did).get() ?? null;
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {

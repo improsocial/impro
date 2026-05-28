@@ -43,15 +43,15 @@ class PostQuotesView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const postQuotes = dataLayer.signals.$hydratedPostQuotes
+      const postQuotes = dataLayer.derived.$hydratedPostQuotes
         .get(postUri)
         .get();
-      const post = dataLayer.signals.$hydratedPosts.get(postUri).get();
+      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
       const postQuotesRequestStatus = dataLayer.requests.statusStore.$statuses
         .get("loadPostQuotes-" + postUri)
         .get();

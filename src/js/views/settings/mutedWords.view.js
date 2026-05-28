@@ -5,7 +5,8 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { confirm } from "/js/modals.js";
-import { differenceInHours, differenceInDays, Signal } from "/js/utils.js";
+import { differenceInHours, differenceInDays } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-label.js";
@@ -245,12 +246,12 @@ class SettingsMutedWordsView extends View {
 
     pageEffect(root, () => {
       $stateTick.get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const preferences = dataLayer.signals.$preferences.get();
+      const preferences = dataLayer.derived.$preferences.get();
       const mutedWords = preferences
         ? [...preferences.getMutedWords()].reverse()
         : [];

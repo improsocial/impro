@@ -3,11 +3,11 @@ import { assertEquals } from "../../testHelpers.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
-import { Signals } from "/js/dataLayer/signals.js";
+import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
-import { Signal, SignalMap } from "/js/utils.js";
+import { Signal, SignalMap } from "/js/signals.js";
 
-// Minimal pluginService stub for Signals constructor.
+// Minimal pluginService stub for Derived constructor.
 function makePluginService() {
   return {
     $pluginFilteredFeedItems: new SignalMap(),
@@ -21,13 +21,13 @@ function applyPostPatches(patchStore, post) {
   return patchStore.applyPostPatches(post, patches);
 }
 
-function makeSignals(
+function makeDerived(
   dataStore,
   patchStore,
   preferencesProvider,
   isAuthenticated = true,
 ) {
-  // Signals' $preferences computed reads `preferencesProvider.$preferences.get()`.
+  // Derived' $preferences computed reads `preferencesProvider.$preferences.get()`.
   // If the provider doesn't supply that signal, give it a passthrough.
   const provider = preferencesProvider.$preferences
     ? preferencesProvider
@@ -39,7 +39,7 @@ function makeSignals(
             : null,
         ),
       };
-  return new Signals(
+  return new Derived(
     dataStore,
     patchStore,
     provider,
@@ -1025,7 +1025,7 @@ t.describe("pinPost", (it) => {
     if (authorFeed) {
       dataStore.$authorFeeds.set(`${testUser.did}-posts`, authorFeed);
     }
-    const signals = makeSignals(dataStore, patchStore, mockPreferencesProvider);
+    const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
     return {
       mutations: new Mutations(
         mockApi,
@@ -1035,7 +1035,7 @@ t.describe("pinPost", (it) => {
       ),
       dataStore,
       patchStore,
-      signals,
+      derived,
     };
   }
 
@@ -1101,7 +1101,7 @@ t.describe("pinPost", (it) => {
       getProfileRecord: async () => ({ value: {}, cid: "cid-profile" }),
       putProfileRecord: () => putPromise,
     };
-    const { mutations, signals, dataStore } = setup(mockApi, {
+    const { mutations, derived, dataStore } = setup(mockApi, {
       authorFeed: { feed: [otherItem, targetItem], cursor: "" },
     });
     dataStore.$posts.set(otherPost.uri, otherPost);
@@ -1111,8 +1111,8 @@ t.describe("pinPost", (it) => {
     // Yield so the patches apply before we inspect them.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    assertEquals(signals.$currentUser.get().pinnedPost.uri, testPost.uri);
-    const inFlightFeed = signals.$hydratedAuthorFeeds
+    assertEquals(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
+    const inFlightFeed = derived.$hydratedAuthorFeeds
       .get(`${testUser.did}-posts`)
       .get().feed;
     assertEquals(inFlightFeed[0].post.uri, testPost.uri);
@@ -1122,7 +1122,7 @@ t.describe("pinPost", (it) => {
     await promise;
 
     // After success, dataStore matches the previously-patched view.
-    assertEquals(signals.$currentUser.get().pinnedPost.uri, testPost.uri);
+    assertEquals(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
   });
 
   it("should revert to original state on failure", async () => {
@@ -1144,7 +1144,7 @@ t.describe("pinPost", (it) => {
       uri: "at://did:plc:user/app.bsky.feed.post/old",
       cid: "cid-old",
     };
-    const { mutations, dataStore, signals } = setup(mockApi, {
+    const { mutations, dataStore, derived } = setup(mockApi, {
       pinnedPost: previousPinned,
       authorFeed: { feed: [otherItem, targetItem], cursor: "" },
     });
@@ -1158,9 +1158,9 @@ t.describe("pinPost", (it) => {
       threw = true;
     }
     assertEquals(threw, true);
-    // Patches removed; signals reflect original dataStore.
-    assertEquals(signals.$currentUser.get().pinnedPost.uri, previousPinned.uri);
-    const feed = signals.$hydratedAuthorFeeds
+    // Patches removed; derived reflect original dataStore.
+    assertEquals(derived.$currentUser.get().pinnedPost.uri, previousPinned.uri);
+    const feed = derived.$hydratedAuthorFeeds
       .get(`${testUser.did}-posts`)
       .get().feed;
     assertEquals(feed[0].post.uri, otherItem.post.uri);

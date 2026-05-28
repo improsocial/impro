@@ -190,7 +190,7 @@ class PostThreadView extends View {
       const numReplies = replyChain.length;
       return html`<div class="post-thread-reply-chain">
         ${replyChain.map((reply, i) => {
-          const post = dataLayer.signals.$hydratedPosts
+          const post = dataLayer.derived.$hydratedPosts
             .get(reply.post.uri)
             .get();
           if (!post) return "";
@@ -498,12 +498,12 @@ class PostThreadView extends View {
     }
 
     pageEffect(root, () => {
-      let postThread = dataLayer.signals.$hydratedPostThreads
+      let postThread = dataLayer.derived.$hydratedPostThreads
         .get(postUri)
         .get();
       if (!postThread) {
         // Prefill with saved post if available
-        const post = dataLayer.signals.$hydratedPosts.get(postUri).get();
+        const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
         if (post) {
           postThread = {
             __isPrefill: true,
@@ -513,7 +513,7 @@ class PostThreadView extends View {
           };
         }
       }
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =

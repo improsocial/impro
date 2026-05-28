@@ -11,7 +11,8 @@ import {
   parseUri,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
-import { unique, SignalMap, ComputedMap, ReactiveStore } from "/js/utils.js";
+import { unique } from "/js/utils.js";
+import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer

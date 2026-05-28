@@ -3,7 +3,8 @@ import { View } from "/js/views/view.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { classnames, debounce, Signal } from "/js/utils.js";
+import { classnames, debounce } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect } from "/js/router.js";
@@ -72,7 +73,7 @@ class SearchView extends View {
     }
 
     async function loadMoreProfiles() {
-      const cursor = dataLayer.signals.$profileSearchCursor.get();
+      const cursor = dataLayer.derived.$profileSearchCursor.get();
       if (!cursor) return;
       await dataLayer.requests.loadProfileSearch($searchQuery.get().trim(), {
         limit: 25,
@@ -81,7 +82,7 @@ class SearchView extends View {
     }
 
     async function loadMorePosts() {
-      const cursor = dataLayer.signals.$postSearchCursor.get();
+      const cursor = dataLayer.derived.$postSearchCursor.get();
       if (!cursor) return;
       await dataLayer.requests.loadPostSearch($searchQuery.get().trim(), {
         limit: 25,
@@ -90,7 +91,7 @@ class SearchView extends View {
     }
 
     async function loadMoreFeeds() {
-      const cursor = dataLayer.signals.$feedSearchCursor.get();
+      const cursor = dataLayer.derived.$feedSearchCursor.get();
       if (!cursor) return;
       await dataLayer.requests.loadFeedSearch($searchQuery.get().trim(), {
         limit: 15,
@@ -309,7 +310,7 @@ class SearchView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
@@ -327,15 +328,15 @@ class SearchView extends View {
       const feedStatus = dataLayer.requests.statusStore.$statuses
         .get("loadFeedSearch-" + normalizedQuery)
         .get();
-      const postSearchResults = dataLayer.signals.$postSearchResults.get();
+      const postSearchResults = dataLayer.derived.$postSearchResults.get();
       const profileSearchResults =
-        dataLayer.signals.$profileSearchResults.get();
-      const feedSearchResults = dataLayer.signals.$feedSearchResults.get();
-      const postSearchHasMore = !!dataLayer.signals.$postSearchCursor.get();
+        dataLayer.derived.$profileSearchResults.get();
+      const feedSearchResults = dataLayer.derived.$feedSearchResults.get();
+      const postSearchHasMore = !!dataLayer.derived.$postSearchCursor.get();
       const profileSearchHasMore =
-        !!dataLayer.signals.$profileSearchCursor.get();
-      const feedSearchHasMore = !!dataLayer.signals.$feedSearchCursor.get();
-      const preferences = dataLayer.signals.$preferences.get();
+        !!dataLayer.derived.$profileSearchCursor.get();
+      const feedSearchHasMore = !!dataLayer.derived.$feedSearchCursor.get();
+      const preferences = dataLayer.derived.$preferences.get();
 
       render(
         html`<div id="search-view">

@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { wait, Signal } from "/js/utils.js";
+import { wait } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
@@ -143,7 +144,7 @@ class ProfileView extends View {
       }
       // Load feed if needed
       if (tab === "feeds") {
-        if (!dataLayer.signals.$actorFeeds.get(profileDid).get()) {
+        if (!dataLayer.derived.$actorFeeds.get(profileDid).get()) {
           await loadActorFeeds();
         }
       } else {
@@ -258,7 +259,7 @@ class ProfileView extends View {
         }
         const isBlocking = !!profile.viewer?.blocking;
         const isBlockedBy = !!profile.viewer?.blockedBy;
-        const profileChatStatus = dataLayer.signals.$profileChatStatus
+        const profileChatStatus = dataLayer.derived.$profileChatStatus
           .get(profile.did)
           .get();
         const isCurrentUser = currentUser?.did === profile.did;
@@ -282,11 +283,11 @@ class ProfileView extends View {
         let isSubscribed = false;
         let labelerSettings = null;
         if (isLabeler) {
-          const preferences = dataLayer.signals.$preferences.get();
+          const preferences = dataLayer.derived.$preferences.get();
           isSubscribed = isDefaultLabeler
             ? true
             : preferences?.isSubscribedToLabeler(profile.did);
-          labelerSettings = dataLayer.signals.$labelerSettings
+          labelerSettings = dataLayer.derived.$labelerSettings
             .get(profile.did)
             .get();
         }
@@ -392,7 +393,7 @@ class ProfileView extends View {
                     : null}
                   ${authorFeedsToShow.map((feedInfo) => {
                     if (feedInfo.feedType === "feeds") {
-                      const actorFeeds = dataLayer.signals.$actorFeeds
+                      const actorFeeds = dataLayer.derived.$actorFeeds
                         .get(profileDid)
                         .get();
                       return html`<div
@@ -406,7 +407,7 @@ class ProfileView extends View {
                       </div>`;
                     }
                     const feedURI = `${profileDid}-${feedInfo.feedType}`;
-                    const authorFeed = dataLayer.signals.$hydratedAuthorFeeds
+                    const authorFeed = dataLayer.derived.$hydratedAuthorFeeds
                       .get(feedURI)
                       .get();
                     return html`<div
@@ -438,8 +439,8 @@ class ProfileView extends View {
     }
 
     pageEffect(root, () => {
-      const profile = dataLayer.signals.$hydratedProfiles.get(profileDid).get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
@@ -449,7 +450,7 @@ class ProfileView extends View {
         .get();
       const isLabeler = profile && isLabelerProfile(profile);
       const labelerInfo = isLabeler
-        ? dataLayer.signals.$labelerInfo.get(profile.did).get()
+        ? dataLayer.derived.$labelerInfo.get(profile.did).get()
         : null;
       // If labeler, require labeler info to be loaded
       const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
@@ -546,7 +547,7 @@ class ProfileView extends View {
 
     // This is async because it needs to resolve mentions
     async function loadProfileDescription() {
-      const profile = dataLayer.signals.$hydratedProfiles.get(profileDid).get();
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
       if (!profile?.description) {
         return;
       }
@@ -587,7 +588,7 @@ class ProfileView extends View {
       // Load chat status
       if (
         isAuthenticated &&
-        profile.did !== dataLayer.signals.$currentUser.get()?.did
+        profile.did !== dataLayer.derived.$currentUser.get()?.did
       ) {
         dataLayer.requests.loadProfileChatStatus(profile.did);
       }

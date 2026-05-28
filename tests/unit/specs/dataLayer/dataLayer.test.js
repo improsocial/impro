@@ -30,7 +30,7 @@ t.describe("constructor", (it) => {
     assert(dataLayer.preferencesProvider !== undefined);
     assert(dataLayer.requests !== undefined);
     assert(dataLayer.mutations !== undefined);
-    assert(dataLayer.signals !== undefined);
+    assert(dataLayer.derived !== undefined);
     assert(dataLayer.declarative !== undefined);
   });
 
@@ -146,41 +146,41 @@ t.describe("hasCachedAuthorFeed", (it) => {
 });
 
 t.describe("component integration", (it) => {
-  it("should pass dataStore to signals", async () => {
+  it("should pass dataStore to derived", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, text: "test", likeCount: 5 };
 
-    // Initialize preferences first (required by signals)
+    // Initialize preferences first (required by derived)
     await dataLayer.initializePreferences();
 
     // Set data through dataStore
     dataLayer.dataStore.$posts.set(postURI, post);
 
-    // Verify signals can access it
-    const result = dataLayer.signals.$hydratedPosts.get(postURI).get();
+    // Verify derived can access it
+    const result = dataLayer.derived.$hydratedPosts.get(postURI).get();
     assertEquals(result.uri, postURI);
   });
 
-  it("should pass patchStore to signals", async () => {
+  it("should pass patchStore to derived", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
     const postURI = "at://post/uri";
     const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
 
-    // Initialize preferences first (required by signals)
+    // Initialize preferences first (required by derived)
     await dataLayer.initializePreferences();
 
     dataLayer.dataStore.$posts.set(postURI, post);
     dataLayer.patchStore.addPostPatch(postURI, { type: "addLike" });
 
-    // Verify signals apply patches
-    const result = dataLayer.signals.$hydratedPosts.get(postURI).get();
+    // Verify derived apply patches
+    const result = dataLayer.derived.$hydratedPosts.get(postURI).get();
     assertEquals(result.likeCount, 6);
   });
 
-  it("should pass signals and requests to declarative", async () => {
+  it("should pass derived and requests to declarative", async () => {
     const mockApi = createMockApi({
       isAuthenticated: false,
       profiles: {
@@ -192,7 +192,7 @@ t.describe("component integration", (it) => {
     // Initialize preferences first
     await dataLayer.initializePreferences();
 
-    // Verify declarative can access signals
+    // Verify declarative can access derived
     const profile = await dataLayer.declarative.ensureProfile("did:test:user");
     assert(profile !== null);
   });

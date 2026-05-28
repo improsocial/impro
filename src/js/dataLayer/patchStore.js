@@ -1,6 +1,6 @@
 import { deepClone, SimpleUUID } from "/js/utils.js";
 import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
-import { Signal, SignalMap, ComputedMap, ReactiveStore } from "/js/utils.js";
+import { Signal, SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 
 // The store saves patch data for optimistic updates.
 export class PatchStore extends ReactiveStore {

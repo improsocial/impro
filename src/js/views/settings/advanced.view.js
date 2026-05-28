@@ -13,7 +13,7 @@ import {
 } from "/js/appViewConfig.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
@@ -130,7 +130,7 @@ class SettingsAdvancedView extends View {
 
     pageEffect(root, () => {
       $stateTick.get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =

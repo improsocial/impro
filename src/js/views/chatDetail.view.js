@@ -11,7 +11,8 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes, Signal } from "/js/utils.js";
+import { wait, raf, differenceInMinutes } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
@@ -282,7 +283,7 @@ class ChatDetailView extends View {
         return "";
       }
 
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
 
       // Group reactions by emoji
       const reactionGroups = reactions.reduce((acc, reaction) => {
@@ -562,12 +563,12 @@ class ChatDetailView extends View {
     }
 
     function renderPage() {
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? 0;
-      const messagesData = dataLayer.signals.$convoMessages.get(convoId).get();
+      const messagesData = dataLayer.derived.$convoMessages.get(convoId).get();
       const messages = messagesData?.messages ?? null;
       const messagesRequestStatus = dataLayer.requests.statusStore.$statuses
         .get("loadConvoMessages-" + convoId)
@@ -576,7 +577,7 @@ class ChatDetailView extends View {
       const isSendingMessage = $isSendingMessage.get();
 
       // Get convo details to show other member info
-      const convo = dataLayer.signals.$convos.get(convoId).get();
+      const convo = dataLayer.derived.$convos.get(convoId).get();
       const otherMember = getOtherMember(currentUser, convo);
       const title = otherMember ? getDisplayName(otherMember) : "";
 

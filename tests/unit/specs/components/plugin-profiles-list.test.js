@@ -1,6 +1,6 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { SignalMap } from "/js/utils.js";
+import { SignalMap } from "/js/signals.js";
 import "/js/components/plugin-profiles-list.js";
 
 const t = new TestSuite("PluginProfilesList");
@@ -15,7 +15,7 @@ function makeDataLayer({ ensureProfiles } = {}) {
   };
   return {
     declarative,
-    signals: {
+    derived: {
       $hydratedProfiles: profileSignals,
     },
     __setProfile(did, profile) {
@@ -154,7 +154,7 @@ t.describe("PluginProfilesList - did changes", (it) => {
           dataLayer.__setProfile(did, makeProfile(did, did)),
         );
         return dids.map((did) =>
-          dataLayer.signals.$hydratedProfiles.get(did).get(),
+          dataLayer.derived.$hydratedProfiles.get(did).get(),
         );
       },
     });
@@ -187,7 +187,7 @@ t.describe("PluginProfilesList - did changes", (it) => {
       if (callIndex === 1) return firstPromise;
       dids.forEach((did) => dataLayer.__setProfile(did, makeProfile(did, did)));
       return Promise.resolve(
-        dids.map((did) => dataLayer.signals.$hydratedProfiles.get(did).get()),
+        dids.map((did) => dataLayer.derived.$hydratedProfiles.get(did).get()),
       );
     };
     const element = document.createElement("plugin-profiles-list");

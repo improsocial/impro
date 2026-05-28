@@ -3,7 +3,7 @@ import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
 import { Declarative } from "/js/dataLayer/declarative.js";
-import { Signals } from "/js/dataLayer/signals.js";
+import { Derived } from "/js/dataLayer/derived.js";
 
 export class DataLayer {
   constructor(api, pluginService, preferencesProvider) {
@@ -39,14 +39,14 @@ export class DataLayer {
       this.patchStore,
       this.preferencesProvider,
     );
-    this.signals = new Signals(
+    this.derived = new Derived(
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
       this.pluginService,
       this.isAuthenticated,
     );
-    this.declarative = new Declarative(this.signals, this.requests);
+    this.declarative = new Declarative(this.derived, this.requests);
     this.subscribers = [];
   }
 

@@ -1,5 +1,5 @@
 import { Component } from "/js/components/component.js";
-import { effect } from "/js/utils.js";
+import { effect } from "/js/signals.js";
 
 const CONTEXT_PREFIX = "context-";
 

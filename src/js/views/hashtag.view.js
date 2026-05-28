@@ -7,7 +7,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect } from "/js/router.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 class HashtagView extends View {
   async render({
@@ -64,7 +64,7 @@ class HashtagView extends View {
       }
       // Load feed if not cached
       const hashtagKey = `${hashtag}-${sortValue}`;
-      const feed = dataLayer.signals.$hydratedHashtagFeeds
+      const feed = dataLayer.derived.$hydratedHashtagFeeds
         .get(hashtagKey)
         .get();
       if (!feed) {
@@ -77,7 +77,7 @@ class HashtagView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const currentSort = $currentSort.get();
       render(
         html`<div id="hashtag-view">
@@ -103,7 +103,7 @@ class HashtagView extends View {
                   }),
               })}
               ${sortOptions.map((sort) => {
-                const feed = dataLayer.signals.$hydratedHashtagFeeds
+                const feed = dataLayer.derived.$hydratedHashtagFeeds
                   .get(`${hashtag}-${sort.value}`)
                   .get();
                 return html`<div

@@ -1,5 +1,5 @@
 import { Preferences } from "/js/preferences.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 export class PreferencesProvider {
   constructor(api) {

@@ -4,7 +4,7 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
-import { Signal } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 class SettingsPluginDetailView extends View {
   async render({
@@ -74,7 +74,7 @@ class SettingsPluginDetailView extends View {
 
     pageEffect(root, () => {
       $stateTick.get();
-      const currentUser = dataLayer.signals.$currentUser.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =

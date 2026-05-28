@@ -1,6 +1,6 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { SignalMap } from "/js/utils.js";
+import { SignalMap } from "/js/signals.js";
 import "/js/components/plugin-slot.js";
 
 const t = new TestSuite("PluginSlot");
