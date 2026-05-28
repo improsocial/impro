@@ -1,6 +1,7 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 import "/js/components/post-notifications-dialog.js";
 
 export class ProfileInteractionHandler {
@@ -10,14 +11,12 @@ export class ProfileInteractionHandler {
     this._postNotificationsDialog = null;
   }
 
-  async handleFollow(profile, doFollow, { showSuccessToast = false } = {}) {
+  async handleFollow(profile, doFollow) {
     if (doFollow) {
       try {
         hapticsImpactMedium();
         await this.dataLayer.mutations.followProfile(profile);
-        if (showSuccessToast) {
-          showToast("Account followed");
-        }
+        showToast(`Following ${getDisplayName(profile)}`);
       } catch (error) {
         console.error(error);
         showToast("Failed to follow account", { style: "error" });
@@ -25,9 +24,7 @@ export class ProfileInteractionHandler {
     } else {
       try {
         await this.dataLayer.mutations.unfollowProfile(profile);
-        if (showSuccessToast) {
-          showToast("Account unfollowed");
-        }
+        showToast(`No longer following ${getDisplayName(profile)}`);
       } catch (error) {
         console.error(error);
         showToast("Failed to unfollow account", { style: "error" });

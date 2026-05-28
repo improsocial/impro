@@ -325,10 +325,7 @@ class ProfileView extends View {
                 }
               },
               onClickFollow: (profile, doFollow) =>
-                profileInteractionHandler.handleFollow(profile, doFollow, {
-                  // Only show success toast for labelers, aka when the follow button is in the context menu
-                  showSuccessToast: isLabeler,
-                }),
+                profileInteractionHandler.handleFollow(profile, doFollow),
               onClickMute: (profile, doMute) =>
                 profileInteractionHandler.handleMute(profile, doMute),
               onClickBlock: async (profile, doBlock) => {

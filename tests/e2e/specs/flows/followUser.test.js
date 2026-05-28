@@ -43,6 +43,11 @@ test.describe("Follow/Unfollow flow", () => {
       ),
     ).toBeVisible({ timeout: 10000 });
 
+    // Verify the success toast is shown
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Following Other User",
+    );
+
     // Verify the follower count incremented
     await expect(
       profileView.locator('[data-testid="profile-stats"]'),
@@ -105,6 +110,11 @@ test.describe("Follow/Unfollow flow", () => {
     await expect(
       profileView.locator('[data-testid="follow-button"]'),
     ).toContainText("+ Follow", { timeout: 10000 });
+
+    // Verify the success toast is shown
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "No longer following Other User",
+    );
 
     // Verify the follower count decremented
     await expect(
