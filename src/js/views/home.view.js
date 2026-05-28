@@ -32,19 +32,15 @@ class HomeView extends View {
       ? localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY)
       : null;
 
-    const state = {
-      $currentFeedUri: new Signal.State(
-        storedFeedUri ? JSON.parse(storedFeedUri) : null,
-      ),
-    };
+    const $currentFeedUri = new Signal.State(
+      storedFeedUri ? JSON.parse(storedFeedUri) : null,
+    );
 
     function resetToDefaultFeed() {
-      state.$currentFeedUri.set(
-        isAuthenticated ? "following" : DISCOVER_FEED_URI,
-      );
+      $currentFeedUri.set(isAuthenticated ? "following" : DISCOVER_FEED_URI);
     }
 
-    if (!state.$currentFeedUri.get()) {
+    if (!$currentFeedUri.get()) {
       resetToDefaultFeed();
     }
 
@@ -52,7 +48,7 @@ class HomeView extends View {
       pageEffect(
         root,
         () => {
-          const currentFeedUri = state.$currentFeedUri.get();
+          const currentFeedUri = $currentFeedUri.get();
           if (currentFeedUri) {
             localStorage.setItem(
               CURRENT_FEED_URI_STORAGE_KEY,
@@ -146,7 +142,7 @@ class HomeView extends View {
     }
 
     async function handleTabClick(feedUri) {
-      let currentFeedUri = state.$currentFeedUri.get();
+      let currentFeedUri = $currentFeedUri.get();
       if (feedUri === currentFeedUri) {
         scrollAndReloadFeed();
         return;
@@ -154,7 +150,7 @@ class HomeView extends View {
       // Save scroll state
       feedScrollState.set(currentFeedUri, window.scrollY);
       // Switch feed
-      state.$currentFeedUri.set(feedUri);
+      $currentFeedUri.set(feedUri);
       scrollActiveTabIntoView({ behavior: "smooth" });
       // Scroll to saved scroll state
       if (feedScrollState.has(feedUri)) {
@@ -199,7 +195,7 @@ class HomeView extends View {
       const currentUser = dataLayer.derived.$currentUser.get();
       const feedGenerators =
         dataLayer.derived.$hydratedPinnedFeedGenerators.get() ?? [];
-      const currentFeedUri = state.$currentFeedUri.get();
+      const currentFeedUri = $currentFeedUri.get();
       const feedGenerator =
         feedGenerators.find((fg) => fg.uri === currentFeedUri) ?? null;
       render(
@@ -290,7 +286,7 @@ class HomeView extends View {
     });
 
     async function loadCurrentFeed({ reload = false } = {}) {
-      const currentFeedUri = state.$currentFeedUri.get();
+      const currentFeedUri = $currentFeedUri.get();
       await dataLayer.requests.loadNextFeedPage(currentFeedUri, {
         reload,
         limit: FEED_PAGE_SIZE + 1,
@@ -298,7 +294,7 @@ class HomeView extends View {
     }
 
     async function preloadHiddenFeeds(pinnedFeedGenerators) {
-      const currentFeedUri = state.$currentFeedUri.get();
+      const currentFeedUri = $currentFeedUri.get();
       const feedsToPreload = pinnedFeedGenerators
         .filter((feed) => feed.uri !== currentFeedUri)
         .slice(0, 5); // Up to 5 feeds
@@ -322,7 +318,7 @@ class HomeView extends View {
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
-      const currentFeedUri = state.$currentFeedUri.get();
+      const currentFeedUri = $currentFeedUri.get();
       await dataLayer.declarative
         .ensurePinnedFeedGenerators()
         .then((pinnedFeedGenerators) => {
