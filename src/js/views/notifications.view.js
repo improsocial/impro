@@ -674,7 +674,7 @@ class NotificationsView extends View {
 
     async function scrollAndReloadNotifications() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       if ($activeTab.get() === "all") {
         await loadNotifications({ reload: true });

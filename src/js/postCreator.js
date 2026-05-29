@@ -73,13 +73,16 @@ export class PostCreator {
     });
 
     // Get full post from the app view
+    const maxRetries = 3;
     let fullPost = null;
     let tries = 0;
-    while (!fullPost && tries < 3) {
+    while (!fullPost && tries < maxRetries) {
       try {
         fullPost = await this.api.getPost(res.uri);
       } catch (e) {}
-      if (!fullPost) await wait(200);
+      if (!fullPost && tries < maxRetries - 1) {
+        await wait(500 * Math.pow(2, tries));
+      }
       tries++;
     }
     if (!fullPost) {

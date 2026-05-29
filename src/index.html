@@ -206,9 +206,9 @@
               const loadedNotifications =
                 dataLayer.derived.$notifications.get();
               const { loading: notificationsLoading } =
-                dataLayer.requests.statusStore.$statuses
-                  .get("loadNotifications")
-                  .get();
+                dataLayer.requests.statusStore.$statuses.get(
+                  "loadNotifications",
+                );
               // Only preload if there are no notifications loaded
               if (!loadedNotifications && !notificationsLoading) {
                 dataLayer.requests.loadNotifications({
