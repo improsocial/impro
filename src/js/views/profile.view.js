@@ -116,7 +116,7 @@ class ProfileView extends View {
 
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       // TODO - add setting to prevent reload?
       await loadAuthorFeed({ reload: true });
@@ -517,7 +517,7 @@ class ProfileView extends View {
 
     async function scrollAndReloadActorFeeds() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       await loadActorFeeds({ reload: true });
     }

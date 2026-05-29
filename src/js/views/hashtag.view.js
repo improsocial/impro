@@ -41,7 +41,7 @@ class HashtagView extends View {
 
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       await loadCurrentFeed({ reload: true });
     }
