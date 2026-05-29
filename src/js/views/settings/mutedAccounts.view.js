@@ -21,7 +21,7 @@ class SettingsMutedAccountsView extends View {
     await auth.requireAuth();
 
     async function loadMore() {
-      const mutedProfiles = dataLayer.dataStore.$mutedProfiles.get();
+      const mutedProfiles = dataLayer.derived.$mutedProfiles.get();
       const cursor = mutedProfiles?.cursor;
       await dataLayer.requests.loadMutedProfiles({ cursor });
     }
@@ -40,7 +40,7 @@ class SettingsMutedAccountsView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const mutedProfiles = dataLayer.dataStore.$mutedProfiles.get();
+      const mutedProfiles = dataLayer.derived.$mutedProfiles.get();
       const status =
         dataLayer.requests.statusStore.$statuses.get("loadMutedProfiles");
       const hasMore = mutedProfiles?.cursor ? true : false;

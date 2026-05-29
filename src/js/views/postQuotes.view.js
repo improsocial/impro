@@ -105,7 +105,7 @@ class PostQuotesView extends View {
     });
 
     async function loadQuotes() {
-      const postQuotes = dataLayer.dataStore.$postQuotes.get(postUri);
+      const postQuotes = dataLayer.derived.$hydratedPostQuotes.get(postUri);
       const cursor = postQuotes?.cursor;
       await dataLayer.requests.loadPostQuotes(postUri, { cursor });
     }

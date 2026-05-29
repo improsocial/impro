@@ -47,7 +47,7 @@ class ProfileFollowingView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const profileFollowing =
-        dataLayer.dataStore.$profileFollows.get(profileDid);
+        dataLayer.derived.$profileFollows.get(profileDid);
       const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
       const profileFollowingRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
@@ -95,7 +95,7 @@ class ProfileFollowingView extends View {
 
     async function loadFollowing() {
       const profileFollowing =
-        dataLayer.dataStore.$profileFollows.get(profileDid);
+        dataLayer.derived.$profileFollows.get(profileDid);
       const cursor = profileFollowing?.cursor;
       await dataLayer.requests.loadProfileFollows(profileDid, { cursor });
     }

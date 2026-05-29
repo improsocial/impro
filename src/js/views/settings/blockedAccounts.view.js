@@ -21,7 +21,7 @@ class SettingsBlockedAccountsView extends View {
     await auth.requireAuth();
 
     async function loadMore() {
-      const blockedProfiles = dataLayer.dataStore.$blockedProfiles.get();
+      const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
       const cursor = blockedProfiles?.cursor;
       await dataLayer.requests.loadBlockedProfiles({ cursor });
     }
@@ -40,7 +40,7 @@ class SettingsBlockedAccountsView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const blockedProfiles = dataLayer.dataStore.$blockedProfiles.get();
+      const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
       const status = dataLayer.requests.statusStore.$statuses.get(
         "loadBlockedProfiles",
       );

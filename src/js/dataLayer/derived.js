@@ -556,5 +556,29 @@ export class Derived extends ReactiveStore {
         cursor: messages.cursor,
       };
     });
+    this.$postLikes = new ComputedMap((postUri) =>
+      this.dataStore.$postLikes.get(postUri),
+    );
+    this.$postReposts = new ComputedMap((postUri) =>
+      this.dataStore.$postReposts.get(postUri),
+    );
+    this.$profileFollows = new ComputedMap((did) =>
+      this.dataStore.$profileFollows.get(did),
+    );
+    this.$profileFollowers = new ComputedMap((did) =>
+      this.dataStore.$profileFollowers.get(did),
+    );
+    this.$mutedProfiles = new Signal.Computed(() =>
+      this.dataStore.$mutedProfiles.get(),
+    );
+    this.$blockedProfiles = new Signal.Computed(() =>
+      this.dataStore.$blockedProfiles.get(),
+    );
+    this.$notificationCursor = new Signal.Computed(() =>
+      this.dataStore.$notificationCursor.get(),
+    );
+    this.$mentionNotificationCursor = new Signal.Computed(() =>
+      this.dataStore.$mentionNotificationCursor.get(),
+    );
   }
 }

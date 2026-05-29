@@ -709,7 +709,7 @@ class NotificationsView extends View {
       const notificationsRequestStatus =
         dataLayer.requests.statusStore.$statuses.get("loadNotifications");
       const groupedNotifications = groupNotificationsByType(notifications);
-      const cursor = dataLayer.dataStore.$notificationCursor.get();
+      const cursor = dataLayer.derived.$notificationCursor.get();
       const hasMore = !!cursor;
 
       const mentionNotifications =
@@ -720,8 +720,7 @@ class NotificationsView extends View {
         );
       const groupedMentionNotifications =
         groupNotificationsByType(mentionNotifications);
-      const mentionCursor =
-        dataLayer.dataStore.$mentionNotificationCursor.get();
+      const mentionCursor = dataLayer.derived.$mentionNotificationCursor.get();
       const mentionHasMore = !!mentionCursor;
 
       const isLoading =
