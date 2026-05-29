@@ -27,7 +27,7 @@ class PluginSlot extends Component {
     const slotName = this.getAttribute("name");
     if (!slotName) return;
     this._disposeEffect = effect(() => {
-      this.pluginService.$slots.get(slotName).get();
+      this.pluginService.$slots.get(slotName);
       this._reconcile();
     }, `plugin-slot[${slotName}]`);
   }

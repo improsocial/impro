@@ -1,22 +1,25 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal, SignalMap, ComputedMap } from "/js/signals.js";
 import "/js/components/plugin-posts-feed.js";
 
 const t = new TestSuite("PluginPostsFeed");
 
 function makeDataLayer({ ensurePosts, currentUser } = {}) {
-  const postSignals = new SignalMap();
+  // Mirror the real layering: a value SignalMap store, with $hydratedPosts a
+  // ComputedMap (family) over it that returns a stable per-key cell.
+  const postValues = new SignalMap();
+  const $hydratedPosts = new ComputedMap((uri) => postValues.get(uri));
   return {
     declarative: {
       ensurePosts: ensurePosts ?? (() => new Promise(() => {})),
     },
     derived: {
       $currentUser: new Signal.State(currentUser ?? null),
-      $hydratedPosts: postSignals,
+      $hydratedPosts,
     },
     __setPost(uri, post) {
-      postSignals.set(uri, post);
+      postValues.set(uri, post);
     },
   };
 }

@@ -25,7 +25,7 @@ export class DataLayer {
         : Array.from(this.dataStore.$feeds.keys());
       await Promise.all(
         feedURIs.map((uri) => {
-          const feed = this.dataStore.$feeds.get(uri).get();
+          const feed = this.dataStore.$feeds.get(uri);
           if (!feed) return;
           return this.pluginService.refreshFiltersForFeed(uri, feed, {
             reload: true,
@@ -55,11 +55,11 @@ export class DataLayer {
   }
 
   hasCachedFeed(feedURI) {
-    return this.dataStore.$feeds.get(feedURI).get() !== null;
+    return this.dataStore.$feeds.get(feedURI) !== null;
   }
 
   hasCachedAuthorFeed(profileDid, feedType) {
     const feedURI = `${profileDid}-${feedType}`;
-    return this.dataStore.$authorFeeds.get(feedURI).get() !== null;
+    return this.dataStore.$authorFeeds.get(feedURI) !== null;
   }
 }

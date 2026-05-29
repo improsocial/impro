@@ -7,29 +7,28 @@ export class PatchStore extends ReactiveStore {
   constructor(dataStore) {
     super("patchStore");
     this.dataStore = dataStore;
-    this.postPatches = new Map();
     this.$postPatches = new SignalMap();
 
     this.$patchedPosts = new ComputedMap((postURI) => {
-      const post = this.dataStore.$posts.get(postURI).get();
+      const post = this.dataStore.$posts.get(postURI);
       if (!post) return null;
-      const patches = this.$postPatches.get(postURI).get() || [];
+      const patches = this.$postPatches.get(postURI) || [];
       return this.applyPostPatches(post, patches);
     });
 
     this.$profilePatches = new SignalMap();
     this.$patchedProfiles = new ComputedMap((did) => {
-      const profile = this.dataStore.$profiles.get(did).get();
+      const profile = this.dataStore.$profiles.get(did);
       if (!profile) return null;
-      const patches = this.$profilePatches.get(did).get() || [];
+      const patches = this.$profilePatches.get(did) || [];
       return this.applyProfilePatches(profile, patches);
     });
 
     this.$messagePatches = new SignalMap();
     this.$patchedMessages = new ComputedMap((messageId) => {
-      const message = this.dataStore.$messages.get(messageId).get();
+      const message = this.dataStore.$messages.get(messageId);
       if (!message) return null;
-      const patches = this.$messagePatches.get(messageId).get() || [];
+      const patches = this.$messagePatches.get(messageId) || [];
       let patchedMessage = message;
       for (const patch of patches) {
         patchedMessage = this.applyMessagePatch(patchedMessage, patch.body);
@@ -45,23 +44,23 @@ export class PatchStore extends ReactiveStore {
   /* Post Patches */
 
   _getPostPatches(postURI) {
-    return this.postPatches.get(postURI) || [];
+    return this.$postPatches.get(postURI) || [];
   }
 
   addPostPatch(postURI, patchBody) {
     const patchId = this.uuid.create();
-    const patchesForPost = this.$postPatches.get(postURI);
-    let patchArray = patchesForPost.get() || [];
-    patchArray = [...patchArray, { id: patchId, body: patchBody }];
-    patchesForPost.set(patchArray);
+    this.$postPatches.set(postURI, [
+      ...this._getPostPatches(postURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removePostPatch(postURI, patchId) {
-    const patchesForPost = this.$postPatches.get(postURI);
-    let patchArray = patchesForPost.get() || [];
-    patchArray = patchArray.filter(({ id }) => id !== patchId);
-    patchesForPost.set(patchArray);
+    this.$postPatches.set(
+      postURI,
+      this._getPostPatches(postURI).filter(({ id }) => id !== patchId),
+    );
   }
 
   applyPostPatches(post, patches) {
@@ -150,21 +149,23 @@ export class PatchStore extends ReactiveStore {
   /* Profile Patches */
 
   _getProfilePatches(profileURI) {
-    return this.$profilePatches.get(profileURI).get() || [];
+    return this.$profilePatches.get(profileURI) || [];
   }
 
   addProfilePatch(profileURI, patchBody) {
     const patchId = this.uuid.create();
-    const signal = this.$profilePatches.get(profileURI);
-    const patches = signal.get() || [];
-    signal.set([...patches, { id: patchId, body: patchBody }]);
+    this.$profilePatches.set(profileURI, [
+      ...this._getProfilePatches(profileURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeProfilePatch(profileURI, patchId) {
-    const signal = this.$profilePatches.get(profileURI);
-    const patches = signal.get() || [];
-    signal.set(patches.filter(({ id }) => id !== patchId));
+    this.$profilePatches.set(
+      profileURI,
+      this._getProfilePatches(profileURI).filter(({ id }) => id !== patchId),
+    );
   }
 
   applyProfilePatches(profile, patches) {
@@ -244,7 +245,7 @@ export class PatchStore extends ReactiveStore {
   /* Message Patches */
 
   _getMessagePatches(messageId) {
-    return this.$messagePatches.get(messageId).get() || [];
+    return this.$messagePatches.get(messageId) || [];
   }
 
   addMessagePatch(messageId, patchBody) {
@@ -387,21 +388,23 @@ export class PatchStore extends ReactiveStore {
   /* Author Feed Patches */
 
   _getAuthorFeedPatches(feedURI) {
-    return this.$authorFeedPatches.get(feedURI).get() || [];
+    return this.$authorFeedPatches.get(feedURI) || [];
   }
 
   addAuthorFeedPatch(feedURI, patchBody) {
     const patchId = this.uuid.create();
-    const signal = this.$authorFeedPatches.get(feedURI);
-    const patches = signal.get() || [];
-    signal.set([...patches, { id: patchId, body: patchBody }]);
+    this.$authorFeedPatches.set(feedURI, [
+      ...this._getAuthorFeedPatches(feedURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeAuthorFeedPatch(feedURI, patchId) {
-    const signal = this.$authorFeedPatches.get(feedURI);
-    const patches = signal.get() || [];
-    signal.set(patches.filter(({ id }) => id !== patchId));
+    this.$authorFeedPatches.set(
+      feedURI,
+      this._getAuthorFeedPatches(feedURI).filter(({ id }) => id !== patchId),
+    );
   }
 
   applyAuthorFeedPatches(feedURI, feed) {

@@ -319,15 +319,15 @@ class SearchView extends View {
       const activeTab = $activeTab.get();
       const normalizedQuery = searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.statusStore.$statuses
-        .get(`loadPostSearch-${normalizedQuery}-top`)
-        .get();
-      const profileStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadProfileSearch-" + normalizedQuery)
-        .get();
-      const feedStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadFeedSearch-" + normalizedQuery)
-        .get();
+      const postStatus = dataLayer.requests.statusStore.$statuses.get(
+        `loadPostSearch-${normalizedQuery}-top`,
+      );
+      const profileStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadProfileSearch-" + normalizedQuery,
+      );
+      const feedStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadFeedSearch-" + normalizedQuery,
+      );
       const postSearchResults = dataLayer.derived.$postSearchResults.get();
       const profileSearchResults =
         dataLayer.derived.$profileSearchResults.get();

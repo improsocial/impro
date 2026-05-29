@@ -26,7 +26,7 @@ class PluginPostsFeed extends Component {
         const uris = this.attribs.uris.get();
         if (!uris) return null;
         return uris
-          .map((uri) => this.dataLayer.derived.$hydratedPosts.get(uri).get())
+          .map((uri) => this.dataLayer.derived.$hydratedPosts.get(uri))
           .filter(Boolean);
       }),
       error: new Signal.State(null),

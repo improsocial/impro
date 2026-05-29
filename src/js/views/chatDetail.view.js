@@ -568,16 +568,17 @@ class ChatDetailView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? 0;
-      const messagesData = dataLayer.derived.$convoMessages.get(convoId).get();
+      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
-      const messagesRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadConvoMessages-" + convoId)
-        .get();
+      const messagesRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadConvoMessages-" + convoId,
+        );
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = $isSendingMessage.get();
 
       // Get convo details to show other member info
-      const convo = dataLayer.derived.$convos.get(convoId).get();
+      const convo = dataLayer.derived.$convos.get(convoId);
       const otherMember = getOtherMember(currentUser, convo);
       const title = otherMember ? getDisplayName(otherMember) : "";
 

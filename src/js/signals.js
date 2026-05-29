@@ -247,68 +247,169 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
   };
 };
 
+// https://github.com/proposal-signals/signal-utils#Map
 export class SignalMap {
   __debugName = "<SignalMap>";
 
-  constructor() {
-    this.map = new Map();
-    // Tracks keys that have been explicitly written via set(). Reading $keys
-    // takes a dependency on collection membership so consumers re-run when
-    // new entries are added.
-    this._setKeys = new Set();
-    this.$keys = new Signal.State([]);
-    setTimeout(() => {
-      this.$keys.__debugName = `${this.__debugName}.$keys`;
-    }, 0);
+  #collection = new Signal.State(null, { equals: () => false });
+  #storages = new Map();
+  #map;
+
+  constructor(entries) {
+    this.#map = new Map(entries);
+  }
+
+  #storageFor(key) {
+    let storage = this.#storages.get(key);
+    if (!storage) {
+      storage = new Signal.State(null, { equals: () => false });
+      storage.__debugName = `${this.__debugName}[${String(key)}]`;
+      this.#storages.set(key, storage);
+    }
+    return storage;
+  }
+
+  #dirtyStorageFor(key) {
+    this.#storages.get(key)?.set(null);
   }
 
   get(key) {
-    let signal = this.map.get(key);
-    if (!signal) {
-      signal = new Signal.State(null);
-      signal.__debugName = `${this.__debugName}[${String(key)}]`;
-      this.map.set(key, signal);
-    }
-    return signal;
+    this.#storageFor(key).get();
+    return this.#map.get(key) ?? null;
+  }
+
+  has(key) {
+    this.#storageFor(key).get();
+    return this.#map.has(key);
   }
 
   set(key, value) {
-    this.get(key).set(value);
-    if (!this._setKeys.has(key)) {
-      this._setKeys.add(key);
-      this.$keys.set([...this._setKeys]);
-    }
+    this.#map.set(key, value);
+    this.#dirtyStorageFor(key);
+    this.#collection.set(null);
   }
 
   delete(key) {
-    const signal = this.map.get(key);
-    if (signal) signal.set(null);
-    this.map.delete(key);
-    if (this._setKeys.delete(key)) {
-      this.$keys.set([...this._setKeys]);
-    }
+    this.#dirtyStorageFor(key);
+    this.#collection.set(null);
+    return this.#map.delete(key);
   }
 
   clear() {
-    for (const signal of this.map.values()) {
-      signal.set(null);
-    }
+    for (const storage of this.#storages.values()) storage.set(null);
+    this.#collection.set(null);
+    this.#map.clear();
+  }
+
+  get size() {
+    this.#collection.get();
+    return this.#map.size;
   }
 
   keys() {
-    return this.map.keys();
+    this.#collection.get();
+    return this.#map.keys();
   }
 
-  *values() {
-    for (const signal of this.map.values()) {
-      yield signal.get();
-    }
+  values() {
+    this.#collection.get();
+    return this.#map.values();
   }
 
-  *entries() {
-    for (const [key, signal] of this.map.entries()) {
-      yield [key, signal.get()];
+  entries() {
+    this.#collection.get();
+    return this.#map.entries();
+  }
+
+  forEach(callback, thisArg) {
+    this.#collection.get();
+    this.#map.forEach(callback, thisArg);
+  }
+
+  [Symbol.iterator]() {
+    this.#collection.get();
+    return this.#map[Symbol.iterator]();
+  }
+}
+
+// https://github.com/proposal-signals/signal-utils#Set
+export class SignalSet {
+  __debugName = "<SignalSet>";
+
+  #collection = new Signal.State(null, { equals: () => false });
+  #storages = new Map();
+  #set;
+
+  constructor(values) {
+    this.#set = new Set(values);
+  }
+
+  #storageFor(value) {
+    let storage = this.#storages.get(value);
+    if (!storage) {
+      storage = new Signal.State(null, { equals: () => false });
+      storage.__debugName = `${this.__debugName}[${String(value)}]`;
+      this.#storages.set(value, storage);
     }
+    return storage;
+  }
+
+  #dirtyStorageFor(value) {
+    this.#storages.get(value)?.set(null);
+  }
+
+  has(value) {
+    this.#storageFor(value).get();
+    return this.#set.has(value);
+  }
+
+  add(value) {
+    this.#dirtyStorageFor(value);
+    this.#collection.set(null);
+    this.#set.add(value);
+    return this;
+  }
+
+  delete(value) {
+    this.#dirtyStorageFor(value);
+    this.#collection.set(null);
+    return this.#set.delete(value);
+  }
+
+  clear() {
+    for (const storage of this.#storages.values()) storage.set(null);
+    this.#collection.set(null);
+    this.#set.clear();
+  }
+
+  get size() {
+    this.#collection.get();
+    return this.#set.size;
+  }
+
+  keys() {
+    this.#collection.get();
+    return this.#set.keys();
+  }
+
+  values() {
+    this.#collection.get();
+    return this.#set.values();
+  }
+
+  entries() {
+    this.#collection.get();
+    return this.#set.entries();
+  }
+
+  forEach(callback, thisArg) {
+    this.#collection.get();
+    this.#set.forEach(callback, thisArg);
+  }
+
+  [Symbol.iterator]() {
+    this.#collection.get();
+    return this.#set[Symbol.iterator]();
   }
 }
 
@@ -327,7 +428,7 @@ export class ComputedMap {
       signal.__debugName = `${this.__debugName}[${String(key)}]`;
       this.map.set(key, signal);
     }
-    return signal;
+    return signal.get();
   }
 }
 

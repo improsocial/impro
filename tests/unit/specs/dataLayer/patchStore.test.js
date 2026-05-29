@@ -7,7 +7,7 @@ const t = new TestSuite("PatchStore");
 // applyPostPatches now requires the patches array explicitly. This helper
 // fetches the current patches for a post URI and applies them.
 function applyPostPatches(patchStore, post) {
-  const patches = patchStore.$postPatches.get(post.uri).get() || [];
+  const patches = patchStore.$postPatches.get(post.uri) || [];
   return patchStore.applyPostPatches(post, patches);
 }
 

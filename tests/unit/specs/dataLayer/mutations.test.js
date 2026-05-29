@@ -17,7 +17,7 @@ function makePluginService() {
 // `applyPostPatches` now requires the patches array. Helper that fetches the
 // current patches for a post URI and applies them.
 function applyPostPatches(patchStore, post) {
-  const patches = patchStore.$postPatches.get(post.uri).get() || [];
+  const patches = patchStore.$postPatches.get(post.uri) || [];
   return patchStore.applyPostPatches(post, patches);
 }
 
@@ -99,7 +99,7 @@ t.describe("addLike", (it) => {
 
     await mutations.addLike(testPost);
 
-    const storedPost = dataStore.$posts.get(testPost.uri).get();
+    const storedPost = dataStore.$posts.get(testPost.uri);
     assertEquals(storedPost.viewer.like, "like-123");
     assertEquals(storedPost.likeCount, 6);
 
@@ -187,7 +187,7 @@ t.describe("removeLike", (it) => {
 
     await mutations.removeLike(testPost);
 
-    const storedPost = dataStore.$posts.get(testPost.uri).get();
+    const storedPost = dataStore.$posts.get(testPost.uri);
     assertEquals(storedPost.viewer.like, null);
     assertEquals(storedPost.likeCount, 5);
 
@@ -250,7 +250,7 @@ t.describe("followProfile", (it) => {
 
     await mutations.followProfile(testProfile);
 
-    const storedProfile = dataStore.$profiles.get(testProfile.did).get();
+    const storedProfile = dataStore.$profiles.get(testProfile.did);
     assertEquals(storedProfile.viewer.following, "follow-123");
     assertEquals(storedProfile.followersCount, 11);
 
@@ -312,7 +312,7 @@ t.describe("unfollowProfile", (it) => {
 
     await mutations.unfollowProfile(testProfile);
 
-    const storedProfile = dataStore.$profiles.get(testProfile.did).get();
+    const storedProfile = dataStore.$profiles.get(testProfile.did);
     assertEquals(storedProfile.viewer.following, null);
     assertEquals(storedProfile.followersCount, 9);
 
@@ -671,7 +671,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
 
     await mutations.removeLike(post);
 
-    const storedPost = dataStore.$posts.get(post.uri).get();
+    const storedPost = dataStore.$posts.get(post.uri);
     assertEquals(storedPost.viewer.like, null);
   });
 });
@@ -932,7 +932,7 @@ t.describe("updateProfile", (it) => {
       description: "Updated bio",
     });
 
-    const updatedProfile = dataStore.$profiles.get(testProfile.did).get();
+    const updatedProfile = dataStore.$profiles.get(testProfile.did);
     assertEquals(updatedProfile.displayName, "Updated Name");
     assertEquals(updatedProfile.description, "Updated bio");
     assertEquals(updatedProfile.avatar, "https://example.com/new-avatar.jpg");
@@ -1078,7 +1078,7 @@ t.describe("pinPost", (it) => {
 
     await mutations.pinPost(testPost);
 
-    const feed = dataStore.$authorFeeds.get(`${testUser.did}-posts`).get().feed;
+    const feed = dataStore.$authorFeeds.get(`${testUser.did}-posts`).feed;
     assertEquals(feed[0].post.uri, testPost.uri);
     assertEquals(feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
     assertEquals(feed.length, 2);
@@ -1112,9 +1112,9 @@ t.describe("pinPost", (it) => {
     await new Promise((resolve) => setTimeout(resolve, 0));
 
     assertEquals(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
-    const inFlightFeed = derived.$hydratedAuthorFeeds
-      .get(`${testUser.did}-posts`)
-      .get().feed;
+    const inFlightFeed = derived.$hydratedAuthorFeeds.get(
+      `${testUser.did}-posts`,
+    ).feed;
     assertEquals(inFlightFeed[0].post.uri, testPost.uri);
     assertEquals(inFlightFeed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
 
@@ -1160,9 +1160,7 @@ t.describe("pinPost", (it) => {
     assertEquals(threw, true);
     // Patches removed; derived reflect original dataStore.
     assertEquals(derived.$currentUser.get().pinnedPost.uri, previousPinned.uri);
-    const feed = derived.$hydratedAuthorFeeds
-      .get(`${testUser.did}-posts`)
-      .get().feed;
+    const feed = derived.$hydratedAuthorFeeds.get(`${testUser.did}-posts`).feed;
     assertEquals(feed[0].post.uri, otherItem.post.uri);
     // dataStore unchanged.
     assertEquals(
@@ -1281,7 +1279,7 @@ t.describe("muteProfile", (it) => {
   it("should set viewer.muted on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.muteProfile(profile);
-    assertEquals(dataStore.$profiles.get(profile.did).get().viewer.muted, true);
+    assertEquals(dataStore.$profiles.get(profile.did).viewer.muted, true);
   });
 
   it("should prepend muted profile to the cached list", async () => {
@@ -1343,10 +1341,7 @@ t.describe("unmuteProfile", (it) => {
   it("should clear viewer.muted on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.unmuteProfile(profile);
-    assertEquals(
-      dataStore.$profiles.get(profile.did).get().viewer.muted,
-      false,
-    );
+    assertEquals(dataStore.$profiles.get(profile.did).viewer.muted, false);
   });
 
   it("should remove profile from the cached list", async () => {
@@ -1403,7 +1398,7 @@ t.describe("blockProfile", (it) => {
     const { mutations, dataStore } = setup();
     await mutations.blockProfile(profile);
     assertEquals(
-      dataStore.$profiles.get(profile.did).get().viewer.blocking,
+      dataStore.$profiles.get(profile.did).viewer.blocking,
       blockUri,
     );
   });
@@ -1460,11 +1455,11 @@ t.describe("blockProfile", (it) => {
     await mutations.blockProfile(profile);
 
     assertEquals(
-      dataStore.$posts.get(post.uri).get().author.viewer.blocking,
+      dataStore.$posts.get(post.uri).author.viewer.blocking,
       blockUri,
     );
     assertEquals(
-      dataStore.$posts.get(otherPost.uri).get().author.viewer.blocking,
+      dataStore.$posts.get(otherPost.uri).author.viewer.blocking,
       undefined,
     );
   });
@@ -1495,10 +1490,7 @@ t.describe("unblockProfile", (it) => {
   it("should clear viewer.blocking on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.unblockProfile(profile);
-    assertEquals(
-      dataStore.$profiles.get(profile.did).get().viewer.blocking,
-      null,
-    );
+    assertEquals(dataStore.$profiles.get(profile.did).viewer.blocking, null);
   });
 
   it("should remove profile from the cached list", async () => {
@@ -1543,10 +1535,7 @@ t.describe("unblockProfile", (it) => {
 
     await mutations.unblockProfile(profile);
 
-    assertEquals(
-      dataStore.$posts.get(post.uri).get().author.viewer.blocking,
-      null,
-    );
+    assertEquals(dataStore.$posts.get(post.uri).author.viewer.blocking, null);
   });
 });
 
@@ -1585,7 +1574,7 @@ t.describe("addBookmark", (it) => {
   it("should update dataStore and remove patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
     await mutations.addBookmark(testPost);
-    const stored = dataStore.$posts.get(testPost.uri).get();
+    const stored = dataStore.$posts.get(testPost.uri);
     assertEquals(stored.viewer.bookmarked, true);
     assertEquals(stored.bookmarkCount, 3);
     assertEquals(applyPostPatches(patchStore, stored), stored);
@@ -1649,7 +1638,7 @@ t.describe("removeBookmark", (it) => {
   it("should update dataStore and remove patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
     await mutations.removeBookmark(testPost);
-    const stored = dataStore.$posts.get(testPost.uri).get();
+    const stored = dataStore.$posts.get(testPost.uri);
     assertEquals(stored.viewer.bookmarked, false);
     assertEquals(stored.bookmarkCount, 2);
     assertEquals(applyPostPatches(patchStore, stored), stored);
@@ -1729,7 +1718,7 @@ t.describe("createRepost", (it) => {
   it("should update dataStore with repost uri and incremented count", async () => {
     const { mutations, dataStore } = setup();
     await mutations.createRepost(testPost);
-    const stored = dataStore.$posts.get(testPost.uri).get();
+    const stored = dataStore.$posts.get(testPost.uri);
     assertEquals(
       stored.viewer.repost,
       "at://did:plc:me/app.bsky.feed.repost/abc",
@@ -1743,7 +1732,7 @@ t.describe("createRepost", (it) => {
       { authorFeed: { feed: [], cursor: "c1" } },
     );
     await mutations.createRepost(testPost);
-    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`).get();
+    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
     assertEquals(feed.feed.length, 1);
     assertEquals(feed.feed[0].post.uri, testPost.uri);
     assertEquals(feed.feed[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
@@ -1804,7 +1793,7 @@ t.describe("deleteRepost", (it) => {
   it("should update dataStore clearing repost uri and decrementing count", async () => {
     const { mutations, dataStore } = setup();
     await mutations.deleteRepost(testPost);
-    const stored = dataStore.$posts.get(testPost.uri).get();
+    const stored = dataStore.$posts.get(testPost.uri);
     assertEquals(stored.viewer.repost, null);
     assertEquals(stored.repostCount, 4);
   });
@@ -1829,7 +1818,7 @@ t.describe("deleteRepost", (it) => {
 
     await mutations.deleteRepost(testPost);
 
-    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`).get();
+    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
     assertEquals(feed.feed.length, 1);
     assertEquals(feed.feed[0].post.uri, otherItem.post.uri);
     assertEquals(feed.cursor, "c1");
@@ -2052,16 +2041,13 @@ t.describe("hidePost", (it) => {
     );
 
     const promise = mutations.hidePost(testPost);
-    const patches = patchStore.$postPatches.get(testPost.uri).get() || [];
+    const patches = patchStore.$postPatches.get(testPost.uri) || [];
     assertEquals(patches.length, 1);
     assertEquals(patches[0].body.type, "hidePost");
 
     updateResolve();
     await promise;
-    assertEquals(
-      (patchStore.$postPatches.get(testPost.uri).get() || []).length,
-      0,
-    );
+    assertEquals((patchStore.$postPatches.get(testPost.uri) || []).length, 0);
   });
 });
 
@@ -2143,7 +2129,7 @@ t.describe("updatePostNotificationSubscription", (it) => {
     assertEquals(calledWith.did, profile.did);
     assertEquals(calledWith.sub, subscription);
     assertEquals(
-      dataStore.$profiles.get(profile.did).get().viewer.activitySubscription,
+      dataStore.$profiles.get(profile.did).viewer.activitySubscription,
       subscription,
     );
   });
@@ -2220,7 +2206,7 @@ t.describe("createPost", (it) => {
     const { mutations, dataStore } = setup();
     const result = await mutations.createPost({ postText: "hello" });
     assertEquals(result.uri, newPostUri);
-    const stored = dataStore.$posts.get(newPostUri).get();
+    const stored = dataStore.$posts.get(newPostUri);
     assertEquals(stored.uri, newPostUri);
     assertEquals(stored.viewer.priorityReply, true);
   });
@@ -2230,7 +2216,7 @@ t.describe("createPost", (it) => {
       authorFeed: { feed: [], cursor: "c1" },
     });
     await mutations.createPost({ postText: "hello" });
-    const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`).get();
+    const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
     assertEquals(feed.feed.length, 1);
     assertEquals(feed.feed[0].post.uri, newPostUri);
     assertEquals(feed.cursor, "c1");
@@ -2259,12 +2245,10 @@ t.describe("createPost", (it) => {
 
     await mutations.createPost({ postText: "hi", replyTo, replyRoot });
 
-    const updatedThread = dataStore.$postThreads.get(replyTo.uri).get();
+    const updatedThread = dataStore.$postThreads.get(replyTo.uri);
     assertEquals(updatedThread.replies.length, 2);
     assertEquals(updatedThread.replies[0].post.uri, newPostUri);
-    const repliesFeed = dataStore.$authorFeeds
-      .get(`${currentUserDid}-replies`)
-      .get();
+    const repliesFeed = dataStore.$authorFeeds.get(`${currentUserDid}-replies`);
     assertEquals(repliesFeed.feed.length, 1);
     assertEquals(repliesFeed.feed[0].post.uri, newPostUri);
   });
@@ -2297,7 +2281,7 @@ t.describe("deletePost", (it) => {
     await mutations.deletePost(post);
 
     assertEquals(apiCalledWith, post);
-    const stored = dataStore.$posts.get(post.uri).get();
+    const stored = dataStore.$posts.get(post.uri);
     assertEquals(stored.uri, post.uri);
     assertEquals(stored.$type, "app.bsky.feed.defs#notFoundPost");
   });
@@ -2336,7 +2320,7 @@ t.describe("createMessage", (it) => {
     const { mutations, dataStore } = setup();
     const result = await mutations.createMessage(convoId, { text: "hello" });
     assertEquals(result, sentMessage);
-    assertEquals(dataStore.$messages.get(sentMessage.id).get(), sentMessage);
+    assertEquals(dataStore.$messages.get(sentMessage.id), sentMessage);
   });
 
   it("should prepend the message to the cached convo messages", async () => {
@@ -2345,7 +2329,7 @@ t.describe("createMessage", (it) => {
       convoMessages: { messages: [existingMessage], cursor: "c1" },
     });
     await mutations.createMessage(convoId, { text: "hello" });
-    const stored = dataStore.$convoMessages.get(convoId).get();
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 2);
     assertEquals(stored.messages[0].id, sentMessage.id);
     assertEquals(stored.messages[1].id, existingMessage.id);
@@ -2356,7 +2340,7 @@ t.describe("createMessage", (it) => {
     const convo = { id: convoId, unreadCount: 0 };
     const { mutations, dataStore } = setup({ convo });
     await mutations.createMessage(convoId, { text: "hello" });
-    const stored = dataStore.$convos.get(convoId).get();
+    const stored = dataStore.$convos.get(convoId);
     assertEquals(stored.lastMessage.id, sentMessage.id);
     assertEquals(stored.lastMessage.$type, "chat.bsky.convo.defs#messageView");
   });
@@ -2393,7 +2377,7 @@ t.describe("acceptConvo", (it) => {
     const result = await mutations.acceptConvo(convo);
     assertEquals(getAcceptArg(), convo.id);
     assertEquals(result.status, "accepted");
-    assertEquals(dataStore.$convos.get(convo.id).get().status, "accepted");
+    assertEquals(dataStore.$convos.get(convo.id).status, "accepted");
   });
 
   it("should update the matching convo in the convo list", async () => {
@@ -2437,7 +2421,7 @@ t.describe("rejectConvo", (it) => {
 
     assertEquals(leaveCalledWith, convo.id);
     // Mutations sets the convo signal to null on reject (was `undefined` pre-refactor).
-    assertEquals(dataStore.$convos.get(convo.id).get(), null);
+    assertEquals(dataStore.$convos.get(convo.id), null);
     const list = dataStore.$convoList.get();
     assertEquals(list.length, 1);
     assertEquals(list[0].id, otherConvo.id);
@@ -2468,7 +2452,7 @@ t.describe("markConvoAsRead", (it) => {
     await mutations.markConvoAsRead(convoId);
 
     assertEquals(calledWith, convoId);
-    assertEquals(dataStore.$convos.get(convoId).get().unreadCount, 0);
+    assertEquals(dataStore.$convos.get(convoId).unreadCount, 0);
   });
 
   it("should not throw when the convo is not cached", async () => {
@@ -2485,7 +2469,7 @@ t.describe("markConvoAsRead", (it) => {
     );
     await mutations.markConvoAsRead("missing");
     // SignalMap returns null for uninitialized keys (was `undefined` pre-refactor).
-    assertEquals(dataStore.$convos.get("missing").get(), null);
+    assertEquals(dataStore.$convos.get("missing"), null);
   });
 });
 
@@ -2535,7 +2519,7 @@ t.describe("addMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$messages.get(messageId).get(), updatedMessage);
+    assertEquals(dataStore.$messages.get(messageId), updatedMessage);
     assertEquals(patchStore._getMessagePatches(messageId).length, 0);
   });
 
@@ -2549,7 +2533,7 @@ t.describe("addMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    const convo = dataStore.$convos.get(convoId).get();
+    const convo = dataStore.$convos.get(convoId);
     assertEquals(
       convo.lastReaction.$type,
       "chat.bsky.convo.defs#messageAndReactionView",
@@ -2602,7 +2586,7 @@ t.describe("removeMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$messages.get(messageId).get(), updatedMessage);
+    assertEquals(dataStore.$messages.get(messageId), updatedMessage);
     assertEquals(patchStore._getMessagePatches(messageId).length, 0);
   });
 
@@ -2619,7 +2603,7 @@ t.describe("removeMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$convos.get(convoId).get().lastReaction, null);
+    assertEquals(dataStore.$convos.get(convoId).lastReaction, null);
   });
 });
 

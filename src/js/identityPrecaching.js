@@ -10,11 +10,11 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
 
   const seenPostUris = new Set();
   effect(() => {
-    const uris = dataLayer.dataStore.$posts.$keys.get();
+    const uris = [...dataLayer.dataStore.$posts.keys()];
     for (const uri of uris) {
       if (seenPostUris.has(uri)) continue;
       seenPostUris.add(uri);
-      const post = untrack(() => dataLayer.dataStore.$posts.get(uri).get());
+      const post = untrack(() => dataLayer.dataStore.$posts.get(uri));
       if (!post) continue;
       try {
         setDid(post.author);
@@ -41,12 +41,12 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
 
   const seenFeedGeneratorUris = new Set();
   effect(() => {
-    const uris = dataLayer.dataStore.$feedGenerators.$keys.get();
+    const uris = [...dataLayer.dataStore.$feedGenerators.keys()];
     for (const uri of uris) {
       if (seenFeedGeneratorUris.has(uri)) continue;
       seenFeedGeneratorUris.add(uri);
       const feedGenerator = untrack(() =>
-        dataLayer.dataStore.$feedGenerators.get(uri).get(),
+        dataLayer.dataStore.$feedGenerators.get(uri),
       );
       if (!feedGenerator) continue;
       try {

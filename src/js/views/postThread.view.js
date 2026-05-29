@@ -191,9 +191,7 @@ class PostThreadView extends View {
       const numReplies = replyChain.length;
       return html`<div class="post-thread-reply-chain">
         ${replyChain.map((reply, i) => {
-          const post = dataLayer.derived.$hydratedPosts
-            .get(reply.post.uri)
-            .get();
+          const post = dataLayer.derived.$hydratedPosts.get(reply.post.uri);
           if (!post) return "";
           return smallPostTemplate({
             post,
@@ -499,14 +497,13 @@ class PostThreadView extends View {
     }
 
     const $postThread = new Signal.Computed(() => {
-      const hydratedPostThread = dataLayer.derived.$hydratedPostThreads
-        .get(postUri)
-        .get();
+      const hydratedPostThread =
+        dataLayer.derived.$hydratedPostThreads.get(postUri);
       if (hydratedPostThread) {
         return hydratedPostThread;
       }
       // Prefill with saved post if available
-      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
       if (post) {
         return {
           __isPrefill: true,
@@ -527,9 +524,10 @@ class PostThreadView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const postThreadRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadPostThread-" + postUri)
-        .get();
+      const postThreadRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostThread-" + postUri,
+        );
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({

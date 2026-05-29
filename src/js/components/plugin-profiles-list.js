@@ -21,7 +21,7 @@ class PluginProfilesList extends Component {
         if (!this.state.loaded.get()) return null;
         const dids = this.attribs.dids.get();
         return dids
-          .map((did) => this.dataLayer.derived.$hydratedProfiles.get(did).get())
+          .map((did) => this.dataLayer.derived.$hydratedProfiles.get(did))
           .filter(Boolean);
       }),
       error: new Signal.State(null),

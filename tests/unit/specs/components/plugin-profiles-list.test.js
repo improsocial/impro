@@ -1,25 +1,27 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { SignalMap } from "/js/signals.js";
+import { SignalMap, ComputedMap } from "/js/signals.js";
 import "/js/components/plugin-profiles-list.js";
 
 const t = new TestSuite("PluginProfilesList");
 
 function makeDataLayer({ ensureProfiles } = {}) {
-  const profileSignals = new SignalMap();
+  // Mirror the real layering: a value SignalMap store, with $hydratedProfiles a
+  // ComputedMap (family) over it that returns a stable per-key cell.
+  const profileValues = new SignalMap();
+  const $hydratedProfiles = new ComputedMap((did) => profileValues.get(did));
   const declarative = {
     ensureProfiles:
       ensureProfiles ??
-      (async (dids) =>
-        dids.map((did) => profileSignals.get(did).get() ?? null)),
+      (async (dids) => dids.map((did) => profileValues.get(did) ?? null)),
   };
   return {
     declarative,
     derived: {
-      $hydratedProfiles: profileSignals,
+      $hydratedProfiles,
     },
     __setProfile(did, profile) {
-      profileSignals.set(did, profile);
+      profileValues.set(did, profile);
     },
   };
 }
@@ -153,9 +155,7 @@ t.describe("PluginProfilesList - did changes", (it) => {
         dids.forEach((did) =>
           dataLayer.__setProfile(did, makeProfile(did, did)),
         );
-        return dids.map((did) =>
-          dataLayer.derived.$hydratedProfiles.get(did).get(),
-        );
+        return dids.map((did) => dataLayer.derived.$hydratedProfiles.get(did));
       },
     });
     const element = document.createElement("plugin-profiles-list");
@@ -187,7 +187,7 @@ t.describe("PluginProfilesList - did changes", (it) => {
       if (callIndex === 1) return firstPromise;
       dids.forEach((did) => dataLayer.__setProfile(did, makeProfile(did, did)));
       return Promise.resolve(
-        dids.map((did) => dataLayer.derived.$hydratedProfiles.get(did).get()),
+        dids.map((did) => dataLayer.derived.$hydratedProfiles.get(did)),
       );
     };
     const element = document.createElement("plugin-profiles-list");

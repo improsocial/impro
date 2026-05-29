@@ -14,7 +14,7 @@ t.describe("setPosts", (it) => {
     ];
     dataStore.setPosts(posts);
     for (const post of posts) {
-      assertEquals(dataStore.$posts.get(post.uri).get(), post);
+      assertEquals(dataStore.$posts.get(post.uri), post);
     }
   });
 
@@ -28,8 +28,8 @@ t.describe("setPosts", (it) => {
     dataStoreA.$posts.set(post.uri, post);
     dataStoreB.setPosts([post]);
     assertEquals(
-      dataStoreA.$posts.get(post.uri).get(),
-      dataStoreB.$posts.get(post.uri).get(),
+      dataStoreA.$posts.get(post.uri),
+      dataStoreB.$posts.get(post.uri),
     );
   });
 });

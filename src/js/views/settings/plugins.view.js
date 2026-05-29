@@ -11,7 +11,7 @@ import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.
 import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
 import { confirm } from "/js/modals.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/signals.js";
+import { Signal, SignalSet } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
@@ -28,19 +28,13 @@ class SettingsPluginsView extends View {
   }) {
     await auth.requireAuth();
 
-    const state = {
-      uninstallingIds: new Set(),
-      enablingIds: new Set(),
-      disablingIds: new Set(),
-      reloading: false,
-      checkingForUpdates: false,
-      updatingAll: false,
-      updatingIds: new Set(),
-    };
-    const $stateTick = new Signal.State(0);
-    function bumpState() {
-      $stateTick.set($stateTick.get() + 1);
-    }
+    const $uninstallingIds = new SignalSet();
+    const $enablingIds = new SignalSet();
+    const $disablingIds = new SignalSet();
+    const $updatingIds = new SignalSet();
+    const $reloading = new Signal.State(false);
+    const $checkingForUpdates = new Signal.State(false);
+    const $updatingAll = new Signal.State(false);
 
     async function uninstallPlugin(plugin) {
       const confirmed = await confirm(
@@ -52,21 +46,18 @@ class SettingsPluginsView extends View {
         },
       );
       if (!confirmed) return;
-      state.uninstallingIds.add(plugin.id);
-      bumpState();
+      $uninstallingIds.add(plugin.id);
       try {
         await pluginService.uninstallPlugin(plugin.id);
         showToast(`Uninstalled ${plugin.name}`);
       } finally {
-        state.uninstallingIds.delete(plugin.id);
-        bumpState();
+        $uninstallingIds.delete(plugin.id);
       }
     }
 
     async function reloadPlugins() {
-      if (state.reloading) return;
-      state.reloading = true;
-      bumpState();
+      if ($reloading.get()) return;
+      $reloading.set(true);
       try {
         await pluginService.reloadPlugins();
         showToast("Reloaded plugins");
@@ -74,15 +65,13 @@ class SettingsPluginsView extends View {
         console.error(e);
         showToast("Failed to reload plugins", { style: "error" });
       } finally {
-        state.reloading = false;
-        bumpState();
+        $reloading.set(false);
       }
     }
 
     async function checkForUpdates() {
-      if (state.checkingForUpdates) return;
-      state.checkingForUpdates = true;
-      bumpState();
+      if ($checkingForUpdates.get()) return;
+      $checkingForUpdates.set(true);
       try {
         const updates = await pluginService.checkForUpdates();
         if (updates.size === 0) {
@@ -95,14 +84,12 @@ class SettingsPluginsView extends View {
       } catch (e) {
         showToast("Failed to check for updates", { style: "error" });
       } finally {
-        state.checkingForUpdates = false;
-        bumpState();
+        $checkingForUpdates.set(false);
       }
     }
 
     async function updatePlugin(plugin) {
-      state.updatingIds.add(plugin.id);
-      bumpState();
+      $updatingIds.add(plugin.id);
       try {
         const result = await pluginService.updatePlugin(plugin.id);
         if (result.updated) {
@@ -120,15 +107,13 @@ class SettingsPluginsView extends View {
           });
         }
       } finally {
-        state.updatingIds.delete(plugin.id);
-        bumpState();
+        $updatingIds.delete(plugin.id);
       }
     }
 
     async function updateAllPlugins() {
-      if (state.updatingAll) return;
-      state.updatingAll = true;
-      bumpState();
+      if ($updatingAll.get()) return;
+      $updatingAll.set(true);
       try {
         const { updated, failed } = await pluginService.updateAllPlugins();
         if (failed.length > 0) {
@@ -142,17 +127,13 @@ class SettingsPluginsView extends View {
           );
         }
       } finally {
-        state.updatingAll = false;
-        bumpState();
+        $updatingAll.set(false);
       }
     }
 
     async function togglePlugin(plugin) {
-      const pendingSet = plugin.enabled
-        ? state.disablingIds
-        : state.enablingIds;
-      pendingSet.add(plugin.id);
-      bumpState();
+      const pendingIds = plugin.enabled ? $disablingIds : $enablingIds;
+      pendingIds.add(plugin.id);
       try {
         if (plugin.enabled) {
           await pluginService.disablePlugin(plugin.id);
@@ -168,20 +149,21 @@ class SettingsPluginsView extends View {
           }
         }
       } finally {
-        pendingSet.delete(plugin.id);
-        bumpState();
+        pendingIds.delete(plugin.id);
       }
     }
 
     pageEffect(root, () => {
-      $stateTick.get();
+      const reloading = $reloading.get();
+      const checkingForUpdates = $checkingForUpdates.get();
+      const updatingAll = $updatingAll.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const pluginsInfo = pluginService.getPluginsInfo();
-      const availableUpdates = pluginService.getAvailableUpdates();
+      const pluginsInfo = pluginService.$pluginsInfo.get();
+      const availableUpdates = pluginService.$availableUpdates.get();
       const hasAvailableUpdates =
         availableUpdates !== null && availableUpdates.size > 0;
       render(
@@ -237,14 +219,13 @@ class SettingsPluginsView extends View {
                           <div class="installed-plugins-header-actions">
                             <button
                               class="plugin-check-updates-button rounded-button rounded-button-primary"
-                              ?disabled=${state.checkingForUpdates ||
-                              state.updatingAll}
+                              ?disabled=${checkingForUpdates || updatingAll}
                               @click=${() =>
                                 hasAvailableUpdates
                                   ? updateAllPlugins()
                                   : checkForUpdates()}
                             >
-                              ${state.checkingForUpdates || state.updatingAll
+                              ${checkingForUpdates || updatingAll
                                 ? html`${hasAvailableUpdates
                                       ? "Updating..."
                                       : "Checking..."}
@@ -259,7 +240,7 @@ class SettingsPluginsView extends View {
                             <button
                               class="plugin-reload-button icon-button"
                               aria-label="Reload plugins"
-                              ?disabled=${state.reloading}
+                              ?disabled=${reloading}
                               @click=${() => reloadPlugins()}
                             >
                               ${reloadIconTemplate()}
@@ -271,16 +252,16 @@ class SettingsPluginsView extends View {
                             const hasUpdate =
                               availableUpdates?.has(plugin.id) ?? false;
                             const isUpdating =
-                              state.updatingIds.has(plugin.id) ||
-                              (state.updatingAll && hasUpdate);
+                              $updatingIds.has(plugin.id) ||
+                              (updatingAll && hasUpdate);
                             const isPending =
-                              state.uninstallingIds.has(plugin.id) ||
-                              state.enablingIds.has(plugin.id) ||
-                              state.disablingIds.has(plugin.id) ||
+                              $uninstallingIds.has(plugin.id) ||
+                              $enablingIds.has(plugin.id) ||
+                              $disablingIds.has(plugin.id) ||
                               isUpdating;
                             return html`
                               <li
-                                class="plugin-list-item ${state.uninstallingIds.has(
+                                class="plugin-list-item ${$uninstallingIds.has(
                                   plugin.id,
                                 )
                                   ? "uninstalling"
@@ -344,14 +325,13 @@ class SettingsPluginsView extends View {
                                   <toggle-switch
                                     class="plugin-toggle"
                                     label="Enable ${plugin.name}"
-                                    ?checked=${state.enablingIds.has(plugin.id)
+                                    ?checked=${$enablingIds.has(plugin.id)
                                       ? true
-                                      : state.disablingIds.has(plugin.id)
+                                      : $disablingIds.has(plugin.id)
                                         ? false
                                         : plugin.enabled}
-                                    ?disabled=${state.enablingIds.has(
-                                      plugin.id,
-                                    ) || state.disablingIds.has(plugin.id)}
+                                    ?disabled=${$enablingIds.has(plugin.id) ||
+                                    $disablingIds.has(plugin.id)}
                                     @change=${() => togglePlugin(plugin)}
                                   ></toggle-switch>
                                 </div>

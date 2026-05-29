@@ -55,7 +55,7 @@ export class DataStore extends ReactiveStore {
       const quotedPost = getQuotedPost(post);
       if (
         quotedPost?.$type === "app.bsky.embed.record#viewRecord" &&
-        this.$posts.get(quotedPost.uri).get() == null
+        this.$posts.get(quotedPost.uri) == null
       ) {
         this.$posts.set(quotedPost.uri, embedViewRecordToPostView(quotedPost));
       }

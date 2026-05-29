@@ -45,19 +45,15 @@ class HomeView extends View {
     }
 
     if (isAuthenticated) {
-      pageEffect(
-        root,
-        () => {
-          const currentFeedUri = $currentFeedUri.get();
-          if (currentFeedUri) {
-            localStorage.setItem(
-              CURRENT_FEED_URI_STORAGE_KEY,
-              JSON.stringify(currentFeedUri),
-            );
-          }
-        },
-        "PERSIST_CURRENT_FEED_URI",
-      );
+      pageEffect(root, () => {
+        const currentFeedUri = $currentFeedUri.get();
+        if (currentFeedUri) {
+          localStorage.setItem(
+            CURRENT_FEED_URI_STORAGE_KEY,
+            JSON.stringify(currentFeedUri),
+          );
+        }
+      });
     }
 
     function getProxyUrl(feedGenerator) {
@@ -237,13 +233,13 @@ class HomeView extends View {
                   const acceptsInteractions =
                     feedGenerator.acceptsInteractions ||
                     feedGenerator.uri === DISCOVER_FEED_URI;
-                  const feed = dataLayer.derived.$hydratedFeeds
-                    .get(feedGenerator.uri)
-                    .get();
+                  const feed = dataLayer.derived.$hydratedFeeds.get(
+                    feedGenerator.uri,
+                  );
                   const feedRequestStatus =
-                    dataLayer.requests.statusStore.$statuses
-                      .get("loadNextFeedPage-" + feedGenerator.uri)
-                      .get();
+                    dataLayer.requests.statusStore.$statuses.get(
+                      "loadNextFeedPage-" + feedGenerator.uri,
+                    );
                   return html`<div
                     class="feed-container"
                     ?hidden=${currentFeedUri !== feedGenerator.uri}

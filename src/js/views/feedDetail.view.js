@@ -56,15 +56,13 @@ class FeedDetailView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
-      const feedGenerator = dataLayer.derived.$feedGenerators
-        .get(feedUri)
-        .get();
+      const feedGenerator = dataLayer.derived.$feedGenerators.get(feedUri);
       const feedName = feedGenerator?.displayName || "";
       const feedAuthor = feedGenerator?.creator;
       const feedAuthorHandle = feedAuthor?.handle;
       const preferences = dataLayer.derived.$preferences.get();
       const isPinned = preferences?.isFeedPinned(feedUri) ?? false;
-      const feed = dataLayer.derived.$hydratedFeeds.get(feedUri).get();
+      const feed = dataLayer.derived.$hydratedFeeds.get(feedUri);
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({

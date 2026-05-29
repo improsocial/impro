@@ -35,7 +35,7 @@ export class Mutations {
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const feedURI = `${currentUser.did}-likes`;
-        const likedFeed = this.dataStore.$authorFeeds.get(feedURI).get();
+        const likedFeed = this.dataStore.$authorFeeds.get(feedURI);
         if (likedFeed) {
           this.dataStore.$authorFeeds.set(feedURI, {
             feed: [{ post: post }, ...likedFeed.feed],
@@ -89,7 +89,7 @@ export class Mutations {
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
+        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
         if (authorFeed) {
           const newFeedItem = {
             post: post,
@@ -131,7 +131,7 @@ export class Mutations {
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const authorFeedURI = `${currentUser.did}-posts`;
-        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
+        const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
         if (authorFeed) {
           this.dataStore.$authorFeeds.set(authorFeedURI, {
             feed: authorFeed.feed.filter((feedItem) => {
@@ -710,7 +710,7 @@ export class Mutations {
           pinnedPost: pinnedRef,
         });
       }
-      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
+      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
       if (existingFeed) {
         this.dataStore.$authorFeeds.set(authorFeedURI, {
           feed: pinPostInFeed(existingFeed.feed, post),
@@ -752,7 +752,7 @@ export class Mutations {
         const { pinnedPost: _, ...rest } = latestUser;
         this.dataStore.$currentUser.set(rest);
       }
-      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
+      const existingFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
       if (existingFeed) {
         this.dataStore.$authorFeeds.set(authorFeedURI, {
           feed: unpinPostInFeed(existingFeed.feed, post),
@@ -791,9 +791,7 @@ export class Mutations {
     this.dataStore.$posts.set(post.uri, post);
     // If it's a reply, update the reply post thread in the store
     if (replyTo) {
-      const replyPostThread = this.dataStore.$postThreads
-        .get(replyTo.uri)
-        .get();
+      const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
       if (replyPostThread) {
         this.dataStore.$postThreads.set(replyTo.uri, {
           ...replyPostThread,
@@ -811,7 +809,7 @@ export class Mutations {
     // If the author feed is loaded, add the new post to it
     const { repo: did } = parseUri(post.uri);
     const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
-    const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI).get();
+    const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
     if (authorFeed) {
       this.dataStore.$authorFeeds.set(authorFeedURI, {
         feed: addFeedItemToFeed({ post }, authorFeed.feed),
@@ -837,7 +835,7 @@ export class Mutations {
     });
     this.dataStore.$messages.set(res.id, res);
     // Add the new message to the chat messages array in the dataStore
-    const convoMessages = this.dataStore.$convoMessages.get(convoId).get();
+    const convoMessages = this.dataStore.$convoMessages.get(convoId);
     if (convoMessages) {
       this.dataStore.$convoMessages.set(convoId, {
         messages: [res, ...convoMessages.messages],
@@ -845,7 +843,7 @@ export class Mutations {
       });
     }
     // Update the last message in the convo
-    const convo = this.dataStore.$convos.get(convoId).get();
+    const convo = this.dataStore.$convos.get(convoId);
     if (convo) {
       this.dataStore.$convos.set(convoId, {
         ...convo,
@@ -893,7 +891,7 @@ export class Mutations {
 
   async markConvoAsRead(convoId) {
     await this.api.markConvoAsRead(convoId);
-    const convo = this.dataStore.$convos.get(convoId).get();
+    const convo = this.dataStore.$convos.get(convoId);
     if (convo) {
       this.dataStore.$convos.set(convoId, {
         ...convo,
@@ -919,7 +917,7 @@ export class Mutations {
       );
       this.dataStore.$messages.set(messageId, message);
       // Update the last reaction in the convo
-      const convo = this.dataStore.$convos.get(convoId).get();
+      const convo = this.dataStore.$convos.get(convoId);
       if (convo) {
         this.dataStore.$convos.set(convoId, {
           ...convo,
@@ -952,7 +950,7 @@ export class Mutations {
       );
       this.dataStore.$messages.set(messageId, message);
       // Update the last reaction in the convo
-      const convo = this.dataStore.$convos.get(convoId).get();
+      const convo = this.dataStore.$convos.get(convoId);
       if (convo) {
         this.dataStore.$convos.set(convoId, {
           ...convo,

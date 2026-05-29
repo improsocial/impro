@@ -159,7 +159,7 @@ t.describe("component integration", (it) => {
     dataLayer.dataStore.$posts.set(postURI, post);
 
     // Verify derived can access it
-    const result = dataLayer.derived.$hydratedPosts.get(postURI).get();
+    const result = dataLayer.derived.$hydratedPosts.get(postURI);
     assertEquals(result.uri, postURI);
   });
 
@@ -176,7 +176,7 @@ t.describe("component integration", (it) => {
     dataLayer.patchStore.addPostPatch(postURI, { type: "addLike" });
 
     // Verify derived apply patches
-    const result = dataLayer.derived.$hydratedPosts.get(postURI).get();
+    const result = dataLayer.derived.$hydratedPosts.get(postURI);
     assertEquals(result.likeCount, 6);
   });
 

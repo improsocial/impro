@@ -49,7 +49,7 @@ t.describe("$hydratedFeeds", (it) => {
   it("should return null when feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedFeeds.get(feedURI).get(), null);
+    assertEquals(derived.$hydratedFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
@@ -67,7 +67,7 @@ t.describe("$hydratedFeeds", (it) => {
     dataStore.$posts.set("post2", post2);
     dataStore.$feeds.set(feedURI, rawFeed);
 
-    const result = derived.$hydratedFeeds.get(feedURI).get();
+    const result = derived.$hydratedFeeds.get(feedURI);
     assertEquals(result, {
       feed: [{ post: post1 }, { post: post2 }],
       cursor: "cursor123",
@@ -93,7 +93,7 @@ t.describe("$hydratedFeeds", (it) => {
     dataStore.$feeds.set(feedURI, rawFeed);
     patchStore.addPostPatch("post1", { type: "addLike" });
 
-    const result = derived.$hydratedFeeds.get(feedURI).get();
+    const result = derived.$hydratedFeeds.get(feedURI);
     assertEquals(result.feed[0].post.likeCount, 6);
     assertEquals(result.feed[0].post.viewer.like, "fake like");
   });
@@ -105,7 +105,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
   it("should return null when feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedHashtagFeeds.get(hashtagKey).get(), null);
+    assertEquals(derived.$hydratedHashtagFeeds.get(hashtagKey), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
@@ -123,7 +123,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     dataStore.$posts.set("post2", post2);
     dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
 
-    const result = derived.$hydratedHashtagFeeds.get(hashtagKey).get();
+    const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
     assertEquals(result, {
       feed: [{ post: post1 }, { post: post2 }],
       cursor: "cursor123",
@@ -155,7 +155,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     dataStore.$posts.set("post-reply", reply);
     dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
 
-    const result = derived.$hydratedHashtagFeeds.get(hashtagKey).get();
+    const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
     assertEquals(result.feed[0].post.record.reply.parentAuthor, parentAuthor);
   });
 
@@ -177,7 +177,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
     patchStore.addPostPatch("post1", { type: "addLike" });
 
-    const result = derived.$hydratedHashtagFeeds.get(hashtagKey).get();
+    const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
     assertEquals(result.feed[0].post.likeCount, 6);
     assertEquals(result.feed[0].post.viewer.like, "fake like");
   });
@@ -189,7 +189,7 @@ t.describe("$hydratedProfiles", (it) => {
   it("should return null when profile does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedProfiles.get(did).get(), null);
+    assertEquals(derived.$hydratedProfiles.get(did), null);
   });
 
   it("should return the profile when it exists", () => {
@@ -197,7 +197,7 @@ t.describe("$hydratedProfiles", (it) => {
     const { derived } = makeDerived(dataStore);
     const profile = { did, handle: "user.test", followersCount: 10 };
     dataStore.$profiles.set(did, profile);
-    const result = derived.$hydratedProfiles.get(did).get();
+    const result = derived.$hydratedProfiles.get(did);
     assertEquals(result.did, did);
     assertEquals(result.handle, "user.test");
     assertEquals(result.followersCount, 10);
@@ -214,7 +214,7 @@ t.describe("$hydratedProfiles", (it) => {
     };
     dataStore.$profiles.set(did, profile);
     patchStore.addProfilePatch(did, { type: "followProfile" });
-    const result = derived.$hydratedProfiles.get(did).get();
+    const result = derived.$hydratedProfiles.get(did);
     assertEquals(result.followersCount, 11);
     assertEquals(result.viewer.following, "fake following");
   });
@@ -227,7 +227,7 @@ t.describe("$hydratedAuthorFeeds", (it) => {
   it("should return null when author feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedAuthorFeeds.get(feedURI).get(), null);
+    assertEquals(derived.$hydratedAuthorFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return an author feed", () => {
@@ -241,7 +241,7 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
       cursor: "c",
     });
-    const result = derived.$hydratedAuthorFeeds.get(feedURI).get();
+    const result = derived.$hydratedAuthorFeeds.get(feedURI);
     assertEquals(result.feed.length, 2);
     assertEquals(result.feed[0].post.uri, "post1");
     assertEquals(result.feed[1].post.uri, "post2");
@@ -267,7 +267,7 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       ],
       cursor: "c",
     });
-    const result = derived.$hydratedAuthorFeeds.get(repliesFeedURI).get();
+    const result = derived.$hydratedAuthorFeeds.get(repliesFeedURI);
     assertEquals(result.feed.length, 1);
     assertEquals(result.feed[0].post.uri, "post2");
   });
@@ -287,7 +287,7 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       type: "pinPost",
       post: { uri: "pinned" },
     });
-    const result = derived.$hydratedAuthorFeeds.get(feedURI).get();
+    const result = derived.$hydratedAuthorFeeds.get(feedURI);
     assertEquals(result.feed[0].post.uri, "pinned");
   });
 });
@@ -298,7 +298,7 @@ t.describe("$actorFeeds", (it) => {
   it("should return null when actor feeds do not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$actorFeeds.get(did).get(), null);
+    assertEquals(derived.$actorFeeds.get(did), null);
   });
 
   it("should return the stored actor feeds", () => {
@@ -306,7 +306,7 @@ t.describe("$actorFeeds", (it) => {
     const { derived } = makeDerived(dataStore);
     const actorFeeds = { feeds: [{ uri: "feed-1" }], cursor: "c" };
     dataStore.$actorFeeds.set(did, actorFeeds);
-    assertEquals(derived.$actorFeeds.get(did).get(), actorFeeds);
+    assertEquals(derived.$actorFeeds.get(did), actorFeeds);
   });
 });
 
@@ -316,7 +316,7 @@ t.describe("$profileChatStatus", (it) => {
   it("should return null when chat status does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$profileChatStatus.get(did).get(), null);
+    assertEquals(derived.$profileChatStatus.get(did), null);
   });
 
   it("should return the stored chat status", () => {
@@ -324,7 +324,7 @@ t.describe("$profileChatStatus", (it) => {
     const { derived } = makeDerived(dataStore);
     const status = { canChat: true, convo: null };
     dataStore.$profileChatStatus.set(did, status);
-    assertEquals(derived.$profileChatStatus.get(did).get(), status);
+    assertEquals(derived.$profileChatStatus.get(did), status);
   });
 });
 
@@ -334,7 +334,7 @@ t.describe("$labelerInfo", (it) => {
   it("should return null when labeler info does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$labelerInfo.get(did).get(), null);
+    assertEquals(derived.$labelerInfo.get(did), null);
   });
 
   it("should return the stored labeler info", () => {
@@ -342,7 +342,7 @@ t.describe("$labelerInfo", (it) => {
     const { derived } = makeDerived(dataStore);
     const info = { policies: { labelValues: ["spam"] } };
     dataStore.$labelerInfo.set(did, info);
-    assertEquals(derived.$labelerInfo.get(did).get(), info);
+    assertEquals(derived.$labelerInfo.get(did), info);
   });
 });
 
@@ -351,7 +351,7 @@ t.describe("$labelerSettings", (it) => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
     const labelerDid = "did:plc:labeler";
-    const result = derived.$labelerSettings.get(labelerDid).get();
+    const result = derived.$labelerSettings.get(labelerDid);
     // Logged-out preferences should still return a settings object
     assertEquals(typeof result, "object");
   });
@@ -433,7 +433,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
   it("should return null when the post does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedPosts.get(postURI).get(), null);
+    assertEquals(derived.$hydratedPosts.get(postURI), null);
   });
 
   it("should mark the post when it contains a muted word", () => {
@@ -442,7 +442,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       preferences: fakePreferences({ postHasMutedWord: () => true }),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.viewer.hasMutedWord, true);
   });
 
@@ -452,7 +452,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       preferences: fakePreferences(),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.viewer, undefined);
   });
 
@@ -462,7 +462,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       preferences: fakePreferences({ isPostHidden: () => true }),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.viewer.isHidden, true);
   });
 
@@ -476,7 +476,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       }),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.badgeLabels, ["badge"]);
     assertEquals(result.contentLabel, "warn");
     assertEquals(result.mediaLabel, "blur");
@@ -488,7 +488,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       preferences: fakePreferences(),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.badgeLabels, undefined);
     assertEquals(result.contentLabel, undefined);
     assertEquals(result.mediaLabel, undefined);
@@ -504,7 +504,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       }),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     assertEquals(result.viewer.hasMutedWord, true);
     assertEquals(result.viewer.isHidden, true);
     assertEquals(result.badgeLabels, ["b"]);
@@ -517,7 +517,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     const post = { uri: postURI, record: { text: "hello" } };
     dataStore.$posts.set(postURI, post);
-    const result = derived.$hydratedPosts.get(postURI).get();
+    const result = derived.$hydratedPosts.get(postURI);
     // hydratePostForView always returns a fresh clone
     assertEquals(result.uri, post.uri);
     assertEquals(result.record.text, "hello");

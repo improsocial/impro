@@ -46,14 +46,13 @@ class ProfileFollowingView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const profileFollowing = dataLayer.dataStore.$profileFollows
-        .get(profileDid)
-        .get();
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
+      const profileFollowing =
+        dataLayer.dataStore.$profileFollows.get(profileDid);
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
       const profileFollowingRequestStatus =
-        dataLayer.requests.statusStore.$statuses
-          .get("loadProfileFollows-" + profileDid)
-          .get();
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadProfileFollows-" + profileDid,
+        );
       const hasMore = profileFollowing?.cursor ? true : false;
 
       const subtitle = profile?.followsCount
@@ -95,9 +94,8 @@ class ProfileFollowingView extends View {
     });
 
     async function loadFollowing() {
-      const profileFollowing = dataLayer.dataStore.$profileFollows
-        .get(profileDid)
-        .get();
+      const profileFollowing =
+        dataLayer.dataStore.$profileFollows.get(profileDid);
       const cursor = profileFollowing?.cursor;
       await dataLayer.requests.loadProfileFollows(profileDid, { cursor });
     }

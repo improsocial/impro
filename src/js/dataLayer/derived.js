@@ -249,18 +249,18 @@ export class Derived extends ReactiveStore {
       this.dataStore.$showLessInteractions.get(),
     );
     this.$hydratedPosts = new ComputedMap((uri) => {
-      const post = this.patchStore.$patchedPosts.get(uri).get();
+      const post = this.patchStore.$patchedPosts.get(uri);
       const preferences = this.$preferences.get();
       if (!post || !preferences) {
         return null;
       }
       return hydratePostForView(post, {
         preferences,
-        getPost: (uri) => this.$hydratedPosts.get(uri).get(),
+        getPost: (uri) => this.$hydratedPosts.get(uri),
       });
     });
     this.$hydratedFeeds = new ComputedMap((feedURI) => {
-      const feed = this.dataStore.$feeds.get(feedURI).get();
+      const feed = this.dataStore.$feeds.get(feedURI);
       if (!feed) {
         return null;
       }
@@ -268,7 +268,7 @@ export class Derived extends ReactiveStore {
       for (const feedItem of feed.feed) {
         const hydratedFeedItem = {
           feedContext: feedItem.feedContext,
-          post: this.$hydratedPosts.get(feedItem.post.uri).get(),
+          post: this.$hydratedPosts.get(feedItem.post.uri),
         };
         if (feedItem.reason) {
           hydratedFeedItem.reason = feedItem.reason;
@@ -277,11 +277,11 @@ export class Derived extends ReactiveStore {
         if (reply) {
           let root = reply.root;
           if (isPostView(root)) {
-            root = this.$hydratedPosts.get(root.uri).get();
+            root = this.$hydratedPosts.get(root.uri);
           }
           let parent = reply.parent;
           if (isPostView(parent)) {
-            parent = this.$hydratedPosts.get(parent.uri).get();
+            parent = this.$hydratedPosts.get(parent.uri);
           }
           hydratedFeedItem.reply = { ...reply, root, parent };
         }
@@ -292,7 +292,7 @@ export class Derived extends ReactiveStore {
         cursor: feed.cursor,
       };
       const pluginFilteredFeedItems =
-        this.pluginService.$pluginFilteredFeedItems.get(feedURI).get() ?? {};
+        this.pluginService.$pluginFilteredFeedItems.get(feedURI) ?? {};
       if (feedURI === "following") {
         const currentUser = this.$currentUser.get();
         const preferences = this.$preferences.get();
@@ -321,7 +321,7 @@ export class Derived extends ReactiveStore {
       const patches = this.patchStore.$preferencePatches.get();
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
-    const getHydratedPost = (uri) => this.$hydratedPosts.get(uri).get();
+    const getHydratedPost = (uri) => this.$hydratedPosts.get(uri);
     this.$notifications = new Signal.Computed(() =>
       hydrateNotifications(this.dataStore.$notifications.get(), {
         getPost: getHydratedPost,
@@ -333,10 +333,8 @@ export class Derived extends ReactiveStore {
       }),
     );
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
-      const postThread = this.dataStore.$postThreads.get(postURI).get();
-      const postThreadOther = this.dataStore.$postThreadOthers
-        .get(postURI)
-        .get();
+      const postThread = this.dataStore.$postThreads.get(postURI);
+      const postThreadOther = this.dataStore.$postThreadOthers.get(postURI);
       if (!postThread || !postThreadOther) {
         return null;
       }
@@ -355,19 +353,19 @@ export class Derived extends ReactiveStore {
         hydrated.parent = hydratePostThreadParent(postThread.parent, {
           getPost: getHydratedPost,
           isUnavailable: (uri) =>
-            this.dataStore.$unavailablePosts.get(uri).get() !== null,
+            this.dataStore.$unavailablePosts.get(uri) !== null,
         });
       }
       return hydrated;
     });
     this.$hydratedHashtagFeeds = new ComputedMap((hashtagKey) => {
-      const feed = this.dataStore.$hashtagFeeds.get(hashtagKey).get();
+      const feed = this.dataStore.$hashtagFeeds.get(hashtagKey);
       if (!feed) {
         return null;
       }
       const hydratedFeedItems = [];
       for (const feedItem of feed.feed) {
-        const post = this.$hydratedPosts.get(feedItem.post.uri).get();
+        const post = this.$hydratedPosts.get(feedItem.post.uri);
         if (!post) continue;
         hydratedFeedItems.push({
           post: attachParentAuthor(post, getHydratedPost),
@@ -379,7 +377,7 @@ export class Derived extends ReactiveStore {
       };
     });
     this.$feedGenerators = new ComputedMap((feedUri) =>
-      this.dataStore.$feedGenerators.get(feedUri).get(),
+      this.dataStore.$feedGenerators.get(feedUri),
     );
     this.$profileSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$profileSearchResults.get();
@@ -402,7 +400,7 @@ export class Derived extends ReactiveStore {
       if (!data) return null;
       const hydratedSearchResults = [];
       for (const result of data.posts) {
-        const post = this.$hydratedPosts.get(result.uri).get();
+        const post = this.$hydratedPosts.get(result.uri);
         if (!post) continue;
         hydratedSearchResults.push(attachParentAuthor(post, getHydratedPost));
       }
@@ -412,13 +410,13 @@ export class Derived extends ReactiveStore {
       () => this.dataStore.$postSearchResults.get()?.cursor ?? null,
     );
     this.$hydratedPostQuotes = new ComputedMap((postUri) => {
-      const quotes = this.dataStore.$postQuotes.get(postUri).get();
+      const quotes = this.dataStore.$postQuotes.get(postUri);
       if (!quotes) {
         return null;
       }
       const hydratedPosts = [];
       for (const quote of quotes.posts) {
-        const post = this.$hydratedPosts.get(quote.uri).get();
+        const post = this.$hydratedPosts.get(quote.uri);
         if (!post) continue;
         hydratedPosts.push(attachParentAuthor(post, getHydratedPost));
       }
@@ -435,20 +433,19 @@ export class Derived extends ReactiveStore {
         hydrated.push({ uri: "following", displayName: "Following" });
       }
       for (const pin of pinned) {
-        hydrated.push(this.$feedGenerators.get(pin.uri).get());
+        hydrated.push(this.$feedGenerators.get(pin.uri));
       }
       return hydrated;
     });
     this.$hydratedProfiles = new ComputedMap((did) =>
-      this.patchStore.$patchedProfiles.get(did).get(),
+      this.patchStore.$patchedProfiles.get(did),
     );
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
-      const rawFeed = this.dataStore.$authorFeeds.get(feedURI).get();
+      const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
       if (!rawFeed) {
         return null;
       }
-      const patches =
-        this.patchStore.$authorFeedPatches.get(feedURI).get() || [];
+      const patches = this.patchStore.$authorFeedPatches.get(feedURI) || [];
       let feed = { feed: [...rawFeed.feed], cursor: rawFeed.cursor };
       for (const patch of patches) {
         feed = this.patchStore.applyAuthorFeedPatch(feed, patch.body);
@@ -456,7 +453,7 @@ export class Derived extends ReactiveStore {
       const hydratedFeedItems = [];
       for (const feedItem of feed.feed) {
         const hydratedFeedItem = {
-          post: this.$hydratedPosts.get(feedItem.post.uri).get(),
+          post: this.$hydratedPosts.get(feedItem.post.uri),
         };
         if (feedItem.reason) {
           hydratedFeedItem.reason = feedItem.reason;
@@ -464,8 +461,8 @@ export class Derived extends ReactiveStore {
         if (feedItem.reply) {
           hydratedFeedItem.reply = {
             ...feedItem.reply,
-            root: this.$hydratedPosts.get(feedItem.reply.root.uri).get(),
-            parent: this.$hydratedPosts.get(feedItem.reply.parent.uri).get(),
+            root: this.$hydratedPosts.get(feedItem.reply.root.uri),
+            parent: this.$hydratedPosts.get(feedItem.reply.parent.uri),
           };
         }
         hydratedFeedItems.push(hydratedFeedItem);
@@ -491,13 +488,13 @@ export class Derived extends ReactiveStore {
       return filterAuthorFeed(hydratedFeed, this.isAuthenticated);
     });
     this.$actorFeeds = new ComputedMap((did) =>
-      this.dataStore.$actorFeeds.get(did).get(),
+      this.dataStore.$actorFeeds.get(did),
     );
     this.$profileChatStatus = new ComputedMap((did) =>
-      this.dataStore.$profileChatStatus.get(did).get(),
+      this.dataStore.$profileChatStatus.get(did),
     );
     this.$labelerInfo = new ComputedMap((did) =>
-      this.dataStore.$labelerInfo.get(did).get(),
+      this.dataStore.$labelerInfo.get(did),
     );
     this.$hydratedBookmarks = new Signal.Computed(() => {
       const bookmarks = this.dataStore.$bookmarks.get();
@@ -506,7 +503,7 @@ export class Derived extends ReactiveStore {
       }
       const hydratedFeed = [];
       for (const bookmark of bookmarks.feed) {
-        const post = this.$hydratedPosts.get(bookmark.post.uri).get();
+        const post = this.$hydratedPosts.get(bookmark.post.uri);
         hydratedFeed.push({ post: attachParentAuthor(post, getHydratedPost) });
       }
       return filterBookmarksFeed({
@@ -520,14 +517,12 @@ export class Derived extends ReactiveStore {
       return preferences.getLabelerSettings(labelerDid);
     });
     this.$convos = new ComputedMap((convoId) =>
-      this.dataStore.$convos.get(convoId).get(),
+      this.dataStore.$convos.get(convoId),
     );
     this.$convoList = new Signal.Computed(() => {
       const convoList = this.dataStore.$convoList.get();
       if (!convoList) return null;
-      const hydrated = convoList.map((convo) =>
-        this.$convos.get(convo.id).get(),
-      );
+      const hydrated = convoList.map((convo) => this.$convos.get(convo.id));
       return sortBy(
         hydrated,
         (convo) => new Date(getLastInteractionTimestamp(convo)),
@@ -538,25 +533,25 @@ export class Derived extends ReactiveStore {
       this.dataStore.$convoListCursor.get(),
     );
     this.$convoForProfile = new ComputedMap((profileDid) => {
-      const convoIds = this.dataStore.$convos.$keys.get();
+      const convoIds = [...this.dataStore.$convos.keys()];
       for (const convoId of convoIds) {
-        const convo = this.dataStore.$convos.get(convoId).get();
+        const convo = this.dataStore.$convos.get(convoId);
         if (!convo) continue;
         if (
           convo.members.length === 2 &&
           convo.members.some((member) => member.did === profileDid)
         ) {
-          return this.$convos.get(convo.id).get();
+          return this.$convos.get(convo.id);
         }
       }
       return null;
     });
     this.$convoMessages = new ComputedMap((convoId) => {
-      const messages = this.dataStore.$convoMessages.get(convoId).get();
+      const messages = this.dataStore.$convoMessages.get(convoId);
       if (!messages) return null;
       return {
         messages: messages.messages.map((message) =>
-          this.patchStore.$patchedMessages.get(message.id).get(),
+          this.patchStore.$patchedMessages.get(message.id),
         ),
         cursor: messages.cursor,
       };

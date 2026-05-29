@@ -41,9 +41,8 @@ class SettingsMutedAccountsView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const mutedProfiles = dataLayer.dataStore.$mutedProfiles.get();
-      const status = dataLayer.requests.statusStore.$statuses
-        .get("loadMutedProfiles")
-        .get();
+      const status =
+        dataLayer.requests.statusStore.$statuses.get("loadMutedProfiles");
       const hasMore = mutedProfiles?.cursor ? true : false;
 
       render(

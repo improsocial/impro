@@ -707,7 +707,7 @@ class NotificationsView extends View {
         chatNotificationService?.$numNotifications.get() ?? null;
       const notifications = dataLayer.derived.$notifications.get();
       const notificationsRequestStatus =
-        dataLayer.requests.statusStore.$statuses.get("loadNotifications").get();
+        dataLayer.requests.statusStore.$statuses.get("loadNotifications");
       const groupedNotifications = groupNotificationsByType(notifications);
       const cursor = dataLayer.dataStore.$notificationCursor.get();
       const hasMore = !!cursor;
@@ -715,9 +715,9 @@ class NotificationsView extends View {
       const mentionNotifications =
         dataLayer.derived.$mentionNotifications.get();
       const mentionNotificationsRequestStatus =
-        dataLayer.requests.statusStore.$statuses
-          .get("loadMentionNotifications")
-          .get();
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadMentionNotifications",
+        );
       const groupedMentionNotifications =
         groupNotificationsByType(mentionNotifications);
       const mentionCursor =

@@ -64,9 +64,7 @@ class HashtagView extends View {
       }
       // Load feed if not cached
       const hashtagKey = `${hashtag}-${sortValue}`;
-      const feed = dataLayer.derived.$hydratedHashtagFeeds
-        .get(hashtagKey)
-        .get();
+      const feed = dataLayer.derived.$hydratedHashtagFeeds.get(hashtagKey);
       if (!feed) {
         await loadCurrentFeed();
       }
@@ -103,9 +101,9 @@ class HashtagView extends View {
                   }),
               })}
               ${sortOptions.map((sort) => {
-                const feed = dataLayer.derived.$hydratedHashtagFeeds
-                  .get(`${hashtag}-${sort.value}`)
-                  .get();
+                const feed = dataLayer.derived.$hydratedHashtagFeeds.get(
+                  `${hashtag}-${sort.value}`,
+                );
                 return html`<div
                   class="feed-container"
                   ?hidden=${currentSort !== sort.value}

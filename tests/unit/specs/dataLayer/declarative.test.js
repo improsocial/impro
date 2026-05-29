@@ -5,7 +5,8 @@ import { Declarative } from "/js/dataLayer/declarative.js";
 const t = new TestSuite("Declarative");
 
 const sig = (getter) => ({ get: getter });
-const mapSig = (getter) => ({ get: (key) => ({ get: () => getter(key) }) });
+// Stubs a ComputedMap: get(key) returns the derived value directly.
+const mapSig = (getter) => ({ get: (key) => getter(key) });
 
 function createMockDerived(data = {}) {
   return {

@@ -48,13 +48,12 @@ class PostQuotesView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const postQuotes = dataLayer.derived.$hydratedPostQuotes
-        .get(postUri)
-        .get();
-      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
-      const postQuotesRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadPostQuotes-" + postUri)
-        .get();
+      const postQuotes = dataLayer.derived.$hydratedPostQuotes.get(postUri);
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
+      const postQuotesRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostQuotes-" + postUri,
+        );
 
       const subtitle = post?.quoteCount
         ? `${formatLargeNumber(post.quoteCount)} ${
@@ -106,7 +105,7 @@ class PostQuotesView extends View {
     });
 
     async function loadQuotes() {
-      const postQuotes = dataLayer.dataStore.$postQuotes.get(postUri).get();
+      const postQuotes = dataLayer.dataStore.$postQuotes.get(postUri);
       const cursor = postQuotes?.cursor;
       await dataLayer.requests.loadPostQuotes(postUri, { cursor });
     }

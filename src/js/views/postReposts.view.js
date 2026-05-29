@@ -45,11 +45,12 @@ class PostRepostsView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const postReposts = dataLayer.dataStore.$postReposts.get(postUri).get();
-      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
-      const postRepostsRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadPostReposts-" + postUri)
-        .get();
+      const postReposts = dataLayer.dataStore.$postReposts.get(postUri);
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
+      const postRepostsRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostReposts-" + postUri,
+        );
       const hasMore = postReposts?.cursor ? true : false;
       const subtitle = post?.repostCount
         ? `${formatLargeNumber(post.repostCount)} ${
@@ -93,7 +94,7 @@ class PostRepostsView extends View {
     });
 
     async function loadReposts() {
-      const postReposts = dataLayer.dataStore.$postReposts.get(postUri).get();
+      const postReposts = dataLayer.dataStore.$postReposts.get(postUri);
       const cursor = postReposts?.cursor;
       await dataLayer.requests.loadPostReposts(postUri, { cursor });
     }

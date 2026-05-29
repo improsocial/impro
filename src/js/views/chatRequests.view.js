@@ -166,9 +166,8 @@ class ChatRequestsView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const convos = dataLayer.derived.$convoList.get();
-      const convosRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadConvoList")
-        .get();
+      const convosRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get("loadConvoList");
       const cursor = dataLayer.derived.$convoListCursor.get();
       const hasMore = !!cursor;
 

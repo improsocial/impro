@@ -32,42 +32,38 @@ class SettingsAdvancedView extends View {
     const storedConfig = getAppViewConfig();
     const isStoredCustom = storedConfig.id === CUSTOM_APP_VIEW_CONFIG_ID;
 
-    const state = {
-      loading: false,
-      errorMessage: null,
-      appViewSelection: storedConfig.id,
-      customAppViewServiceDid: isStoredCustom
-        ? storedConfig.appViewServiceDid
-        : "",
-      customChatServiceDid: isStoredCustom ? storedConfig.chatServiceDid : "",
-      pluginInstallLoading: false,
-    };
-    const $stateTick = new Signal.State(0);
-    function bumpState() {
-      $stateTick.set($stateTick.get() + 1);
-    }
+    const $loading = new Signal.State(false);
+    const $errorMessage = new Signal.State(null);
+    const $appViewSelection = new Signal.State(storedConfig.id);
+    const $customAppViewServiceDid = new Signal.State(
+      isStoredCustom ? storedConfig.appViewServiceDid : "",
+    );
+    const $customChatServiceDid = new Signal.State(
+      isStoredCustom ? storedConfig.chatServiceDid : "",
+    );
+    const $pluginInstallLoading = new Signal.State(false);
 
     function resolveSelectedAppViewConfig() {
-      if (state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID) {
+      if ($appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
         return {
           id: CUSTOM_APP_VIEW_CONFIG_ID,
-          appViewServiceDid: state.customAppViewServiceDid.trim(),
-          chatServiceDid: state.customChatServiceDid.trim(),
+          appViewServiceDid: $customAppViewServiceDid.get().trim(),
+          chatServiceDid: $customChatServiceDid.get().trim(),
         };
       }
       return (
         DEFAULT_APP_VIEW_CONFIGS.find(
-          (config) => config.id === state.appViewSelection,
+          (config) => config.id === $appViewSelection.get(),
         ) ?? AppViewConfig.BLUESKY
       );
     }
 
     function isDirty() {
-      if (state.appViewSelection !== storedConfig.id) return true;
-      if (state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID) {
+      if ($appViewSelection.get() !== storedConfig.id) return true;
+      if ($appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
         return (
-          state.customAppViewServiceDid !== storedConfig.appViewServiceDid ||
-          state.customChatServiceDid !== storedConfig.chatServiceDid
+          $customAppViewServiceDid.get() !== storedConfig.appViewServiceDid ||
+          $customChatServiceDid.get() !== storedConfig.chatServiceDid
         );
       }
       return false;
@@ -77,30 +73,25 @@ class SettingsAdvancedView extends View {
       e.preventDefault();
       const selectedConfig = resolveSelectedAppViewConfig();
       if (!isValidAppViewConfig(selectedConfig)) {
-        state.errorMessage = "Invalid App View configuration";
-        bumpState();
+        $errorMessage.set("Invalid App View configuration");
         return;
       }
-      state.loading = true;
-      state.errorMessage = null;
-      bumpState();
+      $loading.set(true);
+      $errorMessage.set(null);
       setAppViewConfig(selectedConfig);
       window.location.reload();
     }
 
     function handleAppViewChange(e) {
-      state.appViewSelection = e.target.value;
-      bumpState();
+      $appViewSelection.set(e.target.value);
     }
 
     function handleCustomAppViewDidInput(e) {
-      state.customAppViewServiceDid = e.target.value;
-      bumpState();
+      $customAppViewServiceDid.set(e.target.value);
     }
 
     function handleCustomChatDidInput(e) {
-      state.customChatServiceDid = e.target.value;
-      bumpState();
+      $customChatServiceDid.set(e.target.value);
     }
 
     async function handleInstallPlugin(e) {
@@ -108,8 +99,7 @@ class SettingsAdvancedView extends View {
       const input = e.target.elements.pluginUrl;
       const url = input.value.trim();
       if (!url) return;
-      state.pluginInstallLoading = true;
-      bumpState();
+      $pluginInstallLoading.set(true);
       try {
         const result = await pluginService.installUnregisteredPlugin(url);
         input.value = "";
@@ -123,19 +113,17 @@ class SettingsAdvancedView extends View {
           });
         }
       } finally {
-        state.pluginInstallLoading = false;
-        bumpState();
+        $pluginInstallLoading.set(false);
       }
     }
 
     pageEffect(root, () => {
-      $stateTick.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const isCustom = state.appViewSelection === CUSTOM_APP_VIEW_CONFIG_ID;
+      const isCustom = $appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
       render(
         html`<div id="settings-advanced-view">
           ${mainLayoutTemplate({
@@ -175,7 +163,7 @@ class SettingsAdvancedView extends View {
                             (defaultConfig) => html`
                               <option
                                 value=${defaultConfig.id}
-                                ?selected=${state.appViewSelection ===
+                                ?selected=${$appViewSelection.get() ===
                                 defaultConfig.id}
                               >
                                 ${defaultConfig.displayName}
@@ -184,7 +172,7 @@ class SettingsAdvancedView extends View {
                           )}
                           <option
                             value=${CUSTOM_APP_VIEW_CONFIG_ID}
-                            ?selected=${state.appViewSelection ===
+                            ?selected=${$appViewSelection.get() ===
                             CUSTOM_APP_VIEW_CONFIG_ID}
                           >
                             Custom
@@ -214,7 +202,7 @@ class SettingsAdvancedView extends View {
                               autocorrect="off"
                               autocapitalize="off"
                               spellcheck="false"
-                              .value=${state.customAppViewServiceDid}
+                              .value=${$customAppViewServiceDid.get()}
                               @input=${(e) => handleCustomAppViewDidInput(e)}
                             />
                           </div>
@@ -229,7 +217,7 @@ class SettingsAdvancedView extends View {
                               autocorrect="off"
                               autocapitalize="off"
                               spellcheck="false"
-                              .value=${state.customChatServiceDid}
+                              .value=${$customChatServiceDid.get()}
                               @input=${(e) => handleCustomChatDidInput(e)}
                             />
                           </div>
@@ -240,18 +228,18 @@ class SettingsAdvancedView extends View {
                       <button
                         type="submit"
                         class="settings-button"
-                        ?disabled=${state.loading || !isDirty()}
+                        ?disabled=${$loading.get() || !isDirty()}
                       >
                         Save and reload
-                        ${state.loading
+                        ${$loading.get()
                           ? html`<div class="loading-spinner"></div>`
                           : ""}
                       </button>
                     </div>
                     <div class="error-message-container">
-                      ${state.errorMessage
+                      ${$errorMessage.get()
                         ? html`<div class="error-message">
-                            ${state.errorMessage}
+                            ${$errorMessage.get()}
                           </div>`
                         : ""}
                     </div>
@@ -292,9 +280,9 @@ class SettingsAdvancedView extends View {
                         type="submit"
                         class="settings-button"
                         data-testid="install-unregistered-plugin-submit"
-                        ?disabled=${state.pluginInstallLoading}
+                        ?disabled=${$pluginInstallLoading.get()}
                       >
-                        ${state.pluginInstallLoading
+                        ${$pluginInstallLoading.get()
                           ? html`Installing
                               <div class="loading-spinner"></div>`
                           : "Install"}

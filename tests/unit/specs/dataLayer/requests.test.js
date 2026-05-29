@@ -59,17 +59,14 @@ t.describe("loadPostThread", (it) => {
     await requests.loadPostThread(postURI);
 
     // Check thread was stored
-    assertEquals(dataStore.$postThreads.get(postURI).get(), mockPostThread);
+    assertEquals(dataStore.$postThreads.get(postURI), mockPostThread);
 
     // Check postThreadOther was stored
-    assertEquals(
-      dataStore.$postThreadOthers.get(postURI).get(),
-      mockPostThreadOther,
-    );
+    assertEquals(dataStore.$postThreadOthers.get(postURI), mockPostThreadOther);
 
     // Check posts were stored
-    assertEquals(dataStore.$posts.get(postURI).get(), normalizedPosts[0]);
-    assertEquals(dataStore.$posts.get("reply1").get(), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get(postURI), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("reply1"), normalizedPosts[1]);
   });
 
   it("should handle empty post thread", async () => {
@@ -97,9 +94,9 @@ t.describe("loadPostThread", (it) => {
 
     await requests.loadPostThread(postURI);
 
-    assertEquals(dataStore.$postThreads.get(postURI).get(), emptyPostThread);
-    assertEquals(dataStore.$postThreadOthers.get(postURI).get(), []);
-    assertEquals(dataStore.$posts.get(postURI).get(), normalizedPosts[0]);
+    assertEquals(dataStore.$postThreads.get(postURI), emptyPostThread);
+    assertEquals(dataStore.$postThreadOthers.get(postURI), []);
+    assertEquals(dataStore.$posts.get(postURI), normalizedPosts[0]);
   });
 });
 
@@ -134,11 +131,11 @@ t.describe("loadNextFeedPage", (it) => {
     await requests.loadNextFeedPage(feedURI);
 
     // Check feed was stored
-    assertEquals(dataStore.$feeds.get(feedURI).get(), mockFeed);
+    assertEquals(dataStore.$feeds.get(feedURI), mockFeed);
 
     // Check posts were stored
-    assertEquals(dataStore.$posts.get("post1").get(), normalizedPosts[0]);
-    assertEquals(dataStore.$posts.get("post2").get(), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get("post1"), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("post2"), normalizedPosts[1]);
   });
 
   it("should append to existing feed", async () => {
@@ -178,7 +175,7 @@ t.describe("loadNextFeedPage", (it) => {
     await requests.loadNextFeedPage(feedURI);
 
     // Check feed was appended
-    const storedFeed = dataStore.$feeds.get(feedURI).get();
+    const storedFeed = dataStore.$feeds.get(feedURI);
     assertEquals(storedFeed.feed.length, 3);
     assertEquals(storedFeed.feed[0], { post: { uri: "post1" } });
     assertEquals(storedFeed.feed[1], { post: { uri: "post2" } });
@@ -186,8 +183,8 @@ t.describe("loadNextFeedPage", (it) => {
     assertEquals(storedFeed.cursor, "cursor2");
 
     // Check new posts were stored
-    assertEquals(dataStore.$posts.get("post2").get(), normalizedPosts[0]);
-    assertEquals(dataStore.$posts.get("post3").get(), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get("post2"), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("post3"), normalizedPosts[1]);
   });
 
   it("should handle empty feed", async () => {
@@ -212,7 +209,7 @@ t.describe("loadNextFeedPage", (it) => {
 
     await requests.loadNextFeedPage(feedURI);
 
-    assertEquals(dataStore.$feeds.get(feedURI).get(), emptyFeed);
+    assertEquals(dataStore.$feeds.get(feedURI), emptyFeed);
   });
 
   it("should handle feed with reply context", async () => {
@@ -251,19 +248,10 @@ t.describe("loadNextFeedPage", (it) => {
 
     await requests.loadNextFeedPage(feedURI);
 
-    assertEquals(dataStore.$feeds.get(feedURI).get(), feedWithReplies);
-    assertEquals(
-      dataStore.$posts.get("post1").get().uri,
-      normalizedPosts[0].uri,
-    );
-    assertEquals(
-      dataStore.$posts.get("root1").get().uri,
-      normalizedPosts[1].uri,
-    );
-    assertEquals(
-      dataStore.$posts.get("parent1").get().uri,
-      normalizedPosts[2].uri,
-    );
+    assertEquals(dataStore.$feeds.get(feedURI), feedWithReplies);
+    assertEquals(dataStore.$posts.get("post1").uri, normalizedPosts[0].uri);
+    assertEquals(dataStore.$posts.get("root1").uri, normalizedPosts[1].uri);
+    assertEquals(dataStore.$posts.get("parent1").uri, normalizedPosts[2].uri);
   });
 });
 
@@ -280,7 +268,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
         const filtered = await getFilteredFeedItems(uri, feed);
         const existing = reload
           ? {}
-          : ($pluginFilteredFeedItems.get(uri).get() ?? {});
+          : ($pluginFilteredFeedItems.get(uri) ?? {});
         $pluginFilteredFeedItems.set(uri, { ...existing, ...filtered });
       },
     };
@@ -308,10 +296,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
     await requests.loadPluginFilteredFeedItems(feedURI);
 
     assertEquals(invoked, false);
-    assertEquals(
-      pluginService.$pluginFilteredFeedItems.get(feedURI).get(),
-      null,
-    );
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), null);
   });
 
   it("should pass the feed to the plugin service and store results", async () => {
@@ -335,7 +320,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
 
     assertEquals(capturedUri, feedURI);
     assertEquals(capturedFeed, storedFeed);
-    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI).get(), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p1: { hidden: true },
     });
   });
@@ -355,7 +340,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
 
     await requests.loadPluginFilteredFeedItems(feedURI);
 
-    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI).get(), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p1: { hidden: true },
       p2: { hidden: false },
       p3: { hidden: true },
@@ -376,7 +361,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
 
     await requests.loadPluginFilteredFeedItems(feedURI, { reload: true });
 
-    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI).get(), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p3: { hidden: true },
     });
   });
@@ -411,7 +396,7 @@ t.describe("loadProfile", (it) => {
     await requests.loadProfile(profileDID);
 
     // Check profile was stored
-    assertEquals(dataStore.$profiles.get(profileDID).get(), mockProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), mockProfile);
   });
 
   it("should handle profile updates", async () => {
@@ -439,7 +424,7 @@ t.describe("loadProfile", (it) => {
 
     await requests.loadProfile(profileDID);
 
-    assertEquals(dataStore.$profiles.get(profileDID).get(), initialProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), initialProfile);
 
     // Load updated profile
     const updatedProfile = {
@@ -452,7 +437,7 @@ t.describe("loadProfile", (it) => {
 
     await requests.loadProfile(profileDID);
 
-    assertEquals(dataStore.$profiles.get(profileDID).get(), updatedProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), updatedProfile);
   });
 });
 
@@ -482,8 +467,8 @@ t.describe("loadPosts", (it) => {
     await requests.loadPosts(["at://a", "at://b"]);
 
     assertEquals(calledWith, ["at://a", "at://b"]);
-    assertEquals(dataStore.$posts.get("at://a").get(), postA);
-    assertEquals(dataStore.$posts.get("at://b").get(), postB);
+    assertEquals(dataStore.$posts.get("at://a"), postA);
+    assertEquals(dataStore.$posts.get("at://b"), postB);
   });
 
   it("does not call api when uris is empty", async () => {
@@ -541,7 +526,7 @@ t.describe("loadLabelerInfo", (it) => {
 
     await requests.loadLabelerInfo(labelerDid);
 
-    assertEquals(dataStore.$labelerInfo.get(labelerDid).get(), mockLabelerInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), mockLabelerInfo);
   });
 
   it("should call api.getLabeler with correct DID", async () => {
@@ -597,11 +582,11 @@ t.describe("loadLabelerInfo", (it) => {
     );
 
     await requests.loadLabelerInfo(labelerDid);
-    assertEquals(dataStore.$labelerInfo.get(labelerDid).get(), initialInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), initialInfo);
 
     currentInfo = updatedInfo;
     await requests.loadLabelerInfo(labelerDid);
-    assertEquals(dataStore.$labelerInfo.get(labelerDid).get(), updatedInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), updatedInfo);
   });
 });
 
@@ -764,10 +749,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
     assertEquals(capturedParams.filter, "posts_and_author_threads");
     assertEquals(capturedParams.includePins, true);
     assertEquals(capturedParams.cursor, "");
-    assertEquals(
-      dataStore.$authorFeeds.get(`${did}-posts`).get().feed.length,
-      1,
-    );
+    assertEquals(dataStore.$authorFeeds.get(`${did}-posts`).feed.length, 1);
   });
 
   it("should use posts_with_replies filter for replies feedType", async () => {
@@ -841,7 +823,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
 
     await requests.loadNextAuthorFeedPage(did, "posts");
 
-    const stored = dataStore.$authorFeeds.get(feedURI).get();
+    const stored = dataStore.$authorFeeds.get(feedURI);
     assertEquals(stored.feed.length, 2);
     assertEquals(stored.feed[0].post.uri, "old1");
     assertEquals(stored.feed[1].post.uri, "new1");
@@ -868,7 +850,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
     await requests.loadNextAuthorFeedPage(did, "posts", { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.$authorFeeds.get(feedURI).get();
+    const stored = dataStore.$authorFeeds.get(feedURI);
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "new1");
   });
@@ -1082,10 +1064,7 @@ t.describe("loadFeedSearch", (it) => {
 
     const stored = dataStore.$feedSearchResults.get();
     assertEquals(stored.feeds.length, 1);
-    assertEquals(
-      dataStore.$feedGenerators.get("f1").get().displayName,
-      "Feed One",
-    );
+    assertEquals(dataStore.$feedGenerators.get("f1").displayName, "Feed One");
   });
 
   it("should discard stale responses", async () => {
@@ -1361,7 +1340,7 @@ t.describe("loadProfileFollowers", (it) => {
 
     await requests.loadProfileFollowers(profileDid);
 
-    assertEquals(dataStore.$profileFollowers.get(profileDid).get(), res);
+    assertEquals(dataStore.$profileFollowers.get(profileDid), res);
   });
 
   it("should append followers when cursor is provided", async () => {
@@ -1380,7 +1359,7 @@ t.describe("loadProfileFollowers", (it) => {
 
     await requests.loadProfileFollowers(profileDid, { cursor: "c1" });
 
-    const stored = dataStore.$profileFollowers.get(profileDid).get();
+    const stored = dataStore.$profileFollowers.get(profileDid);
     assertEquals(stored.followers.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1397,7 +1376,7 @@ t.describe("loadProfileFollows", (it) => {
 
     await requests.loadProfileFollows(profileDid);
 
-    assertEquals(dataStore.$profileFollows.get(profileDid).get(), res);
+    assertEquals(dataStore.$profileFollows.get(profileDid), res);
   });
 
   it("should append follows when cursor is provided", async () => {
@@ -1416,7 +1395,7 @@ t.describe("loadProfileFollows", (it) => {
 
     await requests.loadProfileFollows(profileDid, { cursor: "c1" });
 
-    const stored = dataStore.$profileFollows.get(profileDid).get();
+    const stored = dataStore.$profileFollows.get(profileDid);
     assertEquals(stored.follows.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1439,8 +1418,8 @@ t.describe("loadConvoList", (it) => {
     await requests.loadConvoList();
 
     assertEquals(dataStore.$convoList.get().length, 2);
-    assertEquals(dataStore.$convos.get("c1").get().id, "c1");
-    assertEquals(dataStore.$convos.get("c2").get().id, "c2");
+    assertEquals(dataStore.$convos.get("c1").id, "c1");
+    assertEquals(dataStore.$convos.get("c2").id, "c2");
     assertEquals(dataStore.$convoListCursor.get(), "next");
   });
 
@@ -1501,9 +1480,9 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    const stored = dataStore.$convoMessages.get(convoId).get();
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 2);
-    assertEquals(dataStore.$messages.get("m1").get().id, "m1");
+    assertEquals(dataStore.$messages.get("m1").id, "m1");
   });
 
   it("should append messages when prior cursor exists", async () => {
@@ -1527,7 +1506,7 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    const stored = dataStore.$convoMessages.get(convoId).get();
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 2);
     assertEquals(stored.messages[0].id, "m1");
     assertEquals(stored.messages[1].id, "m2");
@@ -1549,7 +1528,7 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    assertEquals(dataStore.$convoMessages.get(convoId).get().cursor, null);
+    assertEquals(dataStore.$convoMessages.get(convoId).cursor, null);
   });
 
   it("should reset on reload", async () => {
@@ -1571,7 +1550,7 @@ t.describe("loadConvoMessages", (it) => {
     await requests.loadConvoMessages(convoId, { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.$convoMessages.get(convoId).get();
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 1);
     assertEquals(stored.messages[0].id, "fresh");
   });
@@ -1588,7 +1567,7 @@ t.describe("loadPostLikes", (it) => {
 
     await requests.loadPostLikes(postUri);
 
-    assertEquals(dataStore.$postLikes.get(postUri).get(), res);
+    assertEquals(dataStore.$postLikes.get(postUri), res);
   });
 
   it("should append likes when cursor is provided", async () => {
@@ -1607,7 +1586,7 @@ t.describe("loadPostLikes", (it) => {
 
     await requests.loadPostLikes(postUri, { cursor: "c1" });
 
-    const stored = dataStore.$postLikes.get(postUri).get();
+    const stored = dataStore.$postLikes.get(postUri);
     assertEquals(stored.likes.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1629,7 +1608,7 @@ t.describe("loadPostQuotes", (it) => {
 
     await requests.loadPostQuotes(postUri);
 
-    const stored = dataStore.$postQuotes.get(postUri).get();
+    const stored = dataStore.$postQuotes.get(postUri);
     assertEquals(stored.posts.length, 1);
     assertEquals(stored.cursor, "next");
   });
@@ -1651,7 +1630,7 @@ t.describe("loadPostQuotes", (it) => {
 
     await requests.loadPostQuotes(postUri, { cursor: "c1" });
 
-    const stored = dataStore.$postQuotes.get(postUri).get();
+    const stored = dataStore.$postQuotes.get(postUri);
     assertEquals(stored.posts.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1672,7 +1651,7 @@ t.describe("loadPostReposts", (it) => {
 
     await requests.loadPostReposts(postUri);
 
-    const stored = dataStore.$postReposts.get(postUri).get();
+    const stored = dataStore.$postReposts.get(postUri);
     assertEquals(stored.reposts.length, 1);
     assertEquals(stored.cursor, "next");
   });
@@ -1693,7 +1672,7 @@ t.describe("loadPostReposts", (it) => {
 
     await requests.loadPostReposts(postUri, { cursor: "c1" });
 
-    const stored = dataStore.$postReposts.get(postUri).get();
+    const stored = dataStore.$postReposts.get(postUri);
     assertEquals(stored.reposts.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1714,10 +1693,10 @@ t.describe("loadActorFeeds", (it) => {
 
     await requests.loadActorFeeds(did);
 
-    const stored = dataStore.$actorFeeds.get(did).get();
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 1);
     assertEquals(stored.cursor, "next");
-    assertEquals(dataStore.$feedGenerators.get("f1").get().displayName, "F1");
+    assertEquals(dataStore.$feedGenerators.get("f1").displayName, "F1");
   });
 
   it("should append on subsequent calls when cursor remains", async () => {
@@ -1736,7 +1715,7 @@ t.describe("loadActorFeeds", (it) => {
 
     await requests.loadActorFeeds(did);
 
-    const stored = dataStore.$actorFeeds.get(did).get();
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 2);
     assertEquals(stored.cursor, null);
   });
@@ -1780,7 +1759,7 @@ t.describe("loadActorFeeds", (it) => {
     await requests.loadActorFeeds(did, { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.$actorFeeds.get(did).get();
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 1);
     assertEquals(stored.feeds[0].uri, "f2");
   });
@@ -1800,7 +1779,7 @@ t.describe("loadHashtagFeed", (it) => {
 
     await requests.loadHashtagFeed("foo", "top");
 
-    const stored = dataStore.$hashtagFeeds.get("foo-top").get();
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "p1");
     assertEquals(stored.cursor, "next");
@@ -1823,7 +1802,7 @@ t.describe("loadHashtagFeed", (it) => {
 
     await requests.loadHashtagFeed("foo", "top");
 
-    const stored = dataStore.$hashtagFeeds.get("foo-top").get();
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 2);
     assertEquals(stored.feed[1].post.uri, "p2");
   });
@@ -1848,7 +1827,7 @@ t.describe("loadHashtagFeed", (it) => {
     await requests.loadHashtagFeed("foo", "top", { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.$hashtagFeeds.get("foo-top").get();
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "p2");
   });
@@ -1882,7 +1861,7 @@ t.describe("loadPinnedFeedGenerators", (it) => {
     const pinned = dataStore.$pinnedFeedGenerators.get();
     assertEquals(pinned.length, 2);
     assertEquals(
-      dataStore.$feedGenerators.get("at://did/feed/one").get().displayName,
+      dataStore.$feedGenerators.get("at://did/feed/one").displayName,
       "name-at://did/feed/one",
     );
   });

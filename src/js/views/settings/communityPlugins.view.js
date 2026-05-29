@@ -6,7 +6,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
-import { Signal } from "/js/signals.js";
+import { Signal, SignalSet } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsCommunityPluginsView extends View {
@@ -22,25 +22,17 @@ class SettingsCommunityPluginsView extends View {
   }) {
     await auth.requireAuth();
 
-    const state = {
-      error: null,
-      pending: new Set(),
-    };
-    const $stateTick = new Signal.State(0);
-    function bumpState() {
-      $stateTick.set($stateTick.get() + 1);
-    }
+    const $error = new Signal.State(null);
+    const $pendingIds = new SignalSet();
 
     async function loadListings() {
-      state.error = null;
-      bumpState();
+      $error.set(null);
       try {
         await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
-        state.error = error.message ?? String(error);
+        $error.set(error.message ?? String(error));
       }
-      bumpState();
     }
 
     async function toggleInstall(listing) {
@@ -56,8 +48,7 @@ class SettingsCommunityPluginsView extends View {
         );
         if (!confirmed) return;
       }
-      state.pending.add(listing.id);
-      bumpState();
+      $pendingIds.add(listing.id);
       try {
         if (wasInstalled) {
           await pluginService.uninstallPlugin(listing.id);
@@ -83,14 +74,13 @@ class SettingsCommunityPluginsView extends View {
           );
         }
       }
-      state.pending.delete(listing.id);
-      bumpState();
+      $pendingIds.delete(listing.id);
     }
 
     pageEffect(root, () => {
-      $stateTick.get();
+      const error = $error.get();
       const currentUser = dataLayer.derived.$currentUser.get();
-      const listings = pluginService.getRegistryListings();
+      const listings = pluginService.$registryListings.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
@@ -111,7 +101,7 @@ class SettingsCommunityPluginsView extends View {
                 onClickBackButton: () => window.router.go("/settings/plugins"),
               })}
               <main>
-                ${state.error
+                ${error
                   ? html`<div class="error-state">
                       <div>Failed to load plugins</div>
                       <button @click=${() => loadListings()}>Try again</button>
@@ -137,7 +127,7 @@ class SettingsCommunityPluginsView extends View {
                         </div>`
                       : html`<ul class="plugin-list">
                           ${listings.map((listing) => {
-                            const pending = state.pending.has(listing.id);
+                            const pending = $pendingIds.has(listing.id);
                             const buttonClass = listing.installed
                               ? "plugin-install-button rounded-button"
                               : "plugin-install-button rounded-button rounded-button-primary";

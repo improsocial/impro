@@ -66,17 +66,17 @@ t.describe("fromLocalStorage", (it) => {
     localStorage.setItem("theme-likeColor", "#222222");
     localStorage.setItem("theme-colorScheme", "dark");
     const theme = Theme.fromLocalStorage();
-    assertEquals(theme.highlightColor, "#111111");
-    assertEquals(theme.likeColor, "#222222");
-    assertEquals(theme.colorScheme, "dark");
+    assertEquals(theme.$highlightColor.get(), "#111111");
+    assertEquals(theme.$likeColor.get(), "#222222");
+    assertEquals(theme.$colorScheme.get(), "dark");
   });
 
   it("falls back to defaults when nothing is stored", () => {
     localStorage.clear();
     const theme = Theme.fromLocalStorage();
-    assertEquals(theme.highlightColor, getDefaultHighlightColor());
-    assertEquals(theme.likeColor, getDefaultLikeColor());
-    assertEquals(theme.colorScheme, getDefaultColorScheme());
+    assertEquals(theme.$highlightColor.get(), getDefaultHighlightColor());
+    assertEquals(theme.$likeColor.get(), getDefaultLikeColor());
+    assertEquals(theme.$colorScheme.get(), getDefaultColorScheme());
   });
 });
 
@@ -89,7 +89,7 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateHighlightColor("#abcdef");
-    assertEquals(theme.highlightColor, "#abcdef");
+    assertEquals(theme.$highlightColor.get(), "#abcdef");
     assertEquals(localStorage.getItem("theme-highlightColorv2"), "#abcdef");
   });
 
@@ -101,7 +101,7 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateLikeColor("#abcdef");
-    assertEquals(theme.likeColor, "#abcdef");
+    assertEquals(theme.$likeColor.get(), "#abcdef");
     assertEquals(localStorage.getItem("theme-likeColor"), "#abcdef");
   });
 
@@ -113,7 +113,7 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateColorScheme("light");
-    assertEquals(theme.colorScheme, "light");
+    assertEquals(theme.$colorScheme.get(), "light");
     assertEquals(localStorage.getItem("theme-colorScheme"), "light");
   });
 });

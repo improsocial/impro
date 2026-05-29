@@ -16,7 +16,7 @@ export class Declarative {
   }
 
   async ensureProfile(profileDid) {
-    const getProfile = (did) => this.derived.$hydratedProfiles.get(did).get();
+    const getProfile = (did) => this.derived.$hydratedProfiles.get(did);
     let profile = getProfile(profileDid);
     if (!profile) {
       await this.requests.loadProfile(profileDid);
@@ -29,7 +29,7 @@ export class Declarative {
   }
 
   async ensureProfiles(profileDids) {
-    const getProfile = (did) => this.derived.$hydratedProfiles.get(did).get();
+    const getProfile = (did) => this.derived.$hydratedProfiles.get(did);
     const missing = profileDids.filter((did) => !getProfile(did));
     if (missing.length > 0) {
       await this.requests.loadProfiles(missing);
@@ -38,10 +38,10 @@ export class Declarative {
   }
 
   async ensurePostThread(postURI, { labelers = [] } = {}) {
-    let postThread = this.derived.$hydratedPostThreads.get(postURI).get();
+    let postThread = this.derived.$hydratedPostThreads.get(postURI);
     if (!postThread) {
       await this.requests.loadPostThread(postURI, { labelers });
-      postThread = this.derived.$hydratedPostThreads.get(postURI).get();
+      postThread = this.derived.$hydratedPostThreads.get(postURI);
     }
     if (!postThread) {
       throw new Error("Post thread not found");
@@ -50,10 +50,10 @@ export class Declarative {
   }
 
   async ensurePost(postURI) {
-    let post = this.derived.$hydratedPosts.get(postURI).get();
+    let post = this.derived.$hydratedPosts.get(postURI);
     if (!post) {
       await this.requests.loadPost(postURI);
-      post = this.derived.$hydratedPosts.get(postURI).get();
+      post = this.derived.$hydratedPosts.get(postURI);
     }
     if (!post) {
       throw new Error("Post not found");
@@ -62,7 +62,7 @@ export class Declarative {
   }
 
   async ensurePosts(postURIs) {
-    const getPost = (uri) => this.derived.$hydratedPosts.get(uri).get();
+    const getPost = (uri) => this.derived.$hydratedPosts.get(uri);
     const missing = postURIs.filter((uri) => !getPost(uri));
     if (missing.length > 0) {
       await this.requests.loadPosts(missing);
@@ -71,10 +71,10 @@ export class Declarative {
   }
 
   async ensureFeedGenerator(feedUri) {
-    let feedGenerator = this.derived.$feedGenerators.get(feedUri).get();
+    let feedGenerator = this.derived.$feedGenerators.get(feedUri);
     if (!feedGenerator) {
       await this.requests.loadFeedGenerator(feedUri);
-      feedGenerator = this.derived.$feedGenerators.get(feedUri).get();
+      feedGenerator = this.derived.$feedGenerators.get(feedUri);
     }
     if (!feedGenerator) {
       throw new Error("Feed generator not found");
@@ -107,10 +107,10 @@ export class Declarative {
   }
 
   async ensureConvo(convoId) {
-    let convo = this.derived.$convos.get(convoId).get();
+    let convo = this.derived.$convos.get(convoId);
     if (!convo) {
       await this.requests.loadConvo(convoId);
-      convo = this.derived.$convos.get(convoId).get();
+      convo = this.derived.$convos.get(convoId);
     }
     if (!convo) {
       throw new Error("Conversation not found");
@@ -119,10 +119,10 @@ export class Declarative {
   }
 
   async ensureConvoForProfile(profileDid) {
-    let convo = this.derived.$convoForProfile.get(profileDid).get();
+    let convo = this.derived.$convoForProfile.get(profileDid);
     if (!convo) {
       await this.requests.loadConvoForProfile(profileDid);
-      convo = this.derived.$convoForProfile.get(profileDid).get();
+      convo = this.derived.$convoForProfile.get(profileDid);
     }
     if (!convo) {
       throw new Error("Conversation not found");

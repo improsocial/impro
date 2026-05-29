@@ -46,8 +46,8 @@ class StatusStore extends ReactiveStore {
     this.$loading = new SignalMap();
     this.$errors = new SignalMap();
     this.$statuses = new ComputedMap((requestId) => ({
-      loading: this.$loading.get(requestId).get() ?? false,
-      error: this.$errors.get(requestId).get() ?? null,
+      loading: this.$loading.get(requestId) ?? false,
+      error: this.$errors.get(requestId) ?? null,
     }));
   }
 
@@ -60,11 +60,11 @@ class StatusStore extends ReactiveStore {
   }
 
   getLoading(requestId) {
-    return this.$loading.get(requestId).get() ?? false;
+    return this.$loading.get(requestId) ?? false;
   }
 
   getError(requestId) {
-    return this.$errors.get(requestId).get() ?? null;
+    return this.$errors.get(requestId) ?? null;
   }
 }
 
@@ -366,7 +366,7 @@ export class Requests {
 
   async loadNextFeedPage(feedURI, { reload = false, limit = 31 } = {}) {
     const labelers = this.requireLabelers();
-    const existingFeed = this.dataStore.$feeds.get(feedURI).get();
+    const existingFeed = this.dataStore.$feeds.get(feedURI);
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -398,7 +398,7 @@ export class Requests {
   }
 
   async loadPluginFilteredFeedItems(feedURI, { reload = false } = {}) {
-    const feed = this.dataStore.$feeds.get(feedURI).get();
+    const feed = this.dataStore.$feeds.get(feedURI);
     if (!feed) {
       return;
     }
@@ -582,7 +582,7 @@ export class Requests {
     { reload = false, limit = 31 } = {},
   ) {
     const feedURI = `${did}-${feedType}`;
-    const existingFeed = this.dataStore.$authorFeeds.get(feedURI).get();
+    const existingFeed = this.dataStore.$authorFeeds.get(feedURI);
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -752,7 +752,7 @@ export class Requests {
   }
 
   async loadConvoMessages(convoId, { reload = false, limit = 50 } = {}) {
-    const existingMessages = this.dataStore.$convoMessages.get(convoId).get();
+    const existingMessages = this.dataStore.$convoMessages.get(convoId);
     let cursor = existingMessages ? existingMessages.cursor : "";
     if (reload) {
       cursor = "";
@@ -793,7 +793,7 @@ export class Requests {
         // Skip if the message is from the current user, since we already set it in the store
         continue;
       }
-      const convoMessages = this.dataStore.$convoMessages.get(convoId).get();
+      const convoMessages = this.dataStore.$convoMessages.get(convoId);
       if (!convoMessages) {
         console.warn("No messages data found for convoId", convoId);
         return res.cursor;
@@ -809,7 +809,7 @@ export class Requests {
 
   async loadPostLikes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingLikes = this.dataStore.$postLikes.get(postUri).get();
+    const existingLikes = this.dataStore.$postLikes.get(postUri);
     const res = await this.api.getLikes(postUri, { cursor, labelers });
 
     if (existingLikes && cursor) {
@@ -826,7 +826,7 @@ export class Requests {
 
   async loadPostQuotes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingQuotes = this.dataStore.$postQuotes.get(postUri).get();
+    const existingQuotes = this.dataStore.$postQuotes.get(postUri);
     const res = await this.api.getQuotes(postUri, { cursor, labelers });
 
     // if there are posts that are replies, load the parents
@@ -854,7 +854,7 @@ export class Requests {
 
   async loadPostReposts(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingReposts = this.dataStore.$postReposts.get(postUri).get();
+    const existingReposts = this.dataStore.$postReposts.get(postUri);
     const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
 
     if (existingReposts && cursor) {
@@ -926,7 +926,7 @@ export class Requests {
   }
 
   async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
-    const existing = this.dataStore.$actorFeeds.get(did).get();
+    const existing = this.dataStore.$actorFeeds.get(did);
     let cursor = existing ? existing.cursor : "";
     if (reload) {
       cursor = "";
@@ -955,7 +955,7 @@ export class Requests {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();
 
-    const existingFeed = this.dataStore.$hashtagFeeds.get(hashtagKey).get();
+    const existingFeed = this.dataStore.$hashtagFeeds.get(hashtagKey);
     let cursor = existingFeed ? existingFeed.cursor : "";
     if (reload) {
       cursor = "";
@@ -1061,9 +1061,7 @@ export class Requests {
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollowers = this.dataStore.$profileFollowers
-      .get(profileDid)
-      .get();
+    const existingFollowers = this.dataStore.$profileFollowers.get(profileDid);
     const res = await this.api.getFollowers(profileDid, { cursor, labelers });
 
     if (existingFollowers && cursor) {
@@ -1080,9 +1078,7 @@ export class Requests {
 
   async loadProfileFollows(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollows = this.dataStore.$profileFollows
-      .get(profileDid)
-      .get();
+    const existingFollows = this.dataStore.$profileFollows.get(profileDid);
     const res = await this.api.getFollows(profileDid, { cursor, labelers });
 
     if (existingFollows && cursor) {

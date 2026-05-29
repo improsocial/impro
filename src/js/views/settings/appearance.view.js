@@ -4,7 +4,6 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { Signal } from "/js/signals.js";
 import {
   theme,
   getDefaultHighlightColor,
@@ -25,38 +24,29 @@ class SettingsAppearanceView extends View {
   }) {
     await auth.requireAuth();
 
-    const $themeTick = new Signal.State(0);
-    function bumpTheme() {
-      $themeTick.set($themeTick.get() + 1);
-    }
-
     function handleHighlightColorChange(newHighlightColor) {
       theme.updateHighlightColor(newHighlightColor);
-      bumpTheme();
     }
 
     function handleLikeColorChange(newLikeColor) {
       theme.updateLikeColor(newLikeColor);
-      bumpTheme();
     }
 
     function handleColorSchemeChange(newColorScheme) {
       theme.updateColorScheme(newColorScheme);
-      bumpTheme();
     }
 
     pageEffect(root, () => {
-      $themeTick.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const currentHighlightColor = theme.highlightColor;
+      const currentHighlightColor = theme.$highlightColor.get();
       const defaultHighlightColor = getDefaultHighlightColor();
-      const currentLikeColor = theme.likeColor;
+      const currentLikeColor = theme.$likeColor.get();
       const defaultLikeColor = getDefaultLikeColor();
-      const currentColorScheme = theme.colorScheme;
+      const currentColorScheme = theme.$colorScheme.get();
       render(
         html`<div id="settings-appearance-view">
           ${mainLayoutTemplate({

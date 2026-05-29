@@ -45,11 +45,12 @@ class PostLikesView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const postLikes = dataLayer.dataStore.$postLikes.get(postUri).get();
-      const post = dataLayer.derived.$hydratedPosts.get(postUri).get();
-      const postLikesRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadPostLikes-" + postUri)
-        .get();
+      const postLikes = dataLayer.dataStore.$postLikes.get(postUri);
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
+      const postLikesRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostLikes-" + postUri,
+        );
       const hasMore = postLikes?.cursor ? true : false;
 
       const subtitle = post?.likeCount
@@ -95,7 +96,7 @@ class PostLikesView extends View {
     });
 
     async function loadLikes() {
-      const postLikes = dataLayer.dataStore.$postLikes.get(postUri).get();
+      const postLikes = dataLayer.dataStore.$postLikes.get(postUri);
       const cursor = postLikes?.cursor;
       await dataLayer.requests.loadPostLikes(postUri, { cursor });
     }

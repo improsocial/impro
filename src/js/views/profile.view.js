@@ -144,7 +144,7 @@ class ProfileView extends View {
       }
       // Load feed if needed
       if (tab === "feeds") {
-        if (!dataLayer.derived.$actorFeeds.get(profileDid).get()) {
+        if (!dataLayer.derived.$actorFeeds.get(profileDid)) {
           await loadActorFeeds();
         }
       } else {
@@ -259,9 +259,9 @@ class ProfileView extends View {
         }
         const isBlocking = !!profile.viewer?.blocking;
         const isBlockedBy = !!profile.viewer?.blockedBy;
-        const profileChatStatus = dataLayer.derived.$profileChatStatus
-          .get(profile.did)
-          .get();
+        const profileChatStatus = dataLayer.derived.$profileChatStatus.get(
+          profile.did,
+        );
         const isCurrentUser = currentUser?.did === profile.did;
         let authorFeedsToShow = isCurrentUser
           ? currentUserAuthorFeeds
@@ -287,9 +287,7 @@ class ProfileView extends View {
           isSubscribed = isDefaultLabeler
             ? true
             : preferences?.isSubscribedToLabeler(profile.did);
-          labelerSettings = dataLayer.derived.$labelerSettings
-            .get(profile.did)
-            .get();
+          labelerSettings = dataLayer.derived.$labelerSettings.get(profile.did);
         }
         return html`
           <div class="profile-container">
@@ -390,9 +388,8 @@ class ProfileView extends View {
                     : null}
                   ${authorFeedsToShow.map((feedInfo) => {
                     if (feedInfo.feedType === "feeds") {
-                      const actorFeeds = dataLayer.derived.$actorFeeds
-                        .get(profileDid)
-                        .get();
+                      const actorFeeds =
+                        dataLayer.derived.$actorFeeds.get(profileDid);
                       return html`<div
                         class="feed-container"
                         ?hidden=${activeTab !== "feeds"}
@@ -404,9 +401,8 @@ class ProfileView extends View {
                       </div>`;
                     }
                     const feedURI = `${profileDid}-${feedInfo.feedType}`;
-                    const authorFeed = dataLayer.derived.$hydratedAuthorFeeds
-                      .get(feedURI)
-                      .get();
+                    const authorFeed =
+                      dataLayer.derived.$hydratedAuthorFeeds.get(feedURI);
                     return html`<div
                       class="feed-container"
                       ?hidden=${activeTab !== feedInfo.feedType}
@@ -436,18 +432,18 @@ class ProfileView extends View {
     }
 
     pageEffect(root, () => {
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const profileRequestStatus = dataLayer.requests.statusStore.$statuses
-        .get("loadProfile-" + profileDid)
-        .get();
+      const profileRequestStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadProfile-" + profileDid,
+      );
       const isLabeler = profile && isLabelerProfile(profile);
       const labelerInfo = isLabeler
-        ? dataLayer.derived.$labelerInfo.get(profile.did).get()
+        ? dataLayer.derived.$labelerInfo.get(profile.did)
         : null;
       // If labeler, require labeler info to be loaded
       const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
@@ -544,7 +540,7 @@ class ProfileView extends View {
 
     // This is async because it needs to resolve mentions
     async function loadProfileDescription() {
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid).get();
+      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
       if (!profile?.description) {
         return;
       }

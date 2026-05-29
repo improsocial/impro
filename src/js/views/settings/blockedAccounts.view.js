@@ -41,9 +41,9 @@ class SettingsBlockedAccountsView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const blockedProfiles = dataLayer.dataStore.$blockedProfiles.get();
-      const status = dataLayer.requests.statusStore.$statuses
-        .get("loadBlockedProfiles")
-        .get();
+      const status = dataLayer.requests.statusStore.$statuses.get(
+        "loadBlockedProfiles",
+      );
       const hasMore = blockedProfiles?.cursor ? true : false;
 
       render(

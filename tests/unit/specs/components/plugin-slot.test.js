@@ -45,7 +45,7 @@ function makePluginService({ entries = {}, onCreateRoot } = {}) {
       $slots.set(name, list.length === 0 ? null : [...list]);
     },
     getSlotEntries(name) {
-      return [...($slots.get(name).get() ?? [])];
+      return [...($slots.get(name) ?? [])];
     },
     getRenderer(pluginId) {
       return makeRenderer(pluginId, { onCreateRoot });
