@@ -192,8 +192,6 @@ class HomeView extends View {
       const feedGenerators =
         dataLayer.derived.$hydratedPinnedFeedGenerators.get() ?? [];
       const currentFeedUri = $currentFeedUri.get();
-      const feedGenerator =
-        feedGenerators.find((fg) => fg.uri === currentFeedUri) ?? null;
       render(
         html`<div id="home-view">
           ${mainLayoutTemplate({
@@ -226,10 +224,7 @@ class HomeView extends View {
                 `,
               })}
               <main>
-                ${(() => {
-                  if (!feedGenerator) {
-                    return null;
-                  }
+                ${feedGenerators.map((feedGenerator) => {
                   const acceptsInteractions =
                     feedGenerator.acceptsInteractions ||
                     feedGenerator.uri === DISCOVER_FEED_URI;
@@ -263,7 +258,7 @@ class HomeView extends View {
                           showEndMessage: true,
                         })}
                   </div>`;
-                })()}
+                })}
               </main>`,
           })}
         </div>`,
