@@ -49,6 +49,9 @@ export class MockServer {
     this.timelinePosts = [];
     this.pluginSettings = new Map();
     this.installedPlugins = [];
+    // Override the source served for the local test plugin's main.js; defaults
+    // to the standard fixture when null.
+    this.localPluginSource = null;
     this.registryEntries = [];
     this.liveManifest = null;
   }
@@ -201,7 +204,7 @@ export class MockServer {
       route.fulfill({
         status: 200,
         contentType: "text/javascript",
-        body: getTestPluginSource(),
+        body: this.localPluginSource ?? getTestPluginSource(),
       }),
     );
 

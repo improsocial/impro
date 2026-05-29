@@ -268,27 +268,6 @@ t.describe("PluginSlot - interactionHandlers", (it) => {
     assert(caught instanceof Error);
     assertEquals(caught.message, "interactionHandlers is required");
   });
-
-  it("passes interactionHandlers to the renderer", async () => {
-    const createRootCalls = [];
-    const interactionHandlers = { postInteractionHandler: {} };
-    const pluginService = makePluginService({
-      entries: {
-        x: [
-          {
-            pluginId: "alpha",
-            invoke: async () => ({ tag: "div", text: "A" }),
-          },
-        ],
-      },
-      onCreateRoot: (options) => createRootCalls.push(options),
-    });
-    const slot = makeSlot({ pluginService, name: "x", interactionHandlers });
-    document.body.appendChild(slot);
-    await flushMicrotasks();
-    assertEquals(createRootCalls.length, 1);
-    assertEquals(createRootCalls[0].interactionHandlers, interactionHandlers);
-  });
 });
 
 t.describe("PluginSlot - cleanup", (it) => {

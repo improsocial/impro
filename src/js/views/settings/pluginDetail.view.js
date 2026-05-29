@@ -1,9 +1,10 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
+import { Signal } from "/js/signals.js";
 
 class SettingsPluginDetailView extends View {
   async render({
@@ -20,47 +21,62 @@ class SettingsPluginDetailView extends View {
     await auth.requireAuth();
 
     const { pluginId } = params;
-    const tabRoot = pluginService.getRenderer(pluginId).createRoot();
 
-    function renderTabContent(containerNode) {
-      if (!containerNode) return null;
-      return tabRoot.render(containerNode);
-    }
-
-    function resolveTab() {
-      const installed = pluginService.prefManager.$installedPlugins
+    const $pluginDetails = new Signal.Computed(() => {
+      const installed = pluginService.$installedPlugins
         .get()
         .find((plugin) => plugin.id === pluginId);
-      if (!installed) return { error: "Plugin not found." };
-      if (!pluginService.pluginBridge.isLoaded(pluginId)) {
-        return { installed, error: "This plugin is not enabled." };
-      }
+      return installed ?? null;
+    });
+
+    const $settingTab = new Signal.Computed(() => {
       const tab = pluginService.$settingTabs.get(pluginId);
-      if (!tab) return { installed, error: "This plugin has no settings." };
-      return { installed, tab };
+      return tab ?? null;
+    });
+
+    const $tabContent = new Signal.State(null);
+    const $tabError = new Signal.State(null);
+
+    const tabRoot = pluginService.getRenderer(pluginId).createRoot();
+
+    async function loadTab() {
+      const tab = $settingTab.get();
+      if (!tab) return;
+      $tabError.set(null);
+      try {
+        const content = await tab.display();
+        $tabContent.set(content);
+      } catch (error) {
+        $tabError.set(error.message ?? String(error));
+      }
     }
 
+    bindToPage(root, pluginService, "settingTabRefresh", (event) => {
+      if (event.pluginId !== pluginId) return;
+      if (event.reset) tabRoot.reset();
+      loadTab();
+    });
+
+    // Load the tab's content on register
+    let isLoaded = false;
     pageEffect(root, () => {
-      const { tab } = resolveTab();
-      if (tab && tab.$content.get().status === "idle") {
-        tab.refresh();
+      const tab = $settingTab.get();
+      if (tab && !isLoaded) {
+        isLoaded = true;
+        queueMicrotask(() => loadTab());
       }
     });
 
     pageEffect(root, () => {
-      const { installed, tab, error: availabilityError } = resolveTab();
-      const content = tab?.$content.get() ?? null;
-      const error =
-        availabilityError ??
-        (content?.status === "error" ? content.error : null);
-      const containerNode = content?.status === "ready" ? content.node : null;
-      const manifest = installed ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const title = manifest?.name ?? pluginId;
+      const pluginDetails = $pluginDetails.get();
+      const settingTab = $settingTab.get();
+      const tabContent = $tabContent.get();
+      const tabError = $tabError.get();
       render(
         html`<div id="settings-plugin-detail-view">
           ${mainLayoutTemplate({
@@ -73,15 +89,51 @@ class SettingsPluginDetailView extends View {
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
-                title,
+                title: pluginDetails?.name ?? pluginId,
                 onClickBackButton: () => window.router.go("/settings/plugins"),
               })}
               <main>
-                ${error
-                  ? html`<p class="error-message">${error}</p>`
-                  : html`<div class="plugin-settings-tab">
-                      ${renderTabContent(containerNode)}
-                    </div>`}
+                ${(() => {
+                  if (!pluginDetails) {
+                    return html`<p
+                      class="error-message"
+                      data-testid="plugin-detail-not-found"
+                    >
+                      Plugin not found.
+                    </p>`;
+                  }
+                  if (!pluginDetails.enabled) {
+                    return html`<p
+                      class="error-message"
+                      data-testid="plugin-detail-disabled"
+                    >
+                      This plugin is not enabled.
+                    </p>`;
+                  }
+                  if (!settingTab) {
+                    return html`<p
+                      class="error-message"
+                      data-testid="plugin-detail-no-settings"
+                    >
+                      This plugin has no settings.
+                    </p>`;
+                  }
+                  if (tabError) {
+                    return html`<p
+                      class="error-message"
+                      data-testid="plugin-detail-tab-error"
+                    >
+                      ${tabError}
+                    </p>`;
+                  }
+                  return html`<div class="plugin-settings-tab">
+                    ${tabContent
+                      ? tabRoot.render(tabContent)
+                      : html`<div class="plugins-loading-state">
+                          <div class="loading-spinner"></div>
+                        </div>`}
+                  </div>`;
+                })()}
               </main>`,
           })}
         </div>`,

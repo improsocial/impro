@@ -606,13 +606,23 @@ t.describe("app.on event listeners", (it) => {
 });
 
 t.describe("PluginSettingTab.refresh", (it) => {
-  it("posts a refreshSettingTab hostCall", () => {
+  it("posts a refreshSettingTab hostCall defaulting reset to false", () => {
     clearMessages();
     const tab = new PluginSettingTab();
     tab.refresh();
     const sent = lastMessage();
     assertEquals(sent.type, "hostCall");
     assertEquals(sent.method, "refreshSettingTab");
+    assertEquals(sent.args[0].reset, false);
+  });
+
+  it("forwards reset: true when requested", () => {
+    clearMessages();
+    const tab = new PluginSettingTab();
+    tab.refresh({ reset: true });
+    const sent = lastMessage();
+    assertEquals(sent.method, "refreshSettingTab");
+    assertEquals(sent.args[0].reset, true);
   });
 });
 

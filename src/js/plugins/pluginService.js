@@ -21,7 +21,7 @@ import {
   showPluginUpdatePermissionsModal,
 } from "/js/modals.js";
 import { compareVersions, isDev, sortBy } from "/js/utils.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -63,9 +63,9 @@ export class PermissionsDeclinedError extends Error {
   }
 }
 
-export class PluginService extends EventEmitter {
+export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session) {
-    super();
+    super("pluginService");
     this.registries = {
       sidebarItems: new Set(),
       eventListeners: new Map(),
@@ -117,6 +117,9 @@ export class PluginService extends EventEmitter {
       this.pluginStylesLoader,
     );
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
+    this.$installedPlugins = new Signal.Computed(() =>
+      this.prefManager.$installedPlugins.get(),
+    );
     this.session = session;
     this._renderContext = null;
     this._dataLayer = null;
@@ -167,31 +170,10 @@ export class PluginService extends EventEmitter {
       },
     );
     this.pluginBridge.addRegistrationTarget("settingTab", (plugin, message) => {
-      // Result wrapper so the display() promise and its errors live in one signal.
-      const $content = new Signal.State({
-        status: "idle",
-        node: null,
-        error: null,
-      });
-      $content.__debugName = `settingTab[${plugin.pluginId}].$content`;
-
       const entry = {
         pluginId: plugin.pluginId,
         name: message.name,
-        $content,
-        async refresh() {
-          $content.set({ status: "loading", node: null, error: null });
-          try {
-            const node = await plugin.call(message.displayHandlerId);
-            $content.set({ status: "ready", node, error: null });
-          } catch (error) {
-            $content.set({
-              status: "error",
-              node: null,
-              error: error.message ?? String(error),
-            });
-          }
-        },
+        display: () => plugin.call(message.displayHandlerId),
         hide: () => plugin.call(message.hideHandlerId),
       };
       this.$settingTabs.set(plugin.pluginId, entry);
@@ -261,9 +243,12 @@ export class PluginService extends EventEmitter {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
     });
 
-    this.pluginBridge.addHostMethod("refreshSettingTab", (plugin) => {
-      this.$settingTabs.get(plugin.pluginId)?.refresh();
-    });
+    this.pluginBridge.addHostMethod(
+      "refreshSettingTab",
+      (plugin, { reset = false } = {}) => {
+        this.emit("settingTabRefresh", { pluginId: plugin.pluginId, reset });
+      },
+    );
 
     this.pluginBridge.addHostMethod(
       "refreshFeedFilters",
@@ -330,14 +315,14 @@ export class PluginService extends EventEmitter {
 
   async loadEnabledPlugins() {
     if (arePluginsDisabledByQueryParam()) {
-      const enabledPluginIds = this.prefManager
-        .getEnabledPlugins()
+      const enabledPluginIds = this.prefManager.$enabledPlugins
+        .get()
         .map((entry) => entry.id);
       await this.prefManager.setPluginsDisabled(enabledPluginIds);
       return;
     }
-    const enabledPlugins = this.prefManager
-      .getEnabledPlugins()
+    const enabledPlugins = this.prefManager.$enabledPlugins
+      .get()
       .filter(
         (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
       );
@@ -357,12 +342,12 @@ export class PluginService extends EventEmitter {
     }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     await this._reconcileCache(installedPlugins);
   }
 
   async checkForUpdates() {
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     const results = await Promise.allSettled(
       installedPlugins.map(async (entry) => {
         const liveManifest = await this.sourceProvider.getLiveManifest(
@@ -394,7 +379,7 @@ export class PluginService extends EventEmitter {
   }
 
   async reloadPlugins() {
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     const results = await Promise.allSettled(
       installedPlugins
         .filter((entry) => entry.enabled === true)
@@ -416,9 +401,7 @@ export class PluginService extends EventEmitter {
   }
 
   async getManifest(pluginId) {
-    const installedPlugin = this.prefManager
-      .getInstalledPlugins()
-      .find((plugin) => plugin.id === pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     return this.sourceProvider
       .getManifest(pluginId, installedPlugin?.version, installedPlugin?.repo)
       .catch(() => null);
@@ -442,7 +425,7 @@ export class PluginService extends EventEmitter {
       }
       repo = listing.repo;
     }
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     if (installedPlugins.some((plugin) => plugin.id === pluginId)) {
       throw new Error(`Plugin ${pluginId} already installed`);
     }
@@ -514,7 +497,7 @@ export class PluginService extends EventEmitter {
     if (this.localRegistry && (await this.localRegistry.getListing(id))) {
       throw new Error(`Plugin ${id} is in the registry; install it from there`);
     }
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     if (installedPlugins.some((plugin) => plugin.id === id)) {
       throw new Error(`Plugin ${id} already installed`);
     }
@@ -542,12 +525,12 @@ export class PluginService extends EventEmitter {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
-    await this._reconcileCache(this.prefManager.getInstalledPlugins());
+    await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 
   async enablePlugin(pluginId) {
     await this.prefManager.setPluginEnabled(pluginId);
-    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     try {
       await this.pluginBridge.loadPlugin(
         pluginId,
@@ -566,7 +549,7 @@ export class PluginService extends EventEmitter {
   }
 
   async updatePlugin(pluginId) {
-    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     if (!installedPlugin) return null;
     const liveManifest = await this.sourceProvider.getLiveManifest(
       pluginId,

@@ -6,6 +6,9 @@ import {
   TEST_PLUGIN_NAME,
   TEST_PLUGIN_DEFAULTS,
   TEST_PLUGIN_MANIFEST,
+  TAB_LOAD_ERROR_MESSAGE,
+  getThrowingTabPluginSource,
+  getNoSettingsPluginSource,
 } from "../../../testPlugin.js";
 
 const PLUGIN_ID = TEST_PLUGIN_ID;
@@ -181,6 +184,70 @@ test.describe("Settings plugin detail view", () => {
     await expect
       .poll(() => mockServer.pluginSettings.get(PLUGIN_ID))
       .toMatchObject(TEST_PLUGIN_DEFAULTS);
+  });
+
+  test("surfaces an error when the setting tab fails to load", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.localPluginSource = getThrowingTabPluginSource();
+    await mockServer.setup(page);
+    await login(page);
+    seedEnabled(mockServer);
+
+    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
+    const view = page.locator("#settings-plugin-detail-view");
+    const error = view.locator('[data-testid="plugin-detail-tab-error"]');
+    await expect(error).toBeVisible({ timeout: 10000 });
+    await expect(error).toContainText(TAB_LOAD_ERROR_MESSAGE);
+    // The view must settle on the error, not spin forever.
+    await expect(view.locator(".plugins-loading-state")).toHaveCount(0);
+  });
+
+  test("shows a not-found message for an uninstalled plugin", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+    await login(page);
+    // No installed plugins seeded.
+
+    await page.goto("/settings/plugins/does-not-exist__LOCAL");
+    const view = page.locator("#settings-plugin-detail-view");
+    await expect(
+      view.locator('[data-testid="plugin-detail-not-found"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows a disabled message for an installed but disabled plugin", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+    await login(page);
+    mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
+
+    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
+    const view = page.locator("#settings-plugin-detail-view");
+    await expect(
+      view.locator('[data-testid="plugin-detail-disabled"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows a no-settings message for a plugin without a setting tab", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.localPluginSource = getNoSettingsPluginSource();
+    await mockServer.setup(page);
+    await login(page);
+    seedEnabled(mockServer);
+
+    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
+    const view = page.locator("#settings-plugin-detail-view");
+    await expect(
+      view.locator('[data-testid="plugin-detail-no-settings"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test.describe("Logged-out behavior", () => {

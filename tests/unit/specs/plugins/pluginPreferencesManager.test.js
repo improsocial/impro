@@ -1,10 +1,12 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
+import { Signal } from "/js/signals.js";
 
 // A minimal fake of the Preferences object the manager interacts with.
-// The real Preferences mutates an underlying object and returns `this` from
-// setters; the fake mirrors that so the manager can chain set+save.
+// The real Preferences clones on every write and the provider re-publishes
+// the result through $preferences, so dependent signals invalidate; the fake
+// mirrors that contract.
 class FakePreferences {
   constructor(state) {
     this.state = state;
@@ -16,7 +18,9 @@ class FakePreferences {
 
   setInstalledPlugins(plugins) {
     this.state.installedPlugins = plugins;
-    return this;
+    // Return a fresh identity to mirror the real provider, which clones
+    // preferences on every write so dependent signals invalidate.
+    return new FakePreferences(this.state);
   }
 
   getPluginSettings(pluginId) {
@@ -37,15 +41,18 @@ class FakePreferences {
 function makeProvider({ installedPlugins = [], pluginSettings = {} } = {}) {
   const state = { installedPlugins, pluginSettings };
   const preferences = new FakePreferences(state);
+  const $preferences = new Signal.State(preferences);
   const saveCalls = [];
   return {
     state,
     preferences,
     saveCalls,
     provider: {
+      $preferences,
       requirePreferences: () => preferences,
       savePreferences: async (prefs) => {
         saveCalls.push(prefs);
+        $preferences.set(prefs);
       },
     },
   };
@@ -59,19 +66,21 @@ t.describe("installed plugins", (it) => {
       installedPlugins: [{ id: "a", enabled: true }],
     });
     const manager = new PluginPreferencesManager(provider);
-    assertEquals(manager.getInstalledPlugins(), [{ id: "a", enabled: true }]);
+    assertEquals(manager.$installedPlugins.get(), [{ id: "a", enabled: true }]);
   });
 
   it("setInstalledPlugins persists via savePreferences", async () => {
-    const { provider, saveCalls, state, preferences } = makeProvider();
+    const { provider, saveCalls, state } = makeProvider();
     const manager = new PluginPreferencesManager(provider);
     await manager.setInstalledPlugins([{ id: "a", enabled: true }]);
     assertEquals(state.installedPlugins, [{ id: "a", enabled: true }]);
     assertEquals(saveCalls.length, 1);
-    assert(saveCalls[0] === preferences);
+    assertEquals(saveCalls[0].getInstalledPlugins(), [
+      { id: "a", enabled: true },
+    ]);
   });
 
-  it("getInstalledPlugin finds by id", () => {
+  it("$installedPlugin finds by id", () => {
     const { provider } = makeProvider({
       installedPlugins: [
         { id: "a", enabled: true },
@@ -79,11 +88,14 @@ t.describe("installed plugins", (it) => {
       ],
     });
     const manager = new PluginPreferencesManager(provider);
-    assertEquals(manager.getInstalledPlugin("b"), { id: "b", enabled: false });
-    assertEquals(manager.getInstalledPlugin("missing"), undefined);
+    assertEquals(manager.$installedPlugin.get("b"), {
+      id: "b",
+      enabled: false,
+    });
+    assertEquals(manager.$installedPlugin.get("missing"), null);
   });
 
-  it("getEnabledPlugins filters to enabled entries", () => {
+  it("$enabledPlugins filters to enabled entries", () => {
     const { provider } = makeProvider({
       installedPlugins: [
         { id: "a", enabled: true },
@@ -92,9 +104,31 @@ t.describe("installed plugins", (it) => {
       ],
     });
     const manager = new PluginPreferencesManager(provider);
-    assertEquals(manager.getEnabledPlugins(), [
+    assertEquals(manager.$enabledPlugins.get(), [
       { id: "a", enabled: true },
       { id: "c", enabled: true },
+    ]);
+  });
+
+  it("derived signals recompute after a mutation", async () => {
+    const { provider } = makeProvider({
+      installedPlugins: [{ id: "a", enabled: true }],
+    });
+    const manager = new PluginPreferencesManager(provider);
+    assertEquals(manager.$enabledPlugins.get(), [{ id: "a", enabled: true }]);
+    assertEquals(manager.$installedPlugin.get("b"), null);
+
+    await manager.addInstalledPlugin({ id: "b", enabled: false });
+    assertEquals(manager.$installedPlugin.get("b"), {
+      id: "b",
+      enabled: false,
+    });
+    assertEquals(manager.$enabledPlugins.get(), [{ id: "a", enabled: true }]);
+
+    await manager.setPluginEnabled("b");
+    assertEquals(manager.$enabledPlugins.get(), [
+      { id: "a", enabled: true },
+      { id: "b", enabled: true },
     ]);
   });
 

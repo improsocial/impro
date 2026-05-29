@@ -1,16 +1,21 @@
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore, ComputedMap } from "/js/signals.js";
 
 // Handles persisting plugin settings in user preferences
-export class PluginPreferencesManager {
+export class PluginPreferencesManager extends ReactiveStore {
   constructor(preferencesProvider) {
+    super("pluginPreferencesManager");
     this.preferencesProvider = preferencesProvider;
     this.$installedPlugins = new Signal.Computed(
       () => preferencesProvider.$preferences.get()?.getInstalledPlugins() ?? [],
     );
-  }
-
-  getInstalledPlugins() {
-    return this.preferencesProvider.requirePreferences().getInstalledPlugins();
+    this.$enabledPlugins = new Signal.Computed(() =>
+      this.$installedPlugins.get().filter((entry) => entry.enabled),
+    );
+    this.$installedPlugin = new ComputedMap(
+      (pluginId) =>
+        this.$installedPlugins.get().find((entry) => entry.id === pluginId) ??
+        null,
+    );
   }
 
   async setInstalledPlugins(plugins) {
@@ -20,28 +25,20 @@ export class PluginPreferencesManager {
     await this.preferencesProvider.savePreferences(preferences);
   }
 
-  getInstalledPlugin(pluginId) {
-    return this.getInstalledPlugins().find((plugin) => plugin.id === pluginId);
-  }
-
-  getEnabledPlugins() {
-    return this.getInstalledPlugins().filter((entry) => entry.enabled);
-  }
-
   async addInstalledPlugin(plugin) {
-    const installedPlugins = this.getInstalledPlugins();
+    const installedPlugins = this.$installedPlugins.get();
     await this.setInstalledPlugins([...installedPlugins, plugin]);
   }
 
   async removeInstalledPlugin(pluginId) {
-    const installedPlugins = this.getInstalledPlugins();
+    const installedPlugins = this.$installedPlugins.get();
     await this.setInstalledPlugins(
       installedPlugins.filter((plugin) => plugin.id !== pluginId),
     );
   }
 
   async updateInstalledPlugin(pluginId, updateFunc) {
-    const installedPlugins = this.getInstalledPlugins();
+    const installedPlugins = this.$installedPlugins.get();
     if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
       throw new Error(
         `Tried to update preference for uninstalled plugin: ${pluginId}`,
@@ -63,7 +60,7 @@ export class PluginPreferencesManager {
   async setPluginsDisabled(pluginIds) {
     const ids = new Set(pluginIds);
     if (ids.size === 0) return;
-    const installedPlugins = this.getInstalledPlugins();
+    const installedPlugins = this.$installedPlugins.get();
     for (const pluginId of ids) {
       if (!installedPlugins.some((plugin) => plugin.id === pluginId)) {
         throw new Error(

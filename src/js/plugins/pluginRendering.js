@@ -125,27 +125,24 @@ export class PluginRenderer {
     this.renderContext = renderContext;
   }
 
-  createRoot({ interactionHandlers } = {}) {
+  createRoot() {
     const renderer = this;
     const pluginId = this.pluginId;
-    const postInteractionHandler = interactionHandlers?.postInteractionHandler;
     return {
       tree: null,
       el: null,
       render(node) {
         if (this.el && renderer._sameType(this.tree, node)) {
-          renderer._patch(
-            this.el,
-            this.tree,
-            node,
-            pluginId,
-            postInteractionHandler,
-          );
+          renderer._patch(this.el, this.tree, node, pluginId);
         } else {
-          this.el = renderer._create(node, pluginId, postInteractionHandler);
+          this.el = renderer._create(node, pluginId);
         }
         this.tree = node;
         return this.el;
+      },
+      reset() {
+        this.el = null;
+        this.tree = null;
       },
     };
   }
@@ -155,7 +152,7 @@ export class PluginRenderer {
     return resolveTag(oldNode) === resolveTag(newNode);
   }
 
-  _create(node, pluginId, postInteractionHandler = null) {
+  _create(node, pluginId) {
     const tag = resolveTag(node, pluginId);
     const element = document.createElement(tag);
     if (tag === "a") {
@@ -170,16 +167,15 @@ export class PluginRenderer {
     }
     if (tag === "plugin-profiles-list") {
       const { dataLayer } = this.renderContext;
-      if (!dataLayer) {
-        throw new Error("Datalayer is required");
-      }
       element.dataLayer = dataLayer;
     }
     if (tag === "plugin-posts-feed") {
-      const { dataLayer, isAuthenticated, pluginService } = this.renderContext;
-      if (!dataLayer) {
-        throw new Error("Datalayer is required");
-      }
+      const {
+        dataLayer,
+        isAuthenticated,
+        pluginService,
+        interactionHandlers: { postInteractionHandler },
+      } = this.renderContext;
       element.dataLayer = dataLayer;
       element.isAuthenticated = isAuthenticated;
       element.pluginService = pluginService;
@@ -219,15 +215,13 @@ export class PluginRenderer {
         element.appendChild(document.createTextNode(node.text));
       }
       for (const child of children) {
-        element.appendChild(
-          this._create(child, pluginId, postInteractionHandler),
-        );
+        element.appendChild(this._create(child, pluginId));
       }
     }
     return element;
   }
 
-  _patch(element, oldNode, newNode, pluginId, postInteractionHandler = null) {
+  _patch(element, oldNode, newNode, pluginId) {
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
     const isFocused = document.activeElement === element;
@@ -290,9 +284,7 @@ export class PluginRenderer {
         element.appendChild(document.createTextNode(newNode.text));
       }
       for (const child of newChildren) {
-        element.appendChild(
-          this._create(child, pluginId, postInteractionHandler),
-        );
+        element.appendChild(this._create(child, pluginId));
       }
       return;
     }
@@ -324,24 +316,13 @@ export class PluginRenderer {
       const newChild = newChildren[index];
       const domChild = domChildren[index + textOffset];
       if (!oldChild && newChild) {
-        element.appendChild(
-          this._create(newChild, pluginId, postInteractionHandler),
-        );
+        element.appendChild(this._create(newChild, pluginId));
       } else if (oldChild && !newChild) {
         if (domChild) element.removeChild(domChild);
       } else if (this._sameType(oldChild, newChild)) {
-        this._patch(
-          domChild,
-          oldChild,
-          newChild,
-          pluginId,
-          postInteractionHandler,
-        );
+        this._patch(domChild, oldChild, newChild, pluginId);
       } else {
-        element.replaceChild(
-          this._create(newChild, pluginId, postInteractionHandler),
-          domChild,
-        );
+        element.replaceChild(this._create(newChild, pluginId), domChild);
       }
     }
   }

@@ -110,13 +110,61 @@ class TestPlugin extends Plugin {
 TestPlugin.register();
 `;
 
-let cachedSource = null;
+// Message a plugin throws from display(); exported so the error-path test can
+// assert the surfaced copy without duplicating the string.
+export const TAB_LOAD_ERROR_MESSAGE = "Settings failed to load";
+
+// A plugin whose setting tab throws while rendering, to exercise the detail
+// view's tab-load error path.
+const THROWING_TAB_PLUGIN_BODY = /* js */ `
+class ThrowingSettingTab extends PluginSettingTab {
+  constructor() {
+    super();
+    this.setName(${JSON.stringify(TEST_PLUGIN_NAME)});
+  }
+
+  display() {
+    throw new Error(${JSON.stringify(TAB_LOAD_ERROR_MESSAGE)});
+  }
+}
+
+class TestPlugin extends Plugin {
+  async onload() {
+    this.addSettingTab(new ThrowingSettingTab());
+  }
+}
+
+TestPlugin.register();
+`;
+
+// A plugin that loads but registers no setting tab.
+const NO_SETTINGS_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {}
+}
+
+TestPlugin.register();
+`;
+
+let cachedWorkerSource = null;
+
+function getWorkerSource() {
+  if (!cachedWorkerSource) {
+    cachedWorkerSource = fs
+      .readFileSync(pluginWorkerPath, "utf-8")
+      .replace(/^export /gm, "");
+  }
+  return cachedWorkerSource;
+}
 
 export function getTestPluginSource() {
-  if (cachedSource) return cachedSource;
-  const workerSource = fs
-    .readFileSync(pluginWorkerPath, "utf-8")
-    .replace(/^export /gm, "");
-  cachedSource = workerSource + "\n" + TEST_PLUGIN_BODY;
-  return cachedSource;
+  return getWorkerSource() + "\n" + TEST_PLUGIN_BODY;
+}
+
+export function getThrowingTabPluginSource() {
+  return getWorkerSource() + "\n" + THROWING_TAB_PLUGIN_BODY;
+}
+
+export function getNoSettingsPluginSource() {
+  return getWorkerSource() + "\n" + NO_SETTINGS_PLUGIN_BODY;
 }

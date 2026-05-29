@@ -108,9 +108,7 @@ class PluginSlot extends Component {
       if (!state) {
         const renderer = this.pluginService.getRenderer(entry.pluginId);
         state = {
-          root: renderer.createRoot({
-            interactionHandlers: this.interactionHandlers,
-          }),
+          root: renderer.createRoot(),
         };
         this._pluginRoots.set(entry.pluginId, state);
       }
