@@ -35,6 +35,7 @@ export class Router extends EventEmitter {
     this.renderFunc = () => {};
     this.container = null;
     this.currentPage = null;
+    this.currentPath = null;
     this.pages = new Map();
     this.scrollStates = new Map();
     // Disable scroll restoration
@@ -42,7 +43,9 @@ export class Router extends EventEmitter {
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
       this.emit("navigate");
-      await this.load(window.location.pathname, { isBack: true });
+      await this.load(window.location.pathname + window.location.search, {
+        isBack: true,
+      });
     });
   }
 
@@ -101,6 +104,11 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isBack = false } = {}) {
+    // Save the scroll position of the page we're leaving before swapping it out
+    if (this.currentPath != null) {
+      this.scrollStates.set(this.currentPath, window.scrollY);
+    }
+    this.currentPath = path;
     // used to pause videos on page exit, among other things
     window.dispatchEvent(new CustomEvent("page-transition"));
     // Strip query parameters for route matching (but keep full path for caching)
@@ -162,7 +170,6 @@ export class Router extends EventEmitter {
   }
 
   async go(path) {
-    this.scrollStates.set(window.location.pathname, window.scrollY);
     window.history.pushState(
       { previousRoute: window.location.pathname },
       "",
@@ -173,7 +180,6 @@ export class Router extends EventEmitter {
   }
 
   async back() {
-    this.scrollStates.set(window.location.pathname, window.scrollY);
     if (!!window.history.state?.previousRoute) {
       window.history.back();
     } else {

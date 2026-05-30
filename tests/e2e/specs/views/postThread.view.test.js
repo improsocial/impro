@@ -153,6 +153,99 @@ test.describe("Post thread view", () => {
     expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
   });
 
+  test("should add the user's pre-load scroll to the scroll-to-main-post offset", async ({
+    page,
+  }) => {
+    // Build a deep parent chain so the main post starts below the fold.
+    const NUM_PARENTS = 12;
+    const parents = Array.from({ length: NUM_PARENTS }).map((_, index) =>
+      createPost({
+        uri: `at://did:plc:parent${index}/app.bsky.feed.post/parent${index}`,
+        text: `Parent post number ${index}`,
+        authorHandle: `parent${index}.bsky.social`,
+        authorDisplayName: `Parent ${index}`,
+      }),
+    );
+    const rootParent = parents[0];
+    const immediateParent = parents[NUM_PARENTS - 1];
+
+    const childPost = createPost({
+      uri: postUri,
+      text: "This is the main post we should scroll to",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+      reply: {
+        parent: { uri: immediateParent.uri, cid: immediateParent.cid },
+        root: { uri: rootParent.uri, cid: rootParent.cid },
+      },
+    });
+
+    let parentNode = null;
+    for (const parentPost of parents) {
+      parentNode = {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: parentPost,
+        parent: parentNode,
+        replies: [],
+      };
+    }
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([childPost, ...parents]);
+    // Delay the thread response so the skeleton is shown long enough for the
+    // user to scroll before the full thread (with parents) loads.
+    mockServer.setPostThread(
+      postUri,
+      {
+        $type: "app.bsky.feed.defs#threadViewPost",
+        post: childPost,
+        parent: parentNode,
+        replies: [],
+      },
+      { delayMs: 1500 },
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    // A short viewport guarantees the loading skeleton is tall enough to scroll.
+    await page.setViewportSize({ width: 400, height: 200 });
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+
+    // Wait until the loading skeleton has rendered (the router resets scroll to
+    // the top as part of navigation, so we must scroll after that happens), then
+    // scroll down while the full thread is still loading.
+    await expect(
+      view.locator('[data-testid="post-skeleton"]').first(),
+    ).toBeVisible();
+    await expect(view.locator('[data-testid="large-post"]')).toHaveCount(0);
+    const extraScroll = 80;
+    await page.evaluate((y) => window.scrollTo(0, y), extraScroll);
+    const actualExtraScroll = await page.evaluate(() => window.scrollY);
+    expect(actualExtraScroll).toBeGreaterThan(0);
+
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    // The page should settle so the main post sits the user's extra scroll
+    // *past* the just-below-header position, rather than jumping back to it.
+    const headerHeight = await view
+      .locator("header")
+      .evaluate((el) => el.offsetHeight);
+    await expect
+      .poll(() => largePost.evaluate((el) => el.getBoundingClientRect().top), {
+        timeout: 10000,
+      })
+      .toBeLessThanOrEqual(headerHeight - actualExtraScroll + 8);
+    const postTop = await largePost.evaluate(
+      (el) => el.getBoundingClientRect().top,
+    );
+    expect(postTop).toBeGreaterThanOrEqual(
+      headerHeight - actualExtraScroll - 8,
+    );
+  });
+
   test("should show 'Load parent post' link when reply ref is broken", async ({
     page,
   }) => {

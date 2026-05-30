@@ -570,7 +570,8 @@ class PostThreadView extends View {
       if (largePost) {
         const headerHeight = root.querySelector("header").offsetHeight;
         const largePostTop = largePost.offsetTop;
-        window.scrollTo(0, largePostTop - headerHeight);
+        // Preserve any scrolling the user did while the skeleton was loading
+        window.scrollTo(0, largePostTop - headerHeight + window.scrollY);
       }
     }
 
@@ -585,11 +586,7 @@ class PostThreadView extends View {
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      if (scrollY > 0) {
-        window.scrollTo(0, scrollY);
-      } else {
-        scrollToLargePost();
-      }
+      window.scrollTo(0, scrollY);
       // Revalidate
       await dataLayer.requests.loadPostThread(postUri);
     });

@@ -38,6 +38,7 @@ export class MockServer {
     this.postReposts = new Map();
     this.postThreadOthers = new Map();
     this.postThreads = new Map();
+    this.postThreadDelays = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
     this.profiles = new Map();
@@ -141,8 +142,11 @@ export class MockServer {
     this.postReposts.set(postUri, reposts);
   }
 
-  setPostThread(postUri, thread) {
+  setPostThread(postUri, thread, { delayMs = 0 } = {}) {
     this.postThreads.set(postUri, thread);
+    if (delayMs > 0) {
+      this.postThreadDelays.set(postUri, delayMs);
+    }
   }
 
   setPostThreadOther(postUri, threadOther) {
@@ -1005,11 +1009,15 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getPostThread*", async (route) => {
       const url = new URL(route.request().url());
       const uri = url.searchParams.get("uri");
       const customThread = this.postThreads.get(uri);
       if (customThread) {
+        const delayMs = this.postThreadDelays.get(uri);
+        if (delayMs) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",
