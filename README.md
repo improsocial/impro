@@ -32,7 +32,7 @@ Impro uses the [Bluesky API](https://docs.bsky.app/docs/category/http-reference)
 
 ## Dependencies
 
-Impro uses the following external libraries:
+Impro uses the following libraries:
 
 - [lit-html](https://www.npmjs.com/package/lit-html) for declarative rendering
 - [HLS.js](https://github.com/video-dev/hls.js/) for streaming video
