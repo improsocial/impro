@@ -21,7 +21,7 @@
     "@11ty/eleventy": "^3.1.2",
     "@capacitor/cli": "^7.0.0",
     "@import-maps/resolve": "^2.0.0",
-    "@playwright/test": "^1.58.1",
+    "@playwright/test": "^1.60.0",
     "canvas": "^3.2.3",
     "dotenv": "^17.2.2",
     "es-module-lexer": "^1.4.1",
