@@ -55,4 +55,68 @@ test.describe("Scroll position restoration", () => {
     // Verify the post we scrolled to is still visible (scroll position restored)
     await expect(targetPost).toBeVisible({ timeout: 10000 });
   });
+
+  test("keeps cached pages laid out and off-screen so the sticky header doesn't flash on return", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const posts = [];
+    for (let i = 1; i <= 60; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+          text: `Timeline post ${i}`,
+          authorHandle: `author${i}.bsky.social`,
+          authorDisplayName: `Author ${i}`,
+        }),
+      );
+    }
+    mockServer.addTimelinePosts(posts);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(41, {
+      timeout: 10000,
+    });
+
+    // Scroll down so the home page is taller than the page we navigate to,
+    // then navigate away so home becomes a cached/hidden page.
+    const targetPost = view
+      .locator('[data-testid="feed-item"]')
+      .filter({ hasText: "Timeline post 30" });
+    await targetPost.scrollIntoViewIfNeeded();
+    await targetPost.locator('[data-testid="small-post"]').click();
+    await expect(page.locator("#post-detail-view")).toBeVisible({
+      timeout: 10000,
+    });
+
+    const probe = await page.evaluate(() => {
+      const hiddenPage = document.querySelector(".page-hidden");
+      const header = hiddenPage?.querySelector("header");
+      const pageRect = hiddenPage?.getBoundingClientRect();
+      const headerRect = header?.getBoundingClientRect();
+      return {
+        hasHiddenPage: !!hiddenPage,
+        headerHeight: headerRect ? Math.round(headerRect.height) : null,
+        pageRight: pageRect ? Math.round(pageRect.right) : null,
+        scrollHeight: Math.round(document.scrollingElement.scrollHeight),
+      };
+    });
+
+    // The home page is cached rather than torn down.
+    expect(probe.hasHiddenPage).toBe(true);
+    // Its layout is preserved while hidden (a non-zero header height). This is
+    // what prevents the reveal-time relayout that flashed the sticky header.
+    expect(probe.headerHeight).toBeGreaterThan(0);
+    // It is positioned outside the viewport so it neither overlaps the visible
+    // page nor triggers IntersectionObserver-driven behaviour (video/gif
+    // playback, infinite scroll, post-seen tracking).
+    expect(probe.pageRight).toBeLessThanOrEqual(0);
+    // And it does not inflate the scrollable height of the (shorter) visible
+    // page, despite the cached home feed being much taller.
+    expect(probe.scrollHeight).toBeLessThan(2000);
+  });
 });

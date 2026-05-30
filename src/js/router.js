@@ -127,8 +127,6 @@ export class Router extends EventEmitter {
       this.pages.delete(path);
       this.pages.set(path, page);
       const scrollY = this.scrollStates.get(path) ?? 0;
-      // Keep page hidden during scroll restoration to prevent flash
-      // this.currentPage.style.opacity = 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
       this.currentPage.dispatchEvent(
