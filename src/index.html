@@ -86,6 +86,7 @@
       import settingsPluginsView from "/js/views/settings/plugins.view.js";
       import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
       import settingsCommunityPluginsView from "/js/views/settings/communityPlugins.view.js";
+      import settingsCommunityPluginListingView from "/js/views/settings/communityPluginListing.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
@@ -297,6 +298,10 @@
         router.addRoute(
           "/settings/plugins/community",
           () => settingsCommunityPluginsView,
+        );
+        router.addRoute(
+          "/settings/plugins/community/:pluginId",
+          () => settingsCommunityPluginListingView,
         );
         router.addRoute(
           "/settings/plugins/:pluginId",

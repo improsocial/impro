@@ -7495,6 +7495,195 @@ image-cropper {
   opacity: 0.5;
 }
 
+.plugin-installed-badge {
+  font-size: 12px;
+  font-weight: 400;
+  background: light-dark(
+    color-mix(in srgb, var(--highlight-color) 12%, var(--white)),
+    color-mix(in srgb, var(--highlight-color) 16%, var(--mid-gray))
+  );
+  color: var(--highlight-color);
+  padding: 3px 8px;
+  border-radius: var(--tag-border-radius);
+  display: inline-block;
+  min-width: fit-content;
+  margin-left: 5px;
+  vertical-align: middle;
+  margin-bottom: 3px;
+}
+
+/* Community plugin rows are whole-row navigation links */
+#settings-community-plugins-view .plugin-list-item {
+  padding: 0;
+}
+
+.plugin-list-item-link {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  align-items: center;
+  gap: 24px;
+  padding: 16px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.plugin-list-item-link:hover {
+  background: var(--post-hover-color);
+}
+
+.plugin-listing-header {
+  padding: 20px 16px;
+}
+
+.plugin-listing-name {
+  margin: 0 0 16px;
+  font-size: 18px;
+  font-weight: 700;
+  line-height: 1.1;
+}
+
+.plugin-listing-name .plugin-local-badge {
+  font-size: 14px;
+}
+
+.plugin-listing-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+  color: var(--text-color-secondary);
+}
+
+.plugin-listing-meta a {
+  color: var(--primary-button-color);
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.plugin-listing-meta a:hover {
+  text-decoration: underline;
+}
+
+.plugin-listing-description {
+  margin: 16px 0 0;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+.plugin-listing-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.plugin-listing-readme {
+  padding: 0px 16px calc(var(--footer-height) + var(--safe-area-inset-bottom));
+}
+
+#settings-community-plugin-listing-view rendered-markdown {
+  display: block;
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--text-color);
+  word-break: break-word;
+}
+
+#settings-community-plugin-listing-view rendered-markdown h1,
+#settings-community-plugin-listing-view rendered-markdown h2,
+#settings-community-plugin-listing-view rendered-markdown h3,
+#settings-community-plugin-listing-view rendered-markdown h4 {
+  line-height: 1.25;
+  margin: 24px 0 12px;
+}
+
+#settings-community-plugin-listing-view rendered-markdown h1 {
+  font-size: 24px;
+}
+
+#settings-community-plugin-listing-view rendered-markdown h2 {
+  font-size: 20px;
+}
+
+#settings-community-plugin-listing-view rendered-markdown h3 {
+  font-size: 17px;
+}
+
+#settings-community-plugin-listing-view
+  rendered-markdown
+  :is(h1, h2, h3, h4):first-child {
+  margin-top: 0;
+}
+
+#settings-community-plugin-listing-view rendered-markdown p,
+#settings-community-plugin-listing-view rendered-markdown ul,
+#settings-community-plugin-listing-view rendered-markdown ol {
+  margin: 12px 0;
+}
+
+rendered-markdown ul,
+rendered-markdown ol {
+  padding-left: 24px;
+}
+
+rendered-markdown ul {
+  list-style: disc;
+}
+
+rendered-markdown ol {
+  list-style: decimal;
+}
+
+rendered-markdown li {
+  margin: 4px 0;
+}
+
+rendered-markdown li > ul,
+rendered-markdown li > ol {
+  margin: 4px 0;
+}
+
+rendered-markdown ul:has(> li > input[type="checkbox"]) {
+  list-style: none;
+  padding-left: 0;
+}
+
+#settings-community-plugin-listing-view rendered-markdown a {
+  color: var(--primary-button-color);
+}
+
+#settings-community-plugin-listing-view rendered-markdown img {
+  max-width: 100%;
+  height: auto;
+}
+
+#settings-community-plugin-listing-view rendered-markdown code {
+  font-family: var(--mono-font, monospace);
+  font-size: 0.9em;
+  background: var(--primary-button-muted-color);
+  padding: 2px 5px;
+  border-radius: var(--tag-border-radius);
+}
+
+#settings-community-plugin-listing-view rendered-markdown pre {
+  background: var(--primary-button-muted-color);
+  padding: 12px;
+  border-radius: var(--callout-border-radius);
+  overflow-x: auto;
+}
+
+#settings-community-plugin-listing-view rendered-markdown pre code {
+  background: none;
+  padding: 0;
+}
+
+#settings-community-plugin-listing-view rendered-markdown blockquote {
+  margin: 12px 0;
+  padding-left: 12px;
+  border-left: 3px solid var(--post-border-color);
+  color: var(--text-color-secondary);
+}
+
 .plugin-settings-tab h1,
 .plugin-settings-tab h2,
 .plugin-settings-tab h3,

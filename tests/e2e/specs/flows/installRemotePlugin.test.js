@@ -20,17 +20,24 @@ test.describe("Remote plugin install flow", () => {
     await mockServer.setup(page);
     await login(page);
 
-    // Install from community view
+    // Open the plugin's detail page from the community view, then install.
     await page.goto("/settings/plugins/community");
     const community = page.locator("#settings-community-plugins-view");
     const installItem = community.locator(".plugin-list-item", {
       hasText: "Remote Themes",
     });
     await expect(installItem).toBeVisible({ timeout: 10000 });
+    await installItem.locator(".plugin-list-item-link").click();
+
+    const listing = page.locator("#settings-community-plugin-listing-view");
+    const installButton = listing.locator(
+      '[data-testid="plugin-listing-install-button"]',
+    );
+    await expect(installButton).toHaveText("Install", { timeout: 10000 });
     const putPrefs = page.waitForResponse((res) =>
       res.url().includes("app.bsky.actor.putPreferences"),
     );
-    await installItem.locator(".plugin-install-button").click();
+    await installButton.click();
     await putPrefs;
 
     // Navigate back to the plugins list; the installed plugin should appear.

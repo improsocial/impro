@@ -106,6 +106,24 @@ export class SourceProvider {
     }
   }
 
+  async getReadme(pluginId, repo) {
+    if (pluginId.endsWith("__LOCAL")) {
+      const response = await fetch(`/plugins-local/${pluginId}/README.md`);
+      if (response.status === 404) return null;
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return await response.text();
+    }
+    if (!repo) {
+      throw new Error("Repo is required");
+    }
+    // Fetch from main branch so we show the latest README
+    const url = remoteAssetUrl({ repo, file: "README.md" });
+    const response = await fetch(url, { cache: "no-store" });
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
+  }
+
   // URLs that should be retained in the cache
   // Local plugins have no cached URLs
   async getCacheUrls(pluginId, version, repo) {

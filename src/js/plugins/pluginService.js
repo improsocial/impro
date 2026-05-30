@@ -407,6 +407,14 @@ export class PluginService extends ReactiveStore {
       .catch(() => null);
   }
 
+  async getLiveManifest(pluginId, repo) {
+    return this.sourceProvider.getLiveManifest(pluginId, repo);
+  }
+
+  async getReadme(pluginId, repo) {
+    return this.sourceProvider.getReadme(pluginId, repo);
+  }
+
   async _reconcileCache(installed) {
     const urlLists = await Promise.all(
       installed.map((entry) =>

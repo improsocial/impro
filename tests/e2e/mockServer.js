@@ -55,6 +55,9 @@ export class MockServer {
     this.localPluginSource = null;
     this.registryEntries = [];
     this.liveManifest = null;
+    // README markdown served for plugin repos; set to null to simulate a
+    // plugin with no README (404).
+    this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -266,6 +269,24 @@ export class MockServer {
         });
       },
     );
+    // Plugin README, served from the repo's main branch (remote) or the
+    // local plugin directory.
+    const fulfillReadme = (route) => {
+      if (this.pluginReadme === null) {
+        route.fulfill({ status: 404, body: "Not Found" });
+        return;
+      }
+      route.fulfill({
+        status: 200,
+        contentType: "text/markdown",
+        body: this.pluginReadme,
+      });
+    };
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/main/README.md",
+      fulfillReadme,
+    );
+    await page.route("**/plugins-local/*/README.md", fulfillReadme);
 
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
