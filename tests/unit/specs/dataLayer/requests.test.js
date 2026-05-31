@@ -1833,56 +1833,75 @@ t.describe("loadHashtagFeed", (it) => {
   });
 });
 
-t.describe("loadPinnedFeedGenerators", (it) => {
-  it("should fan out to getFeedGenerators for pinned uris and cache results", async () => {
-    const pinnedFeedUris = [
-      "at://did/feed/one",
-      "at://did/feed/two",
-      "following",
-    ];
+t.describe("loadPinnedItems", (it) => {
+  it("should fan out to getFeedGenerators and getList for pinned items and cache results", async () => {
     const preferences = {
-      getPinnedFeeds: () => pinnedFeedUris.map((value) => ({ value })),
+      getPinnedFeeds: () => [
+        { type: "feed", value: "at://did/feed/one" },
+        { type: "feed", value: "at://did/feed/two" },
+        { type: "list", value: "at://did/list/one" },
+        { type: "timeline", value: "following" },
+      ],
     };
 
-    let capturedUris;
+    let capturedFeedUris;
+    const capturedListUris = [];
     const mockApi = {
       getFeedGenerators: async (uris) => {
-        capturedUris = uris;
+        capturedFeedUris = uris;
         return uris.map((uri) => ({ uri, displayName: `name-${uri}` }));
+      },
+      getList: async (uri) => {
+        capturedListUris.push(uri);
+        return { uri, name: `list-${uri}` };
       },
     };
     const dataStore = new DataStore();
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
-    await requests.loadPinnedFeedGenerators();
+    await requests.loadPinnedItems();
 
-    assertEquals(capturedUris, ["at://did/feed/one", "at://did/feed/two"]);
-    const pinned = dataStore.$pinnedFeedGenerators.get();
-    assertEquals(pinned.length, 2);
+    assertEquals(capturedFeedUris, ["at://did/feed/one", "at://did/feed/two"]);
+    assertEquals(capturedListUris, ["at://did/list/one"]);
+    const pinned = dataStore.$pinnedItems.get();
+    assertEquals(pinned.length, 4);
+    assertEquals(pinned[0].type, "feed");
+    assertEquals(pinned[2].type, "list");
+    assertEquals(pinned[3].type, "following");
     assertEquals(
       dataStore.$feedGenerators.get("at://did/feed/one").displayName,
       "name-at://did/feed/one",
     );
   });
 
-  it("should skip the api call when no pinned feeds", async () => {
-    const preferences = { getPinnedFeeds: () => [] };
-    let called = false;
+  it("should skip the api call when no pinned feeds or lists", async () => {
+    const preferences = {
+      getPinnedFeeds: () => [{ type: "timeline", value: "following" }],
+    };
+    let feedsCalled = false;
+    let listCalled = false;
     const mockApi = {
       getFeedGenerators: async () => {
-        called = true;
+        feedsCalled = true;
         return [];
+      },
+      getList: async () => {
+        listCalled = true;
+        return null;
       },
     };
     const dataStore = new DataStore();
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
-    await requests.loadPinnedFeedGenerators();
+    await requests.loadPinnedItems();
 
-    assertEquals(called, false);
-    assertEquals(dataStore.$pinnedFeedGenerators.get(), []);
+    assertEquals(feedsCalled, false);
+    assertEquals(listCalled, false);
+    const pinned = dataStore.$pinnedItems.get();
+    assertEquals(pinned.length, 1);
+    assertEquals(pinned[0].type, "following");
   });
 });
 

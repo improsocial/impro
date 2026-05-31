@@ -3607,6 +3607,9 @@ chat-input {
   outline: none;
   transition: border-color 0.2s;
   resize: none;
+  /* Cap auto-grow so a long multi-line message scrolls internally instead of
+     pushing the whole input bar up off the top of the (short, mobile) viewport. */
+  max-height: min(120px, 30vh);
   overflow-y: auto;
   line-height: 1.4;
   scrollbar-width: none;

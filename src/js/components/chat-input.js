@@ -52,10 +52,6 @@ class ChatInput extends Component {
     if (textarea) {
       textarea.style.height = "auto";
       textarea.style.height = textarea.scrollHeight + "px";
-      const newHeight = textarea.style.height;
-      if (newHeight !== oldHeight) {
-        this.dispatchEvent(new CustomEvent("resize"));
-      }
     }
   }
 

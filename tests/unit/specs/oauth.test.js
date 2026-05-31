@@ -2,6 +2,7 @@ import { TestSuite } from "../testSuite.js";
 import { assert, assertEquals, MockFetch } from "../testHelpers.js";
 import {
   OauthClient,
+  Session,
   TokenRefreshError,
   HandleNotFoundError,
   InvalidAuthUrlError,
@@ -82,13 +83,17 @@ function writeSession(overrides = {}) {
 const TOKEN_URL = "https://auth.example.com/token";
 const PDS_URL = "https://pds.example.com/";
 
+const ORIGINAL_REFRESH_BACKOFF_MS = Session.refreshBackoffMs;
+
 t.beforeEach(() => {
   globalThis.fetch = new MockFetch();
+  Session.refreshBackoffMs = 0;
 });
 
 t.afterEach(() => {
   globalThis.localStorage.clear();
   delete globalThis.fetch;
+  Session.refreshBackoffMs = ORIGINAL_REFRESH_BACKOFF_MS;
 });
 
 t.describe("error classes", (it) => {

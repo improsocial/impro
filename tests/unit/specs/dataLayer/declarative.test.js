@@ -15,7 +15,7 @@ function createMockDerived(data = {}) {
     $hydratedPostThreads: mapSig((uri) => data.postThreads?.[uri] ?? null),
     $hydratedPosts: mapSig((uri) => data.posts?.[uri] ?? null),
     $feedGenerators: mapSig((uri) => data.feedGenerators?.[uri] ?? null),
-    $hydratedPinnedFeedGenerators: sig(() => data.pinnedFeedGenerators ?? null),
+    $hydratedPinnedItems: sig(() => data.pinnedItems ?? null),
     $convoList: sig(() => data.convoList ?? null),
     $convos: mapSig((id) => data.convos?.[id] ?? null),
     $convoForProfile: mapSig((did) => data.convoForProfile?.[did] ?? null),
@@ -31,7 +31,7 @@ function createMockRequests(loadResults = {}) {
     loadPost: async (uri) => loadResults.posts?.[uri],
     loadPosts: async () => {},
     loadFeedGenerator: async (uri) => loadResults.feedGenerators?.[uri],
-    loadPinnedFeedGenerators: async () => loadResults.pinnedFeedGenerators,
+    loadPinnedItems: async () => loadResults.pinnedItems,
     loadConvoList: async () => loadResults.convoList,
     loadConvo: async (id) => loadResults.convos?.[id],
     loadConvoForProfile: async (did) => loadResults.convoForProfile?.[did],
@@ -480,46 +480,49 @@ t.describe("ensureFeedGenerator", (it) => {
   });
 });
 
-t.describe("ensurePinnedFeedGenerators", (it) => {
-  it("should return existing pinned feed generators without loading", async () => {
-    const pinnedFeedGenerators = [{ uri: "feed1" }, { uri: "feed2" }];
+t.describe("ensurePinnedItems", (it) => {
+  it("should return existing pinned items without loading", async () => {
+    const pinnedItems = [
+      { type: "feed", data: { uri: "feed1" } },
+      { type: "feed", data: { uri: "feed2" } },
+    ];
     let loadCalled = false;
 
-    const derived = createMockDerived({ pinnedFeedGenerators });
+    const derived = createMockDerived({ pinnedItems });
     const requests = {
-      loadPinnedFeedGenerators: async () => {
+      loadPinnedItems: async () => {
         loadCalled = true;
       },
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensurePinnedFeedGenerators();
+    const result = await declarative.ensurePinnedItems();
 
-    assertEquals(result, pinnedFeedGenerators);
+    assertEquals(result, pinnedItems);
     assertEquals(loadCalled, false);
   });
 
-  it("should load pinned feed generators when not in cache", async () => {
-    const pinnedFeedGenerators = [{ uri: "feed1" }];
+  it("should load pinned items when not in cache", async () => {
+    const pinnedItems = [{ type: "feed", data: { uri: "feed1" } }];
     let callCount = 0;
 
     const derived = {
-      $hydratedPinnedFeedGenerators: sig(() => {
+      $hydratedPinnedItems: sig(() => {
         callCount++;
-        return callCount > 1 ? pinnedFeedGenerators : null;
+        return callCount > 1 ? pinnedItems : null;
       }),
     };
     const requests = {
-      loadPinnedFeedGenerators: async () => {},
+      loadPinnedItems: async () => {},
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensurePinnedFeedGenerators();
+    const result = await declarative.ensurePinnedItems();
 
-    assertEquals(result, pinnedFeedGenerators);
+    assertEquals(result, pinnedItems);
   });
 
-  it("should throw when pinned feed generators not found after loading", async () => {
+  it("should throw when pinned items not found after loading", async () => {
     const derived = createMockDerived({});
     const requests = createMockRequests({});
 
@@ -527,13 +530,13 @@ t.describe("ensurePinnedFeedGenerators", (it) => {
 
     let error = null;
     try {
-      await declarative.ensurePinnedFeedGenerators();
-    } catch (e) {
-      error = e;
+      await declarative.ensurePinnedItems();
+    } catch (caught) {
+      error = caught;
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Pinned feed generators not found");
+    assertEquals(error.message, "Pinned items not found");
   });
 });
 

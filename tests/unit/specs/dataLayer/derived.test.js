@@ -406,11 +406,11 @@ t.describe("$hydratedBookmarks", (it) => {
   });
 });
 
-t.describe("$hydratedPinnedFeedGenerators", (it) => {
-  it("should return null when pinned feed generators are not set", () => {
+t.describe("$hydratedPinnedItems", (it) => {
+  it("should return null when pinned items are not set", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedPinnedFeedGenerators.get(), null);
+    assertEquals(derived.$hydratedPinnedItems.get(), null);
   });
 
   it("should hydrate pinned feed generators from the store", () => {
@@ -420,10 +420,33 @@ t.describe("$hydratedPinnedFeedGenerators", (it) => {
     const fg2 = { uri: "feed-2", displayName: "Feed Two" };
     dataStore.$feedGenerators.set("feed-1", fg1);
     dataStore.$feedGenerators.set("feed-2", fg2);
-    dataStore.$pinnedFeedGenerators.set([{ uri: "feed-1" }, { uri: "feed-2" }]);
-    const result = derived.$hydratedPinnedFeedGenerators.get();
-    // isAuthenticated is false in test setup, so no "Following" entry
-    assertEquals(result, [fg1, fg2]);
+    dataStore.$pinnedItems.set([
+      { type: "feed", data: fg1 },
+      { type: "feed", data: fg2 },
+    ]);
+    const result = derived.$hydratedPinnedItems.get();
+    assertEquals(result.length, 2);
+    assertEquals(result[0].type, "feed");
+    assertEquals(result[0].uri, "feed-1");
+    assertEquals(result[0].displayName, "Feed One");
+    assertEquals(result[1].uri, "feed-2");
+    assertEquals(result[1].displayName, "Feed Two");
+  });
+
+  it("should hydrate list and following entries", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const list = { uri: "list-1", name: "My List" };
+    dataStore.$pinnedItems.set([
+      { type: "following", data: { uri: "following" } },
+      { type: "list", data: list },
+    ]);
+    const result = derived.$hydratedPinnedItems.get();
+    assertEquals(result[0].type, "following");
+    assertEquals(result[0].displayName, "Following");
+    assertEquals(result[1].type, "list");
+    assertEquals(result[1].uri, "list-1");
+    assertEquals(result[1].displayName, "My List");
   });
 });
 

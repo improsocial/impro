@@ -302,7 +302,9 @@ export class TokenRefreshError extends Error {
   }
 }
 
-class Session {
+export class Session {
+  static refreshBackoffMs = 500;
+
   constructor(sessionData, dpopRequests) {
     this.sessionData = sessionData;
     this.dpopRequests = dpopRequests;
@@ -341,7 +343,7 @@ class Session {
     };
 
     const maxRetries = 2;
-    const backoffMs = 500 * Math.pow(2, retryCount);
+    const backoffMs = Session.refreshBackoffMs * Math.pow(2, retryCount);
 
     let response;
     try {

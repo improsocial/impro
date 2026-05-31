@@ -107,6 +107,34 @@ class ChatDetailView extends View {
       );
     }
 
+    let inputBarResizeObserver = null;
+    function observeInputBar(wrapper) {
+      if (inputBarResizeObserver) {
+        inputBarResizeObserver.disconnect();
+        inputBarResizeObserver = null;
+      }
+      if (!wrapper) {
+        return;
+      }
+      const syncBottomSpacing = () => {
+        const messageList = root.querySelector(".message-list");
+        const inputBar = wrapper.querySelector(".message-input-container");
+        if (!messageList || !inputBar) {
+          return;
+        }
+        const wasAtBottom = isScrolledToBottom();
+        // Reserve exactly the bar's height; the bottom nav / safe-area gap is
+        // handled by the message list's CSS margin-bottom.
+        messageList.style.paddingBottom = inputBar.offsetHeight + "px";
+        // Keep the newest message pinned in view as the bar grows/shrinks.
+        if (wasAtBottom) {
+          scrollToBottom();
+        }
+      };
+      inputBarResizeObserver = new ResizeObserver(syncBottomSpacing);
+      inputBarResizeObserver.observe(wrapper);
+    }
+
     class MessageFetcher {
       constructor(dataLayer, convoId) {
         this.dataLayer = dataLayer;
@@ -505,11 +533,10 @@ class ChatDetailView extends View {
             if (hasMore) {
               const scrollContainer =
                 document.querySelector(".chat-detail-main");
-              await loadMessages({ renderOnLoad: false });
               // Maintain scroll position using scrollHeight difference
               const previousScrollHeight = scrollContainer.scrollHeight;
               const previousScrollTop = window.scrollY;
-              renderPage();
+              await loadMessages({ renderOnLoad: false });
               await raf();
               await raf();
               // Restore scroll position
@@ -562,7 +589,24 @@ class ChatDetailView extends View {
       return convo.members.find((member) => member.did !== currentUser?.did);
     }
 
-    function renderPage() {
+    async function loadMessages({ reload = false } = {}) {
+      await dataLayer.requests.loadConvoMessages(convoId, {
+        reload,
+        limit: CHAT_MESSAGES_PAGE_SIZE,
+      });
+      // can be async
+      dataLayer.mutations.markConvoAsRead(convoId);
+      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
+    }
+
+    // Put this in a computed to avoid an extra render when we mark a convo as read
+    const $otherMember = new Signal.Computed(() => {
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const convo = dataLayer.derived.$convos.get(convoId);
+      return getOtherMember(currentUser, convo);
+    });
+
+    pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -577,9 +621,7 @@ class ChatDetailView extends View {
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = $isSendingMessage.get();
 
-      // Get convo details to show other member info
-      const convo = dataLayer.derived.$convos.get(convoId);
-      const otherMember = getOtherMember(currentUser, convo);
+      const otherMember = $otherMember.get();
       const title = otherMember ? getDisplayName(otherMember) : "";
 
       render(
@@ -627,21 +669,9 @@ class ChatDetailView extends View {
                   }
                 })()}
               </main>
-              <div class="message-input-wrapper">
+              <div class="message-input-wrapper" ${ref(observeInputBar)}>
                 <chat-input
                   @send=${(e) => handleSendMessage(e.detail.message)}
-                  @resize=${function () {
-                    // update the padding bottom of the message list to match the height of the input
-                    const messageList = root.querySelector(".message-list");
-                    if (messageList) {
-                      const wasScrolledToBottom = isScrolledToBottom();
-                      messageList.style.paddingBottom =
-                        this.clientHeight + "px";
-                      if (wasScrolledToBottom) {
-                        scrollToBottom();
-                      }
-                    }
-                  }}
                   ?disabled=${!messages || isSendingMessage}
                   ?loading=${isSendingMessage}
                 ></chat-input>
@@ -651,19 +681,25 @@ class ChatDetailView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
-    async function loadMessages({ reload = false } = {}) {
-      await dataLayer.requests.loadConvoMessages(convoId, {
-        reload,
-        limit: CHAT_MESSAGES_PAGE_SIZE,
-      });
-      // can be async
-      dataLayer.mutations.markConvoAsRead(convoId);
-      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
-    }
-
-    pageEffect(root, renderPage);
+    // Scroll to bottom on initial load
+    let initialLoad = true;
+    pageEffect(root, () => {
+      const messages = dataLayer.derived.$convoMessages.get(convoId);
+      const otherMember = $otherMember.get();
+      if (!messages || !otherMember) {
+        return;
+      }
+      if (initialLoad) {
+        initialLoad = false;
+        requestAnimationFrame(() => {
+          scrollToBottom({ onlyIfNeeded: true });
+          // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
+          $loadingEnabled.set(true);
+        });
+      }
+    });
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser().then(() => {
@@ -671,12 +707,6 @@ class ChatDetailView extends View {
       });
       await dataLayer.declarative.ensureConvo(convoId);
       await loadMessages({ reload: true });
-      // Scroll to bottom of messages
-      scrollToBottom({ onlyIfNeeded: true });
-      // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
-      $loadingEnabled.set(true);
-      // Sometimes it jumps after the render, so we scroll to bottom again
-      scrollToBottom({ onlyIfNeeded: true });
     });
 
     root.addEventListener("page-restore", async (e) => {

@@ -164,7 +164,7 @@ class ChatView extends View {
       </div>`;
     }
 
-    function renderPage() {
+    pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -232,7 +232,7 @@ class ChatView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadConvoList({ reload = false } = {}) {
       await dataLayer.requests.loadConvoList({
@@ -240,8 +240,6 @@ class ChatView extends View {
         limit: 30,
       });
     }
-
-    pageEffect(root, renderPage);
 
     root.addEventListener("page-enter", async () => {
       await dataLayer.declarative.ensureCurrentUser();

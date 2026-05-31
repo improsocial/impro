@@ -159,7 +159,7 @@ class ChatRequestsView extends View {
       </div>`;
     }
 
-    function renderPage() {
+    pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -216,9 +216,7 @@ class ChatRequestsView extends View {
         </div>`,
         root,
       );
-    }
-
-    pageEffect(root, renderPage);
+    });
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();

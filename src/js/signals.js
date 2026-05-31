@@ -205,7 +205,7 @@ function logEffectTrigger(effectComputed, debugName, debugDepth, lastRunTick) {
   rootMarkers.forEach((marker, i) => {
     walk(marker, [], i === rootMarkers.length - 1);
   });
-  if (lines.length > 1) console.log(lines.join("\n"));
+  if (lines.length > 1) console.debug(lines.join("\n"));
 }
 
 export const effect = (cb, { debugName, debugDepth } = {}) => {
