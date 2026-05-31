@@ -831,6 +831,10 @@ header {
   height: var(--chat-detail-header-height);
 }
 
+#post-detail-view {
+  overflow-anchor: none;
+}
+
 .header > .header-row {
   display: flex;
   flex-direction: row;
