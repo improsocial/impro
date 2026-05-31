@@ -4382,6 +4382,33 @@ emoji-picker {
   height: 16px;
 }
 
+.feeds-list-item-skeleton {
+  pointer-events: none;
+}
+
+.feeds-list-item-skeleton-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--list-avatar-border-radius);
+  background-color: var(--skeleton-color);
+}
+
+.feeds-list-item-skeleton-title {
+  height: 14px;
+  width: 45%;
+  border-radius: var(--skeleton-border-radius);
+  background-color: var(--skeleton-color);
+  margin-bottom: 6px;
+  margin-top: 2px;
+}
+
+.feeds-list-item-skeleton-creator {
+  height: 12px;
+  width: 30%;
+  border-radius: var(--skeleton-border-radius);
+  background-color: var(--skeleton-color);
+}
+
 .post-composer {
   border: none;
   border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;

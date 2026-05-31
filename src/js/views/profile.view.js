@@ -17,6 +17,7 @@ import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
+import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import "/js/components/edit-profile-dialog.js";
 
 class ProfileView extends View {
@@ -171,7 +172,9 @@ class ProfileView extends View {
     function actorFeedsTemplate({ actorFeeds, onLoadMore }) {
       if (!actorFeeds) {
         return html`<div class="feeds-list">
-          <div class="loading-spinner"></div>
+          ${Array.from({ length: 5 }).map(() =>
+            feedGeneratorListItemSkeletonTemplate(),
+          )}
         </div>`;
       }
       if (actorFeeds.feeds.length === 0) {

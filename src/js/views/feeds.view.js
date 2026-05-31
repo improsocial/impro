@@ -5,6 +5,7 @@ import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
+import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 
 class FeedsView extends View {
   async render({
@@ -69,7 +70,9 @@ class FeedsView extends View {
                           `
                         : feedGeneratorListItemTemplate({ feedGenerator }),
                     )
-                  : html`<div class="loading-spinner"></div>`}
+                  : Array.from({ length: 5 }).map(() =>
+                      feedGeneratorListItemSkeletonTemplate(),
+                    )}
               </div>
             `,
           })}
