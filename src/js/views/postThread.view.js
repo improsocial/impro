@@ -574,6 +574,7 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
+      scrollToLargePost();
       let requests = [];
       if (isAuthenticated) {
         requests.push(dataLayer.requests.loadCurrentUser());
