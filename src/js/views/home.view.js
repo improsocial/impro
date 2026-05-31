@@ -147,13 +147,11 @@ class HomeView extends View {
       feedScrollState.set(currentFeedUri, window.scrollY);
       // Switch feed
       $currentFeedUri.set(feedUri);
-      scrollActiveTabIntoView({ behavior: "smooth" });
-      // Scroll to saved scroll state
-      if (feedScrollState.has(feedUri)) {
-        window.scrollTo(0, feedScrollState.get(feedUri));
-      } else {
-        window.scrollTo(0, 0);
-      }
+      // Scroll to saved position for new feed
+      const savedScrollY = feedScrollState.get(feedUri) ?? 0;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, savedScrollY);
+      });
       if (!dataLayer.hasCachedFeed(feedUri)) {
         await loadCurrentFeed();
       }
@@ -276,6 +274,32 @@ class HomeView extends View {
       });
     });
 
+    let isFirstTabScroll = true;
+
+    // Scroll to active tab when current feed uri changes
+    pageEffect(root, () => {
+      const feedGenerators =
+        dataLayer.derived.$hydratedPinnedFeedGenerators.get();
+      if (!feedGenerators) return;
+      $currentFeedUri.get();
+      const behavior = isFirstTabScroll ? "instant" : "smooth";
+      isFirstTabScroll = false;
+      requestAnimationFrame(() => {
+        const container = root.querySelector(
+          ".tab-bar-horizontal-scroll-container",
+        );
+        const activeTabButton = container?.querySelector(
+          ".tab-bar-button.active",
+        );
+        if (activeTabButton) {
+          activeTabButton.scrollIntoView({
+            behavior,
+            block: "nearest",
+          });
+        }
+      });
+    });
+
     async function loadCurrentFeed({ reload = false } = {}) {
       const currentFeedUri = $currentFeedUri.get();
       await dataLayer.requests.loadNextFeedPage(currentFeedUri, {
@@ -296,17 +320,6 @@ class HomeView extends View {
       }
     }
 
-    function scrollActiveTabIntoView({ behavior = "instant" } = {}) {
-      const activeTabButton = document.querySelector(".tab-bar-button.active");
-      if (activeTabButton) {
-        activeTabButton.scrollIntoView({
-          behavior,
-          block: "nearest",
-          // inline: "center",
-        });
-      }
-    }
-
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
       const currentFeedUri = $currentFeedUri.get();
@@ -322,7 +335,6 @@ class HomeView extends View {
 
           preloadHiddenFeeds(pinnedFeedGenerators);
           initializePostSeenObservers(pinnedFeedGenerators);
-          scrollActiveTabIntoView();
           window.scrollTo(0, 0);
         });
 
