@@ -114,7 +114,7 @@ class ContextMenu extends Component {
       eventSource: this.querySelector(".context-menu-container"),
       onClose: () => this.close(),
       allowUpwardStretch: true,
-      ignoreTouchTarget: (el) => el.tagName === "BUTTON" || el.tagName === "A",
+      ignoreTouchTarget: (el) => el.closest("button, a") !== null,
     });
   }
 

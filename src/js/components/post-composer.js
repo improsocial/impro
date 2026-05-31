@@ -745,7 +745,7 @@ class PostComposer extends Component {
       confirmDismiss: () => this.confirmClose(),
       onClose: () => this.close(),
       ignoreTouchTarget: (el) =>
-        el.tagName === "BUTTON" ||
+        !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||
         el.isContentEditable ||
         !!el.closest("[contenteditable]"),

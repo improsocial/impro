@@ -491,7 +491,7 @@ class EditProfileDialog extends Component {
         confirmDismiss: () => this.confirmClose(),
         onClose: () => this.close(),
         ignoreTouchTarget: (el) =>
-          el.tagName === "BUTTON" ||
+          !!el.closest("button") ||
           el.tagName === "INPUT" ||
           el.tagName === "TEXTAREA" ||
           !!el.closest("image-cropper"),
