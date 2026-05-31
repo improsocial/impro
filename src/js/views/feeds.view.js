@@ -26,8 +26,7 @@ class FeedsView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const pinnedFeedGenerators =
-        dataLayer.derived.$hydratedPinnedFeedGenerators.get();
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
 
       render(
         html`<div id="feeds-view">
@@ -49,27 +48,59 @@ class FeedsView extends View {
               })}
               <div class="feeds-list-header">Pinned Feeds</div>
               <div class="feeds-list">
-                ${pinnedFeedGenerators
-                  ? pinnedFeedGenerators.map((feedGenerator) =>
-                      feedGenerator.uri === "following"
-                        ? html`
-                            <div class="feeds-list-item">
-                              <div class="feeds-list-item-avatar">
-                                <img
-                                  src="/img/list-avatar-fallback.svg"
-                                  alt=${feedGenerator.displayName}
-                                  class="feed-avatar"
-                                />
-                              </div>
-                              <div class="feeds-list-item-content">
-                                <div class="feeds-list-item-title">
-                                  ${feedGenerator.displayName}
-                                </div>
+                ${pinnedItems
+                  ? pinnedItems.map((item) => {
+                      if (item.type === "following") {
+                        return html`
+                          <div class="feeds-list-item">
+                            <div class="feeds-list-item-avatar">
+                              <img
+                                src="/img/list-avatar-fallback.svg"
+                                alt=${item.data.displayName}
+                                class="feed-avatar"
+                              />
+                            </div>
+                            <div class="feeds-list-item-content">
+                              <div class="feeds-list-item-title">
+                                ${item.data.displayName}
                               </div>
                             </div>
-                          `
-                        : feedGeneratorListItemTemplate({ feedGenerator }),
-                    )
+                          </div>
+                        `;
+                      }
+                      if (item.type === "list") {
+                        return html`
+                          <div class="feeds-list-item">
+                            <div class="feeds-list-item-avatar">
+                              ${item.data.avatar
+                                ? html`<img
+                                    src=${item.data.avatar}
+                                    alt=${item.data.name}
+                                    class="feed-avatar"
+                                  />`
+                                : html`<img
+                                    src="/img/list-avatar-fallback.svg"
+                                    alt=${item.data.name}
+                                    class="feed-avatar"
+                                  />`}
+                            </div>
+                            <div class="feeds-list-item-content">
+                              <div class="feeds-list-item-title">
+                                ${item.data.name}
+                              </div>
+                              ${item.data.creator
+                                ? html`<div class="feeds-list-item-creator">
+                                    by @${item.data.creator.handle}
+                                  </div>`
+                                : ""}
+                            </div>
+                          </div>
+                        `;
+                      }
+                      return feedGeneratorListItemTemplate({
+                        feedGenerator: item.data,
+                      });
+                    })
                   : Array.from({ length: 5 }).map(() =>
                       feedGeneratorListItemSkeletonTemplate(),
                     )}
@@ -83,7 +114,7 @@ class FeedsView extends View {
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();
-      await dataLayer.declarative.ensurePinnedFeedGenerators();
+      await dataLayer.declarative.ensurePinnedItems();
     });
 
     root.addEventListener("page-restore", (e) => {

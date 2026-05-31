@@ -371,10 +371,13 @@ export class Requests {
     if (reload) {
       cursor = "";
     }
+    const isListFeed = feedURI.includes("/app.bsky.graph.list/");
     const feed =
       feedURI === "following"
         ? await this.api.getFollowingFeed({ limit, cursor, labelers })
-        : await this.api.getFeed(feedURI, { limit, cursor, labelers });
+        : isListFeed
+          ? await this.api.getListFeed(feedURI, { limit, cursor, labelers })
+          : await this.api.getFeed(feedURI, { limit, cursor, labelers });
     // Save posts
     const postsToSave = this.normalizer.getPostsFromFeed(feed);
     this.dataStore.setPosts(postsToSave);
@@ -910,19 +913,50 @@ export class Requests {
     this.dataStore.$feedGenerators.set(feedUri, feedGeneratorData);
   }
 
-  async loadPinnedFeedGenerators() {
+  async loadPinnedItems() {
     const preferences = this.preferencesProvider.requirePreferences();
     const pinnedFeeds = preferences.getPinnedFeeds();
+
     const feedUris = pinnedFeeds
-      .map((pinnedFeed) => pinnedFeed.value)
-      .filter((feedUri) => feedUri !== "following");
-    const feedGenerators = feedUris.length
-      ? await this.api.getFeedGenerators(feedUris)
-      : [];
+      .filter((item) => item.type === "feed")
+      .map((item) => item.value);
+    const listUris = pinnedFeeds
+      .filter((item) => item.type === "list")
+      .map((item) => item.value);
+
+    const [feedGenerators, listResults] = await Promise.all([
+      feedUris.length
+        ? this.api.getFeedGenerators(feedUris)
+        : Promise.resolve([]),
+      Promise.allSettled(listUris.map((uri) => this.api.getList(uri))),
+    ]);
+    const listViews = listResults
+      .filter((result) => result.status === "fulfilled")
+      .map((result) => result.value);
+
     for (const feedGenerator of feedGenerators) {
       this.dataStore.$feedGenerators.set(feedGenerator.uri, feedGenerator);
     }
-    this.dataStore.$pinnedFeedGenerators.set(feedGenerators);
+    const feedGeneratorMap = new Map(feedGenerators.map((fg) => [fg.uri, fg]));
+    const listViewMap = new Map(listViews.map((lv) => [lv.uri, lv]));
+
+    const orderedItems = [];
+    for (const item of pinnedFeeds) {
+      if (item.type === "timeline") {
+        orderedItems.push({
+          type: "following",
+          data: { uri: "following", displayName: "Following" },
+        });
+      } else if (item.type === "feed") {
+        const fg = feedGeneratorMap.get(item.value);
+        if (fg) orderedItems.push({ type: "feed", data: fg });
+      } else if (item.type === "list") {
+        const lv = listViewMap.get(item.value);
+        if (lv) orderedItems.push({ type: "list", data: lv });
+      }
+    }
+
+    this.dataStore.$pinnedItems.set(orderedItems);
   }
 
   async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {

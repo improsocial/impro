@@ -82,16 +82,16 @@ export class Declarative {
     return feedGenerator;
   }
 
-  async ensurePinnedFeedGenerators() {
-    let pinnedFeedGenerators = this.derived.$hydratedPinnedFeedGenerators.get();
-    if (!pinnedFeedGenerators) {
-      await this.requests.loadPinnedFeedGenerators();
-      pinnedFeedGenerators = this.derived.$hydratedPinnedFeedGenerators.get();
+  async ensurePinnedItems() {
+    let pinnedItems = this.derived.$hydratedPinnedItems.get();
+    if (!pinnedItems) {
+      await this.requests.loadPinnedItems();
+      pinnedItems = this.derived.$hydratedPinnedItems.get();
     }
-    if (!pinnedFeedGenerators) {
-      throw new Error("Pinned feed generators not found");
+    if (!pinnedItems) {
+      throw new Error("Pinned items not found");
     }
-    return pinnedFeedGenerators;
+    return pinnedItems;
   }
 
   async ensureConvoList() {

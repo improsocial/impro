@@ -57,7 +57,7 @@ class HomeView extends View {
     }
 
     function getProxyUrl(feedGenerator) {
-      if (feedGenerator.uri === "following") {
+      if (!feedGenerator.did) {
         return null;
       }
       return `${feedGenerator.did}#bsky_fg`;
@@ -66,22 +66,17 @@ class HomeView extends View {
     const postSeenObservers = new Map();
 
     // Initialize post seen observers for feeds with proxy URLs
-    function initializePostSeenObservers(pinnedFeedGenerators) {
+    function initializePostSeenObservers(pinnedItems) {
       if (!isAuthenticated) {
         return;
       }
-      const interactableFeedGenerators = pinnedFeedGenerators.filter(
-        (pinnedFeedGenerator) =>
-          pinnedFeedGenerator.acceptsInteractions ||
-          pinnedFeedGenerator.uri === DISCOVER_FEED_URI,
+      const interactableItems = pinnedItems.filter(
+        (item) => item.acceptsInteractions || item.uri === DISCOVER_FEED_URI,
       );
-      for (const pinnedFeedGenerator of interactableFeedGenerators) {
-        const proxyUrl = getProxyUrl(pinnedFeedGenerator);
+      for (const item of interactableItems) {
+        const proxyUrl = getProxyUrl(item);
         if (proxyUrl) {
-          postSeenObservers.set(
-            pinnedFeedGenerator.uri,
-            new PostSeenObserver(api, proxyUrl),
-          );
+          postSeenObservers.set(item.uri, new PostSeenObserver(api, proxyUrl));
         }
       }
     }
@@ -187,8 +182,7 @@ class HomeView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
-      const feedGenerators =
-        dataLayer.derived.$hydratedPinnedFeedGenerators.get() ?? [];
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
       const currentFeedUri = $currentFeedUri.get();
       render(
         html`<div id="home-view">
@@ -211,9 +205,9 @@ class HomeView extends View {
                 bottomItemTemplate: () => html`
                   <div class="tab-bar-horizontal-scroll-container">
                     ${tabBarTemplate({
-                      tabs: feedGenerators.map((fg) => ({
-                        value: fg.uri,
-                        label: fg.displayName,
+                      tabs: pinnedItems.map((item) => ({
+                        value: item.uri,
+                        label: item.displayName,
                       })),
                       activeTab: currentFeedUri,
                       onTabClick: handleTabClick,
@@ -222,34 +216,31 @@ class HomeView extends View {
                 `,
               })}
               <main>
-                ${feedGenerators.map((feedGenerator) => {
+                ${pinnedItems.map((item) => {
                   const acceptsInteractions =
-                    feedGenerator.acceptsInteractions ||
-                    feedGenerator.uri === DISCOVER_FEED_URI;
-                  const feed = dataLayer.derived.$hydratedFeeds.get(
-                    feedGenerator.uri,
-                  );
+                    item.acceptsInteractions || item.uri === DISCOVER_FEED_URI;
+                  const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
                   const feedRequestStatus =
                     dataLayer.requests.statusStore.$statuses.get(
-                      "loadNextFeedPage-" + feedGenerator.uri,
+                      "loadNextFeedPage-" + item.uri,
                     );
                   return html`<div
                     class="feed-container"
-                    ?hidden=${currentFeedUri !== feedGenerator.uri}
+                    ?hidden=${currentFeedUri !== item.uri}
                   >
                     ${feedRequestStatus.error
-                      ? feedErrorTemplate({ feedGenerator })
+                      ? feedErrorTemplate({ feedGenerator: item })
                       : postFeedTemplate({
                           feed,
                           currentUser,
                           isAuthenticated,
-                          feedGenerator,
+                          feedGenerator: item,
                           hiddenPostUris,
                           postInteractionHandler,
                           onClickShowLess: (post, feedContext) =>
-                            handleShowLess(post, feedContext, feedGenerator),
+                            handleShowLess(post, feedContext, item),
                           onClickShowMore: (post, feedContext) =>
-                            handleShowMore(post, feedContext, feedGenerator),
+                            handleShowMore(post, feedContext, item),
                           enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                           pluginService,
@@ -278,9 +269,8 @@ class HomeView extends View {
 
     // Scroll to active tab when current feed uri changes
     pageEffect(root, () => {
-      const feedGenerators =
-        dataLayer.derived.$hydratedPinnedFeedGenerators.get();
-      if (!feedGenerators) return;
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
+      if (!pinnedItems) return;
       $currentFeedUri.get();
       const behavior = isFirstTabScroll ? "instant" : "smooth";
       isFirstTabScroll = false;
@@ -308,13 +298,13 @@ class HomeView extends View {
       });
     }
 
-    async function preloadHiddenFeeds(pinnedFeedGenerators) {
+    async function preloadHiddenFeeds(pinnedItems) {
       const currentFeedUri = $currentFeedUri.get();
-      const feedsToPreload = pinnedFeedGenerators
-        .filter((feed) => feed.uri !== currentFeedUri)
+      const itemsToPreload = pinnedItems
+        .filter((item) => item.uri !== currentFeedUri)
         .slice(0, 5); // Up to 5 feeds
-      for (const feed of feedsToPreload) {
-        await dataLayer.requests.loadNextFeedPage(feed.uri, {
+      for (const item of itemsToPreload) {
+        await dataLayer.requests.loadNextFeedPage(item.uri, {
           limit: FEED_PAGE_SIZE + 1,
         });
       }
@@ -323,20 +313,15 @@ class HomeView extends View {
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
       const currentFeedUri = $currentFeedUri.get();
-      await dataLayer.declarative
-        .ensurePinnedFeedGenerators()
-        .then((pinnedFeedGenerators) => {
-          // If the current feed is not in the pinned feed generators, reset to default feed
-          if (
-            !pinnedFeedGenerators.some((feed) => feed.uri === currentFeedUri)
-          ) {
-            resetToDefaultFeed();
-          }
+      await dataLayer.declarative.ensurePinnedItems().then((pinnedItems) => {
+        if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
+          resetToDefaultFeed();
+        }
 
-          preloadHiddenFeeds(pinnedFeedGenerators);
-          initializePostSeenObservers(pinnedFeedGenerators);
-          window.scrollTo(0, 0);
-        });
+        preloadHiddenFeeds(pinnedItems);
+        initializePostSeenObservers(pinnedItems);
+        window.scrollTo(0, 0);
+      });
 
       // Ensure current user before loading feed to prevent flash of unfiltered feed
       let currentUser = null;

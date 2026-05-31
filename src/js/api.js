@@ -284,6 +284,31 @@ export class Api {
     return res.data.feeds;
   }
 
+  async getList(listURI) {
+    const res = await this.request(`app.bsky.graph.getList`, {
+      query: { list: listURI, limit: 1 },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data.list;
+  }
+
+  async getListFeed(listURI, { limit = 31, cursor = "", labelers = [] } = {}) {
+    const query = { list: listURI, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.feed.getListFeed`, {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getActorFeeds(did, { limit = 50, cursor = "" } = {}) {
     const query = { actor: did, limit };
     if (cursor) {

@@ -31,6 +31,8 @@ export class MockServer {
     this.notifications = [];
     this.notificationCursor = undefined;
     this.pinnedFeedUris = [];
+    this.pinnedListUris = [];
+    this.lists = [];
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -92,8 +94,16 @@ export class MockServer {
     );
   }
 
+  addLists(lists) {
+    this.lists.push(...lists);
+  }
+
   setPinnedFeeds(feedUris) {
     this.pinnedFeedUris = feedUris;
+  }
+
+  setPinnedLists(listUris) {
+    this.pinnedListUris = listUris;
   }
 
   setSavedFeeds(feedUris) {
@@ -328,6 +338,12 @@ export class MockServer {
                 },
                 ...this.pinnedFeedUris.map((uri) => ({
                   type: "feed",
+                  value: uri,
+                  pinned: true,
+                  id: uri,
+                })),
+                ...this.pinnedListUris.map((uri) => ({
+                  type: "list",
                   value: uri,
                   pinned: true,
                   id: uri,
@@ -960,6 +976,17 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.feed.getListFeed*", (route) => {
+      const url = new URL(route.request().url());
+      const listUri = url.searchParams.get("list");
+      const feed = this.feeds.get(listUri) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ feed, cursor: "" }),
+      });
+    });
+
     // Order matters: Playwright checks routes in LIFO order, so register
     // the most general pattern first (checked last) and most specific last.
     await page.route("**/xrpc/app.bsky.feed.getFeed*", (route) => {
@@ -994,6 +1021,17 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ feeds }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.getList*", (route) => {
+      const url = new URL(route.request().url());
+      const listUri = url.searchParams.get("list");
+      const list = this.lists.find((l) => l.uri === listUri) || {};
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ list, items: [] }),
       });
     });
 

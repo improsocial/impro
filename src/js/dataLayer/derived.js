@@ -425,17 +425,34 @@ export class Derived extends ReactiveStore {
         cursor: quotes.cursor,
       };
     });
-    this.$hydratedPinnedFeedGenerators = new Signal.Computed(() => {
-      const pinned = this.dataStore.$pinnedFeedGenerators.get();
-      if (!pinned) return null;
-      const hydrated = [];
-      if (this.isAuthenticated) {
-        hydrated.push({ uri: "following", displayName: "Following" });
-      }
-      for (const pin of pinned) {
-        hydrated.push(this.$feedGenerators.get(pin.uri));
-      }
-      return hydrated;
+    this.$hydratedPinnedItems = new Signal.Computed(() => {
+      const pinnedItems = this.dataStore.$pinnedItems.get();
+      if (!pinnedItems) return null;
+      return pinnedItems.map((item) => {
+        if (item.type === "following") {
+          return {
+            type: "following",
+            data: item.data,
+            uri: "following",
+            displayName: "Following",
+          };
+        }
+        if (item.type === "list") {
+          return {
+            type: "list",
+            data: item.data,
+            uri: item.data.uri,
+            displayName: item.data.name,
+          };
+        }
+        const feedGenerator =
+          this.$feedGenerators.get(item.data.uri) ?? item.data;
+        return {
+          type: "feed",
+          data: feedGenerator,
+          ...feedGenerator,
+        };
+      });
     });
     this.$hydratedProfiles = new ComputedMap((did) =>
       this.patchStore.$patchedProfiles.get(did),
