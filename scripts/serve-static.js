@@ -27,7 +27,13 @@ export const MIME = {
   ".woff2": "font/woff2",
 };
 
-const indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf-8");
+let indexHtml = null;
+function getIndexHtml() {
+  if (indexHtml === null) {
+    indexHtml = fs.readFileSync(path.join(root, "index.html"), "utf-8");
+  }
+  return indexHtml;
+}
 
 function send(res, status, body, type) {
   if (res.headersSent || res.writableEnded) return;
@@ -42,8 +48,8 @@ function safeJoin(urlPath) {
   return target;
 }
 
-http
-  .createServer(async (req, res) => {
+function createStaticServer() {
+  return http.createServer(async (req, res) => {
     const target = safeJoin(req.url);
     const ext = target ? path.extname(target) : "";
 
@@ -75,11 +81,18 @@ http
     }
 
     if (!ext || !MIME[ext]) {
-      send(res, 200, indexHtml, MIME[".html"]);
+      send(res, 200, getIndexHtml(), MIME[".html"]);
     } else {
       send(res, 404, `Not found: ${req.url}`, "text/plain; charset=utf-8");
     }
-  })
-  .listen(port, () => {
+  });
+}
+
+if (
+  process.argv[1] &&
+  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
+  createStaticServer().listen(port, () => {
     console.info(`Static server listening on http://localhost:${port}/`);
   });
+}
