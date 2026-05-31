@@ -567,12 +567,10 @@ class PostThreadView extends View {
 
     function scrollToLargePost() {
       const largePost = root.querySelector(".large-post");
-      if (largePost) {
-        const headerHeight = root.querySelector("header").offsetHeight;
-        const largePostTop = largePost.offsetTop;
-        // Preserve any scrolling the user did while the skeleton was loading
-        window.scrollTo(0, largePostTop - headerHeight + window.scrollY);
-      }
+      if (!largePost) return;
+      const headerHeight = root.querySelector("header").offsetHeight;
+      const offset = largePost.getBoundingClientRect().top - headerHeight;
+      window.scrollBy(0, offset);
     }
 
     root.addEventListener("page-enter", async () => {

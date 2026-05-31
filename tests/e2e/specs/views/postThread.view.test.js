@@ -153,7 +153,7 @@ test.describe("Post thread view", () => {
     expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
   });
 
-  test("should add the user's pre-load scroll to the scroll-to-main-post offset", async ({
+  test("should pin the main post under the header even if the user scrolled while loading", async ({
     page,
   }) => {
     // Build a deep parent chain so the main post starts below the fold.
@@ -228,8 +228,9 @@ test.describe("Post thread view", () => {
     const largePost = view.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
-    // The page should settle so the main post sits the user's extra scroll
-    // *past* the just-below-header position, rather than jumping back to it.
+    // Despite the user's scroll while loading, the main post pins to just below
+    // the header once the full thread (with parents) loads in - the extra
+    // scroll is overridden, not preserved.
     const headerHeight = await view
       .locator("header")
       .evaluate((el) => el.offsetHeight);
@@ -237,13 +238,11 @@ test.describe("Post thread view", () => {
       .poll(() => largePost.evaluate((el) => el.getBoundingClientRect().top), {
         timeout: 10000,
       })
-      .toBeLessThanOrEqual(headerHeight - actualExtraScroll + 8);
+      .toBeLessThanOrEqual(headerHeight + 8);
     const postTop = await largePost.evaluate(
       (el) => el.getBoundingClientRect().top,
     );
-    expect(postTop).toBeGreaterThanOrEqual(
-      headerHeight - actualExtraScroll - 8,
-    );
+    expect(postTop).toBeGreaterThanOrEqual(headerHeight - 8);
   });
 
   test("should show 'Load parent post' link when reply ref is broken", async ({
