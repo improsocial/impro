@@ -2008,6 +2008,61 @@ test.describe("Profile view", () => {
       ).toContainText("Trending Topics", { timeout: 10000 });
     });
 
+    test("keeps the tab bar pinned when switching to a sparse Feeds tab after scrolling down the posts feed", async ({
+      page,
+    }) => {
+      const posts = [];
+      for (let postIndex = 1; postIndex <= 60; postIndex++) {
+        posts.push(
+          createPost({
+            uri: `at://did:plc:feedcreator1/app.bsky.feed.post/post${postIndex}`,
+            text: `Feed creator post ${postIndex}`,
+            authorHandle: userWithFeeds.handle,
+            authorDisplayName: userWithFeeds.displayName,
+          }),
+        );
+      }
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addAuthorFeedPosts(
+        userWithFeeds.did,
+        "posts_and_author_threads",
+        posts,
+      );
+      // Only two feeds — far shorter than the posts feed we scroll through.
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".profile-tab-bar");
+      await expect(
+        view.locator('[data-testid="feed-item"]').first(),
+      ).toBeVisible({ timeout: 10000 });
+
+      // Scroll down far enough that the sticky tab bar pins to the top.
+      await page.evaluate(() => window.scrollTo(0, 1200));
+      await expect
+        .poll(async () => (await tabBar.boundingBox())?.y ?? null)
+        .toBeLessThan(2);
+      const scrolledY = await page.evaluate(() => window.scrollY);
+      expect(scrolledY).toBeGreaterThan(0);
+
+      // Switch to the sparse Feeds tab.
+      await tabBar.locator('[data-testid="tab-feeds"]').click();
+      await expect(view.locator(".feeds-list .feeds-list-item")).toHaveCount(
+        2,
+        { timeout: 10000 },
+      );
+
+      // The header should stay pinned at the top rather than jumping up: the
+      // feed container reserves enough height to preserve the scroll position.
+      expect((await tabBar.boundingBox()).y).toBeLessThan(2);
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    });
+
     test("should show Feeds tab on own profile when user has feed generators", async ({
       page,
     }) => {

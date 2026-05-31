@@ -113,8 +113,6 @@ class ProfileView extends View {
       }
     }
 
-    const tabScrollState = new Map();
-
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
@@ -133,16 +131,8 @@ class ProfileView extends View {
         }
         return;
       }
-      // Save scroll state
-      tabScrollState.set(currentTab, window.scrollY);
       // switch tab
       $activeTab.set(tab);
-      // Restore or reset scroll
-      if (tabScrollState.has(tab)) {
-        window.scrollTo(0, tabScrollState.get(tab));
-      } else {
-        window.scrollTo(0, 0);
-      }
       // Load feed if needed
       if (tab === "feeds") {
         if (!dataLayer.derived.$actorFeeds.get(profileDid)) {

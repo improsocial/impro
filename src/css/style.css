@@ -949,6 +949,11 @@ header {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
+.feed-container {
+  min-height: calc(100vh - 45px);
+  min-height: calc(100dvh - 45px);
+}
+
 .scroll-lock-pinned {
   position: fixed;
 }
