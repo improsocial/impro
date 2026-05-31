@@ -2,6 +2,7 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createPost, createProfile } from "../../factories.js";
+import { userProfile } from "../../fixtures.js";
 
 test.use({
   hasTouch: true,
@@ -70,6 +71,18 @@ async function drag(
   );
 }
 
+// Simulate the on-screen keyboard by shrinking the visual viewport, which is
+// how drag-to-dismiss detects the keyboard is up.
+async function simulateKeyboardOpen(page) {
+  await page.evaluate(() => {
+    Object.defineProperty(window.visualViewport, "height", {
+      configurable: true,
+      get: () => window.innerHeight - 300,
+    });
+    window.visualViewport.dispatchEvent(new Event("resize"));
+  });
+}
+
 async function setupFeedWithPost(page) {
   const mockServer = new MockServer();
   const post = createPost({
@@ -134,6 +147,133 @@ test.describe("Drag-to-dismiss", () => {
       });
       await expect(reportDialog).toBeVisible();
     });
+
+    test("does not dismiss while the keyboard is open", async ({ page }) => {
+      const reportDialog = await openReportDialog(page);
+      await simulateKeyboardOpen(page);
+      await drag(page, {
+        eventSourceSelector: "report-dialog .report-dialog",
+        startY: 300,
+        endY: 430,
+      });
+      await expect(reportDialog).toBeVisible();
+    });
+
+    test("does not dismiss when the body is scrolled away from the top", async ({
+      page,
+    }) => {
+      // A short viewport forces the stepper body to overflow and scroll.
+      await page.setViewportSize({ width: 390, height: 400 });
+      const reportDialog = await openReportDialog(page);
+
+      const scrollTop = await reportDialog
+        .locator(".report-dialog-body")
+        .evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+          return element.scrollTop;
+        });
+      expect(scrollTop).toBeGreaterThan(0);
+
+      await drag(page, {
+        eventSourceSelector: "report-dialog .report-dialog",
+        startTouchTargetSelector: "report-dialog .report-step-header",
+        startY: 200,
+        endY: 380,
+      });
+      await expect(reportDialog).toBeVisible();
+    });
+  });
+
+  test.describe("edit profile dialog", () => {
+    async function openEditProfileDialog(page) {
+      const mockServer = new MockServer();
+      mockServer.addProfile(
+        createProfile({
+          did: userProfile.did,
+          handle: userProfile.handle,
+          displayName: "Test User",
+          description: "Original description",
+        }),
+      );
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+      await page
+        .locator('#profile-view [data-testid="edit-profile-button"]')
+        .click({ timeout: 10000 });
+      const dialog = page.locator("edit-profile-dialog .edit-profile-dialog");
+      await expect(dialog).toBeVisible({ timeout: 5000 });
+      return dialog;
+    }
+
+    test("dragging past threshold dismisses it", async ({ page }) => {
+      await openEditProfileDialog(page);
+      await drag(page, {
+        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        startY: 300,
+        endY: 400,
+      });
+      await expect(
+        page.locator("edit-profile-dialog .edit-profile-dialog"),
+      ).not.toBeVisible({ timeout: 2000 });
+    });
+
+    test("dragging below threshold snaps back", async ({ page }) => {
+      const dialog = await openEditProfileDialog(page);
+      await drag(page, {
+        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        startY: 300,
+        endY: 330,
+      });
+      await expect(dialog).toBeVisible();
+    });
+
+    test("drag starting on a button does not dismiss", async ({ page }) => {
+      const dialog = await openEditProfileDialog(page);
+      await drag(page, {
+        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        startTouchTargetSelector:
+          "edit-profile-dialog .edit-profile-dialog button",
+        startY: 300,
+        endY: 430,
+      });
+      await expect(dialog).toBeVisible();
+    });
+
+    test("does not dismiss while the keyboard is open", async ({ page }) => {
+      const dialog = await openEditProfileDialog(page);
+      await simulateKeyboardOpen(page);
+      await drag(page, {
+        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        startY: 300,
+        endY: 430,
+      });
+      await expect(dialog).toBeVisible();
+    });
+
+    test("does not dismiss when the body is scrolled away from the top", async ({
+      page,
+    }) => {
+      // A short viewport forces the dialog body to overflow and scroll.
+      await page.setViewportSize({ width: 390, height: 400 });
+      const dialog = await openEditProfileDialog(page);
+
+      const scrollTop = await dialog
+        .locator(".edit-profile-dialog-content")
+        .evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+          return element.scrollTop;
+        });
+      expect(scrollTop).toBeGreaterThan(0);
+
+      await drag(page, {
+        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        startTouchTargetSelector: "edit-profile-dialog .edit-profile-field",
+        startY: 200,
+        endY: 380,
+      });
+      await expect(dialog).toBeVisible();
+    });
   });
 
   test.describe("context menu", () => {
@@ -178,6 +318,19 @@ test.describe("Drag-to-dismiss", () => {
         startTouchTargetSelector: "context-menu context-menu-item button",
         startY: 300,
         endY: 430,
+      });
+      await expect(contextMenu).toBeVisible();
+    });
+
+    // Suppressing dismiss while the keyboard is open is the default, so this
+    // caller gets it without opting in.
+    test("does not dismiss while the keyboard is open", async ({ page }) => {
+      const contextMenu = await openContextMenu(page);
+      await simulateKeyboardOpen(page);
+      await drag(page, {
+        eventSourceSelector: "context-menu .context-menu-container.open",
+        startY: 300,
+        endY: 400,
       });
       await expect(contextMenu).toBeVisible();
     });
@@ -290,6 +443,64 @@ test.describe("Drag-to-dismiss", () => {
         startTouchTargetSelector: "post-composer .post-composer button",
         startY: 300,
         endY: 430,
+      });
+      await expect(composer).toBeVisible();
+    });
+
+    test("does not dismiss while the keyboard is open", async ({ page }) => {
+      const composer = await openPostComposer(page);
+      await simulateKeyboardOpen(page);
+      await drag(page, {
+        eventSourceSelector: "post-composer .post-composer",
+        startY: 300,
+        endY: 430,
+      });
+      await expect(composer).toBeVisible();
+    });
+
+    test("does not dismiss when the body is scrolled away from the top", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const originalPost = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "This is a very long quoted post. ".repeat(40),
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addTimelinePosts([originalPost]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/");
+
+      const feedItem = page.locator('#home-view [data-testid="feed-item"]');
+      await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+      await feedItem.locator('[data-testid="repost-button"]').click();
+      await page.locator('[data-testid="menu-action-quote-post"]').click();
+
+      const composer = page.locator("post-composer .post-composer");
+      await expect(composer).toBeVisible({ timeout: 10000 });
+
+      // Wait for the editor's auto-focus to settle, then blur it, so its
+      // scroll-into-view can't reset our scroll position mid-test.
+      const editor = composer.locator(".rich-text-input");
+      await expect(editor).toBeFocused();
+      await editor.evaluate((element) => element.blur());
+
+      // Scroll the body down; a dismiss drag should now scroll instead.
+      const scrollTop = await composer
+        .locator(".post-composer-scroll-area")
+        .evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+          return element.scrollTop;
+        });
+      expect(scrollTop).toBeGreaterThan(0);
+
+      await drag(page, {
+        eventSourceSelector: "post-composer .post-composer-scroll-area",
+        startTouchTargetSelector: "post-composer .post-composer-embed-preview",
+        startY: 400,
+        endY: 600,
       });
       await expect(composer).toBeVisible();
     });

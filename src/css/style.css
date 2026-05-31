@@ -4443,13 +4443,13 @@ emoji-picker {
     right: auto;
     bottom: auto;
     height: auto;
-    max-height: none;
+    max-height: calc(100vh - 64px);
     border-radius: var(--dialog-border-radius);
     box-shadow: none;
     animation: none;
     transform: translate(-50%, -50%);
     touch-action: auto;
-    display: block;
+    display: flex;
     overflow: hidden;
   }
 }
@@ -4477,19 +4477,10 @@ emoji-picker {
   .post-composer-content {
     padding-top: 10px;
     padding-bottom: 0;
-    display: block;
-    flex: none;
-    min-height: auto;
   }
 
   .post-composer-scroll-area-content {
     padding: 0 10px;
-  }
-
-  .post-composer-scroll-area {
-    flex: none;
-    min-height: auto;
-    overflow-y: visible;
   }
 }
 

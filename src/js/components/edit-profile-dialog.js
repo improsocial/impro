@@ -490,6 +490,7 @@ class EditProfileDialog extends Component {
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
         onClose: () => this.close(),
+        scrollContainer: this.querySelector(".edit-profile-dialog-content"),
         ignoreTouchTarget: (el) =>
           !!el.closest("button") ||
           el.tagName === "INPUT" ||

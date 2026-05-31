@@ -797,6 +797,7 @@ class ReportDialog extends Component {
 
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
+      scrollContainer: this.querySelector(".report-dialog-body"),
       ignoreTouchTarget: (el) =>
         !!el.closest("button") || el.tagName === "TEXTAREA",
     });

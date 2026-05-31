@@ -744,6 +744,7 @@ class PostComposer extends Component {
     enableDragToDismiss(dialog, {
       confirmDismiss: () => this.confirmClose(),
       onClose: () => this.close(),
+      scrollContainer: this.querySelector(".post-composer-scroll-area"),
       ignoreTouchTarget: (el) =>
         !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||
