@@ -770,6 +770,7 @@ class NotificationsView extends View {
                     ],
                     activeTab,
                     onTabClick: handleTabClick,
+                    fullWidth: true,
                   }),
               })}
               <main>

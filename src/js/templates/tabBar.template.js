@@ -1,9 +1,14 @@
 import { html } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 
-export function tabBarTemplate({ tabs, activeTab, onTabClick }) {
+export function tabBarTemplate({
+  tabs,
+  activeTab,
+  onTabClick,
+  fullWidth = false,
+}) {
   return html`
-    <div class="tab-bar">
+    <div class=${classnames("tab-bar", { "tab-bar-full-width": fullWidth })}>
       ${tabs.map(
         (tab) =>
           html`<button

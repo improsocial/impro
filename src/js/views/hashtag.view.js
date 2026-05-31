@@ -98,6 +98,7 @@ class HashtagView extends View {
                     tabs: sortOptions,
                     activeTab: currentSort,
                     onTabClick: handleTabClick,
+                    fullWidth: true,
                   }),
               })}
               ${sortOptions.map((sort) => {

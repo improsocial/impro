@@ -33,6 +33,7 @@ export class MockServer {
     this.pinnedFeedUris = [];
     this.pinnedListUris = [];
     this.lists = [];
+    this.listMembers = new Map();
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -96,6 +97,17 @@ export class MockServer {
 
   addLists(lists) {
     this.lists.push(...lists);
+  }
+
+  addListMembers(listUri, profiles) {
+    this.listMembers.set(listUri, profiles);
+  }
+
+  addListFeedItems(listUri, posts) {
+    this.feeds.set(
+      listUri,
+      posts.map((post) => ({ post })),
+    );
   }
 
   setPinnedFeeds(feedUris) {
@@ -1028,10 +1040,12 @@ export class MockServer {
       const url = new URL(route.request().url());
       const listUri = url.searchParams.get("list");
       const list = this.lists.find((l) => l.uri === listUri) || {};
+      const members = this.listMembers.get(listUri) || [];
+      const items = members.map((profile) => ({ subject: profile }));
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ list, items: [] }),
+        body: JSON.stringify({ list, items, cursor: "" }),
       });
     });
 
@@ -1232,11 +1246,15 @@ export class MockServer {
       const generator = this.feedGenerators.find(
         (g) => g.creator.handle === handle,
       );
+      const list = this.lists.find((l) => l.creator?.handle === handle);
       const profileEntry = [...this.profiles.values()].find(
         (p) => p.handle === handle,
       );
       const did =
-        postAuthor?.did || generator?.creator?.did || profileEntry?.did;
+        postAuthor?.did ||
+        generator?.creator?.did ||
+        list?.creator?.did ||
+        profileEntry?.did;
       if (!did) {
         return route.fulfill({
           status: 404,

@@ -1,6 +1,7 @@
 import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { ProfileInteractionHandler } from "/js/profileInteractionHandler.js";
 import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { ListInteractionHandler } from "/js/listInteractionHandler.js";
 
 function loggedOutHandler(name) {
   return new Proxy(
@@ -28,5 +29,8 @@ export class InteractionHandlers {
     this.feedInteractionHandler = session
       ? new FeedInteractionHandler(dataLayer)
       : loggedOutHandler("feedInteractionHandler");
+    this.listInteractionHandler = session
+      ? new ListInteractionHandler(dataLayer)
+      : loggedOutHandler("listInteractionHandler");
   }
 }

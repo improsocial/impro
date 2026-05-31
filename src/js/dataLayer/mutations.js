@@ -299,16 +299,34 @@ export class Mutations {
     const patchId = this.patchStore.addPreferencePatch({
       type: "pinFeed",
       feedUri,
+      entryType: "feed",
     });
     const preferences = this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.pinFeed(feedUri);
+    const newPreferences = preferences.pinFeed(feedUri, "feed");
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {
       console.error(error);
       throw error;
     } finally {
-      // clear patch
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async pinList(listUri) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "pinFeed",
+      feedUri: listUri,
+      entryType: "list",
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.pinFeed(listUri, "list");
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
   }
@@ -326,7 +344,23 @@ export class Mutations {
       console.error(error);
       throw error;
     } finally {
-      // clear patch
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async unpinList(listUri) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "unpinFeed",
+      feedUri: listUri,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.unpinFeed(listUri);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
       this.patchStore.removePreferencePatch(patchId);
     }
   }

@@ -913,6 +913,35 @@ export class Requests {
     this.dataStore.$feedGenerators.set(feedUri, feedGeneratorData);
   }
 
+  async loadList(listUri) {
+    const data = await this.api.getList(listUri, { limit: 1 });
+    this.dataStore.$lists.set(listUri, data.list);
+  }
+
+  async loadListMembers(listUri, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.$listMembers.get(listUri);
+    let cursor = existing ? existing.cursor : "";
+    if (reload) {
+      cursor = "";
+    }
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const data = await this.api.getList(listUri, { limit, cursor });
+    const newMembers = (data.items ?? []).map((item) => item.subject);
+    if (reload || !existing) {
+      this.dataStore.$listMembers.set(listUri, {
+        members: newMembers,
+        cursor: data.cursor || null,
+      });
+    } else {
+      this.dataStore.$listMembers.set(listUri, {
+        members: [...existing.members, ...newMembers],
+        cursor: data.cursor || null,
+      });
+    }
+  }
+
   async loadPinnedItems() {
     const preferences = this.preferencesProvider.requirePreferences();
     const pinnedFeeds = preferences.getPinnedFeeds();
@@ -932,7 +961,7 @@ export class Requests {
     ]);
     const listViews = listResults
       .filter((result) => result.status === "fulfilled")
-      .map((result) => result.value);
+      .map((result) => result.value.list);
 
     for (const feedGenerator of feedGenerators) {
       this.dataStore.$feedGenerators.set(feedGenerator.uri, feedGenerator);
@@ -975,12 +1004,12 @@ export class Requests {
     if (reload || !existing) {
       this.dataStore.$actorFeeds.set(did, {
         feeds: data.feeds,
-        cursor: data.cursor ?? null,
+        cursor: data.cursor || null,
       });
     } else {
       this.dataStore.$actorFeeds.set(did, {
         feeds: [...existing.feeds, ...data.feeds],
-        cursor: data.cursor ?? null,
+        cursor: data.cursor || null,
       });
     }
   }

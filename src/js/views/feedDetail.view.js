@@ -66,16 +66,12 @@ class FeedDetailView extends View {
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({
-            onClickActiveNavItem: () => {
-              window.router.back();
-            },
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             numNotifications,
             numChatNotifications,
             currentUser,
             showSidebarOverlay: false,
-            activeNavItem: null,
             pluginService,
             children: html`${headerTemplate({
                 title: feedName,

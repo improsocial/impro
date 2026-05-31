@@ -1853,7 +1853,7 @@ t.describe("loadPinnedItems", (it) => {
       },
       getList: async (uri) => {
         capturedListUris.push(uri);
-        return { uri, name: `list-${uri}` };
+        return { list: { uri, name: `list-${uri}` }, items: [], cursor: "" };
       },
     };
     const dataStore = new DataStore();

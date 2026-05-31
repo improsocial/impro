@@ -2720,4 +2720,167 @@ t.describe("sendShowMoreInteraction", (it) => {
   });
 });
 
+t.describe("pinList", (it) => {
+  const listUri = "at://did:test/app.bsky.graph.list/abc";
+
+  function makeMockProvider({ updatePreferences } = {}) {
+    const pinFeedCalls = [];
+    return {
+      pinFeedCalls,
+      provider: {
+        requirePreferences: () => ({
+          pinFeed: (feedUri, type) => {
+            pinFeedCalls.push({ feedUri, type });
+            return Preferences.createLoggedOutPreferences();
+          },
+        }),
+        updatePreferences: updatePreferences ?? (async () => {}),
+      },
+    };
+  }
+
+  it("should add optimistic patch with entryType 'list'", () => {
+    const { provider } = makeMockProvider({
+      updatePreferences: async () =>
+        new Promise((resolve) => setTimeout(resolve, 100)),
+    });
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    mutations.pinList(listUri);
+
+    const patches = patchStore.$preferencePatches.get();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "pinFeed");
+    assertEquals(patches[0].body.feedUri, listUri);
+    assertEquals(patches[0].body.entryType, "list");
+  });
+
+  it("should call preferences.pinFeed with type 'list'", async () => {
+    const { provider, pinFeedCalls } = makeMockProvider();
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    await mutations.pinList(listUri);
+
+    assertEquals(pinFeedCalls.length, 1);
+    assertEquals(pinFeedCalls[0].feedUri, listUri);
+    assertEquals(pinFeedCalls[0].type, "list");
+  });
+
+  it("should remove patch after successful update", async () => {
+    const { provider } = makeMockProvider();
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    await mutations.pinList(listUri);
+
+    assertEquals(patchStore.$preferencePatches.get().length, 0);
+  });
+
+  it("should remove patch even on error", async () => {
+    const { provider } = makeMockProvider({
+      updatePreferences: async () => {
+        throw new Error("API error");
+      },
+    });
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    let errorThrown = false;
+    try {
+      await mutations.pinList(listUri);
+    } catch (e) {
+      errorThrown = true;
+    }
+
+    assertEquals(errorThrown, true);
+    assertEquals(patchStore.$preferencePatches.get().length, 0);
+  });
+});
+
+t.describe("pinFeed entryType", (it) => {
+  it("should add optimistic patch with entryType 'feed'", () => {
+    const feedUri = "at://did:test/app.bsky.feed.generator/xyz";
+    const preferences = new Preferences(
+      [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: () =>
+        new Promise((resolve) => setTimeout(resolve, 100)),
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    mutations.pinFeed(feedUri);
+
+    const patches = patchStore.$preferencePatches.get();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.entryType, "feed");
+  });
+});
+
+t.describe("unpinList", (it) => {
+  const listUri = "at://did:test/app.bsky.graph.list/abc";
+
+  it("should call preferences.unpinFeed with the list URI", async () => {
+    const unpinCalls = [];
+    const provider = {
+      requirePreferences: () => ({
+        unpinFeed: (uri) => {
+          unpinCalls.push(uri);
+          return Preferences.createLoggedOutPreferences();
+        },
+      }),
+      updatePreferences: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    await mutations.unpinList(listUri);
+
+    assertEquals(unpinCalls.length, 1);
+    assertEquals(unpinCalls[0], listUri);
+  });
+
+  it("should add and remove an unpinFeed patch", async () => {
+    let updateResolve;
+    const updatePromise = new Promise((resolve) => {
+      updateResolve = resolve;
+    });
+    const provider = {
+      requirePreferences: () => ({
+        unpinFeed: () => Preferences.createLoggedOutPreferences(),
+      }),
+      updatePreferences: () => updatePromise,
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mutations = new Mutations({}, dataStore, patchStore, provider);
+
+    const promise = mutations.unpinList(listUri);
+    const patches = patchStore.$preferencePatches.get();
+    assertEquals(patches.length, 1);
+    assertEquals(patches[0].body.type, "unpinFeed");
+    assertEquals(patches[0].body.feedUri, listUri);
+
+    updateResolve();
+    await promise;
+    assertEquals(patchStore.$preferencePatches.get().length, 0);
+  });
+});
+
 await t.run();

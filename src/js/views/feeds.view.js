@@ -6,6 +6,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
+import { linkToList } from "/js/navigation.js";
 
 class FeedsView extends View {
   async render({
@@ -70,7 +71,12 @@ class FeedsView extends View {
                       }
                       if (item.type === "list") {
                         return html`
-                          <div class="feeds-list-item">
+                          <div
+                            class="feeds-list-item clickable"
+                            data-testid="feeds-list-item-list"
+                            @click=${() =>
+                              window.router.go(linkToList(item.data))}
+                          >
                             <div class="feeds-list-item-avatar">
                               ${item.data.avatar
                                 ? html`<img

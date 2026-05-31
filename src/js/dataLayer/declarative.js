@@ -82,6 +82,18 @@ export class Declarative {
     return feedGenerator;
   }
 
+  async ensureList(listUri) {
+    let list = this.derived.$lists.get(listUri);
+    if (!list) {
+      await this.requests.loadList(listUri);
+      list = this.derived.$lists.get(listUri);
+    }
+    if (!list) {
+      throw new Error("List not found");
+    }
+    return list;
+  }
+
   async ensurePinnedItems() {
     let pinnedItems = this.derived.$hydratedPinnedItems.get();
     if (!pinnedItems) {

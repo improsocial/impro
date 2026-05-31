@@ -324,7 +324,7 @@ export class PatchStore extends ReactiveStore {
   applyPreferencePatch(preferences, patchBody) {
     switch (patchBody.type) {
       case "pinFeed":
-        return preferences.pinFeed(patchBody.feedUri);
+        return preferences.pinFeed(patchBody.feedUri, patchBody.entryType);
       case "unpinFeed":
         return preferences.unpinFeed(patchBody.feedUri);
       case "subscribeLabeler":

@@ -392,6 +392,52 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
   });
 });
 
+t.describe("Preference Patches - Pin Feed Patches", (it) => {
+  it("should forward entryType to preferences.pinFeed", () => {
+    const patchStore = new PatchStore();
+    const calls = [];
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      pinFeed: (feedUri, type) => {
+        calls.push({ feedUri, type });
+        return mockPreferences;
+      },
+    };
+
+    patchStore.addPreferencePatch({
+      type: "pinFeed",
+      feedUri: "at://did:test/app.bsky.graph.list/abc",
+      entryType: "list",
+    });
+    patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(calls.length, 1);
+    assertEquals(calls[0].feedUri, "at://did:test/app.bsky.graph.list/abc");
+    assertEquals(calls[0].type, "list");
+  });
+
+  it("should pass entryType undefined when patch omits it (default 'feed' applies)", () => {
+    const patchStore = new PatchStore();
+    const calls = [];
+    const mockPreferences = {
+      clone: () => mockPreferences,
+      pinFeed: (feedUri, type) => {
+        calls.push({ feedUri, type });
+        return mockPreferences;
+      },
+    };
+
+    patchStore.addPreferencePatch({
+      type: "pinFeed",
+      feedUri: "at://did:test/app.bsky.feed.generator/xyz",
+    });
+    patchStore.applyPreferencePatches(mockPreferences);
+
+    assertEquals(calls.length, 1);
+    assertEquals(calls[0].type, undefined);
+  });
+});
+
 t.describe("Preference Patches - Patch Management", (it) => {
   it("should add and remove preference patches", () => {
     const patchStore = new PatchStore();

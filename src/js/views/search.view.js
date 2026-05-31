@@ -390,6 +390,7 @@ class SearchView extends View {
                           ],
                           activeTab,
                           onTabClick: handleTabChange,
+                          fullWidth: true,
                         })
                       : ""}
                   </div>

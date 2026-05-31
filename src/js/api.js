@@ -284,14 +284,18 @@ export class Api {
     return res.data.feeds;
   }
 
-  async getList(listURI) {
+  async getList(listURI, { limit = 1, cursor = "" } = {}) {
+    const query = { list: listURI, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
     const res = await this.request(`app.bsky.graph.getList`, {
-      query: { list: listURI, limit: 1 },
+      query,
       headers: {
         "atproto-proxy": this.bskyAppViewServiceDid,
       },
     });
-    return res.data.list;
+    return res.data;
   }
 
   async getListFeed(listURI, { limit = 31, cursor = "", labelers = [] } = {}) {

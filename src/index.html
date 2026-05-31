@@ -88,6 +88,7 @@
       import settingsCommunityPluginsView from "/js/views/settings/communityPlugins.view.js";
       import settingsCommunityPluginListingView from "/js/views/settings/communityPluginListing.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
+      import listDetailView from "/js/views/listDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
       import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
@@ -255,6 +256,10 @@
         router.addRoute(
           "/profile/:handleOrDid/feed/:rkey",
           () => feedDetailView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/lists/:rkey",
+          () => listDetailView,
         );
         router.addRoute(
           "/profile/:handleOrDid/post/:rkey/likes",

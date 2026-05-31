@@ -379,6 +379,12 @@ export class Derived extends ReactiveStore {
     this.$feedGenerators = new ComputedMap((feedUri) =>
       this.dataStore.$feedGenerators.get(feedUri),
     );
+    this.$lists = new ComputedMap((listUri) =>
+      this.dataStore.$lists.get(listUri),
+    );
+    this.$listMembers = new ComputedMap((listUri) =>
+      this.dataStore.$listMembers.get(listUri),
+    );
     this.$profileSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$profileSearchResults.get();
       if (!data) return null;
