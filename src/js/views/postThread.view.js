@@ -568,7 +568,8 @@ class PostThreadView extends View {
     function scrollToLargePost() {
       const largePost = root.querySelector(".large-post");
       if (!largePost) return;
-      const headerHeight = root.querySelector("header").offsetHeight;
+      const headerHeight =
+        root.querySelector("header")?.getBoundingClientRect().height ?? 0;
       const offset = largePost.getBoundingClientRect().top - headerHeight;
       window.scrollBy(0, offset);
     }
