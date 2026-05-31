@@ -515,8 +515,6 @@ class PostThreadView extends View {
       return null;
     });
 
-    let hasScrolledToLargePost = false;
-
     pageEffect(root, () => {
       const postThread = $postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -528,6 +526,12 @@ class PostThreadView extends View {
         dataLayer.requests.statusStore.$statuses.get(
           "loadPostThread-" + postUri,
         );
+
+      // Capture the large post's screen position before re-rendering so we
+      // can re-pin it if the render shifts it (e.g. parents loading above).
+      const prevLargePostTop =
+        root.querySelector(".large-post")?.getBoundingClientRect().top ?? null;
+
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({
@@ -558,10 +562,20 @@ class PostThreadView extends View {
         root,
       );
 
-      // Scroll to the main post once the full thread (with parents) has loaded
-      if (postThread && !postThread.__isPrefill && !hasScrolledToLargePost) {
-        hasScrolledToLargePost = true;
-        scrollToLargePost();
+      // Post pinning
+      const largePost = root.querySelector(".large-post");
+      if (largePost) {
+        if (prevLargePostTop !== null) {
+          // Re-pin: cancel out any shift caused by content above
+          const delta =
+            largePost.getBoundingClientRect().top - prevLargePostTop;
+          if (delta !== 0) {
+            window.scrollBy(0, delta);
+          }
+        } else {
+          // First appearance: snap to top
+          scrollToLargePost();
+        }
       }
     });
 
@@ -575,7 +589,6 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      scrollToLargePost();
       let requests = [];
       if (isAuthenticated) {
         requests.push(dataLayer.requests.loadCurrentUser());

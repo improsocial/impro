@@ -209,15 +209,26 @@ export function quotedPostTemplate({
   </div>`;
 }
 
-function imageContainerTemplate({ image, lazyLoad }) {
+const MIN_POST_MEDIA_ASPECT_RATIO = 1 / 2;
+
+function getPostMediaAspectRatio(media) {
+  const dims = media?.aspectRatio;
+  if (!dims) return 1;
+  const ratio = dims.width / dims.height;
+  if (!Number.isFinite(ratio) || ratio <= 0) return 1;
+  return Math.max(ratio, MIN_POST_MEDIA_ASPECT_RATIO);
+}
+
+function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
   return html`<div class="post-image-container">
     <img
       class="post-image"
       src="${image.thumb}"
       data-lightbox-src="${image.fullsize ?? image.thumb}"
       alt=${image.alt}
-      height=${image.aspectRatio?.height ?? ""}
-      width=${image.aspectRatio?.width ?? ""}
+      style=${doCalculateAspectRatio
+        ? `aspect-ratio: ${getPostMediaAspectRatio(image)};`
+        : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
     ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
@@ -225,37 +236,42 @@ function imageContainerTemplate({ image, lazyLoad }) {
 }
 
 function imagesTemplate({ images, lazyLoad = false }) {
+  // Only single-image posts use the calculated aspect ratio
+  const doCalculateAspectRatio = images.length === 1;
   return html`<lightbox-image-group
     class="post-images num-images-${images.length}"
     data-testid="post-images"
   >
     ${images.length === 3
       ? // When there are three images, wrap the right two in a div
-        html`${imageContainerTemplate({ image: images[0], lazyLoad })}
+        html`${imageContainerTemplate({
+            image: images[0],
+            lazyLoad,
+            doCalculateAspectRatio,
+          })}
           <div class="right-column">
-            ${imageContainerTemplate({ image: images[1], lazyLoad })}
-            ${imageContainerTemplate({ image: images[2], lazyLoad })}
+            ${imageContainerTemplate({
+              image: images[1],
+              lazyLoad,
+              doCalculateAspectRatio,
+            })}
+            ${imageContainerTemplate({
+              image: images[2],
+              lazyLoad,
+              doCalculateAspectRatio,
+            })}
           </div>`
       : images.map((image) =>
-          imageContainerTemplate({ image: image, lazyLoad }),
+          imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }),
         )}
   </lightbox-image-group>`;
 }
 
-const MIN_VIDEO_ASPECT_RATIO = 1 / 2;
-
-function getVideoAspectRatio(video) {
-  if (!video.aspectRatio) return null;
-  const aspectRatio = video.aspectRatio.width / video.aspectRatio.height;
-  if (!Number.isFinite(aspectRatio) || aspectRatio <= 0) return null;
-  return Math.max(aspectRatio, MIN_VIDEO_ASPECT_RATIO);
-}
-
 function videoTemplate({ video }) {
-  const aspectRatio = getVideoAspectRatio(video);
+  const aspectRatio = getPostMediaAspectRatio(video);
   return html`<div
     class="post-video"
-    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
+    style="aspect-ratio: ${aspectRatio};"
     @click=${(e) => {
       e.stopPropagation();
       e.preventDefault();
