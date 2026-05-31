@@ -1,5 +1,6 @@
 import { linkHtml } from "./modulepreload.js";
 import pkg from "./package.json" with { type: "json" };
+import { MIME } from "./scripts/serve-static.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -92,7 +93,8 @@ export default async function (eleventyConfig) {
         if (url.pathname.includes("reload-client.js")) {
           return null;
         }
-        if (path.extname(url.pathname)) {
+        const ext = path.extname(url.pathname);
+        if (ext && MIME[ext] && !MIME[ext].startsWith("text/html")) {
           return {
             status: 404,
             headers: { "Content-Type": "text/plain" },
