@@ -677,9 +677,19 @@ class NotificationsView extends View {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
       if ($activeTab.get() === "all") {
-        await loadNotifications({ reload: true });
+        $isReloadingNotifications.set(true);
+        try {
+          await loadNotifications({ reload: true });
+        } finally {
+          $isReloadingNotifications.set(false);
+        }
       } else {
-        await loadMentionNotifications({ reload: true });
+        $isReloadingMentionNotifications.set(true);
+        try {
+          await loadMentionNotifications({ reload: true });
+        } finally {
+          $isReloadingMentionNotifications.set(false);
+        }
       }
     }
 
@@ -813,29 +823,19 @@ class NotificationsView extends View {
     });
 
     async function loadNotifications({ reload = false } = {}) {
-      if (reload) $isReloadingNotifications.set(true);
-      try {
-        await dataLayer.requests.loadNotifications({
-          reload,
-          limit: NOTIFICATIONS_PAGE_SIZE,
-        });
-      } finally {
-        if (reload) $isReloadingNotifications.set(false);
-      }
+      await dataLayer.requests.loadNotifications({
+        reload,
+        limit: NOTIFICATIONS_PAGE_SIZE,
+      });
       // can be called async
       notificationService.markNotificationsAsRead();
     }
 
     async function loadMentionNotifications({ reload = false } = {}) {
-      if (reload) $isReloadingMentionNotifications.set(true);
-      try {
-        await dataLayer.requests.loadMentionNotifications({
-          reload,
-          limit: NOTIFICATIONS_PAGE_SIZE,
-        });
-      } finally {
-        if (reload) $isReloadingMentionNotifications.set(false);
-      }
+      await dataLayer.requests.loadMentionNotifications({
+        reload,
+        limit: NOTIFICATIONS_PAGE_SIZE,
+      });
     }
 
     root.addEventListener("page-enter", async () => {
@@ -845,11 +845,8 @@ class NotificationsView extends View {
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      const isBack = e.detail?.isBack ?? false;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
-        window.scrollTo(0, 0);
+      window.scrollTo(0, scrollY);
+      if (scrollY <= 200) {
         await loadNotifications({ reload: true });
       }
     });
