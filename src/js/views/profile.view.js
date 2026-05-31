@@ -18,6 +18,7 @@ import { showToast } from "/js/toasts.js";
 import { tabBarTemplate } from "/js/templates/tabBar.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
+import { linkToList } from "/js/navigation.js";
 import "/js/components/edit-profile-dialog.js";
 
 class ProfileView extends View {
@@ -126,6 +127,8 @@ class ProfileView extends View {
       if (tab === currentTab) {
         if (tab === "feeds") {
           scrollAndReloadActorFeeds();
+        } else if (tab === "lists") {
+          scrollAndReloadActorLists();
         } else {
           scrollAndReloadFeed();
         }
@@ -137,6 +140,10 @@ class ProfileView extends View {
       if (tab === "feeds") {
         if (!dataLayer.derived.$actorFeeds.get(profileDid)) {
           await loadActorFeeds();
+        }
+      } else if (tab === "lists") {
+        if (!dataLayer.derived.$actorLists.get(profileDid)) {
+          await loadActorLists();
         }
       } else {
         const isFeedTab = tab !== "labeler-settings";
@@ -187,6 +194,64 @@ class ProfileView extends View {
             ${actorFeeds.feeds.map((feedGenerator) =>
               feedGeneratorListItemTemplate({ feedGenerator }),
             )}
+            ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
+          </div>
+        </infinite-scroll-container>
+      `;
+    }
+
+    function actorListItemTemplate({ list }) {
+      return html`
+        <div
+          class="feeds-list-item clickable"
+          data-testid="feeds-list-item-list"
+          @click=${() => window.router.go(linkToList(list))}
+        >
+          <div class="feeds-list-item-avatar">
+            <img
+              src=${list.avatar || "/img/list-avatar-fallback.svg"}
+              alt=${list.name}
+              class="feed-avatar"
+            />
+          </div>
+          <div class="feeds-list-item-content">
+            <div class="feeds-list-item-title">${list.name}</div>
+            ${list.creator
+              ? html`<div class="feeds-list-item-creator">
+                  List by @${list.creator.handle}
+                </div>`
+              : ""}
+          </div>
+        </div>
+      `;
+    }
+
+    function actorListsTemplate({ actorLists, onLoadMore }) {
+      if (!actorLists) {
+        return html`<div class="feeds-list">
+          ${Array.from({ length: 5 }).map(() =>
+            feedGeneratorListItemSkeletonTemplate(),
+          )}
+        </div>`;
+      }
+      if (actorLists.lists.length === 0) {
+        return html`<div class="feeds-list">
+          <div class="feed-end-message">No lists.</div>
+        </div>`;
+      }
+      const hasMore = !!actorLists.cursor;
+      return html`
+        <infinite-scroll-container
+          lookahead="2500px"
+          @load-more=${async (event) => {
+            if (hasMore && onLoadMore) {
+              await onLoadMore();
+              event.detail.resume();
+            }
+          }}
+        >
+          <div class="feeds-list">
+            ${actorLists.lists.map((list) => actorListItemTemplate({ list }))}
             ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
           </div>
         </infinite-scroll-container>
@@ -270,6 +335,13 @@ class ProfileView extends View {
           authorFeedsToShow = [
             ...authorFeedsToShow,
             { feedType: "feeds", name: "Feeds" },
+          ];
+        }
+        const listsCount = profile.associated?.lists || 0;
+        if (listsCount > 0) {
+          authorFeedsToShow = [
+            ...authorFeedsToShow,
+            { feedType: "lists", name: "Lists" },
           ];
         }
         let isDefaultLabeler = profile.did === BSKY_LABELER_DID;
@@ -393,6 +465,19 @@ class ProfileView extends View {
                         })}
                       </div>`;
                     }
+                    if (feedInfo.feedType === "lists") {
+                      const actorLists =
+                        dataLayer.derived.$actorLists.get(profileDid);
+                      return html`<div
+                        class="feed-container"
+                        ?hidden=${activeTab !== "lists"}
+                      >
+                        ${actorListsTemplate({
+                          actorLists,
+                          onLoadMore: () => loadActorLists(),
+                        })}
+                      </div>`;
+                    }
                     const feedURI = `${profileDid}-${feedInfo.feedType}`;
                     const authorFeed =
                       dataLayer.derived.$hydratedAuthorFeeds.get(feedURI);
@@ -495,7 +580,11 @@ class ProfileView extends View {
 
     async function loadAuthorFeed({ reload = false } = {}) {
       const activeTab = $activeTab.get();
-      if (activeTab === "labeler-settings" || activeTab === "feeds") {
+      if (
+        activeTab === "labeler-settings" ||
+        activeTab === "feeds" ||
+        activeTab === "lists"
+      ) {
         return;
       }
       await dataLayer.requests.loadNextAuthorFeedPage(profileDid, activeTab, {
@@ -513,6 +602,17 @@ class ProfileView extends View {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
       await loadActorFeeds({ reload: true });
+    }
+
+    async function loadActorLists({ reload = false } = {}) {
+      await dataLayer.requests.loadActorLists(profileDid, { reload });
+    }
+
+    async function scrollAndReloadActorLists() {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: -1, behavior: "smooth" });
+      }
+      await loadActorLists({ reload: true });
     }
 
     async function preloadHiddenFeeds() {

@@ -4317,8 +4317,8 @@ emoji-picker {
 }
 
 .feeds-list-item-avatar .feed-avatar {
-  width: 30px;
-  height: 30px;
+  width: 40px;
+  height: 40px;
   border-radius: var(--list-avatar-border-radius);
 }
 

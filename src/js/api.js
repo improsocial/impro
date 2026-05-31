@@ -327,6 +327,20 @@ export class Api {
     return res.data;
   }
 
+  async getActorLists(did, { limit = 50, cursor = "" } = {}) {
+    const query = { actor: did, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.graph.getLists`, {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async searchFeedGenerators(query, { limit = 15, cursor = "" } = {}) {
     const queryParams = { limit, query };
     if (cursor) {

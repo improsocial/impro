@@ -24,7 +24,7 @@ export function feedGeneratorListItemTemplate({ feedGenerator }) {
         <div class="feeds-list-item-title">${feedGenerator.displayName}</div>
         ${feedGenerator.creator
           ? html`<div class="feeds-list-item-creator">
-              by @${feedGenerator.creator.handle}
+              Feed by @${feedGenerator.creator.handle}
             </div>`
           : ""}
       </div>

@@ -513,6 +513,9 @@ export class Derived extends ReactiveStore {
     this.$actorFeeds = new ComputedMap((did) =>
       this.dataStore.$actorFeeds.get(did),
     );
+    this.$actorLists = new ComputedMap((did) =>
+      this.dataStore.$actorLists.get(did),
+    );
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
     );

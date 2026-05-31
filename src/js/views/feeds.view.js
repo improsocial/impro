@@ -65,6 +65,9 @@ class FeedsView extends View {
                               <div class="feeds-list-item-title">
                                 ${item.data.displayName}
                               </div>
+                              <div class="feeds-list-item-creator">
+                                Feed by @bsky.app
+                              </div>
                             </div>
                           </div>
                         `;
@@ -96,7 +99,7 @@ class FeedsView extends View {
                               </div>
                               ${item.data.creator
                                 ? html`<div class="feeds-list-item-creator">
-                                    by @${item.data.creator.handle}
+                                    List by @${item.data.creator.handle}
                                   </div>`
                                 : ""}
                             </div>

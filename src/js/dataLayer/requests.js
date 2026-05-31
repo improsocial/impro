@@ -1014,6 +1014,32 @@ export class Requests {
     }
   }
 
+  async loadActorLists(did, { reload = false, limit = 50 } = {}) {
+    const existing = this.dataStore.$actorLists.get(did);
+    let cursor = existing ? existing.cursor : "";
+    if (reload) {
+      cursor = "";
+    }
+    if (existing && !existing.cursor && !reload) {
+      return;
+    }
+    const data = await this.api.getActorLists(did, { limit, cursor });
+    for (const list of data.lists) {
+      this.dataStore.$lists.set(list.uri, list);
+    }
+    if (reload || !existing) {
+      this.dataStore.$actorLists.set(did, {
+        lists: data.lists,
+        cursor: data.cursor || null,
+      });
+    } else {
+      this.dataStore.$actorLists.set(did, {
+        lists: [...existing.lists, ...data.lists],
+        cursor: data.cursor || null,
+      });
+    }
+  }
+
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();

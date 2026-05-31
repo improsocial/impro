@@ -7,6 +7,7 @@ import {
   createProfile,
   createFeedGenerator,
   createLabelerView,
+  createList,
 } from "../../factories.js";
 
 const otherUser = createProfile({
@@ -2106,6 +2107,159 @@ test.describe("Profile view", () => {
       await expect(
         tabBar.locator('[data-testid="tab-feeds"]'),
       ).not.toBeVisible();
+    });
+  });
+
+  test.describe("Lists tab", () => {
+    const userWithLists = createProfile({
+      did: "did:plc:listcreator1",
+      handle: "listcreator.bsky.social",
+      displayName: "List Creator",
+      followersCount: 200,
+      followsCount: 50,
+      postsCount: 100,
+      associated: { lists: 2 },
+    });
+
+    const list1 = createList({
+      uri: "at://did:plc:listcreator1/app.bsky.graph.list/friends",
+      name: "Friends",
+      creatorHandle: "listcreator.bsky.social",
+    });
+
+    const list2 = createList({
+      uri: "at://did:plc:listcreator1/app.bsky.graph.list/news",
+      name: "News",
+      creatorHandle: "listcreator.bsky.social",
+    });
+
+    test("should show Lists tab when profile has lists", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1, list2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+    });
+
+    test("should not show Lists tab when profile has no lists", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator('[data-testid="tab-lists"]'),
+      ).not.toBeVisible();
+    });
+
+    test("should display lists when Lists tab is clicked", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1, list2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      await tabBar.locator('[data-testid="tab-lists"]').click();
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toHaveClass(
+        /\bactive\b/,
+      );
+
+      const feedsList = view.locator(
+        ".feed-container:not([hidden]) .feeds-list",
+      );
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(feedsList).toContainText("Friends");
+      await expect(feedsList).toContainText("News");
+      await expect(
+        feedsList.locator(".feeds-list-item-creator").first(),
+      ).toContainText("@listcreator.bsky.social");
+    });
+
+    test("should navigate to list detail when clicking a list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1]);
+      mockServer.addLists([list1]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      await tabBar.locator('[data-testid="tab-lists"]').click();
+
+      const feedsList = view.locator(
+        ".feed-container:not([hidden]) .feeds-list",
+      );
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await feedsList
+        .locator(".feeds-list-item", { hasText: "Friends" })
+        .click();
+
+      await expect(page).toHaveURL(
+        "/profile/listcreator.bsky.social/lists/friends",
+        { timeout: 10000 },
+      );
+    });
+
+    test("should show Lists tab on own profile when user has lists", async ({
+      page,
+    }) => {
+      const currentUserWithLists = {
+        ...userProfile,
+        associated: { lists: 1 },
+      };
+      const userList = createList({
+        uri: `at://${userProfile.did}/app.bsky.graph.list/mylist`,
+        name: "My List",
+        creatorHandle: userProfile.handle,
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(currentUserWithLists);
+      mockServer.addActorLists(userProfile.did, [userList]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
     });
   });
 });

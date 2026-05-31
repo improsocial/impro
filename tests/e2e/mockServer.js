@@ -47,6 +47,7 @@ export class MockServer {
     this.profiles = new Map();
     this.savedFeedUris = [];
     this.actorFeeds = new Map();
+    this.actorLists = new Map();
     this.searchFeedGenerators = [];
     this.searchPosts = [];
     this.searchProfiles = [];
@@ -74,6 +75,11 @@ export class MockServer {
   addActorFeeds(did, feedGenerators) {
     const existing = this.actorFeeds.get(did) || [];
     this.actorFeeds.set(did, [...existing, ...feedGenerators]);
+  }
+
+  addActorLists(did, lists) {
+    const existing = this.actorLists.get(did) || [];
+    this.actorLists.set(did, [...existing, ...lists]);
   }
 
   addFeedGenerators(feedGenerators) {
@@ -1046,6 +1052,31 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ list, items, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.getLists*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor") || "";
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allLists = this.actorLists.get(actor) || [];
+
+      let lists, nextCursor;
+      if (limit) {
+        lists = allLists.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allLists.length ? String(offset + limit) : "";
+      } else {
+        lists = allLists;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ lists, cursor: nextCursor }),
       });
     });
 
