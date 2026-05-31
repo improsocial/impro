@@ -6,7 +6,7 @@ You can try it out here: https://impro.social
 
 ## Differences from main client
 
-Impro aims to have feature parity with the core functionality of the Bluesky web app. (For TBD features, see [planned features](https://github.com/improsocial/impro/issues?q=state%3Aopen%20label%3A%22planned%20feature%22)). However, there are some differences in functionality:
+Impro aims to have feature parity with the core functionality of the Bluesky web app. However, there are some differences in functionality:
 
 ### Less restrictive blocking
 
@@ -37,6 +37,7 @@ Impro uses the following libraries:
 - [lit-html](https://www.npmjs.com/package/lit-html) for declarative rendering
 - [HLS.js](https://github.com/video-dev/hls.js/) for streaming video
 - [emoji-picker-element](https://github.com/nolanlawson/emoji-picker-element) for emoji picker UI
+- [marked](https://github.com/markedjs/marked) and [DOMPurify](https://github.com/cure53/dompurify) for rendering plugin READMEs
 
 The icons are from the [Majesticons](https://github.com/halfmage/majesticons) free icon set (MIT license).
 
@@ -48,7 +49,7 @@ Impro is a single-page app built with [Eleventy](https://www.11ty.dev/). To run 
 npm run start
 ```
 
-If you'd like to test changes to the Oauth configuration, you can start the server with a [Cloudflare Tunnel](https://github.com/cloudflare/cloudflared) (requires `cloudflared` to be installed):
+If you'd like to test changes to the Oauth configuration, you can start the server with a [Cloudflare Tunnel](https://github.com/cloudflare/cloudflared) (requires `cloudflared`):
 
 ```bash
 npm run start:tunnel
