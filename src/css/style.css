@@ -887,12 +887,12 @@ header {
   }
 }
 
-.tab-bar {
+tab-bar {
   display: flex;
   height: 46px;
 }
 
-.tab-bar .tab-bar-button {
+tab-bar .tab-bar-button {
   border: none;
   position: relative;
   background: none;
@@ -908,28 +908,28 @@ header {
   justify-content: center;
 }
 
-.tab-bar .tab-bar-button.active {
+tab-bar .tab-bar-button.active {
   color: var(--text-color);
 }
 
-.tab-bar .tab-bar-button .tab-bar-button-label {
+tab-bar .tab-bar-button .tab-bar-button-label {
   display: inline-block;
   min-width: 3em;
   border-bottom: 3px solid transparent;
   padding-bottom: 12px;
 }
 
-.tab-bar .tab-bar-button.active .tab-bar-button-label {
+tab-bar .tab-bar-button.active .tab-bar-button-label {
   border-bottom-color: var(--tab-bar-button-active-color);
 }
 
 @media (min-width: 800px) {
-  .tab-bar .tab-bar-button:hover {
+  tab-bar .tab-bar-button:hover {
     background-color: var(--post-hover-color);
   }
 }
 
-.tab-bar-horizontal-scroll-container {
+tab-bar:not([full-width]) {
   overflow-x: auto;
   overflow-y: hidden;
   scrollbar-width: none;
@@ -7058,11 +7058,11 @@ toggle-switch {
   cursor: not-allowed;
 }
 
-.tab-bar.tab-bar-full-width {
+tab-bar[full-width] {
   width: 100%;
 }
 
-.tab-bar.tab-bar-full-width .tab-bar-button {
+tab-bar[full-width] .tab-bar-button {
   flex: 1;
 }
 

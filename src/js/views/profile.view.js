@@ -15,7 +15,7 @@ import { getFacetsFromText } from "/js/facetHelpers.js";
 import { pageEffect } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { linkToList } from "/js/navigation.js";
@@ -418,8 +418,8 @@ class ProfileView extends View {
                 </div>`
               : html`
                   <div class="profile-tab-bar" data-scroll-lock-sticky>
-                    ${tabBarTemplate({
-                      tabs: [
+                    <tab-bar
+                      .tabs=${[
                         ...(isLabeler
                           ? [{ value: "labeler-settings", label: "Labels" }]
                           : []),
@@ -427,10 +427,10 @@ class ProfileView extends View {
                           value: feedInfo.feedType,
                           label: feedInfo.name,
                         })),
-                      ],
-                      activeTab,
-                      onTabClick: handleTabClick,
-                    })}
+                      ]}
+                      active-tab=${activeTab}
+                      @tab-click=${(event) => handleTabClick(event.detail)}
+                    ></tab-bar>
                   </div>
                   ${isLabeler
                     ? html`<div

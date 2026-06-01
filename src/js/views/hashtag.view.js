@@ -4,7 +4,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect } from "/js/router.js";
 import { Signal } from "/js/signals.js";
@@ -93,13 +93,14 @@ class HashtagView extends View {
             children: html` <main>
               ${headerTemplate({
                 title: `#${hashtag}`,
-                bottomItemTemplate: () =>
-                  tabBarTemplate({
-                    tabs: sortOptions,
-                    activeTab: currentSort,
-                    onTabClick: handleTabClick,
-                    fullWidth: true,
-                  }),
+                bottomItemTemplate: () => html`
+                  <tab-bar
+                    .tabs=${sortOptions}
+                    active-tab=${currentSort}
+                    full-width
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
+                `,
               })}
               ${sortOptions.map((sort) => {
                 const feed = dataLayer.derived.$hydratedHashtagFeeds.get(

@@ -280,7 +280,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${otherUser.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(3, {
       timeout: 10000,
     });
@@ -305,7 +305,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${otherUser.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
 
     // Posts tab should be active by default
     await expect(tabBar.locator('[data-testid="tab-posts"]')).toHaveClass(
@@ -348,7 +348,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${userProfile.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(4, {
       timeout: 10000,
     });
@@ -579,7 +579,7 @@ test.describe("Profile view", () => {
     await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
       timeout: 10000,
     });
-    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(view.locator("tab-bar")).not.toBeVisible();
     await expect(view.locator(".feed-end-message")).toContainText(
       "Posts hidden",
     );
@@ -1006,7 +1006,7 @@ test.describe("Profile view", () => {
     await expect(view.locator(".feed-end-message")).toContainText(
       "Posts hidden",
     );
-    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(view.locator("tab-bar")).not.toBeVisible();
     await expect(
       view.locator('[data-testid="follow-button"]'),
     ).not.toBeVisible();
@@ -1478,7 +1478,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${labelerUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(
         tabBar.locator('[data-testid="tab-labeler-settings"]'),
       ).toBeVisible({ timeout: 10000 });
@@ -1758,7 +1758,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button")).toHaveCount(2, {
         timeout: 10000,
       });
@@ -1915,7 +1915,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -1931,7 +1931,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
         timeout: 10000,
       });
@@ -1951,7 +1951,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -1982,7 +1982,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2085,7 +2085,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userProfile.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2100,7 +2100,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userProfile.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
         timeout: 10000,
       });
@@ -2142,7 +2142,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithLists.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2158,7 +2158,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
         timeout: 10000,
       });
@@ -2176,7 +2176,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithLists.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2211,7 +2211,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithLists.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2256,7 +2256,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userProfile.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
         timeout: 10000,
       });

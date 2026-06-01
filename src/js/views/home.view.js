@@ -4,7 +4,7 @@ import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
@@ -203,16 +203,14 @@ class HomeView extends View {
                 leftButton: "menu",
                 onClickMenuButton: () => handleMenuClick(),
                 bottomItemTemplate: () => html`
-                  <div class="tab-bar-horizontal-scroll-container">
-                    ${tabBarTemplate({
-                      tabs: pinnedItems.map((item) => ({
-                        value: item.uri,
-                        label: item.displayName,
-                      })),
-                      activeTab: currentFeedUri,
-                      onTabClick: handleTabClick,
-                    })}
-                  </div>
+                  <tab-bar
+                    .tabs=${pinnedItems.map((item) => ({
+                      value: item.uri,
+                      label: item.displayName,
+                    }))}
+                    active-tab=${currentFeedUri}
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
                 `,
               })}
               <main>
@@ -261,33 +259,6 @@ class HomeView extends View {
           if (postSeenObserver) {
             postSeenObserver.register(feedItem, postUri, feedContext);
           }
-        }
-      });
-    });
-
-    let prevTabScrollFeedUri = null;
-
-    // Scroll to active tab when current feed uri changes
-    pageEffect(root, () => {
-      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
-      if (!pinnedItems) return;
-      const currentFeedUri = $currentFeedUri.get();
-      if (currentFeedUri === prevTabScrollFeedUri) return;
-      const behavior = prevTabScrollFeedUri ? "smooth" : "instant";
-      prevTabScrollFeedUri = currentFeedUri;
-      requestAnimationFrame(() => {
-        const container = root.querySelector(
-          ".tab-bar-horizontal-scroll-container",
-        );
-        const activeTabButton = container?.querySelector(
-          ".tab-bar-button.active",
-        );
-        if (activeTabButton) {
-          activeTabButton.scrollIntoView({
-            behavior,
-            inline: "nearest",
-            block: "nearest",
-          });
         }
       });
     });

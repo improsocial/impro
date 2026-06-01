@@ -9,7 +9,7 @@ import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 
 class SearchView extends View {
@@ -378,20 +378,23 @@ class SearchView extends View {
                         `
                       : ""}
                     ${showResults
-                      ? tabBarTemplate({
-                          tabs: [
-                            { value: "profiles", label: "Profiles" },
-                            ...(isAuthenticated
-                              ? [
-                                  { value: "posts", label: "Posts" },
-                                  { value: "feeds", label: "Feeds" },
-                                ]
-                              : []),
-                          ],
-                          activeTab,
-                          onTabClick: handleTabChange,
-                          fullWidth: true,
-                        })
+                      ? html`
+                          <tab-bar
+                            .tabs=${[
+                              { value: "profiles", label: "Profiles" },
+                              ...(isAuthenticated
+                                ? [
+                                    { value: "posts", label: "Posts" },
+                                    { value: "feeds", label: "Feeds" },
+                                  ]
+                                : []),
+                            ]}
+                            active-tab=${activeTab}
+                            full-width
+                            @tab-click=${(event) =>
+                              handleTabChange(event.detail)}
+                          ></tab-bar>
+                        `
                       : ""}
                   </div>
                 `,

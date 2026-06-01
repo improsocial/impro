@@ -7,7 +7,7 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { pageEffect } from "/js/router.js";
@@ -196,15 +196,15 @@ class ListDetailView extends View {
                         class="list-detail-tab-bar"
                         data-scroll-lock-sticky
                       >
-                        ${tabBarTemplate({
-                          tabs: [
+                        <tab-bar
+                          .tabs=${[
                             { value: "posts", label: "Posts" },
                             { value: "people", label: "People" },
-                          ],
-                          activeTab,
-                          onTabClick: (value) => $activeTab.set(value),
-                          fullWidth: true,
-                        })}
+                          ]}
+                          active-tab=${activeTab}
+                          full-width
+                          @tab-click=${(event) => $activeTab.set(event.detail)}
+                        ></tab-bar>
                       </div>`
                     : ""}
                   <div

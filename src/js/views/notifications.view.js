@@ -26,7 +26,7 @@ import { getTimestampFromRkey } from "/js/atproto.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { verifiedCheckIconTemplate } from "/js/templates/icons/verifiedCheckIcon.template.js";
 import { contactsIconTemplate } from "/js/templates/icons/contactsIcon.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
 
@@ -762,16 +762,17 @@ class NotificationsView extends View {
                 showLoadingSpinner: isLoading,
                 leftButton: "menu",
                 onClickMenuButton: handleMenuClick,
-                bottomItemTemplate: () =>
-                  tabBarTemplate({
-                    tabs: [
+                bottomItemTemplate: () => html`
+                  <tab-bar
+                    .tabs=${[
                       { value: "all", label: "All" },
                       { value: "mentions", label: "Mentions" },
-                    ],
-                    activeTab,
-                    onTabClick: handleTabClick,
-                    fullWidth: true,
-                  }),
+                    ]}
+                    active-tab=${activeTab}
+                    full-width
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
+                `,
               })}
               <main>
                 <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
