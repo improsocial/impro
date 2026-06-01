@@ -304,9 +304,10 @@ video {
 }
 
 .page.page-hidden {
-  visibility: hidden;
+  display: none;
+  /* visibility: hidden;
   position: fixed;
-  transform: translateX(-200vw);
+  transform: translateX(-200vw); */
 }
 
 .page.page-visible {
