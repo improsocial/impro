@@ -966,6 +966,9 @@ export class Requests {
     for (const feedGenerator of feedGenerators) {
       this.dataStore.$feedGenerators.set(feedGenerator.uri, feedGenerator);
     }
+    for (const listView of listViews) {
+      this.dataStore.$lists.set(listView.uri, listView);
+    }
     const feedGeneratorMap = new Map(feedGenerators.map((fg) => [fg.uri, fg]));
     const listViewMap = new Map(listViews.map((lv) => [lv.uri, lv]));
 

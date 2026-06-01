@@ -81,6 +81,7 @@ class ListDetailView extends View {
           ${mainLayoutTemplate({
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
+            showSidebarOverlay: false,
             numNotifications,
             numChatNotifications,
             currentUser,
