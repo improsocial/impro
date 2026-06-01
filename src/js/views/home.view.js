@@ -265,15 +265,16 @@ class HomeView extends View {
       });
     });
 
-    let isFirstTabScroll = true;
+    let prevTabScrollFeedUri = null;
 
     // Scroll to active tab when current feed uri changes
     pageEffect(root, () => {
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
       if (!pinnedItems) return;
-      $currentFeedUri.get();
-      const behavior = isFirstTabScroll ? "instant" : "smooth";
-      isFirstTabScroll = false;
+      const currentFeedUri = $currentFeedUri.get();
+      if (currentFeedUri === prevTabScrollFeedUri) return;
+      const behavior = prevTabScrollFeedUri ? "smooth" : "instant";
+      prevTabScrollFeedUri = currentFeedUri;
       requestAnimationFrame(() => {
         const container = root.querySelector(
           ".tab-bar-horizontal-scroll-container",
@@ -284,6 +285,7 @@ class HomeView extends View {
         if (activeTabButton) {
           activeTabButton.scrollIntoView({
             behavior,
+            inline: "nearest",
             block: "nearest",
           });
         }

@@ -574,19 +574,14 @@ class PostThreadView extends View {
           }
         } else {
           // First appearance: snap to top
-          scrollToLargePost();
+          const headerHeight =
+            root.querySelector("header")?.getBoundingClientRect().height ?? 0;
+          const largePostTop = largePost.getBoundingClientRect().top;
+          const offset = largePostTop - headerHeight;
+          window.scrollBy(0, offset);
         }
       }
     });
-
-    function scrollToLargePost() {
-      const largePost = root.querySelector(".large-post");
-      if (!largePost) return;
-      const headerHeight =
-        root.querySelector("header")?.getBoundingClientRect().height ?? 0;
-      const offset = largePost.getBoundingClientRect().top - headerHeight;
-      window.scrollBy(0, offset);
-    }
 
     root.addEventListener("page-enter", async () => {
       let requests = [];
