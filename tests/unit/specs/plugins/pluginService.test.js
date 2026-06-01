@@ -468,7 +468,7 @@ t.describe("loadEnabledPlugins", (it) => {
     );
   });
 
-  it("disables plugins reported as errored by the bridge", async () => {
+  it("keeps plugins enabled when the bridge reports they errored", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
@@ -481,7 +481,7 @@ t.describe("loadEnabledPlugins", (it) => {
     await service.loadEnabledPlugins();
     assertEquals(
       state.installedPlugins.find((entry) => entry.id === "b").enabled,
-      false,
+      true,
     );
     assertEquals(
       state.installedPlugins.find((entry) => entry.id === "a").enabled,

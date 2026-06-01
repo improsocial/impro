@@ -333,12 +333,6 @@ export class PluginService extends ReactiveStore {
       showToast(`Failed to load plugin(s): ${failedPluginIds.join(", ")}`, {
         style: "error",
       });
-      // Disable plugins that failed to load
-      await Promise.all(
-        failedPluginIds.map((pluginId) =>
-          this.prefManager.setPluginDisabled(pluginId),
-        ),
-      );
     }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
