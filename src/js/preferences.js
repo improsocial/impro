@@ -574,9 +574,7 @@ export class Preferences {
   static getLabelerDidsFromPreferences(obj) {
     const labelerPreference = Preferences.getLabelerPreference(obj);
     const labelers = labelerPreference ? labelerPreference.labelers : [];
-    return labelers
-      .map((labeler) => labeler.did)
-      .concat(["did:plc:ar7c4by46qjdydhdevvrndac"]); // default
+    return labelers.map((labeler) => labeler.did).concat([BSKY_LABELER_DID]);
   }
 
   static createLoggedOutPreferences() {
