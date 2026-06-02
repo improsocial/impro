@@ -4,23 +4,13 @@ Impro is a Bluesky web client written in HTML, CSS, and JavaScript.
 
 You can try it out here: https://impro.social
 
-## Differences from main client
+## What makes Impro great?
 
-Impro aims to have feature parity with the core functionality of the Bluesky web app. However, there are some differences in functionality:
+Impro is:
 
-### Less restrictive blocking
-
-Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
-
-### Nested quotes
-
-Quote posts are shown nested up to two levels deep, versus the default of one level.
-
-### Theming
-
-Impro supports changing the "highlight color" of UI elements via the Settings menu.
-
-### Coming soon: shareable themes and plugins!
+- **Web-first**: Impro is built primarily for the web, with no heavy cross-platform frameworks or libraries. This enables fast and reliable performance on desktop and mobile browsers.
+- **Familiar by default, extensible by design:** Out of the box, Impro offers the same feature set as the main Bluesky client. If you want additional functionality, you can use [Community Plugins](/plugins) to customize your experience.
+- **Better blocking behavior**: Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
 
 ## Issues and feature requests
 
