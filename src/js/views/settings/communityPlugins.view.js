@@ -4,7 +4,7 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsCommunityPluginsView extends View {
   async render({
@@ -19,20 +19,21 @@ class SettingsCommunityPluginsView extends View {
   }) {
     await auth.requireAuth();
 
-    const $error = new Signal.State(null);
+    const state = new ReactiveStore("settingsCommunityPluginsView");
+    state.$error = new Signal.State(null);
 
     async function loadListings() {
-      $error.set(null);
+      state.$error.set(null);
       try {
         await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
-        $error.set(error.message ?? String(error));
+        state.$error.set(error.message ?? String(error));
       }
     }
 
     pageEffect(root, () => {
-      const error = $error.get();
+      const error = state.$error.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const listings = pluginService.$registryListings.get();
       const numNotifications =

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { wait } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
@@ -62,8 +62,9 @@ class ProfileView extends View {
       },
     ];
 
-    const $activeTab = new Signal.State("posts");
-    const $richTextProfileDescription = new Signal.State(null);
+    const state = new ReactiveStore("profileView");
+    state.$activeTab = new Signal.State("posts");
+    state.$richTextProfileDescription = new Signal.State(null);
 
     const { handleOrDid } = params;
     let profileDid = null;
@@ -123,7 +124,7 @@ class ProfileView extends View {
     }
 
     async function handleTabClick(tab) {
-      const currentTab = $activeTab.get();
+      const currentTab = state.$activeTab.get();
       if (tab === currentTab) {
         if (tab === "feeds") {
           scrollAndReloadActorFeeds();
@@ -135,7 +136,7 @@ class ProfileView extends View {
         return;
       }
       // switch tab
-      $activeTab.set(tab);
+      state.$activeTab.set(tab);
       // Load feed if needed
       if (tab === "feeds") {
         if (!dataLayer.derived.$actorFeeds.get(profileDid)) {
@@ -525,8 +526,9 @@ class ProfileView extends View {
         : null;
       // If labeler, require labeler info to be loaded
       const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
-      const activeTab = $activeTab.get();
-      const richTextProfileDescription = $richTextProfileDescription.get();
+      const activeTab = state.$activeTab.get();
+      const richTextProfileDescription =
+        state.$richTextProfileDescription.get();
       render(
         html`<div id="profile-view">
           ${mainLayoutTemplate({
@@ -579,7 +581,7 @@ class ProfileView extends View {
     });
 
     async function loadAuthorFeed({ reload = false } = {}) {
-      const activeTab = $activeTab.get();
+      const activeTab = state.$activeTab.get();
       if (
         activeTab === "labeler-settings" ||
         activeTab === "feeds" ||
@@ -616,7 +618,7 @@ class ProfileView extends View {
     }
 
     async function preloadHiddenFeeds() {
-      const activeTab = $activeTab.get();
+      const activeTab = state.$activeTab.get();
       const feedsToPreload = defaultAuthorFeeds.filter(
         (feed) => feed.feedType !== activeTab,
       );
@@ -641,7 +643,7 @@ class ProfileView extends View {
         profile.description,
         identityResolver,
       );
-      $richTextProfileDescription.set({
+      state.$richTextProfileDescription.set({
         text: profile.description,
         facets,
       });
@@ -662,7 +664,7 @@ class ProfileView extends View {
       // Set active tab and load labeler info if this is a labeler profile
       const isLabeler = profile && isLabelerProfile(profile);
       if (isLabeler) {
-        $activeTab.set("labeler-settings");
+        state.$activeTab.set("labeler-settings");
         dataLayer.requests.loadLabelerInfo(profile.did);
       }
 

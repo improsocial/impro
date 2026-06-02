@@ -9,7 +9,7 @@ import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class HomeView extends View {
   async render({
@@ -32,21 +32,24 @@ class HomeView extends View {
       ? localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY)
       : null;
 
-    const $currentFeedUri = new Signal.State(
+    const state = new ReactiveStore("homeView");
+    state.$currentFeedUri = new Signal.State(
       storedFeedUri ? JSON.parse(storedFeedUri) : null,
     );
 
     function resetToDefaultFeed() {
-      $currentFeedUri.set(isAuthenticated ? "following" : DISCOVER_FEED_URI);
+      state.$currentFeedUri.set(
+        isAuthenticated ? "following" : DISCOVER_FEED_URI,
+      );
     }
 
-    if (!$currentFeedUri.get()) {
+    if (!state.$currentFeedUri.get()) {
       resetToDefaultFeed();
     }
 
     if (isAuthenticated) {
       pageEffect(root, () => {
-        const currentFeedUri = $currentFeedUri.get();
+        const currentFeedUri = state.$currentFeedUri.get();
         if (currentFeedUri) {
           localStorage.setItem(
             CURRENT_FEED_URI_STORAGE_KEY,
@@ -133,7 +136,7 @@ class HomeView extends View {
     }
 
     async function handleTabClick(feedUri) {
-      let currentFeedUri = $currentFeedUri.get();
+      let currentFeedUri = state.$currentFeedUri.get();
       if (feedUri === currentFeedUri) {
         scrollAndReloadFeed();
         return;
@@ -141,7 +144,7 @@ class HomeView extends View {
       // Save scroll state
       feedScrollState.set(currentFeedUri, window.scrollY);
       // Switch feed
-      $currentFeedUri.set(feedUri);
+      state.$currentFeedUri.set(feedUri);
       // Scroll to saved position for new feed
       const savedScrollY = feedScrollState.get(feedUri) ?? 0;
       requestAnimationFrame(() => {
@@ -183,7 +186,7 @@ class HomeView extends View {
         chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
-      const currentFeedUri = $currentFeedUri.get();
+      const currentFeedUri = state.$currentFeedUri.get();
       render(
         html`<div id="home-view">
           ${mainLayoutTemplate({
@@ -264,7 +267,7 @@ class HomeView extends View {
     });
 
     async function loadCurrentFeed({ reload = false } = {}) {
-      const currentFeedUri = $currentFeedUri.get();
+      const currentFeedUri = state.$currentFeedUri.get();
       await dataLayer.requests.loadNextFeedPage(currentFeedUri, {
         reload,
         limit: FEED_PAGE_SIZE + 1,
@@ -272,7 +275,7 @@ class HomeView extends View {
     }
 
     async function preloadHiddenFeeds(pinnedItems) {
-      const currentFeedUri = $currentFeedUri.get();
+      const currentFeedUri = state.$currentFeedUri.get();
       const itemsToPreload = pinnedItems
         .filter((item) => item.uri !== currentFeedUri)
         .slice(0, 5); // Up to 5 feeds
@@ -285,7 +288,7 @@ class HomeView extends View {
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
-      const currentFeedUri = $currentFeedUri.get();
+      const currentFeedUri = state.$currentFeedUri.get();
       await dataLayer.declarative.ensurePinnedItems().then((pinnedItems) => {
         if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
           resetToDefaultFeed();

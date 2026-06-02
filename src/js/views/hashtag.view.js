@@ -7,7 +7,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect } from "/js/router.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class HashtagView extends View {
   async render({
@@ -33,7 +33,8 @@ class HashtagView extends View {
       { value: "latest", label: "Latest" },
     ];
 
-    const $currentSort = new Signal.State("top");
+    const state = new ReactiveStore("hashtagView");
+    state.$currentSort = new Signal.State("top");
 
     const { postInteractionHandler } = interactionHandlers;
 
@@ -47,7 +48,7 @@ class HashtagView extends View {
     }
 
     async function handleTabClick(sortValue) {
-      const currentSort = $currentSort.get();
+      const currentSort = state.$currentSort.get();
       if (sortValue === currentSort) {
         scrollAndReloadFeed();
         return;
@@ -55,7 +56,7 @@ class HashtagView extends View {
       // Save scroll state
       feedScrollState.set(currentSort, window.scrollY);
       // Switch sort
-      $currentSort.set(sortValue);
+      state.$currentSort.set(sortValue);
       // Scroll to saved scroll state
       if (feedScrollState.has(sortValue)) {
         window.scrollTo(0, feedScrollState.get(sortValue));
@@ -76,7 +77,7 @@ class HashtagView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
-      const currentSort = $currentSort.get();
+      const currentSort = state.$currentSort.get();
       render(
         html`<div id="hashtag-view">
           ${mainLayoutTemplate({
@@ -129,10 +130,14 @@ class HashtagView extends View {
     });
 
     async function loadCurrentFeed({ reload = false } = {}) {
-      await dataLayer.requests.loadHashtagFeed(hashtag, $currentSort.get(), {
-        reload,
-        limit: HASHTAG_FEED_PAGE_SIZE,
-      });
+      await dataLayer.requests.loadHashtagFeed(
+        hashtag,
+        state.$currentSort.get(),
+        {
+          reload,
+          limit: HASHTAG_FEED_PAGE_SIZE,
+        },
+      );
     }
 
     root.addEventListener("page-enter", async () => {

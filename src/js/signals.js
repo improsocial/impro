@@ -433,7 +433,7 @@ export class ComputedMap {
 }
 
 export class ReactiveStore extends EventEmitter {
-  constructor(id) {
+  constructor(id = "ReactiveStore") {
     super();
     return new Proxy(this, {
       set(target, prop, value) {

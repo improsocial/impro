@@ -25,7 +25,7 @@ import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
 import { linkToPostFromUri } from "/js/navigation.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class PostThreadView extends View {
   async render({
@@ -496,7 +496,9 @@ class PostThreadView extends View {
       </div>`;
     }
 
-    const $postThread = new Signal.Computed(() => {
+    const state = new ReactiveStore("postThreadView");
+
+    state.$postThread = new Signal.Computed(() => {
       const hydratedPostThread =
         dataLayer.derived.$hydratedPostThreads.get(postUri);
       if (hydratedPostThread) {
@@ -516,7 +518,7 @@ class PostThreadView extends View {
     });
 
     pageEffect(root, () => {
-      const postThread = $postThread.get();
+      const postThread = state.$postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -526,11 +528,6 @@ class PostThreadView extends View {
         dataLayer.requests.statusStore.$statuses.get(
           "loadPostThread-" + postUri,
         );
-
-      // Capture the large post's screen position before re-rendering so we
-      // can re-pin it if the render shifts it (e.g. parents loading above).
-      const prevLargePostTop =
-        root.querySelector(".large-post")?.getBoundingClientRect().top ?? null;
 
       render(
         html`<div id="post-detail-view">
@@ -561,34 +558,36 @@ class PostThreadView extends View {
         </div>`,
         root,
       );
+    });
 
-      // Post pinning
-      const largePost = root.querySelector(".large-post");
-      if (largePost) {
-        if (prevLargePostTop !== null) {
-          // Re-pin: cancel out any shift caused by content above
-          const delta =
-            largePost.getBoundingClientRect().top - prevLargePostTop;
-          if (delta !== 0) {
-            window.scrollBy(0, delta);
+    let hasScrolledToLargePost = false;
+
+    // Large post pinning
+    pageEffect(root, () => {
+      const postThread = state.$postThread.get();
+      if (postThread && !postThread.__isPrefill && !hasScrolledToLargePost) {
+        hasScrolledToLargePost = true;
+        requestAnimationFrame(() => {
+          const largePost = root.querySelector(".large-post");
+          const header = root.querySelector("header");
+          if (!largePost || !header) {
+            console.error("Couldn't find large post or header for pinning");
+            return;
           }
-        } else {
-          // First appearance: snap to top
-          const headerHeight =
-            root.querySelector("header")?.getBoundingClientRect().height ?? 0;
+          const headerHeight = header.getBoundingClientRect().height;
           const largePostTop = largePost.getBoundingClientRect().top;
           const offset = largePostTop - headerHeight;
           window.scrollBy(0, offset);
-        }
+        });
       }
     });
 
     root.addEventListener("page-enter", async () => {
       let requests = [];
       if (isAuthenticated) {
-        requests.push(dataLayer.requests.loadCurrentUser());
+        requests.push(dataLayer.declarative.ensureCurrentUser());
       }
-      requests.push(dataLayer.requests.loadPostThread(postUri));
+      requests.push(dataLayer.declarative.ensurePostThread(postUri));
       await Promise.all(requests);
     });
 

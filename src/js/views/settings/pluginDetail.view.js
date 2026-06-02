@@ -4,7 +4,7 @@ import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsPluginDetailView extends View {
   async render({
@@ -22,32 +22,33 @@ class SettingsPluginDetailView extends View {
 
     const { pluginId } = params;
 
-    const $pluginDetails = new Signal.Computed(() => {
+    const state = new ReactiveStore("settingsPluginDetailView");
+    state.$pluginDetails = new Signal.Computed(() => {
       const installed = pluginService.$installedPlugins
         .get()
         .find((plugin) => plugin.id === pluginId);
       return installed ?? null;
     });
 
-    const $settingTab = new Signal.Computed(() => {
+    state.$settingTab = new Signal.Computed(() => {
       const tab = pluginService.$settingTabs.get(pluginId);
       return tab ?? null;
     });
 
-    const $tabContent = new Signal.State(null);
-    const $tabError = new Signal.State(null);
+    state.$tabContent = new Signal.State(null);
+    state.$tabError = new Signal.State(null);
 
     const tabRoot = pluginService.getRenderer(pluginId).createRoot();
 
     async function loadTab() {
-      const tab = $settingTab.get();
+      const tab = state.$settingTab.get();
       if (!tab) return;
-      $tabError.set(null);
+      state.$tabError.set(null);
       try {
         const content = await tab.display();
-        $tabContent.set(content);
+        state.$tabContent.set(content);
       } catch (error) {
-        $tabError.set(error.message ?? String(error));
+        state.$tabError.set(error.message ?? String(error));
       }
     }
 
@@ -60,7 +61,7 @@ class SettingsPluginDetailView extends View {
     // Load the tab's content on register
     let isLoaded = false;
     pageEffect(root, () => {
-      const tab = $settingTab.get();
+      const tab = state.$settingTab.get();
       if (tab && !isLoaded) {
         isLoaded = true;
         queueMicrotask(() => loadTab());
@@ -73,10 +74,10 @@ class SettingsPluginDetailView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const pluginDetails = $pluginDetails.get();
-      const settingTab = $settingTab.get();
-      const tabContent = $tabContent.get();
-      const tabError = $tabError.get();
+      const pluginDetails = state.$pluginDetails.get();
+      const settingTab = state.$settingTab.get();
+      const tabContent = state.$tabContent.get();
+      const tabError = state.$tabError.get();
       render(
         html`<div id="settings-plugin-detail-view">
           ${mainLayoutTemplate({

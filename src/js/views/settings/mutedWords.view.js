@@ -6,7 +6,7 @@ import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { confirm } from "/js/modals.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-label.js";
@@ -24,11 +24,12 @@ class SettingsMutedWordsView extends View {
   }) {
     await auth.requireAuth();
 
-    const $error = new Signal.State("");
-    const $hasValue = new Signal.State(false);
-    const $isSaving = new Signal.State(false);
-    const $removingWordId = new Signal.State(null);
-    const $renewingWordId = new Signal.State(null);
+    const state = new ReactiveStore("settingsMutedWordsView");
+    state.$error = new Signal.State("");
+    state.$hasValue = new Signal.State(false);
+    state.$isSaving = new Signal.State(false);
+    state.$removingWordId = new Signal.State(null);
+    state.$renewingWordId = new Signal.State(null);
 
     function sanitizeMutedWordValue(value) {
       return value
@@ -57,7 +58,7 @@ class SettingsMutedWordsView extends View {
 
       const sanitized = sanitizeMutedWordValue(formData.get("word"));
       if (!sanitized) {
-        $error.set("Please enter a valid word, tag, or phrase to mute");
+        state.$error.set("Please enter a valid word, tag, or phrase to mute");
         return;
       }
 
@@ -78,8 +79,8 @@ class SettingsMutedWordsView extends View {
         expiresAt = new Date(now + 30 * oneDayMs).toISOString();
       }
 
-      $isSaving.set(true);
-      $error.set("");
+      state.$isSaving.set(true);
+      state.$error.set("");
 
       try {
         await dataLayer.mutations.addMutedWord({
@@ -90,9 +91,9 @@ class SettingsMutedWordsView extends View {
         });
         resetForm();
       } catch (err) {
-        $error.set(err.message || "Failed to add muted word");
+        state.$error.set(err.message || "Failed to add muted word");
       } finally {
-        $isSaving.set(false);
+        state.$isSaving.set(false);
       }
     }
 
@@ -111,13 +112,13 @@ class SettingsMutedWordsView extends View {
       );
       if (!confirmed) return;
 
-      $removingWordId.set(word.id);
+      state.$removingWordId.set(word.id);
       try {
         await dataLayer.mutations.removeMutedWord(word.id);
       } catch (err) {
-        $error.set(err.message || "Failed to remove muted word");
+        state.$error.set(err.message || "Failed to remove muted word");
       } finally {
-        $removingWordId.set(null);
+        state.$removingWordId.set(null);
       }
     }
 
@@ -133,13 +134,13 @@ class SettingsMutedWordsView extends View {
         expiresAt = new Date(now + 30 * oneDayMs).toISOString();
       }
 
-      $renewingWordId.set(word.id);
+      state.$renewingWordId.set(word.id);
       try {
         await dataLayer.mutations.updateMutedWord(word.id, { expiresAt });
       } catch (err) {
-        $error.set(err.message || "Failed to renew muted word");
+        state.$error.set(err.message || "Failed to renew muted word");
       } finally {
-        $renewingWordId.set(null);
+        state.$renewingWordId.set(null);
       }
     }
 
@@ -277,10 +278,10 @@ class SettingsMutedWordsView extends View {
                     autocorrect="off"
                     placeholder="Enter a word or tag"
                     @input=${(e) => {
-                      if ($error.get()) {
-                        $error.set("");
+                      if (state.$error.get()) {
+                        state.$error.set("");
                       }
-                      $hasValue.set(!!e.target.value.trim());
+                      state.$hasValue.set(!!e.target.value.trim());
                     }}
                     autocomplete="off"
                     autocorrect="off"
@@ -348,19 +349,19 @@ class SettingsMutedWordsView extends View {
                     class="settings-button"
                     data-testid="muted-word-add"
                     type="submit"
-                    ?disabled=${$isSaving.get() || !$hasValue.get()}
+                    ?disabled=${state.$isSaving.get() || !state.$hasValue.get()}
                   >
-                    ${$isSaving.get()
+                    ${state.$isSaving.get()
                       ? html`<div class="loading-spinner"></div>`
                       : html`<span>Add</span
                           ><span class="button-plus-icon">+</span>`}
                   </button>
-                  ${$error.get()
+                  ${state.$error.get()
                     ? html`<div
                         class="muted-word-error"
                         data-testid="muted-word-error"
                       >
-                        ${$error.get()}
+                        ${state.$error.get()}
                       </div>`
                     : ""}
                 </form>
@@ -374,8 +375,8 @@ class SettingsMutedWordsView extends View {
                       ${mutedWords.map((word) =>
                         mutedWordItemTemplate({
                           word,
-                          isRemoving: $removingWordId.get() === word.id,
-                          isRenewing: $renewingWordId.get() === word.id,
+                          isRemoving: state.$removingWordId.get() === word.id,
+                          isRenewing: state.$renewingWordId.get() === word.id,
                           onRemove: handleRemove,
                           onRenew: handleRenew,
                         }),

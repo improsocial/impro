@@ -13,7 +13,7 @@ import {
 } from "/js/appViewConfig.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { showToast } from "/js/toasts.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
@@ -32,38 +32,40 @@ class SettingsAdvancedView extends View {
     const storedConfig = getAppViewConfig();
     const isStoredCustom = storedConfig.id === CUSTOM_APP_VIEW_CONFIG_ID;
 
-    const $loading = new Signal.State(false);
-    const $errorMessage = new Signal.State(null);
-    const $appViewSelection = new Signal.State(storedConfig.id);
-    const $customAppViewServiceDid = new Signal.State(
+    const state = new ReactiveStore("settingsAdvancedView");
+    state.$loading = new Signal.State(false);
+    state.$errorMessage = new Signal.State(null);
+    state.$appViewSelection = new Signal.State(storedConfig.id);
+    state.$customAppViewServiceDid = new Signal.State(
       isStoredCustom ? storedConfig.appViewServiceDid : "",
     );
-    const $customChatServiceDid = new Signal.State(
+    state.$customChatServiceDid = new Signal.State(
       isStoredCustom ? storedConfig.chatServiceDid : "",
     );
-    const $pluginInstallLoading = new Signal.State(false);
+    state.$pluginInstallLoading = new Signal.State(false);
 
     function resolveSelectedAppViewConfig() {
-      if ($appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
+      if (state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
         return {
           id: CUSTOM_APP_VIEW_CONFIG_ID,
-          appViewServiceDid: $customAppViewServiceDid.get().trim(),
-          chatServiceDid: $customChatServiceDid.get().trim(),
+          appViewServiceDid: state.$customAppViewServiceDid.get().trim(),
+          chatServiceDid: state.$customChatServiceDid.get().trim(),
         };
       }
       return (
         DEFAULT_APP_VIEW_CONFIGS.find(
-          (config) => config.id === $appViewSelection.get(),
+          (config) => config.id === state.$appViewSelection.get(),
         ) ?? AppViewConfig.BLUESKY
       );
     }
 
     function isDirty() {
-      if ($appViewSelection.get() !== storedConfig.id) return true;
-      if ($appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
+      if (state.$appViewSelection.get() !== storedConfig.id) return true;
+      if (state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID) {
         return (
-          $customAppViewServiceDid.get() !== storedConfig.appViewServiceDid ||
-          $customChatServiceDid.get() !== storedConfig.chatServiceDid
+          state.$customAppViewServiceDid.get() !==
+            storedConfig.appViewServiceDid ||
+          state.$customChatServiceDid.get() !== storedConfig.chatServiceDid
         );
       }
       return false;
@@ -73,25 +75,25 @@ class SettingsAdvancedView extends View {
       e.preventDefault();
       const selectedConfig = resolveSelectedAppViewConfig();
       if (!isValidAppViewConfig(selectedConfig)) {
-        $errorMessage.set("Invalid App View configuration");
+        state.$errorMessage.set("Invalid App View configuration");
         return;
       }
-      $loading.set(true);
-      $errorMessage.set(null);
+      state.$loading.set(true);
+      state.$errorMessage.set(null);
       setAppViewConfig(selectedConfig);
       window.location.reload();
     }
 
     function handleAppViewChange(e) {
-      $appViewSelection.set(e.target.value);
+      state.$appViewSelection.set(e.target.value);
     }
 
     function handleCustomAppViewDidInput(e) {
-      $customAppViewServiceDid.set(e.target.value);
+      state.$customAppViewServiceDid.set(e.target.value);
     }
 
     function handleCustomChatDidInput(e) {
-      $customChatServiceDid.set(e.target.value);
+      state.$customChatServiceDid.set(e.target.value);
     }
 
     async function handleInstallPlugin(e) {
@@ -99,7 +101,7 @@ class SettingsAdvancedView extends View {
       const input = e.target.elements.pluginUrl;
       const url = input.value.trim();
       if (!url) return;
-      $pluginInstallLoading.set(true);
+      state.$pluginInstallLoading.set(true);
       try {
         const result = await pluginService.installUnregisteredPlugin(url);
         input.value = "";
@@ -113,7 +115,7 @@ class SettingsAdvancedView extends View {
           });
         }
       } finally {
-        $pluginInstallLoading.set(false);
+        state.$pluginInstallLoading.set(false);
       }
     }
 
@@ -123,7 +125,8 @@ class SettingsAdvancedView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const isCustom = $appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
+      const isCustom =
+        state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
       render(
         html`<div id="settings-advanced-view">
           ${mainLayoutTemplate({
@@ -163,7 +166,7 @@ class SettingsAdvancedView extends View {
                             (defaultConfig) => html`
                               <option
                                 value=${defaultConfig.id}
-                                ?selected=${$appViewSelection.get() ===
+                                ?selected=${state.$appViewSelection.get() ===
                                 defaultConfig.id}
                               >
                                 ${defaultConfig.displayName}
@@ -172,7 +175,7 @@ class SettingsAdvancedView extends View {
                           )}
                           <option
                             value=${CUSTOM_APP_VIEW_CONFIG_ID}
-                            ?selected=${$appViewSelection.get() ===
+                            ?selected=${state.$appViewSelection.get() ===
                             CUSTOM_APP_VIEW_CONFIG_ID}
                           >
                             Custom
@@ -202,7 +205,7 @@ class SettingsAdvancedView extends View {
                               autocorrect="off"
                               autocapitalize="off"
                               spellcheck="false"
-                              .value=${$customAppViewServiceDid.get()}
+                              .value=${state.$customAppViewServiceDid.get()}
                               @input=${(e) => handleCustomAppViewDidInput(e)}
                             />
                           </div>
@@ -217,7 +220,7 @@ class SettingsAdvancedView extends View {
                               autocorrect="off"
                               autocapitalize="off"
                               spellcheck="false"
-                              .value=${$customChatServiceDid.get()}
+                              .value=${state.$customChatServiceDid.get()}
                               @input=${(e) => handleCustomChatDidInput(e)}
                             />
                           </div>
@@ -228,18 +231,18 @@ class SettingsAdvancedView extends View {
                       <button
                         type="submit"
                         class="settings-button"
-                        ?disabled=${$loading.get() || !isDirty()}
+                        ?disabled=${state.$loading.get() || !isDirty()}
                       >
                         Save and reload
-                        ${$loading.get()
+                        ${state.$loading.get()
                           ? html`<div class="loading-spinner"></div>`
                           : ""}
                       </button>
                     </div>
                     <div class="error-message-container">
-                      ${$errorMessage.get()
+                      ${state.$errorMessage.get()
                         ? html`<div class="error-message">
-                            ${$errorMessage.get()}
+                            ${state.$errorMessage.get()}
                           </div>`
                         : ""}
                     </div>
@@ -280,9 +283,9 @@ class SettingsAdvancedView extends View {
                         type="submit"
                         class="settings-button"
                         data-testid="install-unregistered-plugin-submit"
-                        ?disabled=${$pluginInstallLoading.get()}
+                        ?disabled=${state.$pluginInstallLoading.get()}
                       >
-                        ${$pluginInstallLoading.get()
+                        ${state.$pluginInstallLoading.get()
                           ? html`Installing
                               <div class="loading-spinner"></div>`
                           : "Install"}

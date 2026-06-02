@@ -4,7 +4,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { classnames, debounce } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect } from "/js/router.js";
@@ -26,13 +26,14 @@ class SearchView extends View {
       interactionHandlers,
     },
   }) {
-    const $activeTab = new Signal.State("profiles");
-    const $searchQuery = new Signal.State("");
+    const state = new ReactiveStore("searchView");
+    state.$activeTab = new Signal.State("profiles");
+    state.$searchQuery = new Signal.State("");
 
     const tabScrollState = new Map();
 
     async function loadSearchResults() {
-      const searchQuery = $searchQuery.get();
+      const searchQuery = state.$searchQuery.get();
       const normalizedQuery = searchQuery.trim();
 
       // Update URL query parameter
@@ -75,16 +76,19 @@ class SearchView extends View {
     async function loadMoreProfiles() {
       const cursor = dataLayer.derived.$profileSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadProfileSearch($searchQuery.get().trim(), {
-        limit: 25,
-        cursor,
-      });
+      await dataLayer.requests.loadProfileSearch(
+        state.$searchQuery.get().trim(),
+        {
+          limit: 25,
+          cursor,
+        },
+      );
     }
 
     async function loadMorePosts() {
       const cursor = dataLayer.derived.$postSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadPostSearch($searchQuery.get().trim(), {
+      await dataLayer.requests.loadPostSearch(state.$searchQuery.get().trim(), {
         limit: 25,
         cursor,
       });
@@ -93,7 +97,7 @@ class SearchView extends View {
     async function loadMoreFeeds() {
       const cursor = dataLayer.derived.$feedSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadFeedSearch($searchQuery.get().trim(), {
+      await dataLayer.requests.loadFeedSearch(state.$searchQuery.get().trim(), {
         limit: 15,
         cursor,
       });
@@ -103,18 +107,18 @@ class SearchView extends View {
       interactionHandlers;
 
     const handleSearchInput = debounce((value) => {
-      $searchQuery.set(value);
+      state.$searchQuery.set(value);
       loadSearchResults();
     });
 
     function handleClearSearch() {
-      $searchQuery.set("");
+      state.$searchQuery.set("");
       loadSearchResults();
     }
 
     function handleTabChange(tab) {
-      tabScrollState.set($activeTab.get(), window.scrollY);
-      $activeTab.set(tab);
+      tabScrollState.set(state.$activeTab.get(), window.scrollY);
+      state.$activeTab.set(tab);
       if (tabScrollState.has(tab)) {
         window.scrollTo(0, tabScrollState.get(tab));
       } else {
@@ -315,8 +319,8 @@ class SearchView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const searchQuery = $searchQuery.get();
-      const activeTab = $activeTab.get();
+      const searchQuery = state.$searchQuery.get();
+      const activeTab = state.$activeTab.get();
       const normalizedQuery = searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
       const postStatus = dataLayer.requests.statusStore.$statuses.get(
@@ -469,12 +473,12 @@ class SearchView extends View {
     root.addEventListener("page-enter", async () => {
       const query = new URLSearchParams(window.location.search);
       if (query.get("q")) {
-        $searchQuery.set(query.get("q"));
+        state.$searchQuery.set(query.get("q"));
       }
       if (query.get("tab")) {
-        $activeTab.set(query.get("tab"));
+        state.$activeTab.set(query.get("tab"));
       }
-      if ($searchQuery.get()) {
+      if (state.$searchQuery.get()) {
         loadSearchResults();
       }
       if (isAuthenticated) {

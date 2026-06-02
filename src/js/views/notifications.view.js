@@ -7,7 +7,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { pageEffect } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
@@ -102,9 +102,10 @@ class NotificationsView extends View {
 
     const { postInteractionHandler } = interactionHandlers;
 
-    const $activeTab = new Signal.State("all");
-    const $isReloadingNotifications = new Signal.State(false);
-    const $isReloadingMentionNotifications = new Signal.State(false);
+    const state = new ReactiveStore("notificationsView");
+    state.$activeTab = new Signal.State("all");
+    state.$isReloadingNotifications = new Signal.State(false);
+    state.$isReloadingMentionNotifications = new Signal.State(false);
 
     async function handleMenuClick() {
       const sidebar = root.querySelector("animated-sidebar");
@@ -676,29 +677,29 @@ class NotificationsView extends View {
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
-      if ($activeTab.get() === "all") {
-        $isReloadingNotifications.set(true);
+      if (state.$activeTab.get() === "all") {
+        state.$isReloadingNotifications.set(true);
         try {
           await loadNotifications({ reload: true });
         } finally {
-          $isReloadingNotifications.set(false);
+          state.$isReloadingNotifications.set(false);
         }
       } else {
-        $isReloadingMentionNotifications.set(true);
+        state.$isReloadingMentionNotifications.set(true);
         try {
           await loadMentionNotifications({ reload: true });
         } finally {
-          $isReloadingMentionNotifications.set(false);
+          state.$isReloadingMentionNotifications.set(false);
         }
       }
     }
 
     async function handleTabClick(tab) {
-      if (tab === $activeTab.get()) {
+      if (tab === state.$activeTab.get()) {
         scrollAndReloadNotifications();
         return;
       }
-      $activeTab.set(tab);
+      state.$activeTab.set(tab);
       window.scrollTo(0, 0);
       if (
         tab === "mentions" &&
@@ -709,7 +710,7 @@ class NotificationsView extends View {
     }
 
     pageEffect(root, () => {
-      const activeTab = $activeTab.get();
+      const activeTab = state.$activeTab.get();
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
@@ -736,10 +737,10 @@ class NotificationsView extends View {
       const isLoading =
         activeTab === "all"
           ? notificationsRequestStatus.loading &&
-            $isReloadingNotifications.get() &&
+            state.$isReloadingNotifications.get() &&
             !!notifications
           : mentionNotificationsRequestStatus.loading &&
-            $isReloadingMentionNotifications.get() &&
+            state.$isReloadingMentionNotifications.get() &&
             !!mentionNotifications;
 
       render(

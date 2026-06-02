@@ -12,7 +12,7 @@ import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import { wait, raf, differenceInMinutes } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
@@ -59,9 +59,10 @@ class ChatDetailView extends View {
 
     const convoId = params.convoId;
 
-    const $loadingEnabled = new Signal.State(false);
-    const $isSendingMessage = new Signal.State(false);
-    const $selectedMessageId = new Signal.State(null);
+    const state = new ReactiveStore("chatDetailView");
+    state.$loadingEnabled = new Signal.State(false);
+    state.$isSendingMessage = new Signal.State(false);
+    state.$selectedMessageId = new Signal.State(null);
 
     function focusChatInput() {
       const chatInput = root.querySelector("chat-input");
@@ -169,7 +170,7 @@ class ChatDetailView extends View {
     const messageFetcher = new MessageFetcher(dataLayer, convoId);
 
     function closeReactionPalette() {
-      $selectedMessageId.set(null);
+      state.$selectedMessageId.set(null);
     }
 
     async function handleEmojiSelect(emoji, messageId, currentUserDid) {
@@ -215,7 +216,7 @@ class ChatDetailView extends View {
 
     function handleLongPress(message) {
       hapticsImpactMedium();
-      $selectedMessageId.set(message.id);
+      state.$selectedMessageId.set(message.id);
       // close on click outside
       setTimeout(() => {
         document.addEventListener("click", () => closeReactionPalette(), {
@@ -225,7 +226,7 @@ class ChatDetailView extends View {
     }
 
     async function handleSendMessage(messageText) {
-      $isSendingMessage.set(true);
+      state.$isSendingMessage.set(true);
       try {
         const facets = await getFacetsFromText(messageText, identityResolver);
         await dataLayer.mutations.createMessage(convoId, {
@@ -237,7 +238,7 @@ class ChatDetailView extends View {
         console.error(error);
         showToast("Failed to send message", { style: "error" });
       } finally {
-        $isSendingMessage.set(false);
+        state.$isSendingMessage.set(false);
         focusChatInput();
       }
     }
@@ -486,7 +487,7 @@ class ChatDetailView extends View {
               showAvatar: index === 0,
               otherMember,
               onLongPress: (msg, e) => handleLongPress(msg, e),
-              isSelected: $selectedMessageId.get() === message.id,
+              isSelected: state.$selectedMessageId.get() === message.id,
             }),
           )}
           <div
@@ -600,7 +601,7 @@ class ChatDetailView extends View {
     }
 
     // Put this in a computed to avoid an extra render when we mark a convo as read
-    const $otherMember = new Signal.Computed(() => {
+    state.$otherMember = new Signal.Computed(() => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
       return getOtherMember(currentUser, convo);
@@ -619,9 +620,9 @@ class ChatDetailView extends View {
           "loadConvoMessages-" + convoId,
         );
       const hasMore = !!messagesData?.cursor;
-      const isSendingMessage = $isSendingMessage.get();
+      const isSendingMessage = state.$isSendingMessage.get();
 
-      const otherMember = $otherMember.get();
+      const otherMember = state.$otherMember.get();
       const title = otherMember ? getDisplayName(otherMember) : "";
 
       render(
@@ -653,7 +654,7 @@ class ChatDetailView extends View {
                     });
                   } else if (messages) {
                     return messagesTemplate({
-                      loadingEnabled: $loadingEnabled.get(),
+                      loadingEnabled: state.$loadingEnabled.get(),
                       messages,
                       currentUserDid: currentUser?.did,
                       otherMember,
@@ -687,7 +688,7 @@ class ChatDetailView extends View {
     let initialLoad = true;
     pageEffect(root, () => {
       const messages = dataLayer.derived.$convoMessages.get(convoId);
-      const otherMember = $otherMember.get();
+      const otherMember = state.$otherMember.get();
       if (!messages || !otherMember) {
         return;
       }
@@ -696,7 +697,7 @@ class ChatDetailView extends View {
         requestAnimationFrame(() => {
           scrollToBottom({ onlyIfNeeded: true });
           // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
-          $loadingEnabled.set(true);
+          state.$loadingEnabled.set(true);
         });
       }
     });

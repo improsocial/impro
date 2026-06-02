@@ -6,7 +6,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/rendered-markdown.js";
 
@@ -27,50 +27,51 @@ class SettingsCommunityPluginListingView extends View {
     const { pluginId } = params;
     const isLocal = pluginId.endsWith("__LOCAL");
 
-    const $loadError = new Signal.State(null);
-    const $version = new Signal.State(null);
-    const $readme = new Signal.State(null);
-    const $loading = new Signal.State(true);
-    const $pendingAction = new Signal.State(null); // ("install" | "uninstall")
+    const state = new ReactiveStore("settingsCommunityPluginListingView");
+    state.$loadError = new Signal.State(null);
+    state.$version = new Signal.State(null);
+    state.$readme = new Signal.State(null);
+    state.$loading = new Signal.State(true);
+    state.$pendingAction = new Signal.State(null); // ("install" | "uninstall")
 
-    const $listing = new Signal.Computed(() => {
+    state.$listing = new Signal.Computed(() => {
       const listings = pluginService.$registryListings.get();
       if (!listings) return null;
       return listings.find((listing) => listing.id === pluginId) ?? null;
     });
 
     async function loadListings() {
-      $loadError.set(null);
+      state.$loadError.set(null);
       try {
         await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
-        $loadError.set(error.message ?? String(error));
+        state.$loadError.set(error.message ?? String(error));
       }
     }
 
     async function loadDetails() {
-      const listing = $listing.get();
+      const listing = state.$listing.get();
       if (!listing) {
-        $loading.set(false);
+        state.$loading.set(false);
         return;
       }
       const { id, repo } = listing;
       await Promise.all([
         pluginService
           .getLiveManifest(id, repo)
-          .then((manifest) => $version.set(manifest?.version ?? null))
+          .then((manifest) => state.$version.set(manifest?.version ?? null))
           .catch((error) =>
             console.error("Failed to load plugin manifest", error),
           ),
         pluginService
           .getReadme(id, repo)
-          .then((readme) => $readme.set(readme))
+          .then((readme) => state.$readme.set(readme))
           .catch((error) =>
             console.error("Failed to load plugin README", error),
           ),
       ]);
-      $loading.set(false);
+      state.$loading.set(false);
     }
 
     async function toggleInstall(listing) {
@@ -86,7 +87,7 @@ class SettingsCommunityPluginListingView extends View {
         );
         if (!confirmed) return;
       }
-      $pendingAction.set(wasInstalled ? "uninstall" : "install");
+      state.$pendingAction.set(wasInstalled ? "uninstall" : "install");
       try {
         if (wasInstalled) {
           await pluginService.uninstallPlugin(listing.id);
@@ -112,7 +113,7 @@ class SettingsCommunityPluginListingView extends View {
           );
         }
       }
-      $pendingAction.set(null);
+      state.$pendingAction.set(null);
     }
 
     pageEffect(root, () => {
@@ -121,12 +122,12 @@ class SettingsCommunityPluginListingView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
-      const listing = $listing.get();
-      const loadError = $loadError.get();
-      const version = $version.get();
-      const readme = $readme.get();
-      const loading = $loading.get();
-      const pendingAction = $pendingAction.get();
+      const listing = state.$listing.get();
+      const loadError = state.$loadError.get();
+      const version = state.$version.get();
+      const readme = state.$readme.get();
+      const loading = state.$loading.get();
+      const pendingAction = state.$pendingAction.get();
       const installButtonClass = listing?.installed
         ? "plugin-install-button rounded-button"
         : "plugin-install-button rounded-button rounded-button-primary";

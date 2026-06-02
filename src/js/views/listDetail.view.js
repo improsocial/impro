@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { Signal } from "/js/signals.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -49,7 +49,8 @@ class ListDetailView extends View {
     const { postInteractionHandler, listInteractionHandler } =
       interactionHandlers;
 
-    const $activeTab = new Signal.State("posts");
+    const state = new ReactiveStore("listDetailView");
+    state.$activeTab = new Signal.State("posts");
 
     pageEffect(root, () => {
       const showLessInteractions =
@@ -71,7 +72,7 @@ class ListDetailView extends View {
       const membersEntry = dataLayer.derived.$listMembers.get(listUri);
       const members = membersEntry?.members ?? null;
       const hasMoreMembers = membersEntry?.cursor != null;
-      const activeTab = $activeTab.get();
+      const activeTab = state.$activeTab.get();
       const isCurateList = !list || list.purpose === CURATELIST_PURPOSE;
 
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
@@ -203,7 +204,8 @@ class ListDetailView extends View {
                           ]}
                           active-tab=${activeTab}
                           full-width
-                          @tab-click=${(event) => $activeTab.set(event.detail)}
+                          @tab-click=${(event) =>
+                            state.$activeTab.set(event.detail)}
                         ></tab-bar>
                       </div>`
                     : ""}
