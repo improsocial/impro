@@ -99,7 +99,10 @@ class FeedsView extends View {
                               </div>
                               ${item.data.creator
                                 ? html`<div class="feeds-list-item-creator">
-                                    List by @${item.data.creator.handle}
+                                    List by
+                                    ${item.data.creator.did === currentUser?.did
+                                      ? "you"
+                                      : `@${item.data.creator.handle}`}
                                   </div>`
                                 : ""}
                             </div>
@@ -108,6 +111,7 @@ class FeedsView extends View {
                       }
                       return feedGeneratorListItemTemplate({
                         feedGenerator: item.data,
+                        currentUserDid: currentUser?.did,
                       });
                     })
                   : Array.from({ length: 5 }).map(() =>

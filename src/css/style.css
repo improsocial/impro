@@ -7163,7 +7163,13 @@ toggle-switch {
 .add-to-lists-dialog-loading {
   display: flex;
   justify-content: center;
-  padding: 20px 0;
+  align-items: center;
+  height: 60vh;
+}
+
+.add-to-lists-dialog-loading .loading-spinner {
+  height: 24px;
+  width: 24px;
 }
 
 tab-bar[full-width] {

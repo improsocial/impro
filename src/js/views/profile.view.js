@@ -181,7 +181,7 @@ class ProfileView extends View {
       }
     }
 
-    function actorFeedsTemplate({ actorFeeds, onLoadMore }) {
+    function actorFeedsTemplate({ actorFeeds, onLoadMore, currentUserDid }) {
       if (!actorFeeds) {
         return html`<div class="feeds-list">
           ${Array.from({ length: 5 }).map(() =>
@@ -207,7 +207,7 @@ class ProfileView extends View {
         >
           <div class="feeds-list">
             ${actorFeeds.feeds.map((feedGenerator) =>
-              feedGeneratorListItemTemplate({ feedGenerator }),
+              feedGeneratorListItemTemplate({ feedGenerator, currentUserDid }),
             )}
             ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
           </div>
@@ -479,6 +479,7 @@ class ProfileView extends View {
                         ${actorFeedsTemplate({
                           actorFeeds,
                           onLoadMore: () => loadActorFeeds(),
+                          currentUserDid: currentUser?.did,
                         })}
                       </div>`;
                     }

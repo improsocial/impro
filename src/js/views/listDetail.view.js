@@ -178,7 +178,10 @@ class ListDetailView extends View {
                             ${isModerationList(list)
                               ? "Moderation list"
                               : "List"}
-                            by @${listCreator.handle}
+                            by
+                            ${listCreator.did === currentUser?.did
+                              ? "you"
+                              : `@${listCreator.handle}`}
                           </div>`
                         : ""}
                     </div>

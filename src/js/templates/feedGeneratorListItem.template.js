@@ -1,7 +1,10 @@
 import { html } from "/js/lib/lit-html.js";
 import { linkToFeed } from "/js/navigation.js";
 
-export function feedGeneratorListItemTemplate({ feedGenerator }) {
+export function feedGeneratorListItemTemplate({
+  feedGenerator,
+  currentUserDid,
+}) {
   return html`
     <div
       class="feeds-list-item clickable"
@@ -24,7 +27,10 @@ export function feedGeneratorListItemTemplate({ feedGenerator }) {
         <div class="feeds-list-item-title">${feedGenerator.displayName}</div>
         ${feedGenerator.creator
           ? html`<div class="feeds-list-item-creator">
-              Feed by @${feedGenerator.creator.handle}
+              Feed by
+              ${feedGenerator.creator.did === currentUserDid
+                ? "you"
+                : `@${feedGenerator.creator.handle}`}
             </div>`
           : ""}
       </div>
