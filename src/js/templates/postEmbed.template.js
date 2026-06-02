@@ -213,9 +213,9 @@ const MIN_POST_MEDIA_ASPECT_RATIO = 1 / 2;
 
 function getPostMediaAspectRatio(media) {
   const dims = media?.aspectRatio;
-  if (!dims) return 1;
+  if (!dims) return null;
   const ratio = dims.width / dims.height;
-  if (!Number.isFinite(ratio) || ratio <= 0) return 1;
+  if (!Number.isFinite(ratio) || ratio <= 0) return null;
   return Math.max(ratio, MIN_POST_MEDIA_ASPECT_RATIO);
 }
 
@@ -227,7 +227,7 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
       data-lightbox-src="${image.fullsize ?? image.thumb}"
       alt=${image.alt}
       style=${doCalculateAspectRatio
-        ? `aspect-ratio: ${getPostMediaAspectRatio(image)};`
+        ? `aspect-ratio: ${getPostMediaAspectRatio(image) ?? 1};`
         : ""}
       loading=${lazyLoad ? "lazy" : "eager"}
     />
@@ -271,7 +271,7 @@ function videoTemplate({ video }) {
   const aspectRatio = getPostMediaAspectRatio(video);
   return html`<div
     class="post-video"
-    style="aspect-ratio: ${aspectRatio};"
+    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
     @click=${(e) => {
       e.stopPropagation();
       e.preventDefault();
