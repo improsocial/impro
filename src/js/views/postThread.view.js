@@ -563,19 +563,24 @@ class PostThreadView extends View {
 
       // Pin large post on first load
       const largePost = root.querySelector(".large-post");
-      if (largePost && !postThread.__isPrefill && !hasScrolledToLargePost) {
+      const header = root.querySelector("header");
+      if (
+        largePost &&
+        header &&
+        !postThread.__isPrefill &&
+        !hasScrolledToLargePost
+      ) {
         hasScrolledToLargePost = true;
-        const header = root.querySelector("header");
-        if (!header) {
-          console.error("Couldn't find header for pinning");
-          return;
-        }
-        const headerHeight = header.getBoundingClientRect().height;
-        const largePostTop = largePost.getBoundingClientRect().top;
-        const offset = largePostTop - headerHeight;
-        window.scrollBy(0, offset);
+        scrollToLargePost(largePost, header);
       }
     });
+
+    function scrollToLargePost(largePost, header) {
+      const headerHeight = header.getBoundingClientRect().height;
+      const largePostTop = largePost.getBoundingClientRect().top;
+      const offset = largePostTop - headerHeight;
+      window.scrollBy(0, offset);
+    }
 
     root.addEventListener("page-enter", async () => {
       let requests = [];
@@ -588,7 +593,16 @@ class PostThreadView extends View {
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      window.scrollTo(0, scrollY);
+      const isBack = e.detail?.isBack ?? false;
+      if (isBack) {
+        window.scrollTo(0, scrollY);
+      } else {
+        const largePost = root.querySelector(".large-post");
+        const header = root.querySelector("header");
+        if (largePost && header) {
+          scrollToLargePost(largePost, header);
+        }
+      }
       // Revalidate
       await dataLayer.requests.loadPostThread(postUri);
     });
