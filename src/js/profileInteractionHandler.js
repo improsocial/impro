@@ -82,6 +82,32 @@ export class ProfileInteractionHandler {
     }
   }
 
+  async handleAddToList(profile, list) {
+    try {
+      await this.dataLayer.mutations.addProfileToList(profile, list);
+      showToast(`Added to ${list.name}`, { style: "success" });
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to add to list", { style: "error" });
+      throw error;
+    }
+  }
+
+  async handleRemoveFromList(profile, list, membershipUri) {
+    try {
+      await this.dataLayer.mutations.removeProfileFromList(
+        profile,
+        list,
+        membershipUri,
+      );
+      showToast(`Removed from ${list.name}`, { style: "success" });
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to remove from list", { style: "error" });
+      throw error;
+    }
+  }
+
   async handleSubscribe(profile, doSubscribe, labelerInfo) {
     if (doSubscribe) {
       try {

@@ -4,6 +4,7 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
+  isModerationList,
 } from "/js/dataHelpers.js";
 import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
@@ -20,6 +21,7 @@ import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListIt
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { linkToList } from "/js/navigation.js";
 import "/js/components/edit-profile-dialog.js";
+import "/js/components/add-to-lists-dialog.js";
 
 class ProfileView extends View {
   async render({
@@ -80,6 +82,18 @@ class ProfileView extends View {
 
     const { postInteractionHandler, profileInteractionHandler } =
       interactionHandlers;
+
+    async function handleAddToLists(profile) {
+      const dialog = document.createElement("add-to-lists-dialog");
+      dialog.profile = profile;
+      dialog.dataLayer = dataLayer;
+      dialog.profileInteractionHandler = profileInteractionHandler;
+      dialog.addEventListener("dialog-closed", () => {
+        dialog.remove();
+      });
+      document.body.appendChild(dialog);
+      dialog.open();
+    }
 
     async function handleEditProfile(profile) {
       const dialog = document.createElement("edit-profile-dialog");
@@ -219,7 +233,8 @@ class ProfileView extends View {
             <div class="feeds-list-item-title">${list.name}</div>
             ${list.creator
               ? html`<div class="feeds-list-item-creator">
-                  List by @${list.creator.handle}
+                  ${isModerationList(list) ? "Moderation list" : "List"} by
+                  @${list.creator.handle}
                 </div>`
               : ""}
           </div>
@@ -410,6 +425,7 @@ class ProfileView extends View {
                 ),
               onClickReport: (profile) =>
                 profileInteractionHandler.handleReport(profile),
+              onClickAddToLists: (profile) => handleAddToLists(profile),
               onClickEditProfile: () => handleEditProfile(profile),
               pluginService,
             })}

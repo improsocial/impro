@@ -95,6 +95,7 @@ function profileContextMenuTemplate({
   onClickFollow,
   onClickMute,
   onClickBlock,
+  onClickAddToLists,
   onClickReport,
 }) {
   const isFollowing = profile.viewer?.following;
@@ -147,6 +148,14 @@ function profileContextMenuTemplate({
               `
             : null}
           <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-profile-add-to-lists"
+              @click=${() => {
+                onClickAddToLists(profile);
+              }}
+            >
+              Add to Lists
+            </context-menu-item>
             <context-menu-item
               data-testid="menu-action-profile-mute"
               data-teststate=${profile.viewer?.muted ? "muted" : "unmuted"}
@@ -227,6 +236,7 @@ export function profileCardTemplate({
   onClickBlock = noop,
   onClickSubscribe = noop,
   onClickPostNotifications = noop,
+  onClickAddToLists = noop,
   onClickReport = noop,
   onClickEditProfile = noop,
   pluginService = null,
@@ -371,6 +381,7 @@ export function profileCardTemplate({
               onClickFollow,
               onClickMute,
               onClickBlock,
+              onClickAddToLists,
               onClickReport,
             });
           }}

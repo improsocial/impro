@@ -516,6 +516,9 @@ export class Derived extends ReactiveStore {
     this.$actorLists = new ComputedMap((did) =>
       this.dataStore.$actorLists.get(did),
     );
+    this.$currentUserListMemberships = new Signal.Computed(() =>
+      this.dataStore.$currentUserListMemberships.get(),
+    );
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
     );

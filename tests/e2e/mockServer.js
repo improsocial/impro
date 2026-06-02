@@ -34,6 +34,7 @@ export class MockServer {
     this.pinnedListUris = [];
     this.lists = [];
     this.listMembers = new Map();
+    this.currentUserListItems = [];
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -107,6 +108,10 @@ export class MockServer {
 
   addListMembers(listUri, profiles) {
     this.listMembers.set(listUri, profiles);
+  }
+
+  addCurrentUserListItem({ uri, listUri, subjectDid }) {
+    this.currentUserListItems.push({ uri, listUri, subjectDid });
   }
 
   addListFeedItems(listUri, posts) {
@@ -1387,10 +1392,44 @@ export class MockServer {
         }
       }
 
+      if (collection === "app.bsky.graph.listitem") {
+        const itemUri = `at://${userProfile.did}/${collection}/${rkey}`;
+        this.currentUserListItems = this.currentUserListItems.filter(
+          (item) => item.uri !== itemUri,
+        );
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.repo.listRecords*", (route) => {
+      const url = new URL(route.request().url());
+      const collection = url.searchParams.get("collection");
+      if (collection === "app.bsky.graph.listitem") {
+        const records = this.currentUserListItems.map((item) => ({
+          uri: item.uri,
+          cid: `bafyrei${item.uri.split("/").pop()}`,
+          value: {
+            $type: "app.bsky.graph.listitem",
+            subject: item.subjectDid,
+            list: item.listUri,
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        }));
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ records, cursor: "" }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ records: [], cursor: "" }),
       });
     });
 
@@ -1400,6 +1439,15 @@ export class MockServer {
       const rkey = `rkey-${++this.createRecordCounter}`;
       const uri = `at://${userProfile.did}/${collection}/${rkey}`;
       const cid = `bafyrei${rkey}`;
+
+      if (collection === "app.bsky.graph.listitem") {
+        const record = body?.record || {};
+        this.currentUserListItems.push({
+          uri,
+          listUri: record.list,
+          subjectDid: record.subject,
+        });
+      }
 
       if (collection === "app.bsky.feed.post") {
         const record = body?.record;

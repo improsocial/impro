@@ -3,6 +3,10 @@ import { unique } from "/js/utils.js";
 export const INVALID_HANDLE = "handle.invalid";
 export const MISSING_HANDLE = "missing.invalid";
 
+export function isModerationList(list) {
+  return list?.purpose === "app.bsky.graph.defs#modlist";
+}
+
 export function hasValidHandle(profile) {
   return (
     !!profile.handle &&

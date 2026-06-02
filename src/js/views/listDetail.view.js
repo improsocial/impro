@@ -2,6 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { classnames } from "/js/utils.js";
+import { isModerationList } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { auth } from "/js/auth.js";
@@ -16,8 +17,6 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
-
-const CURATELIST_PURPOSE = "app.bsky.graph.defs#curatelist";
 
 class ListDetailView extends View {
   async render({
@@ -73,7 +72,7 @@ class ListDetailView extends View {
       const members = membersEntry?.members ?? null;
       const hasMoreMembers = membersEntry?.cursor != null;
       const activeTab = state.$activeTab.get();
-      const isCurateList = !list || list.purpose === CURATELIST_PURPOSE;
+      const isCurateList = !isModerationList(list);
 
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
 
@@ -176,7 +175,10 @@ class ListDetailView extends View {
                             class="list-detail-creator"
                             data-testid="list-detail-creator"
                           >
-                            List by @${listCreator.handle}
+                            ${isModerationList(list)
+                              ? "Moderation list"
+                              : "List"}
+                            by @${listCreator.handle}
                           </div>`
                         : ""}
                     </div>

@@ -1043,6 +1043,36 @@ export class Requests {
     }
   }
 
+  async loadCurrentUserLists({ reload = false } = {}) {
+    const currentUser = this.dataStore.$currentUser.get();
+    if (!currentUser) return;
+    await this.loadActorLists(currentUser.did, { reload });
+  }
+
+  // Note: this loads ALL list memberships for the current user
+  // social-app also does this, but we could probably use constellation
+  // to do this more efficiently in the future
+  async loadCurrentUserListMemberships({ reload = false } = {}) {
+    const existing = this.dataStore.$currentUserListMemberships.get();
+    if (existing && !reload) {
+      return;
+    }
+    const items = [];
+    let cursor = "";
+    do {
+      const data = await this.api.getListItems({ cursor, limit: 100 });
+      for (const record of data.records) {
+        items.push({
+          uri: record.uri,
+          listUri: record.value.list,
+          subjectDid: record.value.subject,
+        });
+      }
+      cursor = data.cursor || "";
+    } while (cursor);
+    this.dataStore.$currentUserListMemberships.set(items);
+  }
+
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();

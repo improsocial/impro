@@ -624,7 +624,7 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(6, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(7, {
       timeout: 5000,
     });
     await expect(
@@ -641,6 +641,9 @@ test.describe("Profile view", () => {
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-block"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-report"]'),
@@ -762,6 +765,127 @@ test.describe("Profile view", () => {
     await expect(
       menu.locator('[data-testid="menu-action-profile-report"]'),
     ).not.toBeVisible();
+  });
+
+  test("should add and remove the profile from a list via the Add to Lists dialog", async ({
+    page,
+  }) => {
+    const listOne = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/list1`,
+      name: "Cool People",
+      creatorHandle: userProfile.handle,
+    });
+    const listTwo = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/list2`,
+      name: "Watch List",
+      creatorHandle: userProfile.handle,
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    mockServer.addLists([listOne, listTwo]);
+    mockServer.addActorLists(userProfile.did, [listOne, listTwo]);
+    // Profile starts as a member of listTwo only.
+    const existingMembershipUri = `at://${userProfile.did}/app.bsky.graph.listitem/existing`;
+    mockServer.addCurrentUserListItem({
+      uri: existingMembershipUri,
+      listUri: listTwo.uri,
+      subjectDid: otherUser.did,
+    });
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+    await page
+      .locator('[data-testid="menu-action-profile-add-to-lists"]')
+      .click();
+
+    const dialog = page.locator('[data-testid="add-to-lists-dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    const rows = dialog.locator('[data-testid="add-to-lists-row"]');
+    await expect(rows).toHaveCount(2);
+
+    const listOneRow = dialog.locator(
+      `[data-testid="add-to-lists-row"][data-list-uri="${listOne.uri}"]`,
+    );
+    const listTwoRow = dialog.locator(
+      `[data-testid="add-to-lists-row"][data-list-uri="${listTwo.uri}"]`,
+    );
+
+    await expect(
+      listOneRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "not-member");
+    await expect(
+      listTwoRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "member");
+
+    // Capture network calls to verify the right collection/subject.
+    const createRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/xrpc/com.atproto.repo.createRecord")) {
+        createRequests.push(request.postDataJSON());
+      }
+    });
+    const deleteRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/xrpc/com.atproto.repo.deleteRecord")) {
+        deleteRequests.push(request.postDataJSON());
+      }
+    });
+
+    // Add to listOne.
+    await listOneRow.locator('[data-testid="add-to-lists-toggle"]').click();
+    await expect(
+      listOneRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "member");
+
+    expect(createRequests.length).toBe(1);
+    expect(createRequests[0].collection).toBe("app.bsky.graph.listitem");
+    expect(createRequests[0].record.subject).toBe(otherUser.did);
+    expect(createRequests[0].record.list).toBe(listOne.uri);
+
+    // Remove from listTwo.
+    await listTwoRow.locator('[data-testid="add-to-lists-toggle"]').click();
+    await expect(
+      listTwoRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "not-member");
+
+    expect(deleteRequests.length).toBe(1);
+    expect(deleteRequests[0].collection).toBe("app.bsky.graph.listitem");
+    expect(deleteRequests[0].rkey).toBe("existing");
+  });
+
+  test("should show empty state in Add to Lists dialog when viewer has no lists", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+    await page
+      .locator('[data-testid="menu-action-profile-add-to-lists"]')
+      .click();
+
+    const dialog = page.locator('[data-testid="add-to-lists-dialog"]');
+    await expect(
+      dialog.locator('[data-testid="add-to-lists-empty"]'),
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("should navigate to search page when clicking 'Search posts' on another user's profile", async ({

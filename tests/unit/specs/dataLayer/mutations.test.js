@@ -2883,4 +2883,213 @@ t.describe("unpinList", (it) => {
   });
 });
 
+t.describe("addProfileToList", (it) => {
+  const testProfile = {
+    did: "did:test:profile",
+    handle: "test.user",
+  };
+  const testList = {
+    uri: "at://did:test:owner/app.bsky.graph.list/abc",
+    name: "Test List",
+  };
+
+  it("should add the membership after the API call succeeds", async () => {
+    const mockApi = {
+      createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.addProfileToList(testProfile, testList);
+
+    const memberships = dataStore.$currentUserListMemberships.get();
+    assertEquals(memberships.length, 1);
+    assertEquals(memberships[0].uri, "listitem-real-uri");
+    assertEquals(memberships[0].listUri, testList.uri);
+    assertEquals(memberships[0].subjectDid, testProfile.did);
+  });
+
+  it("should prepend the profile to a cached list-members entry when present", async () => {
+    const mockApi = {
+      createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
+    };
+    const dataStore = new DataStore();
+    dataStore.$listMembers.set(testList.uri, {
+      members: [{ did: "did:test:other", handle: "other.user" }],
+      cursor: null,
+    });
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.addProfileToList(testProfile, testList);
+
+    const cached = dataStore.$listMembers.get(testList.uri);
+    assertEquals(cached.members.length, 2);
+    assertEquals(cached.members[0].did, testProfile.did);
+  });
+
+  it("should not touch state when the API call fails", async () => {
+    const mockApi = {
+      createListItemRecord: async () => {
+        throw new Error("nope");
+      },
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let caught = null;
+    try {
+      await mutations.addProfileToList(testProfile, testList);
+    } catch (error) {
+      caught = error;
+    }
+    assertEquals(caught.message, "nope");
+    const memberships = dataStore.$currentUserListMemberships.get() ?? null;
+    assertEquals(memberships, null);
+  });
+});
+
+t.describe("removeProfileFromList", (it) => {
+  const testProfile = {
+    did: "did:test:profile",
+    handle: "test.user",
+  };
+  const testList = {
+    uri: "at://did:test:owner/app.bsky.graph.list/abc",
+    name: "Test List",
+  };
+  const membershipUri = "at://did:test:viewer/app.bsky.graph.listitem/xyz";
+
+  it("should remove the membership after the API call succeeds", async () => {
+    const mockApi = {
+      deleteListItemRecord: async () => {},
+    };
+    const dataStore = new DataStore();
+    dataStore.$currentUserListMemberships.set([
+      {
+        uri: membershipUri,
+        listUri: testList.uri,
+        subjectDid: testProfile.did,
+      },
+    ]);
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.removeProfileFromList(testProfile, testList, membershipUri);
+
+    assertEquals(dataStore.$currentUserListMemberships.get().length, 0);
+  });
+
+  it("should remove the profile from a cached list-members entry", async () => {
+    const mockApi = {
+      deleteListItemRecord: async () => {},
+    };
+    const dataStore = new DataStore();
+    dataStore.$currentUserListMemberships.set([
+      {
+        uri: membershipUri,
+        listUri: testList.uri,
+        subjectDid: testProfile.did,
+      },
+    ]);
+    dataStore.$listMembers.set(testList.uri, {
+      members: [
+        { did: testProfile.did, handle: testProfile.handle },
+        { did: "did:test:other", handle: "other.user" },
+      ],
+      cursor: null,
+    });
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.removeProfileFromList(testProfile, testList, membershipUri);
+
+    const cached = dataStore.$listMembers.get(testList.uri);
+    assertEquals(cached.members.length, 1);
+    assertEquals(cached.members[0].did, "did:test:other");
+  });
+
+  it("should leave state unchanged when the API call fails", async () => {
+    const mockApi = {
+      deleteListItemRecord: async () => {
+        throw new Error("boom");
+      },
+    };
+    const dataStore = new DataStore();
+    const initial = {
+      uri: membershipUri,
+      listUri: testList.uri,
+      subjectDid: testProfile.did,
+    };
+    dataStore.$currentUserListMemberships.set([initial]);
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = new Mutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    let caught = null;
+    try {
+      await mutations.removeProfileFromList(
+        testProfile,
+        testList,
+        membershipUri,
+      );
+    } catch (error) {
+      caught = error;
+    }
+    assertEquals(caught.message, "boom");
+    const memberships = dataStore.$currentUserListMemberships.get();
+    assertEquals(memberships.length, 1);
+    assertEquals(memberships[0].uri, membershipUri);
+  });
+});
+
 await t.run();

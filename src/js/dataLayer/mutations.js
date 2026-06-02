@@ -237,6 +237,44 @@ export class Mutations {
     }
   }
 
+  async addProfileToList(profile, list) {
+    const result = await this.api.createListItemRecord(list.uri, profile.did);
+    const current = this.dataStore.$currentUserListMemberships.get() || [];
+    this.dataStore.$currentUserListMemberships.set([
+      ...current,
+      { uri: result.uri, listUri: list.uri, subjectDid: profile.did },
+    ]);
+    // Add to cached list members
+    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
+    if (
+      cachedMembers &&
+      !cachedMembers.members.some((member) => member.did === profile.did)
+    ) {
+      this.dataStore.$listMembers.set(list.uri, {
+        ...cachedMembers,
+        members: [profile, ...cachedMembers.members],
+      });
+    }
+  }
+
+  async removeProfileFromList(profile, list, membershipUri) {
+    await this.api.deleteListItemRecord(membershipUri);
+    const current = this.dataStore.$currentUserListMemberships.get() || [];
+    this.dataStore.$currentUserListMemberships.set(
+      current.filter((membership) => membership.uri !== membershipUri),
+    );
+    // Remove from cached list members
+    const cachedMembers = this.dataStore.$listMembers.get(list.uri);
+    if (cachedMembers) {
+      this.dataStore.$listMembers.set(list.uri, {
+        ...cachedMembers,
+        members: cachedMembers.members.filter(
+          (member) => member.did !== profile.did,
+        ),
+      });
+    }
+  }
+
   async unfollowProfile(profile) {
     const patchId = this.patchStore.addProfilePatch(profile.did, {
       type: "unfollowProfile",
