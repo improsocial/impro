@@ -517,6 +517,8 @@ class PostThreadView extends View {
       return null;
     });
 
+    let hasScrolledToLargePost = false;
+
     pageEffect(root, () => {
       const postThread = state.$postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -558,27 +560,20 @@ class PostThreadView extends View {
         </div>`,
         root,
       );
-    });
 
-    let hasScrolledToLargePost = false;
-
-    // Large post pinning
-    pageEffect(root, () => {
-      const postThread = state.$postThread.get();
-      if (postThread && !postThread.__isPrefill && !hasScrolledToLargePost) {
+      // Pin large post on first load
+      const largePost = root.querySelector(".large-post");
+      if (largePost && !postThread.__isPrefill && !hasScrolledToLargePost) {
         hasScrolledToLargePost = true;
-        requestAnimationFrame(() => {
-          const largePost = root.querySelector(".large-post");
-          const header = root.querySelector("header");
-          if (!largePost || !header) {
-            console.error("Couldn't find large post or header for pinning");
-            return;
-          }
-          const headerHeight = header.getBoundingClientRect().height;
-          const largePostTop = largePost.getBoundingClientRect().top;
-          const offset = largePostTop - headerHeight;
-          window.scrollBy(0, offset);
-        });
+        const header = root.querySelector("header");
+        if (!header) {
+          console.error("Couldn't find header for pinning");
+          return;
+        }
+        const headerHeight = header.getBoundingClientRect().height;
+        const largePostTop = largePost.getBoundingClientRect().top;
+        const offset = largePostTop - headerHeight;
+        window.scrollBy(0, offset);
       }
     });
 
