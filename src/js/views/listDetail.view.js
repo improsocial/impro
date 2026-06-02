@@ -213,7 +213,7 @@ class ListDetailView extends View {
                             state.$activeTab.set(event.detail)}
                         ></tab-bar>
                       </div>`
-                    : ""}
+                    : html`<hr />`}
                   <div
                     class="list-tab-content"
                     data-testid="list-tab-content"
