@@ -40,6 +40,12 @@ export class Router extends EventEmitter {
     this.scrollStates = new Map();
     // Disable scroll restoration
     window.history.scrollRestoration = "manual";
+    // Save scroll on page hide
+    window.addEventListener("pagehide", () => {
+      if (this.currentPath != null) {
+        this.scrollStates.set(this.currentPath, window.scrollY);
+      }
+    });
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
       this.emit("navigate");
