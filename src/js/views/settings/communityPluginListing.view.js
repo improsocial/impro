@@ -78,7 +78,7 @@ class SettingsCommunityPluginListingView extends View {
       const wasInstalled = listing.installed;
       if (wasInstalled) {
         const confirmed = await confirm(
-          `"${listing.name}" will be disabled and uninstalled.`,
+          `"${listing.name}" will be uninstalled and its settings will be deleted.`,
           {
             title: "Uninstall plugin?",
             confirmButtonStyle: "danger",
