@@ -583,12 +583,14 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      let requests = [];
       if (isAuthenticated) {
-        requests.push(dataLayer.declarative.ensureCurrentUser());
+        dataLayer.declarative.ensureCurrentUser();
       }
-      requests.push(dataLayer.declarative.ensurePostThread(postUri));
-      await Promise.all(requests);
+      try {
+        await dataLayer.declarative.ensurePostThread(postUri);
+      } catch (error) {
+        // pass
+      }
     });
 
     root.addEventListener("page-restore", async (e) => {
