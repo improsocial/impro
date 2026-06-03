@@ -66,6 +66,7 @@ html {
   --generic-border-color: light-dark(var(--lighter-gray), var(--light-gray));
   --text-input-background-color: light-dark(var(--off-white), var(--gray));
   --post-hover-color: light-dark(var(--lightest-gray), var(--mid-gray));
+  --callout-color: light-dark(var(--lightest-gray), var(--mid-gray));
   --skeleton-color: light-dark(var(--lighter-gray), var(--gray));
   --context-menu-background-color: light-dark(var(--white), var(--mid-gray));
   --context-menu-item-hover-color: light-dark(
@@ -115,8 +116,8 @@ html {
     transparent
   );
   --primary-button-text-color: var(--white);
-  --primary-button-muted-color: light-dark(var(--lightest-gray), var(--gray));
-  --primary-button-muted-hover-color: light-dark(
+  --secondary-button-color: light-dark(var(--lightest-gray), var(--gray));
+  --secondary-button-hover-color: light-dark(
     var(--lighter-gray),
     var(--light-gray)
   );
@@ -388,7 +389,7 @@ main {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
-  background-color: var(--primary-button-muted-color);
+  background-color: var(--secondary-button-color);
 }
 
 .rounded-button[disabled] {
@@ -413,7 +414,7 @@ main {
 
 @media (min-width: 800px) {
   .rounded-button:hover {
-    background-color: var(--primary-button-muted-hover-color);
+    background-color: var(--secondary-button-hover-color);
   }
 
   .rounded-button.rounded-button-primary:hover {
@@ -3966,7 +3967,7 @@ emoji-picker {
 
 .profile-follows-you {
   font-size: 13px;
-  background: var(--primary-button-muted-color);
+  background: var(--secondary-button-color);
   padding: 3px 8px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
@@ -3975,7 +3976,7 @@ emoji-picker {
 
 .profile-blocked-badge {
   font-size: 13px;
-  background: var(--primary-button-muted-color);
+  background: var(--secondary-button-color);
   padding: 3px 8px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
@@ -7500,7 +7501,7 @@ image-cropper {
   margin: 12px 16px;
   padding: 14px 16px;
   border-radius: var(--callout-border-radius);
-  background: var(--post-hover-color);
+  background: var(--callout-color);
   color: var(--text-color);
   text-decoration: none;
   transition: background-color 0.15s;
@@ -7508,11 +7509,7 @@ image-cropper {
 
 @media (min-width: 800px) {
   .community-plugins-link:hover {
-    background: color-mix(
-      in srgb,
-      var(--text-color) 10%,
-      var(--post-hover-color)
-    );
+    background: color-mix(in srgb, var(--text-color) 10%, var(--callout-color));
   }
 }
 
@@ -7590,7 +7587,7 @@ image-cropper {
   margin: 16px;
   padding: 24px 20px;
   border-radius: var(--callout-border-radius);
-  background: var(--post-hover-color);
+  background: var(--callout-color);
   text-align: center;
   display: flex;
   flex-direction: column;
@@ -7639,7 +7636,7 @@ image-cropper {
 .plugin-local-badge {
   font-size: 12px;
   font-weight: 400;
-  background: var(--primary-button-muted-color);
+  background: var(--secondary-button-color);
   padding: 3px 8px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
@@ -7727,8 +7724,29 @@ image-cropper {
   color: inherit;
 }
 
-.plugin-list-item-link:hover {
-  background: var(--post-hover-color);
+.plugin-list-item-link .plugin-list-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.plugin-list-item-arrow {
+  display: flex;
+  align-items: center;
+}
+
+.plugin-list-item-arrow .icon {
+  width: 20px;
+  height: 20px;
+}
+
+.plugin-list-item-arrow .icon path {
+  stroke: var(--text-color-muted);
+}
+
+@media (hover: hover) {
+  .plugin-list-item-link:hover {
+    background: var(--post-hover-color);
+  }
 }
 
 .plugin-listing-header {
@@ -7737,7 +7755,7 @@ image-cropper {
 
 .plugin-listing-name {
   margin: 0 0 16px;
-  font-size: 18px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.1;
 }
@@ -7749,7 +7767,7 @@ image-cropper {
 .plugin-listing-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 4px;
   font-size: 14px;
   color: var(--text-color-secondary);
 }
@@ -7777,7 +7795,8 @@ image-cropper {
 }
 
 .plugin-listing-readme {
-  padding: 0px 16px calc(var(--footer-height) + var(--safe-area-inset-bottom));
+  border-top: var(--hair) solid var(--post-border-color);
+  padding: 16px 16px calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
 
 #settings-community-plugin-listing-view rendered-markdown {
@@ -7859,13 +7878,13 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
 #settings-community-plugin-listing-view rendered-markdown code {
   font-family: var(--mono-font, monospace);
   font-size: 0.9em;
-  background: var(--primary-button-muted-color);
+  background: var(--secondary-button-color);
   padding: 2px 5px;
   border-radius: var(--tag-border-radius);
 }
 
 #settings-community-plugin-listing-view rendered-markdown pre {
-  background: var(--primary-button-muted-color);
+  background: var(--secondary-button-color);
   padding: 12px;
   border-radius: var(--callout-border-radius);
   overflow-x: auto;

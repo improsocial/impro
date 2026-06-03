@@ -4,6 +4,7 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
+import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsCommunityPluginsView extends View {
@@ -115,6 +116,9 @@ class SettingsCommunityPluginsView extends View {
                                       By ${listing.author}
                                     </div>
                                   </div>
+                                  <span class="plugin-list-item-arrow"
+                                    >${chevronRightIconTemplate()}</span
+                                  >
                                 </a>
                               </li>
                             `;

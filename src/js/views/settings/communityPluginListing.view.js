@@ -143,7 +143,7 @@ class SettingsCommunityPluginListingView extends View {
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
-                title: listing?.name ?? pluginId,
+                title: "Community plugins",
                 onClickBackButton: () =>
                   window.router.go("/settings/plugins/community"),
               })}
@@ -239,7 +239,7 @@ class SettingsCommunityPluginListingView extends View {
                       </div>
                     </div>
                     ${readme
-                      ? html`<div class="plugin-listing-readme">
+                      ? html` <div class="plugin-listing-readme">
                           <rendered-markdown
                             data-testid="plugin-listing-readme"
                             content=${readme}
