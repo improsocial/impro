@@ -40,10 +40,17 @@ export class Router extends EventEmitter {
     this.scrollStates = new Map();
     // Disable scroll restoration
     window.history.scrollRestoration = "manual";
-    // Save scroll on page hide
+    // Save scroll when navigating away from the page
     window.addEventListener("pagehide", () => {
       if (this.currentPath != null) {
         this.scrollStates.set(this.currentPath, window.scrollY);
+      }
+    });
+    // Restore scroll when returning from an external page
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted && this.currentPath != null) {
+        const scrollY = this.scrollStates.get(this.currentPath) ?? 0;
+        window.scrollTo(0, scrollY);
       }
     });
     // on back button, go back to the previous page
