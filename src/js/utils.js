@@ -36,6 +36,8 @@ export function groupBy(array, keyOrFn) {
 
 export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
+export const isMobileViewport = () =>
+  window.matchMedia("(max-width: 799px)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -337,7 +339,7 @@ export function enableDragToDismiss(
     disableWhenKeyboardOpen = true,
   } = {},
 ) {
-  if (window.matchMedia("(min-width: 800px)").matches) return null;
+  if (!isMobileViewport()) return null;
 
   if (target.__dragToDismiss) {
     target.__dragToDismiss.cleanup();

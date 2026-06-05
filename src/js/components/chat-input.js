@@ -1,6 +1,7 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
+import { isMobileViewport } from "/js/utils.js";
 
 class ChatInput extends Component {
   static get observedAttributes() {
@@ -73,6 +74,7 @@ class ChatInput extends Component {
 
   handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
+      if (isMobileViewport()) return;
       e.preventDefault();
       this.handleSend();
     }

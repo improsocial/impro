@@ -1,5 +1,9 @@
 import { html, render } from "/js/lib/lit-html.js";
-import { classnames, enableDragToDismiss } from "/js/utils.js";
+import {
+  classnames,
+  enableDragToDismiss,
+  isMobileViewport,
+} from "/js/utils.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { hapticsImpactLight } from "/js/haptics.js";
@@ -87,7 +91,7 @@ class ContextMenu extends Component {
     dialog.showModal();
 
     // On desktop, position the dialog at the mouse cursor - claude wrote this
-    if (window.matchMedia("(min-width: 800px)").matches) {
+    if (!isMobileViewport()) {
       const rect = dialog.getBoundingClientRect();
       const margin = 8;
       let left = x;
