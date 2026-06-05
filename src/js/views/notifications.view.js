@@ -10,6 +10,7 @@ import { displayRelativeTime, batch } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { pageEffect } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
+import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -258,7 +259,7 @@ class NotificationsView extends View {
       return html`
         <div class="notification-item ${isUnread ? "unread" : ""}">
           <div class="notification-icon">
-            ${userIconTemplate({ filled: true })}
+            ${userPlusIconTemplate({ filled: true })}
           </div>
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
