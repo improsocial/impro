@@ -875,6 +875,10 @@ header {
   flex: 1;
 }
 
+.header > .header-row:has(.header-title-container) .header-spacer {
+  flex: 0;
+}
+
 .header .loading-spinner {
   margin-right: 8px;
 }
