@@ -71,15 +71,20 @@ class ChatDetailView extends View {
       }
     }
 
+    function getMessageScroller() {
+      return root.querySelector(".chat-detail-main infinite-scroll-container");
+    }
+
     function scrollToBottom({ onlyIfNeeded = false } = {}) {
-      const scrollingElement = document.scrollingElement || document.body;
-      // Only scroll if content overflows the viewport
-      if (scrollingElement.scrollHeight <= scrollingElement.clientHeight) {
+      const scroller = getMessageScroller();
+      if (!scroller) {
+        return;
+      }
+      if (scroller.scrollHeight <= scroller.clientHeight) {
         return;
       }
       if (onlyIfNeeded) {
-        // Don't scroll if last message is already visible on screen
-        const messageList = root.querySelector(".message-list");
+        const messageList = scroller.querySelector(".message-list");
         if (messageList) {
           const lastMessage = [
             ...messageList.querySelectorAll(".message-bubble"),
@@ -87,53 +92,60 @@ class ChatDetailView extends View {
           if (lastMessage) {
             const lastMessageBottom =
               lastMessage.getBoundingClientRect().bottom;
-            const viewportHeight = window.innerHeight;
-            if (lastMessageBottom <= viewportHeight) {
+            const scrollerBottom = scroller.getBoundingClientRect().bottom;
+            if (lastMessageBottom <= scrollerBottom) {
               return;
             }
           }
         }
       }
-      scrollingElement.scrollTop = scrollingElement.scrollHeight;
+      scroller.scrollTop = scroller.scrollHeight;
     }
 
     function isScrolledToBottom() {
-      const scrollingElement = document.scrollingElement || document.body;
+      const scroller = getMessageScroller();
+      if (!scroller) {
+        return false;
+      }
       // 10px threshold
       return (
-        scrollingElement.scrollHeight -
-          scrollingElement.scrollTop -
-          scrollingElement.clientHeight <=
-        10
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 10
       );
     }
 
-    let inputBarResizeObserver = null;
-    function observeInputBar(wrapper) {
-      if (inputBarResizeObserver) {
-        inputBarResizeObserver.disconnect();
-        inputBarResizeObserver = null;
-      }
-      if (!wrapper) {
+    // Tracked via the scroller's scroll events so when the input bar grows
+    // we can pin using PRE-resize state. By the time the height-change event
+    // fires the scroller has already shrunk, so a post-hoc check is unreliable.
+    let wasAtBottom = true;
+    let scrollListenerEl = null;
+
+    function onScroll() {
+      wasAtBottom = isScrolledToBottom();
+    }
+
+    function attachScrollListener() {
+      const scroller = getMessageScroller();
+      if (scroller === scrollListenerEl) {
         return;
       }
-      const syncBottomSpacing = () => {
-        const messageList = root.querySelector(".message-list");
-        const inputBar = wrapper.querySelector(".message-input-container");
-        if (!messageList || !inputBar) {
-          return;
-        }
-        const wasAtBottom = isScrolledToBottom();
-        // Reserve exactly the bar's height; the bottom nav / safe-area gap is
-        // handled by the message list's CSS margin-bottom.
-        messageList.style.paddingBottom = inputBar.offsetHeight + "px";
-        // Keep the newest message pinned in view as the bar grows/shrinks.
-        if (wasAtBottom) {
-          scrollToBottom();
-        }
-      };
-      inputBarResizeObserver = new ResizeObserver(syncBottomSpacing);
-      inputBarResizeObserver.observe(wrapper);
+      if (scrollListenerEl) {
+        scrollListenerEl.removeEventListener("scroll", onScroll);
+      }
+      scrollListenerEl = scroller;
+      if (scroller) {
+        scroller.addEventListener("scroll", onScroll, { passive: true });
+      }
+    }
+
+    function handleInputHeightChange(e) {
+      const height = e.detail?.height;
+      const main = root.querySelector(".chat-detail-main");
+      if (main && typeof height === "number") {
+        main.style.setProperty("--input-bar-height", height + "px");
+      }
+      if (wasAtBottom) {
+        scrollToBottom();
+      }
     }
 
     class MessageFetcher {
@@ -233,12 +245,15 @@ class ChatDetailView extends View {
           text: messageText,
           facets,
         });
+        await raf();
+        await raf();
         scrollToBottom();
       } catch (error) {
         console.error(error);
         showToast("Failed to send message", { style: "error" });
       } finally {
         state.$isSendingMessage.set(false);
+        await raf();
         focusChatInput();
       }
     }
@@ -527,23 +542,27 @@ class ChatDetailView extends View {
       // const message
       return html`
         <infinite-scroll-container
+          ${ref((el) => {
+            if (el) {
+              attachScrollListener();
+            }
+          })}
           ?disabled=${!loadingEnabled}
           lookahead="0px"
           inverted
           @load-more=${async (e) => {
             if (hasMore) {
-              const scrollContainer =
-                document.querySelector(".chat-detail-main");
+              const scrollContainer = getMessageScroller();
               // Maintain scroll position using scrollHeight difference
               const previousScrollHeight = scrollContainer.scrollHeight;
-              const previousScrollTop = window.scrollY;
+              const previousScrollTop = scrollContainer.scrollTop;
               await loadMessages({ renderOnLoad: false });
               await raf();
               await raf();
               // Restore scroll position
               const newScrollHeight = scrollContainer.scrollHeight;
               const heightDifference = newScrollHeight - previousScrollHeight;
-              window.scrollTo(0, previousScrollTop + heightDifference);
+              scrollContainer.scrollTop = previousScrollTop + heightDifference;
               await wait(100); // wait for the scroll to complete so that we don't accidentally trigger the load more event again
               e.detail.resume();
             }
@@ -669,14 +688,15 @@ class ChatDetailView extends View {
                     </div>`;
                   }
                 })()}
+                <div class="message-input-wrapper">
+                  <chat-input
+                    @send=${(e) => handleSendMessage(e.detail.message)}
+                    @height-change=${handleInputHeightChange}
+                    ?disabled=${!messages || isSendingMessage}
+                    ?loading=${isSendingMessage}
+                  ></chat-input>
+                </div>
               </main>
-              <div class="message-input-wrapper" ${ref(observeInputBar)}>
-                <chat-input
-                  @send=${(e) => handleSendMessage(e.detail.message)}
-                  ?disabled=${!messages || isSendingMessage}
-                  ?loading=${isSendingMessage}
-                ></chat-input>
-              </div>
             `,
           })}
         </div>`,
@@ -712,11 +732,8 @@ class ChatDetailView extends View {
 
     root.addEventListener("page-restore", async (e) => {
       messageFetcher.start();
-      const scrollY = e.detail?.scrollY ?? 0;
       const isBack = e.detail?.isBack ?? false;
-      if (isBack) {
-        window.scrollTo(0, scrollY);
-      } else {
+      if (!isBack) {
         scrollToBottom();
         await loadMessages({ reload: true });
       }

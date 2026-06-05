@@ -3403,26 +3403,38 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 }
 
 .chat-detail-main {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: calc(100vh - var(--chat-detail-header-height));
-  min-height: calc(100dvh - var(--chat-detail-header-height));
+  position: relative;
+  height: calc(
+    100vh - var(--chat-detail-header-height) - var(--footer-height) -
+      var(--safe-area-inset-bottom)
+  );
+  height: calc(
+    100dvh - var(--chat-detail-header-height) - var(--footer-height) -
+      var(--safe-area-inset-bottom)
+  );
+  overflow: hidden;
+  /* Gets updated via JS in chat detail view */
+  --input-bar-height: var(--message-input-min-height);
+}
+
+.chat-detail-main > infinite-scroll-container {
+  display: block;
+  height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: var(--input-bar-height);
+  box-sizing: border-box;
 }
 
 .chat-detail-main .message-list {
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 16px;
-  padding-bottom: var(--message-input-min-height);
-  margin-bottom: calc(
-    var(--footer-height) + var(--safe-area-inset-bottom) + 8px
-  );
+  padding: 16px 16px 8px;
 }
 
 @media (min-width: 800px) {
-  .chat-detail-main .message-list {
-    margin-bottom: calc(var(--safe-area-inset-bottom) + 8px);
+  .chat-detail-main {
+    height: calc(
+      100dvh - var(--chat-detail-header-height) - var(--safe-area-inset-bottom)
+    );
   }
 }
 
@@ -3570,8 +3582,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
 
 .message-input-wrapper {
   display: flex;
-  justify-content: center;
-  position: fixed;
+  position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
@@ -3587,35 +3598,11 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   position: relative;
   min-height: var(--message-input-min-height);
   z-index: var(--message-input-z-index);
-  bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+  flex: 1;
 }
 
 chat-input {
   flex: 1;
-}
-
-@media (min-width: 800px) {
-  /* mirror the .view-columns layout so the input aligns with view-column-center */
-  .message-input-wrapper {
-    justify-content: initial;
-  }
-  .message-input-wrapper::before,
-  .message-input-wrapper::after {
-    content: "";
-    flex: 1 1 var(--sidebar-max-width);
-    min-width: 0;
-    max-width: var(--sidebar-max-width);
-  }
-  chat-input {
-    flex: 1;
-    min-width: 600px;
-  }
-  .message-input-container {
-    box-sizing: border-box;
-    bottom: 0;
-    border-right: var(--hair) solid var(--post-border-color);
-    border-left: var(--hair) solid var(--post-border-color);
-  }
 }
 
 .message-input-avatar {

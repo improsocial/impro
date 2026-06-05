@@ -49,11 +49,21 @@ class ChatInput extends Component {
 
   updateTextareaHeight() {
     const textarea = this.querySelector(".message-input-field");
-    const oldHeight = textarea.style.height;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = textarea.scrollHeight + "px";
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+    this.reportHeight();
+  }
+
+  reportHeight() {
+    const newHeight = this.offsetHeight;
+    if (newHeight === this._lastReportedHeight) {
+      return;
     }
+    this._lastReportedHeight = newHeight;
+    this.dispatchEvent(
+      new CustomEvent("height-change", { detail: { height: newHeight } }),
+    );
   }
 
   handleSend() {
