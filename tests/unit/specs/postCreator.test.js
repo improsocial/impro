@@ -19,13 +19,20 @@ function makeApi() {
     createPost: async ({ embed, langs }) => {
       api.lastEmbed = embed;
       api.lastLangs = langs;
-      return { uri: "at://did:plc:user/app.bsky.feed.post/abc" };
+      return {
+        uri: "at://did:plc:user/app.bsky.feed.post/abc",
+        cid: "cid1",
+      };
     },
-    getPost: async () => ({
-      uri: "at://did:plc:user/app.bsky.feed.post/abc",
-      cid: "cid1",
-      record: { text: "hi" },
-    }),
+    getPostCalls: 0,
+    getPost: async function () {
+      this.getPostCalls++;
+      return {
+        uri: "at://did:plc:user/app.bsky.feed.post/abc",
+        cid: "cid1",
+        record: { text: "hi" },
+      };
+    },
   };
   return api;
 }
@@ -316,7 +323,7 @@ t.describe("post text trimming", (it) => {
     api.sent = null;
     api.createPost = async (record) => {
       api.sent = record;
-      return { uri: "at://did:plc:user/app.bsky.feed.post/abc" };
+      return { uri: "at://did:plc:user/app.bsky.feed.post/abc", cid: "cid1" };
     };
     return api;
   }
@@ -382,6 +389,54 @@ t.describe("post text trimming", (it) => {
       postText: "",
     });
     assertEquals(api.sent.text, "");
+  });
+});
+
+t.describe("app view hydration", (it) => {
+  it("returns uri, cid, and the hydrated post on success", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const result = await pc.createPost({ postText: "hi" });
+    assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+    assertEquals(result.cid, "cid1");
+    assertEquals(result.post.cid, "cid1");
+    assertEquals(api.getPostCalls, 1);
+  });
+
+  it("returns post: null when app view never returns the post", async () => {
+    const originalWait = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalWait(fn, 0);
+    try {
+      const api = makeApi();
+      api.getPost = async () => {
+        throw new Error("not found yet");
+      };
+      const pc = new PostCreator(api, mockIdentityResolver);
+      const result = await pc.createPost({ postText: "hi" });
+      assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+      assertEquals(result.cid, "cid1");
+      assertEquals(result.post, null);
+    } finally {
+      globalThis.setTimeout = originalWait;
+    }
+  });
+
+  it("retries up to 5 times before giving up", async () => {
+    const originalWait = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalWait(fn, 0);
+    try {
+      const api = makeApi();
+      let calls = 0;
+      api.getPost = async () => {
+        calls++;
+        throw new Error("nope");
+      };
+      const pc = new PostCreator(api, mockIdentityResolver);
+      await pc.createPost({ postText: "hi" });
+      assertEquals(calls, 5);
+    } finally {
+      globalThis.setTimeout = originalWait;
+    }
   });
 });
 

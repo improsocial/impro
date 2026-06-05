@@ -2202,7 +2202,11 @@ t.describe("createPost", (it) => {
       viewer: {},
     };
     mutations.postCreator = {
-      createPost: async () => fullPost,
+      createPost: async () => ({
+        uri: fullPost.uri,
+        cid: fullPost.cid,
+        post: fullPost,
+      }),
     };
     if (replyPostThread) {
       dataStore.$postThreads.set(replyPostThread.post.uri, replyPostThread);
@@ -2265,6 +2269,24 @@ t.describe("createPost", (it) => {
     const repliesFeed = dataStore.$authorFeeds.get(`${currentUserDid}-replies`);
     assertEquals(repliesFeed.feed.length, 1);
     assertEquals(repliesFeed.feed[0].post.uri, newPostUri);
+  });
+
+  it("still resolves with uri/cid when the app view fetch fails, without mutating stores", async () => {
+    const { mutations, dataStore } = setup({
+      authorFeed: { feed: [], cursor: "c1" },
+    });
+    mutations.postCreator = {
+      createPost: async () => ({ uri: newPostUri, cid: "cid-new", post: null }),
+    };
+
+    const result = await mutations.createPost({ postText: "hello" });
+
+    assertEquals(result.uri, newPostUri);
+    assertEquals(result.cid, "cid-new");
+    assertEquals(result.post, null);
+    assertEquals(dataStore.$posts.get(newPostUri), null);
+    const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
+    assertEquals(feed.feed.length, 0);
   });
 });
 

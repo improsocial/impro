@@ -852,7 +852,7 @@ export class Mutations {
     images,
     video,
   }) {
-    const post = await this.postCreator.createPost({
+    const { uri, cid, post } = await this.postCreator.createPost({
       postText,
       external,
       replyTo,
@@ -861,38 +861,40 @@ export class Mutations {
       images,
       video,
     });
-    // NOTE: LEXICON DEVIATION
-    post.viewer.priorityReply = true;
-    // Update the post in the store
-    this.dataStore.$posts.set(post.uri, post);
-    // If it's a reply, update the reply post thread in the store
-    if (replyTo) {
-      const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
-      if (replyPostThread) {
-        this.dataStore.$postThreads.set(replyTo.uri, {
-          ...replyPostThread,
-          replies: [
-            {
-              $type: "app.bsky.feed.defs#threadViewPost",
-              post: post,
-              replies: [],
-            },
-            ...replyPostThread.replies,
-          ],
+    // Update local data with new post, if present
+    if (post) {
+      // NOTE: LEXICON DEVIATION
+      post.viewer.priorityReply = true;
+      this.dataStore.$posts.set(post.uri, post);
+      // If it's a reply, update the reply post thread in the store
+      if (replyTo) {
+        const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
+        if (replyPostThread) {
+          this.dataStore.$postThreads.set(replyTo.uri, {
+            ...replyPostThread,
+            replies: [
+              {
+                $type: "app.bsky.feed.defs#threadViewPost",
+                post: post,
+                replies: [],
+              },
+              ...replyPostThread.replies,
+            ],
+          });
+        }
+      }
+      // If the author feed is loaded, add the new post to it
+      const { repo: did } = parseUri(post.uri);
+      const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
+      const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
+      if (authorFeed) {
+        this.dataStore.$authorFeeds.set(authorFeedURI, {
+          feed: addFeedItemToFeed({ post }, authorFeed.feed),
+          cursor: authorFeed.cursor,
         });
       }
     }
-    // If the author feed is loaded, add the new post to it
-    const { repo: did } = parseUri(post.uri);
-    const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
-    const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-    if (authorFeed) {
-      this.dataStore.$authorFeeds.set(authorFeedURI, {
-        feed: addFeedItemToFeed({ post }, authorFeed.feed),
-        cursor: authorFeed.cursor,
-      });
-    }
-    return post;
+    return { uri, cid, post };
   }
 
   async deletePost(post) {

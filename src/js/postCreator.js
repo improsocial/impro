@@ -90,24 +90,20 @@ export class PostCreator {
       langs: getPostLangs(),
     });
 
-    // Get full post from the app view
-    const maxRetries = 3;
+    // Attempt to get full post from the app view, return null on failure
+    const maxRetries = 5;
     let fullPost = null;
-    let tries = 0;
-    while (!fullPost && tries < maxRetries) {
+    for (let tries = 0; tries < maxRetries; tries++) {
       try {
         fullPost = await this.api.getPost(res.uri);
+        if (fullPost) break;
       } catch (e) {}
-      if (!fullPost && tries < maxRetries - 1) {
-        await wait(500 * Math.pow(2, tries));
+      if (tries < maxRetries - 1) {
+        await wait(1000);
       }
-      tries++;
-    }
-    if (!fullPost) {
-      throw new Error(`Failed to get post: ${res.uri}`);
     }
 
-    return fullPost;
+    return { uri: res.uri, cid: res.cid, post: fullPost };
   }
 
   async _prepareImagesEmbed(images) {
