@@ -193,6 +193,7 @@ html {
   --hair: 1px;
   --chat-detail-header-height: 56px;
   --footer-height: 55px;
+  --post-thread-reply-prompt-height: 50px;
   --message-input-min-height: 70px;
   --sidebar-max-width: 300px;
   --safe-area-inset-bottom: 0px; /* this needs to be in px because it's used in calc */
@@ -1938,6 +1939,16 @@ button.sidebar-plugin-nav-item {
 
 .post-thread {
   min-height: calc(100dvh - 46px - var(--safe-area-inset-bottom));
+  padding-bottom: calc(
+    var(--footer-height) + var(--safe-area-inset-bottom) +
+      var(--post-thread-reply-prompt-height)
+  );
+}
+
+@media (min-width: 800px) {
+  .post-thread {
+    padding-bottom: 0;
+  }
 }
 
 .post-thread-reply-prompt {
@@ -1945,12 +1956,14 @@ button.sidebar-plugin-nav-item {
   left: 0;
   right: 0;
   bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom) - 2px);
+  height: var(--post-thread-reply-prompt-height);
+  box-sizing: border-box;
   color: var(--text-color-muted);
   cursor: pointer;
   padding-left: 10px;
   padding-right: 10px;
   padding-bottom: 1px;
-  padding-top: 5px;
+  padding-top: 6px;
   background: var(--background-color);
   z-index: var(--reply-prompt-z-index);
 }
@@ -1969,6 +1982,7 @@ button.sidebar-plugin-nav-item {
 @media (min-width: 800px) {
   .post-thread-reply-prompt {
     position: static;
+    height: auto;
     padding: 0;
     border-bottom: var(--hair) solid var(--post-border-color);
     z-index: 0;
