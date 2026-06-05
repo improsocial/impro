@@ -85,15 +85,19 @@ const PDS_URL = "https://pds.example.com/";
 
 const ORIGINAL_REFRESH_BACKOFF_MS = Session.refreshBackoffMs;
 
+const ORIGINAL_CONCURRENT_RECOVERY_MS = Session.concurrentRefreshRecoveryMs;
+
 t.beforeEach(() => {
   globalThis.fetch = new MockFetch();
   Session.refreshBackoffMs = 0;
+  Session.concurrentRefreshRecoveryMs = 0;
 });
 
 t.afterEach(() => {
   globalThis.localStorage.clear();
   delete globalThis.fetch;
   Session.refreshBackoffMs = ORIGINAL_REFRESH_BACKOFF_MS;
+  Session.concurrentRefreshRecoveryMs = ORIGINAL_CONCURRENT_RECOVERY_MS;
 });
 
 t.describe("error classes", (it) => {
@@ -442,6 +446,96 @@ t.describe("Session.fetch token refresh", (it) => {
     globalThis.fetch.__interceptJson(PDS_URL, {});
     await session.fetch("https://pds.example.com/xrpc/foo");
     assertEquals(refreshCount, 2);
+  });
+
+  it("should not throw TokenRefreshError when network errors exhaust retries", async () => {
+    const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+    globalThis.fetch.__intercept(TOKEN_URL, async () => {
+      throw new TypeError("network down");
+    });
+    globalThis.fetch.__interceptJson(PDS_URL, {});
+    let threw = null;
+    try {
+      await session.fetch("https://pds.example.com/xrpc/foo");
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw !== null);
+    assert(!(threw instanceof TokenRefreshError));
+    assert(threw.message.includes("network"));
+    // 3 attempts total: initial + 2 retries
+    const tokenCalls = globalThis.fetch.calls.filter((call) =>
+      call.url.includes("/token"),
+    );
+    assertEquals(tokenCalls.length, 3);
+  });
+
+  it("should not throw TokenRefreshError when 5xx exhausts retries", async () => {
+    const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+    globalThis.fetch.__intercept(TOKEN_URL, async () =>
+      mockResponse({ ok: false, status: 503, text: "unavailable" }),
+    );
+    globalThis.fetch.__interceptJson(PDS_URL, {});
+    let threw = null;
+    try {
+      await session.fetch("https://pds.example.com/xrpc/foo");
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw !== null);
+    assert(!(threw instanceof TokenRefreshError));
+    assert(threw.message.includes("server"));
+  });
+
+  it("should adopt rotated tokens written by another tab on invalid_grant", async () => {
+    const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+    // Simulate another tab rotating the session BEFORE this tab's refresh fires.
+    globalThis.fetch.__intercept(TOKEN_URL, async () => {
+      const stored = JSON.parse(
+        localStorage.getItem("oauth_session:did:plc:test"),
+      );
+      localStorage.setItem(
+        "oauth_session:did:plc:test",
+        JSON.stringify({
+          ...stored,
+          accessToken: "rotated-at",
+          refreshToken: "rotated-rt",
+          expiresAt: Date.now() + 3600000,
+        }),
+      );
+      return mockResponse({
+        ok: false,
+        status: 400,
+        body: { error: "invalid_grant" },
+      });
+    });
+    globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+    const response = await session.fetch("https://pds.example.com/xrpc/foo");
+    assert(response.ok);
+    // The follow-up PDS call should have used the adopted access token.
+    const pdsCall = globalThis.fetch.calls.find((call) =>
+      call.url.includes("/xrpc/foo"),
+    );
+    assertEquals(pdsCall.options.headers.Authorization, "DPoP rotated-at");
+  });
+
+  it("should throw TokenRefreshError on invalid_grant when no concurrent rotation occurred", async () => {
+    const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+    globalThis.fetch.__intercept(TOKEN_URL, async () =>
+      mockResponse({
+        ok: false,
+        status: 400,
+        body: { error: "invalid_grant" },
+      }),
+    );
+    globalThis.fetch.__interceptJson(PDS_URL, {});
+    let threw = null;
+    try {
+      await session.fetch("https://pds.example.com/xrpc/foo");
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw instanceof TokenRefreshError);
   });
 });
 
