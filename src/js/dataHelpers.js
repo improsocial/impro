@@ -684,3 +684,39 @@ export function canReplyToPost(post) {
   }
   return true;
 }
+
+function replaceEmbed(post, embed) {
+  if (post.embeds) {
+    return { ...post, embeds: [embed, ...post.embeds.slice(1)] };
+  }
+  return { ...post, embed };
+}
+
+function transformQuote(post, updater) {
+  const embed = post.embeds ? post.embeds[0] : post.embed;
+  if (!embed) return post;
+  if (embed.$type === "app.bsky.embed.record#view") {
+    const updated = updater(embed.record);
+    if (updated === embed.record) return post;
+    return replaceEmbed(post, { ...embed, record: updated });
+  }
+  if (embed.$type === "app.bsky.embed.recordWithMedia#view") {
+    const updated = updater(embed.record.record);
+    if (updated === embed.record.record) return post;
+    return replaceEmbed(post, {
+      ...embed,
+      record: { ...embed.record, record: updated },
+    });
+  }
+  return post;
+}
+
+// Up to two levels deep
+export function transformNestedQuotes(post, transform) {
+  return transformQuote(post, (quotedPost) => {
+    const updatedQuote = transform(quotedPost);
+    return transformQuote(updatedQuote, (nestedQuotedPost) =>
+      transform(nestedQuotedPost),
+    );
+  });
+}

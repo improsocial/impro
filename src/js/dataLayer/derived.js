@@ -17,8 +17,9 @@ import {
   getLastInteractionTimestamp,
   markBlockedQuoteNotFound,
   replaceBlockedQuote,
+  transformNestedQuotes,
 } from "/js/dataHelpers.js";
-import { sortBy, deepClone } from "/js/utils.js";
+import { sortBy } from "/js/utils.js";
 import {
   effect,
   Signal,
@@ -27,210 +28,56 @@ import {
   ReactiveStore,
 } from "/js/signals.js";
 
-function resolveBlockedQuote(post, { getPost }) {
-  const blockedQuote = getBlockedQuote(post);
-  if (!blockedQuote || isBlockingUser(blockedQuote)) return post;
-  const fullBlockedPost = getPost(blockedQuote.uri);
-  if (fullBlockedPost) {
-    const blockedQuoteEmbed = isEmptyPost(fullBlockedPost)
-      ? fullBlockedPost
-      : createEmbedFromPost(fullBlockedPost);
-    return replaceBlockedQuote(post, blockedQuoteEmbed);
-  }
-  return markBlockedQuoteNotFound(post, blockedQuote.uri);
-}
-
-function applyMutedWordsInPlace(post, preferences) {
+function applyMutedWords(post, preferences) {
+  let result = post;
   if (preferences.postHasMutedWord(post)) {
-    if (!post.viewer) post.viewer = {};
-    post.viewer.hasMutedWord = true;
+    result = {
+      ...result,
+      viewer: { ...(result.viewer ?? {}), hasMutedWord: true },
+    };
   }
-  const quotedPost = getQuotedPost(post);
-  if (quotedPost) {
-    if (preferences.quotedPostHasMutedWord(quotedPost)) {
-      quotedPost.hasMutedWord = true;
-    }
-    const nestedQuotedPost = getQuotedPost(quotedPost);
-    if (
-      nestedQuotedPost &&
-      preferences.quotedPostHasMutedWord(nestedQuotedPost)
-    ) {
-      nestedQuotedPost.hasMutedWord = true;
-    }
-  }
-}
-
-function applyIsHiddenInPlace(post, preferences) {
-  if (preferences.isPostHidden(post.uri)) {
-    if (!post.viewer) post.viewer = {};
-    post.viewer.isHidden = true;
-  }
-  const quotedPost = getQuotedPost(post);
-  if (quotedPost) {
-    if (preferences.isPostHidden(quotedPost.uri)) {
-      quotedPost.isHidden = true;
-    }
-    const nestedQuotedPost = getQuotedPost(quotedPost);
-    if (nestedQuotedPost && preferences.isPostHidden(nestedQuotedPost.uri)) {
-      nestedQuotedPost.isHidden = true;
-    }
-  }
-}
-
-function applyLabelsInPlace(post, preferences) {
-  const badgeLabels = preferences.getBadgeLabels(post);
-  if (badgeLabels.length > 0) {
-    post.badgeLabels = badgeLabels;
-  }
-  const contentLabel = preferences.getContentLabel(post);
-  if (contentLabel) {
-    post.contentLabel = contentLabel;
-  }
-  const mediaLabel = preferences.getMediaLabel(post);
-  if (mediaLabel) {
-    post.mediaLabel = mediaLabel;
-  }
-  const quotedPost = getQuotedPost(post);
-  if (quotedPost) {
-    const quotedBadgeLabels = preferences.getBadgeLabels(quotedPost);
-    if (quotedBadgeLabels.length > 0) {
-      quotedPost.badgeLabels = quotedBadgeLabels;
-    }
-    const quotedContentLabel = preferences.getContentLabel(quotedPost);
-    if (quotedContentLabel) {
-      quotedPost.contentLabel = quotedContentLabel;
-    }
-    const quotedMediaLabel = preferences.getMediaLabel(quotedPost);
-    if (quotedMediaLabel) {
-      quotedPost.mediaLabel = quotedMediaLabel;
-    }
-    const nestedQuotedPost = getQuotedPost(quotedPost);
-    if (nestedQuotedPost) {
-      const nestedBadgeLabels = preferences.getBadgeLabels(nestedQuotedPost);
-      if (nestedBadgeLabels.length > 0) {
-        nestedQuotedPost.badgeLabels = nestedBadgeLabels;
-      }
-      const nestedContentLabel = preferences.getContentLabel(nestedQuotedPost);
-      if (nestedContentLabel) {
-        nestedQuotedPost.contentLabel = nestedContentLabel;
-      }
-      const nestedMediaLabel = preferences.getMediaLabel(nestedQuotedPost);
-      if (nestedMediaLabel) {
-        nestedQuotedPost.mediaLabel = nestedMediaLabel;
-      }
-    }
-  }
-}
-
-// Composes the per-post hydrations a view typically wants.
-// Returns a new post object; never mutates the input.
-function hydratePostForView(post, { preferences, getPost }) {
-  if (!post) return null;
-  const resolved = resolveBlockedQuote(post, { getPost });
-  const result = resolved === post ? deepClone(post) : deepClone(resolved);
-  applyMutedWordsInPlace(result, preferences);
-  applyIsHiddenInPlace(result, preferences);
-  applyLabelsInPlace(result, preferences);
-  return result;
-}
-
-// Attach parentAuthor to a post's reply record when its parent is loaded.
-// Returns the input unchanged if there's no reply or the parent isn't loaded.
-function attachParentAuthor(post, getPost) {
-  const parentUri = post?.record?.reply?.parent?.uri;
-  if (!parentUri) return post;
-  const parentPost = getPost(parentUri);
-  if (!parentPost) return post;
-  return {
-    ...post,
-    record: {
-      ...post.record,
-      reply: {
-        // NOTE: LEXICON DEVIATION
-        ...post.record.reply,
-        parentAuthor: parentPost.author,
-      },
-    },
-  };
-}
-
-function hydrateNotifications(notifications, { getPost }) {
-  if (!notifications) return null;
-  return notifications.map((notification) => {
-    if (notification.reason === "like" || notification.reason === "repost") {
-      const subject =
-        getPost(notification.reasonSubject) ??
-        createUnavailablePost(notification.reasonSubject);
-      return { ...notification, subject };
-    }
-    if (
-      notification.reason === "like-via-repost" ||
-      notification.reason === "repost-via-repost"
-    ) {
-      const postUri = notification.record.subject.uri;
-      const subject = getPost(postUri) ?? createUnavailablePost(postUri);
-      return { ...notification, subject };
-    }
-    if (
-      notification.reason === "reply" ||
-      notification.reason === "mention" ||
-      notification.reason === "quote"
-    ) {
-      const replyPost = getPost(notification.uri);
-      const parentPostUri = notification.record?.reply?.parent?.uri;
-      const parentPost = parentPostUri ? getPost(parentPostUri) : null;
-      return { ...notification, post: replyPost, parentPost };
-    }
-    if (notification.reason === "subscribed-post") {
-      const post = getPost(notification.uri);
-      // NOTE: LEXICON DEVIATION
-      return { ...notification, reasonSubject: post };
-    }
-    return notification;
+  return transformNestedQuotes(result, (quotedPost) => {
+    if (!preferences.quotedPostHasMutedWord(quotedPost)) return quotedPost;
+    return { ...quotedPost, hasMutedWord: true };
   });
 }
 
-function hydratePostThreadNode(node, { getPost, hiddenReplyUris }) {
-  if (!node || isEmptyPost(node)) return node;
-  const post = getPost(node.post.uri);
-  if (!post) return null;
-  const hydrated = { post };
-  if (hiddenReplyUris.includes(node.post.uri)) {
-    // NOTE: LEXICON DEVIATION
-    hydrated.post = { ...post, isHidden: true };
+function applyIsHidden(post, preferences) {
+  let result = post;
+  if (preferences.isPostHidden(post.uri)) {
+    result = {
+      ...result,
+      viewer: { ...(result.viewer ?? {}), isHidden: true },
+    };
   }
-  if (node.replies) {
-    hydrated.replies = node.replies.map((reply) => {
-      if (reply.$type === "app.bsky.feed.defs#threadViewPost") {
-        return hydratePostThreadNode(reply, { getPost, hiddenReplyUris });
-      }
-      return reply;
-    });
-  }
-  return hydrated;
+  return transformNestedQuotes(result, (quotedPost) => {
+    if (!preferences.isPostHidden(quotedPost.uri)) return quotedPost;
+    return { ...quotedPost, isHidden: true };
+  });
 }
 
-function hydratePostThreadParent(parent, { getPost, isUnavailable }) {
-  if (isUnavailable(parent.uri)) {
-    return createUnavailablePost(parent.uri);
+function applyLabelsToPost(post, preferences) {
+  let result = post;
+  const badgeLabels = preferences.getBadgeLabels(post);
+  if (badgeLabels.length > 0) {
+    result = { ...result, badgeLabels };
   }
-  if (isBlockedPost(parent) && isBlockingUser(parent)) {
-    return parent;
+  const contentLabel = preferences.getContentLabel(post);
+  if (contentLabel) {
+    result = { ...result, contentLabel };
   }
-  if (parent.$type !== "app.bsky.feed.defs#threadViewPost") {
-    return parent;
+  const mediaLabel = preferences.getMediaLabel(post);
+  if (mediaLabel) {
+    result = { ...result, mediaLabel };
   }
-  const hydratedParent = {
-    $type: "app.bsky.feed.defs#threadViewPost",
-    post: getPost(parent.post.uri),
-  };
-  if (parent.parent) {
-    hydratedParent.parent = hydratePostThreadParent(parent.parent, {
-      getPost,
-      isUnavailable,
-    });
-  }
-  return hydratedParent;
+  return result;
+}
+
+function applyLabels(post, preferences) {
+  const result = applyLabelsToPost(post, preferences);
+  return transformNestedQuotes(result, (quotedPost) =>
+    applyLabelsToPost(quotedPost, preferences),
+  );
 }
 
 export class Derived extends ReactiveStore {
@@ -256,10 +103,11 @@ export class Derived extends ReactiveStore {
       if (!post || !preferences) {
         return null;
       }
-      return hydratePostForView(post, {
-        preferences,
-        getPost: (uri) => this.$hydratedPosts.get(uri),
-      });
+      let result = this.resolveBlockedQuote(post);
+      result = applyMutedWords(result, preferences);
+      result = applyIsHidden(result, preferences);
+      result = applyLabels(result, preferences);
+      return result;
     });
     this.$hydratedFeeds = new ComputedMap((feedURI) => {
       const feed = this.dataStore.$feeds.get(feedURI);
@@ -323,17 +171,20 @@ export class Derived extends ReactiveStore {
       const patches = this.patchStore.$preferencePatches.get();
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
-    const getHydratedPost = (uri) => this.$hydratedPosts.get(uri);
-    this.$notifications = new Signal.Computed(() =>
-      hydrateNotifications(this.dataStore.$notifications.get(), {
-        getPost: getHydratedPost,
-      }),
-    );
-    this.$mentionNotifications = new Signal.Computed(() =>
-      hydrateNotifications(this.dataStore.$mentionNotifications.get(), {
-        getPost: getHydratedPost,
-      }),
-    );
+    this.$notifications = new Signal.Computed(() => {
+      const notifications = this.dataStore.$notifications.get();
+      if (!notifications) return null;
+      return notifications.map((notification) =>
+        this.hydrateNotification(notification),
+      );
+    });
+    this.$mentionNotifications = new Signal.Computed(() => {
+      const notifications = this.dataStore.$mentionNotifications.get();
+      if (!notifications) return null;
+      return notifications.map((notification) =>
+        this.hydrateNotification(notification),
+      );
+    });
     this.$hydratedPostThreads = new ComputedMap((postURI) => {
       const postThread = this.dataStore.$postThreads.get(postURI);
       const postThreadOther = this.dataStore.$postThreadOthers.get(postURI);
@@ -344,19 +195,12 @@ export class Derived extends ReactiveStore {
         return postThread;
       }
       const hiddenReplyUris = postThreadOther.map((item) => item.uri);
-      const hydrated = hydratePostThreadNode(postThread, {
-        getPost: getHydratedPost,
-        hiddenReplyUris,
-      });
+      const hydrated = this.hydratePostThreadNode(postThread, hiddenReplyUris);
       if (!hydrated) {
         return null;
       }
       if (postThread.parent) {
-        hydrated.parent = hydratePostThreadParent(postThread.parent, {
-          getPost: getHydratedPost,
-          isUnavailable: (uri) =>
-            this.dataStore.$unavailablePosts.get(uri) !== null,
-        });
+        hydrated.parent = this.hydratePostThreadParent(postThread.parent);
       }
       return hydrated;
     });
@@ -370,7 +214,7 @@ export class Derived extends ReactiveStore {
         const post = this.$hydratedPosts.get(feedItem.post.uri);
         if (!post) continue;
         hydratedFeedItems.push({
-          post: attachParentAuthor(post, getHydratedPost),
+          post: this.attachParentAuthor(post),
         });
       }
       return {
@@ -410,7 +254,7 @@ export class Derived extends ReactiveStore {
       for (const result of data.posts) {
         const post = this.$hydratedPosts.get(result.uri);
         if (!post) continue;
-        hydratedSearchResults.push(attachParentAuthor(post, getHydratedPost));
+        hydratedSearchResults.push(this.attachParentAuthor(post));
       }
       return hydratedSearchResults;
     });
@@ -426,7 +270,7 @@ export class Derived extends ReactiveStore {
       for (const quote of quotes.posts) {
         const post = this.$hydratedPosts.get(quote.uri);
         if (!post) continue;
-        hydratedPosts.push(attachParentAuthor(post, getHydratedPost));
+        hydratedPosts.push(this.attachParentAuthor(post));
       }
       return {
         posts: hydratedPosts,
@@ -535,7 +379,7 @@ export class Derived extends ReactiveStore {
       const hydratedFeed = [];
       for (const bookmark of bookmarks.feed) {
         const post = this.$hydratedPosts.get(bookmark.post.uri);
-        hydratedFeed.push({ post: attachParentAuthor(post, getHydratedPost) });
+        hydratedFeed.push({ post: this.attachParentAuthor(post) });
       }
       return filterBookmarksFeed({
         feed: hydratedFeed,
@@ -611,5 +455,114 @@ export class Derived extends ReactiveStore {
     this.$mentionNotificationCursor = new Signal.Computed(() =>
       this.dataStore.$mentionNotificationCursor.get(),
     );
+  }
+
+  resolveBlockedQuote(post) {
+    const blockedQuote = getBlockedQuote(post);
+    if (!blockedQuote || isBlockingUser(blockedQuote)) return post;
+    const fullBlockedPost = this.$hydratedPosts.get(blockedQuote.uri);
+    if (fullBlockedPost) {
+      const blockedQuoteEmbed = isEmptyPost(fullBlockedPost)
+        ? fullBlockedPost
+        : createEmbedFromPost(fullBlockedPost);
+      return replaceBlockedQuote(post, blockedQuoteEmbed);
+    }
+    return markBlockedQuoteNotFound(post, blockedQuote.uri);
+  }
+
+  // Attach parentAuthor to a post's reply record when its parent is loaded.
+  // Returns the input unchanged if there's no reply or the parent isn't loaded.
+  attachParentAuthor(post) {
+    const parentUri = post?.record?.reply?.parent?.uri;
+    if (!parentUri) return post;
+    const parentPost = this.$hydratedPosts.get(parentUri);
+    if (!parentPost) return post;
+    return {
+      ...post,
+      record: {
+        ...post.record,
+        reply: {
+          // NOTE: LEXICON DEVIATION
+          ...post.record.reply,
+          parentAuthor: parentPost.author,
+        },
+      },
+    };
+  }
+
+  hydrateNotification(notification) {
+    if (notification.reason === "like" || notification.reason === "repost") {
+      const subject =
+        this.$hydratedPosts.get(notification.reasonSubject) ??
+        createUnavailablePost(notification.reasonSubject);
+      return { ...notification, subject };
+    }
+    if (
+      notification.reason === "like-via-repost" ||
+      notification.reason === "repost-via-repost"
+    ) {
+      const postUri = notification.record.subject.uri;
+      const subject =
+        this.$hydratedPosts.get(postUri) ?? createUnavailablePost(postUri);
+      return { ...notification, subject };
+    }
+    if (
+      notification.reason === "reply" ||
+      notification.reason === "mention" ||
+      notification.reason === "quote"
+    ) {
+      const replyPost = this.$hydratedPosts.get(notification.uri);
+      const parentPostUri = notification.record?.reply?.parent?.uri;
+      const parentPost = parentPostUri
+        ? this.$hydratedPosts.get(parentPostUri)
+        : null;
+      return { ...notification, post: replyPost, parentPost };
+    }
+    if (notification.reason === "subscribed-post") {
+      const post = this.$hydratedPosts.get(notification.uri);
+      // NOTE: LEXICON DEVIATION
+      return { ...notification, reasonSubject: post };
+    }
+    return notification;
+  }
+
+  hydratePostThreadNode(node, hiddenReplyUris) {
+    if (!node || isEmptyPost(node)) return node;
+    const post = this.$hydratedPosts.get(node.post.uri);
+    if (!post) return null;
+    const hydrated = { post };
+    if (hiddenReplyUris.includes(node.post.uri)) {
+      // NOTE: LEXICON DEVIATION
+      hydrated.post = { ...post, isHidden: true };
+    }
+    if (node.replies) {
+      hydrated.replies = node.replies.map((reply) => {
+        if (reply.$type === "app.bsky.feed.defs#threadViewPost") {
+          return this.hydratePostThreadNode(reply, hiddenReplyUris);
+        }
+        return reply;
+      });
+    }
+    return hydrated;
+  }
+
+  hydratePostThreadParent(parent) {
+    if (this.dataStore.$unavailablePosts.get(parent.uri) !== null) {
+      return createUnavailablePost(parent.uri);
+    }
+    if (isBlockedPost(parent) && isBlockingUser(parent)) {
+      return parent;
+    }
+    if (parent.$type !== "app.bsky.feed.defs#threadViewPost") {
+      return parent;
+    }
+    const hydratedParent = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: this.$hydratedPosts.get(parent.post.uri),
+    };
+    if (parent.parent) {
+      hydratedParent.parent = this.hydratePostThreadParent(parent.parent);
+    }
+    return hydratedParent;
   }
 }
