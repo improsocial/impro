@@ -2026,6 +2026,26 @@ button.sidebar-plugin-nav-item {
 
 .post-actions {
   display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.post-actions-primary {
+  display: flex;
+  flex: 1;
+  max-width: 320px;
+}
+
+.post-actions-secondary {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 4px;
+}
+
+.post-actions-secondary .post-action {
+  flex: 0;
 }
 
 .post-actions .text-button {

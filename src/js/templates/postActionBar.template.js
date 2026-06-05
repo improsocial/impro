@@ -262,149 +262,153 @@ export function postActionBarTemplate({
         e.stopPropagation();
       }}
     >
-      <div class="post-action">
-        <button
-          class="post-action-button"
-          data-testid="reply-button"
-          ?disabled=${!canReply}
-          @click=${() => {
-            if (!isAuthenticated) {
-              return showSignInModal();
-            }
-            onClickReply(post);
-          }}
-        >
-          <div class="post-action-icon">${replyIconTemplate()}</div>
-          ${numReplies > 0
-            ? html`<span class="post-action-count" data-testid="reply-count"
-                >${formatLargeNumber(numReplies)}</span
-              >`
-            : null}
-        </button>
-      </div>
-      <div class="post-action">
-        <button
-          class=${classnames("post-action-button post-action-repost", {
-            reposted: isReposted,
-          })}
-          data-testid="repost-button"
-          @click=${function (e) {
-            e.stopPropagation();
-            if (!isAuthenticated) {
-              return showSignInModal();
-            }
-            const contextMenu = this.nextElementSibling;
-            contextMenu.open(e.clientX, e.clientY);
-          }}
-        >
-          <div class="post-action-icon">${repostIconTemplate()}</div>
-          ${numReposts > 0
-            ? html`<span class="post-action-count" data-testid="repost-count"
-                >${formatLargeNumber(numReposts)}</span
-              >`
-            : null}
-        </button>
-        <context-menu>
-          <context-menu-item
-            data-testid="menu-action-repost"
-            data-teststate=${isReposted ? "reposted" : "not-reposted"}
+      <div class="post-actions-primary">
+        <div class="post-action">
+          <button
+            class="post-action-button"
+            data-testid="reply-button"
+            ?disabled=${!canReply}
             @click=${() => {
               if (!isAuthenticated) {
-                showSignInModal();
-                return;
+                return showSignInModal();
               }
-              onClickRepost(post, !isReposted);
+              onClickReply(post);
             }}
           >
-            ${isReposted ? "Undo repost" : "Repost"}
-          </context-menu-item>
-          <context-menu-item
-            data-testid="menu-action-quote-post"
-            ?disabled=${!canQuotePost || !currentUser}
-            @click=${() => {
-              if (!isAuthenticated) {
-                showSignInModal();
-                return;
-              }
-              onClickQuotePost(post);
-            }}
-          >
-            ${canQuotePost ? "Quote post" : "Quote posts disabled"}
-          </context-menu-item>
-        </context-menu>
-      </div>
-      <div class="post-action">
-        ${keyed(
-          post.uri,
-          html`<animated-button
-            button-class="post-action-button like-button"
-            testid="like-button"
-            ?is-active=${isLiked}
-            @click=${(e) => {
-              e.stopPropagation();
-              if (!isAuthenticated) {
-                showSignInModal();
-                return;
-              }
-              onClickLike(post, !isLiked);
-            }}
-          >
-            <div class="post-action-icon">${heartIconTemplate()}</div>
-            ${numLikes > 0
-              ? html`<span class="post-action-count"
-                  >${formatLargeNumber(numLikes)}</span
+            <div class="post-action-icon">${replyIconTemplate()}</div>
+            ${numReplies > 0
+              ? html`<span class="post-action-count" data-testid="reply-count"
+                  >${formatLargeNumber(numReplies)}</span
                 >`
               : null}
-          </animated-button>`,
-        )}
-      </div>
-      <div class="post-action post-action-bookmark">
-        ${keyed(
-          post.uri,
-          html`<animated-button
-            button-class="post-action-button bookmark-button"
-            testid="bookmark-button"
-            ?is-active=${isBookmarked}
-            @click=${(e) => {
+          </button>
+        </div>
+        <div class="post-action">
+          <button
+            class=${classnames("post-action-button post-action-repost", {
+              reposted: isReposted,
+            })}
+            data-testid="repost-button"
+            @click=${function (e) {
               e.stopPropagation();
               if (!isAuthenticated) {
-                showSignInModal();
-                return;
+                return showSignInModal();
               }
-              onClickBookmark(post, !isBookmarked);
+              const contextMenu = this.nextElementSibling;
+              contextMenu.open(e.clientX, e.clientY);
             }}
           >
-            <div class="post-action-icon">
-              ${bookmarkIconTemplate({ filled: isBookmarked })}
-            </div>
-          </animated-button>`,
-        )}
+            <div class="post-action-icon">${repostIconTemplate()}</div>
+            ${numReposts > 0
+              ? html`<span class="post-action-count" data-testid="repost-count"
+                  >${formatLargeNumber(numReposts)}</span
+                >`
+              : null}
+          </button>
+          <context-menu>
+            <context-menu-item
+              data-testid="menu-action-repost"
+              data-teststate=${isReposted ? "reposted" : "not-reposted"}
+              @click=${() => {
+                if (!isAuthenticated) {
+                  showSignInModal();
+                  return;
+                }
+                onClickRepost(post, !isReposted);
+              }}
+            >
+              ${isReposted ? "Undo repost" : "Repost"}
+            </context-menu-item>
+            <context-menu-item
+              data-testid="menu-action-quote-post"
+              ?disabled=${!canQuotePost || !currentUser}
+              @click=${() => {
+                if (!isAuthenticated) {
+                  showSignInModal();
+                  return;
+                }
+                onClickQuotePost(post);
+              }}
+            >
+              ${canQuotePost ? "Quote post" : "Quote posts disabled"}
+            </context-menu-item>
+          </context-menu>
+        </div>
+        <div class="post-action">
+          ${keyed(
+            post.uri,
+            html`<animated-button
+              button-class="post-action-button like-button"
+              testid="like-button"
+              ?is-active=${isLiked}
+              @click=${(e) => {
+                e.stopPropagation();
+                if (!isAuthenticated) {
+                  showSignInModal();
+                  return;
+                }
+                onClickLike(post, !isLiked);
+              }}
+            >
+              <div class="post-action-icon">${heartIconTemplate()}</div>
+              ${numLikes > 0
+                ? html`<span class="post-action-count"
+                    >${formatLargeNumber(numLikes)}</span
+                  >`
+                : null}
+            </animated-button>`,
+          )}
+        </div>
       </div>
-      <div class="post-action">
-        <button
-          class="post-action-button text-button"
-          @click=${(e) => {
-            e.stopPropagation();
-            openPostContextMenu(e, {
-              post,
-              isAuthenticated,
-              isUserPost,
-              isPinnedToProfile,
-              enableFeedFeedback,
-              pluginService,
-              onClickShowMore,
-              onClickShowLess,
-              onClickHidePost,
-              onClickMute,
-              onClickBlock,
-              onClickReport,
-              onClickDelete,
-              onClickPin,
-            });
-          }}
-        >
-          <span class="text-button-text">...</span>
-        </button>
+      <div class="post-actions-secondary">
+        <div class="post-action post-action-bookmark">
+          ${keyed(
+            post.uri,
+            html`<animated-button
+              button-class="post-action-button bookmark-button"
+              testid="bookmark-button"
+              ?is-active=${isBookmarked}
+              @click=${(e) => {
+                e.stopPropagation();
+                if (!isAuthenticated) {
+                  showSignInModal();
+                  return;
+                }
+                onClickBookmark(post, !isBookmarked);
+              }}
+            >
+              <div class="post-action-icon">
+                ${bookmarkIconTemplate({ filled: isBookmarked })}
+              </div>
+            </animated-button>`,
+          )}
+        </div>
+        <div class="post-action">
+          <button
+            class="post-action-button text-button"
+            @click=${(e) => {
+              e.stopPropagation();
+              openPostContextMenu(e, {
+                post,
+                isAuthenticated,
+                isUserPost,
+                isPinnedToProfile,
+                enableFeedFeedback,
+                pluginService,
+                onClickShowMore,
+                onClickShowLess,
+                onClickHidePost,
+                onClickMute,
+                onClickBlock,
+                onClickReport,
+                onClickDelete,
+                onClickPin,
+              });
+            }}
+          >
+            <span class="text-button-text">...</span>
+          </button>
+        </div>
       </div>
     </div>
   `;
