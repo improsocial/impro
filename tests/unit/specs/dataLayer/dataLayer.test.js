@@ -16,7 +16,9 @@ function createMockApi(options = {}) {
 }
 
 function createDataLayer(api) {
-  return new DataLayer(api, null, new PreferencesProvider(api));
+  return new DataLayer(api, null, new PreferencesProvider(api), {
+    resolveHandle: async () => null,
+  });
 }
 
 t.describe("constructor", (it) => {

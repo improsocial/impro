@@ -787,7 +787,6 @@ class PostComposer extends Component {
       new CustomEvent("send-post", {
         detail: {
           postText: this._postText,
-          unresolvedFacets: this._unresolvedFacets,
           external: this._externalLinkEmbedData,
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,

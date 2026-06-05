@@ -1,15 +1,30 @@
 import { getPostLangs, wait } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
+import {
+  getUnresolvedFacetsFromText,
+  resolveFacets,
+} from "/js/facetHelpers.js";
+
+// Matches social-app - strip leading + trailing whitespace and collapse runs of 3+ newlines to 2
+const excessNewlinesRegex = /[\r\n]([­⁠‍‌​\s]*[\r\n]){2,}/g;
+
+function trimPostText(text) {
+  if (!text) return "";
+  return text
+    .replace(/^(\s*\n)+/, "")
+    .trimEnd()
+    .replace(excessNewlinesRegex, "\n\n");
+}
 
 export class PostCreator {
-  constructor(api, imageCompressor = new ImageCompressor()) {
+  constructor(api, identityResolver, imageCompressor = new ImageCompressor()) {
     this.api = api;
+    this.identityResolver = identityResolver;
     this.imageCompressor = imageCompressor;
   }
 
   async createPost({
     postText,
-    facets,
     external,
     replyTo,
     replyRoot,
@@ -17,6 +32,9 @@ export class PostCreator {
     images,
     video,
   }) {
+    const trimmedText = trimPostText(postText);
+    const unresolvedFacets = getUnresolvedFacetsFromText(trimmedText);
+    const facets = await resolveFacets(unresolvedFacets, this.identityResolver);
     const externalEmbed = await this._prepareExternalEmbed(external);
     const imagesEmbed = await this._prepareImagesEmbed(images);
     const videoEmbed = this._prepareVideoEmbed(video);
@@ -65,7 +83,7 @@ export class PostCreator {
     }
 
     const res = await this.api.createPost({
-      text: postText,
+      text: trimmedText,
       facets,
       embed,
       reply,

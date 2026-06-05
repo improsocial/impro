@@ -7,6 +7,20 @@ import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal, SignalMap } from "/js/signals.js";
 
+const mockIdentityResolver = {
+  resolveHandle: async () => null,
+};
+
+function makeMutations(api, dataStore, patchStore, preferencesProvider) {
+  return new Mutations(
+    api,
+    dataStore,
+    patchStore,
+    preferencesProvider,
+    mockIdentityResolver,
+  );
+}
+
 // Minimal pluginService stub for Derived constructor.
 function makePluginService() {
   return {
@@ -66,7 +80,7 @@ t.describe("addLike", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -90,7 +104,7 @@ t.describe("addLike", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -119,7 +133,7 @@ t.describe("addLike", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -155,7 +169,7 @@ t.describe("removeLike", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -178,7 +192,7 @@ t.describe("removeLike", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -217,7 +231,7 @@ t.describe("followProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -241,7 +255,7 @@ t.describe("followProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -280,7 +294,7 @@ t.describe("unfollowProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -303,7 +317,7 @@ t.describe("unfollowProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -342,7 +356,7 @@ t.describe("subscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -366,7 +380,7 @@ t.describe("subscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -390,7 +404,7 @@ t.describe("subscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -427,7 +441,7 @@ t.describe("unsubscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -451,7 +465,7 @@ t.describe("unsubscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -475,7 +489,7 @@ t.describe("unsubscribeLabeler", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -511,7 +525,7 @@ t.describe("updateLabelerSetting", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -537,7 +551,7 @@ t.describe("updateLabelerSetting", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -561,7 +575,7 @@ t.describe("updateLabelerSetting", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -593,7 +607,7 @@ t.describe("updateLabelerSetting", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -629,7 +643,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -662,7 +676,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -687,7 +701,7 @@ t.describe("addMutedWord", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -717,7 +731,7 @@ t.describe("addMutedWord", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -771,7 +785,7 @@ t.describe("removeMutedWord", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -805,7 +819,7 @@ t.describe("updateProfile", (it) => {
     dataStore.$profiles.set(testProfile.did, testProfile);
     dataStore.$currentUser.set(testProfile);
     return {
-      mutations: new Mutations(
+      mutations: makeMutations(
         mockApi,
         dataStore,
         patchStore,
@@ -1027,7 +1041,7 @@ t.describe("pinPost", (it) => {
     }
     const derived = makeDerived(dataStore, patchStore, mockPreferencesProvider);
     return {
-      mutations: new Mutations(
+      mutations: makeMutations(
         mockApi,
         dataStore,
         patchStore,
@@ -1194,7 +1208,7 @@ t.describe("unpinPost", (it) => {
       dataStore.$authorFeeds.set(`${testUser.did}-posts`, authorFeed);
     }
     return {
-      mutations: new Mutations(
+      mutations: makeMutations(
         mockApi,
         dataStore,
         patchStore,
@@ -1267,7 +1281,7 @@ t.describe("muteProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { muteActor: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1329,7 +1343,7 @@ t.describe("unmuteProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { unmuteActor: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1385,7 +1399,7 @@ t.describe("blockProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { blockActor: async () => ({ uri: blockUri }), ...mockApi },
       dataStore,
       patchStore,
@@ -1478,7 +1492,7 @@ t.describe("unblockProfile", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { unblockActor: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1552,7 +1566,7 @@ t.describe("addBookmark", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { createBookmark: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1616,7 +1630,7 @@ t.describe("removeBookmark", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { deleteBookmark: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1687,7 +1701,7 @@ t.describe("createRepost", (it) => {
     if (authorFeed) {
       dataStore.$authorFeeds.set(`${currentUser.did}-posts`, authorFeed);
     }
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         createRepostRecord: async () => ({
           uri: "at://did:plc:me/app.bsky.feed.repost/abc",
@@ -1770,7 +1784,7 @@ t.describe("deleteRepost", (it) => {
     if (authorFeed) {
       dataStore.$authorFeeds.set(`${currentUser.did}-posts`, authorFeed);
     }
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { deleteRepostRecord: async () => ({}), ...mockApi },
       dataStore,
       patchStore,
@@ -1839,7 +1853,7 @@ t.describe("pinFeed", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -1903,7 +1917,7 @@ t.describe("pinFeed", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -1944,7 +1958,7 @@ t.describe("unpinFeed", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -1976,7 +1990,7 @@ t.describe("unpinFeed", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2009,7 +2023,7 @@ t.describe("hidePost", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2033,7 +2047,7 @@ t.describe("hidePost", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2078,7 +2092,7 @@ t.describe("updateMutedWord", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2113,7 +2127,7 @@ t.describe("updatePostNotificationSubscription", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     let calledWith = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         putActivitySubscription: async (did, sub) => {
           calledWith = { did, sub };
@@ -2140,7 +2154,7 @@ t.describe("updatePostNotificationSubscription", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         putActivitySubscription: async () => {
           throw new Error("api error");
@@ -2174,7 +2188,7 @@ t.describe("createPost", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2267,7 +2281,7 @@ t.describe("deletePost", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$posts.set(post.uri, { ...post, record: { text: "hi" } });
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         deletePost: async (passed) => {
           apiCalledWith = passed;
@@ -2307,7 +2321,7 @@ t.describe("createMessage", (it) => {
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { sendMessage: async () => sentMessage },
       dataStore,
       patchStore,
@@ -2359,7 +2373,7 @@ t.describe("acceptConvo", (it) => {
       dataStore.$convoList.set(convoList);
     }
     let acceptCalledWith = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         acceptConvo: async (id) => {
           acceptCalledWith = id;
@@ -2406,7 +2420,7 @@ t.describe("rejectConvo", (it) => {
     dataStore.$convos.set(convo.id, convo);
     dataStore.$convoList.set([convo, otherConvo]);
     let leaveCalledWith = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         leaveConvo: async (id) => {
           leaveCalledWith = id;
@@ -2438,7 +2452,7 @@ t.describe("markConvoAsRead", (it) => {
     };
     dataStore.$convos.set(convoId, { id: convoId, unreadCount: 4 });
     let calledWith = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         markConvoAsRead: async (id) => {
           calledWith = id;
@@ -2461,7 +2475,7 @@ t.describe("markConvoAsRead", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { markConvoAsRead: async () => {} },
       dataStore,
       patchStore,
@@ -2492,7 +2506,7 @@ t.describe("addMessageReaction", (it) => {
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { addMessageReaction: async () => updatedMessage },
       dataStore,
       patchStore,
@@ -2559,7 +2573,7 @@ t.describe("removeMessageReaction", (it) => {
     if (convo) {
       dataStore.$convos.set(convoId, convo);
     }
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { removeMessageReaction: async () => updatedMessage },
       dataStore,
       patchStore,
@@ -2619,7 +2633,7 @@ t.describe("sendShowLessInteraction", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     let sendArgs = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         sendInteractions: async (interactions, proxy) => {
           sendArgs = { interactions, proxy };
@@ -2649,7 +2663,7 @@ t.describe("sendShowLessInteraction", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$showLessInteractions.set([{ item: "existing", event: "x" }]);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { sendInteractions: async () => {} },
       dataStore,
       patchStore,
@@ -2676,7 +2690,7 @@ t.describe("sendShowMoreInteraction", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     let sendArgs = null;
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {
         sendInteractions: async (interactions, proxy) => {
           sendArgs = { interactions, proxy };
@@ -2705,7 +2719,7 @@ t.describe("sendShowMoreInteraction", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$showMoreInteractions.set([{ item: "existing", event: "x" }]);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       { sendInteractions: async () => {} },
       dataStore,
       patchStore,
@@ -2746,7 +2760,7 @@ t.describe("pinList", (it) => {
     });
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     mutations.pinList(listUri);
 
@@ -2761,7 +2775,7 @@ t.describe("pinList", (it) => {
     const { provider, pinFeedCalls } = makeMockProvider();
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.pinList(listUri);
 
@@ -2774,7 +2788,7 @@ t.describe("pinList", (it) => {
     const { provider } = makeMockProvider();
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.pinList(listUri);
 
@@ -2789,7 +2803,7 @@ t.describe("pinList", (it) => {
     });
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     let errorThrown = false;
     try {
@@ -2817,7 +2831,7 @@ t.describe("pinFeed entryType", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       {},
       dataStore,
       patchStore,
@@ -2848,7 +2862,7 @@ t.describe("unpinList", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     await mutations.unpinList(listUri);
 
@@ -2869,7 +2883,7 @@ t.describe("unpinList", (it) => {
     };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
-    const mutations = new Mutations({}, dataStore, patchStore, provider);
+    const mutations = makeMutations({}, dataStore, patchStore, provider);
 
     const promise = mutations.unpinList(listUri);
     const patches = patchStore.$preferencePatches.get();
@@ -2902,7 +2916,7 @@ t.describe("addProfileToList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -2931,7 +2945,7 @@ t.describe("addProfileToList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -2956,7 +2970,7 @@ t.describe("addProfileToList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -3002,7 +3016,7 @@ t.describe("removeProfileFromList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -3037,7 +3051,7 @@ t.describe("removeProfileFromList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,
@@ -3068,7 +3082,7 @@ t.describe("removeProfileFromList", (it) => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    const mutations = new Mutations(
+    const mutations = makeMutations(
       mockApi,
       dataStore,
       patchStore,

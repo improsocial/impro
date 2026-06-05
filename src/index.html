@@ -144,15 +144,16 @@
         window.enablePlugin = pluginService.enablePlugin.bind(pluginService);
         window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
 
+        const identityResolver = new IdentityResolver();
         const dataLayer = new DataLayer(
           api,
           pluginService,
           preferencesProvider,
+          identityResolver,
         );
         pluginService.setDataLayer(dataLayer);
         // put dataLayer on window for easy access in dev tools
         window.dataLayer = dataLayer;
-        const identityResolver = new IdentityResolver();
         const notificationService = session
           ? new NotificationService(api)
           : null;

@@ -6,9 +6,10 @@ import { Declarative } from "/js/dataLayer/declarative.js";
 import { Derived } from "/js/dataLayer/derived.js";
 
 export class DataLayer {
-  constructor(api, pluginService, preferencesProvider) {
+  constructor(api, pluginService, preferencesProvider, identityResolver) {
     this.api = api;
     this.pluginService = pluginService;
+    this.identityResolver = identityResolver;
     this.isAuthenticated = api.isAuthenticated;
     this.dataStore = new DataStore();
     this.patchStore = new PatchStore(this.dataStore);
@@ -38,6 +39,7 @@ export class DataLayer {
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
+      this.identityResolver,
     );
     this.derived = new Derived(
       this.dataStore,

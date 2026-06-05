@@ -10,12 +10,18 @@ import { PostCreator } from "/js/postCreator.js";
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
-  constructor(api, dataStore, patchStore, preferencesProvider) {
+  constructor(
+    api,
+    dataStore,
+    patchStore,
+    preferencesProvider,
+    identityResolver,
+  ) {
     this.api = api;
     this.dataStore = dataStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
-    this.postCreator = new PostCreator(api);
+    this.postCreator = new PostCreator(api, identityResolver);
   }
 
   async addLike(post) {
@@ -839,7 +845,6 @@ export class Mutations {
 
   async createPost({
     postText,
-    facets,
     external,
     replyTo,
     replyRoot,
@@ -849,7 +854,6 @@ export class Mutations {
   }) {
     const post = await this.postCreator.createPost({
       postText,
-      facets,
       external,
       replyTo,
       replyRoot,
