@@ -167,9 +167,10 @@ class HomeView extends View {
           Please let the feed owner know about this issue.<br />
           ${feedGenerator.creator
             ? html`<a href=${linkToProfile(feedGenerator.creator)}
-                >View profile</a
-              >`
+                  >View profile</a
+                ><br />`
             : ""}
+          <button @click=${() => window.location.reload()}>Try again</button>
         </div>
       </div>`;
     }
