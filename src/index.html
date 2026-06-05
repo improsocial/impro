@@ -354,6 +354,10 @@
           if (!anchor || anchor.dataset.external) {
             return;
           }
+          // Don't intercept if e.preventDefault() was already called
+          if (e.defaultPrevented) {
+            return;
+          }
           // Let the browser handle modifier/middle clicks (open in new tab/window)
           if (
             e.metaKey ||
