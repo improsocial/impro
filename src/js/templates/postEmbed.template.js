@@ -467,6 +467,7 @@ function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
       return blockedQuoteTemplate();
     case "app.bsky.embed.record#viewDetached":
       return removedQuoteTemplate();
+    case "app.bsky.feed.defs#notFoundPost":
     case "app.bsky.embed.record#viewNotFound":
       return notFoundQuoteTemplate();
     case "app.bsky.graph.defs#starterPackViewBasic":

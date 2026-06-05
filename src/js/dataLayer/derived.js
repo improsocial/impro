@@ -32,7 +32,9 @@ function resolveBlockedQuote(post, { getPost }) {
   if (!blockedQuote || isBlockingUser(blockedQuote)) return post;
   const fullBlockedPost = getPost(blockedQuote.uri);
   if (fullBlockedPost) {
-    const blockedQuoteEmbed = createEmbedFromPost(fullBlockedPost);
+    const blockedQuoteEmbed = isEmptyPost(fullBlockedPost)
+      ? fullBlockedPost
+      : createEmbedFromPost(fullBlockedPost);
     return replaceBlockedQuote(post, blockedQuoteEmbed);
   }
   return markBlockedQuoteNotFound(post, blockedQuote.uri);
