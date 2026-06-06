@@ -2030,6 +2030,8 @@ button.sidebar-plugin-nav-item {
 .large-post .post-actions {
   height: 32px;
   padding-top: 0;
+  margin-top: 4px;
+  margin-bottom: 4px;
 }
 
 .large-post .post-action-icon {
