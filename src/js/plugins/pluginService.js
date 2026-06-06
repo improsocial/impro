@@ -341,6 +341,8 @@ export class PluginService extends ReactiveStore {
   }
 
   async checkForUpdates() {
+    // Load listings first to ensure we have the latest repo URLs for plugins
+    await this.loadRegistryListings();
     const installedPlugins = this.prefManager.$installedPlugins.get();
     const results = await Promise.allSettled(
       installedPlugins.map(async (entry) => {
@@ -621,6 +623,27 @@ export class PluginService extends ReactiveStore {
       ? await this.localRegistry.getListings()
       : [];
     this.$rawRegistryListings.set([...remoteListings, ...localListings]);
+    await this._reconcileInstalledPluginRepos(remoteListings);
+  }
+
+  async _reconcileInstalledPluginRepos(listings) {
+    // If a plugin is installed but its repo URL has changed, update it in preferences
+    const listingById = new Map(
+      listings.map((listing) => [listing.id, listing]),
+    );
+    const installedPlugins = this.prefManager.$installedPlugins.get();
+    let changed = false;
+    const updated = installedPlugins.map((plugin) => {
+      const listing = listingById.get(plugin.id);
+      if (listing && listing.repo && listing.repo !== plugin.repo) {
+        changed = true;
+        return { ...plugin, repo: listing.repo };
+      }
+      return plugin;
+    });
+    if (changed) {
+      await this.prefManager.setInstalledPlugins(updated);
+    }
   }
 
   // Registry convenience methods
