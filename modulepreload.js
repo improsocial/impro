@@ -3,18 +3,31 @@ import { parse } from "es-module-lexer";
 import { Parser } from "htmlparser2";
 import { resolve, parseFromString } from "@import-maps/resolve";
 
-async function getImports(script) {
-  const [imports] = await parse(script);
+async function getImports(script, { includeDynamic = false } = {}) {
+  let [imports] = await parse(script);
+  if (!includeDynamic) {
+    // Import type is provided by `t` value
+    // (1 for static, 2 for dynamic)
+    imports = imports.filter((imp) => imp.t === 1);
+  }
   return imports.map((imp) => imp.n);
 }
 
 class ImportCollector {
-  constructor({ imports, baseUrl, importMap, noFetch, exclude }) {
+  constructor({
+    imports,
+    baseUrl,
+    importMap,
+    noFetch,
+    exclude,
+    includeDynamic,
+  }) {
     this.imports = imports;
     this.baseUrl = baseUrl;
     this.dependencies = new Set();
     this.noFetch = noFetch;
     this.exclude = exclude;
+    this.includeDynamic = includeDynamic;
     this.importMap = importMap;
   }
   async visit(specifier, parent) {
@@ -52,13 +65,17 @@ class ImportCollector {
         );
       }
       if (contents) {
-        const deps = await getImports(contents);
+        const deps = await getImports(contents, {
+          includeDynamic: this.includeDynamic,
+        });
         await Promise.all(deps.map((dep) => this.visit(dep, resolvedImport)));
       }
     } else if (resolvedImport.protocol.startsWith("http")) {
       if (!this.noFetch) {
         const contents = await fetch(resolvedImport).then((res) => res.text());
-        const deps = await getImports(contents);
+        const deps = await getImports(contents, {
+          includeDynamic: this.includeDynamic,
+        });
         await Promise.all(deps.map((dep) => this.visit(dep, resolvedImport)));
       }
     }
@@ -72,7 +89,7 @@ class ImportCollector {
   }
 }
 
-async function parseHtml(contents) {
+async function parseHtml(contents, { includeDynamic = false } = {}) {
   const scripts = [];
   let inScript = false;
   let inImportMap = false;
@@ -106,7 +123,7 @@ async function parseHtml(contents) {
   parser.end();
   const imports = new Set();
   for (let script of scripts) {
-    const deps = await getImports(script);
+    const deps = await getImports(script, { includeDynamic });
     deps.forEach((d) => imports.add(d));
   }
   return { imports: [...imports], importMapString: importMapString || "{}" };
@@ -115,7 +132,7 @@ async function parseHtml(contents) {
 export async function getDependencies(
   contents,
   baseUrl,
-  { noFetch, exclude = [] } = {},
+  { noFetch, exclude = [], includeDynamic = false } = {},
 ) {
   if (!baseUrl) {
     throw new Error("baseUrl is required");
@@ -123,7 +140,9 @@ export async function getDependencies(
   if (!baseUrl.href.endsWith("/")) {
     baseUrl.href += "/";
   }
-  const { importMapString, imports } = await parseHtml(contents);
+  const { importMapString, imports } = await parseHtml(contents, {
+    includeDynamic,
+  });
   const importMap = parseFromString(importMapString, baseUrl);
   const collector = new ImportCollector({
     imports,
@@ -131,6 +150,7 @@ export async function getDependencies(
     importMap,
     noFetch,
     exclude,
+    includeDynamic,
   });
   return collector.collect();
 }
@@ -164,7 +184,13 @@ export function injectPreloads(
 
 export async function linkHtml(
   htmlContentsOrUrl,
-  { baseUrl: providedBaseUrl, noFetch, exclude, includeComments } = {},
+  {
+    baseUrl: providedBaseUrl,
+    noFetch,
+    exclude,
+    includeComments,
+    includeDynamic,
+  } = {},
 ) {
   let html = htmlContentsOrUrl;
   let baseUrl = providedBaseUrl;
@@ -175,6 +201,7 @@ export async function linkHtml(
   const dependencies = await getDependencies(html, baseUrl, {
     exclude,
     noFetch,
+    includeDynamic,
   });
   return injectPreloads(html, dependencies, { includeComments });
 }

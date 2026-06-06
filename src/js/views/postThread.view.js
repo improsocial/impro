@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy } from "/js/utils.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -23,8 +24,8 @@ import { ApiError } from "/js/api.js";
 import { View } from "/js/views/view.js";
 import "/js/components/hidden-replies-section.js";
 import "/js/components/plugin-slot.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { linkToPostFromUri } from "/js/navigation.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class PostThreadView extends View {
   async render({
@@ -39,6 +40,7 @@ class PostThreadView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -51,21 +53,7 @@ class PostThreadView extends View {
     }
     const postUri = `at://${authorDid}/app.bsky.feed.post/${rkey}`;
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    let slotKey = Math.random().toString(36);
-
-    function pluginRenderFunc() {
-      slotKey = Math.random().toString(36);
-      renderPage();
-    }
+    const { postInteractionHandler } = interactionHandlers;
 
     function postThreadErrorTemplate({ error }) {
       if (
@@ -203,7 +191,8 @@ class PostThreadView extends View {
       const numReplies = replyChain.length;
       return html`<div class="post-thread-reply-chain">
         ${replyChain.map((reply, i) => {
-          const post = dataLayer.selectors.getPost(reply.post.uri); // todo - map in selector?
+          const post = dataLayer.derived.$hydratedPosts.get(reply.post.uri);
+          if (!post) return "";
           return smallPostTemplate({
             post,
             currentUser,
@@ -224,7 +213,6 @@ class PostThreadView extends View {
         replyTo: post,
         replyRoot,
       });
-      renderPage();
     }
 
     // Note, this is different from hiding a reply entirely, that's why this name is weirdly specific.
@@ -261,15 +249,13 @@ class PostThreadView extends View {
                 name="post-thread-view:replies-empty"
                 context-uri=${postUri}
                 .pluginService=${pluginService}
-                .renderFunc=${pluginRenderFunc}
-                key=${slotKey}
+                .interactionHandlers=${interactionHandlers}
               ></plugin-slot>`
             : html`<plugin-slot
                   name="post-thread-view:replies-header"
                   context-uri=${postUri}
                   .pluginService=${pluginService}
-                  .renderFunc=${pluginRenderFunc}
-                  key=${slotKey}
+                  .interactionHandlers=${interactionHandlers}
                 ></plugin-slot>
                 <div class="post-thread-reply-chains">
                   ${replyChains.map((replyChain, i) =>
@@ -304,8 +290,7 @@ class PostThreadView extends View {
             name="post-thread-view:after-replies"
             context-uri=${postUri}
             .pluginService=${pluginService}
-            .renderFunc=${pluginRenderFunc}
-            key=${slotKey}
+            .interactionHandlers=${interactionHandlers}
           ></plugin-slot>
           <div class="post-thread-extra-space"></div>
         </div>
@@ -389,8 +374,7 @@ class PostThreadView extends View {
               name="post-thread-view:top"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${parents.map((parent, i) => {
               const parentPost = parent.post ? parent.post : parent;
@@ -430,8 +414,7 @@ class PostThreadView extends View {
               name="post-thread-view:before-main"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${hiddenUnauthenticated
               ? noUnauthenticatedLargePostTemplate()
@@ -459,8 +442,7 @@ class PostThreadView extends View {
               name="post-thread-view:after-main"
               context-uri=${postUri}
               .pluginService=${pluginService}
-              .renderFunc=${pluginRenderFunc}
-              key=${slotKey}
+              .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
             ${isAuthenticated && currentUser && canReplyToPost(mainPost)
               ? html`
@@ -514,42 +496,48 @@ class PostThreadView extends View {
       </div>`;
     }
 
-    function getPostThread() {
-      let postThread = dataLayer.selectors.getPostThread(postUri);
-      if (!postThread) {
-        // prefill with saved post if available
-        const post = dataLayer.selectors.getPost(postUri);
-        if (post) {
-          postThread = {
-            __isPrefill: true,
-            post,
-            parent: null,
-            replies: null,
-          };
-        }
-      }
-      return postThread;
-    }
+    const state = new ReactiveStore("postThreadView");
 
-    function renderPage() {
-      const postThread = getPostThread();
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    state.$postThread = new Signal.Computed(() => {
+      const hydratedPostThread =
+        dataLayer.derived.$hydratedPostThreads.get(postUri);
+      if (hydratedPostThread) {
+        return hydratedPostThread;
+      }
+      // Prefill with saved post if available
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
+      if (post) {
+        return {
+          __isPrefill: true,
+          post,
+          parent: null,
+          replies: null,
+        };
+      }
+      return null;
+    });
+
+    let hasScrolledToLargePost = false;
+
+    pageEffect(root, () => {
+      const postThread = state.$postThread.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const postThreadRequestStatus = dataLayer.requests.getStatus(
-        "loadPostThread-" + postUri,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const postThreadRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostThread-" + postUri,
+        );
+
       render(
         html`<div id="post-detail-view">
           ${mainLayoutTemplate({
             isAuthenticated,
             showSidebarOverlay: false,
             onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }).then(() => {
-                renderPage();
-              }),
+              postComposerService.composePost({ currentUser }),
             currentUser,
             numNotifications,
             numChatNotifications,
@@ -572,50 +560,53 @@ class PostThreadView extends View {
         </div>`,
         root,
       );
-    }
 
-    function scrollToLargePost() {
+      // Pin large post on first load
       const largePost = root.querySelector(".large-post");
-      if (largePost) {
-        const headerHeight = root.querySelector("header").offsetHeight;
-        const largePostTop = largePost.offsetTop;
-        window.scrollTo(0, largePostTop - headerHeight);
+      const header = root.querySelector("header");
+      if (
+        largePost &&
+        header &&
+        !postThread.__isPrefill &&
+        !hasScrolledToLargePost
+      ) {
+        hasScrolledToLargePost = true;
+        scrollToLargePost(largePost, header);
       }
+    });
+
+    function scrollToLargePost(largePost, header) {
+      const headerHeight = header.getBoundingClientRect().height;
+      const largePostTop = largePost.getBoundingClientRect().top;
+      const offset = largePostTop - headerHeight;
+      window.scrollBy(0, offset);
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      scrollToLargePost();
-      let requests = [];
       if (isAuthenticated) {
-        requests.push(dataLayer.requests.loadCurrentUser());
+        dataLayer.declarative.ensureCurrentUser();
       }
-      // Fetch full thread
-      requests.push(dataLayer.requests.loadPostThread(postUri));
-      await Promise.all(requests);
-      renderPage();
-      scrollToLargePost();
+      try {
+        await dataLayer.declarative.ensurePostThread(postUri);
+      } catch (error) {
+        // pass
+      }
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
-      if (scrollY > 0) {
+      const isBack = e.detail?.isBack ?? false;
+      if (isBack) {
         window.scrollTo(0, scrollY);
       } else {
-        scrollToLargePost();
+        const largePost = root.querySelector(".large-post");
+        const header = root.querySelector("header");
+        if (largePost && header) {
+          scrollToLargePost(largePost, header);
+        }
       }
       // Revalidate
       await dataLayer.requests.loadPostThread(postUri);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

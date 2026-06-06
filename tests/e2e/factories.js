@@ -113,6 +113,34 @@ export function createFeedGenerator({
   };
 }
 
+export function createList({
+  uri,
+  name,
+  creatorHandle,
+  purpose = "app.bsky.graph.defs#curatelist",
+}) {
+  const creatorDid = uri.split("/")[2];
+  return {
+    uri,
+    cid: "bafyreitest" + uri.split("/").pop(),
+    creator: {
+      did: creatorDid,
+      handle: creatorHandle,
+      displayName: creatorHandle.split(".")[0],
+      avatar: "",
+      viewer: { muted: false, blockedBy: false },
+      labels: [],
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    name,
+    purpose,
+    avatar: "",
+    indexedAt: "2025-01-01T00:00:00.000Z",
+    labels: [],
+    viewer: {},
+  };
+}
+
 export function createNotification({
   reason,
   author,

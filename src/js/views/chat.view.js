@@ -1,4 +1,5 @@
 import { View } from "/js/views/view.js";
+import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -163,15 +164,16 @@ class ChatView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const convos = dataLayer.selectors.getConvoList();
-      const convosRequestStatus = dataLayer.requests.getStatus("loadConvoList");
-      const cursor = dataLayer.selectors.getConvoListCursor();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const convos = dataLayer.derived.$convoList.get();
+      const convosRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get("loadConvoList");
+      const cursor = dataLayer.derived.$convoListCursor.get();
       const hasMore = !!cursor;
 
       render(
@@ -230,20 +232,16 @@ class ChatView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadConvoList({ reload = false } = {}) {
-      const loadingPromise = dataLayer.requests.loadConvoList({
+      await dataLayer.requests.loadConvoList({
         reload,
         limit: 30,
       });
-      renderPage();
-      await loadingPromise;
-      renderPage();
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
       await dataLayer.declarative.ensureCurrentUser();
       await loadConvoList({ reload: true });
     });
@@ -257,15 +255,6 @@ class ChatView extends View {
         window.scrollTo(0, 0);
         await loadConvoList({ reload: true });
       }
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

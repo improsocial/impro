@@ -302,7 +302,10 @@ export class TokenRefreshError extends Error {
   }
 }
 
-class Session {
+export class Session {
+  static refreshBackoffMs = 500;
+  static concurrentRefreshRecoveryMs = 1000;
+
   constructor(sessionData, dpopRequests) {
     this.sessionData = sessionData;
     this.dpopRequests = dpopRequests;
@@ -334,14 +337,15 @@ class Session {
       this.dpopRequests,
     );
 
+    const usedRefreshToken = this.sessionData.refreshToken;
     const params = {
       grant_type: "refresh_token",
-      refresh_token: this.sessionData.refreshToken,
+      refresh_token: usedRefreshToken,
       client_id: this.sessionData.clientId,
     };
 
     const maxRetries = 2;
-    const backoffMs = 500 * Math.pow(2, retryCount);
+    const backoffMs = Session.refreshBackoffMs * Math.pow(2, retryCount);
 
     let response;
     try {
@@ -351,18 +355,34 @@ class Session {
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
         return await this.refreshToken({ retryCount: retryCount + 1 });
       }
-      throw new TokenRefreshError(`Token refresh failed: ${error.message}`);
+      // Transient network error after retries — surface as a non-logout error
+      throw new Error(`Token refresh failed (network): ${error.message}`);
     }
 
     if (!response.ok) {
-      if (response.status >= 500 && retryCount < maxRetries) {
-        await new Promise((resolve) => setTimeout(resolve, backoffMs));
-        return await this.refreshToken({ retryCount: retryCount + 1 });
+      if (response.status >= 500) {
+        if (retryCount < maxRetries) {
+          await new Promise((resolve) => setTimeout(resolve, backoffMs));
+          return await this.refreshToken({ retryCount: retryCount + 1 });
+        }
+        const body = response.data
+          ? JSON.stringify(response.data)
+          : await response.text();
+        throw new Error(`Token refresh failed (server): ${body}`);
       }
-      const error = response.data
+      // invalid_grant can mean another tab rotated the refresh token, so re-check storage and adopt if so
+      if (response.status === 400 && response.data?.error === "invalid_grant") {
+        if (this.adoptRotatedSession(usedRefreshToken)) return;
+        // attempt twice with delay
+        await new Promise((resolve) =>
+          setTimeout(resolve, Session.concurrentRefreshRecoveryMs),
+        );
+        if (this.adoptRotatedSession(usedRefreshToken)) return;
+      }
+      const body = response.data
         ? JSON.stringify(response.data)
         : await response.text();
-      throw new TokenRefreshError(`Token refresh failed: ${error}`);
+      throw new TokenRefreshError(`Token refresh failed: ${body}`);
     }
 
     const newTokenResponse = await response.json();
@@ -372,6 +392,23 @@ class Session {
       Date.now() + newTokenResponse.expires_in * 1000;
 
     this.save();
+  }
+
+  adoptRotatedSession(usedRefreshToken) {
+    const stored = localStorage.getItem(
+      SESSION_KEY_PREFIX + this.sessionData.did,
+    );
+    if (!stored) return false;
+    try {
+      const data = JSON.parse(stored);
+      if (data?.refreshToken && data.refreshToken !== usedRefreshToken) {
+        this.sessionData = data;
+        return true;
+      }
+    } catch {
+      // pass
+    }
+    return false;
   }
 
   async fetch(url, { headers = {}, ...options } = {}) {

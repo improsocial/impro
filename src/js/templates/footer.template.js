@@ -106,7 +106,7 @@ export function footerTemplate({
                 if (onClickActiveItem) {
                   onClickActiveItem(item.id);
                 } else {
-                  window.scrollTo({ top: 0, behavior: "smooth" });
+                  window.scrollTo({ top: -1, behavior: "smooth" });
                 }
               }
             }}

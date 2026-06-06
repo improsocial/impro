@@ -4,6 +4,7 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
+import { Signal } from "/js/signals.js";
 
 class FakePreferences {
   constructor(state) {
@@ -14,7 +15,9 @@ class FakePreferences {
   }
   setInstalledPlugins(plugins) {
     this.state.installedPlugins = plugins;
-    return this;
+    // Return a fresh identity to mirror the real provider, which clones
+    // preferences on every write so dependent signals invalidate.
+    return new FakePreferences(this.state);
   }
   getPluginSettings(pluginId) {
     return this.state.pluginSettings[pluginId];
@@ -32,11 +35,15 @@ class FakePreferences {
 function makeProvider() {
   const state = { installedPlugins: [], pluginSettings: {} };
   const preferences = new FakePreferences(state);
+  const $preferences = new Signal.State(preferences);
   return {
     state,
     provider: {
+      $preferences,
       requirePreferences: () => preferences,
-      savePreferences: async () => {},
+      savePreferences: async (saved) => {
+        $preferences.set(saved);
+      },
     },
   };
 }
@@ -108,6 +115,7 @@ function makeService({
   return {
     service,
     state,
+    provider,
     loadCalls,
     reloadCalls,
     unloadCalls,
@@ -153,7 +161,7 @@ t.describe("installPlugin", (it, { afterEach }) => {
     ]);
   });
 
-  it("getPluginsInfo reflects newly installed plugin synchronously", async () => {
+  it("$pluginsInfo reflects newly installed plugin synchronously", async () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
       liveManifests: {
@@ -166,9 +174,9 @@ t.describe("installPlugin", (it, { afterEach }) => {
         },
       },
     });
-    assertEquals(service.getPluginsInfo(), []);
+    assertEquals(service.$pluginsInfo.get(), []);
     await service.installPlugin("alpha");
-    const info = service.getPluginsInfo();
+    const info = service.$pluginsInfo.get();
     assertEquals(info.length, 1);
     assertEquals(info[0].id, "alpha");
     assertEquals(info[0].name, "Alpha");
@@ -460,7 +468,7 @@ t.describe("loadEnabledPlugins", (it) => {
     );
   });
 
-  it("disables plugins reported as errored by the bridge", async () => {
+  it("keeps plugins enabled when the bridge reports they errored", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
@@ -473,7 +481,7 @@ t.describe("loadEnabledPlugins", (it) => {
     await service.loadEnabledPlugins();
     assertEquals(
       state.installedPlugins.find((entry) => entry.id === "b").enabled,
-      false,
+      true,
     );
     assertEquals(
       state.installedPlugins.find((entry) => entry.id === "a").enabled,
@@ -647,7 +655,7 @@ t.describe("reloadPlugins", (it) => {
 });
 
 t.describe("checkForUpdates", (it) => {
-  it("populates _availableUpdates with plugins whose live version is newer", async () => {
+  it("populates $availableUpdates with plugins whose live version is newer", async () => {
     const { service, state } = makeService({
       liveManifests: {
         a: { id: "a", name: "A", version: "2.0.0" },
@@ -660,7 +668,7 @@ t.describe("checkForUpdates", (it) => {
     ];
     const updates = await service.checkForUpdates();
     assertEquals([...updates.entries()], [["a", "2.0.0"]]);
-    assertEquals(service.getAvailableUpdates(), updates);
+    assertEquals(service.$availableUpdates.get(), updates);
   });
 
   it("skips plugins whose live manifest fails to fetch", async () => {
@@ -708,14 +716,14 @@ t.describe("updateAllPlugins", (it) => {
   });
 });
 
-t.describe("getPluginsInfo", (it) => {
+t.describe("$pluginsInfo", (it) => {
   it("hides __LOCAL plugins when localPluginsEnabled is false", () => {
     const { service, state } = makeService({});
     state.installedPlugins = [
       { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
       { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
     ];
-    const info = service.getPluginsInfo();
+    const info = service.$pluginsInfo.get();
     assertEquals(info.length, 1);
     assertEquals(info[0].id, "alpha");
   });
@@ -726,7 +734,7 @@ t.describe("getPluginsInfo", (it) => {
       { id: "alpha", name: "Alpha", version: "1.0.0", enabled: true },
       { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
     ];
-    const info = service.getPluginsInfo();
+    const info = service.$pluginsInfo.get();
     assertEquals(info.length, 2);
   });
 });
@@ -736,22 +744,26 @@ t.describe("registry listings loader/selector", (it) => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
-    assertEquals(service.getRegistryListings(), null);
+    assertEquals(service.$registryListings.get(), null);
   });
 
   it("merges remote + local listings and marks installed entries", async () => {
-    const { service, state } = makeService({
+    const { service, provider } = makeService({
       remoteListings: [
         { id: "alpha", repo: "ow/alpha", name: "Alpha" },
         { id: "beta", repo: "ow/beta", name: "Beta" },
       ],
       localListings: [{ id: "gamma__LOCAL", name: "Gamma" }],
     });
-    state.installedPlugins = [
-      { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
-    ];
+    provider.$preferences.set(
+      provider
+        .requirePreferences()
+        .setInstalledPlugins([
+          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+        ]),
+    );
     await service.loadRegistryListings();
-    const listings = service.getRegistryListings();
+    const listings = service.$registryListings.get();
     assertEquals(listings.length, 3);
     const byId = Object.fromEntries(
       listings.map((listing) => [listing.id, listing]),
@@ -762,15 +774,19 @@ t.describe("registry listings loader/selector", (it) => {
   });
 
   it("reflects updated install state on subsequent selector reads", async () => {
-    const { service, state } = makeService({
+    const { service, provider } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     await service.loadRegistryListings();
-    assertEquals(service.getRegistryListings()[0].installed, false);
-    state.installedPlugins = [
-      { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
-    ];
-    assertEquals(service.getRegistryListings()[0].installed, true);
+    assertEquals(service.$registryListings.get()[0].installed, false);
+    provider.$preferences.set(
+      provider
+        .requirePreferences()
+        .setInstalledPlugins([
+          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+        ]),
+    );
+    assertEquals(service.$registryListings.get()[0].installed, true);
   });
 
   it("returns only remote listings when localRegistry is absent", async () => {
@@ -778,7 +794,7 @@ t.describe("registry listings loader/selector", (it) => {
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     await service.loadRegistryListings();
-    const listings = service.getRegistryListings();
+    const listings = service.$registryListings.get();
     assertEquals(listings.length, 1);
     assertEquals(listings[0].id, "alpha");
   });
@@ -1112,28 +1128,27 @@ t.describe("slot registry", (it) => {
     assertEquals(service.getSlotEntries("x").length, 1);
     dispose();
     assertEquals(service.getSlotEntries("x"), []);
-    assert(!service.registries.slots.has("x"));
+    assertEquals(service.$slots.get("x"), null);
   });
 
-  it("emits slotRegistered / slotUnregistered events", () => {
+  it("updates the $slots signal on register and unregister", () => {
     const service = makeServiceWithRealBridge();
-    const events = [];
-    service.on("slotRegistered", (data) =>
-      events.push({ type: "reg", ...data }),
-    );
-    service.on("slotUnregistered", (data) =>
-      events.push({ type: "unreg", ...data }),
-    );
+    const updates = [];
+    const initial = service.$slots.get("x");
     const dispose = register(service, makePlugin("alpha"), {
       target: "slot",
       name: "x",
       handlerId: 1,
     });
+    updates.push(
+      service.$slots.get("x")?.map((entry) => entry.pluginId) ?? null,
+    );
     dispose();
-    assertEquals(events, [
-      { type: "reg", name: "x" },
-      { type: "unreg", name: "x" },
-    ]);
+    updates.push(
+      service.$slots.get("x")?.map((entry) => entry.pluginId) ?? null,
+    );
+    assertEquals(initial, null);
+    assertEquals(updates, [["alpha"], null]);
   });
 });
 
@@ -1143,42 +1158,54 @@ t.describe("app.data host methods", (it) => {
     return new PluginService(provider, null);
   }
 
-  it("getPost host method returns selectors.getPost result", async () => {
-    const service = makeServiceWithRealBridge();
+  // Stubs a ComputedMap: get(key) returns the value directly.
+  function makeStubComputedMap(lookup) {
     const calls = [];
+    const map = {
+      get: (key) => {
+        calls.push(key);
+        return lookup(key);
+      },
+    };
+    return { map, calls };
+  }
+
+  it("getPost host method returns the hydrated post from derived", async () => {
+    const service = makeServiceWithRealBridge();
+    const posts = makeStubComputedMap((uri) => ({
+      uri,
+      record: { text: "cached" },
+    }));
     service.setDataLayer({
-      selectors: {
-        getPost: (uri) => {
-          calls.push(uri);
-          return { uri, record: { text: "cached" } };
-        },
-        getProfile: () => null,
+      derived: {
+        $hydratedPosts: posts.map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getPost");
     const result = await handler(null, { uri: "at://example/post/1" });
-    assertEquals(calls, ["at://example/post/1"]);
+    assertEquals(posts.calls, ["at://example/post/1"]);
     assertEquals(result, {
       uri: "at://example/post/1",
       record: { text: "cached" },
     });
   });
 
-  it("getProfile host method returns selectors.getProfile result", async () => {
+  it("getProfile host method returns the hydrated profile from derived", async () => {
     const service = makeServiceWithRealBridge();
-    const calls = [];
+    const profiles = makeStubComputedMap((did) => ({
+      did,
+      handle: "alice.test",
+    }));
     service.setDataLayer({
-      selectors: {
-        getPost: () => null,
-        getProfile: (did) => {
-          calls.push(did);
-          return { did, handle: "alice.test" };
-        },
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: profiles.map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:abc" });
-    assertEquals(calls, ["did:plc:abc"]);
+    assertEquals(profiles.calls, ["did:plc:abc"]);
     assertEquals(result, { did: "did:plc:abc", handle: "alice.test" });
   });
 
@@ -1189,12 +1216,12 @@ t.describe("app.data host methods", (it) => {
     assertEquals(result, null);
   });
 
-  it("getProfile returns null when selector returns null (uncached)", async () => {
+  it("getProfile returns null when the hydrated profile signal is empty", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
-      selectors: {
-        getPost: () => null,
-        getProfile: () => null,
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");

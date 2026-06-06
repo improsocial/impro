@@ -36,6 +36,8 @@ export function groupBy(array, keyOrFn) {
 
 export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
+export const isMobileViewport = () =>
+  window.matchMedia("(max-width: 799px)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -333,9 +335,11 @@ export function enableDragToDismiss(
     onClose,
     allowUpwardStretch = false,
     ignoreTouchTarget = () => false,
+    scrollContainer = null,
+    disableWhenKeyboardOpen = true,
   } = {},
 ) {
-  if (window.matchMedia("(min-width: 800px)").matches) return null;
+  if (!isMobileViewport()) return null;
 
   if (target.__dragToDismiss) {
     target.__dragToDismiss.cleanup();
@@ -349,15 +353,34 @@ export function enableDragToDismiss(
     currentY: 0,
     isDragging: false,
     initialHeight: 0,
+    canDismiss: true,
+    keyboardOpen: false,
   };
 
+  // Detect keyboard open on mobile
+  const KEYBOARD_THRESHOLD = 150;
+  const viewport = window.visualViewport;
+  let handleViewportResize = null;
+  if (disableWhenKeyboardOpen && viewport) {
+    handleViewportResize = () => {
+      dragState.keyboardOpen =
+        window.innerHeight - viewport.height > KEYBOARD_THRESHOLD;
+    };
+    viewport.addEventListener("resize", handleViewportResize);
+    handleViewportResize();
+  }
+
   const handleTouchStart = (e) => {
+    if (dragState.keyboardOpen) return;
     if (ignoreTouchTarget(e.target)) return;
 
     dragState.startY = e.touches[0].clientY;
     dragState.currentY = dragState.startY;
     dragState.isDragging = true;
     dragState.initialHeight = target.getBoundingClientRect().height;
+    // Only allow a downward drag to dismiss when the scrollable body is already
+    // at the top; otherwise this gesture belongs to the scroll area.
+    dragState.canDismiss = !scrollContainer || scrollContainer.scrollTop <= 0;
 
     target.style.transition = "none";
   };
@@ -368,14 +391,19 @@ export function enableDragToDismiss(
     dragState.currentY = e.touches[0].clientY;
     const deltaY = dragState.currentY - dragState.startY;
 
-    e.preventDefault();
-
-    if (deltaY > 0) {
+    if (deltaY > 0 && dragState.canDismiss) {
+      e.preventDefault();
       const adjustedDelta = deltaY * RESISTANCE_FACTOR;
       target.style.transform = `translateY(${adjustedDelta}px)`;
-    } else if (allowUpwardStretch) {
+    } else if (deltaY < 0 && allowUpwardStretch) {
+      e.preventDefault();
       const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
       target.style.height = `${dragState.initialHeight + adjustedDelta}px`;
+    } else if (scrollContainer && deltaY !== 0) {
+      dragState.isDragging = false;
+      target.style.transform = "";
+    } else {
+      e.preventDefault();
     }
   };
 
@@ -411,6 +439,9 @@ export function enableDragToDismiss(
     eventSource.removeEventListener("touchstart", handleTouchStart);
     eventSource.removeEventListener("touchmove", handleTouchMove);
     eventSource.removeEventListener("touchend", handleTouchEnd);
+    if (handleViewportResize) {
+      viewport.removeEventListener("resize", handleViewportResize);
+    }
     target.style.transform = "";
     target.style.transition = "";
     target.style.height = "";

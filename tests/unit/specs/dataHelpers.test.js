@@ -25,6 +25,7 @@ import {
   INVALID_HANDLE,
   MISSING_HANDLE,
   canReplyToPost,
+  transformNestedQuotes,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -1177,6 +1178,112 @@ t.describe("canReplyToPost", (it) => {
   it("should return true when viewer is missing", () => {
     const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
     assertEquals(canReplyToPost(post), true);
+  });
+});
+
+t.describe("transformNestedQuotes", (it) => {
+  const makeQuote = (uri, nestedQuote) => {
+    const quote = { uri };
+    if (nestedQuote) {
+      quote.embeds = [
+        { $type: "app.bsky.embed.record#view", record: nestedQuote },
+      ];
+    }
+    return quote;
+  };
+
+  it("returns the post unchanged when there is no quote", () => {
+    const post = { uri: "post" };
+    const result = transformNestedQuotes(post, () => ({ touched: true }));
+    assertEquals(result, post);
+  });
+
+  it("leaves the root post untouched but transforms the direct quote", () => {
+    const post = {
+      uri: "post",
+      flag: "root",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: makeQuote("quote"),
+      },
+    };
+    const result = transformNestedQuotes(post, (quotedPost) => ({
+      ...quotedPost,
+      touched: true,
+    }));
+    assertEquals(result.uri, "post");
+    assertEquals(result.flag, "root");
+    assertEquals(result.embed.record, { uri: "quote", touched: true });
+  });
+
+  it("transforms both the direct and nested quote (two levels)", () => {
+    const post = {
+      uri: "post",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: makeQuote("quote", makeQuote("nested")),
+      },
+    };
+    const calls = [];
+    const result = transformNestedQuotes(post, (quotedPost) => {
+      calls.push(quotedPost.uri);
+      return { ...quotedPost, touched: true };
+    });
+    assertEquals(calls, ["quote", "nested"]);
+    assertEquals(result.embed.record.touched, true);
+    assertEquals(result.embed.record.embeds[0].record, {
+      uri: "nested",
+      touched: true,
+    });
+  });
+
+  it("does not recurse into a third level of nesting", () => {
+    const deepest = makeQuote("deepest");
+    const nested = makeQuote("nested", deepest);
+    const post = {
+      uri: "post",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: makeQuote("quote", nested),
+      },
+    };
+    const seen = [];
+    transformNestedQuotes(post, (quotedPost) => {
+      seen.push(quotedPost.uri);
+      return quotedPost;
+    });
+    assertEquals(seen, ["quote", "nested"]);
+  });
+
+  it("returns the same post when the transform leaves quotes unchanged", () => {
+    const post = {
+      uri: "post",
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: makeQuote("quote", makeQuote("nested")),
+      },
+    };
+    const result = transformNestedQuotes(post, (quotedPost) => quotedPost);
+    assert(result === post);
+  });
+
+  it("does not mutate the input post", () => {
+    const originalNested = { uri: "nested" };
+    const originalQuote = {
+      uri: "quote",
+      embeds: [{ $type: "app.bsky.embed.record#view", record: originalNested }],
+    };
+    const post = {
+      uri: "post",
+      embed: { $type: "app.bsky.embed.record#view", record: originalQuote },
+    };
+    transformNestedQuotes(post, (quotedPost) => ({
+      ...quotedPost,
+      touched: true,
+    }));
+    assertEquals(originalQuote.touched, undefined);
+    assertEquals(originalNested.touched, undefined);
+    assertEquals(post.embed.record, originalQuote);
   });
 });
 

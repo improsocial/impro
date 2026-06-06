@@ -797,8 +797,9 @@ class ReportDialog extends Component {
 
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
+      scrollContainer: this.querySelector(".report-dialog-body"),
       ignoreTouchTarget: (el) =>
-        el.tagName === "BUTTON" || el.tagName === "TEXTAREA",
+        !!el.closest("button") || el.tagName === "TEXTAREA",
     });
 
     resetScrollOnBlur(dialog, this.querySelector(".report-dialog-body"));

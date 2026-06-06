@@ -33,11 +33,39 @@ test.describe("Settings community plugins view", () => {
     await expect(
       view.locator(".plugin-list-item", { hasText: "Test Plugin" }),
     ).toBeVisible();
+
+    // Install/uninstall interactions now live on the detail page, not here.
+    await expect(view.locator(".plugin-install-button")).toHaveCount(0);
   });
 
-  test("installing a plugin flips the button to Uninstall", async ({
-    page,
-  }) => {
+  test("shows an installed badge for installed plugins", async ({ page }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    mockServer.installedPlugins = [
+      { id: REMOTE_ID, version: "1.0.0", enabled: true },
+    ];
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/settings/plugins/community");
+    const view = page.locator("#settings-community-plugins-view");
+    const installedItem = view.locator(".plugin-list-item", {
+      hasText: "Remote Themes",
+    });
+    await expect(
+      installedItem.locator('[data-testid="plugin-installed-badge"]'),
+    ).toBeVisible({ timeout: 10000 });
+
+    // The (not installed) local test plugin should have no badge.
+    const otherItem = view.locator(".plugin-list-item", {
+      hasText: "Test Plugin",
+    });
+    await expect(
+      otherItem.locator('[data-testid="plugin-installed-badge"]'),
+    ).toHaveCount(0);
+  });
+
+  test("clicking a plugin opens its detail page", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.registryEntries = [REGISTRY_ENTRY];
     await mockServer.setup(page);
@@ -49,88 +77,15 @@ test.describe("Settings community plugins view", () => {
       hasText: "Remote Themes",
     });
     await expect(item).toBeVisible({ timeout: 10000 });
-    await expect(item.locator(".plugin-install-button")).toHaveText("Install");
 
-    const putPrefs = page.waitForResponse((res) =>
-      res.url().includes("app.bsky.actor.putPreferences"),
+    await item.locator(".plugin-list-item-link").click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`/settings/plugins/community/${REMOTE_ID}$`),
     );
-    await item.locator(".plugin-install-button").click();
-    await putPrefs;
-
-    await expect(item.locator(".plugin-install-button")).toHaveText(
-      "Uninstall",
-      { timeout: 10000 },
-    );
-    await expect(mockServer.installedPlugins.map((p) => p.id)).toEqual([
-      REMOTE_ID,
-    ]);
-  });
-
-  test("uninstalling flips the button back to Install", async ({ page }) => {
-    const mockServer = new MockServer();
-    mockServer.registryEntries = [REGISTRY_ENTRY];
-    mockServer.installedPlugins = [
-      { id: REMOTE_ID, version: "1.0.0", enabled: true },
-    ];
-    await mockServer.setup(page);
-    await login(page);
-
-    await page.goto("/settings/plugins/community");
-    const view = page.locator("#settings-community-plugins-view");
-    const item = view.locator(".plugin-list-item", {
-      hasText: "Remote Themes",
-    });
-    await expect(item.locator(".plugin-install-button")).toHaveText(
-      "Uninstall",
-      { timeout: 10000 },
-    );
-
-    await item.locator(".plugin-install-button").click();
-    const confirmButton = page.locator("button.confirm-button");
-    await expect(confirmButton).toBeVisible({ timeout: 5000 });
-    const putPrefs = page.waitForResponse((res) =>
-      res.url().includes("app.bsky.actor.putPreferences"),
-    );
-    await confirmButton.click();
-    await putPrefs;
-
-    await expect(item.locator(".plugin-install-button")).toHaveText("Install", {
-      timeout: 10000,
-    });
-    await expect(mockServer.installedPlugins).toEqual([]);
-  });
-
-  test("cancelling the uninstall confirm leaves the plugin installed", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    mockServer.registryEntries = [REGISTRY_ENTRY];
-    mockServer.installedPlugins = [
-      { id: REMOTE_ID, version: "1.0.0", enabled: true },
-    ];
-    await mockServer.setup(page);
-    await login(page);
-
-    await page.goto("/settings/plugins/community");
-    const view = page.locator("#settings-community-plugins-view");
-    const item = view.locator(".plugin-list-item", {
-      hasText: "Remote Themes",
-    });
-    await expect(item.locator(".plugin-install-button")).toHaveText(
-      "Uninstall",
-      { timeout: 10000 },
-    );
-
-    await item.locator(".plugin-install-button").click();
-    const cancelButton = page.locator("button.cancel-button");
-    await expect(cancelButton).toBeVisible({ timeout: 5000 });
-    await cancelButton.click();
-
-    await expect(item.locator(".plugin-install-button")).toHaveText(
-      "Uninstall",
-    );
-    await expect(mockServer.installedPlugins.map((p) => p.id)).toEqual([
-      REMOTE_ID,
-    ]);
+    const detail = page.locator("#settings-community-plugin-listing-view");
+    await expect(
+      detail.locator('[data-testid="plugin-listing-name"]'),
+    ).toHaveText("Remote Themes", { timeout: 10000 });
   });
 });

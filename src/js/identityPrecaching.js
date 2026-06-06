@@ -1,79 +1,81 @@
 import { getQuotedPost } from "/js/dataHelpers.js";
+import { effect, untrack } from "/js/signals.js";
 
 export function setUpIdentityPrecaching(dataLayer, identityResolver) {
-  // Precache author DIDs when posts are set in the data store
-  dataLayer.dataStore.on("setPost", (post) => {
-    try {
-      if (post.author) {
-        identityResolver.setDidForHandle(post.author.handle, post.author.did);
-      }
-    } catch (error) {
-      console.error("error when setting DID from post", post);
-      console.error(error);
+  const setDid = (entity) => {
+    if (entity) {
+      identityResolver.setDidForHandle(entity.handle, entity.did);
     }
-    // Quoted posts too!
-    try {
-      const quotedPost = getQuotedPost(post);
-      if (quotedPost) {
-        if (quotedPost.author) {
-          identityResolver.setDidForHandle(
-            quotedPost.author.handle,
-            quotedPost.author.did,
-          );
-        }
-        // we can go deeper...
-        // TODO - normalize quoted posts?
-        const nestedQuotedPost = getQuotedPost(quotedPost);
-        if (nestedQuotedPost) {
-          if (nestedQuotedPost.author) {
-            identityResolver.setDidForHandle(
-              nestedQuotedPost.author.handle,
-              nestedQuotedPost.author.did,
-            );
+  };
+
+  const seenPostUris = new Set();
+  effect(() => {
+    const uris = [...dataLayer.dataStore.$posts.keys()];
+    for (const uri of uris) {
+      if (seenPostUris.has(uri)) continue;
+      seenPostUris.add(uri);
+      const post = untrack(() => dataLayer.dataStore.$posts.get(uri));
+      if (!post) continue;
+      try {
+        setDid(post.author);
+      } catch (error) {
+        console.error("error when setting DID from post", post);
+        console.error(error);
+      }
+      try {
+        const quotedPost = getQuotedPost(post);
+        if (quotedPost) {
+          setDid(quotedPost.author);
+          // TODO - normalize quoted posts?
+          const nestedQuotedPost = getQuotedPost(quotedPost);
+          if (nestedQuotedPost) {
+            setDid(nestedQuotedPost.author);
           }
         }
+      } catch (error) {
+        console.error("error when setting DID from quoted post", post);
+        console.error(error);
       }
-    } catch (error) {
-      console.error("error when setting DID from quoted post", post);
-      console.error(error);
     }
   });
 
-  // Precache author DIDs when feed generators are set in the data store
-  dataLayer.dataStore.on("setFeedGenerator", (feedGenerator) => {
-    try {
-      if (feedGenerator.creator) {
-        identityResolver.setDidForHandle(
-          feedGenerator.creator.handle,
-          feedGenerator.creator.did,
-        );
-      }
-    } catch (error) {
-      console.error(
-        "error when setting DID from feed generator",
-        feedGenerator,
+  const seenFeedGeneratorUris = new Set();
+  effect(() => {
+    const uris = [...dataLayer.dataStore.$feedGenerators.keys()];
+    for (const uri of uris) {
+      if (seenFeedGeneratorUris.has(uri)) continue;
+      seenFeedGeneratorUris.add(uri);
+      const feedGenerator = untrack(() =>
+        dataLayer.dataStore.$feedGenerators.get(uri),
       );
-      console.error(error);
+      if (!feedGenerator) continue;
+      try {
+        setDid(feedGenerator.creator);
+      } catch (error) {
+        console.error(
+          "error when setting DID from feed generator",
+          feedGenerator,
+        );
+        console.error(error);
+      }
     }
   });
 
-  // Precache author DIDs when profiles are set in the data store
-  dataLayer.dataStore.on("setProfileSearchResults", (profileSearchResults) => {
+  effect(() => {
+    const profileSearchResults =
+      dataLayer.dataStore.$profileSearchResults.get();
+    if (!profileSearchResults) return;
     for (const searchResult of profileSearchResults.actors) {
-      identityResolver.setDidForHandle(searchResult.handle, searchResult.did);
+      setDid(searchResult);
     }
   });
 
-  // Precache labeler creator DIDs when preferences are set
-  dataLayer.preferencesProvider.on("setPreferences", (preferences) => {
+  effect(() => {
+    const preferences = dataLayer.preferencesProvider.$preferences.get();
+    if (!preferences) return;
     for (const labelerDef of preferences.labelerDefs) {
       try {
-        if (labelerDef.creator) {
-          identityResolver.setDidForHandle(
-            labelerDef.creator.handle,
-            labelerDef.creator.did,
-          );
-        }
+        setDid(labelerDef.creator);
       } catch (error) {
         console.error("error when setting DID from labeler", labelerDef);
         console.error(error);
@@ -81,16 +83,12 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
     }
   });
 
-  // Precache author DIDs from notifications
-  dataLayer.dataStore.on("setNotifications", (notifications) => {
+  effect(() => {
+    const notifications = dataLayer.dataStore.$notifications.get();
+    if (!notifications) return;
     for (const notification of notifications) {
       try {
-        if (notification.author) {
-          identityResolver.setDidForHandle(
-            notification.author.handle,
-            notification.author.did,
-          );
-        }
+        setDid(notification.author);
       } catch (error) {
         console.error("error when setting DID from notification", notification);
         console.error(error);

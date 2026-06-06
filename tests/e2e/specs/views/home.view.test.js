@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator, createPost } from "../../factories.js";
+import {
+  createFeedGenerator,
+  createList,
+  createPost,
+} from "../../factories.js";
 import { userProfile } from "../../fixtures.js";
 
 test.describe("Home view", () => {
@@ -67,6 +71,41 @@ test.describe("Home view", () => {
     await expect(tabs.nth(0)).toContainText("Following");
     await expect(tabs.nth(1)).toContainText("Trending");
     await expect(tabs.nth(2)).toContainText("Science");
+  });
+
+  test("should display pinned list tabs and load list feed posts", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const list = createList({
+      uri: "at://did:plc:creator1/app.bsky.graph.list/mylist",
+      name: "My Curated List",
+      creatorHandle: "creator1.bsky.social",
+    });
+    const listPost = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/listpost1",
+      text: "Post from the list",
+      authorHandle: "author1.bsky.social",
+    });
+    mockServer.addLists([list]);
+    mockServer.setPinnedLists([list.uri]);
+    mockServer.addFeedItems(list.uri, [listPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const view = page.locator("#home-view");
+    const tabs = view.locator(".tab-bar-button");
+    await expect(tabs).toHaveCount(2, { timeout: 10000 });
+    await expect(tabs.nth(0)).toContainText("Following");
+    await expect(tabs.nth(1)).toContainText("My Curated List");
+
+    await tabs.nth(1).click();
+    await expect(view.locator(".tab-bar-button.active")).toContainText(
+      "My Curated List",
+    );
+    await expect(view).toContainText("Post from the list", { timeout: 10000 });
   });
 
   test("should switch to a custom feed tab when clicked", async ({ page }) => {

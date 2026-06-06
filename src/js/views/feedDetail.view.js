@@ -7,8 +7,7 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { pageEffect } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
@@ -28,6 +27,7 @@ class FeedDetailView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
@@ -42,50 +42,36 @@ class FeedDetailView extends View {
     }
     const feedUri = `at://${profileDid}/app.bsky.feed.generator/${rkey}`;
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler, feedInteractionHandler } =
+      interactionHandlers;
 
-    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
-      renderFunc: () => renderPage(),
-    });
-
-    function renderPage() {
+    pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.selectors.getShowLessInteractions() ?? [];
+        dataLayer.derived.$showLessInteractions.get() ?? [];
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const currentUser = dataLayer.selectors.getCurrentUser();
-      const feedGenerator = dataLayer.selectors.getFeedGenerator(feedUri);
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const feedGenerator = dataLayer.derived.$feedGenerators.get(feedUri);
       const feedName = feedGenerator?.displayName || "";
       const feedAuthor = feedGenerator?.creator;
       const feedAuthorHandle = feedAuthor?.handle;
-      const preferences = dataLayer.selectors.getPreferences();
-      const isPinned = preferences.isFeedPinned(feedUri);
-      const feed = dataLayer.selectors.getFeed(feedUri);
+      const preferences = dataLayer.derived.$preferences.get();
+      const isPinned = preferences?.isFeedPinned(feedUri) ?? false;
+      const feed = dataLayer.derived.$hydratedFeeds.get(feedUri);
       render(
         html`<div id="feed-detail-view">
           ${mainLayoutTemplate({
-            onClickActiveNavItem: () => {
-              window.router.back();
-            },
             onClickComposeButton: () =>
               postComposerService.composePost({ currentUser }),
             numNotifications,
             numChatNotifications,
             currentUser,
             showSidebarOverlay: false,
-            activeNavItem: null,
             pluginService,
             children: html`${headerTemplate({
                 title: feedName,
@@ -155,41 +141,24 @@ class FeedDetailView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadFeed({ reload = false } = {}) {
       await dataLayer.requests.loadNextFeedPage(feedUri, {
         reload,
         limit: FEED_PAGE_SIZE + 1,
       });
-      renderPage();
     }
 
     root.addEventListener("page-enter", async () => {
-      // Initial empty state
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
-      // Load feed generator info
-      dataLayer.declarative.ensureFeedGenerator(feedUri).then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
+      dataLayer.declarative.ensureFeedGenerator(feedUri);
       await loadFeed();
     });
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

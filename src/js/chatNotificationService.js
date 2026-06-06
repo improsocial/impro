@@ -1,13 +1,12 @@
-import { EventEmitter } from "/js/eventEmitter.js";
 import { wait } from "/js/utils.js";
+import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
 
-export class ChatNotificationService extends EventEmitter {
+export class ChatNotificationService {
   constructor(api) {
-    super();
     this.api = api;
-    this._numNotifications = 0;
+    this.$numNotifications = new Signal.State(0);
     this._cursor = "";
   }
 
@@ -21,13 +20,9 @@ export class ChatNotificationService extends EventEmitter {
   async fetchNumNotifications() {
     const unreadConvos = await this.api.listConvos({ readState: "unread" });
     const numNotifications = unreadConvos.convos.length;
-    if (numNotifications !== this._numNotifications) {
-      this._numNotifications = numNotifications;
-      this.emit("update");
+    if (numNotifications !== this.$numNotifications.get()) {
+      this.$numNotifications.set(numNotifications);
     }
-  }
-  getNumNotifications() {
-    return this._numNotifications;
   }
   async markNotificationsAsReadForConvo() {
     // The views should update the unread count for each convo,

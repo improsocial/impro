@@ -220,6 +220,41 @@ t.describe("popstate", (it) => {
 
     assertEquals(order[0], "navigate");
   });
+
+  it("restores a query-bearing page from cache on back navigation", async () => {
+    const originalPath =
+      window.location.pathname + window.location.search + window.location.hash;
+    const originalState = window.history.state;
+    const { router, popstateHandler } = createRouterWithPopstateHandler();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/search", () => Promise.resolve({}));
+    router.addRoute("/other", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+
+    try {
+      await router.load("/search?q=alice");
+      const searchPage = router.pages.get("/search?q=alice");
+      assert(searchPage, "page should be cached under its full path");
+      await router.load("/other");
+
+      // Simulate the back button landing on the query-bearing URL.
+      window.history.replaceState({}, "", "/search?q=alice");
+      await popstateHandler(new Event("popstate"));
+
+      // The cached page is reused rather than rebuilt under the query-less path.
+      assert(
+        router.currentPage === searchPage,
+        "should reuse the cached query-bearing page",
+      );
+      assert(
+        !router.pages.has("/search"),
+        "should not create a query-less duplicate page",
+      );
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
 });
 
 t.describe("load", (it) => {
@@ -404,6 +439,74 @@ t.describe("back", (it) => {
       window.history.back = originalBack;
       window.history.replaceState(originalState, "", originalPath);
     }
+  });
+});
+
+t.describe("scroll position persistence", (it) => {
+  // JSDOM's window.scrollY is a read-only getter, so temporarily override it to
+  // simulate the page being scrolled before we navigate away.
+  function withScrollY(value, callback) {
+    const original = Object.getOwnPropertyDescriptor(window, "scrollY");
+    Object.defineProperty(window, "scrollY", {
+      value,
+      configurable: true,
+    });
+    return (async () => {
+      try {
+        return await callback();
+      } finally {
+        if (original) {
+          Object.defineProperty(window, "scrollY", original);
+        } else {
+          delete window.scrollY;
+        }
+      }
+    })();
+  }
+
+  function createRouter() {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/a", () => Promise.resolve({}));
+    router.addRoute("/b", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+    return router;
+  }
+
+  it("saves the scroll position of the page being navigated away from", async () => {
+    const router = createRouter();
+    await router.load("/a");
+
+    await withScrollY(250, () => router.load("/b"));
+
+    assertEquals(router.scrollStates.get("/a"), 250);
+  });
+
+  it("does not record a scroll position on the very first load", async () => {
+    const router = createRouter();
+
+    await withScrollY(250, () => router.load("/a"));
+
+    assertEquals(router.scrollStates.has("/a"), false);
+  });
+
+  it("restores the saved scroll position via the page-restore event", async () => {
+    const router = createRouter();
+    await router.load("/a");
+
+    const pageA = router.pages.get("/a");
+    let restoredScrollY = null;
+    pageA.addEventListener("page-restore", (event) => {
+      restoredScrollY = event.detail.scrollY;
+    });
+
+    await withScrollY(175, async () => {
+      await router.load("/b"); // leaving /a saves 175 under /a
+      await router.load("/a"); // returning to cached /a restores it
+    });
+
+    assertEquals(restoredScrollY, 175);
   });
 });
 

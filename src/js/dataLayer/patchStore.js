@@ -1,50 +1,78 @@
 import { deepClone, SimpleUUID } from "/js/utils.js";
 import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
+import { Signal, SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 
 // The store saves patch data for optimistic updates.
-export class PatchStore {
-  constructor() {
-    this.postPatches = new Map();
-    this.profilePatches = new Map();
-    this.messagePatches = new Map();
-    this.preferencePatches = [];
-    this.currentUserPatches = [];
-    this.authorFeedPatches = new Map();
+export class PatchStore extends ReactiveStore {
+  constructor(dataStore) {
+    super("patchStore");
+    this.dataStore = dataStore;
+    this.$postPatches = new SignalMap();
+
+    this.$patchedPosts = new ComputedMap((postURI) => {
+      const post = this.dataStore.$posts.get(postURI);
+      if (!post) return null;
+      const patches = this.$postPatches.get(postURI) || [];
+      return this.applyPostPatches(post, patches);
+    });
+
+    this.$profilePatches = new SignalMap();
+    this.$patchedProfiles = new ComputedMap((did) => {
+      const profile = this.dataStore.$profiles.get(did);
+      if (!profile) return null;
+      const patches = this.$profilePatches.get(did) || [];
+      return this.applyProfilePatches(profile, patches);
+    });
+
+    this.$messagePatches = new SignalMap();
+    this.$patchedMessages = new ComputedMap((messageId) => {
+      const message = this.dataStore.$messages.get(messageId);
+      if (!message) return null;
+      const patches = this.$messagePatches.get(messageId) || [];
+      let patchedMessage = message;
+      for (const patch of patches) {
+        patchedMessage = this.applyMessagePatch(patchedMessage, patch.body);
+      }
+      return patchedMessage;
+    });
+    this.$preferencePatches = new Signal.State([]);
+    this.$currentUserPatches = new Signal.State([]);
+    this.$authorFeedPatches = new SignalMap();
     this.uuid = new SimpleUUID();
   }
 
   /* Post Patches */
 
   _getPostPatches(postURI) {
-    return this.postPatches.get(postURI) || [];
+    return this.$postPatches.get(postURI) || [];
   }
 
   addPostPatch(postURI, patchBody) {
     const patchId = this.uuid.create();
-    const postPatches = this._getPostPatches(postURI);
-    postPatches.push({ id: patchId, body: patchBody });
-    this.postPatches.set(postURI, postPatches);
+    this.$postPatches.set(postURI, [
+      ...this._getPostPatches(postURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removePostPatch(postURI, patchId) {
-    const postPatches = this._getPostPatches(postURI);
-    this.postPatches.set(
+    this.$postPatches.set(
       postURI,
-      postPatches.filter(({ id }) => id !== patchId),
+      this._getPostPatches(postURI).filter(({ id }) => id !== patchId),
     );
   }
 
-  applyPostPatches(post) {
-    const postPatches = this._getPostPatches(post.uri);
+  applyPostPatches(post, patches) {
     let patchedPost = deepClone(post);
-    for (const patch of postPatches) {
+    for (const patch of patches) {
       patchedPost = this.applyPostPatch(patchedPost, patch.body);
     }
-    // apply profile patches to the post's author
     if (patchedPost.author) {
-      const patchedAuthor = this.applyProfilePatches(patchedPost.author);
-      patchedPost = { ...patchedPost, author: patchedAuthor };
+      patchedPost = {
+        ...patchedPost,
+        author: this.applyProfilePatches(patchedPost.author),
+      };
     }
     return patchedPost;
   }
@@ -121,27 +149,27 @@ export class PatchStore {
   /* Profile Patches */
 
   _getProfilePatches(profileURI) {
-    return this.profilePatches.get(profileURI) || [];
+    return this.$profilePatches.get(profileURI) || [];
   }
 
   addProfilePatch(profileURI, patchBody) {
     const patchId = this.uuid.create();
-    const profilePatches = this._getProfilePatches(profileURI);
-    profilePatches.push({ id: patchId, body: patchBody });
-    this.profilePatches.set(profileURI, profilePatches);
+    this.$profilePatches.set(profileURI, [
+      ...this._getProfilePatches(profileURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeProfilePatch(profileURI, patchId) {
-    const profilePatches = this._getProfilePatches(profileURI);
-    this.profilePatches.set(
+    this.$profilePatches.set(
       profileURI,
-      profilePatches.filter(({ id }) => id !== patchId),
+      this._getProfilePatches(profileURI).filter(({ id }) => id !== patchId),
     );
   }
 
-  applyProfilePatches(profile) {
-    const profilePatches = this._getProfilePatches(profile.did);
+  applyProfilePatches(profile, patches) {
+    const profilePatches = patches ?? this._getProfilePatches(profile.did);
     let patchedProfile = deepClone(profile);
     for (const patch of profilePatches) {
       patchedProfile = this.applyProfilePatch(patchedProfile, patch.body);
@@ -217,22 +245,22 @@ export class PatchStore {
   /* Message Patches */
 
   _getMessagePatches(messageId) {
-    return this.messagePatches.get(messageId) || [];
+    return this.$messagePatches.get(messageId) || [];
   }
 
   addMessagePatch(messageId, patchBody) {
     const patchId = this.uuid.create();
-    const messagePatches = this._getMessagePatches(messageId);
-    messagePatches.push({ id: patchId, body: patchBody });
-    this.messagePatches.set(messageId, messagePatches);
+    this.$messagePatches.set(messageId, [
+      ...this._getMessagePatches(messageId),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeMessagePatch(messageId, patchId) {
-    const messagePatches = this._getMessagePatches(messageId);
-    this.messagePatches.set(
+    this.$messagePatches.set(
       messageId,
-      messagePatches.filter(({ id }) => id !== patchId),
+      this._getMessagePatches(messageId).filter(({ id }) => id !== patchId),
     );
   }
 
@@ -269,26 +297,20 @@ export class PatchStore {
 
   /* Preference Patches */
 
-  _getPreferencePatches() {
-    return this.preferencePatches;
-  }
-
   addPreferencePatch(patchBody) {
     const patchId = this.uuid.create();
-    const preferencePatches = this._getPreferencePatches();
-    preferencePatches.push({ id: patchId, body: patchBody });
+    const patches = this.$preferencePatches.get();
+    this.$preferencePatches.set([...patches, { id: patchId, body: patchBody }]);
     return patchId;
   }
 
   removePreferencePatch(patchId) {
-    const preferencePatches = this._getPreferencePatches();
-    this.preferencePatches = preferencePatches.filter(
-      ({ id }) => id !== patchId,
-    );
+    const patches = this.$preferencePatches.get();
+    this.$preferencePatches.set(patches.filter(({ id }) => id !== patchId));
   }
 
-  applyPreferencePatches(preferences) {
-    const preferencePatches = this._getPreferencePatches();
+  applyPreferencePatches(preferences, patches) {
+    const preferencePatches = patches ?? this.$preferencePatches.get();
     let patchedPreferences = preferences.clone();
     for (const patch of preferencePatches) {
       patchedPreferences = this.applyPreferencePatch(
@@ -302,7 +324,7 @@ export class PatchStore {
   applyPreferencePatch(preferences, patchBody) {
     switch (patchBody.type) {
       case "pinFeed":
-        return preferences.pinFeed(patchBody.feedUri);
+        return preferences.pinFeed(patchBody.feedUri, patchBody.entryType);
       case "unpinFeed":
         return preferences.unpinFeed(patchBody.feedUri);
       case "subscribeLabeler":
@@ -327,20 +349,24 @@ export class PatchStore {
 
   addCurrentUserPatch(patchBody) {
     const patchId = this.uuid.create();
-    this.currentUserPatches.push({ id: patchId, body: patchBody });
+    const patches = this.$currentUserPatches.get();
+    this.$currentUserPatches.set([
+      ...patches,
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeCurrentUserPatch(patchId) {
-    this.currentUserPatches = this.currentUserPatches.filter(
-      ({ id }) => id !== patchId,
-    );
+    const patches = this.$currentUserPatches.get();
+    this.$currentUserPatches.set(patches.filter(({ id }) => id !== patchId));
   }
 
-  applyCurrentUserPatches(user) {
+  applyCurrentUserPatches(user, patches) {
     if (!user) return user;
+    const currentUserPatches = patches ?? this.$currentUserPatches.get();
     let patched = deepClone(user);
-    for (const patch of this.currentUserPatches) {
+    for (const patch of currentUserPatches) {
       patched = this.applyCurrentUserPatch(patched, patch.body);
     }
     return patched;
@@ -362,22 +388,22 @@ export class PatchStore {
   /* Author Feed Patches */
 
   _getAuthorFeedPatches(feedURI) {
-    return this.authorFeedPatches.get(feedURI) || [];
+    return this.$authorFeedPatches.get(feedURI) || [];
   }
 
   addAuthorFeedPatch(feedURI, patchBody) {
     const patchId = this.uuid.create();
-    const patches = this._getAuthorFeedPatches(feedURI);
-    patches.push({ id: patchId, body: patchBody });
-    this.authorFeedPatches.set(feedURI, patches);
+    this.$authorFeedPatches.set(feedURI, [
+      ...this._getAuthorFeedPatches(feedURI),
+      { id: patchId, body: patchBody },
+    ]);
     return patchId;
   }
 
   removeAuthorFeedPatch(feedURI, patchId) {
-    const patches = this._getAuthorFeedPatches(feedURI);
-    this.authorFeedPatches.set(
+    this.$authorFeedPatches.set(
       feedURI,
-      patches.filter(({ id }) => id !== patchId),
+      this._getAuthorFeedPatches(feedURI).filter(({ id }) => id !== patchId),
     );
   }
 

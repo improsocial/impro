@@ -14,8 +14,7 @@ const targetPostUri = "at://did:plc:target/app.bsky.feed.post/targetpost1";
 
 const postThreadLink =
   "https://bsky.app/profile/target.bsky.social/post/targetpost1";
-const listDetailLink =
-  "https://bsky.app/profile/target.bsky.social/lists/somelist1";
+const nonMatchingBskyLink = "https://bsky.app/unknown/some-path";
 
 function createLinkPost() {
   const text = `matching link non-matching link`;
@@ -46,7 +45,7 @@ function createLinkPost() {
           features: [
             {
               $type: "app.bsky.richtext.facet#link",
-              uri: listDetailLink,
+              uri: nonMatchingBskyLink,
             },
           ],
         },
@@ -104,7 +103,7 @@ test.describe("In-app link interception", () => {
   test("should not intercept bsky.app links that do not match a known route", async ({
     page,
   }) => {
-    const nonMatchingLink = page.locator(`a[href="${listDetailLink}"]`);
+    const nonMatchingLink = page.locator(`a[href="${nonMatchingBskyLink}"]`);
     await expect(nonMatchingLink).toBeVisible({ timeout: 10000 });
 
     // Allow the external navigation request so we can observe the URL change
@@ -114,13 +113,11 @@ test.describe("In-app link interception", () => {
 
     // Clicking the non-matching link should trigger a full browser navigation
     // to the external bsky.app URL instead of an in-app SPA transition
-    const navigationPromise = page.waitForURL(`${listDetailLink}**`);
+    const navigationPromise = page.waitForURL(`${nonMatchingBskyLink}**`);
     await nonMatchingLink.click();
     await navigationPromise;
 
-    expect(page.url()).toContain(
-      "bsky.app/profile/target.bsky.social/lists/somelist1",
-    );
+    expect(page.url()).toContain("bsky.app/unknown/some-path");
   });
 
   test("should redirect <handle>.bsky.social links to /profile/<handle>.bsky.social", async ({

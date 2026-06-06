@@ -4,11 +4,15 @@ import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
+import { SignalMap } from "/js/signals.js";
 
 const t = new TestSuite("Requests");
 
 const stubConstellation = { getLinks: async () => [] };
-const stubPluginService = { getFilteredFeedItems: async () => ({}) };
+const stubPluginService = {
+  $pluginFilteredFeedItems: new SignalMap(),
+  refreshFiltersForFeed: async () => {},
+};
 
 function createRequests(api, dataStore, preferencesProvider) {
   return new Requests(api, dataStore, preferencesProvider, stubPluginService, {
@@ -55,14 +59,14 @@ t.describe("loadPostThread", (it) => {
     await requests.loadPostThread(postURI);
 
     // Check thread was stored
-    assertEquals(dataStore.getPostThread(postURI), mockPostThread);
+    assertEquals(dataStore.$postThreads.get(postURI), mockPostThread);
 
     // Check postThreadOther was stored
-    assertEquals(dataStore.getPostThreadOther(postURI), mockPostThreadOther);
+    assertEquals(dataStore.$postThreadOthers.get(postURI), mockPostThreadOther);
 
     // Check posts were stored
-    assertEquals(dataStore.getPost(postURI), normalizedPosts[0]);
-    assertEquals(dataStore.getPost("reply1"), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get(postURI), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("reply1"), normalizedPosts[1]);
   });
 
   it("should handle empty post thread", async () => {
@@ -90,9 +94,9 @@ t.describe("loadPostThread", (it) => {
 
     await requests.loadPostThread(postURI);
 
-    assertEquals(dataStore.getPostThread(postURI), emptyPostThread);
-    assertEquals(dataStore.getPostThreadOther(postURI), []);
-    assertEquals(dataStore.getPost(postURI), normalizedPosts[0]);
+    assertEquals(dataStore.$postThreads.get(postURI), emptyPostThread);
+    assertEquals(dataStore.$postThreadOthers.get(postURI), []);
+    assertEquals(dataStore.$posts.get(postURI), normalizedPosts[0]);
   });
 });
 
@@ -127,11 +131,11 @@ t.describe("loadNextFeedPage", (it) => {
     await requests.loadNextFeedPage(feedURI);
 
     // Check feed was stored
-    assertEquals(dataStore.getFeed(feedURI), mockFeed);
+    assertEquals(dataStore.$feeds.get(feedURI), mockFeed);
 
     // Check posts were stored
-    assertEquals(dataStore.getPost("post1"), normalizedPosts[0]);
-    assertEquals(dataStore.getPost("post2"), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get("post1"), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("post2"), normalizedPosts[1]);
   });
 
   it("should append to existing feed", async () => {
@@ -142,7 +146,7 @@ t.describe("loadNextFeedPage", (it) => {
       feed: [{ post: { uri: "post1" } }],
       cursor: "cursor1",
     };
-    dataStore.setFeed(feedURI, existingFeed);
+    dataStore.$feeds.set(feedURI, existingFeed);
 
     // New page
     const newPage = {
@@ -171,7 +175,7 @@ t.describe("loadNextFeedPage", (it) => {
     await requests.loadNextFeedPage(feedURI);
 
     // Check feed was appended
-    const storedFeed = dataStore.getFeed(feedURI);
+    const storedFeed = dataStore.$feeds.get(feedURI);
     assertEquals(storedFeed.feed.length, 3);
     assertEquals(storedFeed.feed[0], { post: { uri: "post1" } });
     assertEquals(storedFeed.feed[1], { post: { uri: "post2" } });
@@ -179,8 +183,8 @@ t.describe("loadNextFeedPage", (it) => {
     assertEquals(storedFeed.cursor, "cursor2");
 
     // Check new posts were stored
-    assertEquals(dataStore.getPost("post2"), normalizedPosts[0]);
-    assertEquals(dataStore.getPost("post3"), normalizedPosts[1]);
+    assertEquals(dataStore.$posts.get("post2"), normalizedPosts[0]);
+    assertEquals(dataStore.$posts.get("post3"), normalizedPosts[1]);
   });
 
   it("should handle empty feed", async () => {
@@ -205,7 +209,7 @@ t.describe("loadNextFeedPage", (it) => {
 
     await requests.loadNextFeedPage(feedURI);
 
-    assertEquals(dataStore.getFeed(feedURI), emptyFeed);
+    assertEquals(dataStore.$feeds.get(feedURI), emptyFeed);
   });
 
   it("should handle feed with reply context", async () => {
@@ -244,18 +248,30 @@ t.describe("loadNextFeedPage", (it) => {
 
     await requests.loadNextFeedPage(feedURI);
 
-    assertEquals(dataStore.getFeed(feedURI), feedWithReplies);
-    assertEquals(dataStore.getPost("post1").uri, normalizedPosts[0].uri);
-    assertEquals(dataStore.getPost("root1").uri, normalizedPosts[1].uri);
-    assertEquals(dataStore.getPost("parent1").uri, normalizedPosts[2].uri);
+    assertEquals(dataStore.$feeds.get(feedURI), feedWithReplies);
+    assertEquals(dataStore.$posts.get("post1").uri, normalizedPosts[0].uri);
+    assertEquals(dataStore.$posts.get("root1").uri, normalizedPosts[1].uri);
+    assertEquals(dataStore.$posts.get("parent1").uri, normalizedPosts[2].uri);
   });
 });
 
 t.describe("loadPluginFilteredFeedItems", (it) => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
+  // Stub pluginService that mimics PluginService.refreshFiltersForFeed,
+  // storing results in $pluginFilteredFeedItems so tests can verify them.
   function makePluginService(getFilteredFeedItems) {
-    return { getFilteredFeedItems };
+    const $pluginFilteredFeedItems = new SignalMap();
+    return {
+      $pluginFilteredFeedItems,
+      refreshFiltersForFeed: async (uri, feed, { reload = false } = {}) => {
+        const filtered = await getFilteredFeedItems(uri, feed);
+        const existing = reload
+          ? {}
+          : ($pluginFilteredFeedItems.get(uri) ?? {});
+        $pluginFilteredFeedItems.set(uri, { ...existing, ...filtered });
+      },
+    };
   }
 
   function createRequestsWithPluginService(dataStore, pluginService) {
@@ -280,7 +296,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
     await requests.loadPluginFilteredFeedItems(feedURI);
 
     assertEquals(invoked, false);
-    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), undefined);
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), null);
   });
 
   it("should pass the feed to the plugin service and store results", async () => {
@@ -289,7 +305,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
       feed: [{ post: { uri: "p1" } }],
       cursor: "c1",
     };
-    dataStore.setFeed(feedURI, storedFeed);
+    dataStore.$feeds.set(feedURI, storedFeed);
 
     let capturedUri = null;
     let capturedFeed = null;
@@ -304,28 +320,27 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
 
     assertEquals(capturedUri, feedURI);
     assertEquals(capturedFeed, storedFeed);
-    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p1: { hidden: true },
     });
   });
 
   it("should merge with existing filtered items by default", async () => {
     const dataStore = new DataStore();
-    dataStore.setFeed(feedURI, { feed: [], cursor: null });
-    dataStore.setPluginFilteredFeedItems(feedURI, {
-      p1: { hidden: true },
-      p2: { hidden: true },
-    });
-
+    dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
     const pluginService = makePluginService(async () => ({
       p2: { hidden: false },
       p3: { hidden: true },
     }));
+    pluginService.$pluginFilteredFeedItems.set(feedURI, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
     const requests = createRequestsWithPluginService(dataStore, pluginService);
 
     await requests.loadPluginFilteredFeedItems(feedURI);
 
-    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p1: { hidden: true },
       p2: { hidden: false },
       p3: { hidden: true },
@@ -334,20 +349,19 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
 
   it("should replace existing filtered items when reload is true", async () => {
     const dataStore = new DataStore();
-    dataStore.setFeed(feedURI, { feed: [], cursor: null });
-    dataStore.setPluginFilteredFeedItems(feedURI, {
-      p1: { hidden: true },
-      p2: { hidden: true },
-    });
-
+    dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
     const pluginService = makePluginService(async () => ({
       p3: { hidden: true },
     }));
+    pluginService.$pluginFilteredFeedItems.set(feedURI, {
+      p1: { hidden: true },
+      p2: { hidden: true },
+    });
     const requests = createRequestsWithPluginService(dataStore, pluginService);
 
     await requests.loadPluginFilteredFeedItems(feedURI, { reload: true });
 
-    assertEquals(dataStore.getPluginFilteredFeedItems(feedURI), {
+    assertEquals(pluginService.$pluginFilteredFeedItems.get(feedURI), {
       p3: { hidden: true },
     });
   });
@@ -382,7 +396,7 @@ t.describe("loadProfile", (it) => {
     await requests.loadProfile(profileDID);
 
     // Check profile was stored
-    assertEquals(dataStore.getProfile(profileDID), mockProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), mockProfile);
   });
 
   it("should handle profile updates", async () => {
@@ -410,7 +424,7 @@ t.describe("loadProfile", (it) => {
 
     await requests.loadProfile(profileDID);
 
-    assertEquals(dataStore.getProfile(profileDID), initialProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), initialProfile);
 
     // Load updated profile
     const updatedProfile = {
@@ -423,7 +437,7 @@ t.describe("loadProfile", (it) => {
 
     await requests.loadProfile(profileDID);
 
-    assertEquals(dataStore.getProfile(profileDID), updatedProfile);
+    assertEquals(dataStore.$profiles.get(profileDID), updatedProfile);
   });
 });
 
@@ -453,8 +467,8 @@ t.describe("loadPosts", (it) => {
     await requests.loadPosts(["at://a", "at://b"]);
 
     assertEquals(calledWith, ["at://a", "at://b"]);
-    assertEquals(dataStore.getPost("at://a"), postA);
-    assertEquals(dataStore.getPost("at://b"), postB);
+    assertEquals(dataStore.$posts.get("at://a"), postA);
+    assertEquals(dataStore.$posts.get("at://b"), postB);
   });
 
   it("does not call api when uris is empty", async () => {
@@ -512,7 +526,7 @@ t.describe("loadLabelerInfo", (it) => {
 
     await requests.loadLabelerInfo(labelerDid);
 
-    assertEquals(dataStore.getLabelerInfo(labelerDid), mockLabelerInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), mockLabelerInfo);
   });
 
   it("should call api.getLabeler with correct DID", async () => {
@@ -568,11 +582,11 @@ t.describe("loadLabelerInfo", (it) => {
     );
 
     await requests.loadLabelerInfo(labelerDid);
-    assertEquals(dataStore.getLabelerInfo(labelerDid), initialInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), initialInfo);
 
     currentInfo = updatedInfo;
     await requests.loadLabelerInfo(labelerDid);
-    assertEquals(dataStore.getLabelerInfo(labelerDid), updatedInfo);
+    assertEquals(dataStore.$labelerInfo.get(labelerDid), updatedInfo);
   });
 });
 
@@ -595,12 +609,12 @@ t.describe("loadMutedProfiles", (it) => {
 
     await requests.loadMutedProfiles();
 
-    assertEquals(dataStore.getMutedProfiles(), res);
+    assertEquals(dataStore.$mutedProfiles.get(), res);
   });
 
   it("should append paginated muted profiles when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setMutedProfiles({
+    dataStore.$mutedProfiles.set({
       mutes: [{ did: "did:plc:a" }],
       cursor: "page2",
     });
@@ -622,7 +636,7 @@ t.describe("loadMutedProfiles", (it) => {
 
     await requests.loadMutedProfiles({ cursor: "page2" });
 
-    const stored = dataStore.getMutedProfiles();
+    const stored = dataStore.$mutedProfiles.get();
     assertEquals(stored.mutes.length, 2);
     assertEquals(stored.mutes[0].did, "did:plc:a");
     assertEquals(stored.mutes[1].did, "did:plc:b");
@@ -637,7 +651,7 @@ t.describe("loadMutedProfiles", (it) => {
       },
     };
     const dataStore = new DataStore();
-    dataStore.setMutedProfiles({ mutes: [], cursor: "abc" });
+    dataStore.$mutedProfiles.set({ mutes: [], cursor: "abc" });
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
@@ -672,12 +686,12 @@ t.describe("loadBlockedProfiles", (it) => {
 
     await requests.loadBlockedProfiles();
 
-    assertEquals(dataStore.getBlockedProfiles(), res);
+    assertEquals(dataStore.$blockedProfiles.get(), res);
   });
 
   it("should append paginated blocked profiles when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setBlockedProfiles({
+    dataStore.$blockedProfiles.set({
       blocks: [{ did: "did:plc:a" }],
       cursor: "page2",
     });
@@ -692,7 +706,7 @@ t.describe("loadBlockedProfiles", (it) => {
 
     await requests.loadBlockedProfiles({ cursor: "page2" });
 
-    const stored = dataStore.getBlockedProfiles();
+    const stored = dataStore.$blockedProfiles.get();
     assertEquals(stored.blocks.length, 2);
     assertEquals(stored.blocks[0].did, "did:plc:a");
     assertEquals(stored.blocks[1].did, "did:plc:b");
@@ -707,7 +721,7 @@ t.describe("loadBlockedProfiles", (it) => {
       },
     };
     const dataStore = new DataStore();
-    dataStore.setBlockedProfiles({ blocks: [], cursor: "abc" });
+    dataStore.$blockedProfiles.set({ blocks: [], cursor: "abc" });
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadBlockedProfiles({ cursor: "abc" });
@@ -735,7 +749,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
     assertEquals(capturedParams.filter, "posts_and_author_threads");
     assertEquals(capturedParams.includePins, true);
     assertEquals(capturedParams.cursor, "");
-    assertEquals(dataStore.getAuthorFeed(`${did}-posts`).feed.length, 1);
+    assertEquals(dataStore.$authorFeeds.get(`${did}-posts`).feed.length, 1);
   });
 
   it("should use posts_with_replies filter for replies feedType", async () => {
@@ -794,7 +808,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
   it("should append to existing feed", async () => {
     const feedURI = `${did}-posts`;
     const dataStore = new DataStore();
-    dataStore.setAuthorFeed(feedURI, {
+    dataStore.$authorFeeds.set(feedURI, {
       feed: [{ post: { uri: "old1" } }],
       cursor: "c1",
     });
@@ -809,7 +823,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
 
     await requests.loadNextAuthorFeedPage(did, "posts");
 
-    const stored = dataStore.getAuthorFeed(feedURI);
+    const stored = dataStore.$authorFeeds.get(feedURI);
     assertEquals(stored.feed.length, 2);
     assertEquals(stored.feed[0].post.uri, "old1");
     assertEquals(stored.feed[1].post.uri, "new1");
@@ -819,7 +833,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
   it("should reset cursor and replace feed on reload", async () => {
     const feedURI = `${did}-posts`;
     const dataStore = new DataStore();
-    dataStore.setAuthorFeed(feedURI, {
+    dataStore.$authorFeeds.set(feedURI, {
       feed: [{ post: { uri: "old1" } }],
       cursor: "c1",
     });
@@ -836,7 +850,7 @@ t.describe("loadNextAuthorFeedPage", (it) => {
     await requests.loadNextAuthorFeedPage(did, "posts", { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getAuthorFeed(feedURI);
+    const stored = dataStore.$authorFeeds.get(feedURI);
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "new1");
   });
@@ -858,13 +872,13 @@ t.describe("loadNextAuthorFeedPage", (it) => {
 t.describe("loadPostSearch", (it) => {
   it("should clear results when query is empty", async () => {
     const dataStore = new DataStore();
-    dataStore.setPostSearchResults({ posts: [{ uri: "p1" }], cursor: "c1" });
+    dataStore.$postSearchResults.set({ posts: [{ uri: "p1" }], cursor: "c1" });
     const mockApi = { searchPosts: async () => ({ posts: [], cursor: null }) };
     const requests = makeRequests(mockApi, dataStore);
 
     await requests.loadPostSearch("");
 
-    assertEquals(dataStore.getPostSearchResults(), null);
+    assertEquals(dataStore.$postSearchResults.get(), null);
   });
 
   it("should store results from a fresh search", async () => {
@@ -879,7 +893,7 @@ t.describe("loadPostSearch", (it) => {
 
     await requests.loadPostSearch("hello");
 
-    const stored = dataStore.getPostSearchResults();
+    const stored = dataStore.$postSearchResults.get();
     assertEquals(stored.posts.length, 1);
     assertEquals(stored.cursor, "next");
   });
@@ -909,14 +923,14 @@ t.describe("loadPostSearch", (it) => {
     resolveFirst();
     await firstCall;
 
-    const stored = dataStore.getPostSearchResults();
+    const stored = dataStore.$postSearchResults.get();
     assertEquals(stored.posts[0].uri, "fresh");
     assertEquals(stored.cursor, "fresh");
   });
 
   it("should append when cursor is provided and existing results present", async () => {
     const dataStore = new DataStore();
-    dataStore.setPostSearchResults({
+    dataStore.$postSearchResults.set({
       posts: [{ uri: "p1", record: {} }],
       cursor: "c1",
     });
@@ -930,7 +944,7 @@ t.describe("loadPostSearch", (it) => {
 
     await requests.loadPostSearch("hello", { cursor: "c1" });
 
-    const stored = dataStore.getPostSearchResults();
+    const stored = dataStore.$postSearchResults.get();
     assertEquals(stored.posts.length, 2);
     assertEquals(stored.posts[1].uri, "p2");
     assertEquals(stored.cursor, "c2");
@@ -940,7 +954,10 @@ t.describe("loadPostSearch", (it) => {
 t.describe("loadProfileSearch", (it) => {
   it("should clear results when query is empty", async () => {
     const dataStore = new DataStore();
-    dataStore.setProfileSearchResults({ actors: [{ did: "x" }], cursor: "c" });
+    dataStore.$profileSearchResults.set({
+      actors: [{ did: "x" }],
+      cursor: "c",
+    });
     const mockApi = {
       searchProfiles: async () => ({ actors: [], cursor: null }),
     };
@@ -948,7 +965,7 @@ t.describe("loadProfileSearch", (it) => {
 
     await requests.loadProfileSearch("");
 
-    assertEquals(dataStore.getProfileSearchResults(), null);
+    assertEquals(dataStore.$profileSearchResults.get(), null);
   });
 
   it("should store actors from a fresh search", async () => {
@@ -963,7 +980,7 @@ t.describe("loadProfileSearch", (it) => {
 
     await requests.loadProfileSearch("alice");
 
-    const stored = dataStore.getProfileSearchResults();
+    const stored = dataStore.$profileSearchResults.get();
     assertEquals(stored.actors.length, 1);
     assertEquals(stored.cursor, "next");
   });
@@ -993,13 +1010,13 @@ t.describe("loadProfileSearch", (it) => {
     resolveFirst();
     await firstCall;
 
-    const stored = dataStore.getProfileSearchResults();
+    const stored = dataStore.$profileSearchResults.get();
     assertEquals(stored.actors[0].did, "fresh");
   });
 
   it("should append when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setProfileSearchResults({
+    dataStore.$profileSearchResults.set({
       actors: [{ did: "did:plc:a" }],
       cursor: "c1",
     });
@@ -1013,7 +1030,7 @@ t.describe("loadProfileSearch", (it) => {
 
     await requests.loadProfileSearch("query", { cursor: "c1" });
 
-    const stored = dataStore.getProfileSearchResults();
+    const stored = dataStore.$profileSearchResults.get();
     assertEquals(stored.actors.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1022,7 +1039,7 @@ t.describe("loadProfileSearch", (it) => {
 t.describe("loadFeedSearch", (it) => {
   it("should clear results when query is empty", async () => {
     const dataStore = new DataStore();
-    dataStore.setFeedSearchResults({ feeds: [{ uri: "f1" }], cursor: "c" });
+    dataStore.$feedSearchResults.set({ feeds: [{ uri: "f1" }], cursor: "c" });
     const mockApi = {
       searchFeedGenerators: async () => ({ feeds: [], cursor: null }),
     };
@@ -1030,7 +1047,7 @@ t.describe("loadFeedSearch", (it) => {
 
     await requests.loadFeedSearch("");
 
-    assertEquals(dataStore.getFeedSearchResults(), null);
+    assertEquals(dataStore.$feedSearchResults.get(), null);
   });
 
   it("should store feeds and cache feed generators", async () => {
@@ -1045,9 +1062,9 @@ t.describe("loadFeedSearch", (it) => {
 
     await requests.loadFeedSearch("news");
 
-    const stored = dataStore.getFeedSearchResults();
+    const stored = dataStore.$feedSearchResults.get();
     assertEquals(stored.feeds.length, 1);
-    assertEquals(dataStore.getFeedGenerator("f1").displayName, "Feed One");
+    assertEquals(dataStore.$feedGenerators.get("f1").displayName, "Feed One");
   });
 
   it("should discard stale responses", async () => {
@@ -1075,13 +1092,13 @@ t.describe("loadFeedSearch", (it) => {
     resolveFirst();
     await firstCall;
 
-    const stored = dataStore.getFeedSearchResults();
+    const stored = dataStore.$feedSearchResults.get();
     assertEquals(stored.feeds[0].uri, "fresh");
   });
 
   it("should append when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setFeedSearchResults({
+    dataStore.$feedSearchResults.set({
       feeds: [{ uri: "f1" }],
       cursor: "c1",
     });
@@ -1095,7 +1112,7 @@ t.describe("loadFeedSearch", (it) => {
 
     await requests.loadFeedSearch("query", { cursor: "c1" });
 
-    const stored = dataStore.getFeedSearchResults();
+    const stored = dataStore.$feedSearchResults.get();
     assertEquals(stored.feeds.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1115,14 +1132,14 @@ t.describe("loadNotifications", (it) => {
 
     await requests.loadNotifications();
 
-    assertEquals(dataStore.getNotifications().length, 1);
-    assertEquals(dataStore.getNotificationCursor(), "next");
+    assertEquals(dataStore.$notifications.get().length, 1);
+    assertEquals(dataStore.$notificationCursor.get(), "next");
   });
 
   it("should append when cursor matches previous", async () => {
     const dataStore = new DataStore();
-    dataStore.setNotifications([{ reason: "like", uri: "n1" }]);
-    dataStore.setNotificationCursor("page2");
+    dataStore.$notifications.set([{ reason: "like", uri: "n1" }]);
+    dataStore.$notificationCursor.set("page2");
 
     let capturedCursor;
     const mockApi = {
@@ -1140,14 +1157,14 @@ t.describe("loadNotifications", (it) => {
     await requests.loadNotifications();
 
     assertEquals(capturedCursor, "page2");
-    assertEquals(dataStore.getNotifications().length, 2);
-    assertEquals(dataStore.getNotificationCursor(), "page3");
+    assertEquals(dataStore.$notifications.get().length, 2);
+    assertEquals(dataStore.$notificationCursor.get(), "page3");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setNotifications([{ reason: "like", uri: "n1" }]);
-    dataStore.setNotificationCursor("page2");
+    dataStore.$notifications.set([{ reason: "like", uri: "n1" }]);
+    dataStore.$notificationCursor.set("page2");
 
     let capturedCursor;
     const mockApi = {
@@ -1165,10 +1182,10 @@ t.describe("loadNotifications", (it) => {
     await requests.loadNotifications({ reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getNotifications();
+    const stored = dataStore.$notifications.get();
     assertEquals(stored.length, 1);
     assertEquals(stored[0].uri, "n2");
-    assertEquals(dataStore.getNotificationCursor(), "fresh");
+    assertEquals(dataStore.$notificationCursor.get(), "fresh");
   });
 });
 
@@ -1191,14 +1208,14 @@ t.describe("loadMentionNotifications", (it) => {
     await requests.loadMentionNotifications();
 
     assertEquals(capturedReasons, ["mention", "reply", "quote"]);
-    assertEquals(dataStore.getMentionNotifications().length, 1);
-    assertEquals(dataStore.getMentionNotificationCursor(), "next");
+    assertEquals(dataStore.$mentionNotifications.get().length, 1);
+    assertEquals(dataStore.$mentionNotificationCursor.get(), "next");
   });
 
   it("should append when cursor matches previous", async () => {
     const dataStore = new DataStore();
-    dataStore.setMentionNotifications([{ reason: "mention", uri: "n1" }]);
-    dataStore.setMentionNotificationCursor("page2");
+    dataStore.$mentionNotifications.set([{ reason: "mention", uri: "n1" }]);
+    dataStore.$mentionNotificationCursor.set("page2");
 
     const mockApi = {
       getNotifications: async () => ({
@@ -1211,14 +1228,14 @@ t.describe("loadMentionNotifications", (it) => {
 
     await requests.loadMentionNotifications();
 
-    assertEquals(dataStore.getMentionNotifications().length, 2);
-    assertEquals(dataStore.getMentionNotificationCursor(), "page3");
+    assertEquals(dataStore.$mentionNotifications.get().length, 2);
+    assertEquals(dataStore.$mentionNotificationCursor.get(), "page3");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setMentionNotifications([{ reason: "mention", uri: "n1" }]);
-    dataStore.setMentionNotificationCursor("page2");
+    dataStore.$mentionNotifications.set([{ reason: "mention", uri: "n1" }]);
+    dataStore.$mentionNotificationCursor.set("page2");
 
     const mockApi = {
       getNotifications: async () => ({
@@ -1231,7 +1248,7 @@ t.describe("loadMentionNotifications", (it) => {
 
     await requests.loadMentionNotifications({ reload: true });
 
-    const stored = dataStore.getMentionNotifications();
+    const stored = dataStore.$mentionNotifications.get();
     assertEquals(stored.length, 1);
     assertEquals(stored[0].uri, "n2");
   });
@@ -1251,7 +1268,7 @@ t.describe("loadBookmarks", (it) => {
 
     await requests.loadBookmarks();
 
-    const stored = dataStore.getBookmarks();
+    const stored = dataStore.$bookmarks.get();
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "post1");
     assertEquals(stored.cursor, "next");
@@ -1259,7 +1276,7 @@ t.describe("loadBookmarks", (it) => {
 
   it("should append on subsequent loads", async () => {
     const dataStore = new DataStore();
-    dataStore.setBookmarks({
+    dataStore.$bookmarks.set({
       feed: [{ post: { uri: "post1" } }],
       cursor: "c1",
     });
@@ -1274,7 +1291,7 @@ t.describe("loadBookmarks", (it) => {
 
     await requests.loadBookmarks();
 
-    const stored = dataStore.getBookmarks();
+    const stored = dataStore.$bookmarks.get();
     assertEquals(stored.feed.length, 2);
     assertEquals(stored.feed[1].post.uri, "post2");
     assertEquals(stored.cursor, "c2");
@@ -1282,7 +1299,7 @@ t.describe("loadBookmarks", (it) => {
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setBookmarks({
+    dataStore.$bookmarks.set({
       feed: [{ post: { uri: "post1" } }],
       cursor: "c1",
     });
@@ -1303,7 +1320,7 @@ t.describe("loadBookmarks", (it) => {
     await requests.loadBookmarks({ reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getBookmarks();
+    const stored = dataStore.$bookmarks.get();
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "post2");
   });
@@ -1323,12 +1340,12 @@ t.describe("loadProfileFollowers", (it) => {
 
     await requests.loadProfileFollowers(profileDid);
 
-    assertEquals(dataStore.getProfileFollowers(profileDid), res);
+    assertEquals(dataStore.$profileFollowers.get(profileDid), res);
   });
 
   it("should append followers when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setProfileFollowers(profileDid, {
+    dataStore.$profileFollowers.set(profileDid, {
       followers: [{ did: "did:plc:a" }],
       cursor: "c1",
     });
@@ -1342,7 +1359,7 @@ t.describe("loadProfileFollowers", (it) => {
 
     await requests.loadProfileFollowers(profileDid, { cursor: "c1" });
 
-    const stored = dataStore.getProfileFollowers(profileDid);
+    const stored = dataStore.$profileFollowers.get(profileDid);
     assertEquals(stored.followers.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1359,12 +1376,12 @@ t.describe("loadProfileFollows", (it) => {
 
     await requests.loadProfileFollows(profileDid);
 
-    assertEquals(dataStore.getProfileFollows(profileDid), res);
+    assertEquals(dataStore.$profileFollows.get(profileDid), res);
   });
 
   it("should append follows when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setProfileFollows(profileDid, {
+    dataStore.$profileFollows.set(profileDid, {
       follows: [{ did: "did:plc:a" }],
       cursor: "c1",
     });
@@ -1378,7 +1395,7 @@ t.describe("loadProfileFollows", (it) => {
 
     await requests.loadProfileFollows(profileDid, { cursor: "c1" });
 
-    const stored = dataStore.getProfileFollows(profileDid);
+    const stored = dataStore.$profileFollows.get(profileDid);
     assertEquals(stored.follows.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1400,16 +1417,16 @@ t.describe("loadConvoList", (it) => {
 
     await requests.loadConvoList();
 
-    assertEquals(dataStore.getConvoList().length, 2);
-    assertEquals(dataStore.getConvo("c1").id, "c1");
-    assertEquals(dataStore.getConvo("c2").id, "c2");
-    assertEquals(dataStore.getConvoListCursor(), "next");
+    assertEquals(dataStore.$convoList.get().length, 2);
+    assertEquals(dataStore.$convos.get("c1").id, "c1");
+    assertEquals(dataStore.$convos.get("c2").id, "c2");
+    assertEquals(dataStore.$convoListCursor.get(), "next");
   });
 
   it("should append when previous cursor matches", async () => {
     const dataStore = new DataStore();
-    dataStore.setConvoList([{ id: "c1" }]);
-    dataStore.setConvoListCursor("page2");
+    dataStore.$convoList.set([{ id: "c1" }]);
+    dataStore.$convoListCursor.set("page2");
 
     const mockApi = {
       listConvos: async () => ({
@@ -1421,14 +1438,14 @@ t.describe("loadConvoList", (it) => {
 
     await requests.loadConvoList();
 
-    assertEquals(dataStore.getConvoList().length, 2);
-    assertEquals(dataStore.getConvoListCursor(), "page3");
+    assertEquals(dataStore.$convoList.get().length, 2);
+    assertEquals(dataStore.$convoListCursor.get(), "page3");
   });
 
   it("should reset cursor and replace on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setConvoList([{ id: "c1" }]);
-    dataStore.setConvoListCursor("page2");
+    dataStore.$convoList.set([{ id: "c1" }]);
+    dataStore.$convoListCursor.set("page2");
 
     let capturedCursor;
     const mockApi = {
@@ -1442,7 +1459,7 @@ t.describe("loadConvoList", (it) => {
     await requests.loadConvoList({ reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getConvoList();
+    const stored = dataStore.$convoList.get();
     assertEquals(stored.length, 1);
     assertEquals(stored[0].id, "c2");
   });
@@ -1463,14 +1480,14 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    const stored = dataStore.getConvoMessages(convoId);
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 2);
-    assertEquals(dataStore.getMessage("m1").id, "m1");
+    assertEquals(dataStore.$messages.get("m1").id, "m1");
   });
 
   it("should append messages when prior cursor exists", async () => {
     const dataStore = new DataStore();
-    dataStore.setConvoMessages(convoId, {
+    dataStore.$convoMessages.set(convoId, {
       messages: [{ id: "m1" }],
       cursor: "page2",
     });
@@ -1489,7 +1506,7 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    const stored = dataStore.getConvoMessages(convoId);
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 2);
     assertEquals(stored.messages[0].id, "m1");
     assertEquals(stored.messages[1].id, "m2");
@@ -1511,12 +1528,12 @@ t.describe("loadConvoMessages", (it) => {
 
     await requests.loadConvoMessages(convoId);
 
-    assertEquals(dataStore.getConvoMessages(convoId).cursor, null);
+    assertEquals(dataStore.$convoMessages.get(convoId).cursor, null);
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setConvoMessages(convoId, {
+    dataStore.$convoMessages.set(convoId, {
       messages: [{ id: "old" }],
       cursor: "page2",
     });
@@ -1533,7 +1550,7 @@ t.describe("loadConvoMessages", (it) => {
     await requests.loadConvoMessages(convoId, { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getConvoMessages(convoId);
+    const stored = dataStore.$convoMessages.get(convoId);
     assertEquals(stored.messages.length, 1);
     assertEquals(stored.messages[0].id, "fresh");
   });
@@ -1550,12 +1567,12 @@ t.describe("loadPostLikes", (it) => {
 
     await requests.loadPostLikes(postUri);
 
-    assertEquals(dataStore.getPostLikes(postUri), res);
+    assertEquals(dataStore.$postLikes.get(postUri), res);
   });
 
   it("should append likes when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setPostLikes(postUri, {
+    dataStore.$postLikes.set(postUri, {
       likes: [{ actor: { did: "did:plc:a" } }],
       cursor: "c1",
     });
@@ -1569,7 +1586,7 @@ t.describe("loadPostLikes", (it) => {
 
     await requests.loadPostLikes(postUri, { cursor: "c1" });
 
-    const stored = dataStore.getPostLikes(postUri);
+    const stored = dataStore.$postLikes.get(postUri);
     assertEquals(stored.likes.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1591,14 +1608,14 @@ t.describe("loadPostQuotes", (it) => {
 
     await requests.loadPostQuotes(postUri);
 
-    const stored = dataStore.getPostQuotes(postUri);
+    const stored = dataStore.$postQuotes.get(postUri);
     assertEquals(stored.posts.length, 1);
     assertEquals(stored.cursor, "next");
   });
 
   it("should append quotes when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setPostQuotes(postUri, {
+    dataStore.$postQuotes.set(postUri, {
       posts: [{ uri: "q1", record: {} }],
       cursor: "c1",
     });
@@ -1613,7 +1630,7 @@ t.describe("loadPostQuotes", (it) => {
 
     await requests.loadPostQuotes(postUri, { cursor: "c1" });
 
-    const stored = dataStore.getPostQuotes(postUri);
+    const stored = dataStore.$postQuotes.get(postUri);
     assertEquals(stored.posts.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1634,14 +1651,14 @@ t.describe("loadPostReposts", (it) => {
 
     await requests.loadPostReposts(postUri);
 
-    const stored = dataStore.getPostReposts(postUri);
+    const stored = dataStore.$postReposts.get(postUri);
     assertEquals(stored.reposts.length, 1);
     assertEquals(stored.cursor, "next");
   });
 
   it("should append reposts when cursor is provided", async () => {
     const dataStore = new DataStore();
-    dataStore.setPostReposts(postUri, {
+    dataStore.$postReposts.set(postUri, {
       reposts: [{ did: "did:plc:a" }],
       cursor: "c1",
     });
@@ -1655,7 +1672,7 @@ t.describe("loadPostReposts", (it) => {
 
     await requests.loadPostReposts(postUri, { cursor: "c1" });
 
-    const stored = dataStore.getPostReposts(postUri);
+    const stored = dataStore.$postReposts.get(postUri);
     assertEquals(stored.reposts.length, 2);
     assertEquals(stored.cursor, "c2");
   });
@@ -1676,15 +1693,15 @@ t.describe("loadActorFeeds", (it) => {
 
     await requests.loadActorFeeds(did);
 
-    const stored = dataStore.getActorFeeds(did);
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 1);
     assertEquals(stored.cursor, "next");
-    assertEquals(dataStore.getFeedGenerator("f1").displayName, "F1");
+    assertEquals(dataStore.$feedGenerators.get("f1").displayName, "F1");
   });
 
   it("should append on subsequent calls when cursor remains", async () => {
     const dataStore = new DataStore();
-    dataStore.setActorFeeds(did, {
+    dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: "c1",
     });
@@ -1698,14 +1715,14 @@ t.describe("loadActorFeeds", (it) => {
 
     await requests.loadActorFeeds(did);
 
-    const stored = dataStore.getActorFeeds(did);
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 2);
     assertEquals(stored.cursor, null);
   });
 
   it("should short-circuit when there is no remaining cursor", async () => {
     const dataStore = new DataStore();
-    dataStore.setActorFeeds(did, {
+    dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: null,
     });
@@ -1725,7 +1742,7 @@ t.describe("loadActorFeeds", (it) => {
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setActorFeeds(did, {
+    dataStore.$actorFeeds.set(did, {
       feeds: [{ uri: "f1" }],
       cursor: null,
     });
@@ -1742,7 +1759,7 @@ t.describe("loadActorFeeds", (it) => {
     await requests.loadActorFeeds(did, { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getActorFeeds(did);
+    const stored = dataStore.$actorFeeds.get(did);
     assertEquals(stored.feeds.length, 1);
     assertEquals(stored.feeds[0].uri, "f2");
   });
@@ -1762,7 +1779,7 @@ t.describe("loadHashtagFeed", (it) => {
 
     await requests.loadHashtagFeed("foo", "top");
 
-    const stored = dataStore.getHashtagFeed("foo-top");
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "p1");
     assertEquals(stored.cursor, "next");
@@ -1770,7 +1787,7 @@ t.describe("loadHashtagFeed", (it) => {
 
   it("should append on subsequent loads", async () => {
     const dataStore = new DataStore();
-    dataStore.setHashtagFeed("foo-top", {
+    dataStore.$hashtagFeeds.set("foo-top", {
       feed: [{ post: { uri: "p1" } }],
       cursor: "c1",
     });
@@ -1785,14 +1802,14 @@ t.describe("loadHashtagFeed", (it) => {
 
     await requests.loadHashtagFeed("foo", "top");
 
-    const stored = dataStore.getHashtagFeed("foo-top");
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 2);
     assertEquals(stored.feed[1].post.uri, "p2");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.setHashtagFeed("foo-top", {
+    dataStore.$hashtagFeeds.set("foo-top", {
       feed: [{ post: { uri: "p1" } }],
       cursor: "c1",
     });
@@ -1810,62 +1827,81 @@ t.describe("loadHashtagFeed", (it) => {
     await requests.loadHashtagFeed("foo", "top", { reload: true });
 
     assertEquals(capturedCursor, "");
-    const stored = dataStore.getHashtagFeed("foo-top");
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
     assertEquals(stored.feed.length, 1);
     assertEquals(stored.feed[0].post.uri, "p2");
   });
 });
 
-t.describe("loadPinnedFeedGenerators", (it) => {
-  it("should fan out to getFeedGenerators for pinned uris and cache results", async () => {
-    const pinnedFeedUris = [
-      "at://did/feed/one",
-      "at://did/feed/two",
-      "following",
-    ];
+t.describe("loadPinnedItems", (it) => {
+  it("should fan out to getFeedGenerators and getList for pinned items and cache results", async () => {
     const preferences = {
-      getPinnedFeeds: () => pinnedFeedUris.map((value) => ({ value })),
+      getPinnedFeeds: () => [
+        { type: "feed", value: "at://did/feed/one" },
+        { type: "feed", value: "at://did/feed/two" },
+        { type: "list", value: "at://did/list/one" },
+        { type: "timeline", value: "following" },
+      ],
     };
 
-    let capturedUris;
+    let capturedFeedUris;
+    const capturedListUris = [];
     const mockApi = {
       getFeedGenerators: async (uris) => {
-        capturedUris = uris;
+        capturedFeedUris = uris;
         return uris.map((uri) => ({ uri, displayName: `name-${uri}` }));
+      },
+      getList: async (uri) => {
+        capturedListUris.push(uri);
+        return { list: { uri, name: `list-${uri}` }, items: [], cursor: "" };
       },
     };
     const dataStore = new DataStore();
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
-    await requests.loadPinnedFeedGenerators();
+    await requests.loadPinnedItems();
 
-    assertEquals(capturedUris, ["at://did/feed/one", "at://did/feed/two"]);
-    const pinned = dataStore.getPinnedFeedGenerators();
-    assertEquals(pinned.length, 2);
+    assertEquals(capturedFeedUris, ["at://did/feed/one", "at://did/feed/two"]);
+    assertEquals(capturedListUris, ["at://did/list/one"]);
+    const pinned = dataStore.$pinnedItems.get();
+    assertEquals(pinned.length, 4);
+    assertEquals(pinned[0].type, "feed");
+    assertEquals(pinned[2].type, "list");
+    assertEquals(pinned[3].type, "following");
     assertEquals(
-      dataStore.getFeedGenerator("at://did/feed/one").displayName,
+      dataStore.$feedGenerators.get("at://did/feed/one").displayName,
       "name-at://did/feed/one",
     );
   });
 
-  it("should skip the api call when no pinned feeds", async () => {
-    const preferences = { getPinnedFeeds: () => [] };
-    let called = false;
+  it("should skip the api call when no pinned feeds or lists", async () => {
+    const preferences = {
+      getPinnedFeeds: () => [{ type: "timeline", value: "following" }],
+    };
+    let feedsCalled = false;
+    let listCalled = false;
     const mockApi = {
       getFeedGenerators: async () => {
-        called = true;
+        feedsCalled = true;
         return [];
+      },
+      getList: async () => {
+        listCalled = true;
+        return null;
       },
     };
     const dataStore = new DataStore();
     const provider = { requirePreferences: () => preferences };
     const requests = createRequests(mockApi, dataStore, provider);
 
-    await requests.loadPinnedFeedGenerators();
+    await requests.loadPinnedItems();
 
-    assertEquals(called, false);
-    assertEquals(dataStore.getPinnedFeedGenerators(), []);
+    assertEquals(feedsCalled, false);
+    assertEquals(listCalled, false);
+    const pinned = dataStore.$pinnedItems.get();
+    assertEquals(pinned.length, 1);
+    assertEquals(pinned[0].type, "following");
   });
 });
 

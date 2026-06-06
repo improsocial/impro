@@ -152,7 +152,7 @@ class PostNotificationsDialog extends Component {
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       allowUpwardStretch: true,
-      ignoreTouchTarget: (element) => element.tagName === "BUTTON",
+      ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }
 

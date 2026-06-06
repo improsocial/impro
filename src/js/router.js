@@ -1,6 +1,31 @@
 import { EventEmitter } from "/js/eventEmitter.js";
+import { effect } from "/js/signals.js";
 
 const MAX_PAGES = 5;
+
+export function bindToPage(root, source, event, handler) {
+  if (!source) return;
+  const attach = () => source.on(event, handler);
+  const detach = () => source.off(event, handler);
+  root.addEventListener("page-enter", attach);
+  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-exit", detach);
+}
+
+export function pageEffect(root, callback, options) {
+  let dispose;
+  const attach = () => {
+    dispose?.();
+    dispose = effect(callback, options);
+  };
+  const detach = () => {
+    dispose?.();
+    dispose = null;
+  };
+  root.addEventListener("page-enter", attach);
+  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-exit", detach);
+}
 
 export class Router extends EventEmitter {
   constructor() {
@@ -10,14 +35,30 @@ export class Router extends EventEmitter {
     this.renderFunc = () => {};
     this.container = null;
     this.currentPage = null;
+    this.currentPath = null;
     this.pages = new Map();
     this.scrollStates = new Map();
     // Disable scroll restoration
     window.history.scrollRestoration = "manual";
+    // Save scroll when navigating away from the page
+    window.addEventListener("pagehide", () => {
+      if (this.currentPath != null) {
+        this.scrollStates.set(this.currentPath, window.scrollY);
+      }
+    });
+    // Restore scroll when returning from an external page
+    window.addEventListener("pageshow", (e) => {
+      if (e.persisted && this.currentPath != null) {
+        const scrollY = this.scrollStates.get(this.currentPath) ?? 0;
+        window.scrollTo(0, scrollY);
+      }
+    });
     // on back button, go back to the previous page
     window.addEventListener("popstate", async (e) => {
       this.emit("navigate");
-      await this.load(window.location.pathname, { isBack: true });
+      await this.load(window.location.pathname + window.location.search, {
+        isBack: true,
+      });
     });
   }
 
@@ -76,6 +117,11 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isBack = false } = {}) {
+    // Save the scroll position of the page we're leaving before swapping it out
+    if (this.currentPath != null) {
+      this.scrollStates.set(this.currentPath, window.scrollY);
+    }
+    this.currentPath = path;
     // used to pause videos on page exit, among other things
     window.dispatchEvent(new CustomEvent("page-transition"));
     // Strip query parameters for route matching (but keep full path for caching)
@@ -94,8 +140,6 @@ export class Router extends EventEmitter {
       this.pages.delete(path);
       this.pages.set(path, page);
       const scrollY = this.scrollStates.get(path) ?? 0;
-      // Keep page hidden during scroll restoration to prevent flash
-      // this.currentPage.style.opacity = 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
       this.currentPage.dispatchEvent(
@@ -137,7 +181,6 @@ export class Router extends EventEmitter {
   }
 
   async go(path) {
-    this.scrollStates.set(window.location.pathname, window.scrollY);
     window.history.pushState(
       { previousRoute: window.location.pathname },
       "",
@@ -148,7 +191,6 @@ export class Router extends EventEmitter {
   }
 
   async back() {
-    this.scrollStates.set(window.location.pathname, window.scrollY);
     if (!!window.history.state?.previousRoute) {
       window.history.back();
     } else {

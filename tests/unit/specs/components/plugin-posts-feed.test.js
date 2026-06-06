@@ -1,37 +1,51 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
+import { Signal, SignalMap, ComputedMap } from "/js/signals.js";
 import "/js/components/plugin-posts-feed.js";
 
 const t = new TestSuite("PluginPostsFeed");
 
-function makeDataLayer(ensurePostsImpl, getPostsImpl) {
+function makeDataLayer({ ensurePosts, currentUser } = {}) {
+  // Mirror the real layering: a value SignalMap store, with $hydratedPosts a
+  // ComputedMap (family) over it that returns a stable per-key cell.
+  const postValues = new SignalMap();
+  const $hydratedPosts = new ComputedMap((uri) => postValues.get(uri));
   return {
-    declarative: { ensurePosts: ensurePostsImpl },
-    selectors: {
-      getCurrentUser: () => null,
-      getPosts: getPostsImpl ?? ((uris) => uris.map(() => null)),
+    declarative: {
+      ensurePosts: ensurePosts ?? (() => new Promise(() => {})),
+    },
+    derived: {
+      $currentUser: new Signal.State(currentUser ?? null),
+      $hydratedPosts,
+    },
+    __setPost(uri, post) {
+      postValues.set(uri, post);
     },
   };
 }
 
 function makeHandler() {
-  return { renderFunc: () => {} };
+  return {};
 }
 
-function makeElement({ ensurePosts, getPosts, postInteractionHandler } = {}) {
+function makeElement({
+  ensurePosts,
+  currentUser,
+  postInteractionHandler,
+} = {}) {
   const element = document.createElement("plugin-posts-feed");
-  element.dataLayer = makeDataLayer(
-    ensurePosts ?? (() => new Promise(() => {})),
-    getPosts,
-  );
+  element.dataLayer = makeDataLayer({ ensurePosts, currentUser });
   element.isAuthenticated = false;
   element.pluginService = null;
   element.postInteractionHandler = postInteractionHandler ?? makeHandler();
   return element;
 }
 
-function flushMicrotasks() {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+async function flushMicrotasks() {
+  // Two ticks: the first flushes microtasks (e.g. ensurePosts), the second
+  // lets the rAF-scheduled effect render run before assertions.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+  await new Promise((resolve) => setTimeout(resolve, 0));
 }
 
 t.beforeEach(() => {
@@ -43,9 +57,7 @@ t.describe("PluginPostsFeed - loading state", (it) => {
     const element = makeElement();
     element.setAttribute("uris", "at://a,at://b,at://c");
     document.body.appendChild(element);
-    // feedSkeletonTemplate renders inside <div class="feed">
     assert(element.querySelector(".feed") !== null);
-    // No real feed items yet
     assertEquals(
       element.querySelectorAll("[data-testid='feed-item']").length,
       0,
@@ -54,7 +66,7 @@ t.describe("PluginPostsFeed - loading state", (it) => {
 });
 
 t.describe("PluginPostsFeed - empty uris", (it) => {
-  it("renders the empty message and does not call ensurePosts", () => {
+  it("renders the empty message and does not call ensurePosts", async () => {
     let called = false;
     const element = makeElement({
       ensurePosts: () => {
@@ -65,19 +77,22 @@ t.describe("PluginPostsFeed - empty uris", (it) => {
     element.setAttribute("uris", "");
     element.setAttribute("empty-message", "Nothing here.");
     document.body.appendChild(element);
+    await flushMicrotasks();
     const endMessage = element.querySelector(
       "[data-testid='feed-end-message']",
     );
     assert(endMessage !== null);
     assert(endMessage.textContent.includes("Nothing here."));
-    assertEquals(called, false);
+    // ensurePosts is still invoked with an empty uri list — the empty render
+    // is driven by the empty posts array, not by skipping the request.
+    assertEquals(called, true);
   });
 });
 
 t.describe("PluginPostsFeed - missing postInteractionHandler", (it) => {
   it("throws when connected without a postInteractionHandler", () => {
     const element = document.createElement("plugin-posts-feed");
-    element.dataLayer = makeDataLayer(() => new Promise(() => {}));
+    element.dataLayer = makeDataLayer();
     let error = null;
     try {
       // jsdom swallows throws from appendChild-triggered connectedCallback,
@@ -150,64 +165,44 @@ t.describe("PluginPostsFeed - uri changes", (it) => {
   });
 });
 
-t.describe("PluginPostsFeed - refresh", (it) => {
-  it("re-renders against the latest selectors state without re-fetching", async () => {
-    let postsCall = 0;
-    let currentUserCall = 0;
+t.describe("PluginPostsFeed - live updates", (it) => {
+  it("re-renders when a hydrated post signal updates", async () => {
+    const dataLayer = makeDataLayer({
+      ensurePosts: () => Promise.resolve([null]),
+    });
     const element = document.createElement("plugin-posts-feed");
-    element.dataLayer = {
-      declarative: {
-        ensurePosts: () => {
-          postsCall++;
-          return Promise.resolve([]);
-        },
-      },
-      selectors: {
-        getCurrentUser: () => {
-          currentUserCall++;
-          return null;
-        },
-        getPosts: (uris) => uris.map(() => null),
-      },
-    };
+    element.dataLayer = dataLayer;
     element.isAuthenticated = false;
     element.pluginService = null;
     element.postInteractionHandler = makeHandler();
-    element.setAttribute("uris", "");
-    document.body.appendChild(element);
-    const beforeRefresh = currentUserCall;
-    element.refresh();
-    // refresh() pulls fresh selectors state without re-issuing ensurePosts.
-    assert(currentUserCall > beforeRefresh);
-    assertEquals(postsCall, 0);
-  });
-
-  it("re-selects posts from the store on each render to pick up updates", async () => {
-    const calls = [];
-    const element = makeElement({
-      ensurePosts: () => Promise.resolve([null]),
-      getPosts: (uris) => {
-        calls.push(uris);
-        return uris.map(() => null);
-      },
-    });
     element.setAttribute("uris", "at://a");
     document.body.appendChild(element);
     await flushMicrotasks();
-    const callsAfterLoad = calls.length;
-    assert(callsAfterLoad > 0);
-    element.refresh();
-    // refresh() re-selects fresh post data from the store rather than reusing
-    // a cached snapshot, so updates flow through without a re-fetch.
-    assert(calls.length > callsAfterLoad);
-    assertEquals(calls[calls.length - 1], ["at://a"]);
-  });
-
-  it("is a no-op before connectedCallback runs", () => {
-    const element = document.createElement("plugin-posts-feed");
-    // Should not throw even though required props aren't set yet.
-    element.refresh();
+    // No post hydrated yet -> empty feed.
+    assertEquals(
+      element.querySelectorAll("[data-testid='feed-item']").length,
+      0,
+    );
+    // Updating the post signal should cause a re-render that picks it up.
+    dataLayer.__setPost("at://a", makeStubPost("at://a"));
+    await flushMicrotasks();
+    assert(element.querySelectorAll("[data-testid='feed-item']").length >= 1);
   });
 });
+
+function makeStubPost(uri) {
+  return {
+    uri,
+    cid: "cid:" + uri,
+    author: {
+      did: "did:test:author",
+      handle: "author.test",
+      displayName: "author",
+    },
+    record: { text: "hello", createdAt: "2025-01-01T00:00:00Z" },
+    indexedAt: "2025-01-01T00:00:00Z",
+    badgeLabels: [],
+  };
+}
 
 await t.run();

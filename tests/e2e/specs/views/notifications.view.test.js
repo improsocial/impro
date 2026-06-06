@@ -926,7 +926,7 @@ test.describe("Notifications view", () => {
       await page.goto("/notifications");
 
       const view = page.locator("#notifications-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").nth(0)).toContainText(
         "All",
         { timeout: 10000 },
@@ -944,7 +944,7 @@ test.describe("Notifications view", () => {
       await page.goto("/notifications");
 
       const view = page.locator("#notifications-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").nth(0)).toHaveClass(
         /active/,
         { timeout: 10000 },
@@ -1115,6 +1115,35 @@ test.describe("Notifications view", () => {
       // Both follow and mention should be visible again
       await expect(view).toContainText("followed you", { timeout: 10000 });
       await expect(view).toContainText("A mention post");
+    });
+
+    test("should reload when clicking the already-active tab", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addNotifications([
+        createNotification({
+          reason: "follow",
+          author: alice,
+          indexedAt: new Date().toISOString(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/notifications");
+
+      const view = page.locator("#notifications-view");
+      await expect(view.locator(".notification-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      // Clicking the active "All" tab should trigger a fresh reload request.
+      const reloadRequest = page.waitForRequest((request) =>
+        request.url().includes("/xrpc/app.bsky.notification.listNotifications"),
+      );
+      await view.locator(".tab-bar-button").nth(0).click();
+      await reloadRequest;
     });
   });
 

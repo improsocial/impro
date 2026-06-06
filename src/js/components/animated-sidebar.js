@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
+import { isMobileViewport } from "/js/utils.js";
 
 class AnimatedSidebar extends Component {
   connectedCallback() {
@@ -51,7 +52,7 @@ class AnimatedSidebar extends Component {
   }
 
   open() {
-    if (!window.matchMedia("(max-width: 799px)").matches) {
+    if (!isMobileViewport()) {
       return;
     }
     if (this.isOpen) {

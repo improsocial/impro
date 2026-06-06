@@ -11,9 +11,14 @@ export function externalLinkTemplate({
   description,
   image,
   lazyLoadImages,
+  disableNavigation,
 }) {
   return html`<div class="external-link" data-testid="external-link">
-    <a href="${sanitizeUri(url)}" target="_blank">
+    <a
+      href="${sanitizeUri(url)}"
+      target="_blank"
+      @click=${disableNavigation ? (e) => e.preventDefault() : null}
+    >
       <div class="external-link-content">
         ${image
           ? html`<img

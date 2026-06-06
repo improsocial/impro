@@ -4,11 +4,12 @@ import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class HomeView extends View {
   async render({
@@ -22,40 +23,44 @@ class HomeView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
-    function createPersistedState(namespace) {
-      return new Proxy(
-        {},
-        {
-          get: (target, prop) => {
-            const value = localStorage.getItem(`${namespace}-${prop}`);
-            return value ? JSON.parse(value) : null;
-          },
-          set: (target, prop, value) => {
-            localStorage.setItem(`${namespace}-${prop}`, JSON.stringify(value));
-            return true;
-          },
-        },
+    const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
+
+    const storedFeedUri = isAuthenticated
+      ? localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY)
+      : null;
+
+    const state = new ReactiveStore("homeView");
+    state.$currentFeedUri = new Signal.State(
+      storedFeedUri ? JSON.parse(storedFeedUri) : null,
+    );
+
+    function resetToDefaultFeed() {
+      state.$currentFeedUri.set(
+        isAuthenticated ? "following" : DISCOVER_FEED_URI,
       );
     }
 
-    const persistedState = isAuthenticated
-      ? createPersistedState("home-view")
-      : {};
-
-    function resetToDefaultFeed() {
-      persistedState.currentFeedUri = isAuthenticated
-        ? "following"
-        : DISCOVER_FEED_URI;
-    }
-
-    if (!persistedState.currentFeedUri) {
+    if (!state.$currentFeedUri.get()) {
       resetToDefaultFeed();
     }
 
+    if (isAuthenticated) {
+      pageEffect(root, () => {
+        const currentFeedUri = state.$currentFeedUri.get();
+        if (currentFeedUri) {
+          localStorage.setItem(
+            CURRENT_FEED_URI_STORAGE_KEY,
+            JSON.stringify(currentFeedUri),
+          );
+        }
+      });
+    }
+
     function getProxyUrl(feedGenerator) {
-      if (feedGenerator.uri === "following") {
+      if (!feedGenerator.did) {
         return null;
       }
       return `${feedGenerator.did}#bsky_fg`;
@@ -64,22 +69,17 @@ class HomeView extends View {
     const postSeenObservers = new Map();
 
     // Initialize post seen observers for feeds with proxy URLs
-    function initializePostSeenObservers(pinnedFeedGenerators) {
+    function initializePostSeenObservers(pinnedItems) {
       if (!isAuthenticated) {
         return;
       }
-      const interactableFeedGenerators = pinnedFeedGenerators.filter(
-        (pinnedFeedGenerator) =>
-          pinnedFeedGenerator.acceptsInteractions ||
-          pinnedFeedGenerator.uri === DISCOVER_FEED_URI,
+      const interactableItems = pinnedItems.filter(
+        (item) => item.acceptsInteractions || item.uri === DISCOVER_FEED_URI,
       );
-      for (const pinnedFeedGenerator of interactableFeedGenerators) {
-        const proxyUrl = getProxyUrl(pinnedFeedGenerator);
+      for (const item of interactableItems) {
+        const proxyUrl = getProxyUrl(item);
         if (proxyUrl) {
-          postSeenObservers.set(
-            pinnedFeedGenerator.uri,
-            new PostSeenObserver(api, proxyUrl),
-          );
+          postSeenObservers.set(item.uri, new PostSeenObserver(api, proxyUrl));
         }
       }
     }
@@ -99,14 +99,7 @@ class HomeView extends View {
       }
     }
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
 
     async function handleShowLess(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowLessInteraction(
@@ -114,8 +107,6 @@ class HomeView extends View {
         feedContext,
         getProxyUrl(feedGenerator),
       );
-      // Render optimistic update
-      renderPage();
       // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
       const feedFeedbackMessageElement = document.querySelector(
         `.feed-feedback-message[data-post-uri="${post.uri}"]`,
@@ -138,36 +129,32 @@ class HomeView extends View {
 
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       // TODO - add setting to prevent reload?
       await loadCurrentFeed({ reload: true });
     }
 
     async function handleTabClick(feedUri) {
-      if (feedUri === persistedState.currentFeedUri) {
+      let currentFeedUri = state.$currentFeedUri.get();
+      if (feedUri === currentFeedUri) {
         scrollAndReloadFeed();
         return;
       }
       // Save scroll state
-      feedScrollState.set(persistedState.currentFeedUri, window.scrollY);
+      feedScrollState.set(currentFeedUri, window.scrollY);
       // Switch feed
-      persistedState.currentFeedUri = feedUri;
-      renderPage();
-      scrollActiveTabIntoView({ behavior: "smooth" });
-      // Scroll to saved scroll state
-      if (feedScrollState.has(persistedState.currentFeedUri)) {
-        window.scrollTo(0, feedScrollState.get(persistedState.currentFeedUri));
-      } else {
-        window.scrollTo(0, 0);
-      }
-      if (!dataLayer.hasCachedFeed(persistedState.currentFeedUri)) {
+      state.$currentFeedUri.set(feedUri);
+      // Scroll to saved position for new feed
+      const savedScrollY = feedScrollState.get(feedUri) ?? 0;
+      requestAnimationFrame(() => {
+        window.scrollTo(0, savedScrollY);
+      });
+      if (!dataLayer.hasCachedFeed(feedUri)) {
         await loadCurrentFeed();
       }
       // Trigger post seen checks for the new feed
-      const postSeenObserver = postSeenObservers.get(
-        persistedState.currentFeedUri,
-      );
+      const postSeenObserver = postSeenObservers.get(feedUri);
       if (postSeenObserver) {
         postSeenObserver.checkAllIntersections();
       }
@@ -180,26 +167,27 @@ class HomeView extends View {
           Please let the feed owner know about this issue.<br />
           ${feedGenerator.creator
             ? html`<a href=${linkToProfile(feedGenerator.creator)}
-                >View profile</a
-              >`
+                  >View profile</a
+                ><br />`
             : ""}
+          <button @click=${() => window.location.reload()}>Try again</button>
         </div>
       </div>`;
     }
 
-    function renderPage() {
+    pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.selectors.getShowLessInteractions() ?? [];
+        dataLayer.derived.$showLessInteractions.get() ?? [];
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const currentUser = dataLayer.selectors.getCurrentUser();
-      const feedGenerators =
-        dataLayer.selectors.getPinnedFeedGenerators() ?? [];
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+      const currentFeedUri = state.$currentFeedUri.get();
       render(
         html`<div id="home-view">
           ${mainLayoutTemplate({
@@ -219,45 +207,42 @@ class HomeView extends View {
                 leftButton: "menu",
                 onClickMenuButton: () => handleMenuClick(),
                 bottomItemTemplate: () => html`
-                  <div class="tab-bar-horizontal-scroll-container">
-                    ${tabBarTemplate({
-                      tabs: feedGenerators.map((fg) => ({
-                        value: fg.uri,
-                        label: fg.displayName,
-                      })),
-                      activeTab: persistedState.currentFeedUri,
-                      onTabClick: handleTabClick,
-                    })}
-                  </div>
+                  <tab-bar
+                    .tabs=${pinnedItems.map((item) => ({
+                      value: item.uri,
+                      label: item.displayName,
+                    }))}
+                    active-tab=${currentFeedUri}
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
                 `,
               })}
               <main>
-                ${feedGenerators.map((feedGenerator) => {
+                ${pinnedItems.map((item) => {
                   const acceptsInteractions =
-                    feedGenerator.acceptsInteractions ||
-                    feedGenerator.uri === DISCOVER_FEED_URI;
-                  const feed = dataLayer.selectors.getFeed(feedGenerator.uri);
-                  const feedRequestStatus = dataLayer.requests.getStatus(
-                    "loadNextFeedPage-" + feedGenerator.uri,
-                  );
+                    item.acceptsInteractions || item.uri === DISCOVER_FEED_URI;
+                  const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
+                  const feedRequestStatus =
+                    dataLayer.requests.statusStore.$statuses.get(
+                      "loadNextFeedPage-" + item.uri,
+                    );
                   return html`<div
                     class="feed-container"
-                    ?hidden=${persistedState.currentFeedUri !==
-                    feedGenerator.uri}
+                    ?hidden=${currentFeedUri !== item.uri}
                   >
                     ${feedRequestStatus.error
-                      ? feedErrorTemplate({ feedGenerator })
+                      ? feedErrorTemplate({ feedGenerator: item })
                       : postFeedTemplate({
                           feed,
                           currentUser,
                           isAuthenticated,
-                          feedGenerator,
+                          feedGenerator: item,
                           hiddenPostUris,
                           postInteractionHandler,
                           onClickShowLess: (post, feedContext) =>
-                            handleShowLess(post, feedContext, feedGenerator),
+                            handleShowLess(post, feedContext, item),
                           onClickShowMore: (post, feedContext) =>
-                            handleShowMore(post, feedContext, feedGenerator),
+                            handleShowMore(post, feedContext, item),
                           enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                           pluginService,
@@ -280,67 +265,45 @@ class HomeView extends View {
           }
         }
       });
-    }
+    });
 
     async function loadCurrentFeed({ reload = false } = {}) {
-      await dataLayer.requests.loadNextFeedPage(persistedState.currentFeedUri, {
+      const currentFeedUri = state.$currentFeedUri.get();
+      await dataLayer.requests.loadNextFeedPage(currentFeedUri, {
         reload,
         limit: FEED_PAGE_SIZE + 1,
       });
-      renderPage();
     }
 
-    async function preloadHiddenFeeds(pinnedFeedGenerators) {
-      const feedsToPreload = pinnedFeedGenerators
-        .filter((feed) => feed.uri !== persistedState.currentFeedUri)
+    async function preloadHiddenFeeds(pinnedItems) {
+      const currentFeedUri = state.$currentFeedUri.get();
+      const itemsToPreload = pinnedItems
+        .filter((item) => item.uri !== currentFeedUri)
         .slice(0, 5); // Up to 5 feeds
-      for (const feed of feedsToPreload) {
-        await dataLayer.requests.loadNextFeedPage(feed.uri, {
+      for (const item of itemsToPreload) {
+        await dataLayer.requests.loadNextFeedPage(item.uri, {
           limit: FEED_PAGE_SIZE + 1,
-        });
-      }
-    }
-
-    function scrollActiveTabIntoView({ behavior = "instant" } = {}) {
-      const activeTabButton = document.querySelector(".tab-bar-button.active");
-      if (activeTabButton) {
-        activeTabButton.scrollIntoView({
-          behavior,
-          block: "nearest",
-          // inline: "center",
         });
       }
     }
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
+      const currentFeedUri = state.$currentFeedUri.get();
+      await dataLayer.declarative.ensurePinnedItems().then((pinnedItems) => {
+        if (!pinnedItems.some((item) => item.uri === currentFeedUri)) {
+          resetToDefaultFeed();
+        }
 
-      // Initial empty state
-      renderPage();
-
-      await dataLayer.declarative
-        .ensurePinnedFeedGenerators()
-        .then((pinnedFeedGenerators) => {
-          // If the current feed is not in the pinned feed generators, reset to default feed
-          if (
-            !pinnedFeedGenerators.some(
-              (feed) => feed.uri === persistedState.currentFeedUri,
-            )
-          ) {
-            resetToDefaultFeed();
-          }
-          renderPage();
-          preloadHiddenFeeds(pinnedFeedGenerators);
-          initializePostSeenObservers(pinnedFeedGenerators);
-          scrollActiveTabIntoView();
-          window.scrollTo(0, 0);
-        });
+        preloadHiddenFeeds(pinnedItems);
+        initializePostSeenObservers(pinnedItems);
+        window.scrollTo(0, 0);
+      });
 
       // Ensure current user before loading feed to prevent flash of unfiltered feed
       let currentUser = null;
       if (isAuthenticated) {
         currentUser = await dataLayer.declarative.ensureCurrentUser();
-        renderPage();
       }
 
       // If /intent/compose, open the post composer and redirect to root
@@ -356,37 +319,6 @@ class HomeView extends View {
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
-    });
-
-    pluginService.on("feedFiltersRefresh", async ({ feedURI }) => {
-      let feedUrisToLoad = null;
-      if (feedURI) {
-        feedUrisToLoad = [feedURI];
-      } else {
-        // If no feedURI is provided, reload all feeds
-        const feedGenerators =
-          dataLayer.selectors.getPinnedFeedGenerators() ?? [];
-        feedUrisToLoad = feedGenerators.map(
-          (feedGenerator) => feedGenerator.uri,
-        );
-      }
-      await Promise.all(
-        feedUrisToLoad.map((uri) =>
-          dataLayer.requests.loadPluginFilteredFeedItems(uri, {
-            reload: true,
-          }),
-        ),
-      );
-      renderPage();
     });
   }
 }

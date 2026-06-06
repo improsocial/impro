@@ -59,6 +59,12 @@ export function linkToFeed(feedGenerator) {
   )}`;
 }
 
+export function linkToList(list) {
+  return `/profile/${encodePathSegment(profileIdentifier(list.creator))}/lists/${encodePathSegment(
+    getRKey(list),
+  )}`;
+}
+
 export function linkToSearchPostsByProfile(profile) {
   const searchString = `from:@${profile.handle} `;
   const query = new URLSearchParams();

@@ -1,6 +1,7 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
+import { isMobileViewport } from "/js/utils.js";
 
 class ChatInput extends Component {
   static get observedAttributes() {
@@ -48,15 +49,21 @@ class ChatInput extends Component {
 
   updateTextareaHeight() {
     const textarea = this.querySelector(".message-input-field");
-    const oldHeight = textarea.style.height;
-    if (textarea) {
-      textarea.style.height = "auto";
-      textarea.style.height = textarea.scrollHeight + "px";
-      const newHeight = textarea.style.height;
-      if (newHeight !== oldHeight) {
-        this.dispatchEvent(new CustomEvent("resize"));
-      }
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = textarea.scrollHeight + "px";
+    this.reportHeight();
+  }
+
+  reportHeight() {
+    const newHeight = this.offsetHeight;
+    if (newHeight === this._lastReportedHeight) {
+      return;
     }
+    this._lastReportedHeight = newHeight;
+    this.dispatchEvent(
+      new CustomEvent("height-change", { detail: { height: newHeight } }),
+    );
   }
 
   handleSend() {
@@ -77,6 +84,7 @@ class ChatInput extends Component {
 
   handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
+      if (isMobileViewport()) return;
       e.preventDefault();
       this.handleSend();
     }

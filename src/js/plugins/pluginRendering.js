@@ -1,10 +1,8 @@
-import { noop } from "/js/utils.js";
 import { showExternalLinkWarningModal } from "/js/modals.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
 import "/js/components/plugin-icon.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
 
 function isExternalHref(href) {
   try {
@@ -127,38 +125,24 @@ export class PluginRenderer {
     this.renderContext = renderContext;
   }
 
-  createRoot({ handlerRenderFunc = noop } = {}) {
+  createRoot() {
     const renderer = this;
     const pluginId = this.pluginId;
-    let postInteractionHandler = null;
-    const getPostInteractionHandler = () => {
-      if (!postInteractionHandler) {
-        postInteractionHandler = new PostInteractionHandler(
-          renderer.renderContext.dataLayer,
-          renderer.renderContext.postComposerService,
-          renderer.renderContext.reportService,
-          { renderFunc: handlerRenderFunc },
-        );
-      }
-      return postInteractionHandler;
-    };
     return {
       tree: null,
       el: null,
       render(node) {
         if (this.el && renderer._sameType(this.tree, node)) {
-          renderer._patch(
-            this.el,
-            this.tree,
-            node,
-            pluginId,
-            getPostInteractionHandler,
-          );
+          renderer._patch(this.el, this.tree, node, pluginId);
         } else {
-          this.el = renderer._create(node, pluginId, getPostInteractionHandler);
+          this.el = renderer._create(node, pluginId);
         }
         this.tree = node;
         return this.el;
+      },
+      reset() {
+        this.el = null;
+        this.tree = null;
       },
     };
   }
@@ -168,7 +152,7 @@ export class PluginRenderer {
     return resolveTag(oldNode) === resolveTag(newNode);
   }
 
-  _create(node, pluginId, getPostInteractionHandler = () => null) {
+  _create(node, pluginId) {
     const tag = resolveTag(node, pluginId);
     const element = document.createElement(tag);
     if (tag === "a") {
@@ -183,20 +167,19 @@ export class PluginRenderer {
     }
     if (tag === "plugin-profiles-list") {
       const { dataLayer } = this.renderContext;
-      if (!dataLayer) {
-        throw new Error("Datalayer is required");
-      }
       element.dataLayer = dataLayer;
     }
     if (tag === "plugin-posts-feed") {
-      const { dataLayer, isAuthenticated, pluginService } = this.renderContext;
-      if (!dataLayer) {
-        throw new Error("Datalayer is required");
-      }
+      const {
+        dataLayer,
+        isAuthenticated,
+        pluginService,
+        interactionHandlers: { postInteractionHandler },
+      } = this.renderContext;
       element.dataLayer = dataLayer;
       element.isAuthenticated = isAuthenticated;
       element.pluginService = pluginService;
-      element.postInteractionHandler = getPostInteractionHandler();
+      element.postInteractionHandler = postInteractionHandler;
     }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin
@@ -232,21 +215,13 @@ export class PluginRenderer {
         element.appendChild(document.createTextNode(node.text));
       }
       for (const child of children) {
-        element.appendChild(
-          this._create(child, pluginId, getPostInteractionHandler),
-        );
+        element.appendChild(this._create(child, pluginId));
       }
     }
     return element;
   }
 
-  _patch(
-    element,
-    oldNode,
-    newNode,
-    pluginId,
-    getPostInteractionHandler = () => null,
-  ) {
+  _patch(element, oldNode, newNode, pluginId) {
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
     const isFocused = document.activeElement === element;
@@ -309,9 +284,7 @@ export class PluginRenderer {
         element.appendChild(document.createTextNode(newNode.text));
       }
       for (const child of newChildren) {
-        element.appendChild(
-          this._create(child, pluginId, getPostInteractionHandler),
-        );
+        element.appendChild(this._create(child, pluginId));
       }
       return;
     }
@@ -343,24 +316,13 @@ export class PluginRenderer {
       const newChild = newChildren[index];
       const domChild = domChildren[index + textOffset];
       if (!oldChild && newChild) {
-        element.appendChild(
-          this._create(newChild, pluginId, getPostInteractionHandler),
-        );
+        element.appendChild(this._create(newChild, pluginId));
       } else if (oldChild && !newChild) {
         if (domChild) element.removeChild(domChild);
       } else if (this._sameType(oldChild, newChild)) {
-        this._patch(
-          domChild,
-          oldChild,
-          newChild,
-          pluginId,
-          getPostInteractionHandler,
-        );
+        this._patch(domChild, oldChild, newChild, pluginId);
       } else {
-        element.replaceChild(
-          this._create(newChild, pluginId, getPostInteractionHandler),
-          domChild,
-        );
+        element.replaceChild(this._create(newChild, pluginId), domChild);
       }
     }
   }

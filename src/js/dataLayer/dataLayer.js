@@ -2,16 +2,17 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
-import { Selectors } from "/js/dataLayer/selectors.js";
 import { Declarative } from "/js/dataLayer/declarative.js";
+import { Derived } from "/js/dataLayer/derived.js";
 
 export class DataLayer {
-  constructor(api, pluginService, preferencesProvider) {
+  constructor(api, pluginService, preferencesProvider, identityResolver) {
     this.api = api;
     this.pluginService = pluginService;
+    this.identityResolver = identityResolver;
     this.isAuthenticated = api.isAuthenticated;
     this.dataStore = new DataStore();
-    this.patchStore = new PatchStore();
+    this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
     this.requests = new Requests(
       this.api,
@@ -19,19 +20,35 @@ export class DataLayer {
       this.preferencesProvider,
       this.pluginService,
     );
+    this.pluginService?.on("feedFiltersRefresh", async ({ feedURI }) => {
+      const feedURIs = feedURI
+        ? [feedURI]
+        : Array.from(this.dataStore.$feeds.keys());
+      await Promise.all(
+        feedURIs.map((uri) => {
+          const feed = this.dataStore.$feeds.get(uri);
+          if (!feed) return;
+          return this.pluginService.refreshFiltersForFeed(uri, feed, {
+            reload: true,
+          });
+        }),
+      );
+    });
     this.mutations = new Mutations(
       this.api,
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
+      this.identityResolver,
     );
-    this.selectors = new Selectors(
+    this.derived = new Derived(
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
+      this.pluginService,
       this.isAuthenticated,
     );
-    this.declarative = new Declarative(this.selectors, this.requests);
+    this.declarative = new Declarative(this.derived, this.requests);
     this.subscribers = [];
   }
 
@@ -40,11 +57,11 @@ export class DataLayer {
   }
 
   hasCachedFeed(feedURI) {
-    return this.dataStore.hasFeed(feedURI);
+    return this.dataStore.$feeds.get(feedURI) !== null;
   }
 
   hasCachedAuthorFeed(profileDid, feedType) {
     const feedURI = `${profileDid}-${feedType}`;
-    return this.dataStore.hasAuthorFeed(feedURI);
+    return this.dataStore.$authorFeeds.get(feedURI) !== null;
   }
 }

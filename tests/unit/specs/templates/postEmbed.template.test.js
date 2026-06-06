@@ -113,12 +113,12 @@ t.describe("postEmbedTemplate - video", (it) => {
     assertEquals(el.style.aspectRatio, "5");
   });
 
-  it("omits the aspect ratio when missing", () => {
+  it("omits aspect-ratio when missing", () => {
     const el = renderVideo(undefined);
     assertEquals(el.style.aspectRatio, "");
   });
 
-  it("omits the aspect ratio when invalid", () => {
+  it("omits aspect-ratio when invalid", () => {
     const el = renderVideo({ width: 0, height: 0 });
     assertEquals(el.style.aspectRatio, "");
   });

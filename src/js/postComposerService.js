@@ -1,5 +1,4 @@
 import "/js/components/post-composer.js";
-import { resolveFacets } from "/js/facetHelpers.js";
 import { showToast } from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
 import { linkToPostFromUri } from "/js/navigation.js";
@@ -38,7 +37,6 @@ export class PostComposerService {
       this.currentPostComposer.addEventListener("send-post", async (e) => {
         const {
           postText,
-          unresolvedFacets,
           external,
           replyTo,
           replyRoot,
@@ -51,7 +49,6 @@ export class PostComposerService {
         try {
           const result = await this.onSend({
             postText,
-            unresolvedFacets,
             external,
             replyTo,
             replyRoot,
@@ -80,7 +77,6 @@ export class PostComposerService {
 
   async onSend({
     postText,
-    unresolvedFacets,
     external,
     replyTo,
     replyRoot,
@@ -89,13 +85,8 @@ export class PostComposerService {
     video,
   }) {
     try {
-      const facets = await resolveFacets(
-        unresolvedFacets,
-        this.identityResolver,
-      );
       const res = await this.dataLayer.mutations.createPost({
         postText,
-        facets,
         external,
         replyTo,
         replyRoot,

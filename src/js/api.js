@@ -224,6 +224,48 @@ export class Api {
     return res.data;
   }
 
+  async createListItemRecord(listUri, subjectDid) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listitem",
+        record: {
+          createdAt: getCurrentTimestamp(),
+          subject: subjectDid,
+          list: listUri,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async deleteListItemRecord(listItemUri) {
+    const rkey = listItemUri.split("/").pop();
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listitem",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async getListItems({ limit = 100, cursor = "" } = {}) {
+    const query = {
+      repo: this.session.did,
+      collection: "app.bsky.graph.listitem",
+      limit,
+    };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("com.atproto.repo.listRecords", { query });
+    return res.data;
+  }
+
   async getPostThread(postUri, { labelers = [], depth = 6 } = {}) {
     const res = await this.request(`app.bsky.feed.getPostThread`, {
       query: {
@@ -284,12 +326,55 @@ export class Api {
     return res.data.feeds;
   }
 
+  async getList(listURI, { limit = 1, cursor = "" } = {}) {
+    const query = { list: listURI, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.graph.getList`, {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async getListFeed(listURI, { limit = 31, cursor = "", labelers = [] } = {}) {
+    const query = { list: listURI, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.feed.getListFeed`, {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getActorFeeds(did, { limit = 50, cursor = "" } = {}) {
     const query = { actor: did, limit };
     if (cursor) {
       query.cursor = cursor;
     }
     const res = await this.request(`app.bsky.feed.getActorFeeds`, {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async getActorLists(did, { limit = 50, cursor = "" } = {}) {
+    const query = { actor: did, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request(`app.bsky.graph.getLists`, {
       query,
       headers: {
         "atproto-proxy": this.bskyAppViewServiceDid,

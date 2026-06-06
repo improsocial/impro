@@ -1,49 +1,30 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { noop } from "/js/utils.js";
 import { confirm } from "/js/modals.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
 
 export class PostInteractionHandler {
-  constructor(
-    dataLayer,
-    postComposerService,
-    reportService,
-    { renderFunc = noop } = {},
-  ) {
+  constructor(dataLayer, postComposerService, reportService) {
     this.dataLayer = dataLayer;
     this.postComposerService = postComposerService;
     this.reportService = reportService;
-    this.renderFunc = renderFunc;
   }
 
   async handleLike(post, doLike) {
     if (doLike) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.addLike(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.addLike(post);
       } catch (error) {
         console.error(error);
         showToast("Failed to like post", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.removeLike(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.removeLike(post);
       } catch (error) {
         console.error(error);
         showToast("Failed to unlike post", { style: "error" });
-        this.renderFunc();
       }
     }
   }
@@ -52,29 +33,17 @@ export class PostInteractionHandler {
     if (doRepost) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.createRepost(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.createRepost(post);
       } catch (error) {
         console.error(error);
         showToast("Failed to repost post", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.deleteRepost(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.deleteRepost(post);
       } catch (error) {
         console.error(error);
         showToast("Failed to delete repost", { style: "error" });
-        this.renderFunc();
       }
     }
   }
@@ -83,33 +52,21 @@ export class PostInteractionHandler {
     if (doBookmark) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.addBookmark(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.addBookmark(post);
         showToast("Post saved", { style: "success" });
       } catch (error) {
         console.error(error);
         showToast("Failed to bookmark post", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.removeBookmark(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.removeBookmark(post);
         showToast("Removed from saved posts", {
           iconTemplate: trashCanIconTemplate,
         });
       } catch (error) {
         console.error(error);
         showToast("Failed to remove bookmark", { style: "error" });
-        this.renderFunc();
       }
     }
   }
@@ -134,38 +91,25 @@ export class PostInteractionHandler {
       console.error(error);
       showToast("Failed to delete post", { style: "error" });
     }
-    this.renderFunc();
   }
 
   async handlePinPost(post, doPin) {
     if (doPin) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.pinPost(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.pinPost(post);
         showToast("Post pinned to your profile", { style: "success" });
       } catch (error) {
         console.error(error);
         showToast("Failed to pin post", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.unpinPost(post);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.unpinPost(post);
         showToast("Post unpinned");
       } catch (error) {
         console.error(error);
         showToast("Failed to unpin post", { style: "error" });
-        this.renderFunc();
       }
     }
   }
@@ -180,48 +124,30 @@ export class PostInteractionHandler {
       return;
     }
     try {
-      const promise = this.dataLayer.mutations.hidePost(post);
-      // Render optimistic update
-      this.renderFunc();
-      await promise;
-      // Render final update
-      this.renderFunc();
+      await this.dataLayer.mutations.hidePost(post);
       showToast("Post hidden");
     } catch (error) {
       console.error(error);
       showToast("Failed to hide post", { style: "error" });
-      this.renderFunc();
     }
   }
 
   async handleMuteAuthor(profile, doMute) {
     if (doMute) {
       try {
-        const promise = this.dataLayer.mutations.muteProfile(profile);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.muteProfile(profile);
         showToast("Account muted");
       } catch (error) {
         console.error(error);
         showToast("Failed to mute account", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.unmuteProfile(profile);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.unmuteProfile(profile);
         showToast("Account unmuted");
       } catch (error) {
         console.error(error);
         showToast("Failed to unmute account", { style: "error" });
-        this.renderFunc();
       }
     }
   }
@@ -238,37 +164,25 @@ export class PostInteractionHandler {
       );
       if (!confirmed) return;
       try {
-        const promise = this.dataLayer.mutations.blockProfile(profile);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.blockProfile(profile);
         showToast("Account blocked");
       } catch (error) {
         console.error(error);
         showToast("Failed to block account", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.unblockProfile(profile);
-        // Render optimistic update
-        this.renderFunc();
-        await promise;
-        // Render final update
-        this.renderFunc();
+        await this.dataLayer.mutations.unblockProfile(profile);
         showToast("Account unblocked");
       } catch (error) {
         console.error(error);
         showToast("Failed to unblock account", { style: "error" });
-        this.renderFunc();
       }
     }
   }
 
   async handleQuotePost(post) {
-    const currentUser = this.dataLayer.selectors.getCurrentUser();
+    const currentUser = this.dataLayer.derived.$currentUser.get();
     if (!currentUser) {
       console.warn("No current user");
       return;
@@ -278,7 +192,6 @@ export class PostInteractionHandler {
         currentUser,
         quotedPost: post,
       });
-      this.renderFunc();
     } catch (error) {
       console.error(error);
     }

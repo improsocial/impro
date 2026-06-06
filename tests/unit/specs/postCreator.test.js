@@ -4,6 +4,10 @@ import { PostCreator } from "/js/postCreator.js";
 
 const t = new TestSuite("postCreator");
 
+const mockIdentityResolver = {
+  resolveHandle: async () => null,
+};
+
 function makeApi() {
   const api = {
     lastEmbed: null,
@@ -15,13 +19,20 @@ function makeApi() {
     createPost: async ({ embed, langs }) => {
       api.lastEmbed = embed;
       api.lastLangs = langs;
-      return { uri: "at://did:plc:user/app.bsky.feed.post/abc" };
+      return {
+        uri: "at://did:plc:user/app.bsky.feed.post/abc",
+        cid: "cid1",
+      };
     },
-    getPost: async () => ({
-      uri: "at://did:plc:user/app.bsky.feed.post/abc",
-      cid: "cid1",
-      record: { text: "hi" },
-    }),
+    getPostCalls: 0,
+    getPost: async function () {
+      this.getPostCalls++;
+      return {
+        uri: "at://did:plc:user/app.bsky.feed.post/abc",
+        cid: "cid1",
+        record: { text: "hi" },
+      };
+    },
   };
   return api;
 }
@@ -55,7 +66,7 @@ function videoFixture() {
 t.describe("video embed preparation", (it) => {
   it("produces no embed when video is missing", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi" });
     assertEquals(api.lastEmbed, null);
 
@@ -68,7 +79,7 @@ t.describe("video embed preparation", (it) => {
 
   it("builds an embed.video record with alt and aspectRatio", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", video: videoFixture() });
     const embed = api.lastEmbed;
     assertEquals(embed.$type, "app.bsky.embed.video");
@@ -83,7 +94,7 @@ t.describe("video embed preparation", (it) => {
 
   it("omits aspectRatio when missing", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: null },
@@ -93,7 +104,7 @@ t.describe("video embed preparation", (it) => {
 
   it("omits aspectRatio when width or height is zero", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 0, height: 9 } },
@@ -109,7 +120,7 @@ t.describe("video embed preparation", (it) => {
 
   it("preserves raw (unclamped) dimensions", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 1080, height: 100 } },
@@ -120,7 +131,7 @@ t.describe("video embed preparation", (it) => {
 
   it("omits alt when empty", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: { ...videoFixture(), alt: "" },
@@ -130,7 +141,7 @@ t.describe("video embed preparation", (it) => {
 
   it("forwards langs to api.createPost", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi" });
     assert(Array.isArray(api.lastLangs));
     assert(api.lastLangs.length > 0);
@@ -140,14 +151,18 @@ t.describe("video embed preparation", (it) => {
 t.describe("createPost embed selection", (it) => {
   it("uses video embed when video is provided", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", video: videoFixture() });
     assertEquals(api.lastEmbed.$type, "app.bsky.embed.video");
   });
 
   it("video takes precedence over images", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api, makeImageCompressor());
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
     await pc.createPost({
       postText: "hi",
       video: videoFixture(),
@@ -158,7 +173,7 @@ t.describe("createPost embed selection", (it) => {
 
   it("wraps video in recordWithMedia when there is a quoted post", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: videoFixture(),
@@ -173,7 +188,7 @@ t.describe("createPost embed selection", (it) => {
 t.describe("images embed preparation", (it) => {
   it("produces no embed when images is missing or empty", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", images: [] });
     assertEquals(api.lastEmbed, null);
 
@@ -193,7 +208,7 @@ t.describe("images embed preparation", (it) => {
       };
     };
     const imageCompressor = makeImageCompressor();
-    const pc = new PostCreator(api, imageCompressor);
+    const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
     await pc.createPost({
       postText: "hi",
       images: [
@@ -218,14 +233,14 @@ t.describe("images embed preparation", (it) => {
 t.describe("external embed preparation", (it) => {
   it("produces no embed when external is missing", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi" });
     assertEquals(api.lastEmbed, null);
   });
 
   it("builds an embed.external record and renames url to uri", async () => {
     const api = makeApi();
-    const pc = new PostCreator(api);
+    const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       external: {
@@ -254,7 +269,7 @@ t.describe("external embed preparation", (it) => {
         mimeType: "image/png",
         size: 42,
       });
-      const pc = new PostCreator(api);
+      const pc = new PostCreator(api, mockIdentityResolver);
       await pc.createPost({
         postText: "hi",
         external: {
@@ -283,7 +298,7 @@ t.describe("external embed preparation", (it) => {
     console.error = () => {};
     try {
       const api = makeApi();
-      const pc = new PostCreator(api);
+      const pc = new PostCreator(api, mockIdentityResolver);
       await pc.createPost({
         postText: "hi",
         external: {
@@ -298,6 +313,129 @@ t.describe("external embed preparation", (it) => {
     } finally {
       globalThis.fetch = originalFetch;
       console.error = originalError;
+    }
+  });
+});
+
+t.describe("post text trimming", (it) => {
+  function makeCapturingApi() {
+    const api = makeApi();
+    api.sent = null;
+    api.createPost = async (record) => {
+      api.sent = record;
+      return { uri: "at://did:plc:user/app.bsky.feed.post/abc", cid: "cid1" };
+    };
+    return api;
+  }
+
+  it("leaves well-formed text unchanged", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "hello world",
+    });
+    assertEquals(api.sent.text, "hello world");
+
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "line one\n\nline two",
+    });
+    assertEquals(api.sent.text, "line one\n\nline two");
+  });
+
+  it("strips leading whitespace-only lines", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "\n\n  \nhello",
+    });
+    assertEquals(api.sent.text, "hello");
+  });
+
+  it("preserves leading spaces on the first content line (ASCII art)", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "   /\\_/\\\n  ( o.o )",
+    });
+    assertEquals(api.sent.text, "   /\\_/\\\n  ( o.o )");
+  });
+
+  it("trims trailing whitespace", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "hello   \n\n  ",
+    });
+    assertEquals(api.sent.text, "hello");
+  });
+
+  it("collapses runs of 3+ newlines to 2", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "a\n\n\nb",
+    });
+    assertEquals(api.sent.text, "a\n\nb");
+
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "a\n\n\n\n\nb",
+    });
+    assertEquals(api.sent.text, "a\n\nb");
+
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "a\n \n \nb",
+    });
+    assertEquals(api.sent.text, "a\n\nb");
+  });
+
+  it("handles empty text", async () => {
+    const api = makeCapturingApi();
+    await new PostCreator(api, mockIdentityResolver).createPost({
+      postText: "",
+    });
+    assertEquals(api.sent.text, "");
+  });
+});
+
+t.describe("app view hydration", (it) => {
+  it("returns uri, cid, and the hydrated post on success", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const result = await pc.createPost({ postText: "hi" });
+    assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+    assertEquals(result.cid, "cid1");
+    assertEquals(result.post.cid, "cid1");
+    assertEquals(api.getPostCalls, 1);
+  });
+
+  it("returns post: null when app view never returns the post", async () => {
+    const originalWait = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalWait(fn, 0);
+    try {
+      const api = makeApi();
+      api.getPost = async () => {
+        throw new Error("not found yet");
+      };
+      const pc = new PostCreator(api, mockIdentityResolver);
+      const result = await pc.createPost({ postText: "hi" });
+      assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+      assertEquals(result.cid, "cid1");
+      assertEquals(result.post, null);
+    } finally {
+      globalThis.setTimeout = originalWait;
+    }
+  });
+
+  it("retries up to 5 times before giving up", async () => {
+    const originalWait = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalWait(fn, 0);
+    try {
+      const api = makeApi();
+      let calls = 0;
+      api.getPost = async () => {
+        calls++;
+        throw new Error("nope");
+      };
+      const pc = new PostCreator(api, mockIdentityResolver);
+      await pc.createPost({ postText: "hi" });
+      assertEquals(calls, 5);
+    } finally {
+      globalThis.setTimeout = originalWait;
     }
   });
 });

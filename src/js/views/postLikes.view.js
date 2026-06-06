@@ -1,5 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
+import { pageEffect } from "/js/router.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -38,17 +39,18 @@ class PostLikesView extends View {
       </div>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const postLikes = dataLayer.selectors.getPostLikes(postUri);
-      const post = dataLayer.selectors.getPost(postUri);
-      const postLikesRequestStatus = dataLayer.requests.getStatus(
-        "loadPostLikes-" + postUri,
-      );
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const postLikes = dataLayer.derived.$postLikes.get(postUri);
+      const post = dataLayer.derived.$hydratedPosts.get(postUri);
+      const postLikesRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadPostLikes-" + postUri,
+        );
       const hasMore = postLikes?.cursor ? true : false;
 
       const subtitle = post?.likeCount
@@ -91,47 +93,28 @@ class PostLikesView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadLikes() {
-      const postLikes = dataLayer.selectors.getPostLikes(postUri);
+      const postLikes = dataLayer.derived.$postLikes.get(postUri);
       const cursor = postLikes?.cursor;
-      const loadingPromise = dataLayer.requests.loadPostLikes(postUri, {
-        cursor,
-      });
-      renderPage();
-      await loadingPromise;
-      renderPage();
+      await dataLayer.requests.loadPostLikes(postUri, { cursor });
     }
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
       if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser().then(() => {
-          renderPage();
-        });
+        dataLayer.declarative.ensureCurrentUser();
       }
       // Load the post thread to get the post like count
-      dataLayer.declarative.ensurePostThread(postUri).then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensurePostThread(postUri);
       await loadLikes();
     });
 
     root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      renderPage();
       if (scrollY > 0) {
         window.scrollTo(0, scrollY);
       }
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

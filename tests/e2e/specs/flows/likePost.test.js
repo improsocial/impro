@@ -38,7 +38,7 @@ test.describe("Like post flow", () => {
     await page.goto(`/profile/${userProfile.did}`);
 
     const profileView = page.locator("#profile-view");
-    const tabBar = profileView.locator(".tab-bar");
+    const tabBar = profileView.locator("tab-bar");
     await expect(tabBar.locator('[data-testid="tab-likes"]')).toBeVisible({
       timeout: 10000,
     });
@@ -75,7 +75,7 @@ test.describe("Like post flow", () => {
     await page.goto(`/profile/${userProfile.did}`);
 
     const profileView = page.locator("#profile-view");
-    const tabBar = profileView.locator(".tab-bar");
+    const tabBar = profileView.locator("tab-bar");
     await expect(tabBar.locator('[data-testid="tab-likes"]')).toBeVisible({
       timeout: 10000,
     });

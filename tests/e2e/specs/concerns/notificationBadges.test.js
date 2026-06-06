@@ -111,17 +111,20 @@ test.describe("Notification and Chat Badges", () => {
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
 
     // Verify badge shows before visiting notifications
-    const badge = page.locator(
-      '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
-    );
-    await expect(badge).toBeVisible({ timeout: 10000 });
-    await expect(badge).toContainText("2");
+    const visibleBadge = () =>
+      page.locator(
+        '.page-visible [data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+      );
+    await expect(visibleBadge()).toBeVisible({ timeout: 10000 });
+    await expect(visibleBadge()).toContainText("2");
 
     // Navigate to notifications — this calls updateSeen
     const updateSeenPromise = page.waitForRequest((req) =>
       req.url().includes("app.bsky.notification.updateSeen"),
     );
-    await page.locator('[data-testid="sidebar-nav-notifications"]').click();
+    await page
+      .locator('.page-visible [data-testid="sidebar-nav-notifications"]')
+      .click();
 
     await expect(page.locator("#notifications-view")).toBeVisible({
       timeout: 10000,
@@ -129,7 +132,7 @@ test.describe("Notification and Chat Badges", () => {
     await updateSeenPromise;
 
     // Badge should disappear after notifications are marked as seen
-    await expect(badge).toBeHidden({ timeout: 10000 });
+    await expect(visibleBadge()).toBeHidden({ timeout: 10000 });
   });
 
   test("should show chat unread badge and clear after reading messages", async ({

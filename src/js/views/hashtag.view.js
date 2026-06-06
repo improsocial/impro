@@ -4,9 +4,10 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
+import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
+import { pageEffect } from "/js/router.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class HashtagView extends View {
   async render({
@@ -20,6 +21,7 @@ class HashtagView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     await auth.requireAuth();
@@ -31,60 +33,51 @@ class HashtagView extends View {
       { value: "latest", label: "Latest" },
     ];
 
-    const state = {
-      currentSort: "top",
-    };
+    const state = new ReactiveStore("hashtagView");
+    state.$currentSort = new Signal.State("top");
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
+    const { postInteractionHandler } = interactionHandlers;
 
     const feedScrollState = new Map();
 
     async function scrollAndReloadFeed() {
       if (window.scrollY > 0) {
-        window.scrollTo({ top: 0, behavior: "smooth" });
+        window.scrollTo({ top: -1, behavior: "smooth" });
       }
       await loadCurrentFeed({ reload: true });
     }
 
     async function handleTabClick(sortValue) {
-      if (sortValue === state.currentSort) {
+      const currentSort = state.$currentSort.get();
+      if (sortValue === currentSort) {
         scrollAndReloadFeed();
         return;
       }
       // Save scroll state
-      feedScrollState.set(state.currentSort, window.scrollY);
+      feedScrollState.set(currentSort, window.scrollY);
       // Switch sort
-      state.currentSort = sortValue;
-      renderPage();
+      state.$currentSort.set(sortValue);
       // Scroll to saved scroll state
-      if (feedScrollState.has(state.currentSort)) {
-        window.scrollTo(0, feedScrollState.get(state.currentSort));
+      if (feedScrollState.has(sortValue)) {
+        window.scrollTo(0, feedScrollState.get(sortValue));
       } else {
         window.scrollTo(0, 0);
       }
       // Load feed if not cached
-      const feed = dataLayer.selectors.getHashtagFeed(
-        hashtag,
-        state.currentSort,
-      );
+      const hashtagKey = `${hashtag}-${sortValue}`;
+      const feed = dataLayer.derived.$hydratedHashtagFeeds.get(hashtagKey);
       if (!feed) {
         await loadCurrentFeed();
       }
     }
 
-    function renderPage() {
+    pageEffect(root, () => {
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const currentUser = dataLayer.selectors.getCurrentUser();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const currentSort = state.$currentSort.get();
       render(
         html`<div id="hashtag-view">
           ${mainLayoutTemplate({
@@ -101,21 +94,22 @@ class HashtagView extends View {
             children: html` <main>
               ${headerTemplate({
                 title: `#${hashtag}`,
-                bottomItemTemplate: () =>
-                  tabBarTemplate({
-                    tabs: sortOptions,
-                    activeTab: state.currentSort,
-                    onTabClick: handleTabClick,
-                  }),
+                bottomItemTemplate: () => html`
+                  <tab-bar
+                    .tabs=${sortOptions}
+                    active-tab=${currentSort}
+                    full-width
+                    @tab-click=${(event) => handleTabClick(event.detail)}
+                  ></tab-bar>
+                `,
               })}
               ${sortOptions.map((sort) => {
-                const feed = dataLayer.selectors.getHashtagFeed(
-                  hashtag,
-                  sort.value,
+                const feed = dataLayer.derived.$hydratedHashtagFeeds.get(
+                  `${hashtag}-${sort.value}`,
                 );
                 return html`<div
                   class="feed-container"
-                  ?hidden=${state.currentSort !== sort.value}
+                  ?hidden=${currentSort !== sort.value}
                 >
                   ${postFeedTemplate({
                     feed,
@@ -133,37 +127,27 @@ class HashtagView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     async function loadCurrentFeed({ reload = false } = {}) {
-      await dataLayer.requests.loadHashtagFeed(hashtag, state.currentSort, {
-        reload,
-        limit: HASHTAG_FEED_PAGE_SIZE,
-      });
-      renderPage();
+      await dataLayer.requests.loadHashtagFeed(
+        hashtag,
+        state.$currentSort.get(),
+        {
+          reload,
+          limit: HASHTAG_FEED_PAGE_SIZE,
+        },
+      );
     }
 
     root.addEventListener("page-enter", async () => {
-      // Initial empty state
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => {
-        renderPage();
-      });
+      dataLayer.declarative.ensureCurrentUser();
       await loadCurrentFeed();
     });
 
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

@@ -1,38 +1,28 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { noop } from "/js/utils.js";
 
 export class FeedInteractionHandler {
-  constructor(dataLayer, { renderFunc = noop } = {}) {
+  constructor(dataLayer) {
     this.dataLayer = dataLayer;
-    this.renderFunc = renderFunc;
   }
 
   async handlePinFeed(feedUri, doPin) {
     if (doPin) {
       try {
         hapticsImpactMedium();
-        const promise = this.dataLayer.mutations.pinFeed(feedUri);
-        this.renderFunc();
-        await promise;
-        this.renderFunc();
+        await this.dataLayer.mutations.pinFeed(feedUri);
         showToast("Feed pinned");
       } catch (error) {
         console.error(error);
         showToast("Failed to pin feed", { style: "error" });
-        this.renderFunc();
       }
     } else {
       try {
-        const promise = this.dataLayer.mutations.unpinFeed(feedUri);
-        this.renderFunc();
-        await promise;
-        this.renderFunc();
+        await this.dataLayer.mutations.unpinFeed(feedUri);
         showToast("Feed unpinned");
       } catch (error) {
         console.error(error);
         showToast("Failed to unpin feed", { style: "error" });
-        this.renderFunc();
       }
     }
   }

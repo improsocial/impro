@@ -4,12 +4,12 @@ import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { classnames, debounce } from "/js/utils.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { PostInteractionHandler } from "/js/postInteractionHandler.js";
-import { FeedInteractionHandler } from "/js/feedInteractionHandler.js";
+import { pageEffect } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { tabBarTemplate } from "/js/templates/tabBar.template.js";
+import "/js/components/tab-bar.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 
 class SearchView extends View {
@@ -23,22 +23,23 @@ class SearchView extends View {
       reportService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
-    const state = {
-      activeTab: "profiles",
-      searchQuery: "",
-    };
+    const state = new ReactiveStore("searchView");
+    state.$activeTab = new Signal.State("profiles");
+    state.$searchQuery = new Signal.State("");
 
     const tabScrollState = new Map();
 
     async function loadSearchResults() {
-      const normalizedQuery = state.searchQuery.trim();
+      const searchQuery = state.$searchQuery.get();
+      const normalizedQuery = searchQuery.trim();
 
       // Update URL query parameter
       const url = new URL(window.location);
-      if (state.searchQuery) {
-        url.searchParams.set("q", state.searchQuery);
+      if (searchQuery) {
+        url.searchParams.set("q", searchQuery);
       } else {
         url.searchParams.delete("q");
       }
@@ -65,74 +66,59 @@ class SearchView extends View {
         );
       }
 
-      renderPage();
-
       try {
         await Promise.all(requests);
       } catch (error) {
         console.error("Failed to load search results", error);
-      } finally {
-        renderPage();
       }
     }
 
     async function loadMoreProfiles() {
-      const cursor = dataLayer.selectors.getProfileSearchCursor();
+      const cursor = dataLayer.derived.$profileSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadProfileSearch(state.searchQuery.trim(), {
-        limit: 25,
-        cursor,
-      });
-      renderPage();
+      await dataLayer.requests.loadProfileSearch(
+        state.$searchQuery.get().trim(),
+        {
+          limit: 25,
+          cursor,
+        },
+      );
     }
 
     async function loadMorePosts() {
-      const cursor = dataLayer.selectors.getPostSearchCursor();
+      const cursor = dataLayer.derived.$postSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadPostSearch(state.searchQuery.trim(), {
+      await dataLayer.requests.loadPostSearch(state.$searchQuery.get().trim(), {
         limit: 25,
         cursor,
       });
-      renderPage();
     }
 
     async function loadMoreFeeds() {
-      const cursor = dataLayer.selectors.getFeedSearchCursor();
+      const cursor = dataLayer.derived.$feedSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadFeedSearch(state.searchQuery.trim(), {
+      await dataLayer.requests.loadFeedSearch(state.$searchQuery.get().trim(), {
         limit: 15,
         cursor,
       });
-      renderPage();
     }
 
-    const postInteractionHandler = new PostInteractionHandler(
-      dataLayer,
-      postComposerService,
-      reportService,
-      {
-        renderFunc: () => renderPage(),
-      },
-    );
-
-    const feedInteractionHandler = new FeedInteractionHandler(dataLayer, {
-      renderFunc: () => renderPage(),
-    });
+    const { postInteractionHandler, feedInteractionHandler } =
+      interactionHandlers;
 
     const handleSearchInput = debounce((value) => {
-      state.searchQuery = value;
+      state.$searchQuery.set(value);
       loadSearchResults();
     });
 
     function handleClearSearch() {
-      state.searchQuery = "";
+      state.$searchQuery.set("");
       loadSearchResults();
     }
 
     function handleTabChange(tab) {
-      tabScrollState.set(state.activeTab, window.scrollY);
-      state.activeTab = tab;
-      renderPage();
+      tabScrollState.set(state.$activeTab.get(), window.scrollY);
+      state.$activeTab.set(tab);
       if (tabScrollState.has(tab)) {
         window.scrollTo(0, tabScrollState.get(tab));
       } else {
@@ -327,32 +313,34 @@ class SearchView extends View {
       </infinite-scroll-container>`;
     }
 
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
+    pageEffect(root, () => {
+      const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
-      const normalizedQuery = state.searchQuery.trim();
+        chatNotificationService?.$numNotifications.get() ?? null;
+      const searchQuery = state.$searchQuery.get();
+      const activeTab = state.$activeTab.get();
+      const normalizedQuery = searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.getStatus(
+      const postStatus = dataLayer.requests.statusStore.$statuses.get(
         `loadPostSearch-${normalizedQuery}-top`,
       );
-      const profileStatus = dataLayer.requests.getStatus(
+      const profileStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadProfileSearch-" + normalizedQuery,
       );
-      const feedStatus = dataLayer.requests.getStatus(
+      const feedStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadFeedSearch-" + normalizedQuery,
       );
-      const postSearchResults = dataLayer.selectors.getPostSearchResults();
+      const postSearchResults = dataLayer.derived.$postSearchResults.get();
       const profileSearchResults =
-        dataLayer.selectors.getProfileSearchResults();
-      const feedSearchResults = dataLayer.selectors.getFeedSearchResults();
-      const postSearchHasMore = !!dataLayer.selectors.getPostSearchCursor();
+        dataLayer.derived.$profileSearchResults.get();
+      const feedSearchResults = dataLayer.derived.$feedSearchResults.get();
+      const postSearchHasMore = !!dataLayer.derived.$postSearchCursor.get();
       const profileSearchHasMore =
-        !!dataLayer.selectors.getProfileSearchCursor();
-      const feedSearchHasMore = !!dataLayer.selectors.getFeedSearchCursor();
-      const preferences = dataLayer.selectors.getPreferences();
+        !!dataLayer.derived.$profileSearchCursor.get();
+      const feedSearchHasMore = !!dataLayer.derived.$feedSearchCursor.get();
+      const preferences = dataLayer.derived.$preferences.get();
 
       render(
         html`<div id="search-view">
@@ -380,10 +368,10 @@ class SearchView extends View {
                       placeholder=${isAuthenticated
                         ? "Search for users, posts, and feeds"
                         : "Search for users"}
-                      .value=${state.searchQuery}
+                      .value=${searchQuery}
                       @input=${(event) => handleSearchInput(event.target.value)}
                     />
-                    ${state.searchQuery.length > 0
+                    ${searchQuery.length > 0
                       ? html`
                           <button
                             class="search-clear-button"
@@ -394,19 +382,23 @@ class SearchView extends View {
                         `
                       : ""}
                     ${showResults
-                      ? tabBarTemplate({
-                          tabs: [
-                            { value: "profiles", label: "Profiles" },
-                            ...(isAuthenticated
-                              ? [
-                                  { value: "posts", label: "Posts" },
-                                  { value: "feeds", label: "Feeds" },
-                                ]
-                              : []),
-                          ],
-                          activeTab: state.activeTab,
-                          onTabClick: handleTabChange,
-                        })
+                      ? html`
+                          <tab-bar
+                            .tabs=${[
+                              { value: "profiles", label: "Profiles" },
+                              ...(isAuthenticated
+                                ? [
+                                    { value: "posts", label: "Posts" },
+                                    { value: "feeds", label: "Feeds" },
+                                  ]
+                                : []),
+                            ]}
+                            active-tab=${activeTab}
+                            full-width
+                            @tab-click=${(event) =>
+                              handleTabChange(event.detail)}
+                          ></tab-bar>
+                        `
                       : ""}
                   </div>
                 `,
@@ -418,7 +410,7 @@ class SearchView extends View {
                         <div class="search-tab-panels">
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "posts"}
+                            ?hidden=${activeTab !== "posts"}
                           >
                             <div
                               class="search-results-panel search-post-results"
@@ -433,7 +425,7 @@ class SearchView extends View {
                           </div>
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "profiles"}
+                            ?hidden=${activeTab !== "profiles"}
                           >
                             <div class="search-results-panel">
                               ${profileSearchResultsTemplate({
@@ -445,7 +437,7 @@ class SearchView extends View {
                           </div>
                           <div
                             class="search-tab-panel"
-                            ?hidden=${state.activeTab !== "feeds"}
+                            ?hidden=${activeTab !== "feeds"}
                           >
                             <div class="search-results-panel">
                               ${feedSearchResultsTemplate({
@@ -476,39 +468,27 @@ class SearchView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
       const query = new URLSearchParams(window.location.search);
       if (query.get("q")) {
-        state.searchQuery = query.get("q");
+        state.$searchQuery.set(query.get("q"));
       }
       if (query.get("tab")) {
-        state.activeTab = query.get("tab");
+        state.$activeTab.set(query.get("tab"));
       }
-      if (state.searchQuery) {
+      if (state.$searchQuery.get()) {
         loadSearchResults();
       }
-      renderPage();
       if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser().then(() => {
-          renderPage();
-        });
+        dataLayer.declarative.ensureCurrentUser();
       }
     });
 
     root.addEventListener("page-restore", (event) => {
       const scrollY = event.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
-      renderPage();
-    });
-
-    notificationService?.on("update", () => {
-      renderPage();
-    });
-
-    chatNotificationService?.on("update", () => {
-      renderPage();
     });
   }
 }

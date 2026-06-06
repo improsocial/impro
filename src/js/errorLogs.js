@@ -50,4 +50,8 @@ export function enableErrorLogs() {
     showMessage(args.join(" "));
     consoleError(...args);
   };
+
+  window.logMessage = (...args) => {
+    showMessage(args.map((a) => JSON.stringify(a)).join(" "));
+  };
 }

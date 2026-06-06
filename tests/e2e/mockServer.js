@@ -31,6 +31,10 @@ export class MockServer {
     this.notifications = [];
     this.notificationCursor = undefined;
     this.pinnedFeedUris = [];
+    this.pinnedListUris = [];
+    this.lists = [];
+    this.listMembers = new Map();
+    this.currentUserListItems = [];
     this.posts = [];
     this.postLikes = new Map();
     this.reportPayloads = [];
@@ -38,19 +42,27 @@ export class MockServer {
     this.postReposts = new Map();
     this.postThreadOthers = new Map();
     this.postThreads = new Map();
+    this.postThreadDelays = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
     this.profiles = new Map();
     this.savedFeedUris = [];
     this.actorFeeds = new Map();
+    this.actorLists = new Map();
     this.searchFeedGenerators = [];
     this.searchPosts = [];
     this.searchProfiles = [];
     this.timelinePosts = [];
     this.pluginSettings = new Map();
     this.installedPlugins = [];
+    // Override the source served for the local test plugin's main.js; defaults
+    // to the standard fixture when null.
+    this.localPluginSource = null;
     this.registryEntries = [];
     this.liveManifest = null;
+    // README markdown served for plugin repos; set to null to simulate a
+    // plugin with no README (404).
+    this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -64,6 +76,11 @@ export class MockServer {
   addActorFeeds(did, feedGenerators) {
     const existing = this.actorFeeds.get(did) || [];
     this.actorFeeds.set(did, [...existing, ...feedGenerators]);
+  }
+
+  addActorLists(did, lists) {
+    const existing = this.actorLists.get(did) || [];
+    this.actorLists.set(did, [...existing, ...lists]);
   }
 
   addFeedGenerators(feedGenerators) {
@@ -85,8 +102,31 @@ export class MockServer {
     );
   }
 
+  addLists(lists) {
+    this.lists.push(...lists);
+  }
+
+  addListMembers(listUri, profiles) {
+    this.listMembers.set(listUri, profiles);
+  }
+
+  addCurrentUserListItem({ uri, listUri, subjectDid }) {
+    this.currentUserListItems.push({ uri, listUri, subjectDid });
+  }
+
+  addListFeedItems(listUri, posts) {
+    this.feeds.set(
+      listUri,
+      posts.map((post) => ({ post })),
+    );
+  }
+
   setPinnedFeeds(feedUris) {
     this.pinnedFeedUris = feedUris;
+  }
+
+  setPinnedLists(listUris) {
+    this.pinnedListUris = listUris;
   }
 
   setSavedFeeds(feedUris) {
@@ -138,8 +178,11 @@ export class MockServer {
     this.postReposts.set(postUri, reposts);
   }
 
-  setPostThread(postUri, thread) {
+  setPostThread(postUri, thread, { delayMs = 0 } = {}) {
     this.postThreads.set(postUri, thread);
+    if (delayMs > 0) {
+      this.postThreadDelays.set(postUri, delayMs);
+    }
   }
 
   setPostThreadOther(postUri, threadOther) {
@@ -201,7 +244,7 @@ export class MockServer {
       route.fulfill({
         status: 200,
         contentType: "text/javascript",
-        body: getTestPluginSource(),
+        body: this.localPluginSource ?? getTestPluginSource(),
       }),
     );
 
@@ -259,6 +302,24 @@ export class MockServer {
         });
       },
     );
+    // Plugin README, served from the repo's main branch (remote) or the
+    // local plugin directory.
+    const fulfillReadme = (route) => {
+      if (this.pluginReadme === null) {
+        route.fulfill({ status: 404, body: "Not Found" });
+        return;
+      }
+      route.fulfill({
+        status: 200,
+        contentType: "text/markdown",
+        body: this.pluginReadme,
+      });
+    };
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/main/README.md",
+      fulfillReadme,
+    );
+    await page.route("**/plugins-local/*/README.md", fulfillReadme);
 
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
@@ -300,6 +361,12 @@ export class MockServer {
                 },
                 ...this.pinnedFeedUris.map((uri) => ({
                   type: "feed",
+                  value: uri,
+                  pinned: true,
+                  id: uri,
+                })),
+                ...this.pinnedListUris.map((uri) => ({
+                  type: "list",
                   value: uri,
                   pinned: true,
                   id: uri,
@@ -932,6 +999,17 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.feed.getListFeed*", (route) => {
+      const url = new URL(route.request().url());
+      const listUri = url.searchParams.get("list");
+      const feed = this.feeds.get(listUri) || [];
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ feed, cursor: "" }),
+      });
+    });
+
     // Order matters: Playwright checks routes in LIFO order, so register
     // the most general pattern first (checked last) and most specific last.
     await page.route("**/xrpc/app.bsky.feed.getFeed*", (route) => {
@@ -969,6 +1047,44 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.getList*", (route) => {
+      const url = new URL(route.request().url());
+      const listUri = url.searchParams.get("list");
+      const list = this.lists.find((l) => l.uri === listUri) || {};
+      const members = this.listMembers.get(listUri) || [];
+      const items = members.map((profile) => ({ subject: profile }));
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ list, items, cursor: "" }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.getLists*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor") || "";
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allLists = this.actorLists.get(actor) || [];
+
+      let lists, nextCursor;
+      if (limit) {
+        lists = allLists.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allLists.length ? String(offset + limit) : "";
+      } else {
+        lists = allLists;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ lists, cursor: nextCursor }),
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.feed.getLikes*", (route) => {
       const url = new URL(route.request().url());
       const uri = url.searchParams.get("uri");
@@ -1002,11 +1118,15 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.feed.getPostThread*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getPostThread*", async (route) => {
       const url = new URL(route.request().url());
       const uri = url.searchParams.get("uri");
       const customThread = this.postThreads.get(uri);
       if (customThread) {
+        const delayMs = this.postThreadDelays.get(uri);
+        if (delayMs) {
+          await new Promise((resolve) => setTimeout(resolve, delayMs));
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",
@@ -1162,11 +1282,15 @@ export class MockServer {
       const generator = this.feedGenerators.find(
         (g) => g.creator.handle === handle,
       );
+      const list = this.lists.find((l) => l.creator?.handle === handle);
       const profileEntry = [...this.profiles.values()].find(
         (p) => p.handle === handle,
       );
       const did =
-        postAuthor?.did || generator?.creator?.did || profileEntry?.did;
+        postAuthor?.did ||
+        generator?.creator?.did ||
+        list?.creator?.did ||
+        profileEntry?.did;
       if (!did) {
         return route.fulfill({
           status: 404,
@@ -1268,10 +1392,44 @@ export class MockServer {
         }
       }
 
+      if (collection === "app.bsky.graph.listitem") {
+        const itemUri = `at://${userProfile.did}/${collection}/${rkey}`;
+        this.currentUserListItems = this.currentUserListItems.filter(
+          (item) => item.uri !== itemUri,
+        );
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
         body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/com.atproto.repo.listRecords*", (route) => {
+      const url = new URL(route.request().url());
+      const collection = url.searchParams.get("collection");
+      if (collection === "app.bsky.graph.listitem") {
+        const records = this.currentUserListItems.map((item) => ({
+          uri: item.uri,
+          cid: `bafyrei${item.uri.split("/").pop()}`,
+          value: {
+            $type: "app.bsky.graph.listitem",
+            subject: item.subjectDid,
+            list: item.listUri,
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+        }));
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ records, cursor: "" }),
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ records: [], cursor: "" }),
       });
     });
 
@@ -1281,6 +1439,15 @@ export class MockServer {
       const rkey = `rkey-${++this.createRecordCounter}`;
       const uri = `at://${userProfile.did}/${collection}/${rkey}`;
       const cid = `bafyrei${rkey}`;
+
+      if (collection === "app.bsky.graph.listitem") {
+        const record = body?.record || {};
+        this.currentUserListItems.push({
+          uri,
+          listUri: record.list,
+          subjectDid: record.subject,
+        });
+      }
 
       if (collection === "app.bsky.feed.post") {
         const record = body?.record;

@@ -7,6 +7,7 @@ import {
   createProfile,
   createFeedGenerator,
   createLabelerView,
+  createList,
 } from "../../factories.js";
 
 const otherUser = createProfile({
@@ -279,7 +280,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${otherUser.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(3, {
       timeout: 10000,
     });
@@ -304,7 +305,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${otherUser.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
 
     // Posts tab should be active by default
     await expect(tabBar.locator('[data-testid="tab-posts"]')).toHaveClass(
@@ -347,7 +348,7 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${userProfile.did}`);
 
     const view = page.locator("#profile-view");
-    const tabBar = view.locator(".tab-bar");
+    const tabBar = view.locator("tab-bar");
     await expect(tabBar.locator(".tab-bar-button")).toHaveCount(4, {
       timeout: 10000,
     });
@@ -578,7 +579,7 @@ test.describe("Profile view", () => {
     await expect(view.locator('[data-testid="blocked-badge"]')).toBeVisible({
       timeout: 10000,
     });
-    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(view.locator("tab-bar")).not.toBeVisible();
     await expect(view.locator(".feed-end-message")).toContainText(
       "Posts hidden",
     );
@@ -623,7 +624,7 @@ test.describe("Profile view", () => {
     await view.locator(".ellipsis-button").click();
 
     const menu = page.locator(".profile-context-menu");
-    await expect(menu.locator("context-menu-item")).toHaveCount(6, {
+    await expect(menu.locator("context-menu-item")).toHaveCount(7, {
       timeout: 5000,
     });
     await expect(
@@ -640,6 +641,9 @@ test.describe("Profile view", () => {
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-block"]'),
+    ).toBeVisible();
+    await expect(
+      menu.locator('[data-testid="menu-action-profile-add-to-lists"]'),
     ).toBeVisible();
     await expect(
       menu.locator('[data-testid="menu-action-profile-report"]'),
@@ -761,6 +765,127 @@ test.describe("Profile view", () => {
     await expect(
       menu.locator('[data-testid="menu-action-profile-report"]'),
     ).not.toBeVisible();
+  });
+
+  test("should add and remove the profile from a list via the Add to Lists dialog", async ({
+    page,
+  }) => {
+    const listOne = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/list1`,
+      name: "Cool People",
+      creatorHandle: userProfile.handle,
+    });
+    const listTwo = createList({
+      uri: `at://${userProfile.did}/app.bsky.graph.list/list2`,
+      name: "Watch List",
+      creatorHandle: userProfile.handle,
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    mockServer.addLists([listOne, listTwo]);
+    mockServer.addActorLists(userProfile.did, [listOne, listTwo]);
+    // Profile starts as a member of listTwo only.
+    const existingMembershipUri = `at://${userProfile.did}/app.bsky.graph.listitem/existing`;
+    mockServer.addCurrentUserListItem({
+      uri: existingMembershipUri,
+      listUri: listTwo.uri,
+      subjectDid: otherUser.did,
+    });
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+    await page
+      .locator('[data-testid="menu-action-profile-add-to-lists"]')
+      .click();
+
+    const dialog = page.locator('[data-testid="add-to-lists-dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 5000 });
+    const rows = dialog.locator('[data-testid="add-to-lists-row"]');
+    await expect(rows).toHaveCount(2);
+
+    const listOneRow = dialog.locator(
+      `[data-testid="add-to-lists-row"][data-list-uri="${listOne.uri}"]`,
+    );
+    const listTwoRow = dialog.locator(
+      `[data-testid="add-to-lists-row"][data-list-uri="${listTwo.uri}"]`,
+    );
+
+    await expect(
+      listOneRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "not-member");
+    await expect(
+      listTwoRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "member");
+
+    // Capture network calls to verify the right collection/subject.
+    const createRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/xrpc/com.atproto.repo.createRecord")) {
+        createRequests.push(request.postDataJSON());
+      }
+    });
+    const deleteRequests = [];
+    page.on("request", (request) => {
+      if (request.url().includes("/xrpc/com.atproto.repo.deleteRecord")) {
+        deleteRequests.push(request.postDataJSON());
+      }
+    });
+
+    // Add to listOne.
+    await listOneRow.locator('[data-testid="add-to-lists-toggle"]').click();
+    await expect(
+      listOneRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "member");
+
+    expect(createRequests.length).toBe(1);
+    expect(createRequests[0].collection).toBe("app.bsky.graph.listitem");
+    expect(createRequests[0].record.subject).toBe(otherUser.did);
+    expect(createRequests[0].record.list).toBe(listOne.uri);
+
+    // Remove from listTwo.
+    await listTwoRow.locator('[data-testid="add-to-lists-toggle"]').click();
+    await expect(
+      listTwoRow.locator('[data-testid="add-to-lists-toggle"]'),
+    ).toHaveAttribute("data-teststate", "not-member");
+
+    expect(deleteRequests.length).toBe(1);
+    expect(deleteRequests[0].collection).toBe("app.bsky.graph.listitem");
+    expect(deleteRequests[0].rkey).toBe("existing");
+  });
+
+  test("should show empty state in Add to Lists dialog when viewer has no lists", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Other User",
+      { timeout: 10000 },
+    );
+
+    await view.locator(".ellipsis-button").click();
+    await page
+      .locator('[data-testid="menu-action-profile-add-to-lists"]')
+      .click();
+
+    const dialog = page.locator('[data-testid="add-to-lists-dialog"]');
+    await expect(
+      dialog.locator('[data-testid="add-to-lists-empty"]'),
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test("should navigate to search page when clicking 'Search posts' on another user's profile", async ({
@@ -1005,7 +1130,7 @@ test.describe("Profile view", () => {
     await expect(view.locator(".feed-end-message")).toContainText(
       "Posts hidden",
     );
-    await expect(view.locator(".tab-bar")).not.toBeVisible();
+    await expect(view.locator("tab-bar")).not.toBeVisible();
     await expect(
       view.locator('[data-testid="follow-button"]'),
     ).not.toBeVisible();
@@ -1477,7 +1602,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${labelerUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(
         tabBar.locator('[data-testid="tab-labeler-settings"]'),
       ).toBeVisible({ timeout: 10000 });
@@ -1757,7 +1882,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button")).toHaveCount(2, {
         timeout: 10000,
       });
@@ -1914,7 +2039,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -1930,7 +2055,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${otherUser.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
         timeout: 10000,
       });
@@ -1950,7 +2075,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -1981,7 +2106,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userWithFeeds.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2008,6 +2133,61 @@ test.describe("Profile view", () => {
       ).toContainText("Trending Topics", { timeout: 10000 });
     });
 
+    test("keeps the tab bar pinned when switching to a sparse Feeds tab after scrolling down the posts feed", async ({
+      page,
+    }) => {
+      const posts = [];
+      for (let postIndex = 1; postIndex <= 60; postIndex++) {
+        posts.push(
+          createPost({
+            uri: `at://did:plc:feedcreator1/app.bsky.feed.post/post${postIndex}`,
+            text: `Feed creator post ${postIndex}`,
+            authorHandle: userWithFeeds.handle,
+            authorDisplayName: userWithFeeds.displayName,
+          }),
+        );
+      }
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithFeeds);
+      mockServer.addAuthorFeedPosts(
+        userWithFeeds.did,
+        "posts_and_author_threads",
+        posts,
+      );
+      // Only two feeds — far shorter than the posts feed we scroll through.
+      mockServer.addActorFeeds(userWithFeeds.did, [feed1, feed2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithFeeds.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator(".profile-tab-bar");
+      await expect(
+        view.locator('[data-testid="feed-item"]').first(),
+      ).toBeVisible({ timeout: 10000 });
+
+      // Scroll down far enough that the sticky tab bar pins to the top.
+      await page.evaluate(() => window.scrollTo(0, 1200));
+      await expect
+        .poll(async () => (await tabBar.boundingBox())?.y ?? null)
+        .toBeLessThan(2);
+      const scrolledY = await page.evaluate(() => window.scrollY);
+      expect(scrolledY).toBeGreaterThan(0);
+
+      // Switch to the sparse Feeds tab.
+      await tabBar.locator('[data-testid="tab-feeds"]').click();
+      await expect(view.locator(".feeds-list .feeds-list-item")).toHaveCount(
+        2,
+        { timeout: 10000 },
+      );
+
+      // The header should stay pinned at the top rather than jumping up: the
+      // feed container reserves enough height to preserve the scroll position.
+      expect((await tabBar.boundingBox()).y).toBeLessThan(2);
+      expect(await page.evaluate(() => window.scrollY)).toBeGreaterThan(0);
+    });
+
     test("should show Feeds tab on own profile when user has feed generators", async ({
       page,
     }) => {
@@ -2029,7 +2209,7 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userProfile.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator('[data-testid="tab-feeds"]')).toBeVisible({
         timeout: 10000,
       });
@@ -2044,13 +2224,166 @@ test.describe("Profile view", () => {
       await page.goto(`/profile/${userProfile.did}`);
 
       const view = page.locator("#profile-view");
-      const tabBar = view.locator(".tab-bar");
+      const tabBar = view.locator("tab-bar");
       await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
         timeout: 10000,
       });
       await expect(
         tabBar.locator('[data-testid="tab-feeds"]'),
       ).not.toBeVisible();
+    });
+  });
+
+  test.describe("Lists tab", () => {
+    const userWithLists = createProfile({
+      did: "did:plc:listcreator1",
+      handle: "listcreator.bsky.social",
+      displayName: "List Creator",
+      followersCount: 200,
+      followsCount: 50,
+      postsCount: 100,
+      associated: { lists: 2 },
+    });
+
+    const list1 = createList({
+      uri: "at://did:plc:listcreator1/app.bsky.graph.list/friends",
+      name: "Friends",
+      creatorHandle: "listcreator.bsky.social",
+    });
+
+    const list2 = createList({
+      uri: "at://did:plc:listcreator1/app.bsky.graph.list/news",
+      name: "News",
+      creatorHandle: "listcreator.bsky.social",
+    });
+
+    test("should show Lists tab when profile has lists", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1, list2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator("tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+    });
+
+    test("should not show Lists tab when profile has no lists", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(otherUser);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${otherUser.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator("tab-bar");
+      await expect(tabBar.locator(".tab-bar-button").first()).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        tabBar.locator('[data-testid="tab-lists"]'),
+      ).not.toBeVisible();
+    });
+
+    test("should display lists when Lists tab is clicked", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1, list2]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator("tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      await tabBar.locator('[data-testid="tab-lists"]').click();
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toHaveClass(
+        /\bactive\b/,
+      );
+
+      const feedsList = view.locator(
+        ".feed-container:not([hidden]) .feeds-list",
+      );
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      await expect(feedsList).toContainText("Friends");
+      await expect(feedsList).toContainText("News");
+      await expect(
+        feedsList.locator(".feeds-list-item-creator").first(),
+      ).toContainText("@listcreator.bsky.social");
+    });
+
+    test("should navigate to list detail when clicking a list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userWithLists);
+      mockServer.addActorLists(userWithLists.did, [list1]);
+      mockServer.addLists([list1]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userWithLists.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator("tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
+
+      await tabBar.locator('[data-testid="tab-lists"]').click();
+
+      const feedsList = view.locator(
+        ".feed-container:not([hidden]) .feeds-list",
+      );
+      await expect(feedsList.locator(".feeds-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await feedsList
+        .locator(".feeds-list-item", { hasText: "Friends" })
+        .click();
+
+      await expect(page).toHaveURL(
+        "/profile/listcreator.bsky.social/lists/friends",
+        { timeout: 10000 },
+      );
+    });
+
+    test("should show Lists tab on own profile when user has lists", async ({
+      page,
+    }) => {
+      const currentUserWithLists = {
+        ...userProfile,
+        associated: { lists: 1 },
+      };
+      const userList = createList({
+        uri: `at://${userProfile.did}/app.bsky.graph.list/mylist`,
+        name: "My List",
+        creatorHandle: userProfile.handle,
+      });
+
+      const mockServer = new MockServer();
+      mockServer.addProfile(currentUserWithLists);
+      mockServer.addActorLists(userProfile.did, [userList]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto(`/profile/${userProfile.did}`);
+
+      const view = page.locator("#profile-view");
+      const tabBar = view.locator("tab-bar");
+      await expect(tabBar.locator('[data-testid="tab-lists"]')).toBeVisible({
+        timeout: 10000,
+      });
     });
   });
 });

@@ -21,6 +21,7 @@ import {
   showPluginUpdatePermissionsModal,
 } from "/js/modals.js";
 import { compareVersions, isDev, sortBy } from "/js/utils.js";
+import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -62,18 +63,47 @@ export class PermissionsDeclinedError extends Error {
   }
 }
 
-export class PluginService extends EventEmitter {
+export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session) {
-    super();
+    super("pluginService");
     this.registries = {
       sidebarItems: new Set(),
       eventListeners: new Map(),
       feedFilters: new Set(),
-      settingTabs: new Map(),
-      slots: new Map(),
     };
-    this._availableUpdates = null;
-    this._registryListings = null;
+    this.$availableUpdates = new Signal.State(null);
+    this.$rawRegistryListings = new Signal.State(null);
+    this.$registryListings = new Signal.Computed(() => {
+      const rawListings = this.$rawRegistryListings.get();
+      if (!rawListings) return null;
+      const installedIds = new Set(
+        this.prefManager.$installedPlugins.get().map((entry) => entry.id),
+      );
+      return rawListings.map((listing) => ({
+        ...listing,
+        installed: installedIds.has(listing.id),
+      }));
+    });
+    this.$pluginsInfo = new Signal.Computed(() => {
+      const installedPlugins = this.prefManager.$installedPlugins.get();
+      const visiblePlugins = this.localPluginsEnabled
+        ? installedPlugins
+        : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
+      const sortedVisiblePlugins = sortBy(visiblePlugins, "name");
+      return sortedVisiblePlugins.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        description: entry.description,
+        version: entry.version,
+        author: entry.author,
+        enabled: entry.enabled,
+        loaded: this.pluginBridge.isLoaded(entry.id),
+        hasSettings: this.$settingTabs.get(entry.id) !== null,
+      }));
+    });
+    this.$pluginFilteredFeedItems = new SignalMap();
+    this.$settingTabs = new SignalMap();
+    this.$slots = new SignalMap();
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -87,6 +117,9 @@ export class PluginService extends EventEmitter {
       this.pluginStylesLoader,
     );
     this.prefManager = new PluginPreferencesManager(preferencesProvider);
+    this.$installedPlugins = new Signal.Computed(() =>
+      this.prefManager.$installedPlugins.get(),
+    );
     this.session = session;
     this._renderContext = null;
     this._dataLayer = null;
@@ -143,10 +176,10 @@ export class PluginService extends EventEmitter {
         display: () => plugin.call(message.displayHandlerId),
         hide: () => plugin.call(message.hideHandlerId),
       };
-      this.registries.settingTabs.set(plugin.pluginId, entry);
+      this.$settingTabs.set(plugin.pluginId, entry);
       return () => {
-        if (this.registries.settingTabs.get(plugin.pluginId) === entry) {
-          this.registries.settingTabs.delete(plugin.pluginId);
+        if (this.$settingTabs.get(plugin.pluginId) === entry) {
+          this.$settingTabs.delete(plugin.pluginId);
         }
       };
     });
@@ -160,25 +193,21 @@ export class PluginService extends EventEmitter {
       return () => this.registries.feedFilters.delete(entry);
     });
     this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
-      let entries = this.registries.slots.get(message.name);
-      if (!entries) {
-        entries = [];
-        this.registries.slots.set(message.name, entries);
-      }
       const entry = {
         pluginId: plugin.pluginId,
         invoke: (context) => plugin.call(message.handlerId, context),
       };
-      entries.push(entry);
-      this.emit("slotRegistered", { name: message.name });
+      const current = this.$slots.get(message.name) ?? [];
+      this.$slots.set(message.name, [...current, entry]);
       return () => {
-        const list = this.registries.slots.get(message.name);
+        const list = this.$slots.get(message.name);
         if (!list) return;
-        const index = list.indexOf(entry);
-        if (index === -1) return;
-        list.splice(index, 1);
-        if (list.length === 0) this.registries.slots.delete(message.name);
-        this.emit("slotUnregistered", { name: message.name });
+        const next = list.filter((other) => other !== entry);
+        if (next.length === 0) {
+          this.$slots.delete(message.name);
+        } else {
+          this.$slots.set(message.name, next);
+        }
       };
     });
   }
@@ -214,9 +243,12 @@ export class PluginService extends EventEmitter {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
     });
 
-    this.pluginBridge.addHostMethod("refreshSettingTab", (plugin) => {
-      this.emit("settingTabRefresh", { pluginId: plugin.pluginId });
-    });
+    this.pluginBridge.addHostMethod(
+      "refreshSettingTab",
+      (plugin, { reset = false } = {}) => {
+        this.emit("settingTabRefresh", { pluginId: plugin.pluginId, reset });
+      },
+    );
 
     this.pluginBridge.addHostMethod(
       "refreshFeedFilters",
@@ -265,11 +297,11 @@ export class PluginService extends EventEmitter {
     });
 
     this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
-      return this._dataLayer?.selectors.getPost(uri) ?? null;
+      return this._dataLayer?.derived.$hydratedPosts.get(uri) ?? null;
     });
 
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.selectors.getProfile(did) ?? null;
+      return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
     });
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
@@ -283,14 +315,14 @@ export class PluginService extends EventEmitter {
 
   async loadEnabledPlugins() {
     if (arePluginsDisabledByQueryParam()) {
-      const enabledPluginIds = this.prefManager
-        .getEnabledPlugins()
+      const enabledPluginIds = this.prefManager.$enabledPlugins
+        .get()
         .map((entry) => entry.id);
       await this.prefManager.setPluginsDisabled(enabledPluginIds);
       return;
     }
-    const enabledPlugins = this.prefManager
-      .getEnabledPlugins()
+    const enabledPlugins = this.prefManager.$enabledPlugins
+      .get()
       .filter(
         (entry) => this.localPluginsEnabled || !entry.id.endsWith("__LOCAL"),
       );
@@ -301,25 +333,15 @@ export class PluginService extends EventEmitter {
       showToast(`Failed to load plugin(s): ${failedPluginIds.join(", ")}`, {
         style: "error",
       });
-      // Disable plugins that failed to load
-      await Promise.all(
-        failedPluginIds.map((pluginId) =>
-          this.prefManager.setPluginDisabled(pluginId),
-        ),
-      );
     }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     await this._reconcileCache(installedPlugins);
   }
 
-  getAvailableUpdates() {
-    return this._availableUpdates;
-  }
-
   async checkForUpdates() {
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     const results = await Promise.allSettled(
       installedPlugins.map(async (entry) => {
         const liveManifest = await this.sourceProvider.getLiveManifest(
@@ -338,12 +360,20 @@ export class PluginService extends EventEmitter {
         updates.set(result.value.id, result.value.version);
       }
     }
-    this._availableUpdates = updates;
+    this.$availableUpdates.set(updates);
     return updates;
   }
 
+  _clearAvailableUpdate(pluginId) {
+    const updates = this.$availableUpdates.get();
+    if (!updates?.has(pluginId)) return;
+    const next = new Map(updates);
+    next.delete(pluginId);
+    this.$availableUpdates.set(next);
+  }
+
   async reloadPlugins() {
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     const results = await Promise.allSettled(
       installedPlugins
         .filter((entry) => entry.enabled === true)
@@ -364,33 +394,19 @@ export class PluginService extends EventEmitter {
     if (failure) throw failure.reason;
   }
 
-  getPluginsInfo() {
-    const installedPlugins = this.prefManager.getInstalledPlugins();
-    const visiblePlugins = this.localPluginsEnabled
-      ? installedPlugins
-      : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
-    const sortedVisiblePlugins = sortBy(visiblePlugins, "name");
-    return sortedVisiblePlugins.map((entry) => {
-      return {
-        id: entry.id,
-        name: entry.name,
-        description: entry.description,
-        version: entry.version,
-        author: entry.author,
-        enabled: entry.enabled,
-        loaded: this.pluginBridge.isLoaded(entry.id),
-        hasSettings: this.registries.settingTabs.has(entry.id),
-      };
-    });
-  }
-
   async getManifest(pluginId) {
-    const installedPlugin = this.prefManager
-      .getInstalledPlugins()
-      .find((plugin) => plugin.id === pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     return this.sourceProvider
       .getManifest(pluginId, installedPlugin?.version, installedPlugin?.repo)
       .catch(() => null);
+  }
+
+  async getLiveManifest(pluginId, repo) {
+    return this.sourceProvider.getLiveManifest(pluginId, repo);
+  }
+
+  async getReadme(pluginId, repo) {
+    return this.sourceProvider.getReadme(pluginId, repo);
   }
 
   async _reconcileCache(installed) {
@@ -411,7 +427,7 @@ export class PluginService extends EventEmitter {
       }
       repo = listing.repo;
     }
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     if (installedPlugins.some((plugin) => plugin.id === pluginId)) {
       throw new Error(`Plugin ${pluginId} already installed`);
     }
@@ -483,7 +499,7 @@ export class PluginService extends EventEmitter {
     if (this.localRegistry && (await this.localRegistry.getListing(id))) {
       throw new Error(`Plugin ${id} is in the registry; install it from there`);
     }
-    const installedPlugins = this.prefManager.getInstalledPlugins();
+    const installedPlugins = this.prefManager.$installedPlugins.get();
     if (installedPlugins.some((plugin) => plugin.id === id)) {
       throw new Error(`Plugin ${id} already installed`);
     }
@@ -511,12 +527,12 @@ export class PluginService extends EventEmitter {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
-    await this._reconcileCache(this.prefManager.getInstalledPlugins());
+    await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 
   async enablePlugin(pluginId) {
     await this.prefManager.setPluginEnabled(pluginId);
-    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     try {
       await this.pluginBridge.loadPlugin(
         pluginId,
@@ -535,7 +551,7 @@ export class PluginService extends EventEmitter {
   }
 
   async updatePlugin(pluginId) {
-    const installedPlugin = this.prefManager.getInstalledPlugin(pluginId);
+    const installedPlugin = this.prefManager.$installedPlugin.get(pluginId);
     if (!installedPlugin) return null;
     const liveManifest = await this.sourceProvider.getLiveManifest(
       pluginId,
@@ -567,18 +583,19 @@ export class PluginService extends EventEmitter {
         version,
         installedPlugin.repo,
       );
-      this._availableUpdates?.delete(pluginId);
+      this._clearAvailableUpdate(pluginId);
       return { updated: true, version };
     }
-    this._availableUpdates?.delete(pluginId);
+    this._clearAvailableUpdate(pluginId);
     return { updated: false };
   }
 
   async updateAllPlugins() {
-    if (!this._availableUpdates || this._availableUpdates.size === 0) {
+    const availableUpdates = this.$availableUpdates.get();
+    if (!availableUpdates || availableUpdates.size === 0) {
       return { updated: [], failed: [], declined: [] };
     }
-    const ids = [...this._availableUpdates.keys()];
+    const ids = [...availableUpdates.keys()];
     const updated = [];
     const failed = [];
     const declined = [];
@@ -603,18 +620,7 @@ export class PluginService extends EventEmitter {
     const localListings = this.localRegistry
       ? await this.localRegistry.getListings()
       : [];
-    this._registryListings = [...remoteListings, ...localListings];
-  }
-
-  getRegistryListings() {
-    if (!this._registryListings) return null;
-    const installedIds = new Set(
-      this.prefManager.getInstalledPlugins().map((entry) => entry.id),
-    );
-    return this._registryListings.map((listing) => ({
-      ...listing,
-      installed: installedIds.has(listing.id),
-    }));
+    this.$rawRegistryListings.set([...remoteListings, ...localListings]);
   }
 
   // Registry convenience methods
@@ -624,15 +630,15 @@ export class PluginService extends EventEmitter {
   }
 
   getSlotEntries(name) {
-    return [...(this.registries.slots.get(name) ?? [])];
+    return [...(this.$slots.get(name) ?? [])];
   }
 
   getSettingTabs() {
-    return [...this.registries.settingTabs.values()];
+    return [...this.$settingTabs.values()];
   }
 
   getSettingTab(pluginId) {
-    return this.registries.settingTabs.get(pluginId) ?? null;
+    return this.$settingTabs.get(pluginId);
   }
 
   async getPostContextMenuItems(post) {
@@ -685,5 +691,13 @@ export class PluginService extends EventEmitter {
       filteredFeedItems = { ...filteredFeedItems, ...results };
     }
     return filteredFeedItems;
+  }
+
+  async refreshFiltersForFeed(feedURI, feed, { reload = false } = {}) {
+    const filtered = await this.getFilteredFeedItems(feedURI, feed);
+    const existing = reload
+      ? {}
+      : (this.$pluginFilteredFeedItems.get(feedURI) ?? {});
+    this.$pluginFilteredFeedItems.set(feedURI, { ...existing, ...filtered });
   }
 }

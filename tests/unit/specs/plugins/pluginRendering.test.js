@@ -140,6 +140,41 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     assert(document.activeElement === input);
   });
 
+  it("preserves a dirty input's live value across an ordinary re-render", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const input = root.render({
+      tag: "input",
+      attrs: { type: "text", value: "default" },
+    });
+    // User edits the field (dirties the control); a patch must not clobber it.
+    input.value = "user-edited";
+    root.render({
+      tag: "input",
+      attrs: { type: "text", value: "default" },
+    });
+    assertEquals(input.value, "user-edited");
+  });
+
+  it("rebuilds a fresh element after reset(), discarding dirty state", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const input = root.render({
+      tag: "input",
+      attrs: { type: "text", value: "default" },
+    });
+    input.value = "user-edited";
+    root.reset();
+    const rebuilt = root.render({
+      tag: "input",
+      attrs: { type: "text", value: "default" },
+    });
+    assert(rebuilt !== input);
+    assertEquals(rebuilt.value, "default");
+  });
+
   it("reuses matching children and patches their text in place", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");

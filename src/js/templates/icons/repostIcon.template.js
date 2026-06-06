@@ -3,40 +3,12 @@ import { html } from "/js/lib/lit-html.js";
 export function repostIconTemplate() {
   return html`<svg
     class="icon repost-icon"
-    width="60"
-    height="60"
-    viewBox="0 0 60 60"
+    viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M 12 25
-               V 21
-               Q 12 15, 18 15
-               H 43"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M 38 10 L 43 15 L 38 20"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M 43 26
-               V 30
-               Q 43 36, 37 36
-               H 12"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
-    />
-    <path
-      d="M 17 41 L 12 36 L 17 31"
-      stroke-width="2.5"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      fill="currentColor"
+      d="M17.957 2.293a1 1 0 1 0-1.414 1.414L17.836 5H6a3 3 0 0 0-3 3v3a1 1 0 1 0 2 0V8a1 1 0 0 1 1-1h11.836l-1.293 1.293a1 1 0 0 0 1.414 1.414l2.47-2.47a1.75 1.75 0 0 0 0-2.474l-2.47-2.47ZM20 12a1 1 0 0 1 1 1v3a3 3 0 0 1-3 3H6.164l1.293 1.293a1 1 0 1 1-1.414 1.414l-2.47-2.47a1.75 1.75 0 0 1 0-2.474l2.47-2.47a1 1 0 0 1 1.414 1.414L6.164 17H18a1 1 0 0 0 1-1v-3a1 1 0 0 1 1-1Z"
     />
   </svg>`;
 }

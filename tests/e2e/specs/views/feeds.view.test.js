@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator } from "../../factories.js";
+import { createFeedGenerator, createList } from "../../factories.js";
 
 test.describe("Feeds view", () => {
   test("should display header and pinned feeds", async ({ page }) => {
@@ -93,6 +93,40 @@ test.describe("Feeds view", () => {
     });
 
     await expect(feedsView).toContainText("Following");
+  });
+
+  test("should display pinned lists alongside pinned feeds", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const feed = createFeedGenerator({
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/trending",
+      displayName: "Trending",
+      creatorHandle: "creator1.bsky.social",
+    });
+    const list = createList({
+      uri: "at://did:plc:creator2/app.bsky.graph.list/mylist",
+      name: "My Curated List",
+      creatorHandle: "creator2.bsky.social",
+    });
+    mockServer.addFeedGenerators([feed]);
+    mockServer.addLists([list]);
+    mockServer.setPinnedFeeds([feed.uri]);
+    mockServer.setPinnedLists([list.uri]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/feeds");
+
+    const feedsView = page.locator("#feeds-view");
+    await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+      timeout: 10000,
+    });
+
+    await expect(feedsView).toContainText("Following");
+    await expect(feedsView).toContainText("Trending");
+    await expect(feedsView).toContainText("My Curated List");
+    await expect(feedsView).toContainText("by @creator2.bsky.social");
   });
 
   test.describe("Logged-out behavior", () => {

@@ -95,6 +95,7 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
         description: data.description,
         image: data.image,
         showCloseButton: true,
+        disableNavigation: true,
         onClose,
       })}
     </div>
@@ -743,8 +744,9 @@ class PostComposer extends Component {
     enableDragToDismiss(dialog, {
       confirmDismiss: () => this.confirmClose(),
       onClose: () => this.close(),
+      scrollContainer: this.querySelector(".post-composer-scroll-area"),
       ignoreTouchTarget: (el) =>
-        el.tagName === "BUTTON" ||
+        !!el.closest("button") ||
         el.tagName === "TEXTAREA" ||
         el.isContentEditable ||
         !!el.closest("[contenteditable]"),
@@ -785,7 +787,6 @@ class PostComposer extends Component {
       new CustomEvent("send-post", {
         detail: {
           postText: this._postText,
-          unresolvedFacets: this._unresolvedFacets,
           external: this._externalLinkEmbedData,
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,

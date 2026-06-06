@@ -1,5 +1,6 @@
 import { linkHtml } from "./modulepreload.js";
 import pkg from "./package.json" with { type: "json" };
+import { MIME } from "./scripts/serve-static.js";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -33,7 +34,7 @@ export default async function (eleventyConfig) {
       if (!entry.isSymbolicLink()) continue;
       const realPath = fs.realpathSync(path.join("plugins-local", entry.name));
       eleventyConfig.addWatchTarget(
-        `${realPath}/{manifest.json,main.js,styles.css}`,
+        `${realPath}/{manifest.json,main.js,styles.css,README.md}`,
       );
     }
   }
@@ -68,6 +69,10 @@ export default async function (eleventyConfig) {
       if (fs.existsSync(stylesPath)) {
         fs.copyFileSync(stylesPath, path.join(destDir, "styles.css"));
       }
+      const readmePath = path.join(pluginPath, "README.md");
+      if (fs.existsSync(readmePath)) {
+        fs.copyFileSync(readmePath, path.join(destDir, "README.md"));
+      }
     }
     fs.writeFileSync(
       "build/plugins-local/index.json",
@@ -87,6 +92,14 @@ export default async function (eleventyConfig) {
         // ignore reload-client.js
         if (url.pathname.includes("reload-client.js")) {
           return null;
+        }
+        const ext = path.extname(url.pathname);
+        if (ext && MIME[ext] && !MIME[ext].startsWith("text/html")) {
+          return {
+            status: 404,
+            headers: { "Content-Type": "text/plain" },
+            body: "Not Found",
+          };
         }
         return fs.readFileSync("build/index.html", "utf-8");
       },

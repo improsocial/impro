@@ -1,11 +1,11 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
-import { showToast } from "/js/toasts.js";
-import { confirm } from "/js/modals.js";
-import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
+import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
+import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsCommunityPluginsView extends View {
   async render({
@@ -20,74 +20,27 @@ class SettingsCommunityPluginsView extends View {
   }) {
     await auth.requireAuth();
 
-    const state = {
-      error: null,
-      pending: new Set(),
-    };
+    const state = new ReactiveStore("settingsCommunityPluginsView");
+    state.$error = new Signal.State(null);
 
     async function loadListings() {
-      state.error = null;
-      renderPage();
+      state.$error.set(null);
       try {
         await pluginService.loadRegistryListings();
       } catch (error) {
         console.error(error);
-        state.error = error.message ?? String(error);
+        state.$error.set(error.message ?? String(error));
       }
-      renderPage();
     }
 
-    async function toggleInstall(listing) {
-      const wasInstalled = listing.installed;
-      if (wasInstalled) {
-        const confirmed = await confirm(
-          `"${listing.name}" will be disabled and uninstalled.`,
-          {
-            title: "Uninstall plugin?",
-            confirmButtonStyle: "danger",
-            confirmButtonText: "Uninstall",
-          },
-        );
-        if (!confirmed) return;
-      }
-      state.pending.add(listing.id);
-      renderPage();
-      try {
-        if (wasInstalled) {
-          await pluginService.uninstallPlugin(listing.id);
-        } else {
-          await pluginService.installPlugin(listing.id);
-        }
-        showToast(
-          wasInstalled
-            ? `Uninstalled ${listing.name}`
-            : `Installed ${listing.name}`,
-          { style: wasInstalled ? "default" : "success" },
-        );
-      } catch (e) {
-        if (e instanceof PermissionsDeclinedError) {
-          // User declined the permission prompt; nothing to report.
-        } else {
-          console.error(e);
-          showToast(
-            wasInstalled
-              ? `Failed to uninstall ${listing.name}`
-              : `Failed to install ${listing.name}`,
-            { style: "error" },
-          );
-        }
-      }
-      state.pending.delete(listing.id);
-      renderPage();
-    }
-
-    function renderPage() {
-      const currentUser = dataLayer.selectors.getCurrentUser();
-      const listings = pluginService.getRegistryListings();
+    pageEffect(root, () => {
+      const error = state.$error.get();
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const listings = pluginService.$registryListings.get();
       const numNotifications =
-        notificationService?.getNumNotifications() ?? null;
+        notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
-        chatNotificationService?.getNumNotifications() ?? null;
+        chatNotificationService?.$numNotifications.get() ?? null;
       render(
         html`<div id="settings-community-plugins-view">
           ${mainLayoutTemplate({
@@ -104,7 +57,7 @@ class SettingsCommunityPluginsView extends View {
                 onClickBackButton: () => window.router.go("/settings/plugins"),
               })}
               <main>
-                ${state.error
+                ${error
                   ? html`<div class="error-state">
                       <div>Failed to load plugins</div>
                       <button @click=${() => loadListings()}>Try again</button>
@@ -130,51 +83,43 @@ class SettingsCommunityPluginsView extends View {
                         </div>`
                       : html`<ul class="plugin-list">
                           ${listings.map((listing) => {
-                            const pending = state.pending.has(listing.id);
-                            const buttonClass = listing.installed
-                              ? "plugin-install-button rounded-button"
-                              : "plugin-install-button rounded-button rounded-button-primary";
                             return html`
                               <li class="plugin-list-item">
-                                <div class="plugin-list-item-info">
-                                  <div class="plugin-list-item-name">
-                                    ${listing.name}
-                                    ${listing.id.endsWith("__LOCAL")
-                                      ? html`<span class="plugin-local-badge"
-                                          >local</span
-                                        >`
+                                <a
+                                  class="plugin-list-item-link"
+                                  href="/settings/plugins/community/${listing.id}"
+                                >
+                                  <div class="plugin-list-item-info">
+                                    <div class="plugin-list-item-name">
+                                      ${listing.name}
+                                      ${listing.id.endsWith("__LOCAL")
+                                        ? html`<span class="plugin-local-badge"
+                                            >local</span
+                                          >`
+                                        : ""}
+                                      ${listing.installed
+                                        ? html`<span
+                                            class="plugin-installed-badge"
+                                            data-testid="plugin-installed-badge"
+                                            >Installed</span
+                                          >`
+                                        : ""}
+                                    </div>
+                                    ${listing.description
+                                      ? html`<div
+                                          class="plugin-list-item-description"
+                                        >
+                                          ${listing.description}
+                                        </div>`
                                       : ""}
+                                    <div class="plugin-list-item-version">
+                                      By ${listing.author}
+                                    </div>
                                   </div>
-                                  ${listing.description
-                                    ? html`<div
-                                        class="plugin-list-item-description"
-                                      >
-                                        ${listing.description}
-                                      </div>`
-                                    : ""}
-                                  <div class="plugin-list-item-version">
-                                    By ${listing.author}
-                                  </div>
-                                </div>
-                                <div class="plugin-list-item-controls">
-                                  <button
-                                    class=${buttonClass}
-                                    ?disabled=${pending}
-                                    @click=${() => toggleInstall(listing)}
+                                  <span class="plugin-list-item-arrow"
+                                    >${chevronRightIconTemplate()}</span
                                   >
-                                    ${pending
-                                      ? html`${listing.installed
-                                            ? "Uninstalling"
-                                            : "Installing"}
-                                          <div
-                                            class="loading-spinner"
-                                            data-testid="loading-spinner"
-                                          ></div>`
-                                      : listing.installed
-                                        ? "Uninstall"
-                                        : "Install"}
-                                  </button>
-                                </div>
+                                </a>
                               </li>
                             `;
                           })}
@@ -184,11 +129,10 @@ class SettingsCommunityPluginsView extends View {
         </div>`,
         root,
       );
-    }
+    });
 
     root.addEventListener("page-enter", async () => {
-      renderPage();
-      dataLayer.declarative.ensureCurrentUser().then(() => renderPage());
+      dataLayer.declarative.ensureCurrentUser();
       await loadListings();
     });
 
@@ -196,9 +140,6 @@ class SettingsCommunityPluginsView extends View {
       window.scrollTo(0, 0);
       loadListings();
     });
-
-    notificationService?.on("update", () => renderPage());
-    chatNotificationService?.on("update", () => renderPage());
   }
 }
 

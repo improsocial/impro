@@ -1,4 +1,5 @@
 import { Capacitor, StatusBar } from "/js/lib/capacitor.js";
+import { Signal } from "/js/signals.js";
 
 function getRootStyle() {
   return getComputedStyle(document.documentElement);
@@ -18,9 +19,9 @@ export function getDefaultColorScheme() {
 
 export class Theme {
   constructor({ highlightColor, likeColor, colorScheme }) {
-    this.highlightColor = highlightColor;
-    this.likeColor = likeColor;
-    this.colorScheme = colorScheme;
+    this.$highlightColor = new Signal.State(highlightColor);
+    this.$likeColor = new Signal.State(likeColor);
+    this.$colorScheme = new Signal.State(colorScheme);
   }
 
   getBackgroundColor() {
@@ -28,37 +29,37 @@ export class Theme {
   }
 
   updateHighlightColor(highlightColor) {
-    this.highlightColor = highlightColor;
+    this.$highlightColor.set(highlightColor);
     this.apply();
     this.save();
   }
 
   updateLikeColor(likeColor) {
-    this.likeColor = likeColor;
+    this.$likeColor.set(likeColor);
     this.apply();
     this.save();
   }
 
   updateColorScheme(colorScheme) {
-    this.colorScheme = colorScheme;
+    this.$colorScheme.set(colorScheme);
     this.apply();
     this.save();
   }
 
   apply() {
+    const highlightColor = this.$highlightColor.get();
+    const likeColor = this.$likeColor.get();
+    const colorScheme = this.$colorScheme.get();
     document.documentElement.style.setProperty(
       `--highlight-color`,
-      this.highlightColor,
+      highlightColor,
     );
-    document.documentElement.style.setProperty(`--like-color`, this.likeColor);
+    document.documentElement.style.setProperty(`--like-color`, likeColor);
     // Apply color scheme
-    if (this.colorScheme === "system") {
+    if (colorScheme === "system") {
       document.documentElement.style.setProperty("color-scheme", "light dark");
     } else {
-      document.documentElement.style.setProperty(
-        "color-scheme",
-        this.colorScheme,
-      );
+      document.documentElement.style.setProperty("color-scheme", colorScheme);
     }
     // Background color for iOS
     const backgroundColor = this.getBackgroundColor();
@@ -76,20 +77,23 @@ export class Theme {
   }
 
   save() {
-    if (this.highlightColor === getDefaultHighlightColor()) {
+    const highlightColor = this.$highlightColor.get();
+    const likeColor = this.$likeColor.get();
+    const colorScheme = this.$colorScheme.get();
+    if (highlightColor === getDefaultHighlightColor()) {
       localStorage.removeItem("theme-highlightColorv2");
     } else {
-      localStorage.setItem("theme-highlightColorv2", this.highlightColor);
+      localStorage.setItem("theme-highlightColorv2", highlightColor);
     }
-    if (this.likeColor === getDefaultLikeColor()) {
+    if (likeColor === getDefaultLikeColor()) {
       localStorage.removeItem("theme-likeColor");
     } else {
-      localStorage.setItem("theme-likeColor", this.likeColor);
+      localStorage.setItem("theme-likeColor", likeColor);
     }
-    if (this.colorScheme === getDefaultColorScheme()) {
+    if (colorScheme === getDefaultColorScheme()) {
       localStorage.removeItem("theme-colorScheme");
     } else {
-      localStorage.setItem("theme-colorScheme", this.colorScheme);
+      localStorage.setItem("theme-colorScheme", colorScheme);
     }
   }
 
