@@ -343,7 +343,9 @@ class NotificationsView extends View {
             ? "unread"
             : ""}"
         >
-          <div class="notification-icon">${heartIconTemplate()}</div>
+          <div class="notification-icon">
+            ${heartIconTemplate({ filled: true })}
+          </div>
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
@@ -441,7 +443,9 @@ class NotificationsView extends View {
             ? "notification-item-clickable"
             : ""} ${isUnread ? "unread" : ""}"
         >
-          <div class="notification-icon">${heartIconTemplate()}</div>
+          <div class="notification-icon">
+            ${heartIconTemplate({ filled: true })}
+          </div>
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">

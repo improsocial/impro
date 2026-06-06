@@ -692,11 +692,11 @@ input[type="color"]::-moz-color-swatch {
 }
 
 .post-skeleton {
-  padding: 12px 16px;
+  padding: 10px 16px 0 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   display: flex;
   flex-direction: row;
-  gap: 8px;
+  gap: 12px;
 }
 
 .skeleton-left {
@@ -707,7 +707,7 @@ input[type="color"]::-moz-color-swatch {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
 }
 
 .skeleton-avatar {
@@ -759,9 +759,9 @@ input[type="color"]::-moz-color-swatch {
 .skeleton-actions {
   display: flex;
   flex-direction: row;
-  align-items: flex-start;
+  align-items: center;
   gap: 3em;
-  height: 20px;
+  height: 28px;
 }
 
 .skeleton-action {
@@ -771,26 +771,26 @@ input[type="color"]::-moz-color-swatch {
   justify-content: center;
 }
 
+.skeleton-action .skeleton-action-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--post-action-icon-color);
+  opacity: 0.4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .skeleton-action .skeleton-action-icon .icon {
-  width: 28px;
-  height: 28px;
-  top: 0;
-  left: 0;
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
-.skeleton-action .skeleton-action-icon .heart-icon {
-  width: 19px;
-  height: 19px;
-  top: 2px;
-  left: 0px;
-}
-
-.skeleton-action .skeleton-action-icon .icon path {
-  stroke: var(--skeleton-color);
-}
-
-.skeleton-action .skeleton-action-icon .heart-icon path {
-  stroke-width: 1.7;
+.skeleton-action .skeleton-action-icon .icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .avatar-image {
@@ -1802,17 +1802,12 @@ button.sidebar-plugin-nav-item {
 }
 
 .small-post .repost-label .icon {
-  height: 20px;
-  width: 20px;
-  margin-bottom: -6px;
-  margin-left: -6px;
-  margin-top: 1px;
+  height: 17px;
+  width: 17px;
 }
 
 .small-post .repost-label .icon path {
-  stroke: var(--text-color-muted);
-  fill: none;
-  stroke-width: 2.75;
+  fill: var(--text-color-muted);
 }
 
 .small-post .missing-post-indicator {
@@ -1936,11 +1931,6 @@ button.sidebar-plugin-nav-item {
   height: 12px;
 }
 
-.post-skeleton .icon path {
-  stroke: var(--skeleton-color);
-  fill: none;
-}
-
 .post-thread {
   min-height: calc(100dvh - 46px - var(--safe-area-inset-bottom));
   padding-bottom: calc(
@@ -2032,7 +2022,27 @@ button.sidebar-plugin-nav-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
+  height: 28px;
+  padding-top: 2px;
+}
+
+.large-post .post-actions {
+  height: 32px;
+  padding-top: 0;
+}
+
+.large-post .post-action-icon {
+  transform: scale(1.22);
+  transform-origin: center;
+}
+
+.large-post .post-action-count {
+  font-size: 16px;
+}
+
+.large-post .post-action-button {
+  gap: 8px;
 }
 
 .post-actions-primary {
@@ -2041,10 +2051,22 @@ button.sidebar-plugin-nav-item {
   max-width: 320px;
 }
 
+.post-actions-primary > .post-action:first-child {
+  margin-left: -6px;
+}
+
+.large-post .post-actions-primary > .post-action:first-child {
+  margin-left: -2px;
+}
+
 .post-actions-secondary {
   display: flex;
   justify-content: flex-end;
   align-items: center;
+  gap: 4px;
+}
+
+.large-post .post-actions-secondary {
   gap: 8px;
 }
 
@@ -2068,11 +2090,6 @@ button.sidebar-plugin-nav-item {
   flex: 1;
 }
 
-.post-actions .icon path {
-  stroke: var(--post-action-icon-color);
-  fill: none;
-}
-
 .post-action {
   flex: 1;
 }
@@ -2085,7 +2102,7 @@ button.sidebar-plugin-nav-item {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 7px;
+  gap: 4px;
   border: none;
   background: none;
   cursor: pointer;
@@ -2109,91 +2126,8 @@ animated-button {
   color: var(--disabled-gray);
 }
 
-.post-action[disabled] .icon path {
-  stroke: var(--disabled-gray);
-  fill: none;
-}
-
 .post-action-repost.reposted {
   color: var(--highlight-color);
-}
-
-.post-action-repost.reposted .post-action-icon .icon path {
-  stroke: var(--highlight-color);
-}
-
-.post-action-button.animated-button .heart-icon {
-  width: 19.5px;
-  height: 19.5px;
-  top: 0.75px;
-  left: 2px;
-}
-
-.post-action-button.animated-button .post-action-count {
-  left: 1px;
-}
-
-.like-button.active .heart-icon path {
-  stroke: var(--like-color);
-  fill: var(--like-color);
-}
-
-.post-action-icon {
-  position: relative;
-  width: 20px;
-  height: 20px;
-}
-
-.post-action-icon .icon {
-  position: absolute;
-  top: -2px;
-  left: -3px;
-  width: 28px;
-  height: 28px;
-}
-
-.post-action-icon .bookmark-icon {
-  width: 18px;
-  height: 18px;
-  top: 1.75px;
-  left: 2px;
-}
-
-.bookmark-button.active .bookmark-icon {
-  color: var(--highlight-color);
-}
-
-.bookmark-button.active .bookmark-icon path {
-  fill: var(--highlight-color);
-  stroke: var(--highlight-color);
-}
-
-.reply-icon {
-  width: 26px !important;
-  height: 26px !important;
-  top: -3.8px !important;
-}
-
-.post-action-icon .repost-icon {
-  width: 25px;
-  height: 25px;
-  top: 0px;
-}
-
-.post-action-icon .reply-icon path {
-  stroke-width: 3.1;
-}
-
-.post-action-icon .repost-icon path {
-  stroke-width: 3.25;
-}
-
-.post-action-icon .heart-icon path {
-  stroke-width: 1.65;
-}
-
-.post-action-icon .bookmark-icon path {
-  stroke-width: 1.8;
 }
 
 .like-button.active {
@@ -2202,6 +2136,27 @@ animated-button {
 
 .bookmark-button.active {
   color: var(--highlight-color);
+}
+
+.post-action-icon {
+  position: relative;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.post-action-icon .icon {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.post-action-icon .icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .animated-button .post-action-icon::after {
@@ -2237,11 +2192,7 @@ animated-button {
 }
 
 .post-action-count {
-  font-size: 14px;
-  vertical-align: top;
-  left: -2px;
-  position: relative;
-  padding-right: 5px;
+  font-size: 13px;
 }
 
 .post-action-counts {
@@ -2962,15 +2913,8 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   stroke: var(--like-color);
 }
 
-.notification-icon .repost-icon {
-  height: 35px !important;
-  width: 35px !important;
-}
-
 .notification-icon .repost-icon path {
-  stroke-width: 4;
-  stroke: var(--highlight-color);
-  fill: none;
+  fill: var(--highlight-color);
 }
 
 .notification-icon.verified-icon svg {

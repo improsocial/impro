@@ -350,7 +350,9 @@ export function postActionBarTemplate({
                 onClickLike(post, !isLiked);
               }}
             >
-              <div class="post-action-icon">${heartIconTemplate()}</div>
+              <div class="post-action-icon">
+                ${heartIconTemplate({ filled: isLiked })}
+              </div>
               ${numLikes > 0
                 ? html`<span class="post-action-count"
                     >${formatLargeNumber(numLikes)}</span

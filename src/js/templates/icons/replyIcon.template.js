@@ -3,28 +3,12 @@ import { html } from "/js/lib/lit-html.js";
 export function replyIconTemplate() {
   return html`<svg
     class="icon reply-icon"
-    width="60"
-    height="60"
-    viewBox="0 0 60 60"
+    viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
   >
     <path
-      d="M23 18
-         h17
-         a4 4 0 0 1 4 4
-         v16
-         a4 4 0 0 1 -4 4
-         h-10
-         l-6 6
-         v-6
-         h-9
-         a4 4 0 0 1 -4 -4
-         v-16
-         a4 4 0 0 1 4 -4
-         z"
-      stroke-width="2.7"
-      stroke-linecap="round"
-      stroke-linejoin="round"
+      fill="currentColor"
+      d="M20.002 7a2 2 0 0 0-2-2h-12a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2a1 1 0 0 1 1 1v1.918l3.375-2.7a1 1 0 0 1 .625-.218h5a2 2 0 0 0 2-2V7Zm2 8a4 4 0 0 1-4 4h-4.648l-4.727 3.781A1.001 1.001 0 0 1 7.002 22v-3h-1a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4h12a4 4 0 0 1 4 4v8Z"
     />
-  </svg> `;
+  </svg>`;
 }
