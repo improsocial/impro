@@ -789,6 +789,41 @@ t.describe("registry listings loader/selector", (it) => {
     assertEquals(service.$registryListings.get()[0].installed, true);
   });
 
+  it("updates installed plugin repo when remote listing repo changes", async () => {
+    const { service, provider } = makeService({
+      remoteListings: [{ id: "alpha", repo: "newowner/alpha", name: "Alpha" }],
+    });
+    provider.$preferences.set(
+      provider.requirePreferences().setInstalledPlugins([
+        {
+          id: "alpha",
+          version: "1.0.0",
+          repo: "oldowner/alpha",
+          enabled: true,
+        },
+      ]),
+    );
+    await service.loadRegistryListings();
+    const installed = provider.requirePreferences().getInstalledPlugins();
+    assertEquals(installed[0].repo, "newowner/alpha");
+  });
+
+  it("does not rewrite installed repos when listings match", async () => {
+    const { service, provider } = makeService({
+      remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
+    });
+    provider.$preferences.set(
+      provider
+        .requirePreferences()
+        .setInstalledPlugins([
+          { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
+        ]),
+    );
+    const before = provider.$preferences.get();
+    await service.loadRegistryListings();
+    assertEquals(provider.$preferences.get(), before);
+  });
+
   it("returns only remote listings when localRegistry is absent", async () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
