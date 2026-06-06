@@ -259,7 +259,9 @@ export function profileCardTemplate({
               <img
                 src="${profile.banner}"
                 alt="${profile.displayName} banner"
-                class="profile-banner"
+                class=${classnames("profile-banner", {
+                  "profile-banner--blurred": !!profile.blurLabel,
+                })}
               />
             </lightbox-image-group>
           `

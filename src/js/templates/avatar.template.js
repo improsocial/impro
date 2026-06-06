@@ -51,6 +51,7 @@ export function avatarTemplate({
   // lazyLoad = true,
 }) {
   const isLabeler = isLabelerProfile(author);
+  const isBlurred = !!author.blurLabel;
   const avatarThumbnailUrl = getAvataThumbnailUrl(author, isLabeler);
   const avatarFullSizeUrl = getAvatarFullSizeUrl(author, isLabeler);
   return html`<div class="avatar" data-testid="avatar">
@@ -59,14 +60,23 @@ export function avatarTemplate({
       clickAction,
       children: keyed(
         author.handle,
-        html`<img
-          src="${avatarThumbnailUrl}"
-          alt="${author.displayName} profile picture"
-          class=${classnames("avatar-image", { "labeler-avatar": isLabeler })}
-          data-testid="avatar-image"
-          data-lightbox-src="${avatarFullSizeUrl}"
-          loading=${lazyLoad ? "lazy" : "eager"}
-        />`,
+        html`<div
+          class=${classnames("avatar-image-frame", {
+            "labeler-avatar": isLabeler,
+          })}
+        >
+          <img
+            src="${avatarThumbnailUrl}"
+            alt="${author.displayName} profile picture"
+            class=${classnames("avatar-image", {
+              "labeler-avatar": isLabeler,
+              "avatar-image--blurred": isBlurred,
+            })}
+            data-testid="avatar-image"
+            data-lightbox-src="${avatarFullSizeUrl}"
+            loading=${lazyLoad ? "lazy" : "eager"}
+          />
+        </div>`,
       ),
     })}
   </div>`;

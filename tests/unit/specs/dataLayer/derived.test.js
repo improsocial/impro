@@ -34,6 +34,7 @@ function fakePreferences(overrides = {}) {
     getBadgeLabels: () => [],
     getContentLabel: () => null,
     getMediaLabel: () => null,
+    getProfileBlurLabel: () => null,
     clone() {
       return this;
     },

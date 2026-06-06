@@ -70,6 +70,13 @@ function applyLabelsToPost(post, preferences) {
   if (mediaLabel) {
     result = { ...result, mediaLabel };
   }
+  const authorBlurLabel = preferences.getProfileBlurLabel(result.author);
+  if (authorBlurLabel) {
+    result = {
+      ...result,
+      author: { ...result.author, blurLabel: authorBlurLabel },
+    };
+  }
   return result;
 }
 
@@ -306,9 +313,15 @@ export class Derived extends ReactiveStore {
         };
       });
     });
-    this.$hydratedProfiles = new ComputedMap((did) =>
-      this.patchStore.$patchedProfiles.get(did),
-    );
+    this.$hydratedProfiles = new ComputedMap((did) => {
+      const profile = this.patchStore.$patchedProfiles.get(did);
+      if (!profile) return profile;
+      const preferences = this.$preferences.get();
+      if (!preferences) return profile;
+      const blurLabel = preferences.getProfileBlurLabel(profile);
+      if (!blurLabel) return profile;
+      return { ...profile, blurLabel };
+    });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
       const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
       if (!rawFeed) {

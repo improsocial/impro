@@ -321,6 +321,32 @@ export class Preferences {
     return this._getLabelByBlurType(post, "media");
   }
 
+  getProfileBlurLabel(profileOrAuthor) {
+    const labels = profileOrAuthor?.labels ?? [];
+    let currentLabel = null;
+    for (const label of labels) {
+      const result = this.getLabelDefinitionAndLabeler(label);
+      if (!result) continue;
+      const { labelDefinition, labeler } = result;
+      if (
+        labelDefinition.blurs !== "content" &&
+        labelDefinition.blurs !== "media"
+      ) {
+        continue;
+      }
+      const visibility = this.getLabelVisibility(label, labelDefinition);
+      if (visibility === "ignore") continue;
+      const entry = { visibility, label, labelDefinition, labeler };
+      if (visibility === "hide") {
+        return entry;
+      }
+      if (visibility === "warn" && !currentLabel) {
+        currentLabel = entry;
+      }
+    }
+    return currentLabel;
+  }
+
   isPostHidden(postUri) {
     const hiddenPostsPreference = Preferences.getHiddenPostsPreference(
       this.obj,
