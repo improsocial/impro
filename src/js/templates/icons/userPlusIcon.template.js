@@ -51,22 +51,28 @@ export function userPlusIconTemplate({ filled = false } = ({} = {})) {
           viewBox="0 0 24 24"
           fill="none"
         >
-          <circle
-            cx="10"
-            cy="7"
-            r="4.5"
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-          />
-          <path
-            stroke="currentColor"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M3 20a7.5 7.5 0 0 1 13.04-5.083"
-          />
+          <mask id="user-plus-cutout-outline">
+            <rect width="24" height="24" fill="white" />
+            <circle cx="18.5" cy="18.5" r="6" fill="black" />
+          </mask>
+          <g mask="url(#user-plus-cutout-outline)">
+            <circle
+              cx="10"
+              cy="7"
+              r="4.5"
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+            />
+            <path
+              stroke="currentColor"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M3 20a7.5 7.5 0 0 1 13.04-5.083"
+            />
+          </g>
           <path
             stroke="currentColor"
             stroke-linecap="round"

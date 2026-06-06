@@ -87,14 +87,18 @@ export function getPermalinkForProfile(profile) {
   return getPermalinkOrigin() + linkToProfile(profile);
 }
 
-export function linkToLogin() {
-  const { pathname, search, hash } = window.location;
-  if (pathname === "/login" || pathname === "/") {
-    return "/login";
-  }
+export function linkToLogin({ query = {} } = {}) {
   const params = new URLSearchParams();
-  params.set("returnTo", pathname + search + hash);
-  return "/login?" + params.toString();
+  for (const [key, value] of Object.entries(query)) {
+    if (value === undefined || value === null) continue;
+    params.set(key, String(value));
+  }
+  const { pathname, search, hash } = window.location;
+  if (pathname !== "/login" && pathname !== "/") {
+    params.set("returnTo", pathname + search + hash);
+  }
+  const queryString = params.toString();
+  return queryString ? "/login?" + queryString : "/login";
 }
 
 export function validateReturnToParam(raw) {

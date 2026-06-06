@@ -6013,6 +6013,9 @@ img[data-lightbox] {
   cursor: pointer;
   background: none;
   border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
 }
 
 .vertical-nav hr {
@@ -6064,6 +6067,76 @@ img[data-lightbox] {
 
 .vertical-nav-arrow .icon path {
   stroke: var(--text-color-muted);
+}
+
+.settings-account-avatar-stack {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.settings-account-avatar-stack .avatar {
+  margin-left: -8px;
+}
+
+.settings-account-avatar-stack .avatar:first-child {
+  margin-left: 0;
+}
+
+.settings-account-avatar-stack .avatar .avatar-image-frame {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--background-color);
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.settings-account-avatar-stack .avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-testid="settings-account-row"]
+  .vertical-nav-icon
+  .avatar
+  .avatar-image-frame {
+  width: 26px;
+  height: 26px;
+  border: none;
+}
+
+/* Keep the inline context-menu host out of flex layout so it doesn't add a
+   `gap` between the ellipsis trigger and the right edge of the row. */
+[data-testid="settings-account-row"] > context-menu {
+  position: absolute;
+}
+
+.settings-switch-account-placeholder {
+  height: 50px;
+}
+
+.settings-account-ellipsis {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color-muted);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.settings-account-ellipsis span {
+  position: relative;
+  top: -4px;
+  font-weight: 600;
 }
 
 moderation-warning {

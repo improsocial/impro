@@ -10,9 +10,18 @@ import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
+import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
 import { classnames } from "/js/utils.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
+import { linkToLogin } from "/js/navigation.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
 import { confirm } from "/js/modals.js";
+import { Signal } from "/js/signals.js";
+import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
+import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
+import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 class SettingsView extends View {
   async render({
@@ -25,7 +34,131 @@ class SettingsView extends View {
       pluginService,
     },
   }) {
-    await auth.requireAuth();
+    const currentSession = await auth.requireAuth();
+    const supportsMultipleAccounts = auth.supportsMultipleAccounts();
+
+    const $otherAccounts = new Signal.State(null);
+    const $otherAccountProfiles = new Signal.State({});
+    const $accountSwitcherExpanded = new Signal.State(false);
+
+    function accountsSwitcherTemplate({
+      expanded,
+      accounts,
+      accountProfiles,
+      onToggle,
+      onSwitch,
+      onAdd,
+      onRemove,
+    }) {
+      const hasOthers = accounts.length > 0;
+      return html`
+        <button
+          class="vertical-nav-item"
+          data-testid="settings-switch-account-toggle"
+          data-teststate=${expanded ? "expanded" : "collapsed"}
+          aria-expanded=${hasOthers ? (expanded ? "true" : "false") : null}
+          @click=${hasOthers ? onToggle : onAdd}
+        >
+          <span class="vertical-nav-icon"
+            >${hasOthers ? userIconTemplate() : userPlusIconTemplate()}</span
+          >
+          <span class="vertical-nav-label"
+            >${hasOthers ? "Switch account" : "Add another account"}</span
+          >
+          ${!hasOthers
+            ? null
+            : expanded
+              ? html`<span class="vertical-nav-arrow"
+                  >${chevronUpIconTemplate()}</span
+                >`
+              : html`<span
+                  class="settings-account-avatar-stack"
+                  data-testid="settings-account-avatar-stack"
+                >
+                  ${accounts.slice(0, 5).map((account) => {
+                    const profile = accountProfiles[account.did] ?? null;
+                    if (!profile) {
+                      return null;
+                    }
+                    return avatarTemplate({
+                      author: profile,
+                    });
+                  })}
+                </span>`}
+        </button>
+        ${expanded && hasOthers
+          ? html`
+              <div
+                class="settings-accounts-list"
+                data-testid="settings-accounts"
+              >
+                ${accounts.map((account) => {
+                  const profile = accountProfiles[account.did] ?? null;
+                  return html`
+                    <div
+                      class="vertical-nav-item"
+                      data-testid="settings-account-row"
+                      data-account-did=${account.did}
+                      role="button"
+                      tabindex="0"
+                      @click=${() => onSwitch(account.did)}
+                      @keydown=${(event) => {
+                        if (event.target !== event.currentTarget) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          onSwitch(account.did);
+                        }
+                      }}
+                    >
+                      ${profile
+                        ? html`<span class="vertical-nav-icon"
+                            >${avatarTemplate({ author: profile })}</span
+                          >`
+                        : null}
+                      <span class="vertical-nav-label">
+                        ${getDisplayName(account)}
+                      </span>
+                      <button
+                        class="settings-account-ellipsis"
+                        data-testid="settings-account-menu-trigger"
+                        aria-label="Account actions"
+                        @click=${function (event) {
+                          event.stopPropagation();
+                          this.nextElementSibling.open(
+                            event.clientX,
+                            event.clientY,
+                          );
+                        }}
+                      >
+                        <span>⋯</span>
+                      </button>
+                      <context-menu>
+                        <context-menu-item
+                          data-testid="settings-account-remove"
+                          @click=${() => onRemove(account)}
+                        >
+                          Remove account
+                        </context-menu-item>
+                      </context-menu>
+                    </div>
+                  `;
+                })}
+                <button
+                  class="vertical-nav-item"
+                  data-testid="settings-account-add"
+                  @click=${onAdd}
+                >
+                  <span class="vertical-nav-icon"
+                    >${userPlusIconTemplate()}</span
+                  >
+                  <span class="vertical-nav-label">Add account</span>
+                </button>
+              </div>
+            `
+          : null}
+        <hr />
+      `;
+    }
 
     const menuItems = [
       {
@@ -78,6 +211,9 @@ class SettingsView extends View {
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
+      const otherAccounts = $otherAccounts.get();
+      const otherAccountProfiles = $otherAccountProfiles.get();
+      if (otherAccounts === null) return;
       render(
         html`<div id="settings-view">
           ${mainLayoutTemplate({
@@ -105,6 +241,41 @@ class SettingsView extends View {
               })}
               <main>
                 <nav class="vertical-nav">
+                  ${supportsMultipleAccounts
+                    ? accountsSwitcherTemplate({
+                        expanded: $accountSwitcherExpanded.get(),
+                        accounts: otherAccounts,
+                        accountProfiles: otherAccountProfiles,
+                        onToggle: () =>
+                          $accountSwitcherExpanded.set(
+                            !$accountSwitcherExpanded.get(),
+                          ),
+                        onSwitch: (did) => auth.switchAccount(did),
+                        onAdd: () => {
+                          window.location.href = linkToLogin({
+                            query: { addAccount: 1 },
+                          });
+                        },
+                        onRemove: async (account) => {
+                          const ok = await confirm(
+                            `Remove @${account.handle} from this device?`,
+                            {
+                              title: "Remove account?",
+                              confirmButtonStyle: "danger",
+                              confirmButtonText: "Remove",
+                            },
+                          );
+                          if (!ok) return;
+                          await auth.removeAccount(account.did);
+                          await loadOtherAccounts();
+                          const stillHasOthers =
+                            $otherAccounts.get().length > 0;
+                          if (!stillHasOthers) {
+                            $accountSwitcherExpanded.set(false);
+                          }
+                        },
+                      })
+                    : null}
                   ${menuItems.map(
                     (item) => html`
                       <a
@@ -174,8 +345,32 @@ class SettingsView extends View {
       );
     });
 
+    async function loadOtherAccounts() {
+      const accounts = await auth.listAccounts();
+      const otherAccounts = accounts.filter(
+        (account) => account.did !== currentSession.did,
+      );
+      $otherAccounts.set(otherAccounts);
+    }
+
+    pageEffect(root, () => {
+      // Load account profiles
+      const otherAccounts = $otherAccounts.get();
+      if (otherAccounts === null) return;
+      dataLayer.declarative
+        .ensureProfiles(otherAccounts.map((account) => account.did))
+        .then((profiles) => {
+          const profilesByDid = {};
+          for (const profile of profiles) {
+            profilesByDid[profile.did] = profile;
+          }
+          $otherAccountProfiles.set(profilesByDid);
+        });
+    });
+
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();
+      loadOtherAccounts();
     });
 
     root.addEventListener("page-restore", () => {

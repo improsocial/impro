@@ -410,6 +410,24 @@ t.describe("linkToLogin", (it) => {
       );
     });
   });
+
+  it("includes extra query params when provided", () => {
+    withPath("/settings", () => {
+      assertEquals(
+        linkToLogin({ query: { addAccount: 1 } }),
+        "/login?addAccount=1&returnTo=%2Fsettings",
+      );
+    });
+  });
+
+  it("omits returnTo when called from /login", () => {
+    withPath("/login", () => {
+      assertEquals(
+        linkToLogin({ query: { addAccount: 1 } }),
+        "/login?addAccount=1",
+      );
+    });
+  });
 });
 
 await t.run();
