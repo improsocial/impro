@@ -6018,6 +6018,10 @@ img[data-lightbox] {
   font: inherit;
 }
 
+.vertical-nav-item:not(.danger-button) {
+  color: inherit;
+}
+
 .vertical-nav hr {
   margin: 0;
 }
