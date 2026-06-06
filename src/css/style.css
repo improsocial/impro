@@ -2032,7 +2032,7 @@ button.sidebar-plugin-nav-item {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .post-actions-primary {
@@ -2045,7 +2045,7 @@ button.sidebar-plugin-nav-item {
   display: flex;
   justify-content: flex-end;
   align-items: center;
-  gap: 4px;
+  gap: 8px;
 }
 
 .post-actions-secondary .post-action {
@@ -2085,16 +2085,14 @@ button.sidebar-plugin-nav-item {
   display: flex;
   align-items: center;
   justify-content: flex-start;
-  gap: 5px;
+  gap: 7px;
   border: none;
   background: none;
   cursor: pointer;
   color: var(--post-action-icon-color);
   transition: background-color 0.2s;
   min-width: 30px;
-  margin-top: -1px;
-  padding-top: 8px;
-  padding-bottom: 7px;
+  padding: 5px;
 }
 
 .post-action-button[disabled] {
