@@ -8,9 +8,10 @@ You can try it out here: https://impro.social
 
 Impro is:
 
-- **Web-first**: Impro was built from scratch for the web, with no heavy cross-platform frameworks or libraries. This enables fast and reliable performance on desktop and mobile browsers.
-- **Familiar by default, extensible by design:** Out of the box, Impro offers the same feature set as the main Bluesky client. If you want additional functionality, you can use [Community Plugins](/plugins.md) to customize your experience.
-- **Better blocking behavior**: Unlike the main client's "nuclear block", blocked quotes are not hidden unless the post author is blocking the current user. Additionally, blocked replies are shown unless the author is blocking the current user.
+- **Web-first**: Impro was built from scratch for the web, with no heavy cross-platform frameworks or libraries.
+- **Familiar by default:** Out of the box, Impro offers the same feature set as the main Bluesky client.
+- **Extensible by design:** If you want additional functionality, you can use [Community Plugins](/plugins.md) to customize your experience.
+- **Better about blocking**: Unlike the main client's "nuclear block", thread context is preserved for non-blocked users.
 
 ## Issues and feature requests
 
