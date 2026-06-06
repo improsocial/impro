@@ -2024,7 +2024,8 @@ button.sidebar-plugin-nav-item {
   align-items: center;
   gap: 12px;
   height: 28px;
-  padding-top: 2px;
+  padding-top: 4px;
+  margin-bottom: 4px;
 }
 
 .large-post .post-actions {
