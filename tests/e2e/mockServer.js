@@ -726,6 +726,34 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.muteActorList*", (route) => {
+      const body = route.request().postDataJSON();
+      const listUri = body?.list;
+      const list = this.lists.find((l) => l.uri === listUri);
+      if (list) {
+        list.viewer = { ...list.viewer, muted: true };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.unmuteActorList*", (route) => {
+      const body = route.request().postDataJSON();
+      const listUri = body?.list;
+      const list = this.lists.find((l) => l.uri === listUri);
+      if (list) {
+        list.viewer = { ...list.viewer, muted: false };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
     await page.route(
       "**/xrpc/app.bsky.notification.putActivitySubscription*",
       (route) => {
@@ -1378,6 +1406,18 @@ export class MockServer {
         }
       }
 
+      if (collection === "app.bsky.graph.listblock") {
+        for (const list of this.lists) {
+          if (
+            list.viewer?.blocked &&
+            list.viewer.blocked.split("/").pop() === rkey
+          ) {
+            list.viewer = { ...list.viewer, blocked: undefined };
+            break;
+          }
+        }
+      }
+
       if (collection === "app.bsky.feed.post") {
         const postUri = `at://${userProfile.did}/${collection}/${rkey}`;
         this.timelinePosts = this.timelinePosts.filter(
@@ -1615,6 +1655,14 @@ export class MockServer {
         const profile = this.profiles.get(subjectDid);
         if (profile) {
           profile.viewer = { ...profile.viewer, blocking: uri };
+        }
+      }
+
+      if (collection === "app.bsky.graph.listblock") {
+        const subjectUri = body?.record?.subject;
+        const list = this.lists.find((l) => l.uri === subjectUri);
+        if (list) {
+          list.viewer = { ...list.viewer, blocked: uri };
         }
       }
 

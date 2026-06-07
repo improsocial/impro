@@ -232,6 +232,171 @@ test.describe("List Detail view", () => {
     );
   });
 
+  test.describe("Moderation list subscription", () => {
+    const MOD_LIST_URI = "at://did:plc:creator1/app.bsky.graph.list/modlist";
+
+    function setupModList(mockServer, { viewer = {} } = {}) {
+      const list = createList({
+        uri: MOD_LIST_URI,
+        name: "Spammers",
+        creatorHandle: "creator1.bsky.social",
+        purpose: "app.bsky.graph.defs#modlist",
+      });
+      list.viewer = viewer;
+      mockServer.addLists([list]);
+      return list;
+    }
+
+    test("should show Subscribe button on moderation lists", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const button = page.locator('[data-testid="subscribe-list-button"]');
+      await expect(button).toBeVisible({ timeout: 10000 });
+      await expect(button).toHaveAttribute("data-teststate", "not-subscribed");
+      await expect(button).toContainText("Subscribe");
+    });
+
+    test("should not show Subscribe button on curate lists", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+      await expect(page.locator('[data-testid="pin-list-button"]')).toBeVisible(
+        { timeout: 10000 },
+      );
+      await expect(
+        page.locator('[data-testid="subscribe-list-button"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should mute a moderation list via the Subscribe menu", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const button = page.locator('[data-testid="subscribe-list-button"]');
+      await expect(button).toBeVisible({ timeout: 10000 });
+      await button.click();
+
+      await page.locator('[data-testid="menu-action-list-mute"]').click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      await expect(button).toHaveAttribute("data-teststate", "muted", {
+        timeout: 10000,
+      });
+      await expect(button).toContainText("Unmute list");
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+    });
+
+    test("should block a moderation list via the Subscribe menu", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const button = page.locator('[data-testid="subscribe-list-button"]');
+      await expect(button).toBeVisible({ timeout: 10000 });
+      await button.click();
+
+      await page.locator('[data-testid="menu-action-list-block"]').click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      await expect(button).toHaveAttribute("data-teststate", "blocked", {
+        timeout: 10000,
+      });
+      await expect(button).toContainText("Unblock list");
+    });
+
+    test("should unmute a moderation list when already muted", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer, { viewer: { muted: true } });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const button = page.locator('[data-testid="subscribe-list-button"]');
+      await expect(button).toHaveAttribute("data-teststate", "muted", {
+        timeout: 10000,
+      });
+      await button.click();
+
+      await expect(button).toHaveAttribute("data-teststate", "not-subscribed", {
+        timeout: 10000,
+      });
+      await expect(button).toContainText("Subscribe");
+    });
+
+    test("should unblock a moderation list when already blocked", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer, {
+        viewer: {
+          blocked: "at://did:plc:test/app.bsky.graph.listblock/abc",
+        },
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const button = page.locator('[data-testid="subscribe-list-button"]');
+      await expect(button).toHaveAttribute("data-teststate", "blocked", {
+        timeout: 10000,
+      });
+      await button.click();
+
+      await expect(button).toHaveAttribute("data-teststate", "not-subscribed", {
+        timeout: 10000,
+      });
+    });
+
+    test("should show Subscribe button on the user's own moderation list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const list = createList({
+        uri: "at://did:plc:testuser123/app.bsky.graph.list/mine",
+        name: "My ModList",
+        creatorHandle: "testuser.bsky.social",
+        purpose: "app.bsky.graph.defs#modlist",
+      });
+      mockServer.addLists([list]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/mine");
+
+      await expect(
+        page.locator('[data-testid="subscribe-list-button"]'),
+      ).toBeVisible({ timeout: 10000 });
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

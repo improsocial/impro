@@ -692,6 +692,60 @@ export class Mutations {
     }
   }
 
+  async muteModList(list) {
+    try {
+      await this.api.muteModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, muted: true },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async unmuteModList(list) {
+    try {
+      await this.api.unmuteModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, muted: false },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async blockModList(list) {
+    try {
+      const block = await this.api.blockModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, blocked: block.uri },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async unblockModList(list) {
+    const blockUri = list.viewer?.blocked;
+    if (!blockUri) return;
+    try {
+      await this.api.unblockModList(blockUri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, blocked: null },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
   async updateProfile(
     profile,
     {

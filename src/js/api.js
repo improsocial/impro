@@ -994,6 +994,62 @@ export class Api {
     return res.data;
   }
 
+  async muteModList(listUri) {
+    const res = await this.request("app.bsky.graph.muteActorList", {
+      method: "POST",
+      body: {
+        list: listUri,
+      },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async unmuteModList(listUri) {
+    const res = await this.request("app.bsky.graph.unmuteActorList", {
+      method: "POST",
+      body: {
+        list: listUri,
+      },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async blockModList(listUri) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listblock",
+        record: {
+          createdAt: getCurrentTimestamp(),
+          subject: listUri,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async unblockModList(blockUri) {
+    const rkey = blockUri.split("/").pop();
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listblock",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
   async createPost({ text, facets, embed, reply, langs }) {
     const record = {
       text,

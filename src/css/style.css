@@ -8143,3 +8143,7 @@ p.setting-item-desc {
     display: flex !important;
   }
 }
+
+.subscribe-list-button {
+  margin-right: 12px;
+}
