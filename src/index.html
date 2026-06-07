@@ -74,6 +74,7 @@
       import profileView from "/js/views/profile.view.js";
       import profileFollowersView from "/js/views/profileFollowers.view.js";
       import profileFollowingView from "/js/views/profileFollowing.view.js";
+      import profileKnownFollowersView from "/js/views/profileKnownFollowers.view.js";
       import searchView from "/js/views/search.view.js";
       import hashtagView from "/js/views/hashtag.view.js";
       import notFoundView from "/js/views/notFound.view.js";
@@ -277,6 +278,10 @@
         router.addRoute(
           "/profile/:handleOrDid/post/:rkey",
           () => postThreadView,
+        );
+        router.addRoute(
+          "/profile/:handleOrDid/known-followers",
+          () => profileKnownFollowersView,
         );
         router.addRoute(
           "/profile/:handleOrDid/followers",

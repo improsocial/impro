@@ -3997,6 +3997,55 @@ emoji-picker {
   }
 }
 
+.known-followers-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 16px;
+  color: var(--text-color-muted);
+  font-size: 14px;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+@media (min-width: 800px) {
+  .known-followers-summary:hover .known-followers-text {
+    text-decoration: underline;
+  }
+}
+
+.known-followers-summary strong {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.known-followers-avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.known-followers-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--background-color);
+  overflow: hidden;
+  margin-left: -8px;
+}
+
+.known-followers-avatar:first-child {
+  margin-left: 0;
+}
+
+.known-followers-avatar .avatar,
+.known-followers-avatar .avatar-image-frame,
+.known-followers-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+}
+
 .profile-description {
   margin-top: 12px;
   padding: 0 16px 0px 16px;

@@ -136,6 +136,10 @@ export class Requests {
       this.loadProfileFollows,
       (profileDid) => "loadProfileFollows-" + profileDid,
     );
+    this.enableStatus(
+      this.loadKnownFollowers,
+      (profileDid) => "loadKnownFollowers-" + profileDid,
+    );
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
@@ -1195,6 +1199,24 @@ export class Requests {
     } else {
       // Set new followers
       this.dataStore.$profileFollowers.set(profileDid, res);
+    }
+  }
+
+  async loadKnownFollowers(profileDid, { cursor } = {}) {
+    const labelers = this.requireLabelers();
+    const existing = this.dataStore.$knownFollowers.get(profileDid);
+    const res = await this.api.getKnownFollowers(profileDid, {
+      cursor,
+      labelers,
+    });
+
+    if (existing && cursor) {
+      this.dataStore.$knownFollowers.set(profileDid, {
+        followers: [...existing.followers, ...res.followers],
+        cursor: res.cursor,
+      });
+    } else {
+      this.dataStore.$knownFollowers.set(profileDid, res);
     }
   }
 

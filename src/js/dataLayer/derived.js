@@ -456,6 +456,9 @@ export class Derived extends ReactiveStore {
     this.$profileFollowers = new ComputedMap((did) =>
       this.dataStore.$profileFollowers.get(did),
     );
+    this.$knownFollowers = new ComputedMap((did) =>
+      this.dataStore.$knownFollowers.get(did),
+    );
     this.$mutedProfiles = new Signal.Computed(() =>
       this.dataStore.$mutedProfiles.get(),
     );

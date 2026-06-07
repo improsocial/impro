@@ -875,6 +875,21 @@ export class Api {
     return res.data;
   }
 
+  async getKnownFollowers(actor, { limit = 50, cursor, labelers = [] } = {}) {
+    const query = { actor, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("app.bsky.graph.getKnownFollowers", {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getFollows(actor, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { actor, limit };
     if (cursor) {

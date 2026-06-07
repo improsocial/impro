@@ -3,6 +3,7 @@ import {
   getPermalinkForProfile,
   linkToProfileFollowers,
   linkToProfileFollowing,
+  linkToProfileKnownFollowers,
   linkToSearchPostsByProfile,
 } from "/js/navigation.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -46,10 +47,51 @@ function profileStatsTemplate({ profile }) {
   </div>`;
 }
 
+function knownFollowersSummaryTemplate({ profile }) {
+  const knownFollowers = profile.viewer?.knownFollowers;
+  if (!knownFollowers || knownFollowers.followers.length === 0) {
+    return null;
+  }
+  const avatars = knownFollowers.followers.slice(0, 3);
+  const named = knownFollowers.followers.slice(0, 2);
+  const totalCount = knownFollowers.count ?? knownFollowers.followers.length;
+  const othersCount = Math.max(0, totalCount - named.length);
+  const parts = named.map((follower) => getDisplayName(follower));
+  if (othersCount > 0) {
+    parts.push(`${othersCount} ${othersCount === 1 ? "other" : "others"}`);
+  }
+  let namedText;
+  if (parts.length === 1) {
+    namedText = parts[0];
+  } else if (parts.length === 2) {
+    namedText = `${parts[0]} and ${parts[1]}`;
+  } else {
+    namedText = `${parts[0]}, ${parts[1]}, and ${parts[2]}`;
+  }
+  const summary = `Followed by ${namedText}`;
+  return html`<a
+    class="known-followers-summary"
+    data-testid="known-followers-summary"
+    href=${linkToProfileKnownFollowers(profile)}
+  >
+    <div class="known-followers-avatars">
+      ${avatars.map(
+        (follower) => html`
+          <div class="known-followers-avatar">
+            ${avatarTemplate({ author: follower, clickAction: "none" })}
+          </div>
+        `,
+      )}
+    </div>
+    <div class="known-followers-text">${summary}</div>
+  </a>`;
+}
+
 function profileDescriptionTemplate({
   isLabeler,
   isBlocking,
   isBlockedBy,
+  isCurrentUser,
   profile,
   richTextProfileDescription,
   labelerInfo,
@@ -79,7 +121,9 @@ function profileDescriptionTemplate({
           })}
         </div>`
       : ""}
-    <!-- TODO: Add like button -->
+    ${!isLabeler && !isCurrentUser
+      ? knownFollowersSummaryTemplate({ profile })
+      : null}
   `;
 }
 
@@ -413,6 +457,7 @@ export function profileCardTemplate({
     ${profileDescriptionTemplate({
       isBlocking,
       isBlockedBy,
+      isCurrentUser,
       isLabeler,
       labelerInfo,
       profile,

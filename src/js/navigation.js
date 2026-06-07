@@ -53,6 +53,10 @@ export function linkToProfileFollowing(profile) {
   return `/profile/${encodePathSegment(profileIdentifier(profile))}/following`;
 }
 
+export function linkToProfileKnownFollowers(profile) {
+  return `/profile/${encodePathSegment(profileIdentifier(profile))}/known-followers`;
+}
+
 export function linkToFeed(feedGenerator) {
   return `/profile/${encodePathSegment(profileIdentifier(feedGenerator.creator))}/feed/${encodePathSegment(
     getRKey(feedGenerator),
