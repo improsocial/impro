@@ -2246,6 +2246,7 @@ animated-button {
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--image-border-radius);
   background-color: var(--background-color);
+  object-fit: cover;
 }
 
 .post-image-container .alt-indicator {
