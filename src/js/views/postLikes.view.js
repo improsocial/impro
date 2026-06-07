@@ -19,6 +19,7 @@ class PostLikesView extends View {
       postComposerService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -86,6 +87,10 @@ class PostLikesView extends View {
                     hasMore,
                     onLoadMore: loadLikes,
                     emptyMessage: "No likes yet.",
+                    isAuthenticated,
+                    currentUserDid: currentUser?.did ?? null,
+                    profileInteractionHandler:
+                      interactionHandlers.profileInteractionHandler,
                   });
                 })()}
               </main>`,

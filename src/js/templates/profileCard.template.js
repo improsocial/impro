@@ -19,7 +19,7 @@ import {
   sortBy,
 } from "/js/utils.js";
 import { showSignInModal } from "/js/modals.js";
-import { richTextTemplate } from "/js/templates/richText.template.js";
+import "/js/components/detected-rich-text.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import "/js/components/context-menu.js";
@@ -93,7 +93,7 @@ function profileDescriptionTemplate({
   isBlockedBy,
   isCurrentUser,
   profile,
-  richTextProfileDescription,
+  identityResolver,
   labelerInfo,
 }) {
   if (isBlocking) {
@@ -110,15 +110,16 @@ function profileDescriptionTemplate({
       </div>
     </div>`;
   }
+  const description = profile.description?.trim();
   return html`
     ${!isLabeler ? profileStatsTemplate({ profile }) : null}
-    ${richTextProfileDescription
+    ${description
       ? html`<div class="profile-description">
-          ${richTextTemplate({
-            text: richTextProfileDescription.text,
-            facets: richTextProfileDescription.facets,
-            truncateUrls: true,
-          })}
+          <detected-rich-text
+            text=${description}
+            .identityResolver=${identityResolver}
+            ?truncate-urls=${true}
+          ></detected-rich-text>
         </div>`
       : ""}
     ${!isLabeler && !isCurrentUser
@@ -265,7 +266,7 @@ async function openProfileContextMenu(event, props) {
 
 export function profileCardTemplate({
   profile,
-  richTextProfileDescription,
+  identityResolver,
   isAuthenticated,
   isCurrentUser,
   profileChatStatus = null,
@@ -461,7 +462,7 @@ export function profileCardTemplate({
       isLabeler,
       labelerInfo,
       profile,
-      richTextProfileDescription,
+      identityResolver,
     })}
   </div>`;
 }

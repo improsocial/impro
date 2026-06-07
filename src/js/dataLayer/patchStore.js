@@ -23,6 +23,12 @@ export class PatchStore extends ReactiveStore {
       const patches = this.$profilePatches.get(did) || [];
       return this.applyProfilePatches(profile, patches);
     });
+    this.$patchedDetailedProfiles = new ComputedMap((did) => {
+      const profile = this.dataStore.$detailedProfiles.get(did);
+      if (!profile) return null;
+      const patches = this.$profilePatches.get(did) || [];
+      return this.applyProfilePatches(profile, patches);
+    });
 
     this.$messagePatches = new SignalMap();
     this.$patchedMessages = new ComputedMap((messageId) => {

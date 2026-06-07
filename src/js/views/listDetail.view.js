@@ -45,8 +45,11 @@ class ListDetailView extends View {
     }
     const listUri = `at://${profileDid}/app.bsky.graph.list/${rkey}`;
 
-    const { postInteractionHandler, listInteractionHandler } =
-      interactionHandlers;
+    const {
+      postInteractionHandler,
+      listInteractionHandler,
+      profileInteractionHandler,
+    } = interactionHandlers;
 
     const state = new ReactiveStore("listDetailView");
     state.$activeTab = new Signal.State("posts");
@@ -289,6 +292,10 @@ class ListDetailView extends View {
                             onLoadMore: () => loadMembers(),
                             emptyMessage: "This list has no members.",
                             showEndMessage: true,
+                            isAuthenticated,
+                            currentUserDid: currentUser?.did ?? null,
+                            profileInteractionHandler,
+                            showFollowButton: isCurateList,
                           })}
                         </div>`}
                   </div>

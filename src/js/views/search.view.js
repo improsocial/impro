@@ -103,8 +103,11 @@ class SearchView extends View {
       });
     }
 
-    const { postInteractionHandler, feedInteractionHandler } =
-      interactionHandlers;
+    const {
+      postInteractionHandler,
+      feedInteractionHandler,
+      profileInteractionHandler,
+    } = interactionHandlers;
 
     const handleSearchInput = debounce((value) => {
       state.$searchQuery.set(value);
@@ -188,6 +191,7 @@ class SearchView extends View {
       status,
       profileSearchResults,
       profileSearchHasMore,
+      currentUser,
     }) {
       if (!profileSearchResults && status.loading) {
         return html`<div class="search-status-message">
@@ -212,6 +216,9 @@ class SearchView extends View {
         profiles: profileSearchResults,
         hasMore: profileSearchHasMore,
         onLoadMore: loadMoreProfiles,
+        isAuthenticated,
+        currentUserDid: currentUser?.did ?? null,
+        profileInteractionHandler,
       });
     }
 
@@ -432,6 +439,7 @@ class SearchView extends View {
                                 status: profileStatus,
                                 profileSearchResults,
                                 profileSearchHasMore,
+                                currentUser,
                               })}
                             </div>
                           </div>

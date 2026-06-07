@@ -358,7 +358,7 @@ class SettingsView extends View {
       const otherAccounts = $otherAccounts.get();
       if (otherAccounts === null) return;
       dataLayer.declarative
-        .ensureProfiles(otherAccounts.map((account) => account.did))
+        .ensureDetailedProfiles(otherAccounts.map((account) => account.did))
         .then((profiles) => {
           const profilesByDid = {};
           for (const profile of profiles) {

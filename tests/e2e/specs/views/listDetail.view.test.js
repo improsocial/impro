@@ -232,6 +232,115 @@ test.describe("List Detail view", () => {
     );
   });
 
+  test("should render bio, follows-you, and follow-state per list member", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    const followsBack = createProfile({
+      did: "did:plc:followsback1",
+      handle: "followsback.bsky.social",
+      displayName: "Follows Back",
+      description: "I follow you and have a bio.",
+      viewer: { followedBy: "at://did:plc:followsback1/follow/1" },
+    });
+    const alreadyFollowing = createProfile({
+      did: "did:plc:already1",
+      handle: "already.bsky.social",
+      displayName: "Already Following",
+      description: "",
+      viewer: { following: "at://did:plc:viewer/follow/abc" },
+    });
+    const stranger = createProfile({
+      did: "did:plc:stranger1",
+      handle: "stranger.bsky.social",
+      displayName: "Stranger",
+      description: "A stranger with a description.",
+    });
+    mockServer.addListMembers(LIST_URI, [
+      followsBack,
+      alreadyFollowing,
+      stranger,
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await view.locator('[data-testid="tab-people"]').click();
+
+    const followsBackRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Follows Back" });
+    const alreadyRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Already Following" });
+    const strangerRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Stranger" });
+
+    await expect(
+      followsBackRow.locator('[data-testid="follows-you-badge"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      alreadyRow.locator('[data-testid="follows-you-badge"]'),
+    ).toHaveCount(0);
+    await expect(
+      strangerRow.locator('[data-testid="follows-you-badge"]'),
+    ).toHaveCount(0);
+
+    await expect(
+      followsBackRow.locator('[data-testid="profile-list-item-description"]'),
+    ).toContainText("I follow you and have a bio.");
+    await expect(
+      alreadyRow.locator('[data-testid="profile-list-item-description"]'),
+    ).toHaveCount(0);
+
+    await expect(
+      followsBackRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "follow-back");
+    await expect(
+      alreadyRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "following");
+    await expect(
+      strangerRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "follow");
+  });
+
+  test("clicking the follow button on a list member toggles to following", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    const target = createProfile({
+      did: "did:plc:target1",
+      handle: "target.bsky.social",
+      displayName: "Target User",
+    });
+    mockServer.addListMembers(LIST_URI, [target]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await view.locator('[data-testid="tab-people"]').click();
+
+    const targetRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Target User" });
+
+    const followButton = targetRow.locator('[data-testid="follow-button"]');
+    await expect(followButton).toHaveAttribute("data-teststate", "follow", {
+      timeout: 10000,
+    });
+    await followButton.click();
+    await expect(followButton).toHaveAttribute("data-teststate", "following", {
+      timeout: 10000,
+    });
+  });
+
   test.describe("Moderation list subscription", () => {
     const MOD_LIST_URI = "at://did:plc:creator1/app.bsky.graph.list/modlist";
 
@@ -373,6 +482,31 @@ test.describe("List Detail view", () => {
       await expect(button).toHaveAttribute("data-teststate", "not-subscribed", {
         timeout: 10000,
       });
+    });
+
+    test("should not show follow buttons on moderation list members", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupModList(mockServer);
+      const member = createProfile({
+        did: "did:plc:modmember1",
+        handle: "modmember.bsky.social",
+        displayName: "Mod Member",
+      });
+      mockServer.addListMembers(MOD_LIST_URI, [member]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/modlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(view.locator('[data-testid="follow-button"]')).toHaveCount(
+        0,
+      );
     });
 
     test("should show Subscribe button on the user's own moderation list", async ({

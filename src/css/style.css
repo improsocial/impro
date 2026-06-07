@@ -3961,7 +3961,7 @@ emoji-picker {
   padding: 3px 8px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
-  min-width: fit-content;
+  width: fit-content;
 }
 
 .profile-blocked-badge {
@@ -4115,11 +4115,17 @@ emoji-picker {
 
 .profile-list-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   cursor: pointer;
+}
+
+.profile-list-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 @media (min-width: 800px) {
@@ -4163,13 +4169,33 @@ emoji-picker {
 }
 
 .profile-list-item-handle {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.profile-list-item-follow {
+  margin-left: auto;
+  align-self: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.profile-list-item-skeleton-bio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .profile-list-item-description {
   font-size: 13px;
   color: var(--text-color-muted);
+}
+
+.profile-list-item-description .rich-text {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;

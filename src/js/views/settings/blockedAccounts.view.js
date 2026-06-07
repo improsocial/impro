@@ -78,6 +78,7 @@ class SettingsBlockedAccountsView extends View {
                     hasMore,
                     onLoadMore: loadMore,
                     emptyMessage: "You haven't blocked any accounts.",
+                    showFollowButton: false,
                   });
                 })()}
               </main>`,

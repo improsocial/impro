@@ -93,7 +93,10 @@ export class Requests {
       this.loadNextFeedPage,
       (feedURI) => "loadNextFeedPage-" + feedURI,
     );
-    this.enableStatus(this.loadProfile, (did) => "loadProfile-" + did);
+    this.enableStatus(
+      this.loadDetailedProfile,
+      (did) => "loadDetailedProfile-" + did,
+    );
     this.enableStatus(
       this.loadProfileSearch,
       (query) => "loadProfileSearch-" + query,
@@ -452,18 +455,20 @@ export class Requests {
     }
   }
 
-  async loadProfile(did) {
+  async loadDetailedProfile(did) {
     const labelers = this.requireLabelers();
     const profile = await this.api.getProfile(did, { labelers });
     this.dataStore.$profiles.set(did, profile);
+    this.dataStore.$detailedProfiles.set(did, profile);
   }
 
-  async loadProfiles(dids) {
+  async loadDetailedProfiles(dids) {
     if (dids.length === 0) return;
     const labelers = this.requireLabelers();
     const profiles = await this.api.getProfiles(dids, { labelers });
     for (const profile of profiles) {
       this.dataStore.$profiles.set(profile.did, profile);
+      this.dataStore.$detailedProfiles.set(profile.did, profile);
     }
   }
 
@@ -486,6 +491,7 @@ export class Requests {
     if (requestTime !== this.dataStore.$latestProfileSearchRequestTime.get()) {
       return;
     }
+    this.dataStore.setProfiles(searchData.actors);
     const existingResults = this.dataStore.$profileSearchResults.get();
     if (existingResults && cursor) {
       this.dataStore.$profileSearchResults.set({
@@ -818,6 +824,7 @@ export class Requests {
     const labelers = this.requireLabelers();
     const existingLikes = this.dataStore.$postLikes.get(postUri);
     const res = await this.api.getLikes(postUri, { cursor, labelers });
+    this.dataStore.setProfiles(res.likes.map((like) => like.actor));
 
     if (existingLikes && cursor) {
       // Append to existing likes
@@ -863,6 +870,7 @@ export class Requests {
     const labelers = this.requireLabelers();
     const existingReposts = this.dataStore.$postReposts.get(postUri);
     const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
+    this.dataStore.setProfiles(res.repostedBy);
 
     if (existingReposts && cursor) {
       // Append to existing reposts
@@ -933,6 +941,7 @@ export class Requests {
     }
     const data = await this.api.getList(listUri, { limit, cursor });
     const newMembers = (data.items ?? []).map((item) => item.subject);
+    this.dataStore.setProfiles(newMembers);
     if (reload || !existing) {
       this.dataStore.$listMembers.set(listUri, {
         members: newMembers,
@@ -1189,6 +1198,7 @@ export class Requests {
     const labelers = this.requireLabelers();
     const existingFollowers = this.dataStore.$profileFollowers.get(profileDid);
     const res = await this.api.getFollowers(profileDid, { cursor, labelers });
+    this.dataStore.setProfiles(res.followers);
 
     if (existingFollowers && cursor) {
       // Append to existing followers
@@ -1209,6 +1219,7 @@ export class Requests {
       cursor,
       labelers,
     });
+    this.dataStore.setProfiles(res.followers);
 
     if (existing && cursor) {
       this.dataStore.$knownFollowers.set(profileDid, {
@@ -1224,6 +1235,7 @@ export class Requests {
     const labelers = this.requireLabelers();
     const existingFollows = this.dataStore.$profileFollows.get(profileDid);
     const res = await this.api.getFollows(profileDid, { cursor, labelers });
+    this.dataStore.setProfiles(res.follows);
 
     if (existingFollows && cursor) {
       // Append to existing follows

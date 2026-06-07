@@ -195,7 +195,8 @@ t.describe("component integration", (it) => {
     await dataLayer.initializePreferences();
 
     // Verify declarative can access derived
-    const profile = await dataLayer.declarative.ensureProfile("did:test:user");
+    const profile =
+      await dataLayer.declarative.ensureDetailedProfile("did:test:user");
     assert(profile !== null);
   });
 });

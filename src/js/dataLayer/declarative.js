@@ -15,11 +15,11 @@ export class Declarative {
     return currentUser;
   }
 
-  async ensureProfile(profileDid) {
-    const getProfile = (did) => this.derived.$hydratedProfiles.get(did);
+  async ensureDetailedProfile(profileDid) {
+    const getProfile = (did) => this.derived.$hydratedDetailedProfiles.get(did);
     let profile = getProfile(profileDid);
     if (!profile) {
-      await this.requests.loadProfile(profileDid);
+      await this.requests.loadDetailedProfile(profileDid);
       profile = getProfile(profileDid);
     }
     if (!profile) {
@@ -28,11 +28,11 @@ export class Declarative {
     return profile;
   }
 
-  async ensureProfiles(profileDids) {
-    const getProfile = (did) => this.derived.$hydratedProfiles.get(did);
+  async ensureDetailedProfiles(profileDids) {
+    const getProfile = (did) => this.derived.$hydratedDetailedProfiles.get(did);
     const missing = profileDids.filter((did) => !getProfile(did));
     if (missing.length > 0) {
-      await this.requests.loadProfiles(missing);
+      await this.requests.loadDetailedProfiles(missing);
     }
     return profileDids.map((did) => getProfile(did) ?? null);
   }

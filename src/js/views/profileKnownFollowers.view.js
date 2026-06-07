@@ -19,6 +19,8 @@ class ProfileKnownFollowersView extends View {
       chatNotificationService,
       postComposerService,
       pluginService,
+      interactionHandlers,
+      isAuthenticated,
     },
   }) {
     await auth.requireAuth();
@@ -47,7 +49,8 @@ class ProfileKnownFollowersView extends View {
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const knownFollowers = dataLayer.derived.$knownFollowers.get(profileDid);
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
+      const profile =
+        dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
       const requestStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadKnownFollowers-" + profileDid,
       );
@@ -79,6 +82,10 @@ class ProfileKnownFollowersView extends View {
                     emptyMessage: profile
                       ? `You don't follow anyone who follows @${profile.handle}.`
                       : "You don't follow anyone who follows this user.",
+                    isAuthenticated,
+                    currentUserDid: currentUser?.did ?? null,
+                    profileInteractionHandler:
+                      interactionHandlers.profileInteractionHandler,
                   });
                 })()}
               </main>`,
@@ -96,7 +103,7 @@ class ProfileKnownFollowersView extends View {
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();
-      dataLayer.declarative.ensureProfile(profileDid);
+      dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadKnownFollowers();
     });
 

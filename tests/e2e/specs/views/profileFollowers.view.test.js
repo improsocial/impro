@@ -179,6 +179,113 @@ test.describe("Profile followers view", () => {
     );
   });
 
+  test("should render bio, follows-you, and follow-state per follower", async ({
+    page,
+  }) => {
+    const followsBack = createProfile({
+      did: "did:plc:followsback1",
+      handle: "followsback.bsky.social",
+      displayName: "Follows Back",
+      description: "I follow you and have a bio.",
+      viewer: { followedBy: "at://did:plc:followsback1/follow/1" },
+    });
+    const alreadyFollowing = createProfile({
+      did: "did:plc:already1",
+      handle: "already.bsky.social",
+      displayName: "Already Following",
+      description: "",
+      viewer: { following: "at://did:plc:viewer/follow/abc" },
+    });
+    const stranger = createProfile({
+      did: "did:plc:stranger1",
+      handle: "stranger.bsky.social",
+      displayName: "Stranger",
+      description: "A stranger with a description.",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    mockServer.addProfileFollowers(profileUser.did, [
+      followsBack,
+      alreadyFollowing,
+      stranger,
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/followers`);
+
+    const view = page.locator("#profile-followers-view");
+    const followsBackRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Follows Back" });
+    const alreadyRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Already Following" });
+    const strangerRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Stranger" });
+
+    await expect(
+      followsBackRow.locator('[data-testid="follows-you-badge"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(
+      alreadyRow.locator('[data-testid="follows-you-badge"]'),
+    ).toHaveCount(0);
+    await expect(
+      strangerRow.locator('[data-testid="follows-you-badge"]'),
+    ).toHaveCount(0);
+
+    await expect(
+      followsBackRow.locator('[data-testid="profile-list-item-description"]'),
+    ).toContainText("I follow you and have a bio.");
+    await expect(
+      alreadyRow.locator('[data-testid="profile-list-item-description"]'),
+    ).toHaveCount(0);
+
+    await expect(
+      followsBackRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "follow-back");
+    await expect(
+      alreadyRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "following");
+    await expect(
+      strangerRow.locator('[data-testid="follow-button"]'),
+    ).toHaveAttribute("data-teststate", "follow");
+  });
+
+  test("clicking the follow button on a row toggles to following", async ({
+    page,
+  }) => {
+    const target = createProfile({
+      did: "did:plc:target1",
+      handle: "target.bsky.social",
+      displayName: "Target User",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    mockServer.addProfileFollowers(profileUser.did, [target]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/followers`);
+
+    const view = page.locator("#profile-followers-view");
+    const targetRow = view
+      .locator(".profile-list-item")
+      .filter({ hasText: "Target User" });
+
+    const followButton = targetRow.locator('[data-testid="follow-button"]');
+    await expect(followButton).toHaveAttribute("data-teststate", "follow", {
+      timeout: 10000,
+    });
+    await followButton.click();
+    await expect(followButton).toHaveAttribute("data-teststate", "following", {
+      timeout: 10000,
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

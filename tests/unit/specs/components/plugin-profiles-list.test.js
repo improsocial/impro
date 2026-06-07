@@ -5,14 +5,14 @@ import "/js/components/plugin-profiles-list.js";
 
 const t = new TestSuite("PluginProfilesList");
 
-function makeDataLayer({ ensureProfiles } = {}) {
+function makeDataLayer({ ensureDetailedProfiles } = {}) {
   // Mirror the real layering: a value SignalMap store, with $hydratedProfiles a
   // ComputedMap (family) over it that returns a stable per-key cell.
   const profileValues = new SignalMap();
   const $hydratedProfiles = new ComputedMap((did) => profileValues.get(did));
   const declarative = {
-    ensureProfiles:
-      ensureProfiles ??
+    ensureDetailedProfiles:
+      ensureDetailedProfiles ??
       (async (dids) => dids.map((did) => profileValues.get(did) ?? null)),
   };
   return {
@@ -31,7 +31,7 @@ function makeProfile(did, handle) {
 }
 
 async function flushMicrotasks() {
-  // Two ticks: the first flushes microtasks (e.g. ensureProfiles), the second
+  // Two ticks: the first flushes microtasks (e.g. ensureDetailedProfiles), the second
   // lets the rAF-scheduled effect render run before assertions.
   await new Promise((resolve) => setTimeout(resolve, 0));
   await new Promise((resolve) => setTimeout(resolve, 0));
@@ -45,7 +45,7 @@ t.describe("PluginProfilesList - loading state", (it) => {
   it("renders one skeleton per did before profiles resolve", () => {
     const element = document.createElement("plugin-profiles-list");
     element.dataLayer = makeDataLayer({
-      ensureProfiles: () => new Promise(() => {}),
+      ensureDetailedProfiles: () => new Promise(() => {}),
     });
     element.setAttribute("dids", "did:test:a,did:test:b,did:test:c");
     document.body.appendChild(element);
@@ -57,7 +57,7 @@ t.describe("PluginProfilesList - loading state", (it) => {
 });
 
 t.describe("PluginProfilesList - loaded state", (it) => {
-  it("renders profile list items once ensureProfiles resolves", async () => {
+  it("renders profile list items once ensureDetailedProfiles resolves", async () => {
     const dataLayer = makeDataLayer();
     dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
     dataLayer.__setProfile("did:test:b", makeProfile("did:test:b", "b.test"));
@@ -109,7 +109,7 @@ t.describe("PluginProfilesList - empty dids", (it) => {
     const element = document.createElement("plugin-profiles-list");
     let called = false;
     element.dataLayer = makeDataLayer({
-      ensureProfiles: async () => {
+      ensureDetailedProfiles: async () => {
         called = true;
         return [];
       },
@@ -130,10 +130,10 @@ t.describe("PluginProfilesList - empty dids", (it) => {
 });
 
 t.describe("PluginProfilesList - error state", (it) => {
-  it("renders the error message when ensureProfiles rejects", async () => {
+  it("renders the error message when ensureDetailedProfiles rejects", async () => {
     const element = document.createElement("plugin-profiles-list");
     element.dataLayer = makeDataLayer({
-      ensureProfiles: async () => {
+      ensureDetailedProfiles: async () => {
         throw new Error("boom");
       },
     });
@@ -150,7 +150,7 @@ t.describe("PluginProfilesList - did changes", (it) => {
   it("reloads when the dids attribute changes", async () => {
     const calls = [];
     const dataLayer = makeDataLayer({
-      ensureProfiles: async (dids) => {
+      ensureDetailedProfiles: async (dids) => {
         calls.push(dids);
         dids.forEach((did) =>
           dataLayer.__setProfile(did, makeProfile(did, did)),
@@ -175,14 +175,14 @@ t.describe("PluginProfilesList - did changes", (it) => {
     );
   });
 
-  it("ignores stale ensureProfiles results when dids change mid-flight", async () => {
+  it("ignores stale ensureDetailedProfiles results when dids change mid-flight", async () => {
     const dataLayer = makeDataLayer();
     let resolveFirst;
     const firstPromise = new Promise((resolve) => {
       resolveFirst = resolve;
     });
     let callIndex = 0;
-    dataLayer.declarative.ensureProfiles = (dids) => {
+    dataLayer.declarative.ensureDetailedProfiles = (dids) => {
       callIndex++;
       if (callIndex === 1) return firstPromise;
       dids.forEach((did) => dataLayer.__setProfile(did, makeProfile(did, did)));

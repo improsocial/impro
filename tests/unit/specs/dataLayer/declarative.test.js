@@ -11,7 +11,7 @@ const mapSig = (getter) => ({ get: (key) => getter(key) });
 function createMockDerived(data = {}) {
   return {
     $currentUser: sig(() => data.currentUser ?? null),
-    $hydratedProfiles: mapSig((did) => data.profiles?.[did] ?? null),
+    $hydratedDetailedProfiles: mapSig((did) => data.profiles?.[did] ?? null),
     $hydratedPostThreads: mapSig((uri) => data.postThreads?.[uri] ?? null),
     $hydratedPosts: mapSig((uri) => data.posts?.[uri] ?? null),
     $feedGenerators: mapSig((uri) => data.feedGenerators?.[uri] ?? null),
@@ -25,8 +25,8 @@ function createMockDerived(data = {}) {
 function createMockRequests(loadResults = {}) {
   return {
     loadCurrentUser: async () => loadResults.currentUser,
-    loadProfile: async (did) => loadResults.profiles?.[did],
-    loadProfiles: async () => {},
+    loadDetailedProfile: async (did) => loadResults.profiles?.[did],
+    loadDetailedProfiles: async () => {},
     loadPostThread: async (uri) => loadResults.postThreads?.[uri],
     loadPost: async (uri) => loadResults.posts?.[uri],
     loadPosts: async () => {},
@@ -96,7 +96,7 @@ t.describe("ensureCurrentUser", (it) => {
   });
 });
 
-t.describe("ensureProfile", (it) => {
+t.describe("ensureDetailedProfile", (it) => {
   it("should return existing profile without loading", async () => {
     const profileDid = "did:test:profile";
     const profile = { did: profileDid, handle: "test.profile" };
@@ -104,13 +104,13 @@ t.describe("ensureProfile", (it) => {
 
     const derived = createMockDerived({ profiles: { [profileDid]: profile } });
     const requests = {
-      loadProfile: async () => {
+      loadDetailedProfile: async () => {
         loadCalled = true;
       },
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensureProfile(profileDid);
+    const result = await declarative.ensureDetailedProfile(profileDid);
 
     assertEquals(result, profile);
     assertEquals(loadCalled, false);
@@ -122,17 +122,17 @@ t.describe("ensureProfile", (it) => {
     let callCount = 0;
 
     const derived = {
-      $hydratedProfiles: mapSig(() => {
+      $hydratedDetailedProfiles: mapSig(() => {
         callCount++;
         return callCount > 1 ? profile : null;
       }),
     };
     const requests = {
-      loadProfile: async () => {},
+      loadDetailedProfile: async () => {},
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensureProfile(profileDid);
+    const result = await declarative.ensureDetailedProfile(profileDid);
 
     assertEquals(result, profile);
   });
@@ -145,7 +145,7 @@ t.describe("ensureProfile", (it) => {
 
     let error = null;
     try {
-      await declarative.ensureProfile("did:nonexistent");
+      await declarative.ensureDetailedProfile("did:nonexistent");
     } catch (e) {
       error = e;
     }
@@ -155,7 +155,7 @@ t.describe("ensureProfile", (it) => {
   });
 });
 
-t.describe("ensureProfiles", (it) => {
+t.describe("ensureDetailedProfiles", (it) => {
   it("returns cached profiles in input order without loading", async () => {
     const profileA = { did: "did:test:a", handle: "a.test" };
     const profileB = { did: "did:test:b", handle: "b.test" };
@@ -165,13 +165,13 @@ t.describe("ensureProfiles", (it) => {
       profiles: { [profileA.did]: profileA, [profileB.did]: profileB },
     });
     const requests = {
-      loadProfiles: async () => {
+      loadDetailedProfiles: async () => {
         loadCalled = true;
       },
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensureProfiles([
+    const result = await declarative.ensureDetailedProfiles([
       profileB.did,
       profileA.did,
     ]);
@@ -187,17 +187,17 @@ t.describe("ensureProfiles", (it) => {
     let loadedWith = null;
 
     const derived = {
-      $hydratedProfiles: mapSig((did) => store[did] ?? null),
+      $hydratedDetailedProfiles: mapSig((did) => store[did] ?? null),
     };
     const requests = {
-      loadProfiles: async (dids) => {
+      loadDetailedProfiles: async (dids) => {
         loadedWith = dids;
         store[profileB.did] = profileB;
       },
     };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensureProfiles([
+    const result = await declarative.ensureDetailedProfiles([
       profileA.did,
       profileB.did,
     ]);
@@ -207,11 +207,13 @@ t.describe("ensureProfiles", (it) => {
   });
 
   it("returns null entries for profiles still missing after load", async () => {
-    const derived = { $hydratedProfiles: mapSig(() => null) };
-    const requests = { loadProfiles: async () => {} };
+    const derived = { $hydratedDetailedProfiles: mapSig(() => null) };
+    const requests = { loadDetailedProfiles: async () => {} };
 
     const declarative = new Declarative(derived, requests);
-    const result = await declarative.ensureProfiles(["did:test:missing"]);
+    const result = await declarative.ensureDetailedProfiles([
+      "did:test:missing",
+    ]);
 
     assertEquals(result, [null]);
   });
