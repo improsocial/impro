@@ -120,9 +120,10 @@ test.describe("Post embeds view — gallery carousel", () => {
       carousel.locator('[data-testid="carousel-slide"]'),
     ).toHaveCount(5);
 
-    await expect(
-      carousel.locator('[data-testid="carousel-counter"]'),
-    ).toHaveText("1/5");
+    const counters = carousel.locator('[data-testid="carousel-counter"]');
+    await expect(counters).toHaveCount(5);
+    await expect(counters.first()).toHaveText("1/5");
+    await expect(counters.last()).toHaveText("5/5");
 
     await expect(
       carousel.locator('[data-testid="carousel-slide"][tabindex="0"]'),
@@ -149,30 +150,25 @@ test.describe("Post embeds view — gallery carousel", () => {
     ).toHaveCount(2);
   });
 
-  test("arrow-key navigation advances the active slide and counter", async ({
-    page,
-  }) => {
+  test("arrow-key navigation advances the active slide", async ({ page }) => {
     await setupSinglePostThread(page, buildGalleryPost({ count: 6 }));
 
     const carousel = page.locator('[data-testid="image-carousel"]');
     await expect(carousel).toBeVisible({ timeout: 10000 });
-    const counter = carousel.locator('[data-testid="carousel-counter"]');
+    const activeSlide = carousel.locator(
+      '[data-testid="carousel-slide"][data-teststate="active"]',
+    );
 
     await carousel.locator('[data-testid="carousel-slide"]').first().focus();
 
     await page.keyboard.press("ArrowRight");
-    await expect(counter).toHaveText("2/6");
-    await expect(
-      carousel.locator(
-        '[data-testid="carousel-slide"][data-teststate="active"]',
-      ),
-    ).toHaveAttribute("data-index", "1");
+    await expect(activeSlide).toHaveAttribute("data-index", "1");
 
     await page.keyboard.press("ArrowRight");
-    await expect(counter).toHaveText("3/6");
+    await expect(activeSlide).toHaveAttribute("data-index", "2");
 
     await page.keyboard.press("ArrowLeft");
-    await expect(counter).toHaveText("2/6");
+    await expect(activeSlide).toHaveAttribute("data-index", "1");
   });
 
   test("clicking a slide opens the lightbox at that index", async ({
