@@ -22,6 +22,16 @@ import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
+import "/js/components/image-carousel.js";
+
+function galleryItemsToImages(items) {
+  return (items ?? [])
+    .filter(
+      (item) =>
+        !item.$type || item.$type === "app.bsky.embed.gallery#viewImage",
+    )
+    .map(({ thumbnail, ...rest }) => ({ thumb: thumbnail, ...rest }));
+}
 
 function moderationWarningWrapperTemplate({ children, mediaLabel }) {
   return mediaLabel
@@ -233,6 +243,13 @@ function imageContainerTemplate({ image, lazyLoad, doCalculateAspectRatio }) {
     />
     ${image.alt ? html` <div class="alt-indicator">ALT</div> ` : ""}
   </div>`;
+}
+
+function imageCarouselTemplate({ images }) {
+  return html`<image-carousel
+    data-testid="image-carousel"
+    .images=${images}
+  ></image-carousel>`;
 }
 
 function imagesTemplate({ images, lazyLoad = false }) {
@@ -518,7 +535,8 @@ export function postEmbedTemplate({
         mediaLabel,
         children: videoTemplate({ video: embed }),
       });
-    case "app.bsky.embed.images#view":
+    case "app.bsky.embed.images#view": {
+      if (!embed.images?.length) break;
       return moderationWarningWrapperTemplate({
         mediaLabel,
         children: imagesTemplate({
@@ -526,6 +544,16 @@ export function postEmbedTemplate({
           lazyLoad: lazyLoadImages,
         }),
       });
+    }
+    case "app.bsky.embed.gallery#view": {
+      const images = galleryItemsToImages(embed.items);
+      if (images.length === 0) break;
+      const children =
+        images.length === 1
+          ? imagesTemplate({ images, lazyLoad: lazyLoadImages })
+          : imageCarouselTemplate({ images });
+      return moderationWarningWrapperTemplate({ mediaLabel, children });
+    }
     case "app.bsky.embed.external#view":
       return externalTemplate({
         external: embed.external,
