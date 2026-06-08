@@ -222,6 +222,7 @@ export class ImageCarousel extends Component {
       if (Math.abs(event.deltaX) <= Math.abs(event.deltaY)) return;
       event.preventDefault();
       this._scroller.scrollLeft += event.deltaX;
+      this._updateCurrentIndex(this._getActiveIndexFromScroll());
     };
     this._scroller.addEventListener("wheel", onWheel, { passive: false });
     return () => this._scroller.removeEventListener("wheel", onWheel);
