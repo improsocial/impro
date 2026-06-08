@@ -536,7 +536,7 @@ export function postEmbedTemplate({
         children: videoTemplate({ video: embed }),
       });
     case "app.bsky.embed.images#view": {
-      if (!embed.images?.length) break;
+      if (!embed.images?.length) return null;
       return moderationWarningWrapperTemplate({
         mediaLabel,
         children: imagesTemplate({
@@ -547,7 +547,7 @@ export function postEmbedTemplate({
     }
     case "app.bsky.embed.gallery#view": {
       const images = galleryItemsToImages(embed.items);
-      if (images.length === 0) break;
+      if (images.length === 0) return null;
       const children =
         images.length === 1
           ? imagesTemplate({ images, lazyLoad: lazyLoadImages })
