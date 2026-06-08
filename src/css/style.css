@@ -819,6 +819,12 @@ input[type="color"]::-moz-color-swatch {
   filter: blur(5px);
 }
 
+/* Mobile Safari fails to clip filtered descendants to a parent's
+   border-radius unless the parent forms its own compositing layer. */
+.avatar-image-frame:has(.avatar-image--blurred) {
+  transform: translateZ(0);
+}
+
 .avatar-link {
   display: flex;
   align-items: center;
