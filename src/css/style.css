@@ -817,6 +817,8 @@ input[type="color"]::-moz-color-swatch {
 
 .avatar-image--blurred {
   filter: blur(5px);
+  transform: translateZ(0);
+  will-change: filter;
 }
 
 .avatar-link {
