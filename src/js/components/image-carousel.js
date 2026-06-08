@@ -165,18 +165,18 @@ export class ImageCarousel extends Component {
   _getActiveIndexFromScroll() {
     const widths = this._getSlideWidths();
     const scrollLeft = this._scroller.scrollLeft;
-    const viewportCenter = scrollLeft + this._scroller.clientWidth / 2;
     let cumulative = 0;
+    let bestIndex = 0;
+    let bestDistance = Infinity;
     for (let i = 0; i < widths.length; i += 1) {
-      const itemStart = cumulative;
-      const itemEnd = itemStart + widths[i];
-      const itemCenter = (itemStart + itemEnd) / 2;
-      if (viewportCenter < itemCenter + (widths[i] + ITEM_GAP_PX) / 2) {
-        return i;
+      const distance = Math.abs(cumulative - scrollLeft);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        bestIndex = i;
       }
-      cumulative = itemEnd + ITEM_GAP_PX;
+      cumulative += widths[i] + ITEM_GAP_PX;
     }
-    return widths.length - 1;
+    return bestIndex;
   }
 
   _updateCurrentIndex(index) {
