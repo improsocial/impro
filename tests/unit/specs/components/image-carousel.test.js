@@ -66,11 +66,19 @@ t.describe("ImageCarousel rendering", (it) => {
     assertEquals(slides[0].getAttribute("aria-label"), "image 0");
   });
 
-  it("shows counter '1/N' when multiple images", () => {
+  it("renders a per-slide counter 'i/N' on each slide when multiple images", () => {
     const el = createCarousel(makeImages(7));
-    const counter = el.querySelector('[data-testid="carousel-counter"]');
-    assert(counter !== null);
-    assertEquals(counter.textContent, "1/7");
+    const counters = el.querySelectorAll('[data-testid="carousel-counter"]');
+    assertEquals(counters.length, 7);
+    assertEquals(counters[0].textContent, "1/7");
+    assertEquals(counters[3].textContent, "4/7");
+    assertEquals(counters[6].textContent, "7/7");
+  });
+
+  it("omits per-slide counters when there is only one image", () => {
+    const el = createCarousel(makeImages(1));
+    const counters = el.querySelectorAll('[data-testid="carousel-counter"]');
+    assertEquals(counters.length, 0);
   });
 
   it("renders ALT badge only when alt text present", () => {
@@ -120,7 +128,7 @@ t.describe("ImageCarousel rendering", (it) => {
 });
 
 t.describe("ImageCarousel interaction", (it) => {
-  it("updates active slide + counter on arrow key", () => {
+  it("updates active slide on arrow key", () => {
     const el = createCarousel(makeImages(4));
     const slides = el.querySelectorAll('[data-testid="carousel-slide"]');
     slides[0].focus();
@@ -132,8 +140,6 @@ t.describe("ImageCarousel interaction", (it) => {
     assertEquals(slides[1].getAttribute("tabindex"), "0");
     assertEquals(slides[0].getAttribute("data-teststate"), "inactive");
     assertEquals(slides[0].getAttribute("tabindex"), "-1");
-    const counter = el.querySelector('[data-testid="carousel-counter"]');
-    assertEquals(counter.textContent, "2/4");
   });
 
   it("clamps arrow key navigation at boundaries", () => {

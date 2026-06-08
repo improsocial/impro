@@ -104,6 +104,14 @@ export class ImageCarousel extends Component {
                     loading="lazy"
                     draggable="false"
                   />
+                  ${numImages > 1
+                    ? html`<span
+                        class="carousel-counter"
+                        data-testid="carousel-counter"
+                        aria-hidden="true"
+                        >${index + 1}/${numImages}</span
+                      >`
+                    : ""}
                   ${image.alt
                     ? html`<span
                         class="alt-indicator"
@@ -123,14 +131,6 @@ export class ImageCarousel extends Component {
               `;
             })}
           </div>
-          ${numImages > 1
-            ? html`<span
-                class="carousel-counter"
-                data-testid="carousel-counter"
-                aria-hidden="true"
-                >${this.currentIndex + 1}/${numImages}</span
-              >`
-            : ""}
         </div>
       `,
       this,
