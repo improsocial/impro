@@ -2751,6 +2751,107 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   object-fit: cover;
 }
 
+image-carousel {
+  display: block;
+}
+
+.image-carousel-container {
+  position: relative;
+}
+
+.carousel-scroller {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  height: 200px;
+}
+
+.carousel-scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.carousel-slide {
+  position: relative;
+  flex: 0 0 auto;
+  height: 100%;
+  padding: 0;
+  margin: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  scroll-snap-align: start;
+  border-radius: var(--image-border-radius);
+  overflow: hidden;
+}
+
+.carousel-slide:focus-visible {
+  outline: 2px solid var(--primary-button-color);
+  outline-offset: 2px;
+}
+
+.carousel-slide .carousel-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--image-border-radius);
+  background-color: var(--background-color);
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.carousel-counter {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 8px;
+  background: var(--overlay-color-medium);
+  color: var(--white);
+  border-radius: var(--tag-border-radius);
+  font-size: 12px;
+  font-weight: 600;
+  pointer-events: none;
+}
+
+.carousel-slide .alt-indicator {
+  top: auto;
+  left: auto;
+  bottom: 8px;
+  right: 8px;
+}
+
+.crop-indicator {
+  pointer-events: none;
+  position: absolute;
+  bottom: 8px;
+  left: 8px;
+  background: var(--overlay-color-medium);
+  color: var(--white);
+  padding: 2px 6px;
+  border-radius: var(--tag-border-radius);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+@media (min-width: 600px) {
+  .carousel-scroller {
+    height: 260px;
+  }
+}
+
+@media (min-width: 900px) {
+  .carousel-scroller {
+    height: 300px;
+  }
+}
+
 .reply-context-line-in {
   position: absolute;
   left: 20px;

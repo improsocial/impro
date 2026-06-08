@@ -77,6 +77,132 @@ t.describe("postEmbedTemplate - images", (it) => {
   });
 });
 
+function renderEmbed(embed) {
+  const container = document.createElement("div");
+  render(
+    postEmbedTemplate({ embed, labels: [], isAuthenticated: true }),
+    container,
+  );
+  return container;
+}
+
+t.describe("postEmbedTemplate - gallery", (it) => {
+  function galleryEmbed(count) {
+    const items = [];
+    for (let i = 0; i < count; i += 1) {
+      items.push({
+        $type: "app.bsky.embed.gallery#viewImage",
+        thumbnail: `https://example.com/g${i}.jpg`,
+        fullsize: `https://example.com/g${i}-full.jpg`,
+        alt: "",
+        aspectRatio: { width: 4, height: 3 },
+      });
+    }
+    return { $type: "app.bsky.embed.gallery#view", items };
+  }
+
+  it("renders a 5+ image gallery as <image-carousel>", () => {
+    const container = renderEmbed(galleryEmbed(5));
+    assert(container.querySelector('[data-testid="image-carousel"]') !== null);
+    assert(container.querySelector('[data-testid="post-images"]') === null);
+  });
+
+  it("renders the 10-image gallery cap as a carousel", () => {
+    const container = renderEmbed(galleryEmbed(10));
+    const carousel = container.querySelector('[data-testid="image-carousel"]');
+    assert(carousel !== null);
+    assertEquals(carousel.images.length, 10);
+  });
+
+  it("routes a single gallery image to the single-image grid, not the carousel", () => {
+    const container = renderEmbed(galleryEmbed(1));
+    assert(container.querySelector('[data-testid="image-carousel"]') === null);
+    assert(container.querySelector('[data-testid="post-images"]') !== null);
+  });
+
+  it("does not render a carousel for a legacy 2-image post", () => {
+    const embed = {
+      $type: "app.bsky.embed.images#view",
+      images: [
+        { thumb: "https://example.com/a.jpg", alt: "" },
+        { thumb: "https://example.com/b.jpg", alt: "" },
+      ],
+    };
+    const container = renderEmbed(embed);
+    assert(container.querySelector('[data-testid="image-carousel"]') === null);
+    assert(container.querySelector('[data-testid="post-images"]') !== null);
+  });
+
+  it("renders nothing for an empty gallery", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.gallery#view",
+      items: [],
+    });
+    assertEquals(
+      container.querySelector('[data-testid="image-carousel"]'),
+      null,
+    );
+    assertEquals(container.querySelector('[data-testid="post-images"]'), null);
+  });
+
+  it("filters non-image gallery items out of the carousel slides", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.gallery#view",
+      items: [
+        {
+          $type: "app.bsky.embed.gallery#viewImage",
+          thumbnail: "https://example.com/g0.jpg",
+          fullsize: "https://example.com/g0-full.jpg",
+          alt: "",
+          aspectRatio: { width: 4, height: 3 },
+        },
+        {
+          $type: "app.bsky.embed.gallery#viewSomethingElse",
+          thumbnail: "https://example.com/skip.jpg",
+        },
+        {
+          $type: "app.bsky.embed.gallery#viewImage",
+          thumbnail: "https://example.com/g1.jpg",
+          fullsize: "https://example.com/g1-full.jpg",
+          alt: "",
+          aspectRatio: { width: 4, height: 3 },
+        },
+      ],
+    });
+    const carousel = container.querySelector('[data-testid="image-carousel"]');
+    assertEquals(carousel.images.length, 2);
+    assertEquals(carousel.images[0].thumb, "https://example.com/g0.jpg");
+    assertEquals(carousel.images[1].thumb, "https://example.com/g1.jpg");
+  });
+
+  it("maps gallery item `thumbnail` → carousel image `thumb` and passes other fields through", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.gallery#view",
+      items: [
+        {
+          $type: "app.bsky.embed.gallery#viewImage",
+          thumbnail: "https://example.com/g0-thumb.jpg",
+          fullsize: "https://example.com/g0-full.jpg",
+          alt: "labeled",
+          aspectRatio: { width: 4, height: 3 },
+        },
+        {
+          $type: "app.bsky.embed.gallery#viewImage",
+          thumbnail: "https://example.com/g1-only.jpg",
+        },
+      ],
+    });
+    const carousel = container.querySelector('[data-testid="image-carousel"]');
+    assertEquals(carousel.images[0].thumb, "https://example.com/g0-thumb.jpg");
+    assertEquals(
+      carousel.images[0].fullsize,
+      "https://example.com/g0-full.jpg",
+    );
+    assertEquals(carousel.images[0].alt, "labeled");
+    assertEquals(carousel.images[1].thumb, "https://example.com/g1-only.jpg");
+  });
+});
+
 t.describe("postEmbedTemplate - video", (it) => {
   function videoEmbed(aspectRatio) {
     return {
