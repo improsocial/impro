@@ -45,11 +45,63 @@ class ListDetailView extends View {
     }
     const listUri = `at://${profileDid}/app.bsky.graph.list/${rkey}`;
 
-    const { postInteractionHandler, listInteractionHandler } =
-      interactionHandlers;
+    const {
+      postInteractionHandler,
+      listInteractionHandler,
+      profileInteractionHandler,
+    } = interactionHandlers;
 
     const state = new ReactiveStore("listDetailView");
     state.$activeTab = new Signal.State("posts");
+
+    function listSubscriptionButtonTemplate({ list, listInteractionHandler }) {
+      const isMuted = !!list.viewer?.muted;
+      const isBlocked = !!list.viewer?.blocked;
+      const isSubscribed = isMuted || isBlocked;
+      const teststate = isMuted
+        ? "muted"
+        : isBlocked
+          ? "blocked"
+          : "not-subscribed";
+      return html`
+        <button
+          class=${classnames("rounded-button", "subscribe-list-button", {
+            "rounded-button-primary": !isSubscribed,
+            subscribed: isSubscribed,
+          })}
+          data-testid="subscribe-list-button"
+          data-teststate=${teststate}
+          @click=${function (e) {
+            if (isMuted) {
+              listInteractionHandler.handleUnmuteList(list);
+              return;
+            }
+            if (isBlocked) {
+              listInteractionHandler.handleUnblockList(list);
+              return;
+            }
+            const menu = this.nextElementSibling;
+            menu.open(e.clientX, e.clientY);
+          }}
+        >
+          ${isMuted ? "Unmute list" : isBlocked ? "Unblock list" : "Subscribe"}
+        </button>
+        <context-menu>
+          <context-menu-item
+            data-testid="menu-action-list-mute"
+            @click=${() => listInteractionHandler.handleMuteList(list)}
+          >
+            Mute accounts
+          </context-menu-item>
+          <context-menu-item
+            data-testid="menu-action-list-block"
+            @click=${() => listInteractionHandler.handleBlockList(list)}
+          >
+            Block accounts
+          </context-menu-item>
+        </context-menu>
+      `;
+    }
 
     pageEffect(root, () => {
       const showLessInteractions =
@@ -73,9 +125,7 @@ class ListDetailView extends View {
       const hasMoreMembers = membersEntry?.cursor != null;
       const activeTab = state.$activeTab.get();
       const isCurateList = !isModerationList(list);
-
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
-
       render(
         html`<div id="list-detail-view">
           ${mainLayoutTemplate({
@@ -89,6 +139,25 @@ class ListDetailView extends View {
             children: html`${headerTemplate({
               rightItemTemplate: list
                 ? () => html`
+                    ${isCurateList
+                      ? html`<button
+                          class=${classnames("pin-feed-button", {
+                            pinned: isPinned,
+                          })}
+                          data-testid="pin-list-button"
+                          data-teststate=${isPinned ? "pinned" : "not-pinned"}
+                          @click=${() =>
+                            listInteractionHandler.handlePinList(
+                              listUri,
+                              !isPinned,
+                            )}
+                        >
+                          ${pinIconTemplate({ filled: isPinned })}
+                        </button>`
+                      : listSubscriptionButtonTemplate({
+                          list,
+                          listInteractionHandler,
+                        })}
                     <button
                       class="list-menu-button"
                       @click=${function (e) {
@@ -119,22 +188,6 @@ class ListDetailView extends View {
                         Copy link to list
                       </context-menu-item>
                     </context-menu>
-                    ${isCurateList
-                      ? html`<button
-                          class=${classnames("pin-feed-button", {
-                            pinned: isPinned,
-                          })}
-                          data-testid="pin-list-button"
-                          data-teststate=${isPinned ? "pinned" : "not-pinned"}
-                          @click=${() =>
-                            listInteractionHandler.handlePinList(
-                              listUri,
-                              !isPinned,
-                            )}
-                        >
-                          ${pinIconTemplate({ filled: isPinned })}
-                        </button>`
-                      : ""}
                   `
                 : null,
             })}
@@ -239,6 +292,10 @@ class ListDetailView extends View {
                             onLoadMore: () => loadMembers(),
                             emptyMessage: "This list has no members.",
                             showEndMessage: true,
+                            isAuthenticated,
+                            currentUserDid: currentUser?.did ?? null,
+                            profileInteractionHandler,
+                            showFollowButton: isCurateList,
                           })}
                         </div>`}
                   </div>

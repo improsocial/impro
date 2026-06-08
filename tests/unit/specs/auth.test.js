@@ -34,6 +34,12 @@ function mockWindowLocation(search) {
     set href(value) {
       capturedHrefs.push(value);
     },
+    assign(value) {
+      capturedHrefs.push(value);
+    },
+    reload() {
+      capturedHrefs.push("reload");
+    },
   };
   globalThis.window = new Proxy(originalWindow, {
     get(target, prop) {
@@ -456,6 +462,17 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
     assertEquals(capturedHrefs[0], "/feed");
   });
 
+  it("does not redirect when addAccount=1 is set, even if a session exists", async () => {
+    writeBasicAuthSession();
+    manager = new Auth(new BasicAuthProvider());
+    const capturedHrefs = mockWindowLocation(
+      "?addAccount=1&returnTo=%2Fsettings",
+    );
+    const result = await manager.requireNoAuth();
+    assertEquals(result, null);
+    assertEquals(capturedHrefs.length, 0);
+  });
+
   it("falls back to / when returnTo is an external URL", async () => {
     writeBasicAuthSession();
     manager = new Auth(new BasicAuthProvider());
@@ -466,6 +483,134 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
     await Promise.resolve();
     await Promise.resolve();
     assertEquals(capturedHrefs[0], "/");
+  });
+});
+
+t.describe("Auth account management", (it, { afterEach }) => {
+  afterEach(() => {
+    globalThis.window = originalWindow;
+    window.history.replaceState(null, "", originalPath);
+  });
+
+  async function flushMicrotasks(count = 10) {
+    for (let i = 0; i < count; i++) await Promise.resolve();
+  }
+
+  function makeMultiAccountProvider({ accounts, currentDid }) {
+    return {
+      supportsMultipleAccounts: () => true,
+      listAccounts: mock(() => Promise.resolve(accounts)),
+      getSession: mock(() =>
+        Promise.resolve(currentDid ? { did: currentDid } : null),
+      ),
+      switchToAccount: mock((did) => {
+        currentDid = did;
+        return Promise.resolve();
+      }),
+      removeAccount: mock((did) => {
+        accounts = accounts.filter((account) => account.did !== did);
+        if (currentDid === did) currentDid = accounts[0]?.did ?? null;
+        return Promise.resolve();
+      }),
+      logout: mock(() => Promise.resolve()),
+    };
+  }
+
+  it("listAccounts delegates to the provider", async () => {
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test" },
+        { did: "did:plc:bob", handle: "bob.test" },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    assertEquals(accounts.length, 2);
+    assertEquals(provider.listAccounts.calls.length, 1);
+  });
+
+  it("supportsMultipleAccounts reflects the provider capability", () => {
+    const multi = new Auth(makeMultiAccountProvider({ accounts: [] }));
+    assertEquals(multi.supportsMultipleAccounts(), true);
+    const basic = new Auth(new BasicAuthProvider());
+    assertEquals(basic.supportsMultipleAccounts(), false);
+  });
+
+  it("switchAccount flips the provider and redirects to /", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test" },
+        { did: "did:plc:bob", handle: "bob.test" },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    manager.switchAccount("did:plc:bob"); // never resolves
+    await flushMicrotasks();
+    assertEquals(provider.switchToAccount.calls.length, 1);
+    assertEquals(provider.switchToAccount.calls[0][0], "did:plc:bob");
+    assertEquals(capturedHrefs.at(-1), "reload");
+  });
+
+  it("switchAccount throws when the provider does not support it", async () => {
+    const manager = new Auth(new BasicAuthProvider());
+    let threw = null;
+    try {
+      await manager.switchAccount("did:plc:bob");
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw !== null);
+  });
+
+  it("removeAccount drops the account in place when it is not current", async () => {
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test" },
+        { did: "did:plc:bob", handle: "bob.test" },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    await manager.removeAccount("did:plc:bob");
+    assertEquals(provider.removeAccount.calls.length, 1);
+    assertEquals(provider.removeAccount.calls[0][0], "did:plc:bob");
+    assertEquals(provider.switchToAccount.calls.length, 0);
+  });
+
+  it("removeAccount switches to another account first when removing the current one", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test" },
+        { did: "did:plc:bob", handle: "bob.test" },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    manager.removeAccount("did:plc:alice"); // never resolves
+    await flushMicrotasks();
+    assertEquals(provider.switchToAccount.calls.length, 1);
+    assertEquals(provider.switchToAccount.calls[0][0], "did:plc:bob");
+    assertEquals(provider.removeAccount.calls.length, 1);
+    assertEquals(provider.removeAccount.calls[0][0], "did:plc:alice");
+    assertEquals(capturedHrefs.at(-1), "reload");
+  });
+
+  it("removeAccount redirects to login when removing the only account", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const provider = makeMultiAccountProvider({
+      accounts: [{ did: "did:plc:alice", handle: "alice.test" }],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    manager.removeAccount("did:plc:alice"); // never resolves
+    await flushMicrotasks();
+    assertEquals(provider.switchToAccount.calls.length, 0);
+    assertEquals(provider.removeAccount.calls.length, 1);
+    assert(capturedHrefs.at(-1).includes("/login"));
   });
 });
 

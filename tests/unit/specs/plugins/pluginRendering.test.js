@@ -45,7 +45,9 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
 
   it("renders <plugin-profiles-list> and passes dataLayer", () => {
     const { bridge } = makeBridge();
-    const dataLayer = { declarative: { ensureProfiles: async () => [] } };
+    const dataLayer = {
+      declarative: { ensureDetailedProfiles: async () => [] },
+    };
     const renderer = new PluginRenderer(bridge, "demo", { dataLayer });
     const element = renderer.createRoot().render({
       tag: "plugin-profiles-list",

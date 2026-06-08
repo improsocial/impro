@@ -19,6 +19,7 @@ class PostRepostsView extends View {
       postComposerService,
       isAuthenticated,
       pluginService,
+      interactionHandlers,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -84,6 +85,10 @@ class PostRepostsView extends View {
                     hasMore,
                     onLoadMore: loadReposts,
                     emptyMessage: "No reposts yet.",
+                    isAuthenticated,
+                    currentUserDid: currentUser?.did ?? null,
+                    profileInteractionHandler:
+                      interactionHandlers.profileInteractionHandler,
                   });
                 })()}
               </main>`,

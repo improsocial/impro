@@ -251,6 +251,7 @@ t.describe("followProfile", (it) => {
       createFollowRecord: async () => mockFollow,
     };
     const dataStore = new DataStore();
+    dataStore.$detailedProfiles.set(testProfile.did, testProfile);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -266,7 +267,10 @@ t.describe("followProfile", (it) => {
 
     const storedProfile = dataStore.$profiles.get(testProfile.did);
     assertEquals(storedProfile.viewer.following, "follow-123");
-    assertEquals(storedProfile.followersCount, 11);
+
+    const storedDetailed = dataStore.$detailedProfiles.get(testProfile.did);
+    assertEquals(storedDetailed.viewer.following, "follow-123");
+    assertEquals(storedDetailed.followersCount, 11);
 
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
     assertEquals(patchedProfile, storedProfile);
@@ -313,6 +317,7 @@ t.describe("unfollowProfile", (it) => {
       deleteFollowRecord: async () => {},
     };
     const dataStore = new DataStore();
+    dataStore.$detailedProfiles.set(testProfile.did, testProfile);
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -328,7 +333,10 @@ t.describe("unfollowProfile", (it) => {
 
     const storedProfile = dataStore.$profiles.get(testProfile.did);
     assertEquals(storedProfile.viewer.following, null);
-    assertEquals(storedProfile.followersCount, 9);
+
+    const storedDetailed = dataStore.$detailedProfiles.get(testProfile.did);
+    assertEquals(storedDetailed.viewer.following, null);
+    assertEquals(storedDetailed.followersCount, 9);
 
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
     assertEquals(patchedProfile, storedProfile);
@@ -3125,6 +3133,207 @@ t.describe("removeProfileFromList", (it) => {
     const memberships = dataStore.$currentUserListMemberships.get();
     assertEquals(memberships.length, 1);
     assertEquals(memberships[0].uri, membershipUri);
+  });
+});
+
+t.describe("$detailedProfiles mirroring", (it) => {
+  const targetDid = "did:plc:target";
+  const baseProfile = {
+    did: targetDid,
+    handle: "target.bsky.social",
+    followersCount: 10,
+    viewer: {},
+  };
+  // Detailed shape — superset, with fields that the basic profile won't carry.
+  const detailedSeed = {
+    ...baseProfile,
+    description: "Detailed bio",
+    pinnedPost: { uri: "at://pinned" },
+  };
+
+  function setup(mockApi, { seedDetailed = true } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$profiles.set(targetDid, baseProfile);
+    if (seedDetailed) {
+      dataStore.$detailedProfiles.set(targetDid, detailedSeed);
+    }
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      preferencesProvider,
+    );
+    return { mutations, dataStore };
+  }
+
+  it("updateProfile writes the fetched detailed profile to both stores", async () => {
+    const fetched = {
+      did: targetDid,
+      displayName: "Updated Name",
+      description: "Updated bio",
+      pinnedPost: { uri: "at://newpinned" },
+      viewer: {},
+    };
+    const mockApi = {
+      getProfileRecord: async () => ({ value: {}, cid: "cid" }),
+      putProfileRecord: async () => ({}),
+      getProfile: async () => fetched,
+    };
+    const { mutations, dataStore } = setup(mockApi);
+    await mutations.updateProfile(baseProfile, {
+      displayName: "Updated Name",
+      description: "Updated bio",
+    });
+    assertEquals(dataStore.$profiles.get(targetDid), fetched);
+    assertEquals(dataStore.$detailedProfiles.get(targetDid), fetched);
+  });
+
+  it("followProfile mirrors viewer.following and count into $detailedProfiles", async () => {
+    const mockApi = {
+      createFollowRecord: async () => ({ uri: "at://follow" }),
+    };
+    const { mutations, dataStore } = setup(mockApi);
+    await mutations.followProfile(baseProfile);
+    const detailed = dataStore.$detailedProfiles.get(targetDid);
+    assertEquals(detailed.viewer.following, "at://follow");
+    assertEquals(detailed.followersCount, 11);
+    // Preserves detailed-only fields like description/pinnedPost.
+    assertEquals(detailed.description, "Detailed bio");
+    assertEquals(detailed.pinnedPost.uri, "at://pinned");
+  });
+
+  it("followProfile does not seed $detailedProfiles when no entry exists", async () => {
+    const mockApi = {
+      createFollowRecord: async () => ({ uri: "at://follow" }),
+    };
+    const { mutations, dataStore } = setup(mockApi, { seedDetailed: false });
+    await mutations.followProfile(baseProfile);
+    assertEquals(dataStore.$detailedProfiles.get(targetDid), null);
+  });
+
+  it("unfollowProfile mirrors viewer.following=null and decremented count", async () => {
+    const seedFollowed = { ...detailedSeed, viewer: { following: "at://x" } };
+    const mockApi = { deleteFollowRecord: async () => {} };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$profiles.set(targetDid, {
+      ...baseProfile,
+      viewer: { following: "at://x" },
+    });
+    dataStore.$detailedProfiles.set(targetDid, seedFollowed);
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      preferencesProvider,
+    );
+    await mutations.unfollowProfile({
+      ...baseProfile,
+      viewer: { following: "at://x" },
+    });
+    const detailed = dataStore.$detailedProfiles.get(targetDid);
+    assertEquals(detailed.viewer.following, null);
+    assertEquals(detailed.followersCount, 9);
+    assertEquals(detailed.pinnedPost.uri, "at://pinned");
+  });
+
+  it("muteProfile mirrors viewer.muted=true into $detailedProfiles", async () => {
+    const { mutations, dataStore } = setup({ muteActor: async () => ({}) });
+    await mutations.muteProfile(baseProfile);
+    assertEquals(dataStore.$detailedProfiles.get(targetDid).viewer.muted, true);
+  });
+
+  it("unmuteProfile mirrors viewer.muted=false into $detailedProfiles", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$profiles.set(targetDid, {
+      ...baseProfile,
+      viewer: { muted: true },
+    });
+    dataStore.$detailedProfiles.set(targetDid, {
+      ...detailedSeed,
+      viewer: { muted: true },
+    });
+    const mutations = makeMutations(
+      { unmuteActor: async () => ({}) },
+      dataStore,
+      patchStore,
+      preferencesProvider,
+    );
+    await mutations.unmuteProfile({
+      ...baseProfile,
+      viewer: { muted: true },
+    });
+    assertEquals(
+      dataStore.$detailedProfiles.get(targetDid).viewer.muted,
+      false,
+    );
+  });
+
+  it("blockProfile mirrors viewer.blocking into $detailedProfiles", async () => {
+    const { mutations, dataStore } = setup({
+      blockActor: async () => ({ uri: "at://block" }),
+    });
+    await mutations.blockProfile(baseProfile);
+    assertEquals(
+      dataStore.$detailedProfiles.get(targetDid).viewer.blocking,
+      "at://block",
+    );
+  });
+
+  it("unblockProfile mirrors viewer.blocking=null into $detailedProfiles", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$profiles.set(targetDid, {
+      ...baseProfile,
+      viewer: { blocking: "at://block" },
+    });
+    dataStore.$detailedProfiles.set(targetDid, {
+      ...detailedSeed,
+      viewer: { blocking: "at://block" },
+    });
+    const mutations = makeMutations(
+      { unblockActor: async () => {} },
+      dataStore,
+      patchStore,
+      preferencesProvider,
+    );
+    await mutations.unblockProfile({
+      ...baseProfile,
+      viewer: { blocking: "at://block" },
+    });
+    assertEquals(
+      dataStore.$detailedProfiles.get(targetDid).viewer.blocking,
+      null,
+    );
+  });
+
+  it("updatePostNotificationSubscription mirrors viewer.activitySubscription", async () => {
+    const subscription = { post: true, reply: false };
+    const { mutations, dataStore } = setup({
+      putActivitySubscription: async () => ({}),
+    });
+    await mutations.updatePostNotificationSubscription(
+      baseProfile,
+      subscription,
+    );
+    assertEquals(
+      dataStore.$detailedProfiles.get(targetDid).viewer.activitySubscription,
+      subscription,
+    );
   });
 });
 

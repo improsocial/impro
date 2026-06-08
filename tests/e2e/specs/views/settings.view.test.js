@@ -17,7 +17,8 @@ test.describe("Settings view", () => {
     );
 
     const nav = view.locator(".vertical-nav");
-    await expect(nav.locator(".vertical-nav-item")).toHaveCount(7, {
+    // 6 menu items + Switch account toggle + Sign out (accounts list is collapsed by default)
+    await expect(nav.locator(".vertical-nav-item")).toHaveCount(8, {
       timeout: 10000,
     });
     await expect(
@@ -117,6 +118,41 @@ test.describe("Settings view", () => {
     await expect(
       view.locator('[data-testid="footer-link-github"]'),
     ).toBeVisible();
+  });
+
+  test.describe("Accounts section", () => {
+    test("With only one account, the toggle reads 'Add another account' and links to /login", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      const toggle = view.locator(
+        '[data-testid="settings-switch-account-toggle"]',
+      );
+      await expect(toggle).toBeVisible({ timeout: 10000 });
+      await expect(toggle).toContainText("Add another account");
+      // No dropdown, no avatar stack.
+      await expect(
+        view.locator('[data-testid="settings-account-avatar-stack"]'),
+      ).toHaveCount(0);
+      await expect(
+        view.locator('[data-testid="settings-accounts"]'),
+      ).toHaveCount(0);
+
+      await toggle.click();
+
+      await expect(page).toHaveURL(
+        /\/login\?addAccount=1&returnTo=%2Fsettings/,
+        {
+          timeout: 10000,
+        },
+      );
+    });
   });
 
   test.describe("Logged-out behavior", () => {

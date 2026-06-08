@@ -7,7 +7,7 @@ const profileUser = createProfile({
   did: "did:plc:profileuser1",
   handle: "profileuser.bsky.social",
   displayName: "Profile User",
-  followersCount: 3,
+  followersCount: 100,
 });
 
 const alice = createProfile({
@@ -28,24 +28,26 @@ const charlie = createProfile({
   displayName: "Charlie",
 });
 
-test.describe("Profile followers view", () => {
-  test("should display header and follower profiles", async ({ page }) => {
+test.describe("Profile known followers view", () => {
+  test("should display header and known follower profiles", async ({
+    page,
+  }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(profileUser);
-    mockServer.addProfileFollowers(profileUser.did, [alice, bob, charlie]);
+    mockServer.addKnownFollowers(profileUser.did, [alice, bob, charlie]);
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto(`/profile/${profileUser.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     await expect(view.locator('[data-testid="header-title"]')).toContainText(
       "Profile User",
       { timeout: 10000 },
     );
 
     await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
-      "3 followers",
+      "Followers you know",
       { timeout: 10000 },
     );
 
@@ -58,36 +60,7 @@ test.describe("Profile followers view", () => {
     await expect(view).toContainText("Charlie");
   });
 
-  test("should display singular 'follower' for count of 1", async ({
-    page,
-  }) => {
-    const singleFollowerProfile = createProfile({
-      did: "did:plc:profileuser1",
-      handle: "profileuser.bsky.social",
-      displayName: "Profile User",
-      followersCount: 1,
-    });
-
-    const mockServer = new MockServer();
-    mockServer.addProfile(singleFollowerProfile);
-    mockServer.addProfileFollowers(singleFollowerProfile.did, [alice]);
-    await mockServer.setup(page);
-
-    await login(page);
-    await page.goto(`/profile/${singleFollowerProfile.did}/followers`);
-
-    const view = page.locator("#profile-followers-view");
-    await expect(view.locator('[data-testid="header-subtitle"]')).toContainText(
-      "1 follower",
-      { timeout: 10000 },
-    );
-
-    await expect(view.locator(".profile-list-item")).toHaveCount(1, {
-      timeout: 10000,
-    });
-  });
-
-  test("should display empty state when there are no followers", async ({
+  test("should display empty state when no known followers", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -95,9 +68,9 @@ test.describe("Profile followers view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto(`/profile/${profileUser.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     await expect(view.locator('[data-testid="header-title"]')).toContainText(
       "Profile User",
       { timeout: 10000 },
@@ -108,60 +81,49 @@ test.describe("Profile followers view", () => {
     });
   });
 
-  test("should load more followers when scrolling to the bottom", async ({
+  test("should load more known followers when scrolling to the bottom", async ({
     page,
   }) => {
     const followers = [];
     for (let i = 1; i <= 60; i++) {
       followers.push(
         createProfile({
-          did: `did:plc:follower${i}`,
-          handle: `follower${i}.bsky.social`,
-          displayName: `Follower ${i}`,
+          did: `did:plc:kfollower${i}`,
+          handle: `kfollower${i}.bsky.social`,
+          displayName: `KFollower ${i}`,
         }),
       );
     }
 
-    const manyFollowersProfile = createProfile({
-      did: "did:plc:profileuser1",
-      handle: "profileuser.bsky.social",
-      displayName: "Profile User",
-      followersCount: 60,
-    });
-
     const mockServer = new MockServer();
-    mockServer.addProfile(manyFollowersProfile);
-    mockServer.addProfileFollowers(manyFollowersProfile.did, followers);
+    mockServer.addProfile(profileUser);
+    mockServer.addKnownFollowers(profileUser.did, followers);
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto(`/profile/${manyFollowersProfile.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     const items = view.locator(".profile-list-item");
 
-    // Wait for initial batch to load
     await expect(items.first()).toBeVisible({ timeout: 10000 });
     const initialCount = await items.count();
     expect(initialCount).toBeLessThan(60);
 
-    // Scroll to bottom to trigger infinite scroll
     await items.last().scrollIntoViewIfNeeded();
 
-    // Verify more followers loaded
     await expect(items).toHaveCount(60, { timeout: 10000 });
-    await expect(view).toContainText("Follower 60");
+    await expect(view).toContainText("KFollower 60");
   });
 
-  test("should display error state when followers fail to load", async ({
+  test("should display error state when known followers fail to load", async ({
     page,
   }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(profileUser);
     await mockServer.setup(page);
 
-    // Override getFollowers to return error
-    await page.route("**/xrpc/app.bsky.graph.getFollowers*", (route) =>
+    await page.route("**/xrpc/app.bsky.graph.getKnownFollowers*", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",
@@ -170,16 +132,16 @@ test.describe("Profile followers view", () => {
     );
 
     await login(page);
-    await page.goto(`/profile/${profileUser.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     await expect(view.locator(".error-state")).toContainText(
-      "Error loading followers",
+      "Error loading followers you know",
       { timeout: 10000 },
     );
   });
 
-  test("should render bio, follows-you, and follow-state per follower", async ({
+  test("should render bio, follows-you, and follow-state per known follower", async ({
     page,
   }) => {
     const followsBack = createProfile({
@@ -205,7 +167,7 @@ test.describe("Profile followers view", () => {
 
     const mockServer = new MockServer();
     mockServer.addProfile(profileUser);
-    mockServer.addProfileFollowers(profileUser.did, [
+    mockServer.addKnownFollowers(profileUser.did, [
       followsBack,
       alreadyFollowing,
       stranger,
@@ -213,9 +175,9 @@ test.describe("Profile followers view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto(`/profile/${profileUser.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     const followsBackRow = view
       .locator(".profile-list-item")
       .filter({ hasText: "Follows Back" });
@@ -265,13 +227,13 @@ test.describe("Profile followers view", () => {
 
     const mockServer = new MockServer();
     mockServer.addProfile(profileUser);
-    mockServer.addProfileFollowers(profileUser.did, [target]);
+    mockServer.addKnownFollowers(profileUser.did, [target]);
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto(`/profile/${profileUser.did}/followers`);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
 
-    const view = page.locator("#profile-followers-view");
+    const view = page.locator("#profile-known-followers-view");
     const targetRow = view
       .locator(".profile-list-item")
       .filter({ hasText: "Target User" });
@@ -290,7 +252,7 @@ test.describe("Profile followers view", () => {
     test("should redirect to /login when not authenticated", async ({
       page,
     }) => {
-      await page.goto("/profile/someone.bsky.social/followers");
+      await page.goto("/profile/someone.bsky.social/known-followers");
 
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });

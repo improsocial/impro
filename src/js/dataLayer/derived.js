@@ -70,6 +70,13 @@ function applyLabelsToPost(post, preferences) {
   if (mediaLabel) {
     result = { ...result, mediaLabel };
   }
+  const authorBlurLabel = preferences.getProfileBlurLabel(result.author);
+  if (authorBlurLabel) {
+    result = {
+      ...result,
+      author: { ...result.author, blurLabel: authorBlurLabel },
+    };
+  }
   return result;
 }
 
@@ -228,13 +235,20 @@ export class Derived extends ReactiveStore {
     this.$lists = new ComputedMap((listUri) =>
       this.dataStore.$lists.get(listUri),
     );
-    this.$listMembers = new ComputedMap((listUri) =>
-      this.dataStore.$listMembers.get(listUri),
-    );
+    this.$listMembers = new ComputedMap((listUri) => {
+      const data = this.dataStore.$listMembers.get(listUri);
+      if (!data) return data;
+      return {
+        ...data,
+        members: data.members.map((actor) =>
+          this.$hydratedProfiles.get(actor.did),
+        ),
+      };
+    });
     this.$profileSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$profileSearchResults.get();
       if (!data) return null;
-      return data.actors;
+      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
     });
     this.$profileSearchCursor = new Signal.Computed(
       () => this.dataStore.$profileSearchResults.get()?.cursor ?? null,
@@ -306,9 +320,24 @@ export class Derived extends ReactiveStore {
         };
       });
     });
-    this.$hydratedProfiles = new ComputedMap((did) =>
-      this.patchStore.$patchedProfiles.get(did),
-    );
+    this.$hydratedProfiles = new ComputedMap((did) => {
+      const profile = this.patchStore.$patchedProfiles.get(did);
+      if (!profile) return profile;
+      const preferences = this.$preferences.get();
+      if (!preferences) return profile;
+      const blurLabel = preferences.getProfileBlurLabel(profile);
+      if (!blurLabel) return profile;
+      return { ...profile, blurLabel };
+    });
+    this.$hydratedDetailedProfiles = new ComputedMap((did) => {
+      const profile = this.patchStore.$patchedDetailedProfiles.get(did);
+      if (!profile) return null;
+      const preferences = this.$preferences.get();
+      if (!preferences) return profile;
+      const blurLabel = preferences.getProfileBlurLabel(profile);
+      if (!blurLabel) return profile;
+      return { ...profile, blurLabel };
+    });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
       const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
       if (!rawFeed) {
@@ -431,18 +460,57 @@ export class Derived extends ReactiveStore {
         cursor: messages.cursor,
       };
     });
-    this.$postLikes = new ComputedMap((postUri) =>
-      this.dataStore.$postLikes.get(postUri),
-    );
-    this.$postReposts = new ComputedMap((postUri) =>
-      this.dataStore.$postReposts.get(postUri),
-    );
-    this.$profileFollows = new ComputedMap((did) =>
-      this.dataStore.$profileFollows.get(did),
-    );
-    this.$profileFollowers = new ComputedMap((did) =>
-      this.dataStore.$profileFollowers.get(did),
-    );
+    this.$postLikes = new ComputedMap((postUri) => {
+      const data = this.dataStore.$postLikes.get(postUri);
+      if (!data) return data;
+      return {
+        ...data,
+        likes: data.likes.map((like) => ({
+          ...like,
+          actor: this.$hydratedProfiles.get(like.actor.did),
+        })),
+      };
+    });
+    this.$postReposts = new ComputedMap((postUri) => {
+      const data = this.dataStore.$postReposts.get(postUri);
+      if (!data) return data;
+      return {
+        ...data,
+        reposts: data.reposts.map((actor) =>
+          this.$hydratedProfiles.get(actor.did),
+        ),
+      };
+    });
+    this.$profileFollows = new ComputedMap((did) => {
+      const data = this.dataStore.$profileFollows.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        follows: data.follows.map((actor) =>
+          this.$hydratedProfiles.get(actor.did),
+        ),
+      };
+    });
+    this.$profileFollowers = new ComputedMap((did) => {
+      const data = this.dataStore.$profileFollowers.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        followers: data.followers.map((actor) =>
+          this.$hydratedProfiles.get(actor.did),
+        ),
+      };
+    });
+    this.$knownFollowers = new ComputedMap((did) => {
+      const data = this.dataStore.$knownFollowers.get(did);
+      if (!data) return data;
+      return {
+        ...data,
+        followers: data.followers.map((actor) =>
+          this.$hydratedProfiles.get(actor.did),
+        ),
+      };
+    });
     this.$mutedProfiles = new Signal.Computed(() =>
       this.dataStore.$mutedProfiles.get(),
     );

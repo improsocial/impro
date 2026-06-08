@@ -42,6 +42,7 @@ class PluginProfilesList extends Component {
             hasMore: false,
             skeletonCount: dids.length,
             emptyMessage,
+            showFollowButton: false,
           }),
           this,
         );
@@ -85,7 +86,7 @@ class PluginProfilesList extends Component {
     }
     this.state.loaded.set(false);
     try {
-      await this.dataLayer.declarative.ensureProfiles(dids);
+      await this.dataLayer.declarative.ensureDetailedProfiles(dids);
       if (this._requestToken !== requestToken) return;
       this.state.loaded.set(true);
     } catch (error) {

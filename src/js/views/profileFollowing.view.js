@@ -19,6 +19,8 @@ class ProfileFollowingView extends View {
       chatNotificationService,
       postComposerService,
       pluginService,
+      interactionHandlers,
+      isAuthenticated,
     },
   }) {
     await auth.requireAuth();
@@ -48,7 +50,8 @@ class ProfileFollowingView extends View {
         chatNotificationService?.$numNotifications.get() ?? null;
       const profileFollowing =
         dataLayer.derived.$profileFollows.get(profileDid);
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
+      const profile =
+        dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
       const profileFollowingRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
           "loadProfileFollows-" + profileDid,
@@ -84,6 +87,10 @@ class ProfileFollowingView extends View {
                     hasMore,
                     onLoadMore: loadFollowing,
                     emptyMessage: "Not following anyone yet.",
+                    isAuthenticated,
+                    currentUserDid: currentUser?.did ?? null,
+                    profileInteractionHandler:
+                      interactionHandlers.profileInteractionHandler,
                   });
                 })()}
               </main>`,
@@ -103,7 +110,7 @@ class ProfileFollowingView extends View {
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();
       // Load the profile to get the follows count
-      dataLayer.declarative.ensureProfile(profileDid);
+      dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadFollowing();
     });
 

@@ -173,6 +173,16 @@ export class BasicAuthProvider {
     await session.delete();
     this.session = null;
   }
+
+  async listAccounts() {
+    const session = await this.getSession();
+    if (!session) return [];
+    return [{ did: session.did, handle: session.handle, pdsUrl: null }];
+  }
+
+  supportsMultipleAccounts() {
+    return false;
+  }
 }
 
 export class OAuthProvider {
@@ -232,6 +242,25 @@ export class OAuthProvider {
     await client.logout();
   }
 
+  async listAccounts() {
+    const client = await this.getClient();
+    return client.listAccounts();
+  }
+
+  async switchToAccount(did) {
+    const client = await this.getClient();
+    client.switchToAccount(did);
+  }
+
+  async removeAccount(did) {
+    const client = await this.getClient();
+    await client.logout(did);
+  }
+
+  supportsMultipleAccounts() {
+    return true;
+  }
+
   async handleOauthCallback(url) {
     const params = new URLSearchParams(url.split("?")[1]);
     const code = params.get("code");
@@ -263,6 +292,47 @@ export class Auth {
     return this.provider.logout();
   }
 
+  supportsMultipleAccounts() {
+    return this.provider.supportsMultipleAccounts?.() ?? false;
+  }
+
+  async listAccounts() {
+    return this.provider.listAccounts?.() ?? [];
+  }
+
+  async switchAccount(did) {
+    if (!this.provider.switchToAccount) {
+      throw new Error("Account switching is not supported");
+    }
+    await this.provider.switchToAccount(did);
+    window.location.reload();
+    return new Promise(() => {});
+  }
+
+  // Drop a stored account. If removing the current one, flip to another
+  // account first (or fall back to a full logout) and reload.
+  async removeAccount(did) {
+    if (!this.provider.removeAccount) {
+      throw new Error("Account removal is not supported");
+    }
+    const accounts = await this.listAccounts();
+    const current = await this.provider.getSession();
+    const isCurrent = current?.did === did;
+    if (isCurrent) {
+      const other = accounts.find((account) => account.did !== did);
+      if (other) {
+        await this.provider.switchToAccount(other.did);
+        await this.provider.removeAccount(did);
+        window.location.reload();
+        return new Promise(() => {});
+      }
+      await this.provider.removeAccount(did);
+      window.location.href = linkToLogin();
+      return new Promise(() => {});
+    }
+    await this.provider.removeAccount(did);
+  }
+
   async requireAuth() {
     const session = await this.provider.getSession();
     if (!session) {
@@ -273,9 +343,15 @@ export class Auth {
   }
 
   async requireNoAuth() {
+    const params = new URLSearchParams(window.location.search);
+    // When adding an account, allow the login screen to render even though a
+    // session already exists. The OAuth callback will flip the active account
+    // to the newly-added one.
+    if (params.get("addAccount") === "1") {
+      return null;
+    }
     const session = await this.provider.getSession();
     if (session) {
-      const params = new URLSearchParams(window.location.search);
       const returnTo = validateReturnToParam(params.get("returnTo"));
       window.location.href = returnTo ?? "/";
       return new Promise(() => {});

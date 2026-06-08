@@ -123,6 +123,89 @@ test.describe("Profile view", () => {
     );
   });
 
+  test("should display known followers summary when present", async ({
+    page,
+  }) => {
+    const knownFollower1 = createProfile({
+      did: "did:plc:kf1",
+      handle: "kf1.bsky.social",
+      displayName: "Known One",
+    });
+    const knownFollower2 = createProfile({
+      did: "did:plc:kf2",
+      handle: "kf2.bsky.social",
+      displayName: "Known Two",
+    });
+    const knownFollower3 = createProfile({
+      did: "did:plc:kf3",
+      handle: "kf3.bsky.social",
+      displayName: "Known Three",
+    });
+    const profileWithKnown = {
+      ...otherUser,
+      viewer: {
+        ...otherUser.viewer,
+        knownFollowers: {
+          count: 15,
+          followers: [knownFollower1, knownFollower2, knownFollower3],
+        },
+      },
+    };
+
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileWithKnown);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${profileWithKnown.did}`);
+
+    const summary = page
+      .locator("#profile-view")
+      .locator('[data-testid="known-followers-summary"]');
+    await expect(summary).toBeVisible({ timeout: 10000 });
+    await expect(summary).toContainText("Known One");
+    await expect(summary).toContainText("Known Two");
+    await expect(summary).toContainText("13 others");
+    await expect(summary).toHaveAttribute(
+      "href",
+      `/profile/${profileWithKnown.handle}/known-followers`,
+    );
+    await expect(summary.locator(".known-followers-avatar")).toHaveCount(3);
+  });
+
+  test("should not display known followers summary on own profile", async ({
+    page,
+  }) => {
+    const ownProfile = {
+      ...userProfile,
+      viewer: {
+        ...(userProfile.viewer || {}),
+        knownFollowers: {
+          count: 5,
+          followers: [
+            createProfile({
+              did: "did:plc:kfA",
+              handle: "kfA.bsky.social",
+              displayName: "Known A",
+            }),
+          ],
+        },
+      },
+    };
+    const mockServer = new MockServer();
+    mockServer.addProfile(ownProfile);
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${ownProfile.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="known-followers-summary"]'),
+    ).toHaveCount(0);
+  });
+
   test("should display 'Follows you' badge when the user follows you", async ({
     page,
   }) => {

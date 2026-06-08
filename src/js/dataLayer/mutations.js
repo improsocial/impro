@@ -228,12 +228,18 @@ export class Mutations {
     });
     try {
       const follow = await this.api.createFollowRecord(profile);
-      // todo update followers count
       this.dataStore.$profiles.set(profile.did, {
         ...profile,
-        followersCount: profile.followersCount + 1,
         viewer: { ...profile.viewer, following: follow.uri },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          followersCount: detailed.followersCount + 1,
+          viewer: { ...detailed.viewer, following: follow.uri },
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -289,9 +295,16 @@ export class Mutations {
       await this.api.deleteFollowRecord(profile);
       this.dataStore.$profiles.set(profile.did, {
         ...profile,
-        followersCount: profile.followersCount - 1,
         viewer: { ...profile.viewer, following: null },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          followersCount: detailed.followersCount - 1,
+          viewer: { ...detailed.viewer, following: null },
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -521,6 +534,13 @@ export class Mutations {
         ...profile,
         viewer: { ...profile.viewer, muted: true },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          viewer: { ...detailed.viewer, muted: true },
+        });
+      }
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -566,6 +586,13 @@ export class Mutations {
         ...profile,
         viewer: { ...profile.viewer, muted: false },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          viewer: { ...detailed.viewer, muted: false },
+        });
+      }
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -602,6 +629,13 @@ export class Mutations {
         ...profile,
         viewer: { ...profile.viewer, blocking: block.uri },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          viewer: { ...detailed.viewer, blocking: block.uri },
+        });
+      }
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -648,6 +682,13 @@ export class Mutations {
         ...profile,
         viewer: { ...profile.viewer, activitySubscription },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          viewer: { ...detailed.viewer, activitySubscription },
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -666,6 +707,13 @@ export class Mutations {
         ...profile,
         viewer: { ...profile.viewer, blocking: null },
       });
+      const detailed = this.dataStore.$detailedProfiles.get(profile.did);
+      if (detailed) {
+        this.dataStore.$detailedProfiles.set(profile.did, {
+          ...detailed,
+          viewer: { ...detailed.viewer, blocking: null },
+        });
+      }
       this._updatePostsByAuthor(profile.did, (post) => {
         return {
           ...post,
@@ -689,6 +737,60 @@ export class Mutations {
       throw error;
     } finally {
       this.patchStore.removeProfilePatch(profile.did, patchId);
+    }
+  }
+
+  async muteModList(list) {
+    try {
+      await this.api.muteModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, muted: true },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async unmuteModList(list) {
+    try {
+      await this.api.unmuteModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, muted: false },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async blockModList(list) {
+    try {
+      const block = await this.api.blockModList(list.uri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, blocked: block.uri },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+  }
+
+  async unblockModList(list) {
+    const blockUri = list.viewer?.blocked;
+    if (!blockUri) return;
+    try {
+      await this.api.unblockModList(blockUri);
+      this.dataStore.$lists.set(list.uri, {
+        ...list,
+        viewer: { ...list.viewer, blocked: null },
+      });
+    } catch (error) {
+      console.error(error);
+      throw error;
     }
   }
 
@@ -747,6 +849,7 @@ export class Mutations {
     // Fetch full profile to get updated image urls
     const updatedProfile = await this.api.getProfile(profile.did, { labelers });
     this.dataStore.$profiles.set(updatedProfile.did, updatedProfile);
+    this.dataStore.$detailedProfiles.set(updatedProfile.did, updatedProfile);
     const currentUser = this.dataStore.$currentUser.get();
     if (currentUser && currentUser.did === updatedProfile.did) {
       this.dataStore.$currentUser.set({

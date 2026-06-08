@@ -1873,6 +1873,174 @@ t.describe("Preferences.getMediaLabel", (it) => {
   });
 });
 
+t.describe("Preferences.getProfileBlurLabel", (it) => {
+  it("should return null when author has no labels", () => {
+    const preferences = new Preferences([], []);
+    const author = { labels: [] };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result, null);
+  });
+
+  it("should return null when author is undefined", () => {
+    const preferences = new Preferences([], []);
+    const result = preferences.getProfileBlurLabel(undefined);
+
+    assertEquals(result, null);
+  });
+
+  it("should return entry for the !hide global label", () => {
+    const preferences = new Preferences([], []);
+    const author = {
+      labels: [{ src: "did:plc:author", val: "!hide" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "!hide");
+  });
+
+  it("should return entry for the porn global label (default hide)", () => {
+    const preferences = new Preferences([], []);
+    const author = {
+      labels: [{ src: "did:plc:author", val: "porn" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "porn");
+  });
+
+  it("should return null for nudity (default ignore)", () => {
+    const preferences = new Preferences([], []);
+    const author = {
+      labels: [{ src: "did:plc:author", val: "nudity" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result, null);
+  });
+
+  it("should respect labeler-defined blur labels when subscribed", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "nsfw",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "NSFW" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const author = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result.visibility, "warn");
+    assertEquals(result.labelDefinition.identifier, "nsfw");
+  });
+
+  it("should skip labeler-defined labels when labeler is not subscribed", () => {
+    const preferences = new Preferences([], []);
+    const author = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result, null);
+  });
+
+  it("should skip badge labels (blurs: none)", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "verified",
+              blurs: "none",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Verified" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const author = {
+      labels: [{ src: "did:labeler1", val: "verified" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result, null);
+  });
+
+  it("should return the most restrictive label (hide over warn)", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "soft",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Soft" }],
+            },
+            {
+              identifier: "hard",
+              blurs: "media",
+              defaultSetting: "hide",
+              locales: [{ lang: "en", name: "Hard" }],
+            },
+          ],
+        },
+      },
+    ];
+
+    const preferences = new Preferences([], labelerDefs);
+    const author = {
+      labels: [
+        { src: "did:labeler1", val: "soft" },
+        { src: "did:labeler1", val: "hard" },
+      ],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "hard");
+  });
+
+  it("should respect user preference upgrading nudity from ignore to hide", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "nudity",
+        labelerDid: null,
+        visibility: "hide",
+      },
+    ];
+
+    const preferences = new Preferences(obj, []);
+    const author = {
+      labels: [{ src: "did:plc:author", val: "nudity" }],
+    };
+    const result = preferences.getProfileBlurLabel(author);
+
+    assertEquals(result.visibility, "hide");
+    assertEquals(result.labelDefinition.identifier, "nudity");
+  });
+});
+
 t.describe("Preferences.getContentLabelPref", (it) => {
   it("should return matching content label preference", () => {
     const labelerDid = "did:plc:testlabeler";

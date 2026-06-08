@@ -77,6 +77,7 @@ class SettingsMutedAccountsView extends View {
                     hasMore,
                     onLoadMore: loadMore,
                     emptyMessage: "You have not muted any accounts yet.",
+                    showFollowButton: false,
                   });
                 })()}
               </main>`,

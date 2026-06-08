@@ -875,6 +875,21 @@ export class Api {
     return res.data;
   }
 
+  async getKnownFollowers(actor, { limit = 50, cursor, labelers = [] } = {}) {
+    const query = { actor, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("app.bsky.graph.getKnownFollowers", {
+      query,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getFollows(actor, { limit = 50, cursor, labelers = [] } = {}) {
     const query = { actor, limit };
     if (cursor) {
@@ -988,6 +1003,62 @@ export class Api {
       body: {
         repo: this.session.did,
         collection: "app.bsky.graph.block",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async muteModList(listUri) {
+    const res = await this.request("app.bsky.graph.muteActorList", {
+      method: "POST",
+      body: {
+        list: listUri,
+      },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async unmuteModList(listUri) {
+    const res = await this.request("app.bsky.graph.unmuteActorList", {
+      method: "POST",
+      body: {
+        list: listUri,
+      },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res;
+  }
+
+  async blockModList(listUri) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listblock",
+        record: {
+          createdAt: getCurrentTimestamp(),
+          subject: listUri,
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async unblockModList(blockUri) {
+    const rkey = blockUri.split("/").pop();
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.listblock",
         rkey,
       },
     });

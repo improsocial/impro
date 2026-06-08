@@ -32,6 +32,7 @@ export class DataStore extends ReactiveStore {
     this.$postThreads = new SignalMap();
     this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
+    this.$detailedProfiles = new SignalMap();
     this.$authorFeeds = new SignalMap();
     this.$unavailablePosts = new SignalMap();
     this.$reposts = new SignalMap();
@@ -49,6 +50,7 @@ export class DataStore extends ReactiveStore {
     this.$hashtagFeeds = new SignalMap();
     this.$profileFollowers = new SignalMap();
     this.$profileFollows = new SignalMap();
+    this.$knownFollowers = new SignalMap();
     this.$profileChatStatus = new SignalMap();
     this.$labelerInfo = new SignalMap();
   }
@@ -63,6 +65,12 @@ export class DataStore extends ReactiveStore {
       ) {
         this.$posts.set(quotedPost.uri, embedViewRecordToPostView(quotedPost));
       }
+    }
+  }
+
+  setProfiles(profiles) {
+    for (const profile of profiles) {
+      this.$profiles.set(profile.did, profile);
     }
   }
 }

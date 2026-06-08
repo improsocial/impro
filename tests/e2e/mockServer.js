@@ -45,6 +45,7 @@ export class MockServer {
     this.postThreadDelays = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
+    this.knownFollowers = new Map();
     this.profiles = new Map();
     this.savedFeedUris = [];
     this.actorFeeds = new Map();
@@ -195,6 +196,10 @@ export class MockServer {
 
   addProfileFollows(did, follows) {
     this.profileFollows.set(did, follows);
+  }
+
+  addKnownFollowers(did, followers) {
+    this.knownFollowers.set(did, followers);
   }
 
   addProfile(profile) {
@@ -726,6 +731,34 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.muteActorList*", (route) => {
+      const body = route.request().postDataJSON();
+      const listUri = body?.list;
+      const list = this.lists.find((l) => l.uri === listUri);
+      if (list) {
+        list.viewer = { ...list.viewer, muted: true };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.unmuteActorList*", (route) => {
+      const body = route.request().postDataJSON();
+      const listUri = body?.list;
+      const list = this.lists.find((l) => l.uri === listUri);
+      if (list) {
+        list.viewer = { ...list.viewer, muted: false };
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
     await page.route(
       "**/xrpc/app.bsky.notification.putActivitySubscription*",
       (route) => {
@@ -1192,6 +1225,31 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.graph.getKnownFollowers*", (route) => {
+      const url = new URL(route.request().url());
+      const actor = url.searchParams.get("actor");
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const allFollowers = this.knownFollowers.get(actor) || [];
+
+      let followers, nextCursor;
+      if (limit) {
+        followers = allFollowers.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allFollowers.length ? String(offset + limit) : "";
+      } else {
+        followers = allFollowers;
+        nextCursor = "";
+      }
+
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ followers, cursor: nextCursor }),
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.graph.getFollows*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor");
@@ -1373,6 +1431,18 @@ export class MockServer {
             profile.viewer.blocking.split("/").pop() === rkey
           ) {
             profile.viewer = { ...profile.viewer, blocking: undefined };
+            break;
+          }
+        }
+      }
+
+      if (collection === "app.bsky.graph.listblock") {
+        for (const list of this.lists) {
+          if (
+            list.viewer?.blocked &&
+            list.viewer.blocked.split("/").pop() === rkey
+          ) {
+            list.viewer = { ...list.viewer, blocked: undefined };
             break;
           }
         }
@@ -1615,6 +1685,14 @@ export class MockServer {
         const profile = this.profiles.get(subjectDid);
         if (profile) {
           profile.viewer = { ...profile.viewer, blocking: uri };
+        }
+      }
+
+      if (collection === "app.bsky.graph.listblock") {
+        const subjectUri = body?.record?.subject;
+        const list = this.lists.find((l) => l.uri === subjectUri);
+        if (list) {
+          list.viewer = { ...list.viewer, blocked: uri };
         }
       }
 

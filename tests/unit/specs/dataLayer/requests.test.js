@@ -367,7 +367,7 @@ t.describe("loadPluginFilteredFeedItems", (it) => {
   });
 });
 
-t.describe("loadProfile", (it) => {
+t.describe("loadDetailedProfile", (it) => {
   const profileDID = "did:test:profile";
 
   it("should load and store profile", async () => {
@@ -393,7 +393,7 @@ t.describe("loadProfile", (it) => {
       mockPreferencesProvider,
     );
 
-    await requests.loadProfile(profileDID);
+    await requests.loadDetailedProfile(profileDID);
 
     // Check profile was stored
     assertEquals(dataStore.$profiles.get(profileDID), mockProfile);
@@ -422,7 +422,7 @@ t.describe("loadProfile", (it) => {
       mockPreferencesProvider,
     );
 
-    await requests.loadProfile(profileDID);
+    await requests.loadDetailedProfile(profileDID);
 
     assertEquals(dataStore.$profiles.get(profileDID), initialProfile);
 
@@ -435,7 +435,7 @@ t.describe("loadProfile", (it) => {
 
     mockApi.getProfile = async () => updatedProfile;
 
-    await requests.loadProfile(profileDID);
+    await requests.loadDetailedProfile(profileDID);
 
     assertEquals(dataStore.$profiles.get(profileDID), updatedProfile);
   });
@@ -1979,12 +1979,21 @@ t.describe("enableStatus / getStatus", (it) => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadProfile("did:plc:a");
-    await requests.loadProfile("did:plc:b");
+    await requests.loadDetailedProfile("did:plc:a");
+    await requests.loadDetailedProfile("did:plc:b");
 
-    assertEquals(requests.getStatus("loadProfile-did:plc:a").error, null);
-    assertEquals(requests.getStatus("loadProfile-did:plc:a").loading, false);
-    assertEquals(requests.getStatus("loadProfile-did:plc:b").loading, false);
+    assertEquals(
+      requests.getStatus("loadDetailedProfile-did:plc:a").error,
+      null,
+    );
+    assertEquals(
+      requests.getStatus("loadDetailedProfile-did:plc:a").loading,
+      false,
+    );
+    assertEquals(
+      requests.getStatus("loadDetailedProfile-did:plc:b").loading,
+      false,
+    );
   });
 });
 

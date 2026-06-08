@@ -12,7 +12,6 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { ApiError } from "/js/api.js";
-import { getFacetsFromText } from "/js/facetHelpers.js";
 import { pageEffect } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
@@ -66,7 +65,6 @@ class ProfileView extends View {
 
     const state = new ReactiveStore("profileView");
     state.$activeTab = new Signal.State("posts");
-    state.$richTextProfileDescription = new Signal.State(null);
 
     const { handleOrDid } = params;
     let profileDid = null;
@@ -121,7 +119,6 @@ class ProfileView extends View {
     ) {
       try {
         await dataLayer.mutations.updateProfile(profile, profileUpdates);
-        await loadProfileDescription();
         showToast("Profile updated");
         successCallback();
       } catch (error) {
@@ -325,7 +322,6 @@ class ProfileView extends View {
       labelerInfo,
       currentUser,
       activeTab,
-      richTextProfileDescription,
     }) {
       try {
         if (!isAuthenticated && doHideAuthorOnUnauthenticated(profile)) {
@@ -374,7 +370,7 @@ class ProfileView extends View {
           <div class="profile-container">
             ${profileCardTemplate({
               profile,
-              richTextProfileDescription,
+              identityResolver,
               isAuthenticated,
               isCurrentUser,
               profileChatStatus,
@@ -528,14 +524,15 @@ class ProfileView extends View {
     }
 
     pageEffect(root, () => {
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
+      const profile =
+        dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
       const currentUser = dataLayer.derived.$currentUser.get();
       const numNotifications =
         notificationService?.$numNotifications.get() ?? null;
       const numChatNotifications =
         chatNotificationService?.$numNotifications.get() ?? null;
       const profileRequestStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadProfile-" + profileDid,
+        "loadDetailedProfile-" + profileDid,
       );
       const isLabeler = profile && isLabelerProfile(profile);
       const labelerInfo = isLabeler
@@ -544,8 +541,6 @@ class ProfileView extends View {
       // If labeler, require labeler info to be loaded
       const isLoaded = profile && (isLabeler ? !!labelerInfo : true);
       const activeTab = state.$activeTab.get();
-      const richTextProfileDescription =
-        state.$richTextProfileDescription.get();
       render(
         html`<div id="profile-view">
           ${mainLayoutTemplate({
@@ -583,7 +578,6 @@ class ProfileView extends View {
                       labelerInfo,
                       currentUser,
                       activeTab,
-                      richTextProfileDescription,
                     });
                   } else {
                     return profileSkeletonTemplate();
@@ -650,22 +644,6 @@ class ProfileView extends View {
       }
     }
 
-    // This is async because it needs to resolve mentions
-    async function loadProfileDescription() {
-      const profile = dataLayer.derived.$hydratedProfiles.get(profileDid);
-      if (!profile?.description) {
-        return;
-      }
-      const facets = await getFacetsFromText(
-        profile.description,
-        identityResolver,
-      );
-      state.$richTextProfileDescription.set({
-        text: profile.description,
-        facets,
-      });
-    }
-
     root.addEventListener("page-enter", async () => {
       if (isAuthenticated) {
         await dataLayer.declarative.ensureCurrentUser();
@@ -673,7 +651,7 @@ class ProfileView extends View {
 
       let profile;
       try {
-        profile = await dataLayer.declarative.ensureProfile(profileDid);
+        profile = await dataLayer.declarative.ensureDetailedProfile(profileDid);
       } catch {
         return;
       }
@@ -685,7 +663,6 @@ class ProfileView extends View {
         dataLayer.requests.loadLabelerInfo(profile.did);
       }
 
-      await loadProfileDescription();
       if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
         loadAuthorFeed();
         preloadHiddenFeeds();

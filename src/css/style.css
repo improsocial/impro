@@ -793,17 +793,30 @@ input[type="color"]::-moz-color-swatch {
   display: block;
 }
 
-.avatar-image {
+.avatar-image-frame {
+  display: inline-block;
+  line-height: 0;
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
-  flex-shrink: 0;
-  background-color: var(--skeleton-color);
   border: var(--hair) solid var(--post-border-color);
+  background-color: var(--skeleton-color);
+  overflow: hidden;
+  flex-shrink: 0;
 }
 
-.avatar-image.labeler-avatar {
+.avatar-image-frame.labeler-avatar {
   border-radius: var(--labeler-avatar-border-radius);
+}
+
+.avatar-image {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.avatar-image--blurred {
+  filter: blur(5px);
 }
 
 .avatar-link {
@@ -1010,7 +1023,7 @@ tab-bar:not([full-width]) {
     padding-bottom: 0 !important;
   }
 
-  .sidebar .sidebar-profile-avatar .avatar-image,
+  .sidebar .sidebar-profile-avatar .avatar-image-frame,
   .sidebar .sidebar-profile-avatar .avatar-placeholder {
     width: var(--avatar-size-sidebar-compact);
     height: var(--avatar-size-sidebar-compact);
@@ -1074,13 +1087,13 @@ tab-bar:not([full-width]) {
   }
 }
 
-.sidebar-profile-avatar .avatar-image,
+.sidebar-profile-avatar .avatar-image-frame,
 .sidebar-profile-avatar .avatar-placeholder {
   width: var(--avatar-size-sidebar);
   height: var(--avatar-size-sidebar);
 }
 
-.sidebar-profile-avatar .avatar-image {
+.sidebar-profile-avatar .avatar-image-frame {
   border-radius: var(--avatar-border-radius);
   border: var(--hair) solid var(--post-border-color);
 }
@@ -1431,7 +1444,7 @@ button.sidebar-plugin-nav-item {
   left: 27px;
 }
 
-.footer-nav-item .avatar-image {
+.footer-nav-item .avatar-image-frame {
   width: var(--avatar-size-footer-nav);
   height: var(--avatar-size-footer-nav);
 }
@@ -1991,7 +2004,7 @@ button.sidebar-plugin-nav-item {
   }
 }
 
-.post-thread-reply-prompt .avatar .avatar-image {
+.post-thread-reply-prompt .avatar .avatar-image-frame {
   width: var(--avatar-size-reply-prompt);
   height: var(--avatar-size-reply-prompt);
 }
@@ -2233,6 +2246,7 @@ animated-button {
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--image-border-radius);
   background-color: var(--background-color);
+  object-fit: cover;
 }
 
 .post-image-container .alt-indicator {
@@ -2363,7 +2377,7 @@ animated-button {
   font-size: 14px;
 }
 
-.quoted-post .avatar-image {
+.quoted-post .avatar-image-frame {
   width: var(--avatar-size-quoted-post);
   height: var(--avatar-size-quoted-post);
 }
@@ -3174,7 +3188,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   flex-shrink: 0;
 }
 
-.convo-avatar .avatar-image {
+.convo-avatar .avatar-image-frame {
   width: var(--avatar-size-convo);
   height: var(--avatar-size-convo);
 }
@@ -3454,7 +3468,7 @@ lightbox-image-group.post-images.num-images-4 .post-image {
   height: var(--avatar-size-message);
 }
 
-.message-avatar .avatar-image {
+.message-avatar .avatar-image-frame {
   width: var(--avatar-size-message);
   height: var(--avatar-size-message);
 }
@@ -3562,7 +3576,7 @@ chat-input {
   height: var(--avatar-size-message-input);
 }
 
-.message-input-avatar .avatar-image {
+.message-input-avatar .avatar-image-frame {
   width: var(--avatar-size-message-input);
   height: var(--avatar-size-message-input);
 }
@@ -3804,6 +3818,10 @@ emoji-picker {
   object-fit: cover;
 }
 
+.profile-banner--blurred {
+  filter: blur(100px);
+}
+
 .profile-banner-container lightbox-image-group {
   display: block;
   width: 100%;
@@ -3823,7 +3841,7 @@ emoji-picker {
   left: 0;
 }
 
-.profile-header .avatar-image {
+.profile-header .avatar-image-frame {
   width: var(--avatar-size-profile);
   height: var(--avatar-size-profile);
   border-color: var(--background-color);
@@ -3943,7 +3961,7 @@ emoji-picker {
   padding: 3px 8px;
   border-radius: var(--tag-border-radius);
   display: inline-block;
-  min-width: fit-content;
+  width: fit-content;
 }
 
 .profile-blocked-badge {
@@ -3977,6 +3995,55 @@ emoji-picker {
     cursor: pointer;
     text-decoration: underline;
   }
+}
+
+.known-followers-summary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  padding: 0 16px;
+  color: var(--text-color-muted);
+  font-size: 14px;
+  text-decoration: none;
+  line-height: 1.3;
+}
+
+@media (min-width: 800px) {
+  .known-followers-summary:hover .known-followers-text {
+    text-decoration: underline;
+  }
+}
+
+.known-followers-summary strong {
+  color: var(--text-color);
+  font-weight: 600;
+}
+
+.known-followers-avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.known-followers-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid var(--background-color);
+  overflow: hidden;
+  margin-left: -8px;
+}
+
+.known-followers-avatar:first-child {
+  margin-left: 0;
+}
+
+.known-followers-avatar .avatar,
+.known-followers-avatar .avatar-image-frame,
+.known-followers-avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
 }
 
 .profile-description {
@@ -4048,11 +4115,17 @@ emoji-picker {
 
 .profile-list-item {
   display: flex;
-  align-items: flex-start;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   cursor: pointer;
+}
+
+.profile-list-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
 }
 
 @media (min-width: 800px) {
@@ -4096,13 +4169,33 @@ emoji-picker {
 }
 
 .profile-list-item-handle {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.profile-list-item-follow {
+  margin-left: auto;
+  align-self: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.profile-list-item-skeleton-bio {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .profile-list-item-description {
   font-size: 13px;
   color: var(--text-color-muted);
+}
+
+.profile-list-item-description .rich-text {
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -5996,6 +6089,13 @@ img[data-lightbox] {
   cursor: pointer;
   background: none;
   border: none;
+  width: 100%;
+  text-align: left;
+  font: inherit;
+}
+
+.vertical-nav-item:not(.danger-button) {
+  color: inherit;
 }
 
 .vertical-nav hr {
@@ -6047,6 +6147,76 @@ img[data-lightbox] {
 
 .vertical-nav-arrow .icon path {
   stroke: var(--text-color-muted);
+}
+
+.settings-account-avatar-stack {
+  display: flex;
+  flex-direction: row-reverse;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.settings-account-avatar-stack .avatar {
+  margin-left: -8px;
+}
+
+.settings-account-avatar-stack .avatar:first-child {
+  margin-left: 0;
+}
+
+.settings-account-avatar-stack .avatar .avatar-image-frame {
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--background-color);
+  border-radius: 50%;
+  overflow: hidden;
+}
+
+.settings-account-avatar-stack .avatar .avatar-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+[data-testid="settings-account-row"]
+  .vertical-nav-icon
+  .avatar
+  .avatar-image-frame {
+  width: 26px;
+  height: 26px;
+  border: none;
+}
+
+/* Keep the inline context-menu host out of flex layout so it doesn't add a
+   `gap` between the ellipsis trigger and the right edge of the row. */
+[data-testid="settings-account-row"] > context-menu {
+  position: absolute;
+}
+
+.settings-switch-account-placeholder {
+  height: 50px;
+}
+
+.settings-account-ellipsis {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color-muted);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.settings-account-ellipsis span {
+  position: relative;
+  top: -4px;
+  font-weight: 600;
 }
 
 moderation-warning {
@@ -6748,7 +6918,7 @@ moderation-warning .toggle-content {
   flex-shrink: 0;
 }
 
-.report-labeler-avatar avatar-element .avatar-image {
+.report-labeler-avatar avatar-element .avatar-image-frame {
   width: var(--avatar-size-post);
   height: var(--avatar-size-post);
 }
@@ -8047,4 +8217,8 @@ p.setting-item-desc {
   .footer-nav.logged-out-footer {
     display: flex !important;
   }
+}
+
+.subscribe-list-button {
+  margin-right: 12px;
 }
