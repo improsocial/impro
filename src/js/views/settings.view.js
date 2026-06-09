@@ -395,9 +395,6 @@ class SettingsView extends View {
     });
 
     root.addEventListener("page-restore", () => {
-      // Clear any pending state left over from a navigation the user backed
-      // out of (e.g. bfcache restore after "Add account").
-      $pendingAccountSwitcherAction.set(null);
       window.scrollTo(0, 0);
     });
   }
