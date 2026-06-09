@@ -24,7 +24,7 @@ test.describe("Unregistered plugin install flow", () => {
     // the registry is empty; override it so the load step gets a manifest
     // whose id matches what we installed.
     await page.route(
-      "**/cdn.jsdelivr.net/gh/alice/unregistered-themes@1.0.0/manifest.json",
+      "**/raw.githubusercontent.com/alice/unregistered-themes/refs/tags/1.0.0/manifest.json",
       (route) =>
         route.fulfill({
           status: 200,
