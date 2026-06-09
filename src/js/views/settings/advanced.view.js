@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
   getAppViewConfig,
@@ -17,16 +16,7 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, pluginService, mainLayout } }) {
     await auth.requireAuth();
 
     const storedConfig = getAppViewConfig();
@@ -120,22 +110,11 @@ class SettingsAdvancedView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const isCustom =
         state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
       render(
         html`<div id="settings-advanced-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

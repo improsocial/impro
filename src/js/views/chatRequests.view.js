@@ -3,24 +3,13 @@ import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { showToast } from "/js/toasts.js";
 
 class ChatRequestsView extends View {
-  async render({
-    root,
-    router,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, router, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     async function handleAccept(convo) {
@@ -160,11 +149,6 @@ class ChatRequestsView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const convos = dataLayer.derived.$convoList.get();
       const convosRequestStatus =
         dataLayer.requests.statusStore.$statuses.get("loadConvoList");
@@ -177,17 +161,11 @@ class ChatRequestsView extends View {
 
       render(
         html`<div id="chat-requests-view">
-          ${mainLayoutTemplate({
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             activeNavItem: "chat",
             onClickActiveNavItem: () => {
               router.go("/messages");
             },
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            pluginService,
             children: html`
               ${headerTemplate({
                 title: "Chat requests",

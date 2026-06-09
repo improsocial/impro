@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import {
   theme,
   getDefaultHighlightColor,
@@ -12,16 +11,7 @@ import {
 } from "/js/theme.js";
 
 class SettingsAppearanceView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     function handleHighlightColorChange(newHighlightColor) {
@@ -37,11 +27,6 @@ class SettingsAppearanceView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentHighlightColor = theme.$highlightColor.get();
       const defaultHighlightColor = getDefaultHighlightColor();
       const currentLikeColor = theme.$likeColor.get();
@@ -49,13 +34,7 @@ class SettingsAppearanceView extends View {
       const currentColorScheme = theme.$colorScheme.get();
       render(
         html`<div id="settings-appearance-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

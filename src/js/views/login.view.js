@@ -18,7 +18,7 @@ import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { validateReturnToParam } from "/js/navigation.js";
 
 class LoginView extends View {
-  async render({ root, params, context }) {
+  async render({ root, router, params, context }) {
     await auth.requireNoAuth();
 
     const storedConfig = getAppViewConfig();

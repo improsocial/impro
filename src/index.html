@@ -129,6 +129,7 @@
         handleAppViewResetQueryParam,
       } from "/js/appViewConfig.js";
       import { PluginService } from "/js/plugins/pluginService.js";
+      import { createMainLayout } from "/js/templates/mainLayout.template.js";
 
       async function main() {
         // Body class for styling
@@ -248,6 +249,8 @@
           pluginService,
           interactionHandlers,
         };
+        // Bind context to layout
+        context.mainLayout = createMainLayout(context);
 
         pluginService.setRenderContext(context);
 

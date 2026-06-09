@@ -6,7 +6,6 @@ import { isModerationList } from "/js/dataHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -25,12 +24,10 @@ class ListDetailView extends View {
     context: {
       dataLayer,
       identityResolver,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -109,10 +106,6 @@ class ListDetailView extends View {
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const list = dataLayer.derived.$lists.get(listUri);
       const listCreator = list?.creator;
@@ -128,14 +121,8 @@ class ListDetailView extends View {
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
       render(
         html`<div id="list-detail-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
+          ${mainLayout({
             showSidebarOverlay: false,
-            numNotifications,
-            numChatNotifications,
-            currentUser,
-            pluginService,
             children: html`${headerTemplate({
               rightItemTemplate: list
                 ? () => html`

@@ -4,8 +4,29 @@ import { footerTemplate } from "/js/templates/footer.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import "/js/components/animated-sidebar.js";
 
-function defaultOnClickComposeButton() {
-  console.warn("onClickComposeButton not provided");
+export function createMainLayout(context) {
+  const {
+    isAuthenticated,
+    dataLayer,
+    notificationService,
+    chatNotificationService,
+    postComposerService,
+    pluginService,
+  } = context;
+  return function mainLayout(options) {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    return mainLayoutTemplate({
+      isAuthenticated,
+      currentUser,
+      numNotifications: notificationService?.$numNotifications.get() ?? null,
+      numChatNotifications:
+        chatNotificationService?.$numNotifications.get() ?? null,
+      pluginService,
+      onClickComposeButton: () =>
+        postComposerService.composePost({ currentUser }),
+      ...options,
+    });
+  };
 }
 
 export function mainLayoutTemplate({
@@ -17,7 +38,7 @@ export function mainLayoutTemplate({
   onClickActiveNavItem,
   children,
   showFloatingComposeButton = false,
-  onClickComposeButton = defaultOnClickComposeButton,
+  onClickComposeButton,
   showSidebarOverlay = true,
   pluginService,
 }) {

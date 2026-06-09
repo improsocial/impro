@@ -2,46 +2,26 @@ import { View } from "/js/views/view.js";
 import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { linkToList } from "/js/navigation.js";
 
 class FeedsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
 
       render(
         html`<div id="feeds-view">
-          ${mainLayoutTemplate({
-            currentUser,
+          ${mainLayout({
             activeNavItem: "feeds",
-            numNotifications,
-            numChatNotifications,
-            pluginService,
             onClickActiveNavItem: () => {
               window.scrollTo(0, 0);
             },
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
             children: html`
               ${headerTemplate({
                 title: "Feeds",

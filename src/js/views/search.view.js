@@ -1,6 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { classnames, debounce } from "/js/utils.js";
@@ -17,13 +16,10 @@ class SearchView extends View {
     root,
     context: {
       dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     const state = new ReactiveStore("searchView");
@@ -322,10 +318,6 @@ class SearchView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const searchQuery = state.$searchQuery.get();
       const activeTab = state.$activeTab.get();
       const normalizedQuery = searchQuery.trim();
@@ -351,15 +343,8 @@ class SearchView extends View {
 
       render(
         html`<div id="search-view">
-          ${mainLayoutTemplate({
-            isAuthenticated,
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "search",
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
             children: html`
               ${headerTemplate({
                 title: "Search",

@@ -5,7 +5,6 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
@@ -48,11 +47,9 @@ class ChatDetailView extends View {
     params,
     context: {
       dataLayer,
-      notificationService,
       chatNotificationService,
       identityResolver,
-      postComposerService,
-      pluginService,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -628,10 +625,6 @@ class ChatDetailView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? 0;
       const messagesData = dataLayer.derived.$convoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
       const messagesRequestStatus =
@@ -646,14 +639,8 @@ class ChatDetailView extends View {
 
       render(
         html`<div id="chat-detail-view">
-          ${mainLayoutTemplate({
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             showSidebarOverlay: false,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            pluginService,
             children: html`
               ${headerTemplate({
                 avatarTemplate: () => {

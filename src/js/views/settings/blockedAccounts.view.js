@@ -3,21 +3,11 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsBlockedAccountsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     async function loadMore() {
@@ -35,11 +25,6 @@ class SettingsBlockedAccountsView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
       const status = dataLayer.requests.statusStore.$statuses.get(
         "loadBlockedProfiles",
@@ -48,13 +33,7 @@ class SettingsBlockedAccountsView extends View {
 
       render(
         html`<div id="settings-blocked-accounts-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

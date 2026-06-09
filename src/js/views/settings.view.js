@@ -12,7 +12,6 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
 import { classnames } from "/js/utils.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -24,16 +23,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 class SettingsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     const currentSession = await auth.requireAuth();
     const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
@@ -206,25 +196,14 @@ class SettingsView extends View {
     ];
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const otherAccounts = $otherAccounts.get();
       const otherAccountProfiles = $otherAccountProfiles.get();
       if (otherAccounts === null) return;
       render(
         html`<div id="settings-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.scrollTo(0, 0),
-            pluginService,
             children: html`${headerTemplate({
                 title: "Settings",
                 onClickBackButton: () => {

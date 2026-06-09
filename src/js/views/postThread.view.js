@@ -7,7 +7,6 @@ import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import {
   flattenParents,
   isBlockedPost,
@@ -30,17 +29,16 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 class PostThreadView extends View {
   async render({
     root,
+    router,
     params,
     context: {
       dataLayer,
       identityResolver,
-      notificationService,
-      chatNotificationService,
       postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -522,10 +520,6 @@ class PostThreadView extends View {
     pageEffect(root, () => {
       const postThread = state.$postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const postThreadRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
           "loadPostThread-" + postUri,
@@ -533,15 +527,8 @@ class PostThreadView extends View {
 
       render(
         html`<div id="post-detail-view">
-          ${mainLayoutTemplate({
-            isAuthenticated,
+          ${mainLayout({
             showSidebarOverlay: false,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
             children: html`${headerTemplate({ title: "Post" })}
               <main>
                 ${(() => {

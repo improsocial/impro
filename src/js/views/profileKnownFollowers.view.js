@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
 import { pageEffect } from "/js/router.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -15,12 +14,9 @@ class ProfileKnownFollowersView extends View {
     context: {
       dataLayer,
       identityResolver,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
       interactionHandlers,
       isAuthenticated,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -44,10 +40,6 @@ class ProfileKnownFollowersView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const knownFollowers = dataLayer.derived.$knownFollowers.get(profileDid);
       const profile =
         dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
@@ -59,13 +51,7 @@ class ProfileKnownFollowersView extends View {
       const hasMore = knownFollowers?.cursor ? true : false;
       render(
         html`<div id="profile-known-followers-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             children: html`${headerTemplate({
                 title: profile ? getDisplayName(profile) : "",
                 subtitle: "Followers you know",

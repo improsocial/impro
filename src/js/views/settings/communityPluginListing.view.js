@@ -2,7 +2,6 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
 import { confirm } from "/js/modals.js";
@@ -14,13 +13,7 @@ class SettingsCommunityPluginListingView extends View {
   async render({
     root,
     params,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
+    context: { dataLayer, pluginService, mainLayout },
   }) {
     await auth.requireAuth();
 
@@ -117,11 +110,6 @@ class SettingsCommunityPluginListingView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const listing = state.$listing.get();
       const loadError = state.$loadError.get();
       const version = state.$version.get();
@@ -133,13 +121,7 @@ class SettingsCommunityPluginListingView extends View {
         : "plugin-install-button rounded-button rounded-button-primary";
       render(
         html`<div id="settings-community-plugin-listing-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

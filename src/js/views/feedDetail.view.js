@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -21,13 +20,10 @@ class FeedDetailView extends View {
     context: {
       dataLayer,
       identityResolver,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -51,10 +47,6 @@ class FeedDetailView extends View {
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const feedGenerator = dataLayer.derived.$feedGenerators.get(feedUri);
       const feedName = feedGenerator?.displayName || "";
@@ -65,14 +57,8 @@ class FeedDetailView extends View {
       const feed = dataLayer.derived.$hydratedFeeds.get(feedUri);
       render(
         html`<div id="feed-detail-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            numNotifications,
-            numChatNotifications,
-            currentUser,
+          ${mainLayout({
             showSidebarOverlay: false,
-            pluginService,
             children: html`${headerTemplate({
                 title: feedName,
                 subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",

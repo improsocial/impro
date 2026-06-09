@@ -2,7 +2,6 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
@@ -16,16 +15,7 @@ import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
 class SettingsPluginsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, pluginService, mainLayout } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsPluginsView");
@@ -160,24 +150,13 @@ class SettingsPluginsView extends View {
       const reloading = state.$reloading.get();
       const checkingForUpdates = state.$checkingForUpdates.get();
       const updatingAll = state.$updatingAll.get();
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const pluginsInfo = pluginService.$pluginsInfo.get();
       const availableUpdates = pluginService.$availableUpdates.get();
       const hasAvailableUpdates =
         availableUpdates !== null && availableUpdates.size > 0;
       render(
         html`<div id="settings-plugins-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
