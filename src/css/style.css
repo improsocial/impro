@@ -2041,6 +2041,16 @@ button.sidebar-plugin-nav-item {
   position: relative;
 }
 
+.account-switcher-add-icon .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.account-switcher-current-check .icon {
+  width: 24px;
+  height: 24px;
+}
+
 .post-actions {
   display: flex;
   justify-content: space-between;
