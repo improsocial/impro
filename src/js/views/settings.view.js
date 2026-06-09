@@ -16,6 +16,7 @@ import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirm } from "/js/modals.js";
+import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
@@ -30,11 +31,22 @@ class SettingsView extends View {
     const $otherAccounts = new Signal.State(null);
     const $otherAccountProfiles = new Signal.State({});
     const $accountSwitcherExpanded = new Signal.State(false);
+    const $pendingAccountSwitcherAction = new Signal.State(null); // { type, did? }
+
+    function accountSpinnerTemplate() {
+      return html`<span
+        class="settings-account-spinner"
+        data-testid="settings-account-spinner"
+      >
+        <span class="loading-spinner"></span>
+      </span>`;
+    }
 
     function accountsSwitcherTemplate({
       expanded,
       accounts,
       accountProfiles,
+      pendingAction,
       onToggle,
       onSwitch,
       onAdd,
@@ -56,7 +68,9 @@ class SettingsView extends View {
             >${hasOthers ? "Switch account" : "Add another account"}</span
           >
           ${!hasOthers
-            ? null
+            ? pendingAction?.type === "add"
+              ? accountSpinnerTemplate()
+              : null
             : expanded
               ? html`<span class="vertical-nav-arrow"
                   >${chevronUpIconTemplate()}</span
@@ -108,28 +122,31 @@ class SettingsView extends View {
                       <span class="vertical-nav-label">
                         ${getDisplayName(account)}
                       </span>
-                      <button
-                        class="settings-account-ellipsis"
-                        data-testid="settings-account-menu-trigger"
-                        aria-label="Account actions"
-                        @click=${function (event) {
-                          event.stopPropagation();
-                          this.nextElementSibling.open(
-                            event.clientX,
-                            event.clientY,
-                          );
-                        }}
-                      >
-                        <span>⋯</span>
-                      </button>
-                      <context-menu>
-                        <context-menu-item
-                          data-testid="settings-account-remove"
-                          @click=${() => onRemove(account)}
-                        >
-                          Remove account
-                        </context-menu-item>
-                      </context-menu>
+                      ${pendingAction?.type === "switch" &&
+                      pendingAction.did === account.did
+                        ? accountSpinnerTemplate()
+                        : html`<button
+                              class="settings-account-ellipsis"
+                              data-testid="settings-account-menu-trigger"
+                              aria-label="Account actions"
+                              @click=${function (event) {
+                                event.stopPropagation();
+                                this.nextElementSibling.open(
+                                  event.clientX,
+                                  event.clientY,
+                                );
+                              }}
+                            >
+                              <span>⋯</span>
+                            </button>
+                            <context-menu>
+                              <context-menu-item
+                                data-testid="settings-account-remove"
+                                @click=${() => onRemove(account)}
+                              >
+                                Remove account
+                              </context-menu-item>
+                            </context-menu>`}
                     </div>
                   `;
                 })}
@@ -142,6 +159,9 @@ class SettingsView extends View {
                     >${userPlusIconTemplate()}</span
                   >
                   <span class="vertical-nav-label">Add account</span>
+                  ${pendingAction?.type === "add"
+                    ? accountSpinnerTemplate()
+                    : null}
                 </button>
               </div>
             `
@@ -225,12 +245,34 @@ class SettingsView extends View {
                         expanded: $accountSwitcherExpanded.get(),
                         accounts: otherAccounts,
                         accountProfiles: otherAccountProfiles,
-                        onToggle: () =>
+                        pendingAction: $pendingAccountSwitcherAction.get(),
+                        onToggle: () => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
                           $accountSwitcherExpanded.set(
                             !$accountSwitcherExpanded.get(),
-                          ),
-                        onSwitch: (did) => auth.switchAccount(did),
+                          );
+                        },
+                        onSwitch: async (did) => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
+                          $pendingAccountSwitcherAction.set({
+                            type: "switch",
+                            did,
+                          });
+                          try {
+                            await auth.switchAccount(did);
+                          } catch {
+                            $pendingAccountSwitcherAction.set(null);
+                            showToast("Failed to switch account", {
+                              style: "error",
+                            });
+                          }
+                        },
                         onAdd: () => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
+                          $pendingAccountSwitcherAction.set({ type: "add" });
                           window.location.href = linkToLogin({
                             query: { addAccount: 1 },
                           });
@@ -353,6 +395,9 @@ class SettingsView extends View {
     });
 
     root.addEventListener("page-restore", () => {
+      // Clear any pending state left over from a navigation the user backed
+      // out of (e.g. bfcache restore after "Add account").
+      $pendingAccountSwitcherAction.set(null);
       window.scrollTo(0, 0);
     });
   }

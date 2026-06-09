@@ -6335,6 +6335,15 @@ img[data-lightbox] {
   font-weight: 600;
 }
 
+.settings-account-spinner {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
 moderation-warning {
   width: 100%;
 }

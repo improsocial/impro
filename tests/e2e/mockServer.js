@@ -219,6 +219,22 @@ export class MockServer {
     this.convoMessages.set(convoId, messages);
   }
 
+  // Abort all subsequent document navigations (reloads, redirects) so the
+  // page stays on the current document. UI states that only exist until a
+  // navigation completes (e.g. an in-progress spinner) stay observable.
+  async blockNavigations(page) {
+    await page.route("**/*", async (route) => {
+      if (
+        route.request().isNavigationRequest() &&
+        route.request().resourceType() === "document"
+      ) {
+        await route.abort("aborted");
+        return;
+      }
+      await route.fallback();
+    });
+  }
+
   async setup(page) {
     // Plugin fixture routes — serve a self-contained test plugin so plugin
     // e2e tests don't depend on plugins-local/.
@@ -842,6 +858,19 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(profile),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.actor.getProfiles*", (route) => {
+      const url = new URL(route.request().url());
+      const actors = url.searchParams.getAll("actors");
+      const profiles = actors
+        .map((actor) => this.profiles.get(actor))
+        .filter(Boolean);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ profiles }),
       });
     });
 

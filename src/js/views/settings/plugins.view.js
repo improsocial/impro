@@ -278,6 +278,7 @@ class SettingsPluginsView extends View {
                                     ? html`<button
                                         class="plugin-update-button rounded-button rounded-button-primary"
                                         @click=${() => updatePlugin(plugin)}
+                                        ?disabled=${isUpdating}
                                       >
                                         ${isUpdating
                                           ? html`Updating
