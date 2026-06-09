@@ -7,7 +7,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..", "build");
+const root = path.resolve(__dirname, "..", process.env.BUILD_DIR || "build");
 const port = parseInt(process.env.PORT || "8081", 10);
 
 export const MIME = {

@@ -3,9 +3,9 @@
   "version": "0.16.6",
   "type": "module",
   "scripts": {
-    "start": "rm -rf build && NODE_ENV=development eleventy --serve",
+    "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
     "start:tunnel": "node scripts/dev-tunnel.js",
-    "build": "rm -rf build && NODE_ENV=production eleventy",
+    "build": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=production eleventy",
     "bundle:capacitor": "esbuild ./clientLibs/capacitor.js --bundle --format=esm --outfile=src/js/lib/capacitor.js",
     "ios": "npm run build && cap sync && NODE_ENV=development cap run ios",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
