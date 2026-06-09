@@ -23,6 +23,7 @@ class AccountSwitcherDialog extends Component {
     this.state.$currentDid = new Signal.State(null);
     this.state.$accounts = new Signal.State(null);
     this.state.$profilesByDid = new Signal.State({});
+    this.state.$profilesLoading = new Signal.State(true);
     this.state.$pendingAction = new Signal.State(null); // { type: "switch"|"add", did? }
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
@@ -58,17 +59,28 @@ class AccountSwitcherDialog extends Component {
       );
       const profilesByDid = {};
       for (const profile of profiles) {
-        profilesByDid[profile.did] = profile;
+        if (profile) {
+          profilesByDid[profile.did] = profile;
+        }
       }
       this.state.$profilesByDid.set(profilesByDid);
     } catch {
       // pass
+    } finally {
+      this.state.$profilesLoading.set(false);
     }
   }
 
   render() {
     const accounts = this.state.$accounts.get() ?? [];
     const pendingAction = this.state.$pendingAction.get();
+    const profilesLoading = this.state.$profilesLoading.get();
+    const currentDid = this.state.$currentDid.get();
+    // Put current account at the top of the list
+    const orderedAccounts = [
+      ...accounts.filter((account) => account.did === currentDid),
+      ...accounts.filter((account) => account.did !== currentDid),
+    ];
     render(
       html`
         <dialog
@@ -108,14 +120,15 @@ class AccountSwitcherDialog extends Component {
               class="account-switcher-list"
               data-testid="account-switcher-list"
             >
-              ${accounts.map((account) => {
+              ${orderedAccounts.map((account) => {
                 const profile =
                   this.state.$profilesByDid.get()[account.did] ?? null;
-                const isCurrent = account.did === this.state.$currentDid.get();
+                const isCurrent = account.did === currentDid;
                 const isPendingRow =
                   pendingAction?.type === "switch" &&
                   pendingAction.did === account.did;
                 const handle = profile?.handle ?? account.handle;
+                const showSkeleton = profile === null && profilesLoading;
                 return html`
                   <button
                     class="account-switcher-item"
@@ -129,26 +142,49 @@ class AccountSwitcherDialog extends Component {
                     ?disabled=${pendingAction !== null}
                     @click=${() => this._onSelect(account)}
                   >
-                    <span class="account-switcher-avatar">
-                      ${profile
-                        ? avatarTemplate({
-                            author: profile,
-                            clickAction: "none",
-                          })
-                        : html`<div class="avatar-image-placeholder"></div>`}
-                    </span>
-                    <span class="account-switcher-names">
-                      <span class="account-switcher-display-name">
-                        ${profile
-                          ? getDisplayName(profile)
-                          : (account.handle ?? account.did)}
-                      </span>
-                      ${handle
-                        ? html`<span class="account-switcher-handle"
-                            >@${handle}</span
-                          >`
-                        : null}
-                    </span>
+                    ${showSkeleton
+                      ? html`
+                          <span class="account-switcher-avatar">
+                            <span
+                              class="skeleton-avatar skeleton-animate"
+                            ></span>
+                          </span>
+                          <span
+                            class="account-switcher-names account-switcher-names-skeleton"
+                            data-testid="account-switcher-skeleton"
+                          >
+                            <span
+                              class="skeleton-line-short skeleton-animate"
+                            ></span>
+                            <span
+                              class="skeleton-line-shorter skeleton-animate"
+                            ></span>
+                          </span>
+                        `
+                      : html`
+                          <span class="account-switcher-avatar">
+                            ${profile
+                              ? avatarTemplate({
+                                  author: profile,
+                                  clickAction: "none",
+                                })
+                              : html`<div
+                                  class="avatar-image-placeholder"
+                                ></div>`}
+                          </span>
+                          <span class="account-switcher-names">
+                            <span class="account-switcher-display-name">
+                              ${profile
+                                ? getDisplayName(profile)
+                                : (account.handle ?? account.did)}
+                            </span>
+                            ${handle
+                              ? html`<span class="account-switcher-handle"
+                                  >@${handle}</span
+                                >`
+                              : null}
+                          </span>
+                        `}
                     ${isPendingRow
                       ? html`<span
                           class="account-spinner"
