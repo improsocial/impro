@@ -1265,4 +1265,107 @@ t.describe("app.data host methods", (it) => {
   });
 });
 
+t.describe("getPostComposerInit", (it) => {
+  function addListener(service, pluginId, handler) {
+    let listeners = service.registries.eventListeners.get("post-composer-open");
+    if (!listeners) {
+      listeners = new Map();
+      service.registries.eventListeners.set("post-composer-open", listeners);
+    }
+    listeners.set(pluginId, handler);
+  }
+
+  it("returns null when no listeners are registered", async () => {
+    const { service } = makeService();
+    const result = await service.getPostComposerInit({ kind: "post" });
+    assertEquals(result, null);
+  });
+
+  it("returns null when listeners contribute no ops and no cursor", async () => {
+    const { service } = makeService();
+    addListener(service, "noop", async () => ({ ops: [], cursor: null }));
+    addListener(service, "alsoNoop", async () => null);
+    const result = await service.getPostComposerInit({ kind: "post" });
+    assertEquals(result, null);
+  });
+
+  it("appends text from a single listener", async () => {
+    const { service } = makeService();
+    addListener(service, "sig", async () => ({
+      ops: [{ op: "append", text: "\n\n— signed" }],
+      cursor: null,
+    }));
+    const result = await service.getPostComposerInit({ kind: "post" });
+    assertEquals(result, { text: "\n\n— signed", cursor: null });
+  });
+
+  it("composes set/append/prepend across multiple listeners in order", async () => {
+    const { service } = makeService();
+    addListener(service, "alpha", async () => ({
+      ops: [{ op: "set", text: "middle" }],
+      cursor: null,
+    }));
+    addListener(service, "beta", async () => ({
+      ops: [{ op: "append", text: " end" }],
+      cursor: null,
+    }));
+    addListener(service, "gamma", async () => ({
+      ops: [{ op: "prepend", text: "start " }],
+      cursor: null,
+    }));
+    const result = await service.getPostComposerInit({ kind: "post" });
+    assertEquals(result.text, "start middle end");
+  });
+
+  it("last setCursor wins; nulls do not clobber prior cursor", async () => {
+    const { service } = makeService();
+    addListener(service, "alpha", async () => ({
+      ops: [{ op: "append", text: "a" }],
+      cursor: 0,
+    }));
+    addListener(service, "beta", async () => ({
+      ops: [{ op: "append", text: "b" }],
+      cursor: null,
+    }));
+    addListener(service, "gamma", async () => ({
+      ops: [{ op: "append", text: "c" }],
+      cursor: -1,
+    }));
+    const result = await service.getPostComposerInit({ kind: "post" });
+    assertEquals(result, { text: "abc", cursor: -1 });
+  });
+
+  it("ignores listeners that throw", async () => {
+    const { service } = makeService();
+    addListener(service, "alpha", async () => {
+      throw new Error("boom");
+    });
+    addListener(service, "beta", async () => ({
+      ops: [{ op: "append", text: "ok" }],
+      cursor: null,
+    }));
+    const originalError = console.error;
+    console.error = () => {};
+    let result;
+    try {
+      result = await service.getPostComposerInit({ kind: "post" });
+    } finally {
+      console.error = originalError;
+    }
+    assertEquals(result, { text: "ok", cursor: null });
+  });
+
+  it("passes context through to each listener", async () => {
+    const { service } = makeService();
+    let captured = null;
+    addListener(service, "alpha", async (context) => {
+      captured = context;
+      return { ops: [], cursor: null };
+    });
+    const context = { kind: "reply", replyTo: { uri: "at://x" } };
+    await service.getPostComposerInit(context);
+    assertEquals(captured, context);
+  });
+});
+
 await t.run();

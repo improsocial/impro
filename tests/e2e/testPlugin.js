@@ -146,6 +146,21 @@ class TestPlugin extends Plugin {
 TestPlugin.register();
 `;
 
+// A plugin that seeds the composer with a signature string on every open
+// (post and reply). Used by composer-init e2e tests.
+const POST_COMPOSER_INIT_PLUGIN_BODY = /* js */ `
+class TestPlugin extends Plugin {
+  async onload() {
+    this.app.on("post-composer-open", (composer, context) => {
+      composer.appendText("\\n\\n— from test plugin (" + context.kind + ")");
+      composer.setCursor(0);
+    });
+  }
+}
+
+TestPlugin.register();
+`;
+
 let cachedWorkerSource = null;
 
 function getWorkerSource() {
@@ -167,4 +182,8 @@ export function getThrowingTabPluginSource() {
 
 export function getNoSettingsPluginSource() {
   return getWorkerSource() + "\n" + NO_SETTINGS_PLUGIN_BODY;
+}
+
+export function getPostComposerInitPluginSource() {
+  return getWorkerSource() + "\n" + POST_COMPOSER_INIT_PLUGIN_BODY;
 }

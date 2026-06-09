@@ -391,4 +391,121 @@ t.describe("RichTextInput - reinitialization protection", (it) => {
   });
 });
 
+t.describe("RichTextInput - setText", (it) => {
+  it("updates text and renders it into the contenteditable", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("Hello world");
+    assertEquals(element.text, "Hello world");
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(input.textContent, "Hello world");
+  });
+
+  it("hides the placeholder after setting non-empty text", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("anything");
+    const placeholder = element.querySelector(".rich-text-input-placeholder");
+    assert(placeholder.classList.contains("hidden"));
+  });
+
+  it("recomputes facets for the new text", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("check out #news today");
+    assert(
+      element.facets.some(
+        (facet) =>
+          facet.features[0].$type === "app.bsky.richtext.facet#tag" &&
+          facet.features[0].tag === "news",
+      ),
+      "should detect a #news tag facet",
+    );
+  });
+
+  it("dispatches an input event with the new text and facets", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    let detail = null;
+    element.addEventListener("input", (event) => {
+      detail = event.detail;
+    });
+    element.setText("hi");
+    assert(detail !== null, "input event should fire");
+    assertEquals(detail.text, "hi");
+    assertEquals(detail.facets, element.facets);
+  });
+
+  it("schedules a history save", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    assertEquals(element.historyDebounceTimer, null);
+    element.setText("first");
+    assert(element.historyDebounceTimer !== null);
+  });
+});
+
+t.describe("RichTextInput - setCursor", (it) => {
+  // JSDOM doesn't track selection state inside contenteditable, so verify the
+  // resolved offset by spying on the Range passed to selection.addRange().
+  function withSelectionSpy(fn) {
+    const captured = [];
+    const stub = {
+      rangeCount: 0,
+      removeAllRanges: () => {},
+      addRange: (range) => {
+        captured.push({
+          startContainer: range.startContainer,
+          startOffset: range.startOffset,
+        });
+      },
+    };
+    const original = window.getSelection;
+    window.getSelection = () => stub;
+    try {
+      fn();
+    } finally {
+      window.getSelection = original;
+    }
+    return captured;
+  }
+
+  // For plain text rendered through richTextTemplate, content is wrapped as
+  // <div class="rich-text"><div>TEXT</div></div>; the walker lands on the
+  // inner text node and the offset equals the resolved index.
+  function lastCursorOffset(element, cursor) {
+    const captured = withSelectionSpy(() => element.setCursor(cursor));
+    if (captured.length === 0) return null;
+    return captured.at(-1).startOffset;
+  }
+
+  it("places the cursor at index 0 for setCursor(0)", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("abcdef");
+    assertEquals(lastCursorOffset(element, 0), 0);
+  });
+
+  it("places the cursor at a positive index", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("abcdef");
+    assertEquals(lastCursorOffset(element, 3), 3);
+  });
+
+  it("clamps positive indexes past the end to the text length", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("abc");
+    assertEquals(lastCursorOffset(element, 99), 3);
+  });
+
+  it("clamps negative indexes to 0", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("abc");
+    assertEquals(lastCursorOffset(element, -5), 0);
+  });
+});
+
 await t.run();

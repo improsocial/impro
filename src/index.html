@@ -165,7 +165,7 @@
           ? new ChatNotificationService(api)
           : null;
         const postComposerService = session
-          ? new PostComposerService(dataLayer, identityResolver)
+          ? new PostComposerService(dataLayer, identityResolver, pluginService)
           : null;
         const reportService = session ? new ReportService(dataLayer) : null;
         const interactionHandlers = new InteractionHandlers({

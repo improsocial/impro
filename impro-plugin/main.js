@@ -22,24 +22,50 @@ function hostCall(method, ...args) {
 }
 
 const eventListeners = new Map();
+const registeredEvents = new Set();
+
+async function invokeListeners(listeners, event, args) {
+  for (const listener of listeners) {
+    try {
+      await listener(...args);
+    } catch (error) {
+      console.error(`"${event}" listener threw:`, error);
+    }
+  }
+}
+
+async function dispatchEvent(event, args) {
+  const listeners = eventListeners.get(event) ?? new Set();
+  switch (event) {
+    case "post-context-menu":
+    case "profile-context-menu": {
+      const menu = new Menu();
+      await invokeListeners(listeners, event, [menu, ...args]);
+      return menu._serialize();
+    }
+    case "post-composer-open": {
+      const composer = new Composer();
+      await invokeListeners(listeners, event, [composer, ...args]);
+      return composer._serialize();
+    }
+    default:
+      console.warn(`No dispatch case for plugin event "${event}".`);
+      return null;
+  }
+}
 
 function addEventListener(event, listener) {
   let listeners = eventListeners.get(event);
   if (!listeners) {
     listeners = new Set();
     eventListeners.set(event, listeners);
+  }
+  listeners.add(listener);
+  // Register handler
+  if (!registeredEvents.has(event)) {
+    registeredEvents.add(event);
     const handlerId = uuid.create();
-    callHandlers.set(handlerId, async (...args) => {
-      const menu = new Menu();
-      for (const eventListener of listeners) {
-        try {
-          await eventListener(menu, ...args);
-        } catch (error) {
-          console.error(`"${event}" listener threw:`, error);
-        }
-      }
-      return menu._serialize();
-    });
+    callHandlers.set(handlerId, (...args) => dispatchEvent(event, args));
     self.postMessage({
       type: "register",
       target: "eventListener",
@@ -47,7 +73,6 @@ function addEventListener(event, listener) {
       handlerId,
     });
   }
-  listeners.add(listener);
 }
 
 export class MenuItem {
@@ -86,6 +111,32 @@ export class Menu {
       callHandlers.set(handlerId, item._callback);
       return { title: item.title, icon: item.icon, handlerId };
     });
+  }
+}
+
+export class Composer {
+  constructor() {
+    this._ops = [];
+    this._cursor = null;
+  }
+  setText(text) {
+    this._ops.push({ op: "set", text: String(text) });
+    return this;
+  }
+  appendText(text) {
+    this._ops.push({ op: "append", text: String(text) });
+    return this;
+  }
+  prependText(text) {
+    this._ops.push({ op: "prepend", text: String(text) });
+    return this;
+  }
+  setCursor(index) {
+    this._cursor = index;
+    return this;
+  }
+  _serialize() {
+    return { ops: this._ops, cursor: this._cursor };
   }
 }
 
@@ -382,6 +433,11 @@ export class Setting {
     callback(component);
     return this;
   }
+  addTextArea(callback) {
+    const component = new TextAreaComponent(this.controlEl);
+    callback(component);
+    return this;
+  }
   addToggle(callback) {
     const component = new ToggleComponent(this.controlEl);
     callback(component);
@@ -408,6 +464,26 @@ class TextComponent {
   }
   setValue(value) {
     this.el.setAttr("value", value == null ? "" : String(value));
+    return this;
+  }
+  setPlaceholder(value) {
+    this.el.setAttr("placeholder", value);
+    return this;
+  }
+  onChange(callback) {
+    this.el.onChange((event) => callback(event.target.value));
+    return this;
+  }
+}
+
+class TextAreaComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("textarea", {
+      cls: "setting-item-textarea",
+    });
+  }
+  setValue(value) {
+    this.el.setText(value == null ? "" : String(value));
     return this;
   }
   setPlaceholder(value) {

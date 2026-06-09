@@ -286,6 +286,27 @@ export class RichTextInput extends Component {
     }
   }
 
+  setText(text) {
+    this.text = text;
+    const unresolvedFacets = getUnresolvedFacetsFromText(this.text);
+    this.facets = this.partiallyResolveFacets(unresolvedFacets);
+    this.render();
+    this.updateFacets();
+    this.saveHistory();
+    this.dispatchEvent(
+      new CustomEvent("input", {
+        detail: { text: this.text, facets: this.facets },
+      }),
+    );
+  }
+
+  setCursor(cursor) {
+    const input = this.querySelector(".rich-text-input");
+    if (!input) return;
+    const position = Math.max(0, Math.min(this.text.length, cursor));
+    setCursorPosition(input, position);
+  }
+
   render() {
     render(
       html`

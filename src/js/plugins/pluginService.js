@@ -672,19 +672,59 @@ export class PluginService extends ReactiveStore {
     return this._collectContextMenuItems("profile-context-menu", profile);
   }
 
-  async _collectContextMenuItems(event, arg) {
+  async getPostComposerInit({ kind, replyTo, replyRoot, quotedPost }) {
+    const listeners = this.registries.eventListeners.get("post-composer-open");
+    if (!listeners || listeners.size === 0) return null;
+    const context = { kind, replyTo, replyRoot, quotedPost };
+    const results = await Promise.all(
+      [...listeners].map(async ([pluginId, handler]) => {
+        try {
+          return await handler(context);
+        } catch (error) {
+          console.error(
+            `Plugin ${pluginId} post-composer-open handler failed:`,
+            error,
+          );
+          return null;
+        }
+      }),
+    );
+    let text = "";
+    let cursor = null;
+    let touched = false;
+    for (const result of results) {
+      if (!result) continue;
+      for (const op of result.ops ?? []) {
+        if (op.op === "set") text = op.text;
+        else if (op.op === "append") text = text + op.text;
+        else if (op.op === "prepend") text = op.text + text;
+        else continue;
+        touched = true;
+      }
+      if (result.cursor != null) {
+        cursor = result.cursor;
+        touched = true;
+      }
+    }
+    if (!touched) return null;
+    return { text, cursor };
+  }
+
+  async _collectContextMenuItems(event, target) {
     const listeners = this.registries.eventListeners.get(event);
     if (!listeners || listeners.size === 0) return [];
     const results = await Promise.all(
       [...listeners].map(async ([pluginId, handler]) => {
         try {
-          const items = await handler(arg);
+          const items = await handler(target);
           return (items ?? []).map((item) => ({
             pluginId,
             icon: item.icon,
             title: item.title,
             invoke: () =>
-              this.pluginBridge.getInstance(pluginId).call(item.handlerId, arg),
+              this.pluginBridge
+                .getInstance(pluginId)
+                .call(item.handlerId, target),
           }));
         } catch (error) {
           console.error(`Plugin ${pluginId} ${event} handler failed:`, error);
