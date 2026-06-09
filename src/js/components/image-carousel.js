@@ -2,6 +2,7 @@ import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { isSafari } from "/js/utils.js";
 import "/js/components/lightbox-image-group.js";
+import { cropIndicatorIconTemplate } from "/js/templates/icons/cropIndicatorIcon.template.js";
 
 const MIN_ASPECT_RATIO = 2 / 3;
 const MAX_ASPECT_RATIO = 3 / 2;
@@ -124,8 +125,9 @@ export class ImageCarousel extends Component {
                         class="crop-indicator"
                         data-testid="image-crop-badge"
                         aria-label="Image cropped"
-                        >✂</span
-                      >`
+                      >
+                        ${cropIndicatorIconTemplate()}
+                      </span>`
                     : ""}
                 </button>
               `;

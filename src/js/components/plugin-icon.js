@@ -6,6 +6,7 @@ const ICONS = {
     "chat-dots-line",
     "check",
     "circle-check",
+    "crop-indicator",
     "hamburger-menu",
     "reply",
     "repost",
