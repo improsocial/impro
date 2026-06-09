@@ -13,7 +13,7 @@ export function externalLinkTemplate({
   lazyLoadImages,
   disableNavigation,
 }) {
-  return html`<div class="external-link" data-testid="external-link">
+  return html`<div class="external-link embed-card" data-testid="external-link">
     <a
       href="${sanitizeUri(url)}"
       target="_blank"

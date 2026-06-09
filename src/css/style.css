@@ -2039,8 +2039,6 @@ button.sidebar-plugin-nav-item {
 
 .icon {
   position: relative;
-  width: 24px;
-  height: 24px;
 }
 
 .post-actions {
@@ -2301,9 +2299,24 @@ animated-button {
 }
 
 .external-link {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
+}
+
+.embed-card {
+  position: relative;
+  border-radius: var(--embed-border-radius);
+}
+
+/* embed card hairline as an inset shadow on an overlay instead of a border:
+   renders reliably at subpixel widths, keeps uniform stroke weight around
+   rounded corners, and paints above edge-to-edge images */
+.embed-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  box-shadow: inset 0 0 0 var(--hair) var(--embed-border-color);
+  pointer-events: none;
 }
 
 .external-link hr {
@@ -2359,8 +2372,6 @@ animated-button {
 
 .quoted-post {
   padding: 10px 16px;
-  border-radius: var(--embed-border-radius);
-  border: var(--hair) solid var(--embed-border-color);
   transition: background-color 0.2s;
   margin-top: 8px;
   background: var(--background-color);
@@ -2411,9 +2422,7 @@ animated-button {
 }
 
 .feed-generator-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .feed-generator-embed-content {
@@ -2458,9 +2467,7 @@ animated-button {
 }
 
 .list-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .list-embed-content {
@@ -2505,9 +2512,7 @@ animated-button {
 }
 
 .starter-pack-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .starter-pack-embed-content {

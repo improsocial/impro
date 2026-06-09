@@ -46,7 +46,7 @@ function moderationWarningWrapperTemplate({ children, mediaLabel }) {
 
 function blockedQuoteTemplate() {
   return html`<div
-    class="quoted-post missing-quote-indicator"
+    class="quoted-post missing-quote-indicator embed-card"
     data-testid="blocked-quote"
   >
     ${infoIconTemplate()} Blocked
@@ -55,7 +55,7 @@ function blockedQuoteTemplate() {
 
 function removedQuoteTemplate() {
   return html`<div
-    class="quoted-post missing-quote-indicator"
+    class="quoted-post missing-quote-indicator embed-card"
     data-testid="removed-quote"
   >
     ${infoIconTemplate()} Removed by author
@@ -64,7 +64,7 @@ function removedQuoteTemplate() {
 
 function notFoundQuoteTemplate() {
   return html`<div
-    class="quoted-post missing-quote-indicator"
+    class="quoted-post missing-quote-indicator embed-card"
     data-testid="not-found-quote"
   >
     ${infoIconTemplate()} Deleted
@@ -116,7 +116,7 @@ export function quotedPostTemplate({
   isAuthenticated,
 }) {
   if (!quotedPost) {
-    return html`<div class="quoted-post">Post not found</div>`;
+    return html`<div class="quoted-post embed-card">Post not found</div>`;
   }
   // only supports one embed for now
   let embed = quotedPost.embeds?.length > 0 ? quotedPost.embeds[0] : null;
@@ -173,7 +173,7 @@ export function quotedPostTemplate({
       window.router.go(linkToPost(quotedPost));
     }}
   >
-    <div class="quoted-post post-content">
+    <div class="quoted-post post-content embed-card">
       ${mutedWrapperTemplate({
         isMuted,
         label: mutedLabel,
@@ -393,7 +393,7 @@ function getStarterPackThumbnail(starterPack) {
 }
 
 function starterPackTemplate({ starterPack }) {
-  return html`<div class="starter-pack-embed">
+  return html`<div class="starter-pack-embed embed-card">
     <a
       href="https://bsky.app/starter-pack/${starterPack.creator
         .handle}/${getRKey(starterPack)}"
@@ -422,7 +422,7 @@ function starterPackTemplate({ starterPack }) {
 
 function feedGeneratorTemplate({ feedGenerator }) {
   const avatarUrl = feedGenerator.avatar ?? "/img/list-avatar-fallback.svg"; // todo - is there a different fallback for feed generators?
-  return html`<div class="feed-generator-embed">
+  return html`<div class="feed-generator-embed embed-card">
     <a href="${linkToFeed(feedGenerator)}">
       <div class="feed-generator-embed-content">
         <img
@@ -445,7 +445,7 @@ function feedGeneratorTemplate({ feedGenerator }) {
 
 function listTemplate({ list }) {
   const avatarUrl = list.avatar ?? "/img/list-avatar-fallback.svg";
-  return html`<div class="list-embed">
+  return html`<div class="list-embed embed-card">
     <a
       href="https://bsky.app/profile/${list.creator.handle}/lists/${getRKey(
         list,
