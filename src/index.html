@@ -4,43 +4,46 @@
     {% include "head.html" %}
   </head>
   <body>
-    <div id="app-root">
-      <div id="app-loading-state" class="app-loading-state" hidden>
-        <div class="app-loading-state-content">
-          <div class="loading-spinner"></div>
-        </div>
-      </div>
-      <div class="error-state app-error-state" id="app-error-state" hidden>
-        <div>There was an error loading the app.</div>
-        <button onclick="window.location.reload()">Try again</button>
-      </div>
-    </div>
+    <div id="app-root"></div>
 
     <script>
-      function showGlobalErrorState() {
-        const errorState = document.getElementById("app-error-state");
-        if (errorState) errorState.hidden = false;
-        const loadingState = document.getElementById("app-loading-state");
-        if (loadingState) loadingState.hidden = true;
-      }
-      function globalErrorStateIsShown() {
-        const errorState = document.getElementById("app-error-state");
-        return errorState && !errorState.hidden;
-      }
+      window.hasLoaded = false;
+      window.hasErrored = false;
+
+      const appRoot = document.getElementById("app-root");
+
       function showGlobalLoadingState() {
-        const errorState = document.getElementById("app-error-state");
-        if (errorState) errorState.hidden = true;
-        const loadingState = document.getElementById("app-loading-state");
-        if (loadingState) loadingState.hidden = false;
+        appRoot.innerHTML = /* html */ `
+          <div class="app-loading-state">
+            <div class="app-loading-state-content">
+              <div class="loading-spinner"></div>
+            </div>
+          </div>
+        `;
       }
+
+      function showGlobalErrorState() {
+        appRoot.innerHTML = /* html */ `
+          <div class="error-state app-error-state">
+            <div>There was an error loading the app.</div>
+            <button onclick="window.location.reload()">Try again</button>
+          </div>
+        `;
+      }
+
       // Show loading state if the app hasn't loaded within 2 seconds, and show an error state if it hasn't loaded within 10 seconds.
-      // If the app loads successfully, the elements are replaced, so these timeouts won't do anything.
       setTimeout(() => {
-        if (!globalErrorStateIsShown()) {
-          showGlobalLoadingState();
+        if (window.hasLoaded || window.hasErrored) {
+          return;
         }
+        showGlobalLoadingState();
       }, 2000);
+
       setTimeout(() => {
+        if (window.hasLoaded || window.hasErrored) {
+          return;
+        }
+        window.hasErrored = true;
         showGlobalErrorState();
       }, 10000);
     </script>
@@ -409,10 +412,16 @@
         dispatchNativeRefreshEnded();
       }
 
-      main().catch((error) => {
-        console.error("Error in main function:", error);
-        window.showGlobalErrorState();
-      });
+      main().then(
+        () => {
+          window.hasLoaded = true;
+        },
+        (error) => {
+          console.error("Error in main function:", error);
+          window.hasErrored = true;
+          window.showGlobalErrorState();
+        },
+      );
     </script>
   </body>
 </html>
