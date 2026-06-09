@@ -119,14 +119,6 @@ export class ImageCarousel extends Component {
                         >ALT</span
                       >`
                     : ""}
-                  ${isCropped
-                    ? html`<span
-                        class="crop-indicator"
-                        data-testid="image-crop-badge"
-                        aria-label="Image cropped"
-                        >✂</span
-                      >`
-                    : ""}
                 </button>
               `;
             })}
