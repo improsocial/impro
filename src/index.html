@@ -52,8 +52,13 @@
       import { enableErrorLogs } from "/js/errorLogs.js";
       import "/js/perf.js";
 
+      const params = new URLSearchParams(window.location.search);
+
       // Dev tools
-      if (window.env.environment === "development") {
+      if (
+        window.env.environment === "development" ||
+        params.has("enable-debug")
+      ) {
         enableErrorLogs();
         const devVersionOverlay = document.createElement("div");
         devVersionOverlay.className = "dev-version-overlay";
