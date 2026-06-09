@@ -189,6 +189,40 @@ t.describe("footerTemplate - notification badges", (it) => {
   });
 });
 
+t.describe("footerTemplate - profile long-press", (it) => {
+  function renderFooter({ onLongPressProfile = null } = {}) {
+    const container = document.createElement("div");
+    render(
+      footerTemplate({
+        isAuthenticated: true,
+        currentUser: mockUser,
+        onLongPressProfile,
+      }),
+      container,
+    );
+    return container.querySelector("[data-testid='footer-nav-profile']");
+  }
+
+  it("marks the profile item long-press-enabled when a handler is provided", () => {
+    const profileLink = renderFooter({ onLongPressProfile: () => {} });
+    assert(profileLink.classList.contains("long-press-enabled"));
+  });
+
+  it("does not mark the profile item when no handler is provided", () => {
+    const profileLink = renderFooter();
+    assert(!profileLink.classList.contains("long-press-enabled"));
+  });
+
+  // Press timing and click suppression are enableLongPress behavior, covered
+  // in utils.test.js; here we only verify the footer wires the handler up.
+  it("invokes the handler when a long-press fires on the profile item", () => {
+    let fired = 0;
+    const profileLink = renderFooter({ onLongPressProfile: () => fired++ });
+    profileLink.dispatchEvent(new CustomEvent("long-press"));
+    assertEquals(fired, 1);
+  });
+});
+
 t.describe("footerTemplate - safe area", (it) => {
   it("should render footer safe area div", () => {
     const result = footerTemplate({

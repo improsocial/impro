@@ -187,9 +187,9 @@ test.describe("Settings view", () => {
       await expect(
         row.locator('[data-testid="settings-account-menu-trigger"]'),
       ).toBeVisible();
-      await expect(
-        row.locator('[data-testid="settings-account-spinner"]'),
-      ).toHaveCount(0);
+      await expect(row.locator('[data-testid="account-spinner"]')).toHaveCount(
+        0,
+      );
 
       // Block the reload that switching triggers so the pending state stays
       // observable.
@@ -197,7 +197,7 @@ test.describe("Settings view", () => {
       await row.click();
 
       await expect(
-        row.locator('[data-testid="settings-account-spinner"]'),
+        row.locator('[data-testid="account-spinner"]'),
       ).toBeVisible();
       await expect(
         row.locator('[data-testid="settings-account-menu-trigger"]'),
@@ -208,7 +208,7 @@ test.describe("Settings view", () => {
       await toggle.click();
       await expect(toggle).toHaveAttribute("data-teststate", "expanded");
       await expect(
-        row.locator('[data-testid="settings-account-spinner"]'),
+        row.locator('[data-testid="account-spinner"]'),
       ).toBeVisible();
     });
 
@@ -227,18 +227,18 @@ test.describe("Settings view", () => {
       );
       await expect(toggle).toBeVisible({ timeout: 10000 });
       await expect(
-        toggle.locator('[data-testid="settings-account-spinner"]'),
+        toggle.locator('[data-testid="account-spinner"]'),
       ).toHaveCount(0);
 
       await mockServer.blockNavigations(page);
       await toggle.click();
 
       await expect(
-        toggle.locator('[data-testid="settings-account-spinner"]'),
+        toggle.locator('[data-testid="account-spinner"]'),
       ).toBeVisible();
     });
 
-    test("shows a spinner on the Add account button while navigating to login", async ({
+    test("shows a spinner on the Add account button and resets it when restored from the back/forward cache", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -266,15 +266,27 @@ test.describe("Settings view", () => {
       const addButton = view.locator('[data-testid="settings-account-add"]');
       await expect(addButton).toBeVisible();
       await expect(
-        addButton.locator('[data-testid="settings-account-spinner"]'),
+        addButton.locator('[data-testid="account-spinner"]'),
       ).toHaveCount(0);
 
       await mockServer.blockNavigations(page);
       await addButton.click();
 
       await expect(
-        addButton.locator('[data-testid="settings-account-spinner"]'),
+        addButton.locator('[data-testid="account-spinner"]'),
       ).toBeVisible();
+
+      // Playwright disables the back/forward cache, so simulate the restore
+      // that happens when the user navigates back from the login page.
+      await page.evaluate(() => {
+        window.dispatchEvent(
+          new PageTransitionEvent("pageshow", { persisted: true }),
+        );
+      });
+
+      await expect(
+        addButton.locator('[data-testid="account-spinner"]'),
+      ).toHaveCount(0);
     });
   });
 

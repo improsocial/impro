@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
@@ -33,15 +33,6 @@ class SettingsView extends View {
     const $accountSwitcherExpanded = new Signal.State(false);
     const $pendingAccountSwitcherAction = new Signal.State(null); // { type, did? }
 
-    function accountSpinnerTemplate() {
-      return html`<span
-        class="settings-account-spinner"
-        data-testid="settings-account-spinner"
-      >
-        <span class="loading-spinner"></span>
-      </span>`;
-    }
-
     function accountsSwitcherTemplate({
       expanded,
       accounts,
@@ -69,7 +60,9 @@ class SettingsView extends View {
           >
           ${!hasOthers
             ? pendingAction?.type === "add"
-              ? accountSpinnerTemplate()
+              ? html`<span class="account-spinner" data-testid="account-spinner"
+                  ><span class="loading-spinner"></span
+                ></span>`
               : null
             : expanded
               ? html`<span class="vertical-nav-arrow"
@@ -124,7 +117,11 @@ class SettingsView extends View {
                       </span>
                       ${pendingAction?.type === "switch" &&
                       pendingAction.did === account.did
-                        ? accountSpinnerTemplate()
+                        ? html`<span
+                            class="account-spinner"
+                            data-testid="account-spinner"
+                            ><span class="loading-spinner"></span
+                          ></span>`
                         : html`<button
                               class="settings-account-ellipsis"
                               data-testid="settings-account-menu-trigger"
@@ -160,7 +157,11 @@ class SettingsView extends View {
                   >
                   <span class="vertical-nav-label">Add account</span>
                   ${pendingAction?.type === "add"
-                    ? accountSpinnerTemplate()
+                    ? html`<span
+                        class="account-spinner"
+                        data-testid="account-spinner"
+                        ><span class="loading-spinner"></span
+                      ></span>`
                     : null}
                 </button>
               </div>
@@ -396,6 +397,15 @@ class SettingsView extends View {
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
+    });
+
+    // Account actions navigate away with the pending spinner showing; if the
+    // user comes back via the back/forward cache the document is restored
+    // as-is, so reset the stuck pending state.
+    bindToPage(root, window, "pageshow", (event) => {
+      if (event.persisted) {
+        $pendingAccountSwitcherAction.set(null);
+      }
     });
   }
 }

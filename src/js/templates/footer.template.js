@@ -1,5 +1,5 @@
-import { html } from "/js/lib/lit-html.js";
-import { classnames } from "/js/utils.js";
+import { html, ref } from "/js/lib/lit-html.js";
+import { classnames, enableLongPress } from "/js/utils.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
@@ -43,6 +43,7 @@ export function footerTemplate({
   numNotifications = 0,
   numChatNotifications = 0,
   onClickActiveItem,
+  onLongPressProfile = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutFooterTemplate();
@@ -91,13 +92,22 @@ export function footerTemplate({
       <nav>
         ${menuItems.map((item) => {
           const active = activeNavItem === item.id;
+          const longPressEnabled =
+            item.id === "profile" && onLongPressProfile !== null;
           return html`<a
+            ${ref((el) => {
+              if (el && longPressEnabled) {
+                enableLongPress(el);
+              }
+            })}
             class=${classnames("footer-nav-item", {
               active,
+              "long-press-enabled": longPressEnabled,
             })}
             href=${item.url}
             data-testid="footer-nav-${item.id}"
             ?disabled=${item.disabled}
+            @long-press=${longPressEnabled ? () => onLongPressProfile() : null}
             @click=${(e) => {
               // tap active item to scroll to top
               if (active) {

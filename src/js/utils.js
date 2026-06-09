@@ -38,6 +38,7 @@ export const isDev = () => window.location.hostname === "localhost";
 export const isNative = () => Capacitor.isNativePlatform();
 export const isMobileViewport = () =>
   window.matchMedia("(max-width: 799px)").matches;
+export const isTouchDevice = () => navigator.maxTouchPoints > 0;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -578,4 +579,93 @@ export async function withTimeout(fn, timeoutMs) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+const LONG_PRESS_TIMEOUT_MS = 500;
+const LONG_PRESS_MOVE_CANCEL_THRESHOLD_PX = 10;
+const LONG_PRESS_GHOST_CLICK_WINDOW_MS = 400;
+
+export function enableLongPress(el, timeout = LONG_PRESS_TIMEOUT_MS) {
+  if (el.__longPressEnabled) {
+    return;
+  }
+  let pressTimeout = null;
+  let pressStartX = 0;
+  let pressStartY = 0;
+  let removeClickSuppressor = null;
+
+  // The click that trails a long-press may not land on `el`: the long-press
+  // fires while the pointer is still down and can open UI (e.g. a modal
+  // sheet) on top of it, so the release's click hits whatever is topmost.
+  // Swallow the next click document-wide, in the capture phase, so nothing
+  // ghost-activates.
+  const suppressNextClick = () => {
+    removeClickSuppressor?.();
+    const onClick = (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      removeSuppressor();
+    };
+    const removeSuppressor = () => {
+      document.removeEventListener("click", onClick, true);
+      removeClickSuppressor = null;
+    };
+    document.addEventListener("click", onClick, true);
+    removeClickSuppressor = removeSuppressor;
+  };
+
+  const startPress = (event) => {
+    // Only a primary-button press can begin a long-press; right/middle
+    // clicks have their own meanings (context menu, open in new tab).
+    if (event.button > 0) {
+      return;
+    }
+    const point = event.touches?.[0] ?? event;
+    pressStartX = point.clientX;
+    pressStartY = point.clientY;
+    clearTimeout(pressTimeout);
+    pressTimeout = setTimeout(() => {
+      suppressNextClick();
+      el.dispatchEvent(new CustomEvent("long-press"));
+    }, timeout);
+  };
+  const endPress = () => {
+    clearTimeout(pressTimeout);
+    if (removeClickSuppressor !== null) {
+      // If no click trails the release (e.g. the gesture was canceled), stop
+      // suppressing so later clicks behave normally.
+      const scheduledRemover = removeClickSuppressor;
+      setTimeout(() => {
+        if (removeClickSuppressor === scheduledRemover) {
+          scheduledRemover();
+        }
+      }, LONG_PRESS_GHOST_CLICK_WINDOW_MS);
+    }
+  };
+  const movePress = (event) => {
+    const point = event.touches?.[0] ?? event;
+    const deltaX = Math.abs(point.clientX - pressStartX);
+    const deltaY = Math.abs(point.clientY - pressStartY);
+    if (
+      deltaX > LONG_PRESS_MOVE_CANCEL_THRESHOLD_PX ||
+      deltaY > LONG_PRESS_MOVE_CANCEL_THRESHOLD_PX
+    ) {
+      clearTimeout(pressTimeout);
+    }
+  };
+  // On touch devices the native context menu is triggered by long-press and
+  // competes with the custom gesture. Desktop right-click is left alone.
+  const suppressContextMenu = (event) => {
+    if (isTouchDevice()) {
+      event.preventDefault();
+    }
+  };
+  el.addEventListener("touchstart", startPress);
+  el.addEventListener("touchend", endPress);
+  el.addEventListener("touchcancel", endPress);
+  el.addEventListener("touchmove", movePress);
+  el.addEventListener("mousedown", startPress);
+  el.addEventListener("mouseup", endPress);
+  el.addEventListener("contextmenu", suppressContextMenu);
+  el.__longPressEnabled = true;
 }

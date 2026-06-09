@@ -108,6 +108,7 @@
       import { NotificationService } from "/js/notificationService.js";
       import { ChatNotificationService } from "/js/chatNotificationService.js";
       import { PostComposerService } from "/js/postComposerService.js";
+      import { AccountSwitcherService } from "/js/accountSwitcherService.js";
       import { ReportService } from "/js/reportService.js";
       import { InteractionHandlers } from "/js/interactionHandlers.js";
       import { hapticsImpactLight } from "/js/haptics.js";
@@ -172,6 +173,9 @@
           : null;
         const postComposerService = session
           ? new PostComposerService(dataLayer, identityResolver, pluginService)
+          : null;
+        const accountSwitcherService = session
+          ? new AccountSwitcherService(dataLayer)
           : null;
         const reportService = session ? new ReportService(dataLayer) : null;
         const interactionHandlers = new InteractionHandlers({
@@ -245,6 +249,7 @@
           notificationService,
           chatNotificationService,
           postComposerService,
+          accountSwitcherService,
           reportService,
           pluginService,
           interactionHandlers,

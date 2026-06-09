@@ -5,8 +5,15 @@ const MAX_PAGES = 5;
 
 export function bindToPage(root, source, event, handler) {
   if (!source) return;
-  const attach = () => source.on(event, handler);
-  const detach = () => source.off(event, handler);
+  const usesEmitterApi = typeof source.on === "function";
+  const attach = () =>
+    usesEmitterApi
+      ? source.on(event, handler)
+      : source.addEventListener(event, handler);
+  const detach = () =>
+    usesEmitterApi
+      ? source.off(event, handler)
+      : source.removeEventListener(event, handler);
   root.addEventListener("page-enter", attach);
   root.addEventListener("page-restore", attach);
   root.addEventListener("page-exit", detach);

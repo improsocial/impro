@@ -10,36 +10,12 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes } from "/js/utils.js";
+import { wait, raf, differenceInMinutes, enableLongPress } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/lib/emoji-picker-element.js";
-
-function enableLongPress(el, timeout = 500) {
-  if (el.__longPressEnabled) {
-    return;
-  }
-  el.addEventListener("touchstart", (e) => {
-    el.__longPressTimeout = setTimeout(() => {
-      el.dispatchEvent(new CustomEvent("long-press"));
-    }, timeout);
-  });
-  el.addEventListener("touchend", (e) => {
-    clearTimeout(el.__longPressTimeout);
-  });
-  // Also enable for clicks
-  el.addEventListener("mousedown", (e) => {
-    el.__longPressTimeout = setTimeout(() => {
-      el.dispatchEvent(new CustomEvent("long-press"));
-    }, timeout);
-  });
-  el.addEventListener("mouseup", (e) => {
-    clearTimeout(el.__longPressTimeout);
-  });
-  el.__longPressEnabled = true;
-}
 
 class ChatDetailView extends View {
   async render({
