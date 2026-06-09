@@ -250,7 +250,7 @@ t.describe("SourceProvider with remote plugins", (it) => {
       const manifest = await provider.getLiveManifest("alpha", "ow/alpha");
       assertEquals(
         stub.calls[0].url,
-        "https://raw.githubusercontent.com/ow/alpha/main/manifest.json",
+        "https://raw.githubusercontent.com/ow/alpha/refs/heads/main/manifest.json",
       );
       assertEquals(stub.calls[0].options?.cache, "no-store");
       assertEquals(manifest.version, "9.9.9");
@@ -268,7 +268,7 @@ t.describe("SourceProvider with remote plugins", (it) => {
       const manifest = await provider.getLiveManifestFromRepo("ow/alpha");
       assertEquals(
         stub.calls[0].url,
-        "https://raw.githubusercontent.com/ow/alpha/main/manifest.json",
+        "https://raw.githubusercontent.com/ow/alpha/refs/heads/main/manifest.json",
       );
       assertEquals(manifest.id, "alpha");
     } finally {

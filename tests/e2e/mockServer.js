@@ -293,7 +293,7 @@ export class MockServer {
       route.fulfill({ status: 404, body: "Not Found" }),
     );
     await page.route(
-      "**/raw.githubusercontent.com/*/*/main/manifest.json",
+      "**/raw.githubusercontent.com/*/*/refs/heads/main/manifest.json",
       (route) => {
         const live = this.liveManifest ?? {
           id: this.registryEntries[0]?.id ?? "remote-plugin",
@@ -321,7 +321,7 @@ export class MockServer {
       });
     };
     await page.route(
-      "**/raw.githubusercontent.com/*/*/main/README.md",
+      "**/raw.githubusercontent.com/*/*/refs/heads/main/README.md",
       fulfillReadme,
     );
     await page.route("**/plugins-local/*/README.md", fulfillReadme);
