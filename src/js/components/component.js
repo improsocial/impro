@@ -5,7 +5,12 @@ function kebabCase(str) {
 export class Component extends HTMLElement {
   static register() {
     const tagName = kebabCase(this.name);
-    customElements.define(tagName, this);
+    try {
+      customElements.define(tagName, this);
+    } catch (e) {
+      console.error(`Could not register component ${tagName}`, e);
+      throw e;
+    }
   }
 }
 
