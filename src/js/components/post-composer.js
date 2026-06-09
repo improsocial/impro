@@ -190,6 +190,8 @@ class PostComposer extends Component {
     this.scrollLock = new ScrollLock(this);
     this.innerHTML = "";
     this._postText = "";
+    this.initialText = this.initialText ?? null;
+    this.initialCursor = this.initialCursor ?? null;
     this._isSending = false;
     this._unresolvedFacets = [];
     this._quotedPostUrl = null;
@@ -739,6 +741,13 @@ class PostComposer extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".post-composer");
     dialog.showModal();
+    const richTextInput = this.querySelector("rich-text-input");
+    if (richTextInput && this.initialText !== null) {
+      richTextInput.setText(this.initialText);
+    }
+    if (richTextInput && this.initialCursor !== null) {
+      richTextInput.setCursor(this.initialCursor);
+    }
 
     // Setup mobile swipe-to-dismiss
     enableDragToDismiss(dialog, {

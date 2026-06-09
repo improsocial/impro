@@ -580,7 +580,7 @@ t.describe("app.on event listeners", (it) => {
   it("registers an eventListener target and returns serialized menu items", async () => {
     clearMessages();
     const plugin = new Plugin();
-    plugin.app.on("post:menu", (menu, post) => {
+    plugin.app.on("post-context-menu", (menu, post) => {
       menu.addItem((item) =>
         item.setTitle(`Open ${post.id}`).onClick(() => {}),
       );
@@ -590,7 +590,7 @@ t.describe("app.on event listeners", (it) => {
         message.type === "register" && message.target === "eventListener",
     );
     assert(register, "an eventListener register message should be posted");
-    assertEquals(register.event, "post:menu");
+    assertEquals(register.event, "post-context-menu");
 
     clearMessages();
     await dispatch({
@@ -602,6 +602,40 @@ t.describe("app.on event listeners", (it) => {
     const result = postedMessages.find((message) => message.type === "result");
     assertEquals(result.value.length, 1);
     assertEquals(result.value[0].title, "Open 42");
+  });
+
+  it("warns when an event with no dispatch case is invoked", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.app.on("totally-unknown-event", () => {});
+    const register = postedMessages.find(
+      (message) =>
+        message.type === "register" && message.target === "eventListener",
+    );
+    assert(register, "registration should still happen for unknown events");
+
+    clearMessages();
+    const originalWarn = console.warn;
+    let warned = null;
+    console.warn = (...args) => {
+      warned = args.join(" ");
+    };
+    try {
+      await dispatch({
+        type: "call",
+        handlerId: register.handlerId,
+        callId: 1,
+        args: [],
+      });
+    } finally {
+      console.warn = originalWarn;
+    }
+    assert(
+      warned && warned.includes("totally-unknown-event"),
+      "should warn at dispatch time",
+    );
+    const result = postedMessages.find((message) => message.type === "result");
+    assertEquals(result.value, null);
   });
 });
 

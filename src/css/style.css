@@ -2832,12 +2832,25 @@ image-carousel {
   position: absolute;
   bottom: 8px;
   left: 8px;
+  right: auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   background: var(--overlay-color-medium);
   color: var(--white);
-  padding: 2px 6px;
+  padding: 4px;
   border-radius: var(--tag-border-radius);
-  font-size: 11px;
-  font-weight: 600;
+}
+
+.carousel-slide:not(:has(.alt-indicator)) .crop-indicator {
+  left: auto;
+  right: 8px;
+}
+
+.crop-indicator svg {
+  width: 14px;
+  height: 14px;
+  display: block;
 }
 
 @media (min-width: 600px) {

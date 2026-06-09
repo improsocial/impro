@@ -14,6 +14,8 @@ async function transformGlob(pattern, replacer) {
   );
 }
 
+const BUILD_DIR = process.env.BUILD_DIR || "build";
+
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy("src/css");
@@ -42,9 +44,10 @@ export default async function (eleventyConfig) {
   // Copy local plugins into build and generate index
   eleventyConfig.on("eleventy.before", () => {
     if (!isDev) return;
+    const buildPluginsDir = path.join(BUILD_DIR, "plugins-local");
     const localPluginsDir = "plugins-local";
     const listings = [];
-    fs.mkdirSync("build/plugins-local", { recursive: true });
+    fs.mkdirSync(buildPluginsDir, { recursive: true });
     for (const entry of fs.readdirSync(localPluginsDir, {
       withFileTypes: true,
     })) {
@@ -61,7 +64,7 @@ export default async function (eleventyConfig) {
         author: manifest.author,
         description: manifest.description,
       });
-      const destDir = path.join("build/plugins-local", manifest.id + "__LOCAL");
+      const destDir = path.join(buildPluginsDir, manifest.id + "__LOCAL");
       fs.mkdirSync(destDir, { recursive: true });
       fs.copyFileSync(manifestPath, path.join(destDir, "manifest.json"));
       fs.copyFileSync(mainPath, path.join(destDir, "main.js"));
@@ -75,7 +78,7 @@ export default async function (eleventyConfig) {
       }
     }
     fs.writeFileSync(
-      "build/plugins-local/index.json",
+      path.join(buildPluginsDir, "index.json"),
       JSON.stringify(listings, null, 2),
     );
   });
@@ -85,7 +88,7 @@ export default async function (eleventyConfig) {
     liveReload: !process.env.PLAYWRIGHT,
     onRequest: {
       "/*": function ({ url }) {
-        if (fs.existsSync(path.join("build", url.pathname))) {
+        if (fs.existsSync(path.join(BUILD_DIR, url.pathname))) {
           // will send file by default
           return null;
         }
@@ -101,7 +104,7 @@ export default async function (eleventyConfig) {
             body: "Not Found",
           };
         }
-        return fs.readFileSync("build/index.html", "utf-8");
+        return fs.readFileSync(path.join(BUILD_DIR, "index.html"), "utf-8");
       },
     },
   });
@@ -150,7 +153,7 @@ export default async function (eleventyConfig) {
   return {
     dir: {
       input: "src",
-      output: "build",
+      output: BUILD_DIR,
     },
   };
 }

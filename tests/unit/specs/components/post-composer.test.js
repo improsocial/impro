@@ -416,4 +416,92 @@ t.describe("PostComposer - reinitialization protection", (it) => {
   });
 });
 
+t.describe("PostComposer - initial text/cursor", (it) => {
+  it("defaults initialText and initialCursor to null when not set", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    assertEquals(element.initialText, null);
+    assertEquals(element.initialCursor, null);
+  });
+
+  it("preserves initialText set before connectedCallback", () => {
+    const element = createPostComposer();
+    element.initialText = "Pre-seeded";
+    element.initialCursor = 0;
+    connectElement(element);
+    assertEquals(element.initialText, "Pre-seeded");
+    assertEquals(element.initialCursor, 0);
+  });
+
+  it("seeds the rich-text-input on open when initialText is set", () => {
+    const element = createPostComposer();
+    element.initialText = "Hello from a plugin";
+    connectElement(element);
+    element.open();
+    const richTextInput = element.querySelector("rich-text-input");
+    assertEquals(richTextInput.text, "Hello from a plugin");
+    assertEquals(element._postText, "Hello from a plugin");
+  });
+
+  it("does not seed text when initialText is null", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element.open();
+    const richTextInput = element.querySelector("rich-text-input");
+    assertEquals(richTextInput.text, "");
+    assertEquals(element._postText, "");
+  });
+
+  it("calls setCursor on the rich-text-input when initialCursor is set", () => {
+    const element = createPostComposer();
+    element.initialText = "abcdef";
+    element.initialCursor = 3;
+    connectElement(element);
+
+    const richTextInput = element.querySelector("rich-text-input");
+    const calls = [];
+    const originalSetCursor = richTextInput.setCursor.bind(richTextInput);
+    richTextInput.setCursor = (cursor) => {
+      calls.push(cursor);
+      originalSetCursor(cursor);
+    };
+
+    element.open();
+    assertEquals(calls, [3]);
+  });
+
+  it("does not call setCursor when initialCursor is null", () => {
+    const element = createPostComposer();
+    element.initialText = "abcdef";
+    connectElement(element);
+
+    const richTextInput = element.querySelector("rich-text-input");
+    let cursorCalled = false;
+    richTextInput.setCursor = () => {
+      cursorCalled = true;
+    };
+
+    element.open();
+    assert(!cursorCalled);
+  });
+
+  it("allows setting only initialCursor without initialText", () => {
+    const element = createPostComposer();
+    element.initialCursor = 0;
+    connectElement(element);
+
+    const richTextInput = element.querySelector("rich-text-input");
+    const calls = [];
+    richTextInput.setCursor = (cursor) => calls.push(cursor);
+    let setTextCalled = false;
+    richTextInput.setText = () => {
+      setTextCalled = true;
+    };
+
+    element.open();
+    assert(!setTextCalled);
+    assertEquals(calls, [0]);
+  });
+});
+
 await t.run();

@@ -18,7 +18,7 @@ function remoteAssetUrl({ repo, file, release = null }) {
   if (release) {
     return `https://cdn.jsdelivr.net/gh/${repo}@${release}/${file}`;
   }
-  return `https://raw.githubusercontent.com/${repo}/main/${file}`;
+  return `https://raw.githubusercontent.com/${repo}/refs/heads/main/${file}`;
 }
 
 export class SourceProvider {
