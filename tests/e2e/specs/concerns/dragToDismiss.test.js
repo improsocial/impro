@@ -1,5 +1,5 @@
 import { test, expect } from "../../base.js";
-import { login } from "../../helpers.js";
+import { login, loginWithAccounts, longPress } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
 import { createPost, createProfile } from "../../factories.js";
 import { userProfile } from "../../fixtures.js";
@@ -503,6 +503,93 @@ test.describe("Drag-to-dismiss", () => {
         endY: 600,
       });
       await expect(composer).toBeVisible();
+    });
+  });
+
+  test.describe("account switcher dialog", () => {
+    let mockServer;
+    let otherProfile;
+
+    test.beforeEach(async ({ page }) => {
+      mockServer = new MockServer();
+      otherProfile = createProfile({
+        did: "did:plc:otheruser456",
+        handle: "otheruser.bsky.social",
+        displayName: "Other User",
+      });
+      mockServer.addProfile(userProfile);
+      mockServer.addProfile(otherProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        { did: otherProfile.did, handle: otherProfile.handle },
+      ]);
+      await page.goto("/");
+      await expect(
+        page.locator('[data-testid="footer-nav-profile"]'),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    async function openAccountSwitcher(page) {
+      await longPress(page, page.locator('[data-testid="footer-nav-profile"]'));
+      const dialog = page.locator('[data-testid="account-switcher-dialog"]');
+      await expect(dialog).toBeVisible();
+      return dialog;
+    }
+
+    test("dragging past threshold dismisses it", async ({ page }) => {
+      await openAccountSwitcher(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="account-switcher-dialog"]',
+        startY: 600,
+        endY: 700,
+      });
+      await expect(
+        page.locator('[data-testid="account-switcher-dialog"]'),
+      ).toHaveCount(0, { timeout: 2000 });
+    });
+
+    test("dragging below threshold snaps back", async ({ page }) => {
+      const dialog = await openAccountSwitcher(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="account-switcher-dialog"]',
+        startY: 600,
+        endY: 630,
+      });
+      await expect(dialog).toBeVisible();
+    });
+
+    test("drag starting on an account row does not dismiss", async ({
+      page,
+    }) => {
+      const dialog = await openAccountSwitcher(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="account-switcher-dialog"]',
+        startTouchTargetSelector: '[data-testid="account-switcher-item"]',
+        startY: 600,
+        endY: 730,
+      });
+      await expect(dialog).toBeVisible();
+    });
+
+    test("does not dismiss while a switch is pending", async ({ page }) => {
+      const dialog = await openAccountSwitcher(page);
+      await mockServer.blockNavigations(page);
+      await dialog
+        .locator(
+          `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
+        )
+        .click();
+      await expect(
+        dialog.locator('[data-testid="account-spinner"]'),
+      ).toBeVisible();
+
+      await drag(page, {
+        eventSourceSelector: '[data-testid="account-switcher-dialog"]',
+        startY: 600,
+        endY: 730,
+      });
+      await expect(dialog).toBeVisible();
     });
   });
 });

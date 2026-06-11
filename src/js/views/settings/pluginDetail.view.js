@@ -2,7 +2,6 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
@@ -10,13 +9,7 @@ class SettingsPluginDetailView extends View {
   async render({
     root,
     params,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
+    context: { dataLayer, pluginService, mainLayout },
   }) {
     await auth.requireAuth();
 
@@ -69,24 +62,13 @@ class SettingsPluginDetailView extends View {
     });
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const pluginDetails = state.$pluginDetails.get();
       const settingTab = state.$settingTab.get();
       const tabContent = state.$tabContent.get();
       const tabError = state.$tabError.get();
       render(
         html`<div id="settings-plugin-detail-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

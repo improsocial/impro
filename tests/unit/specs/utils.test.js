@@ -18,6 +18,8 @@ import {
   getPostLangs,
   getBrowserLanguageCodes,
   withTimeout,
+  wait,
+  enableLongPress,
   TimeoutError,
 } from "/js/utils.js";
 
@@ -814,5 +816,171 @@ t.describe("withTimeout", (it) => {
     assertEquals(caught, boom);
   });
 });
+
+function pressEvent(
+  type,
+  { clientX = 0, clientY = 0, touch = false, button = 0 } = {},
+) {
+  const event = new Event(type, { bubbles: true, cancelable: true });
+  if (touch) {
+    event.touches = [{ clientX, clientY }];
+  } else {
+    event.clientX = clientX;
+    event.clientY = clientY;
+    event.button = button;
+  }
+  return event;
+}
+
+t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
+  let el;
+  let longPressCount;
+
+  beforeEach(() => {
+    el = document.createElement("div");
+    document.body.appendChild(el);
+    longPressCount = 0;
+    el.addEventListener("long-press", () => longPressCount++);
+  });
+
+  afterEach(() => {
+    // Consume any click suppressor a long-press left armed on the document so
+    // it cannot leak into the next test.
+    document.dispatchEvent(pressEvent("click"));
+    el.remove();
+  });
+
+  it("dispatches a long-press event after the timeout", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown"));
+    await wait(60);
+    assertEquals(longPressCount, 1);
+  });
+
+  it("does not dispatch when released before the timeout", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown"));
+    el.dispatchEvent(pressEvent("mouseup"));
+    await wait(60);
+    assertEquals(longPressCount, 0);
+  });
+
+  it("cancels when a touch moves beyond the threshold", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("touchstart", { touch: true }));
+    el.dispatchEvent(pressEvent("touchmove", { touch: true, clientX: 50 }));
+    await wait(60);
+    assertEquals(longPressCount, 0);
+  });
+
+  it("does not cancel for small touch movements", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("touchstart", { touch: true }));
+    el.dispatchEvent(
+      pressEvent("touchmove", { touch: true, clientX: 3, clientY: 3 }),
+    );
+    await wait(60);
+    assertEquals(longPressCount, 1);
+  });
+
+  it("guards against double-binding", async () => {
+    enableLongPress(el, 30);
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown"));
+    await wait(60);
+    assertEquals(longPressCount, 1);
+  });
+
+  it("ignores presses from non-primary mouse buttons", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown", { button: 2 }));
+    await wait(60);
+    assertEquals(longPressCount, 0);
+  });
+
+  it("suppresses the click that follows a long-press", async () => {
+    enableLongPress(el, 30);
+    let laterClickCount = 0;
+    el.addEventListener("click", () => laterClickCount++);
+    el.dispatchEvent(pressEvent("mousedown"));
+    await wait(60);
+    const click = pressEvent("click");
+    el.dispatchEvent(click);
+    assert(click.defaultPrevented);
+    assertEquals(laterClickCount, 0);
+  });
+
+  it("suppresses the trailing click even when it lands on another element", async () => {
+    // A long-press can open UI (e.g. a modal sheet) on top of the trigger, so
+    // the release's click hits that UI instead of the trigger.
+    const overlay = document.createElement("div");
+    document.body.appendChild(overlay);
+    let overlayClickCount = 0;
+    overlay.addEventListener("click", () => overlayClickCount++);
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown"));
+    await wait(60);
+    const click = pressEvent("click");
+    overlay.dispatchEvent(click);
+    assert(click.defaultPrevented);
+    assertEquals(overlayClickCount, 0);
+    overlay.remove();
+  });
+
+  it("suppresses only the first click after a long-press", async () => {
+    enableLongPress(el, 30);
+    el.dispatchEvent(pressEvent("mousedown"));
+    await wait(60);
+    el.dispatchEvent(pressEvent("click"));
+    const secondClick = pressEvent("click");
+    el.dispatchEvent(secondClick);
+    assert(!secondClick.defaultPrevented);
+  });
+
+  it("does not suppress a normal click", () => {
+    enableLongPress(el, 30);
+    let laterClickCount = 0;
+    el.addEventListener("click", () => laterClickCount++);
+    const click = pressEvent("click");
+    el.dispatchEvent(click);
+    assert(!click.defaultPrevented);
+    assertEquals(laterClickCount, 1);
+  });
+});
+
+t.describe(
+  "enableLongPress - context menu",
+  (it, { beforeEach, afterEach }) => {
+    let el;
+
+    function setMaxTouchPoints(value) {
+      Object.defineProperty(window.navigator, "maxTouchPoints", {
+        value,
+        configurable: true,
+      });
+    }
+
+    beforeEach(() => {
+      el = document.createElement("div");
+      document.body.appendChild(el);
+      enableLongPress(el, 30);
+      setMaxTouchPoints(5);
+    });
+    afterEach(() => setMaxTouchPoints(0));
+
+    it("suppresses the context menu on touch devices", () => {
+      const contextmenu = pressEvent("contextmenu");
+      el.dispatchEvent(contextmenu);
+      assert(contextmenu.defaultPrevented);
+    });
+
+    it("leaves the context menu alone on non-touch devices", () => {
+      setMaxTouchPoints(0);
+      const contextmenu = pressEvent("contextmenu");
+      el.dispatchEvent(contextmenu);
+      assert(!contextmenu.defaultPrevented);
+    });
+  },
+);
 
 await t.run();

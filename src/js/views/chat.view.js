@@ -3,7 +3,6 @@ import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
   getDisplayName,
@@ -15,17 +14,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class ChatView extends View {
-  async render({
-    root,
-    router,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, router, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     async function handleMenuClick() {
@@ -166,10 +155,6 @@ class ChatView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const convos = dataLayer.derived.$convoList.get();
       const convosRequestStatus =
         dataLayer.requests.statusStore.$statuses.get("loadConvoList");
@@ -178,18 +163,12 @@ class ChatView extends View {
 
       render(
         html`<div id="chat-view">
-          ${mainLayoutTemplate({
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "chat",
             onClickActiveNavItem: async () => {
               window.scrollTo(0, 0);
               await loadConvoList({ reload: true });
             },
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
             children: html`
               ${headerTemplate({
                 title: "Chats",

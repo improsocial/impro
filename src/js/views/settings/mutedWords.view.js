@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { confirm } from "/js/modals.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -12,16 +11,7 @@ import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-label.js";
 
 class SettingsMutedWordsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsMutedWordsView");
@@ -233,11 +223,6 @@ class SettingsMutedWordsView extends View {
     }
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const preferences = dataLayer.derived.$preferences.get();
       const mutedWords = preferences
         ? [...preferences.getMutedWords()].reverse()
@@ -245,13 +230,7 @@ class SettingsMutedWordsView extends View {
 
       render(
         html`<div id="settings-muted-words-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

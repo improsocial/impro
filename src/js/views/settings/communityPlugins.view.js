@@ -2,22 +2,12 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { auth } from "/js/auth.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsCommunityPluginsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, pluginService, mainLayout } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsCommunityPluginsView");
@@ -35,21 +25,10 @@ class SettingsCommunityPluginsView extends View {
 
     pageEffect(root, () => {
       const error = state.$error.get();
-      const currentUser = dataLayer.derived.$currentUser.get();
       const listings = pluginService.$registryListings.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       render(
         html`<div id="settings-community-plugins-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({

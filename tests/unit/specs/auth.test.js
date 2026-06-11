@@ -1,5 +1,11 @@
 import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals, mock, MockFetch } from "../testHelpers.js";
+import {
+  assert,
+  assertEquals,
+  mock,
+  MockFetch,
+  mockWindowLocation,
+} from "../testHelpers.js";
 import {
   Auth,
   BasicAuthProvider,
@@ -12,44 +18,6 @@ const t = new TestSuite("auth");
 const originalWindow = globalThis.window;
 const originalPath =
   window.location.pathname + window.location.search + window.location.hash;
-
-// Replaces globalThis.window with a proxy that intercepts location.href writes
-// so we can capture redirects without triggering JSDOM navigation errors.
-// Returns the captured hrefs array.
-function mockWindowLocation(search) {
-  const capturedHrefs = [];
-  const locationMock = {
-    get search() {
-      return search;
-    },
-    get pathname() {
-      return "/";
-    },
-    get hash() {
-      return "";
-    },
-    get href() {
-      return capturedHrefs.at(-1) ?? "http://localhost/";
-    },
-    set href(value) {
-      capturedHrefs.push(value);
-    },
-    assign(value) {
-      capturedHrefs.push(value);
-    },
-    reload() {
-      capturedHrefs.push("reload");
-    },
-  };
-  globalThis.window = new Proxy(originalWindow, {
-    get(target, prop) {
-      if (prop === "location") return locationMock;
-      const val = target[prop];
-      return typeof val === "function" ? val.bind(target) : val;
-    },
-  });
-  return capturedHrefs;
-}
 
 // Produces a minimal JWT string whose payload encodes the given fields.
 // parseJwt only decodes — no signature verification — so the sig can be fake.
@@ -611,6 +579,25 @@ t.describe("Auth account management", (it, { afterEach }) => {
     assertEquals(provider.switchToAccount.calls.length, 0);
     assertEquals(provider.removeAccount.calls.length, 1);
     assert(capturedHrefs.at(-1).includes("/login"));
+  });
+});
+
+t.describe("Auth.softLogout", (it) => {
+  it("delegates to provider.softLogout with the did", async () => {
+    const provider = makeMockProvider();
+    provider.softLogout = mock(() => Promise.resolve());
+    const manager = new Auth(provider);
+    await manager.softLogout("did:plc:alice");
+    assertEquals(provider.softLogout.calls.length, 1);
+    assertEquals(provider.softLogout.calls[0][0], "did:plc:alice");
+    assertEquals(provider.logout.calls.length, 0);
+  });
+
+  it("falls back to provider.logout when the provider has no softLogout", async () => {
+    const provider = makeMockProvider();
+    const manager = new Auth(provider);
+    await manager.softLogout("did:plc:alice");
+    assertEquals(provider.logout.calls.length, 1);
   });
 });
 

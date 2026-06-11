@@ -2,10 +2,38 @@ import { html } from "/js/lib/lit-html.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
+import { auth } from "/js/auth.js";
 import "/js/components/animated-sidebar.js";
 
-function defaultOnClickComposeButton() {
-  console.warn("onClickComposeButton not provided");
+export function createMainLayout(context) {
+  const {
+    isAuthenticated,
+    dataLayer,
+    notificationService,
+    chatNotificationService,
+    postComposerService,
+    accountSwitcherService,
+    pluginService,
+  } = context;
+  const onLongPressProfile =
+    accountSwitcherService && auth.supportsMultipleAccounts()
+      ? () => accountSwitcherService.openAccountSwitcherDialog()
+      : null;
+  return function mainLayout(options) {
+    const currentUser = dataLayer.derived.$currentUser.get();
+    return mainLayoutTemplate({
+      isAuthenticated,
+      currentUser,
+      numNotifications: notificationService?.$numNotifications.get() ?? null,
+      numChatNotifications:
+        chatNotificationService?.$numNotifications.get() ?? null,
+      pluginService,
+      onClickComposeButton: () =>
+        postComposerService.composePost({ currentUser }),
+      onLongPressProfile,
+      ...options,
+    });
+  };
 }
 
 export function mainLayoutTemplate({
@@ -17,9 +45,10 @@ export function mainLayoutTemplate({
   onClickActiveNavItem,
   children,
   showFloatingComposeButton = false,
-  onClickComposeButton = defaultOnClickComposeButton,
+  onClickComposeButton,
   showSidebarOverlay = true,
   pluginService,
+  onLongPressProfile = null,
 }) {
   // This fixes a weird performance bug that was happening on the postThread view
   // (specifically with the profile image)
@@ -54,6 +83,7 @@ export function mainLayoutTemplate({
       numNotifications,
       numChatNotifications,
       onClickActiveItem: onClickActiveNavItem,
+      onLongPressProfile,
     })}
     ${currentUser && showFloatingComposeButton
       ? html`<button

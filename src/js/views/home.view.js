@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
@@ -17,13 +16,11 @@ class HomeView extends View {
     context: {
       dataLayer,
       api,
-      notificationService,
-      chatNotificationService,
       postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
@@ -181,28 +178,17 @@ class HomeView extends View {
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
       const currentFeedUri = state.$currentFeedUri.get();
       render(
         html`<div id="home-view">
-          ${mainLayoutTemplate({
-            isAuthenticated,
+          ${mainLayout({
             onClickActiveNavItem: () => {
               scrollAndReloadFeed();
             },
-            numNotifications,
-            numChatNotifications,
-            currentUser,
             activeNavItem: "home",
             showFloatingComposeButton: true,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            pluginService,
             children: html` ${headerTemplate({
                 leftButton: "menu",
                 onClickMenuButton: () => handleMenuClick(),

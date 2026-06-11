@@ -1,6 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
@@ -13,13 +12,10 @@ class PostQuotesView extends View {
     context: {
       dataLayer,
       identityResolver,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -44,10 +40,6 @@ class PostQuotesView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const postQuotes = dataLayer.derived.$hydratedPostQuotes.get(postUri);
       const post = dataLayer.derived.$hydratedPosts.get(postUri);
       const postQuotesRequestStatus =
@@ -71,14 +63,7 @@ class PostQuotesView extends View {
 
       render(
         html`<div id="post-quotes-view">
-          ${mainLayoutTemplate({
-            isAuthenticated,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             children: html`${headerTemplate({
                 title: "Quotes",
                 subtitle,

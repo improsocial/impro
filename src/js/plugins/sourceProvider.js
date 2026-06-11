@@ -15,10 +15,8 @@ function parsePluginManifest(pluginId, manifest) {
 }
 
 function remoteAssetUrl({ repo, file, release = null }) {
-  if (release) {
-    return `https://cdn.jsdelivr.net/gh/${repo}@${release}/${file}`;
-  }
-  return `https://raw.githubusercontent.com/${repo}/refs/heads/main/${file}`;
+  const ref = release ? `refs/tags/${release}` : "refs/heads/main";
+  return `https://raw.githubusercontent.com/${repo}/${ref}/${file}`;
 }
 
 export class SourceProvider {

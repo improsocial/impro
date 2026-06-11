@@ -59,6 +59,50 @@ export function mock(fn = () => {}) {
   return mockFn;
 }
 
+const originalWindow = globalThis.window;
+
+// Replaces globalThis.window with a proxy that intercepts location.href writes
+// so we can capture redirects without triggering JSDOM navigation errors.
+// Returns the captured hrefs array. Call restoreWindow() to undo.
+export function mockWindowLocation(search = "") {
+  const capturedHrefs = [];
+  const locationMock = {
+    get search() {
+      return search;
+    },
+    get pathname() {
+      return "/";
+    },
+    get hash() {
+      return "";
+    },
+    get href() {
+      return capturedHrefs.at(-1) ?? "http://localhost/";
+    },
+    set href(value) {
+      capturedHrefs.push(value);
+    },
+    assign(value) {
+      capturedHrefs.push(value);
+    },
+    reload() {
+      capturedHrefs.push("reload");
+    },
+  };
+  globalThis.window = new Proxy(originalWindow, {
+    get(target, prop) {
+      if (prop === "location") return locationMock;
+      const val = target[prop];
+      return typeof val === "function" ? val.bind(target) : val;
+    },
+  });
+  return capturedHrefs;
+}
+
+export function restoreWindow() {
+  globalThis.window = originalWindow;
+}
+
 // A callable fetch replacement. Assign to globalThis.fetch, register routes
 // with __intercept(matcher, handler), and inspect captured requests on `calls`.
 // Matchers are strings (matched by URL prefix) or regex (matched with .test).

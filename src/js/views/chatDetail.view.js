@@ -5,42 +5,17 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes } from "/js/utils.js";
+import { wait, raf, differenceInMinutes, enableLongPress } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/lib/emoji-picker-element.js";
-
-function enableLongPress(el, timeout = 500) {
-  if (el.__longPressEnabled) {
-    return;
-  }
-  el.addEventListener("touchstart", (e) => {
-    el.__longPressTimeout = setTimeout(() => {
-      el.dispatchEvent(new CustomEvent("long-press"));
-    }, timeout);
-  });
-  el.addEventListener("touchend", (e) => {
-    clearTimeout(el.__longPressTimeout);
-  });
-  // Also enable for clicks
-  el.addEventListener("mousedown", (e) => {
-    el.__longPressTimeout = setTimeout(() => {
-      el.dispatchEvent(new CustomEvent("long-press"));
-    }, timeout);
-  });
-  el.addEventListener("mouseup", (e) => {
-    clearTimeout(el.__longPressTimeout);
-  });
-  el.__longPressEnabled = true;
-}
 
 class ChatDetailView extends View {
   async render({
@@ -48,11 +23,9 @@ class ChatDetailView extends View {
     params,
     context: {
       dataLayer,
-      notificationService,
       chatNotificationService,
       identityResolver,
-      postComposerService,
-      pluginService,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -628,10 +601,6 @@ class ChatDetailView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? 0;
       const messagesData = dataLayer.derived.$convoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
       const messagesRequestStatus =
@@ -646,14 +615,8 @@ class ChatDetailView extends View {
 
       render(
         html`<div id="chat-detail-view">
-          ${mainLayoutTemplate({
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             showSidebarOverlay: false,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            pluginService,
             children: html`
               ${headerTemplate({
                 avatarTemplate: () => {

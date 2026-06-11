@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
@@ -37,12 +36,10 @@ class NotificationsView extends View {
     context: {
       dataLayer,
       notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -717,10 +714,6 @@ class NotificationsView extends View {
     pageEffect(root, () => {
       const activeTab = state.$activeTab.get();
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const notifications = dataLayer.derived.$notifications.get();
       const notificationsRequestStatus =
         dataLayer.requests.statusStore.$statuses.get("loadNotifications");
@@ -750,18 +743,12 @@ class NotificationsView extends View {
 
       render(
         html`<div id="notifications-view">
-          ${mainLayoutTemplate({
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             activeNavItem: "notifications",
             onClickActiveNavItem: () => {
               scrollAndReloadNotifications();
             },
             showFloatingComposeButton: true,
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            pluginService,
             children: html`
               ${headerTemplate({
                 title: "Notifications",

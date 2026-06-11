@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
@@ -12,11 +12,11 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
 import { classnames } from "/js/utils.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import { confirm } from "/js/modals.js";
+import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
@@ -24,27 +24,20 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 class SettingsView extends View {
-  async render({
-    root,
-    context: {
-      dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      pluginService,
-    },
-  }) {
+  async render({ root, context: { dataLayer, mainLayout } }) {
     const currentSession = await auth.requireAuth();
     const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
     const $otherAccounts = new Signal.State(null);
     const $otherAccountProfiles = new Signal.State({});
     const $accountSwitcherExpanded = new Signal.State(false);
+    const $pendingAccountSwitcherAction = new Signal.State(null); // { type, did? }
 
     function accountsSwitcherTemplate({
       expanded,
       accounts,
       accountProfiles,
+      pendingAction,
       onToggle,
       onSwitch,
       onAdd,
@@ -66,7 +59,11 @@ class SettingsView extends View {
             >${hasOthers ? "Switch account" : "Add another account"}</span
           >
           ${!hasOthers
-            ? null
+            ? pendingAction?.type === "add"
+              ? html`<span class="account-spinner" data-testid="account-spinner"
+                  ><span class="loading-spinner"></span
+                ></span>`
+              : null
             : expanded
               ? html`<span class="vertical-nav-arrow"
                   >${chevronUpIconTemplate()}</span
@@ -99,14 +96,15 @@ class SettingsView extends View {
                       class="vertical-nav-item"
                       data-testid="settings-account-row"
                       data-account-did=${account.did}
+                      data-teststate=${account.needsReauth ? "reauth" : "ok"}
                       role="button"
                       tabindex="0"
-                      @click=${() => onSwitch(account.did)}
+                      @click=${() => onSwitch(account)}
                       @keydown=${(event) => {
                         if (event.target !== event.currentTarget) return;
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
-                          onSwitch(account.did);
+                          onSwitch(account);
                         }
                       }}
                     >
@@ -117,29 +115,41 @@ class SettingsView extends View {
                         : null}
                       <span class="vertical-nav-label">
                         ${getDisplayName(account)}
+                        ${account.needsReauth
+                          ? html`<span class="account-switcher-reauth-hint"
+                              >Sign in again</span
+                            >`
+                          : null}
                       </span>
-                      <button
-                        class="settings-account-ellipsis"
-                        data-testid="settings-account-menu-trigger"
-                        aria-label="Account actions"
-                        @click=${function (event) {
-                          event.stopPropagation();
-                          this.nextElementSibling.open(
-                            event.clientX,
-                            event.clientY,
-                          );
-                        }}
-                      >
-                        <span>⋯</span>
-                      </button>
-                      <context-menu>
-                        <context-menu-item
-                          data-testid="settings-account-remove"
-                          @click=${() => onRemove(account)}
-                        >
-                          Remove account
-                        </context-menu-item>
-                      </context-menu>
+                      ${pendingAction?.type === "switch" &&
+                      pendingAction.did === account.did
+                        ? html`<span
+                            class="account-spinner"
+                            data-testid="account-spinner"
+                            ><span class="loading-spinner"></span
+                          ></span>`
+                        : html`<button
+                              class="settings-account-ellipsis"
+                              data-testid="settings-account-menu-trigger"
+                              aria-label="Account actions"
+                              @click=${function (event) {
+                                event.stopPropagation();
+                                this.nextElementSibling.open(
+                                  event.clientX,
+                                  event.clientY,
+                                );
+                              }}
+                            >
+                              <span>⋯</span>
+                            </button>
+                            <context-menu>
+                              <context-menu-item
+                                data-testid="settings-account-remove"
+                                @click=${() => onRemove(account)}
+                              >
+                                Remove account
+                              </context-menu-item>
+                            </context-menu>`}
                     </div>
                   `;
                 })}
@@ -152,6 +162,13 @@ class SettingsView extends View {
                     >${userPlusIconTemplate()}</span
                   >
                   <span class="vertical-nav-label">Add account</span>
+                  ${pendingAction?.type === "add"
+                    ? html`<span
+                        class="account-spinner"
+                        data-testid="account-spinner"
+                        ><span class="loading-spinner"></span
+                      ></span>`
+                    : null}
                 </button>
               </div>
             `
@@ -206,25 +223,14 @@ class SettingsView extends View {
     ];
 
     pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const otherAccounts = $otherAccounts.get();
       const otherAccountProfiles = $otherAccountProfiles.get();
       if (otherAccounts === null) return;
       render(
         html`<div id="settings-view">
-          ${mainLayoutTemplate({
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            currentUser,
-            numNotifications,
-            numChatNotifications,
+          ${mainLayout({
             activeNavItem: "settings",
             onClickActiveNavItem: () => window.scrollTo(0, 0),
-            pluginService,
             children: html`${headerTemplate({
                 title: "Settings",
                 onClickBackButton: () => {
@@ -246,12 +252,40 @@ class SettingsView extends View {
                         expanded: $accountSwitcherExpanded.get(),
                         accounts: otherAccounts,
                         accountProfiles: otherAccountProfiles,
-                        onToggle: () =>
+                        pendingAction: $pendingAccountSwitcherAction.get(),
+                        onToggle: () => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
                           $accountSwitcherExpanded.set(
                             !$accountSwitcherExpanded.get(),
-                          ),
-                        onSwitch: (did) => auth.switchAccount(did),
+                          );
+                        },
+                        onSwitch: async (account) => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
+                          $pendingAccountSwitcherAction.set({
+                            type: "switch",
+                            did: account.did,
+                          });
+                          if (account.needsReauth) {
+                            window.location.href = linkToLogin({
+                              query: { addAccount: 1, handle: account.handle },
+                            });
+                            return;
+                          }
+                          try {
+                            await auth.switchAccount(account.did);
+                          } catch {
+                            $pendingAccountSwitcherAction.set(null);
+                            showToast("Failed to switch account", {
+                              style: "error",
+                            });
+                          }
+                        },
                         onAdd: () => {
+                          if ($pendingAccountSwitcherAction.get() !== null)
+                            return;
+                          $pendingAccountSwitcherAction.set({ type: "add" });
                           window.location.href = linkToLogin({
                             query: { addAccount: 1 },
                           });
@@ -375,6 +409,15 @@ class SettingsView extends View {
 
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
+    });
+
+    // Account actions navigate away with the pending spinner showing; if the
+    // user comes back via the back/forward cache the document is restored
+    // as-is, so reset the stuck pending state.
+    bindToPage(root, window, "pageshow", (event) => {
+      if (event.persisted) {
+        $pendingAccountSwitcherAction.set(null);
+      }
     });
   }
 }

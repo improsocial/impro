@@ -84,6 +84,16 @@ test.describe("Login view", () => {
     ).toHaveCount(0);
   });
 
+  test("prefills the handle input from the handle query param", async ({
+    page,
+  }) => {
+    await page.goto("/login?handle=alice.bsky.social");
+
+    await expect(page.locator('input[name="handle"]')).toHaveValue(
+      "alice.bsky.social",
+    );
+  });
+
   test("prefills the advanced section from localStorage", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem(

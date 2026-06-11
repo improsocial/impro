@@ -3,7 +3,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import "/js/components/tab-bar.js";
 import { HASHTAG_FEED_PAGE_SIZE } from "/js/config.js";
 import { pageEffect } from "/js/router.js";
@@ -15,13 +14,10 @@ class HashtagView extends View {
     params,
     context: {
       dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -72,25 +68,15 @@ class HashtagView extends View {
     }
 
     pageEffect(root, () => {
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const currentSort = state.$currentSort.get();
       render(
         html`<div id="hashtag-view">
-          ${mainLayoutTemplate({
+          ${mainLayout({
             onClickActiveNavItem: () => {
               scrollAndReloadFeed();
             },
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            numNotifications,
-            numChatNotifications,
-            currentUser,
             activeNavItem: null,
-            pluginService,
             children: html` <main>
               ${headerTemplate({
                 title: `#${hashtag}`,

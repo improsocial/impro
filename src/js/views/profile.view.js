@@ -10,7 +10,6 @@ import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { ApiError } from "/js/api.js";
 import { pageEffect } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
@@ -25,17 +24,15 @@ import "/js/components/add-to-lists-dialog.js";
 class ProfileView extends View {
   async render({
     root,
+    router,
     params,
     context: {
       identityResolver,
       dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     const defaultAuthorFeeds = [
@@ -527,10 +524,6 @@ class ProfileView extends View {
       const profile =
         dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
       const currentUser = dataLayer.derived.$currentUser.get();
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const profileRequestStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadDetailedProfile-" + profileDid,
       );
@@ -543,21 +536,13 @@ class ProfileView extends View {
       const activeTab = state.$activeTab.get();
       render(
         html`<div id="profile-view">
-          ${mainLayoutTemplate({
-            isAuthenticated,
-            currentUser,
-            numNotifications,
-            numChatNotifications,
-            pluginService,
+          ${mainLayout({
             showSidebarOverlay: false,
             activeNavItem: currentUser?.did === profile?.did ? "profile" : null,
             onClickActiveNavItem: () => {
               scrollAndReloadFeed();
             },
             showFloatingComposeButton: true,
-            onClickComposeButton: async () => {
-              await postComposerService.composePost({ currentUser });
-            },
             children: html`
               <main style="position: relative;">
                 <button

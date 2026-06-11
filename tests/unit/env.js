@@ -19,6 +19,13 @@ globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
 globalThis.MutationObserver = dom.window.MutationObserver;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
+// Node has its own global navigator; alias JSDOM's so code under test and
+// tests (which mock properties on window.navigator) see the same object.
+Object.defineProperty(globalThis, "navigator", {
+  value: dom.window.navigator,
+  configurable: true,
+  writable: true,
+});
 
 // Mock requestAnimationFrame
 globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);

@@ -1432,6 +1432,14 @@ button.sidebar-plugin-nav-item {
   width: 24px;
 }
 
+/* Long-press to open the account switcher: stop iOS link previews / text
+   selection from hijacking the hold gesture on the profile tab. */
+.footer-nav-item.long-press-enabled {
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
 .footer-nav.logged-out-footer {
   display: flex;
   flex-direction: row;
@@ -2033,6 +2041,16 @@ button.sidebar-plugin-nav-item {
   position: relative;
 }
 
+.account-switcher-add-icon .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.account-switcher-current-check .icon {
+  width: 24px;
+  height: 24px;
+}
+
 .post-actions {
   display: flex;
   justify-content: space-between;
@@ -2291,8 +2309,12 @@ animated-button {
 }
 
 .external-link {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
+}
+
+.embed-card {
+  position: relative;
+  border-radius: var(--embed-border-radius);
   border: var(--hair) solid var(--embed-border-color);
 }
 
@@ -2349,8 +2371,6 @@ animated-button {
 
 .quoted-post {
   padding: 10px 16px;
-  border-radius: var(--embed-border-radius);
-  border: var(--hair) solid var(--embed-border-color);
   transition: background-color 0.2s;
   margin-top: 8px;
   background: var(--background-color);
@@ -2401,9 +2421,7 @@ animated-button {
 }
 
 .feed-generator-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .feed-generator-embed-content {
@@ -2448,9 +2466,7 @@ animated-button {
 }
 
 .list-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .list-embed-content {
@@ -2495,9 +2511,7 @@ animated-button {
 }
 
 .starter-pack-embed {
-  border-radius: var(--embed-border-radius);
   overflow: hidden;
-  border: var(--hair) solid var(--embed-border-color);
 }
 
 .starter-pack-embed-content {
@@ -6333,6 +6347,180 @@ img[data-lightbox] {
   position: relative;
   top: -4px;
   font-weight: 600;
+}
+
+.account-spinner {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-dialog {
+    max-width: 410px;
+  }
+}
+
+.account-switcher-content {
+  /* Extra top padding leaves room for the sheet drag handle on mobile */
+  padding: 16px;
+  padding-top: 20px;
+}
+
+.account-switcher-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.account-switcher-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.account-switcher-close {
+  display: none;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-color-muted);
+  cursor: pointer;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-close {
+    display: block;
+  }
+}
+
+.account-switcher-close[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.account-switcher-list {
+  display: flex;
+  flex-direction: column;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.account-switcher-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-size: 15px;
+  color: var(--text-color);
+  cursor: pointer;
+}
+
+.account-switcher-item:not(:first-child) {
+  border-top: var(--hair) solid var(--post-border-color);
+}
+
+@media (min-width: 800px) {
+  .account-switcher-item:hover {
+    background-color: var(--post-hover-color);
+  }
+}
+
+.account-switcher-item[disabled] {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.account-switcher-item[data-teststate="pending"] {
+  opacity: 1;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-item[data-teststate="pending"] {
+    background-color: var(--post-hover-color);
+  }
+}
+
+.account-switcher-avatar {
+  flex-shrink: 0;
+  display: flex;
+}
+
+.account-switcher-item .avatar,
+.account-switcher-item .avatar-image-placeholder,
+.account-switcher-item .skeleton-avatar {
+  width: 40px;
+  height: 40px;
+}
+
+.account-switcher-names-skeleton {
+  gap: 6px;
+  justify-content: center;
+}
+
+.account-switcher-add-icon {
+  width: 40px;
+  height: 40px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color-muted);
+}
+
+.account-switcher-names {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  flex-grow: 1;
+}
+
+.account-switcher-display-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher-handle {
+  font-size: 13px;
+  color: var(--text-color-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher-item-reauth .account-switcher-avatar {
+  opacity: 0.6;
+}
+
+.account-switcher-reauth-hint {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--highlight-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-switcher-current-check {
+  color: var(--highlight-color);
+  flex-shrink: 0;
+}
+
+.account-switcher-chevron {
+  color: var(--text-color-muted);
+  flex-shrink: 0;
 }
 
 moderation-warning {

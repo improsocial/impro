@@ -64,6 +64,13 @@ export class MockServer {
     // README markdown served for plugin repos; set to null to simulate a
     // plugin with no README (404).
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
+    this.tokenRefreshShouldFail = false;
+  }
+
+  // Make subsequent OAuth token refreshes fail with a non-retryable error,
+  // simulating a stale/revoked refresh token.
+  failTokenRefresh() {
+    this.tokenRefreshShouldFail = true;
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -219,6 +226,22 @@ export class MockServer {
     this.convoMessages.set(convoId, messages);
   }
 
+  // Abort all subsequent document navigations (reloads, redirects) so the
+  // page stays on the current document. UI states that only exist until a
+  // navigation completes (e.g. an in-progress spinner) stay observable.
+  async blockNavigations(page) {
+    await page.route("**/*", async (route) => {
+      if (
+        route.request().isNavigationRequest() &&
+        route.request().resourceType() === "document"
+      ) {
+        await route.abort("aborted");
+        return;
+      }
+      await route.fallback();
+    });
+  }
+
   async setup(page) {
     // Plugin fixture routes — serve a self-contained test plugin so plugin
     // e2e tests don't depend on plugins-local/.
@@ -264,33 +287,39 @@ export class MockServer {
           body: JSON.stringify(this.registryEntries),
         }),
     );
-    await page.route("**/cdn.jsdelivr.net/gh/*/*@*/manifest.json", (route) => {
-      const match = route
-        .request()
-        .url()
-        .match(/@([^/]+)\/manifest\.json$/);
-      const version = match?.[1] ?? "0.0.0";
-      const id = this.registryEntries[0]?.id ?? "remote-plugin";
-      route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          id,
-          name: this.registryEntries[0]?.name ?? "Remote Plugin",
-          version,
-          description: this.registryEntries[0]?.description,
-        }),
-      });
-    });
-    await page.route("**/cdn.jsdelivr.net/gh/*/*@*/main.js", (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: "text/javascript",
-        body: getTestPluginSource(),
-      }),
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/refs/tags/*/manifest.json",
+      (route) => {
+        const match = route
+          .request()
+          .url()
+          .match(/refs\/tags\/([^/]+)\/manifest\.json$/);
+        const version = match?.[1] ?? "0.0.0";
+        const id = this.registryEntries[0]?.id ?? "remote-plugin";
+        route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            id,
+            name: this.registryEntries[0]?.name ?? "Remote Plugin",
+            version,
+            description: this.registryEntries[0]?.description,
+          }),
+        });
+      },
     );
-    await page.route("**/cdn.jsdelivr.net/gh/*/*@*/styles.css", (route) =>
-      route.fulfill({ status: 404, body: "Not Found" }),
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/refs/tags/*/main.js",
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "text/javascript",
+          body: getTestPluginSource(),
+        }),
+    );
+    await page.route(
+      "**/raw.githubusercontent.com/*/*/refs/tags/*/styles.css",
+      (route) => route.fulfill({ status: 404, body: "Not Found" }),
     );
     await page.route(
       "**/raw.githubusercontent.com/*/*/refs/heads/main/manifest.json",
@@ -329,6 +358,29 @@ export class MockServer {
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
     );
+
+    // OAuth token endpoint used by seeded test sessions. `invalid_request`
+    // (not `invalid_grant`) fails immediately without the cross-tab
+    // rotated-session recovery delay.
+    await page.route("**/oauth/token*", (route) => {
+      if (this.tokenRefreshShouldFail) {
+        route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "invalid_request" }),
+        });
+        return;
+      }
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          access_token: "mock-access-token-refreshed",
+          refresh_token: "mock-refresh-token-refreshed",
+          expires_in: 3600,
+        }),
+      });
+    });
 
     await page.route("**/xrpc/blue.microcosm.links.getBacklinks*", (route) =>
       route.fulfill({
@@ -842,6 +894,19 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify(profile),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.actor.getProfiles*", (route) => {
+      const url = new URL(route.request().url());
+      const actors = url.searchParams.getAll("actors");
+      const profiles = actors
+        .map((actor) => this.profiles.get(actor))
+        .filter(Boolean);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ profiles }),
       });
     });
 

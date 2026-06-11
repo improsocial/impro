@@ -2,7 +2,6 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
-import { mainLayoutTemplate } from "/js/templates/mainLayout.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pageEffect } from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
@@ -12,13 +11,10 @@ class BookmarksView extends View {
     root,
     context: {
       dataLayer,
-      notificationService,
-      chatNotificationService,
-      postComposerService,
-      reportService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
+      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -33,26 +29,16 @@ class BookmarksView extends View {
     }
 
     pageEffect(root, () => {
-      const numNotifications =
-        notificationService?.$numNotifications.get() ?? null;
-      const numChatNotifications =
-        chatNotificationService?.$numNotifications.get() ?? null;
       const currentUser = dataLayer.derived.$currentUser.get();
       const bookmarks = dataLayer.derived.$hydratedBookmarks.get();
 
       render(
         html`<div id="bookmarks-view">
-          ${mainLayoutTemplate({
+          ${mainLayout({
             onClickActiveNavItem: () => {
               scrollAndReloadBookmarks();
             },
-            onClickComposeButton: () =>
-              postComposerService.composePost({ currentUser }),
-            numNotifications,
-            numChatNotifications,
-            currentUser,
             activeNavItem: "bookmarks",
-            pluginService,
             children: html`
               ${headerTemplate({ title: "Saved Posts" })}
               <main>
