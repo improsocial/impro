@@ -2315,18 +2315,7 @@ animated-button {
 .embed-card {
   position: relative;
   border-radius: var(--embed-border-radius);
-}
-
-/* embed card hairline as an inset shadow on an overlay instead of a border:
-   renders reliably at subpixel widths, keeps uniform stroke weight around
-   rounded corners, and paints above edge-to-edge images */
-.embed-card::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  box-shadow: inset 0 0 0 var(--hair) var(--embed-border-color);
-  pointer-events: none;
+  border: var(--hair) solid var(--embed-border-color);
 }
 
 .external-link hr {
