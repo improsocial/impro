@@ -6436,8 +6436,13 @@ img[data-lightbox] {
 }
 
 .account-switcher-item[data-teststate="pending"] {
-  background-color: var(--post-hover-color);
   opacity: 1;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-item[data-teststate="pending"] {
+    background-color: var(--post-hover-color);
+  }
 }
 
 .account-switcher-avatar {
