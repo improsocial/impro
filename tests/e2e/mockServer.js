@@ -64,6 +64,13 @@ export class MockServer {
     // README markdown served for plugin repos; set to null to simulate a
     // plugin with no README (404).
     this.pluginReadme = "# Remote Themes\n\nA test readme for the plugin.";
+    this.tokenRefreshShouldFail = false;
+  }
+
+  // Make subsequent OAuth token refreshes fail with a non-retryable error,
+  // simulating a stale/revoked refresh token.
+  failTokenRefresh() {
+    this.tokenRefreshShouldFail = true;
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -351,6 +358,29 @@ export class MockServer {
     await page.route("**/.well-known/atproto-did*", (route) =>
       route.fulfill({ status: 404, body: "Not Found" }),
     );
+
+    // OAuth token endpoint used by seeded test sessions. `invalid_request`
+    // (not `invalid_grant`) fails immediately without the cross-tab
+    // rotated-session recovery delay.
+    await page.route("**/oauth/token*", (route) => {
+      if (this.tokenRefreshShouldFail) {
+        route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "invalid_request" }),
+        });
+        return;
+      }
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          access_token: "mock-access-token-refreshed",
+          refresh_token: "mock-refresh-token-refreshed",
+          expires_in: 3600,
+        }),
+      });
+    });
 
     await page.route("**/xrpc/blue.microcosm.links.getBacklinks*", (route) =>
       route.fulfill({

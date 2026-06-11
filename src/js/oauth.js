@@ -682,7 +682,11 @@ export class OauthClient {
   }
 
   listAccounts() {
-    return readAccounts();
+    return readAccounts().map((account) => ({
+      ...account,
+      needsReauth:
+        localStorage.getItem(SESSION_KEY_PREFIX + account.did) === null,
+    }));
   }
 
   switchToAccount(did) {
@@ -691,6 +695,13 @@ export class OauthClient {
       throw new Error(`No stored account for did: ${did}`);
     }
     localStorage.setItem(CURRENT_DID_KEY, did);
+  }
+
+  clearSession(did = null) {
+    const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
+    if (!targetDid) return;
+    localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
+    this.sessionsByDid.delete(targetDid);
   }
 
   async logout(did) {

@@ -177,7 +177,14 @@ export class BasicAuthProvider {
   async listAccounts() {
     const session = await this.getSession();
     if (!session) return [];
-    return [{ did: session.did, handle: session.handle, pdsUrl: null }];
+    return [
+      {
+        did: session.did,
+        handle: session.handle,
+        pdsUrl: null,
+        needsReauth: false,
+      },
+    ];
   }
 
   supportsMultipleAccounts() {
@@ -242,6 +249,11 @@ export class OAuthProvider {
     await client.logout();
   }
 
+  async softLogout(did = null) {
+    const client = await this.getClient();
+    client.clearSession(did);
+  }
+
   async listAccounts() {
     const client = await this.getClient();
     return client.listAccounts();
@@ -289,6 +301,13 @@ export class Auth {
   }
 
   logout() {
+    return this.provider.logout();
+  }
+
+  softLogout(did = null) {
+    if (this.provider.softLogout) {
+      return this.provider.softLogout(did);
+    }
     return this.provider.logout();
   }
 

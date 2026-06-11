@@ -1,6 +1,15 @@
 import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals, MockFetch } from "../testHelpers.js";
+import {
+  assert,
+  assertEquals,
+  mock,
+  MockFetch,
+  mockWindowLocation,
+  restoreWindow,
+} from "../testHelpers.js";
 import { Api, ApiError } from "/js/api.js";
+import { auth } from "/js/auth.js";
+import { TokenRefreshError } from "/js/oauth.js";
 
 const t = new TestSuite("Api");
 
@@ -240,6 +249,63 @@ t.describe("request", (it) => {
     const res = await api.request("com.example.method");
 
     assertEquals(res.data, cachedData);
+  });
+});
+
+t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
+  const originalSoftLogout = auth.softLogout;
+
+  beforeEach(() => {
+    auth.softLogout = mock(() => Promise.resolve());
+  });
+
+  afterEach(() => {
+    auth.softLogout = originalSoftLogout;
+    restoreWindow();
+  });
+
+  it("soft-logs-out and redirects to login with the handle", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      handle: "alice.bsky.social",
+      fetch: async () => {
+        throw new TokenRefreshError("refresh failed");
+      },
+    };
+    const api = new Api(session);
+
+    // The request never settles after the redirect, so don't await it
+    api.request("com.example.method").catch(() => {});
+    for (let i = 0; i < 50 && capturedHrefs.length === 0; i++) {
+      await Promise.resolve();
+    }
+
+    assertEquals(auth.softLogout.calls.length, 1);
+    assertEquals(auth.softLogout.calls[0][0], "did:plc:testuser");
+    assertEquals(capturedHrefs.at(-1), "/login?handle=alice.bsky.social");
+  });
+
+  it("redirects to plain login when the session has no handle", async () => {
+    const capturedHrefs = mockWindowLocation("");
+    const session = {
+      serviceEndpoint: "https://test.example.com",
+      did: "did:plc:testuser",
+      handle: null,
+      fetch: async () => {
+        throw new TokenRefreshError("refresh failed");
+      },
+    };
+    const api = new Api(session);
+
+    api.request("com.example.method").catch(() => {});
+    for (let i = 0; i < 50 && capturedHrefs.length === 0; i++) {
+      await Promise.resolve();
+    }
+
+    assertEquals(auth.softLogout.calls.length, 1);
+    assertEquals(capturedHrefs.at(-1), "/login");
   });
 });
 

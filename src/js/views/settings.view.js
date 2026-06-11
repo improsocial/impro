@@ -96,14 +96,15 @@ class SettingsView extends View {
                       class="vertical-nav-item"
                       data-testid="settings-account-row"
                       data-account-did=${account.did}
+                      data-teststate=${account.needsReauth ? "reauth" : "ok"}
                       role="button"
                       tabindex="0"
-                      @click=${() => onSwitch(account.did)}
+                      @click=${() => onSwitch(account)}
                       @keydown=${(event) => {
                         if (event.target !== event.currentTarget) return;
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
-                          onSwitch(account.did);
+                          onSwitch(account);
                         }
                       }}
                     >
@@ -114,6 +115,11 @@ class SettingsView extends View {
                         : null}
                       <span class="vertical-nav-label">
                         ${getDisplayName(account)}
+                        ${account.needsReauth
+                          ? html`<span class="account-switcher-reauth-hint"
+                              >Sign in again</span
+                            >`
+                          : null}
                       </span>
                       ${pendingAction?.type === "switch" &&
                       pendingAction.did === account.did
@@ -254,15 +260,21 @@ class SettingsView extends View {
                             !$accountSwitcherExpanded.get(),
                           );
                         },
-                        onSwitch: async (did) => {
+                        onSwitch: async (account) => {
                           if ($pendingAccountSwitcherAction.get() !== null)
                             return;
                           $pendingAccountSwitcherAction.set({
                             type: "switch",
-                            did,
+                            did: account.did,
                           });
+                          if (account.needsReauth) {
+                            window.location.href = linkToLogin({
+                              query: { addAccount: 1, handle: account.handle },
+                            });
+                            return;
+                          }
                           try {
-                            await auth.switchAccount(did);
+                            await auth.switchAccount(account.did);
                           } catch {
                             $pendingAccountSwitcherAction.set(null);
                             showToast("Failed to switch account", {

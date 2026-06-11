@@ -30,27 +30,34 @@ export async function login(page) {
 // Seed multi-account storage directly. The first entry becomes the current
 // account. Seeds on the first page load only; otherwise the init script would
 // re-seed on every navigation and undo an in-test account switch.
+// Per-account options: `needsReauth: true` skips the session blob (the account
+// shows as needing re-auth), `expired: true` writes a blob whose access token
+// is already past its expiry so the first request triggers a refresh.
 export async function loginWithAccounts(page, accounts) {
   await page.addInitScript((accountsArg) => {
     if (sessionStorage.getItem("test-accounts-seeded") === "true") return;
     sessionStorage.setItem("test-accounts-seeded", "true");
     const accountEntries = [];
     for (const account of accountsArg) {
-      const session = {
-        did: account.did,
-        serviceEndpoint: "https://fake.bsky.social",
-        accessToken: "mock-access-token",
-        refreshToken: "mock-refresh-token",
-        expiresAt: Date.now() + 3600000 * 24,
-        clientId: "https://localhost/oauth-client-metadata.json",
-        authServerMetadata: {
-          token_endpoint: "https://fake.bsky.social/oauth/token",
-        },
-      };
-      localStorage.setItem(
-        "oauth_session:" + account.did,
-        JSON.stringify(session),
-      );
+      if (!account.needsReauth) {
+        const session = {
+          did: account.did,
+          serviceEndpoint: "https://fake.bsky.social",
+          accessToken: "mock-access-token",
+          refreshToken: "mock-refresh-token",
+          expiresAt: account.expired
+            ? Date.now() - 1000
+            : Date.now() + 3600000 * 24,
+          clientId: "https://localhost/oauth-client-metadata.json",
+          authServerMetadata: {
+            token_endpoint: "https://fake.bsky.social/oauth/token",
+          },
+        };
+        localStorage.setItem(
+          "oauth_session:" + account.did,
+          JSON.stringify(session),
+        );
+      }
       accountEntries.push({
         did: account.did,
         handle: account.handle ?? null,

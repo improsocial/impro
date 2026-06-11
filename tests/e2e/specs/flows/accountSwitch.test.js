@@ -7,6 +7,13 @@ import { createProfile } from "../../factories.js";
 // The footer (the long-press trigger) only renders on small viewports.
 test.use({ viewport: { width: 375, height: 667 } });
 
+async function openSwitcherDialog(page) {
+  await longPress(page, page.locator('[data-testid="footer-nav-profile"]'));
+  const dialog = page.locator('[data-testid="account-switcher-dialog"]');
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
 test.describe("Account switch flow", () => {
   let mockServer;
   let otherProfile;
@@ -31,13 +38,6 @@ test.describe("Account switch flow", () => {
       page.locator('[data-testid="footer-nav-profile"]'),
     ).toBeVisible({ timeout: 10000 });
   });
-
-  async function openSwitcherDialog(page) {
-    await longPress(page, page.locator('[data-testid="footer-nav-profile"]'));
-    const dialog = page.locator('[data-testid="account-switcher-dialog"]');
-    await expect(dialog).toBeVisible();
-    return dialog;
-  }
 
   test("long-press on the profile tab opens the dialog without navigating", async ({
     page,
@@ -246,5 +246,73 @@ test.describe("Account switch flow", () => {
     // The dialog is dismissable again.
     await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
+  });
+});
+
+test.describe("Account switch flow with an account needing re-auth", () => {
+  let otherProfile;
+
+  test.beforeEach(async ({ page }) => {
+    const mockServer = new MockServer();
+    otherProfile = createProfile({
+      did: "did:plc:otheruser456",
+      handle: "otheruser.bsky.social",
+      displayName: "Other User",
+    });
+    mockServer.addProfile(userProfile);
+    mockServer.addProfile(otherProfile);
+    await mockServer.setup(page);
+
+    await loginWithAccounts(page, [
+      { did: userProfile.did, handle: userProfile.handle },
+      { did: otherProfile.did, handle: otherProfile.handle, needsReauth: true },
+    ]);
+    await page.goto("/");
+    await expect(
+      page.locator('[data-testid="footer-nav-profile"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows the re-auth state on the account without a session", async ({
+    page,
+  }) => {
+    const dialog = await openSwitcherDialog(page);
+
+    const otherRow = dialog.locator(
+      `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
+    );
+    await expect(otherRow).toHaveAttribute("data-teststate", "reauth");
+    await expect(
+      dialog.locator(
+        `[data-testid="account-switcher-item"][data-did="${userProfile.did}"]`,
+      ),
+    ).toHaveAttribute("data-teststate", "current");
+  });
+
+  test("selecting a re-auth account goes to login with the handle prefilled", async ({
+    page,
+  }) => {
+    const dialog = await openSwitcherDialog(page);
+
+    await dialog
+      .locator(
+        `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
+      )
+      .click();
+
+    await expect(page).toHaveURL(
+      `/login?addAccount=1&handle=${otherProfile.handle}`,
+      { timeout: 10000 },
+    );
+    await expect(page.locator('input[name="handle"]')).toHaveValue(
+      otherProfile.handle,
+    );
+    // The account is still saved; only its session is missing.
+    const accounts = await page.evaluate(() =>
+      JSON.parse(localStorage.getItem("oauth_accounts")),
+    );
+    expect(accounts.some((account) => account.did === otherProfile.did)).toBe(
+      true,
+    );
   });
 });

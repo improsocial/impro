@@ -839,6 +839,75 @@ t.describe("multi-account logout", (it) => {
   });
 });
 
+t.describe("soft logout (clearSession)", (it) => {
+  it("clearSession removes the session blob but keeps the account entry and current did", async () => {
+    const client = await buildClient();
+    await runCallback(client, {
+      requestId: "r1",
+      sub: "did:plc:alice",
+      handle: "alice.bsky.social",
+    });
+    client.clearSession("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 1);
+    assertEquals(accounts[0].did, "did:plc:alice");
+    assertEquals(accounts[0].handle, "alice.bsky.social");
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+  });
+
+  it("clearSession() no-arg targets the current did", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    // current is bob
+    client.clearSession();
+    assertEquals(localStorage.getItem("oauth_session:did:plc:bob"), null);
+    assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
+    assertEquals(client.listAccounts().length, 2);
+  });
+
+  it("clearSession with no current did is a no-op", async () => {
+    const client = await buildClient();
+    client.clearSession();
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
+    assertEquals(localStorage.getItem("oauth_accounts"), null);
+  });
+
+  it("clearSession evicts the cached session so getSession returns null", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    assert((await client.getSession("did:plc:alice")) !== null);
+    client.clearSession("did:plc:alice");
+    assertEquals(await client.getSession("did:plc:alice"), null);
+  });
+
+  it("listAccounts marks accounts without a session blob as needsReauth", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    client.clearSession("did:plc:alice");
+    const accounts = client.listAccounts();
+    const alice = accounts.find((entry) => entry.did === "did:plc:alice");
+    const bob = accounts.find((entry) => entry.did === "did:plc:bob");
+    assertEquals(alice.needsReauth, true);
+    assertEquals(bob.needsReauth, false);
+  });
+
+  it("handleCallback after clearSession restores the session and clears needsReauth", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    client.clearSession("did:plc:alice");
+    await runCallback(client, { requestId: "r2", sub: "did:plc:alice" });
+    assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+    const accounts = client.listAccounts();
+    assertEquals(accounts.length, 1);
+    assertEquals(accounts[0].needsReauth, false);
+    assert((await client.getSession("did:plc:alice")) !== null);
+  });
+});
+
 t.describe("multi-account session refresh", (it) => {
   it("refresh on a non-current account writes to the correct keyed slot", async () => {
     const client = await buildClient();

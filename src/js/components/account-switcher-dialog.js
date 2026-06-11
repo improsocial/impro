@@ -131,14 +131,18 @@ class AccountSwitcherDialog extends Component {
                 const showSkeleton = profile === null && profilesLoading;
                 return html`
                   <button
-                    class="account-switcher-item"
+                    class="account-switcher-item ${account.needsReauth
+                      ? "account-switcher-item-reauth"
+                      : ""}"
                     data-testid="account-switcher-item"
                     data-did=${account.did}
                     data-teststate=${isPendingRow
                       ? "pending"
                       : isCurrent
                         ? "current"
-                        : "other"}
+                        : account.needsReauth
+                          ? "reauth"
+                          : "other"}
                     ?disabled=${pendingAction !== null}
                     @click=${() => this._onSelect(account)}
                   >
@@ -181,6 +185,11 @@ class AccountSwitcherDialog extends Component {
                             ${handle
                               ? html`<span class="account-switcher-handle"
                                   >@${handle}</span
+                                >`
+                              : null}
+                            ${account.needsReauth
+                              ? html`<span class="account-switcher-reauth-hint"
+                                  >Sign in again</span
                                 >`
                               : null}
                           </span>
@@ -235,6 +244,13 @@ class AccountSwitcherDialog extends Component {
     }
     if (account.did === this.state.$currentDid.get()) {
       this.close();
+      return;
+    }
+    if (account.needsReauth) {
+      this.state.$pendingAction.set({ type: "switch", did: account.did });
+      window.location.href = linkToLogin({
+        query: { addAccount: 1, handle: account.handle },
+      });
       return;
     }
     this.state.$pendingAction.set({ type: "switch", did: account.did });

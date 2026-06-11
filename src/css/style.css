@@ -6499,6 +6499,20 @@ img[data-lightbox] {
   white-space: nowrap;
 }
 
+.account-switcher-item-reauth .account-switcher-avatar {
+  opacity: 0.6;
+}
+
+.account-switcher-reauth-hint {
+  display: block;
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--highlight-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .account-switcher-current-check {
   color: var(--highlight-color);
   flex-shrink: 0;

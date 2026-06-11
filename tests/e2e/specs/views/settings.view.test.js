@@ -288,6 +288,48 @@ test.describe("Settings view", () => {
         addButton.locator('[data-testid="account-spinner"]'),
       ).toHaveCount(0);
     });
+
+    test("an account needing re-auth shows the sign-in-again state and routes to login", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const otherProfile = createProfile({
+        did: "did:plc:otheruser456",
+        handle: "otheruser.bsky.social",
+        displayName: "Other User",
+      });
+      mockServer.addProfile(otherProfile);
+      await mockServer.setup(page);
+
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle },
+        {
+          did: otherProfile.did,
+          handle: otherProfile.handle,
+          needsReauth: true,
+        },
+      ]);
+      await page.goto("/settings");
+
+      const view = page.locator("#settings-view");
+      const toggle = view.locator(
+        '[data-testid="settings-switch-account-toggle"]',
+      );
+      await expect(toggle).toBeVisible({ timeout: 10000 });
+      await toggle.click();
+
+      const row = view.locator('[data-testid="settings-account-row"]');
+      await expect(row).toHaveAttribute("data-teststate", "reauth");
+      await row.click();
+
+      await expect(page).toHaveURL(
+        `/login?addAccount=1&handle=${otherProfile.handle}&returnTo=%2Fsettings`,
+        { timeout: 10000 },
+      );
+      await expect(page.locator('input[name="handle"]')).toHaveValue(
+        otherProfile.handle,
+      );
+    });
   });
 
   test.describe("Logged-out behavior", () => {

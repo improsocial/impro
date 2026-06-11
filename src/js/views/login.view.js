@@ -28,6 +28,7 @@ class LoginView extends View {
     const state = {
       loading: false,
       errorMessage: null,
+      prefillHandle: null,
       appViewSelection: storedConfig.id,
       customAppViewServiceDid: isStoredCustom
         ? storedConfig.appViewServiceDid
@@ -142,6 +143,7 @@ class LoginView extends View {
                     autocorrect="off"
                     autocapitalize="off"
                     spellcheck="false"
+                    .value=${state.prefillHandle ?? ""}
                   />
                 </div>
                 ${isBasicAuth
@@ -263,6 +265,10 @@ class LoginView extends View {
     root.addEventListener("page-enter", async () => {
       // this can happen when the oauth callback fails - see callback.html
       const params = new URLSearchParams(window.location.search);
+      const prefillHandle = params.get("handle");
+      if (prefillHandle) {
+        state.prefillHandle = prefillHandle;
+      }
       const errorMessage = params.get("error_message");
       if (errorMessage) {
         state.errorMessage = errorMessage;
