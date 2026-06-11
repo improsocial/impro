@@ -26,6 +26,10 @@ import {
   MISSING_HANDLE,
   canReplyToPost,
   transformNestedQuotes,
+  getInteractionTimestamp,
+  getGroupConvoDetails,
+  getSystemMessageDisplayText,
+  isGroupConvo,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -1284,6 +1288,148 @@ t.describe("transformNestedQuotes", (it) => {
     assertEquals(originalQuote.touched, undefined);
     assertEquals(originalNested.touched, undefined);
     assertEquals(post.embed.record, originalQuote);
+  });
+});
+
+t.describe("getInteractionTimestamp", (it) => {
+  it("should return sentAt for message views", () => {
+    const timestamp = getInteractionTimestamp({
+      $type: "chat.bsky.convo.defs#messageView",
+      sentAt: "2026-06-11T01:00:00.000Z",
+    });
+    assertEquals(timestamp, "2026-06-11T01:00:00.000Z");
+  });
+
+  it("should return sentAt for system message views", () => {
+    const timestamp = getInteractionTimestamp({
+      $type: "chat.bsky.convo.defs#systemMessageView",
+      sentAt: "2026-06-11T02:00:00.000Z",
+    });
+    assertEquals(timestamp, "2026-06-11T02:00:00.000Z");
+  });
+
+  it("should return reaction createdAt for message-and-reaction views", () => {
+    const timestamp = getInteractionTimestamp({
+      $type: "chat.bsky.convo.defs#messageAndReactionView",
+      reaction: { createdAt: "2026-06-11T03:00:00.000Z" },
+    });
+    assertEquals(timestamp, "2026-06-11T03:00:00.000Z");
+  });
+});
+
+t.describe("getGroupConvoDetails", (it) => {
+  const groupKind = {
+    $type: "chat.bsky.convo.defs#groupConvo",
+    name: "Test Group",
+    memberCount: 3,
+    memberLimit: 10,
+    lockStatus: "unlocked",
+    createdAt: "2026-06-01T00:00:00.000Z",
+  };
+
+  it("should return the kind object for group convos", () => {
+    assertEquals(
+      getGroupConvoDetails({ id: "c1", kind: groupKind }),
+      groupKind,
+    );
+  });
+
+  it("should return null for direct convos", () => {
+    const directConvo = {
+      id: "c2",
+      kind: { $type: "chat.bsky.convo.defs#directConvo" },
+    };
+    assertEquals(getGroupConvoDetails(directConvo), null);
+  });
+
+  it("should return null when kind is missing", () => {
+    assertEquals(getGroupConvoDetails({ id: "c3" }), null);
+  });
+});
+
+t.describe("isGroupConvo", (it) => {
+  it("should detect group convos", () => {
+    const convo = {
+      id: "c1",
+      kind: { $type: "chat.bsky.convo.defs#groupConvo", name: "Test Group" },
+    };
+    assertEquals(isGroupConvo(convo), true);
+  });
+
+  it("should reject direct and untyped convos", () => {
+    assertEquals(
+      isGroupConvo({ kind: { $type: "chat.bsky.convo.defs#directConvo" } }),
+      false,
+    );
+    assertEquals(isGroupConvo({}), false);
+  });
+});
+
+t.describe("getSystemMessageDisplayText", (it) => {
+  function systemMessage(dataType, data = {}) {
+    return {
+      $type: "chat.bsky.convo.defs#systemMessageView",
+      id: "sys-1",
+      data: { $type: `chat.bsky.convo.defs#${dataType}`, ...data },
+    };
+  }
+
+  it("should use the member name for member events when provided", () => {
+    assertEquals(
+      getSystemMessageDisplayText(systemMessage("systemMessageDataAddMember"), {
+        memberName: "Alice",
+      }),
+      "Alice was added to the group",
+    );
+    assertEquals(
+      getSystemMessageDisplayText(
+        systemMessage("systemMessageDataMemberLeave"),
+        { memberName: "Alice" },
+      ),
+      "Alice left the group",
+    );
+  });
+
+  it("should fall back to anonymous copy for member events without a name", () => {
+    assertEquals(
+      getSystemMessageDisplayText(systemMessage("systemMessageDataAddMember")),
+      "Someone was added to the group",
+    );
+  });
+
+  it("should include the new name for edit-group events", () => {
+    assertEquals(
+      getSystemMessageDisplayText(
+        systemMessage("systemMessageDataEditGroup", {
+          oldName: "Old Club",
+          newName: "Book Club",
+        }),
+      ),
+      "Chat title changed to Book Club",
+    );
+  });
+
+  it("should use generic copy for edit-group events without a new name", () => {
+    assertEquals(
+      getSystemMessageDisplayText(systemMessage("systemMessageDataEditGroup")),
+      "Chat title changed",
+    );
+  });
+
+  it("should ignore memberName for non-member events", () => {
+    assertEquals(
+      getSystemMessageDisplayText(systemMessage("systemMessageDataLockConvo"), {
+        memberName: "Alice",
+      }),
+      "Chat locked",
+    );
+  });
+
+  it("should fall back to generic copy for unknown kinds", () => {
+    assertEquals(
+      getSystemMessageDisplayText(systemMessage("systemMessageDataFuture")),
+      "Chat updated",
+    );
   });
 });
 

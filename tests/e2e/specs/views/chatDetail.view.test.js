@@ -1,7 +1,13 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createGroupConvo,
+  createMessage,
+  createProfile,
+  createSystemMessage,
+} from "../../factories.js";
 import { userProfile } from "../../fixtures.js";
 
 test.describe("Chat detail view", () => {
@@ -269,6 +275,194 @@ test.describe("Chat detail view", () => {
     // Reaction bubble should disappear
     await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(0, {
       timeout: 5000,
+    });
+  });
+
+  test.describe("Group conversations", () => {
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+
+    function setupGroupConvo({
+      messages,
+      lockStatus = "unlocked",
+      otherMembers = [alice, bob],
+      memberCount,
+    } = {}) {
+      const mockServer = new MockServer();
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers,
+        lockStatus,
+        memberCount,
+      });
+      mockServer.addConvos([groupConvo]);
+      mockServer.addConvoMessages("group-1", messages || []);
+      return mockServer;
+    }
+
+    test("should display group name and member count in header", async ({
+      page,
+    }) => {
+      const mockServer = setupGroupConvo({
+        messages: [
+          createMessage({
+            id: "msg-1",
+            text: "Hello group",
+            senderDid: alice.did,
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('[data-testid="header-title"]'),
+      ).toContainText("Book Club", { timeout: 10000 });
+      await expect(
+        chatDetailView.locator('[data-testid="header-subtitle"]'),
+      ).toContainText("3 members");
+    });
+
+    test("should show author names and avatars on received message clusters", async ({
+      page,
+    }) => {
+      const mockServer = setupGroupConvo({
+        messages: [
+          createMessage({
+            id: "msg-3",
+            text: "My reply",
+            senderDid: userProfile.did,
+            sentAt: "2025-01-15T12:02:00.000Z",
+          }),
+          createMessage({
+            id: "msg-2",
+            text: "Hi from Bob",
+            senderDid: bob.did,
+            sentAt: "2025-01-15T12:01:00.000Z",
+          }),
+          createMessage({
+            id: "msg-1",
+            text: "Hi from Alice",
+            senderDid: alice.did,
+            sentAt: "2025-01-15T12:00:00.000Z",
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      const authorNames = chatDetailView.locator(
+        '[data-testid="message-author-name"]',
+      );
+      // Only the two received clusters get author labels, not the sent one
+      await expect(authorNames).toHaveCount(2);
+      await expect(authorNames.nth(0)).toContainText("Alice");
+      await expect(authorNames.nth(1)).toContainText("Bob");
+      // Alice's and Bob's clusters each show an avatar
+      await expect(
+        chatDetailView.locator(".message-received .message-avatar"),
+      ).toHaveCount(2);
+    });
+
+    test("should render system messages", async ({ page }) => {
+      const mockServer = setupGroupConvo({
+        messages: [
+          createMessage({
+            id: "msg-1",
+            text: "Welcome!",
+            senderDid: alice.did,
+            sentAt: "2025-01-15T12:01:00.000Z",
+          }),
+          createSystemMessage({
+            id: "sys-1",
+            dataType: "systemMessageDataAddMember",
+            data: { member: { did: bob.did }, addedBy: { did: alice.did } },
+            sentAt: "2025-01-15T12:00:00.000Z",
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('[data-testid="system-message"]'),
+      ).toContainText("Bob was added to the group", { timeout: 10000 });
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1);
+    });
+
+    test("should replace the composer with a notice when the chat is locked", async ({
+      page,
+    }) => {
+      const mockServer = setupGroupConvo({
+        lockStatus: "locked",
+        messages: [
+          createMessage({
+            id: "msg-1",
+            text: "Hello group",
+            senderDid: alice.did,
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('[data-testid="chat-locked-notice"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(chatDetailView.locator("chat-input")).toHaveCount(0);
+    });
+
+    test("should enable message pagination when the viewer is the only listed member", async ({
+      page,
+    }) => {
+      const mockServer = setupGroupConvo({
+        otherMembers: [],
+        memberCount: 1,
+        messages: [
+          createMessage({
+            id: "msg-1",
+            text: "Hello group",
+            senderDid: alice.did,
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(
+        chatDetailView.locator("infinite-scroll-container"),
+      ).not.toHaveAttribute("disabled");
     });
   });
 

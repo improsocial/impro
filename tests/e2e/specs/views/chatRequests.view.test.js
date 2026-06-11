@@ -1,9 +1,56 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createGroupConvo,
+  createMessage,
+  createProfile,
+} from "../../factories.js";
 
 test.describe("Chat requests view", () => {
+  test("should not display group chat requests", async ({ page }) => {
+    const mockServer = new MockServer();
+    const requester = createProfile({
+      did: "did:plc:requester1",
+      handle: "requester.bsky.social",
+      displayName: "Requester One",
+    });
+    const directRequest = createConvo({
+      id: "convo-req-1",
+      otherMember: requester,
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-1",
+        text: "Hey, can we chat?",
+        senderDid: requester.did,
+      }),
+    });
+    const groupInvite = createGroupConvo({
+      id: "group-req-1",
+      name: "Book Club",
+      otherMembers: [requester],
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-2",
+        text: "Welcome!",
+        senderDid: requester.did,
+      }),
+    });
+    mockServer.addConvos([directRequest, groupInvite]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const requestsView = page.locator("#chat-requests-view");
+    await expect(requestsView.locator(".chat-request-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(requestsView).toContainText("Requester One");
+    await expect(requestsView).not.toContainText("Book Club");
+  });
+
   test("should display Chat requests header and request items", async ({
     page,
   }) => {

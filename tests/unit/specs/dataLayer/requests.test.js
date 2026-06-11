@@ -1554,6 +1554,224 @@ t.describe("loadConvoMessages", (it) => {
     assertEquals(stored.messages.length, 1);
     assertEquals(stored.messages[0].id, "fresh");
   });
+
+  it("should store related profiles", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getMessages: async () => ({
+        messages: [{ id: "m1" }],
+        cursor: null,
+        relatedProfiles: [{ did: "did:plc:a", handle: "a.test" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMessages(convoId);
+
+    assertEquals(dataStore.$profiles.get("did:plc:a").handle, "a.test");
+  });
+});
+
+t.describe("pollConvoMessages", (it, { beforeEach }) => {
+  const convoId = "convo1";
+  const currentUserDid = "did:plc:me";
+  const otherDid = "did:plc:other";
+
+  const SYSTEM_MESSAGE_LOG_KINDS = [
+    "logAddMember",
+    "logRemoveMember",
+    "logMemberJoin",
+    "logMemberLeave",
+    "logLockConvo",
+    "logUnlockConvo",
+    "logLockConvoPermanently",
+    "logEditGroup",
+    "logCreateJoinLink",
+    "logEditJoinLink",
+    "logEnableJoinLink",
+    "logDisableJoinLink",
+  ];
+
+  let dataStore;
+
+  beforeEach(() => {
+    dataStore = new DataStore();
+    dataStore.$currentUser.set({ did: currentUserDid });
+    dataStore.$convos.set(convoId, {
+      id: convoId,
+      members: [{ did: currentUserDid }, { did: otherDid }],
+      kind: {
+        $type: "chat.bsky.convo.defs#groupConvo",
+        name: "Test Group",
+        memberCount: 3,
+        memberLimit: 10,
+        lockStatus: "unlocked",
+        createdAt: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    dataStore.$convoMessages.set(convoId, { messages: [], cursor: null });
+  });
+
+  function makeMessageLog(messageId, senderDid) {
+    return {
+      $type: "chat.bsky.convo.defs#logCreateMessage",
+      rev: "rev1",
+      convoId,
+      message: {
+        $type: "chat.bsky.convo.defs#messageView",
+        id: messageId,
+        rev: "rev1",
+        text: "hello",
+        sender: { did: senderDid },
+        sentAt: "2026-06-11T00:00:00.000Z",
+      },
+    };
+  }
+
+  function makeSystemLog(logKind, messageId, data = {}) {
+    return {
+      $type: `chat.bsky.convo.defs#${logKind}`,
+      rev: "rev1",
+      convoId,
+      message: {
+        $type: "chat.bsky.convo.defs#systemMessageView",
+        id: messageId,
+        rev: "rev1",
+        sentAt: "2026-06-11T00:00:00.000Z",
+        data,
+      },
+      relatedProfiles: [],
+    };
+  }
+
+  function makeRequestsWithLogs(logs, cursor = "next") {
+    const mockApi = { getChatLogs: async () => ({ logs, cursor }) };
+    return makeRequests(mockApi, dataStore);
+  }
+
+  it("should prepend messages from other senders and return the cursor", async () => {
+    const requests = makeRequestsWithLogs([makeMessageLog("m1", otherDid)]);
+
+    const cursor = await requests.pollConvoMessages(convoId);
+
+    assertEquals(cursor, "next");
+    assertEquals(dataStore.$convoMessages.get(convoId).messages[0].id, "m1");
+    assertEquals(dataStore.$messages.get("m1").id, "m1");
+  });
+
+  it("should skip messages sent by the current user", async () => {
+    const requests = makeRequestsWithLogs([
+      makeMessageLog("m1", currentUserDid),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convoMessages.get(convoId).messages.length, 0);
+  });
+
+  it("should ingest every system-message log kind", async () => {
+    const logs = SYSTEM_MESSAGE_LOG_KINDS.map((logKind, index) =>
+      makeSystemLog(logKind, `sys${index}`),
+    );
+    const requests = makeRequestsWithLogs(logs);
+
+    await requests.pollConvoMessages(convoId);
+
+    const stored = dataStore.$convoMessages.get(convoId);
+    assertEquals(stored.messages.length, SYSTEM_MESSAGE_LOG_KINDS.length);
+    assertEquals(dataStore.$messages.get("sys0").id, "sys0");
+  });
+
+  it("should store related profiles from logs", async () => {
+    const log = makeSystemLog("logAddMember", "sys1", {
+      member: { did: "did:plc:new" },
+      addedBy: { did: otherDid },
+    });
+    log.relatedProfiles = [{ did: "did:plc:new", handle: "new.test" }];
+    const requests = makeRequestsWithLogs([log]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$profiles.get("did:plc:new").handle, "new.test");
+  });
+
+  it("should not re-ingest an already-stored message", async () => {
+    dataStore.$convoMessages.set(convoId, {
+      messages: [{ id: "m1" }],
+      cursor: null,
+    });
+    const requests = makeRequestsWithLogs([makeMessageLog("m1", otherDid)]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convoMessages.get(convoId).messages.length, 1);
+  });
+
+  it("should update lock status from lock log events", async () => {
+    const requests = makeRequestsWithLogs([
+      makeSystemLog("logLockConvo", "sys1"),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convos.get(convoId).kind.lockStatus, "locked");
+  });
+
+  it("should update the group name from edit-group log events", async () => {
+    const requests = makeRequestsWithLogs([
+      makeSystemLog("logEditGroup", "sys1", {
+        oldName: "Test Group",
+        newName: "Renamed Group",
+      }),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convos.get(convoId).kind.name, "Renamed Group");
+  });
+
+  it("should increment member count when members are added", async () => {
+    const requests = makeRequestsWithLogs([
+      makeSystemLog("logAddMember", "sys1", {
+        member: { did: "did:plc:new" },
+        addedBy: { did: otherDid },
+      }),
+      makeSystemLog("logMemberJoin", "sys2", {
+        member: { did: "did:plc:new2" },
+      }),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convos.get(convoId).kind.memberCount, 5);
+  });
+
+  it("should decrement member count when members are removed", async () => {
+    const requests = makeRequestsWithLogs([
+      makeSystemLog("logMemberLeave", "sys1", {
+        member: { did: otherDid },
+      }),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convos.get(convoId).kind.memberCount, 2);
+  });
+
+  it("should ignore join-request log events", async () => {
+    const requests = makeRequestsWithLogs([
+      {
+        $type: "chat.bsky.convo.defs#logIncomingJoinRequest",
+        rev: "rev1",
+        convoId,
+        requestedBy: { did: "did:plc:new" },
+      },
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convoMessages.get(convoId).messages.length, 0);
+  });
 });
 
 t.describe("loadPostLikes", (it) => {

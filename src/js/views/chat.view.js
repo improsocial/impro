@@ -6,12 +6,36 @@ import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
   getDisplayName,
+  getGroupConvoDetails,
   getLastInteraction,
   getInteractionTimestamp,
+  getSystemMessageDisplayText,
+  isGroupConvo,
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/infinite-scroll-container.js";
+
+function memberAvatarStackTemplate({ members }) {
+  if (members.length === 0) {
+    return html`<div class="avatar-placeholder"></div>`;
+  }
+  if (members.length === 1) {
+    return avatarTemplate({ author: members[0], clickAction: "none" });
+  }
+  const shownMembers = members.slice(0, 3);
+  return html`<div
+    class="member-avatar-stack member-avatar-stack-${shownMembers.length}"
+    data-testid="member-avatar-stack"
+  >
+    ${shownMembers.map(
+      (member) =>
+        html`<div class="member-avatar-stack-item">
+          ${avatarTemplate({ author: member, clickAction: "none" })}
+        </div>`,
+    )}
+  </div>`;
+}
 
 class ChatView extends View {
   async render({ root, router, context: { dataLayer, mainLayout } }) {
@@ -22,30 +46,62 @@ class ChatView extends View {
       sidebar.open();
     }
 
-    function getPreviewText(interaction, currentUser, otherUser) {
+    function getSenderDisplayName(senderDid, currentUser, convo) {
+      if (senderDid === currentUser.did) {
+        return "You";
+      }
+      const sender = convo.members.find((member) => member.did === senderDid);
+      // Group convo member lists are partial, so the sender may be missing
+      return sender ? getDisplayName(sender) : "Someone";
+    }
+
+    function getPreviewText(interaction, currentUser, convo) {
       switch (interaction.$type) {
-        case "chat.bsky.convo.defs#messageView":
+        case "chat.bsky.convo.defs#messageView": {
+          if (isGroupConvo(convo)) {
+            const senderName = getSenderDisplayName(
+              interaction.sender.did,
+              currentUser,
+              convo,
+            );
+            return `${senderName}: ${interaction.text}`;
+          }
           return interaction.sender.did === currentUser.did
             ? "You: " + interaction.text
             : interaction.text;
-        case "chat.bsky.convo.defs#messageAndReactionView":
-          const displayName =
-            interaction.reaction.sender.did === currentUser.did
-              ? "You"
-              : getDisplayName(otherUser);
+        }
+        case "chat.bsky.convo.defs#messageAndReactionView": {
+          const displayName = getSenderDisplayName(
+            interaction.reaction.sender.did,
+            currentUser,
+            convo,
+          );
           return `${displayName} reacted ${interaction.reaction.value} to "${interaction.message.text}"`;
+        }
         case "chat.bsky.convo.defs#deletedMessageView":
           return "Deleted message";
+        case "chat.bsky.convo.defs#systemMessageView": {
+          const memberDid = interaction.data?.member?.did;
+          const memberProfile = memberDid
+            ? (convo.members.find((member) => member.did === memberDid) ??
+              dataLayer.derived.$hydratedProfiles.get(memberDid))
+            : null;
+          return getSystemMessageDisplayText(interaction, {
+            memberName: memberProfile ? getDisplayName(memberProfile) : null,
+          });
+        }
         default:
           throw new Error(`Unknown interaction type: ${interaction.$type}`);
       }
     }
 
     function convoItemTemplate({ convo, currentUser }) {
+      const groupDetails = getGroupConvoDetails(convo);
       const lastInteraction = getLastInteraction(convo);
-      const otherUser = convo.members.find(
+      const otherMembers = convo.members.filter(
         (member) => member.did !== currentUser?.did,
       );
+      const otherUser = groupDetails ? null : otherMembers[0];
       const timeAgo = lastInteraction
         ? displayRelativeTime(getInteractionTimestamp(lastInteraction))
         : "";
@@ -53,29 +109,39 @@ class ChatView extends View {
       return html`
         <div
           class="convo-item ${isUnread ? "unread" : ""}"
+          data-testid=${groupDetails ? "convo-item-group" : "convo-item-direct"}
           @click=${() => {
             router.go(`/messages/${convo.id}`);
           }}
         >
           <div class="convo-avatar">
-            ${otherUser
-              ? avatarTemplate({ author: otherUser })
-              : html`<div class="avatar-placeholder"></div>`}
+            ${(() => {
+              if (groupDetails) {
+                return memberAvatarStackTemplate({ members: otherMembers });
+              }
+              return otherUser
+                ? avatarTemplate({ author: otherUser })
+                : html`<div class="avatar-placeholder"></div>`;
+            })()}
           </div>
           <div class="convo-content">
             <div class="convo-header">
-              <div class="convo-name">${getDisplayName(otherUser)}</div>
+              <div class="convo-name">
+                ${groupDetails ? groupDetails.name : getDisplayName(otherUser)}
+              </div>
 
               ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
             </div>
             <div class="convo-handle">
-              ${otherUser?.handle && otherUser?.handle !== MISSING_HANDLE
+              ${!groupDetails &&
+              otherUser?.handle &&
+              otherUser?.handle !== MISSING_HANDLE
                 ? `@${otherUser.handle}`
                 : ""}
             </div>
             <div class="convo-preview ${isUnread ? "unread" : ""}">
               ${lastInteraction
-                ? getPreviewText(lastInteraction, currentUser, otherUser)
+                ? getPreviewText(lastInteraction, currentUser, convo)
                 : "No messages yet"}
             </div>
           </div>
@@ -184,7 +250,8 @@ class ChatView extends View {
                     });
                   } else if (convos && currentUser) {
                     const chatRequests = convos.filter(
-                      (convo) => convo.status === "request",
+                      (convo) =>
+                        convo.status === "request" && !isGroupConvo(convo),
                     );
                     const acceptedConvos = convos.filter(
                       (convo) => convo.status === "accepted",
