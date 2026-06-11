@@ -6384,6 +6384,7 @@ img[data-lightbox] {
 }
 
 .account-switcher-close {
+  display: none;
   background: none;
   border: none;
   padding: 0;
@@ -6391,6 +6392,12 @@ img[data-lightbox] {
   line-height: 1;
   color: var(--text-color-muted);
   cursor: pointer;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-close {
+    display: block;
+  }
 }
 
 .account-switcher-close[disabled] {

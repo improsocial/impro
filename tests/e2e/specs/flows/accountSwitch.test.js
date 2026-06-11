@@ -79,10 +79,25 @@ test.describe("Account switch flow", () => {
     ).toHaveCount(0);
   });
 
-  test("close button dismisses the dialog", async ({ page }) => {
+  test("hides the close button on mobile and dismisses with Escape", async ({
+    page,
+  }) => {
     const dialog = await openSwitcherDialog(page);
 
-    await dialog.locator('[data-testid="account-switcher-close"]').click();
+    await expect(
+      dialog.locator('[data-testid="account-switcher-close"]'),
+    ).toBeHidden();
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("clicking the backdrop dismisses the dialog", async ({ page }) => {
+    const dialog = await openSwitcherDialog(page);
+
+    // Clicks on a modal dialog's ::backdrop are dispatched with the <dialog>
+    // element itself as the target, which the component treats as a dismiss.
+    await page.mouse.click(187, 100);
 
     await expect(dialog).toHaveCount(0);
   });
@@ -229,7 +244,7 @@ test.describe("Account switch flow", () => {
     ).toBeEnabled();
 
     // The dialog is dismissable again.
-    await dialog.locator('[data-testid="account-switcher-close"]').click();
+    await page.keyboard.press("Escape");
     await expect(dialog).toHaveCount(0);
   });
 });
