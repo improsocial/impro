@@ -412,12 +412,71 @@ export function getInteractionTimestamp(interaction) {
   switch (interaction.$type) {
     case "chat.bsky.convo.defs#messageView":
     case "chat.bsky.convo.defs#deletedMessageView":
+    case "chat.bsky.convo.defs#systemMessageView":
       return interaction.sentAt;
     case "chat.bsky.convo.defs#messageAndReactionView":
       return interaction.reaction.createdAt;
     default:
       throw new Error(`Unknown interaction type: ${interaction.$type}`);
   }
+}
+
+const SYSTEM_MESSAGE_DISPLAY_TEXT = {
+  "chat.bsky.convo.defs#systemMessageDataAddMember":
+    "Someone was added to the group",
+  "chat.bsky.convo.defs#systemMessageDataRemoveMember":
+    "Someone was removed from the group",
+  "chat.bsky.convo.defs#systemMessageDataMemberJoin":
+    "Someone joined the group",
+  "chat.bsky.convo.defs#systemMessageDataMemberLeave": "Someone left the group",
+  "chat.bsky.convo.defs#systemMessageDataLockConvo": "Chat locked",
+  "chat.bsky.convo.defs#systemMessageDataUnlockConvo": "Chat unlocked",
+  "chat.bsky.convo.defs#systemMessageDataLockConvoPermanently": "Chat ended",
+  "chat.bsky.convo.defs#systemMessageDataEditGroup": "Chat title changed",
+  "chat.bsky.convo.defs#systemMessageDataCreateJoinLink": "Invite link created",
+  "chat.bsky.convo.defs#systemMessageDataEditJoinLink": "Invite link edited",
+  "chat.bsky.convo.defs#systemMessageDataEnableJoinLink": "Invite link enabled",
+  "chat.bsky.convo.defs#systemMessageDataDisableJoinLink":
+    "Invite link disabled",
+};
+
+const MEMBER_SYSTEM_MESSAGE_VERBS = {
+  "chat.bsky.convo.defs#systemMessageDataAddMember": "was added to the group",
+  "chat.bsky.convo.defs#systemMessageDataRemoveMember":
+    "was removed from the group",
+  "chat.bsky.convo.defs#systemMessageDataMemberJoin": "joined the group",
+  "chat.bsky.convo.defs#systemMessageDataMemberLeave": "left the group",
+};
+
+export function getSystemMessageDisplayText(
+  systemMessage,
+  { memberName = null } = {},
+) {
+  const dataType = systemMessage.data?.$type;
+  if (memberName) {
+    const verb = MEMBER_SYSTEM_MESSAGE_VERBS[dataType];
+    if (verb) {
+      return `${memberName} ${verb}`;
+    }
+  }
+  if (
+    dataType === "chat.bsky.convo.defs#systemMessageDataEditGroup" &&
+    systemMessage.data.newName
+  ) {
+    return `Chat title changed to ${systemMessage.data.newName}`;
+  }
+  return SYSTEM_MESSAGE_DISPLAY_TEXT[dataType] ?? "Chat updated";
+}
+
+export function getGroupConvoDetails(convo) {
+  if (convo.kind?.$type === "chat.bsky.convo.defs#groupConvo") {
+    return convo.kind;
+  }
+  return null;
+}
+
+export function isGroupConvo(convo) {
+  return getGroupConvoDetails(convo) !== null;
 }
 
 export function getLastInteractionTimestamp(convo) {

@@ -12,6 +12,18 @@ export function createTid(dateString) {
   return result;
 }
 
+function createTestUserMember() {
+  return {
+    did: "did:plc:testuser123",
+    handle: "testuser.bsky.social",
+    displayName: "Test User",
+    avatar: "",
+    viewer: { muted: false, blockedBy: false },
+    labels: [],
+    createdAt: "2025-01-01T00:00:00.000Z",
+  };
+}
+
 export function createConvo({
   id,
   otherMember,
@@ -22,21 +34,77 @@ export function createConvo({
   return {
     id,
     rev: "rev" + id,
-    members: [
-      {
-        did: "did:plc:testuser123",
-        handle: "testuser.bsky.social",
-        displayName: "Test User",
-        avatar: "",
-        viewer: { muted: false, blockedBy: false },
-        labels: [],
-        createdAt: "2025-01-01T00:00:00.000Z",
-      },
-      otherMember,
-    ],
+    members: [createTestUserMember(), otherMember],
     status,
     unreadCount,
     lastMessage: lastMessage || undefined,
+  };
+}
+
+export function createGroupConvo({
+  id,
+  name,
+  otherMembers,
+  lastMessage,
+  status = "accepted",
+  unreadCount = 0,
+  lockStatus = "unlocked",
+  memberCount,
+}) {
+  return {
+    id,
+    rev: "rev" + id,
+    members: [createTestUserMember(), ...otherMembers],
+    status,
+    unreadCount,
+    muted: false,
+    lastMessage: lastMessage || undefined,
+    kind: {
+      $type: "chat.bsky.convo.defs#groupConvo",
+      name,
+      memberCount: memberCount ?? otherMembers.length + 1,
+      memberLimit: 100,
+      lockStatus,
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+  };
+}
+
+export function createMessageLog({ convoId, message, relatedProfiles }) {
+  return {
+    $type: "chat.bsky.convo.defs#logCreateMessage",
+    rev: "rev-log-" + message.id,
+    convoId,
+    message,
+    relatedProfiles: relatedProfiles || [],
+  };
+}
+
+export function createSystemMessageLog({
+  convoId,
+  logType,
+  message,
+  relatedProfiles,
+}) {
+  return {
+    $type: `chat.bsky.convo.defs#${logType}`,
+    rev: "rev-log-" + message.id,
+    convoId,
+    message,
+    relatedProfiles: relatedProfiles || [],
+  };
+}
+
+export function createSystemMessage({ id, dataType, data = {}, sentAt }) {
+  return {
+    $type: "chat.bsky.convo.defs#systemMessageView",
+    id,
+    rev: "rev" + id,
+    sentAt: sentAt || "2025-01-15T12:00:00.000Z",
+    data: {
+      $type: `chat.bsky.convo.defs#${dataType}`,
+      ...data,
+    },
   };
 }
 

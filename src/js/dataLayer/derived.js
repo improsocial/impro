@@ -15,6 +15,7 @@ import {
   isEmptyPost,
   isPostView,
   getLastInteractionTimestamp,
+  isGroupConvo,
   markBlockedQuoteNotFound,
   replaceBlockedQuote,
   transformNestedQuotes,
@@ -441,6 +442,7 @@ export class Derived extends ReactiveStore {
       for (const convoId of convoIds) {
         const convo = this.dataStore.$convos.get(convoId);
         if (!convo) continue;
+        if (isGroupConvo(convo)) continue;
         if (
           convo.members.length === 2 &&
           convo.members.some((member) => member.did === profileDid)

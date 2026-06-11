@@ -548,4 +548,40 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
   });
 });
 
+t.describe("$convoForProfile", (it) => {
+  const profileDid = "did:plc:other";
+  const members = [{ did: "did:plc:me" }, { did: profileDid }];
+
+  it("should return the direct convo containing the profile", () => {
+    const dataStore = new DataStore();
+    dataStore.$convos.set("direct1", {
+      id: "direct1",
+      members,
+      kind: { $type: "chat.bsky.convo.defs#directConvo" },
+    });
+    const { derived } = makeDerived(dataStore);
+
+    assertEquals(derived.$convoForProfile.get(profileDid).id, "direct1");
+  });
+
+  it("should ignore group convos even with two members", () => {
+    const dataStore = new DataStore();
+    dataStore.$convos.set("group1", {
+      id: "group1",
+      members,
+      kind: {
+        $type: "chat.bsky.convo.defs#groupConvo",
+        name: "Tiny Group",
+        memberCount: 2,
+        memberLimit: 10,
+        lockStatus: "unlocked",
+        createdAt: "2026-06-01T00:00:00.000Z",
+      },
+    });
+    const { derived } = makeDerived(dataStore);
+
+    assertEquals(derived.$convoForProfile.get(profileDid), null);
+  });
+});
+
 await t.run();

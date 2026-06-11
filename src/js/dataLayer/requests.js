@@ -9,11 +9,28 @@ import {
   getPostUrisFromNotifications,
   buildUri,
   parseUri,
+  isGroupConvo,
+  getGroupConvoDetails,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
+
+const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
+  "chat.bsky.convo.defs#logAddMember",
+  "chat.bsky.convo.defs#logRemoveMember",
+  "chat.bsky.convo.defs#logMemberJoin",
+  "chat.bsky.convo.defs#logMemberLeave",
+  "chat.bsky.convo.defs#logLockConvo",
+  "chat.bsky.convo.defs#logUnlockConvo",
+  "chat.bsky.convo.defs#logLockConvoPermanently",
+  "chat.bsky.convo.defs#logEditGroup",
+  "chat.bsky.convo.defs#logCreateJoinLink",
+  "chat.bsky.convo.defs#logEditJoinLink",
+  "chat.bsky.convo.defs#logEnableJoinLink",
+  "chat.bsky.convo.defs#logDisableJoinLink",
+]);
 
 // Get URIs of blocked quotes from posts where the author has not blocked the viewer
 function getBlockedPostUris(posts) {
@@ -38,6 +55,39 @@ function getBlockedPostUris(posts) {
   return unique([...blockedPosts, ...blockedQuotes, ...blockedNestedQuotes], {
     by: "uri",
   }).map((blockedPost) => blockedPost.uri);
+}
+
+function updateGroupConvoForSystemMessage(convo, log) {
+  const details = getGroupConvoDetails(convo);
+  const patch = {};
+  switch (log.$type) {
+    case "chat.bsky.convo.defs#logLockConvo":
+      patch.lockStatus = "locked";
+      break;
+    case "chat.bsky.convo.defs#logUnlockConvo":
+      patch.lockStatus = "unlocked";
+      break;
+    case "chat.bsky.convo.defs#logLockConvoPermanently":
+      patch.lockStatus = "locked-permanently";
+      break;
+    case "chat.bsky.convo.defs#logEditGroup":
+      if (log.message.data.newName) {
+        patch.name = log.message.data.newName;
+      }
+      break;
+    case "chat.bsky.convo.defs#logAddMember":
+    case "chat.bsky.convo.defs#logMemberJoin":
+      patch.memberCount = details.memberCount + 1;
+      break;
+    case "chat.bsky.convo.defs#logRemoveMember":
+    case "chat.bsky.convo.defs#logMemberLeave":
+      patch.memberCount = details.memberCount - 1;
+      break;
+  }
+  return {
+    ...convo,
+    kind: { ...details, ...patch },
+  };
 }
 
 class StatusStore extends ReactiveStore {
@@ -782,6 +832,11 @@ export class Requests {
         res.cursor = null;
       }
     }
+    // For group convos, convo.members is partial; relatedProfiles carries
+    // the authors and system-message subjects for the returned page.
+    if (res.relatedProfiles) {
+      this.dataStore.setProfiles(res.relatedProfiles);
+    }
     // Save individual messages
     for (const message of res.messages) {
       this.dataStore.$messages.set(message.id, message);
@@ -801,15 +856,36 @@ export class Requests {
     const res = await this.api.getChatLogs({ cursor });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
     for (const log of logsForConvo) {
-      if (log.$type !== "chat.bsky.convo.defs#logCreateMessage") continue;
-      if (log.message.sender.did === currentUser?.did) {
+      const isUserMessage =
+        log.$type === "chat.bsky.convo.defs#logCreateMessage";
+      const isSystemMessage = CONVO_LOG_SYSTEM_MESSAGE_TYPES.has(log.$type);
+      if (!isUserMessage && !isSystemMessage) continue;
+      if (isUserMessage && log.message.sender.did === currentUser?.did) {
         // Skip if the message is from the current user, since we already set it in the store
         continue;
+      }
+      // Group chats include profile info here
+      if (log.relatedProfiles) {
+        this.dataStore.setProfiles(log.relatedProfiles);
       }
       const convoMessages = this.dataStore.$convoMessages.get(convoId);
       if (!convoMessages) {
         console.warn("No messages data found for convoId", convoId);
         return res.cursor;
+      }
+      const alreadyIngested = convoMessages.messages.some(
+        (message) => message.id === log.message.id,
+      );
+      if (alreadyIngested) continue;
+      if (isSystemMessage) {
+        // Update convo for system message
+        const convo = this.dataStore.$convos.get(convoId);
+        if (convo && isGroupConvo(convo)) {
+          this.dataStore.$convos.set(
+            convoId,
+            updateGroupConvoForSystemMessage(convo, log),
+          );
+        }
       }
       this.dataStore.$messages.set(log.message.id, log.message);
       this.dataStore.$convoMessages.set(convoId, {

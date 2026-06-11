@@ -5,7 +5,11 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getFacetsFromText } from "/js/facetHelpers.js";
 import { auth } from "/js/auth.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import {
+  getDisplayName,
+  getGroupConvoDetails,
+  getSystemMessageDisplayText,
+} from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
@@ -236,15 +240,27 @@ class ChatDetailView extends View {
       let currentGroup = null;
 
       for (const message of messages) {
-        const isCurrentUser = message.sender.did === currentUserDid;
+        if (message.$type === "chat.bsky.convo.defs#systemMessageView") {
+          // System messages render standalone and break up sender clusters
+          currentGroup = null;
+          groups.push({
+            isSystemMessage: true,
+            message,
+            lastSentAt: message.sentAt,
+          });
+          continue;
+        }
+        const senderDid = message.sender.did;
+        const isCurrentUser = senderDid === currentUserDid;
         if (
           !currentGroup ||
-          currentGroup.isCurrentUser !== isCurrentUser ||
+          currentGroup.senderDid !== senderDid ||
           differenceInMinutes(currentGroup.lastSentAt, message.sentAt) > 5
         ) {
           // Start a new group
           currentGroup = {
             isCurrentUser,
+            senderDid,
             messages: [message],
             lastSentAt: message.sentAt,
           };
@@ -257,6 +273,18 @@ class ChatDetailView extends View {
       }
 
       return groups;
+    }
+
+    function getMemberProfile(convo, memberDid) {
+      const member = convo?.members?.find(
+        (convoMember) => convoMember.did === memberDid,
+      );
+      if (member) {
+        return member;
+      }
+      // Group convo member lists are partial; profiles ingested from
+      // relatedProfiles cover the rest
+      return dataLayer.derived.$hydratedProfiles.get(memberDid) ?? null;
     }
 
     function getDateFromTimestamp(timestamp) {
@@ -392,7 +420,7 @@ class ChatDetailView extends View {
       isCurrentUser,
       currentUserDid,
       showAvatar,
-      otherMember,
+      author,
       onLongPress,
       isSelected,
     }) {
@@ -413,8 +441,8 @@ class ChatDetailView extends View {
           >
             ${!isCurrentUser && showAvatar
               ? html`<div class="message-avatar">
-                  ${otherMember
-                    ? avatarTemplate({ author: otherMember })
+                  ${author
+                    ? avatarTemplate({ author })
                     : html`<div class="avatar-placeholder"></div>`}
                 </div>`
               : !isCurrentUser && !showAvatar
@@ -460,20 +488,44 @@ class ChatDetailView extends View {
       });
     }
 
-    function messageGroupTemplate({ group, otherMember, currentUserDid }) {
+    function systemMessageTemplate({ message, convo }) {
+      const memberDid = message.data?.member?.did;
+      const memberProfile = memberDid
+        ? getMemberProfile(convo, memberDid)
+        : null;
+      const memberName = memberProfile ? getDisplayName(memberProfile) : null;
+      return html`
+        <div class="system-message" data-testid="system-message">
+          ${getSystemMessageDisplayText(message, { memberName })}
+        </div>
+      `;
+    }
+
+    function messageGroupTemplate({ group, convo, isGroup, currentUserDid }) {
+      const author = group.isCurrentUser
+        ? null
+        : getMemberProfile(convo, group.senderDid);
       return html`
         <div
           class="message-group ${group.isCurrentUser
             ? "message-group-sent"
             : "message-group-received"}"
         >
+          ${isGroup && !group.isCurrentUser
+            ? html`<div
+                class="message-author-name"
+                data-testid="message-author-name"
+              >
+                ${author ? getDisplayName(author) : "Unknown member"}
+              </div>`
+            : ""}
           ${group.messages.map((message, index) =>
             messageTemplate({
               message,
               isCurrentUser: group.isCurrentUser,
               currentUserDid,
               showAvatar: index === 0,
-              otherMember,
+              author,
               onLongPress: (msg, e) => handleLongPress(msg, e),
               isSelected: state.$selectedMessageId.get() === message.id,
             }),
@@ -501,7 +553,8 @@ class ChatDetailView extends View {
       loadingEnabled,
       messages,
       currentUserDid,
-      otherMember,
+      convo,
+      isGroup,
       hasMore,
     }) {
       if (!messages || messages.length === 0) {
@@ -554,11 +607,14 @@ class ChatDetailView extends View {
                   startTime: day.messageGroups[0].lastSentAt,
                 })}
                 ${day.messageGroups.map((group) =>
-                  messageGroupTemplate({
-                    group,
-                    otherMember,
-                    currentUserDid,
-                  }),
+                  group.isSystemMessage
+                    ? systemMessageTemplate({ message: group.message, convo })
+                    : messageGroupTemplate({
+                        group,
+                        convo,
+                        isGroup,
+                        currentUserDid,
+                      }),
                 )}
               </div>`;
             })}
@@ -601,6 +657,8 @@ class ChatDetailView extends View {
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
+      const convo = dataLayer.derived.$convos.get(convoId);
+      const groupDetails = convo ? getGroupConvoDetails(convo) : null;
       const messagesData = dataLayer.derived.$convoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
       const messagesRequestStatus =
@@ -609,9 +667,21 @@ class ChatDetailView extends View {
         );
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = state.$isSendingMessage.get();
+      const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
 
       const otherMember = state.$otherMember.get();
-      const title = otherMember ? getDisplayName(otherMember) : "";
+      const title = groupDetails
+        ? groupDetails.name
+        : otherMember
+          ? getDisplayName(otherMember)
+          : "";
+      const subtitle = groupDetails
+        ? `${groupDetails.memberCount} ${
+            groupDetails.memberCount === 1 ? "member" : "members"
+          }`
+        : otherMember?.handle
+          ? `@${otherMember.handle}`
+          : "";
 
       render(
         html`<div id="chat-detail-view">
@@ -620,12 +690,15 @@ class ChatDetailView extends View {
             children: html`
               ${headerTemplate({
                 avatarTemplate: () => {
+                  if (groupDetails) {
+                    return "";
+                  }
                   return otherMember
                     ? avatarTemplate({ author: otherMember })
                     : "";
                 },
                 title,
-                subtitle: otherMember?.handle ? `@${otherMember.handle}` : "",
+                subtitle,
                 leftButton: "back",
               })}
               <main class="chat-detail-main">
@@ -639,7 +712,8 @@ class ChatDetailView extends View {
                       loadingEnabled: state.$loadingEnabled.get(),
                       messages,
                       currentUserDid: currentUser?.did,
-                      otherMember,
+                      convo,
+                      isGroup: !!groupDetails,
                       hasMore,
                     });
                   } else {
@@ -652,12 +726,21 @@ class ChatDetailView extends View {
                   }
                 })()}
                 <div class="message-input-wrapper">
-                  <chat-input
-                    @send=${(e) => handleSendMessage(e.detail.message)}
-                    @height-change=${handleInputHeightChange}
-                    ?disabled=${!messages || isSendingMessage}
-                    ?loading=${isSendingMessage}
-                  ></chat-input>
+                  ${isLocked
+                    ? html`<div
+                        class="chat-locked-notice"
+                        data-testid="chat-locked-notice"
+                      >
+                        ${groupDetails.lockStatus === "locked-permanently"
+                          ? "This chat has ended."
+                          : "This chat is locked. New messages can't be sent."}
+                      </div>`
+                    : html`<chat-input
+                        @send=${(e) => handleSendMessage(e.detail.message)}
+                        @height-change=${handleInputHeightChange}
+                        ?disabled=${!messages || isSendingMessage}
+                        ?loading=${isSendingMessage}
+                      ></chat-input>`}
                 </div>
               </main>
             `,
@@ -671,8 +754,9 @@ class ChatDetailView extends View {
     let initialLoad = true;
     pageEffect(root, () => {
       const messages = dataLayer.derived.$convoMessages.get(convoId);
-      const otherMember = state.$otherMember.get();
-      if (!messages || !otherMember) {
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const convo = dataLayer.derived.$convos.get(convoId);
+      if (!messages || !currentUser || !convo) {
         return;
       }
       if (initialLoad) {

@@ -13,6 +13,7 @@ export class MockServer {
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
+    this.chatLogs = [];
     this.createRecordCounter = 0;
     this.interactionPayloads = [];
     this.blobCounter = 0;
@@ -220,6 +221,12 @@ export class MockServer {
       }
     }
     this.convos.push(...convos);
+  }
+
+  // Queued logs are returned (and drained) by the next chat.bsky.convo.getLog
+  // poll, simulating events arriving while a conversation is open.
+  addChatLogs(logs) {
+    this.chatLogs.push(...logs);
   }
 
   addConvoMessages(convoId, messages) {
@@ -675,13 +682,14 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.getLog*", (route) =>
-      route.fulfill({
+    await page.route("**/xrpc/chat.bsky.convo.getLog*", (route) => {
+      const logs = this.chatLogs.splice(0, this.chatLogs.length);
+      return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ logs: [], cursor: "" }),
-      }),
-    );
+        body: JSON.stringify({ logs, cursor: "" }),
+      });
+    });
 
     await page.route("**/xrpc/chat.bsky.convo.acceptConvo*", (route) => {
       const body = route.request().postDataJSON();

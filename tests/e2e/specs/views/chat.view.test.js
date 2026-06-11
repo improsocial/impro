@@ -1,7 +1,13 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createGroupConvo,
+  createMessage,
+  createProfile,
+  createSystemMessage,
+} from "../../factories.js";
 
 test.describe("Chat view", () => {
   test("should display Chats header and conversation list", async ({
@@ -199,6 +205,208 @@ test.describe("Chat view", () => {
     await expect(chatView.locator(".chat-requests-title")).toContainText(
       "Chat requests",
     );
+  });
+
+  test.describe("Group conversations", () => {
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+
+    test("should display a group conversation with name, avatar stack, and sender-prefixed preview", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers: [alice, bob],
+        lastMessage: createMessage({
+          id: "msg-1",
+          text: "Chapter 3 tonight?",
+          senderDid: alice.did,
+        }),
+      });
+      mockServer.addConvos([groupConvo]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const chatView = page.locator("#chat-view");
+      const groupItem = chatView.locator('[data-testid="convo-item-group"]');
+      await expect(groupItem).toHaveCount(1, { timeout: 10000 });
+      await expect(groupItem.locator(".convo-name")).toContainText("Book Club");
+      await expect(
+        groupItem.locator('[data-testid="member-avatar-stack"]'),
+      ).toBeVisible();
+      await expect(groupItem.locator(".convo-preview")).toContainText(
+        "Alice: Chapter 3 tonight?",
+      );
+      await expect(groupItem.locator(".convo-handle")).toHaveText("");
+    });
+
+    test("should stack at most three member avatars", async ({ page }) => {
+      const mockServer = new MockServer();
+      const carol = createProfile({
+        did: "did:plc:carol1",
+        handle: "carol.bsky.social",
+        displayName: "Carol",
+      });
+      const dave = createProfile({
+        did: "did:plc:dave1",
+        handle: "dave.bsky.social",
+        displayName: "Dave",
+      });
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers: [alice, bob, carol, dave],
+        lastMessage: createMessage({
+          id: "msg-1",
+          text: "Hello",
+          senderDid: alice.did,
+        }),
+      });
+      mockServer.addConvos([groupConvo]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const stack = page.locator('[data-testid="member-avatar-stack"]');
+      await expect(stack).toBeVisible({ timeout: 10000 });
+      await expect(stack.locator(".member-avatar-stack-item")).toHaveCount(3);
+    });
+
+    test("should display direct and group conversations together", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const directConvo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+        lastMessage: createMessage({
+          id: "msg-1",
+          text: "Hello from Alice",
+          senderDid: alice.did,
+        }),
+      });
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers: [alice, bob],
+        lastMessage: createMessage({
+          id: "msg-2",
+          text: "Hello group",
+          senderDid: bob.did,
+        }),
+      });
+      mockServer.addConvos([directConvo, groupConvo]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const chatView = page.locator("#chat-view");
+      await expect(
+        chatView.locator('[data-testid="convo-item-direct"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+      await expect(
+        chatView.locator('[data-testid="convo-item-group"]'),
+      ).toHaveCount(1);
+    });
+
+    test("should display a system message preview with the member's name", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers: [alice, bob],
+        lastMessage: createSystemMessage({
+          id: "sys-1",
+          dataType: "systemMessageDataMemberLeave",
+          data: { member: { did: bob.did } },
+        }),
+      });
+      mockServer.addConvos([groupConvo]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const chatView = page.locator("#chat-view");
+      const groupItem = chatView.locator('[data-testid="convo-item-group"]');
+      await expect(groupItem).toHaveCount(1, { timeout: 10000 });
+      await expect(groupItem.locator(".convo-preview")).toContainText(
+        "Bob left the group",
+      );
+    });
+
+    test("should fall back to anonymous system message previews for unknown members", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const groupConvo = createGroupConvo({
+        id: "group-1",
+        name: "Book Club",
+        otherMembers: [alice, bob],
+        lastMessage: createSystemMessage({
+          id: "sys-1",
+          dataType: "systemMessageDataMemberLeave",
+          data: { member: { did: "did:plc:stranger1" } },
+        }),
+      });
+      mockServer.addConvos([groupConvo]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const chatView = page.locator("#chat-view");
+      const groupItem = chatView.locator('[data-testid="convo-item-group"]');
+      await expect(groupItem).toHaveCount(1, { timeout: 10000 });
+      await expect(groupItem.locator(".convo-preview")).toContainText(
+        "Someone left the group",
+      );
+    });
+
+    test("should not show the chat requests banner for group invites", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const groupInvite = createGroupConvo({
+        id: "group-req-1",
+        name: "Book Club",
+        otherMembers: [alice, bob],
+        status: "request",
+        lastMessage: createMessage({
+          id: "msg-1",
+          text: "Welcome!",
+          senderDid: alice.did,
+        }),
+      });
+      mockServer.addConvos([groupInvite]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages");
+
+      const chatView = page.locator("#chat-view");
+      await expect(chatView.locator(".feed-end-message")).toContainText(
+        "No conversations yet!",
+        { timeout: 10000 },
+      );
+      await expect(chatView.locator(".chat-requests-banner")).toHaveCount(0);
+    });
   });
 
   test("should display empty state when there are no conversations", async ({

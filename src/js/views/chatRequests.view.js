@@ -4,7 +4,11 @@ import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
-import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
+import {
+  getDisplayName,
+  isGroupConvo,
+  MISSING_HANDLE,
+} from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { showToast } from "/js/toasts.js";
 
@@ -157,7 +161,9 @@ class ChatRequestsView extends View {
 
       // Filter to only show chat requests
       const chatRequests =
-        convos?.filter((convo) => convo.status === "request") || [];
+        convos?.filter(
+          (convo) => convo.status === "request" && !isGroupConvo(convo),
+        ) || [];
 
       render(
         html`<div id="chat-requests-view">
