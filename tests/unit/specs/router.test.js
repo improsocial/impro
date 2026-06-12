@@ -344,6 +344,120 @@ t.describe("go", (it) => {
   });
 });
 
+t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
+  const originalOpen = window.open;
+  let openMock;
+  let button;
+
+  beforeEach(() => {
+    openMock = mock();
+    window.open = openMock;
+    button = document.createElement("button");
+    document.body.appendChild(button);
+  });
+
+  afterEach(() => {
+    window.open = originalOpen;
+    button.remove();
+    window.history.replaceState(originalState, "", originalPath);
+  });
+
+  function click(modifiers = {}) {
+    button.dispatchEvent(new MouseEvent("click", modifiers));
+  }
+
+  it("should open in a new tab on cmd+click instead of navigating", () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/meta-test", () => Promise.resolve({}));
+
+    let navigated = false;
+    router.on("navigate", () => (navigated = true));
+    window.history.replaceState(null, "", "/starting-path");
+    button.addEventListener("click", () => router.go("/meta-test"));
+
+    click({ metaKey: true });
+
+    assertEquals(openMock.calls.length, 1);
+    assertEquals(openMock.calls[0], ["/meta-test", "_blank"]);
+    assertEquals(navigated, false);
+    assertEquals(window.location.pathname, "/starting-path");
+  });
+
+  it("should open in a new tab on ctrl+click", () => {
+    const router = new Router();
+    button.addEventListener("click", () => router.go("/ctrl-test"));
+
+    click({ ctrlKey: true });
+
+    assertEquals(openMock.calls, [["/ctrl-test", "_blank"]]);
+  });
+
+  it("should navigate normally on unmodified click", () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/plain-test", () => Promise.resolve({}));
+    button.addEventListener("click", () => router.go("/plain-test"));
+
+    click();
+
+    assertEquals(openMock.calls.length, 0);
+    assertEquals(window.location.pathname, "/plain-test");
+  });
+
+  it("should open in a new tab on cmd+Enter", () => {
+    const router = new Router();
+    button.addEventListener("keydown", () => router.go("/enter-test"));
+
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Enter", metaKey: true }),
+    );
+
+    assertEquals(openMock.calls, [["/enter-test", "_blank"]]);
+  });
+
+  it("should navigate normally when metaKey is held on a non-Enter key", () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/keyboard-test", () => Promise.resolve({}));
+    button.addEventListener("keydown", () => router.go("/keyboard-test"));
+
+    button.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", metaKey: true }),
+    );
+
+    assertEquals(openMock.calls.length, 0);
+    assertEquals(window.location.pathname, "/keyboard-test");
+  });
+
+  it("should open the previous route in a new tab on cmd+click of back", () => {
+    const router = new Router();
+    window.history.replaceState({ previousRoute: "/prior-path" }, "", "/here");
+    button.addEventListener("click", () => router.back());
+
+    click({ metaKey: true });
+
+    assertEquals(openMock.calls, [["/prior-path", "_blank"]]);
+    assertEquals(window.location.pathname, "/here");
+  });
+
+  it("should open home in a new tab on cmd+click of back without history", () => {
+    const router = new Router();
+    window.history.replaceState(null, "", "/here");
+    button.addEventListener("click", () => router.back());
+
+    click({ metaKey: true });
+
+    assertEquals(openMock.calls, [["/", "_blank"]]);
+  });
+});
+
 t.describe("previousRoute", (it) => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;

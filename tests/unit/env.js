@@ -17,6 +17,7 @@ globalThis.Node = dom.window.Node;
 globalThis.DocumentFragment = dom.window.DocumentFragment;
 globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
+globalThis.MouseEvent = dom.window.MouseEvent;
 globalThis.MutationObserver = dom.window.MutationObserver;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 // Node has its own global navigator; alias JSDOM's so code under test and
