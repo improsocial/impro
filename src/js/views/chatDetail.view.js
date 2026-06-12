@@ -444,15 +444,17 @@ class ChatDetailView extends View {
               : !isCurrentUser && !showAvatar
                 ? html`<div class="message-avatar-spacer"></div>`
                 : ""}
-            <div class="message-bubble">
-              <div class="message-text">
-                ${richTextTemplate({
-                  text: message.text,
-                  facets: message.facets,
-                  truncateUrls: true,
-                })}
-              </div>
-            </div>
+            ${message.text
+              ? html`<div class="message-bubble">
+                  <div class="message-text">
+                    ${richTextTemplate({
+                      text: message.text,
+                      facets: message.facets,
+                      truncateUrls: true,
+                    })}
+                  </div>
+                </div>`
+              : null}
             ${reactionBubblesTemplate({ message, isCurrentUser })}
           </div>
           ${message.embed
