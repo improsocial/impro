@@ -417,7 +417,8 @@ export function getInteractionTimestamp(interaction) {
     case "chat.bsky.convo.defs#messageAndReactionView":
       return interaction.reaction.createdAt;
     default:
-      throw new Error(`Unknown interaction type: ${interaction.$type}`);
+      console.warn(`Unknown interaction type: ${interaction.$type}`);
+      return null;
   }
 }
 
@@ -468,6 +469,68 @@ export function getSystemMessageDisplayText(
   return SYSTEM_MESSAGE_DISPLAY_TEXT[dataType] ?? "Chat updated";
 }
 
+function getSenderDisplayName(senderDid, { currentUser, profiles }) {
+  if (senderDid === currentUser?.did) {
+    return "You";
+  }
+  const sender = profiles.find((profile) => profile.did === senderDid);
+  return sender ? getDisplayName(sender) : "Someone";
+}
+
+export function getConvoPreviewText(
+  interaction,
+  { currentUser, convo, profiles },
+) {
+  switch (interaction.$type) {
+    case "chat.bsky.convo.defs#messageView": {
+      if (isGroupConvo(convo)) {
+        const senderName = getSenderDisplayName(interaction.sender.did, {
+          currentUser,
+          profiles,
+        });
+        return `${senderName}: ${interaction.text}`;
+      }
+      return interaction.sender.did === currentUser?.did
+        ? "You: " + interaction.text
+        : interaction.text;
+    }
+    case "chat.bsky.convo.defs#messageAndReactionView": {
+      const displayName = getSenderDisplayName(
+        interaction.reaction.sender.did,
+        { currentUser, profiles },
+      );
+      return `${displayName} reacted ${interaction.reaction.value} to "${interaction.message.text}"`;
+    }
+    case "chat.bsky.convo.defs#deletedMessageView":
+      return "Deleted message";
+    case "chat.bsky.convo.defs#systemMessageView": {
+      const memberDid = interaction.data?.member?.did;
+      const memberProfile = memberDid
+        ? profiles.find((profile) => profile.did === memberDid)
+        : null;
+      return getSystemMessageDisplayText(interaction, {
+        memberName: memberProfile ? getDisplayName(memberProfile) : null,
+      });
+    }
+    default:
+      console.warn(`Unknown interaction type: ${interaction.$type}`);
+      return "";
+  }
+}
+
+export function getInteractionProfileDids(interaction) {
+  if (!interaction) {
+    return [];
+  }
+  return [
+    interaction.sender?.did,
+    interaction.message?.sender?.did,
+    interaction.reaction?.sender?.did,
+    interaction.data?.member?.did,
+    interaction.data?.addedBy?.did,
+  ].filter(Boolean);
+}
+
 export function getGroupConvoDetails(convo) {
   if (convo.kind?.$type === "chat.bsky.convo.defs#groupConvo") {
     return convo.kind;
@@ -477,6 +540,17 @@ export function getGroupConvoDetails(convo) {
 
 export function isGroupConvo(convo) {
   return getGroupConvoDetails(convo) !== null;
+}
+
+export function getGroupConvoOwner(convo) {
+  // The owner may have left the group, in which case there is no owner
+  return (
+    convo.members.find(
+      (member) =>
+        member.kind?.$type === "chat.bsky.actor.defs#groupConvoMember" &&
+        member.kind.role === "owner",
+    ) ?? null
+  );
 }
 
 export function getLastInteractionTimestamp(convo) {

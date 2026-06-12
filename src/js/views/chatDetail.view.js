@@ -276,15 +276,11 @@ class ChatDetailView extends View {
     }
 
     function getMemberProfile(convo, memberDid) {
-      const member = convo?.members?.find(
-        (convoMember) => convoMember.did === memberDid,
-      );
-      if (member) {
-        return member;
+      if (!convo) {
+        return null;
       }
-      // Group convo member lists are partial; profiles ingested from
-      // relatedProfiles cover the rest
-      return dataLayer.derived.$hydratedProfiles.get(memberDid) ?? null;
+      const profiles = dataLayer.derived.$convoProfiles.get(convo.id);
+      return profiles.find((profile) => profile.did === memberDid) ?? null;
     }
 
     function getDateFromTimestamp(timestamp) {

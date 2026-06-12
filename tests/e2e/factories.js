@@ -50,11 +50,22 @@ export function createGroupConvo({
   unreadCount = 0,
   lockStatus = "unlocked",
   memberCount,
+  ownerDid,
 }) {
+  let members = [createTestUserMember(), ...otherMembers];
+  if (ownerDid) {
+    members = members.map((member) => ({
+      ...member,
+      kind: {
+        $type: "chat.bsky.actor.defs#groupConvoMember",
+        role: member.did === ownerDid ? "owner" : "standard",
+      },
+    }));
+  }
   return {
     id,
     rev: "rev" + id,
-    members: [createTestUserMember(), ...otherMembers],
+    members,
     status,
     unreadCount,
     muted: false,

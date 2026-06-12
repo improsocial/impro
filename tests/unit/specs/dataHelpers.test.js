@@ -27,7 +27,10 @@ import {
   canReplyToPost,
   transformNestedQuotes,
   getInteractionTimestamp,
+  getConvoPreviewText,
+  getInteractionProfileDids,
   getGroupConvoDetails,
+  getGroupConvoOwner,
   getSystemMessageDisplayText,
   isGroupConvo,
 } from "/js/dataHelpers.js";
@@ -1365,6 +1368,48 @@ t.describe("isGroupConvo", (it) => {
   });
 });
 
+t.describe("getGroupConvoOwner", (it) => {
+  function groupMember(did, role) {
+    return {
+      did,
+      handle: `${did.split(":").pop()}.bsky.social`,
+      kind: { $type: "chat.bsky.actor.defs#groupConvoMember", role },
+    };
+  }
+
+  it("should find the member with the owner role", () => {
+    const owner = groupMember("did:plc:alice", "owner");
+    const convo = {
+      members: [groupMember("did:plc:me", "standard"), owner],
+    };
+    assertEquals(getGroupConvoOwner(convo), owner);
+  });
+
+  it("should return null when the owner has left", () => {
+    const convo = {
+      members: [
+        groupMember("did:plc:me", "standard"),
+        groupMember("did:plc:bob", "standard"),
+      ],
+    };
+    assertEquals(getGroupConvoOwner(convo), null);
+  });
+
+  it("should ignore members without a group member kind", () => {
+    const convo = {
+      members: [
+        { did: "did:plc:me", handle: "me.bsky.social" },
+        {
+          did: "did:plc:bob",
+          handle: "bob.bsky.social",
+          kind: { role: "owner" },
+        },
+      ],
+    };
+    assertEquals(getGroupConvoOwner(convo), null);
+  });
+});
+
 t.describe("getSystemMessageDisplayText", (it) => {
   function systemMessage(dataType, data = {}) {
     return {
@@ -1429,6 +1474,209 @@ t.describe("getSystemMessageDisplayText", (it) => {
     assertEquals(
       getSystemMessageDisplayText(systemMessage("systemMessageDataFuture")),
       "Chat updated",
+    );
+  });
+});
+
+t.describe("getConvoPreviewText", (it) => {
+  const currentUser = { did: "did:plc:me", handle: "me.bsky.social" };
+  const alice = {
+    did: "did:plc:alice",
+    handle: "alice.bsky.social",
+    displayName: "Alice",
+  };
+  const groupConvo = {
+    id: "group-1",
+    members: [currentUser, alice],
+    kind: { $type: "chat.bsky.convo.defs#groupConvo", name: "Book Club" },
+  };
+  const directConvo = { id: "convo-1", members: [currentUser, alice] };
+
+  function messageView({ text, senderDid }) {
+    return {
+      $type: "chat.bsky.convo.defs#messageView",
+      id: "msg-1",
+      text,
+      sender: { did: senderDid },
+    };
+  }
+
+  it("should prefix group messages with the sender name", () => {
+    assertEquals(
+      getConvoPreviewText(messageView({ text: "hi", senderDid: alice.did }), {
+        currentUser,
+        convo: groupConvo,
+        profiles: groupConvo.members,
+      }),
+      "Alice: hi",
+    );
+    assertEquals(
+      getConvoPreviewText(
+        messageView({ text: "hi", senderDid: currentUser.did }),
+        { currentUser, convo: groupConvo, profiles: groupConvo.members },
+      ),
+      "You: hi",
+    );
+  });
+
+  it("should fall back to Someone for unknown group senders", () => {
+    assertEquals(
+      getConvoPreviewText(
+        messageView({ text: "hi", senderDid: "did:plc:stranger" }),
+        { currentUser, convo: groupConvo, profiles: groupConvo.members },
+      ),
+      "Someone: hi",
+    );
+  });
+
+  it("should resolve senders from the passed profiles", () => {
+    assertEquals(
+      getConvoPreviewText(
+        messageView({ text: "hi", senderDid: "did:plc:stranger" }),
+        {
+          currentUser,
+          convo: groupConvo,
+          profiles: [
+            ...groupConvo.members,
+            {
+              did: "did:plc:stranger",
+              handle: "stranger.bsky.social",
+              displayName: "Stranger",
+            },
+          ],
+        },
+      ),
+      "Stranger: hi",
+    );
+  });
+
+  it("should only prefix own messages in direct convos", () => {
+    assertEquals(
+      getConvoPreviewText(messageView({ text: "hi", senderDid: alice.did }), {
+        currentUser,
+        convo: directConvo,
+        profiles: directConvo.members,
+      }),
+      "hi",
+    );
+    assertEquals(
+      getConvoPreviewText(
+        messageView({ text: "hi", senderDid: currentUser.did }),
+        { currentUser, convo: directConvo, profiles: directConvo.members },
+      ),
+      "You: hi",
+    );
+  });
+
+  it("should describe reactions", () => {
+    const reaction = {
+      $type: "chat.bsky.convo.defs#messageAndReactionView",
+      message: { text: "hello" },
+      reaction: { value: "👍", sender: { did: alice.did } },
+    };
+    assertEquals(
+      getConvoPreviewText(reaction, {
+        currentUser,
+        convo: groupConvo,
+        profiles: groupConvo.members,
+      }),
+      'Alice reacted 👍 to "hello"',
+    );
+  });
+
+  it("should describe deleted messages", () => {
+    assertEquals(
+      getConvoPreviewText(
+        { $type: "chat.bsky.convo.defs#deletedMessageView" },
+        { currentUser, convo: directConvo, profiles: directConvo.members },
+      ),
+      "Deleted message",
+    );
+  });
+
+  it("should render system messages with the member name when resolvable", () => {
+    const systemMessage = {
+      $type: "chat.bsky.convo.defs#systemMessageView",
+      data: {
+        $type: "chat.bsky.convo.defs#systemMessageDataAddMember",
+        member: { did: alice.did },
+      },
+    };
+    assertEquals(
+      getConvoPreviewText(systemMessage, {
+        currentUser,
+        convo: groupConvo,
+        profiles: groupConvo.members,
+      }),
+      "Alice was added to the group",
+    );
+  });
+
+  it("should render anonymous system messages for unknown members", () => {
+    const systemMessage = {
+      $type: "chat.bsky.convo.defs#systemMessageView",
+      data: {
+        $type: "chat.bsky.convo.defs#systemMessageDataMemberLeave",
+        member: { did: "did:plc:stranger" },
+      },
+    };
+    assertEquals(
+      getConvoPreviewText(systemMessage, {
+        currentUser,
+        convo: groupConvo,
+        profiles: groupConvo.members,
+      }),
+      "Someone left the group",
+    );
+  });
+});
+
+t.describe("getInteractionProfileDids", (it) => {
+  it("should return an empty list for a missing interaction", () => {
+    assertEquals(getInteractionProfileDids(null), []);
+  });
+
+  it("should extract the sender from a message", () => {
+    const message = {
+      $type: "chat.bsky.convo.defs#messageView",
+      sender: { did: "did:plc:sender" },
+    };
+    assertEquals(getInteractionProfileDids(message), ["did:plc:sender"]);
+  });
+
+  it("should extract both senders from a reaction", () => {
+    const reaction = {
+      $type: "chat.bsky.convo.defs#messageAndReactionView",
+      message: { sender: { did: "did:plc:author" } },
+      reaction: { value: "👍", sender: { did: "did:plc:reactor" } },
+    };
+    assertEquals(getInteractionProfileDids(reaction), [
+      "did:plc:author",
+      "did:plc:reactor",
+    ]);
+  });
+
+  it("should extract the member and adder from a system message", () => {
+    const systemMessage = {
+      $type: "chat.bsky.convo.defs#systemMessageView",
+      data: {
+        $type: "chat.bsky.convo.defs#systemMessageDataAddMember",
+        member: { did: "did:plc:added" },
+        addedBy: { did: "did:plc:adder" },
+      },
+    };
+    assertEquals(getInteractionProfileDids(systemMessage), [
+      "did:plc:added",
+      "did:plc:adder",
+    ]);
+  });
+
+  it("should return an empty list for a deleted message", () => {
+    assertEquals(
+      getInteractionProfileDids({
+        $type: "chat.bsky.convo.defs#deletedMessageView",
+      }),
+      [],
     );
   });
 });
