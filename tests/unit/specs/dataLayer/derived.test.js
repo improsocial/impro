@@ -221,6 +221,92 @@ t.describe("$hydratedProfiles", (it) => {
   });
 });
 
+t.describe("$convoProfiles", (it) => {
+  const convoId = "convo1";
+  const memberDid = "did:plc:member";
+  const referencedDid = "did:plc:referenced";
+
+  function setupConvo(dataStore, convoFields = {}) {
+    dataStore.$convos.set(convoId, {
+      id: convoId,
+      members: [{ did: memberDid, handle: "member.test" }],
+      ...convoFields,
+    });
+  }
+
+  it("should return an empty list for an unknown convo", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assertEquals(derived.$convoProfiles.get(convoId), []);
+  });
+
+  it("should return the members when no other profiles are referenced", () => {
+    const dataStore = new DataStore();
+    setupConvo(dataStore);
+    const { derived } = makeDerived(dataStore);
+    const profiles = derived.$convoProfiles.get(convoId);
+    assertEquals(profiles.length, 1);
+    assertEquals(profiles[0].did, memberDid);
+  });
+
+  it("should append hydrated profiles referenced by the last interaction", () => {
+    const dataStore = new DataStore();
+    setupConvo(dataStore, {
+      lastMessage: { id: "msg1", sender: { did: referencedDid } },
+    });
+    dataStore.setProfiles([{ did: referencedDid, handle: "referenced.test" }]);
+    const { derived } = makeDerived(dataStore);
+    const profiles = derived.$convoProfiles.get(convoId);
+    assertEquals(profiles.length, 2);
+    assertEquals(profiles[0].did, memberDid);
+    assertEquals(profiles[1].did, referencedDid);
+    assertEquals(profiles[1].handle, "referenced.test");
+  });
+
+  it("should append hydrated profiles referenced by loaded messages", () => {
+    const dataStore = new DataStore();
+    setupConvo(dataStore);
+    dataStore.$convoMessages.set(convoId, {
+      messages: [
+        { id: "msg1", sender: { did: referencedDid } },
+        { id: "sys1", data: { member: { did: "did:plc:added" } } },
+      ],
+      cursor: null,
+    });
+    dataStore.setProfiles([
+      { did: referencedDid, handle: "referenced.test" },
+      { did: "did:plc:added", handle: "added.test" },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const profiles = derived.$convoProfiles.get(convoId);
+    assertEquals(profiles.length, 3);
+    assertEquals(profiles[1].handle, "referenced.test");
+    assertEquals(profiles[2].handle, "added.test");
+  });
+
+  it("should not duplicate referenced profiles that are also members", () => {
+    const dataStore = new DataStore();
+    setupConvo(dataStore, {
+      lastMessage: { id: "msg1", sender: { did: memberDid } },
+    });
+    dataStore.setProfiles([{ did: memberDid, handle: "member.test" }]);
+    const { derived } = makeDerived(dataStore);
+    const profiles = derived.$convoProfiles.get(convoId);
+    assertEquals(profiles.length, 1);
+  });
+
+  it("should skip referenced dids whose profiles are not hydrated", () => {
+    const dataStore = new DataStore();
+    setupConvo(dataStore, {
+      lastMessage: { id: "msg1", sender: { did: referencedDid } },
+    });
+    const { derived } = makeDerived(dataStore);
+    const profiles = derived.$convoProfiles.get(convoId);
+    assertEquals(profiles.length, 1);
+    assertEquals(profiles[0].did, memberDid);
+  });
+});
+
 t.describe("$hydratedAuthorFeeds", (it) => {
   const did = "did:plc:author";
   const feedURI = `${did}-posts`;

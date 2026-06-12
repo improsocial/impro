@@ -379,7 +379,7 @@ test.describe("Chat view", () => {
       );
     });
 
-    test("should not show the chat requests banner for group invites", async ({
+    test("should show the chat requests banner for group invites", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -401,11 +401,13 @@ test.describe("Chat view", () => {
       await page.goto("/messages");
 
       const chatView = page.locator("#chat-view");
+      await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
+        timeout: 10000,
+      });
+      // The invite is still a request, so the main list stays empty
       await expect(chatView.locator(".feed-end-message")).toContainText(
         "No conversations yet!",
-        { timeout: 10000 },
       );
-      await expect(chatView.locator(".chat-requests-banner")).toHaveCount(0);
     });
   });
 

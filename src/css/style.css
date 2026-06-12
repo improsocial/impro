@@ -4245,6 +4245,16 @@ emoji-picker {
   margin-left: 0;
 }
 
+.chat-request-follow-status .known-followers-summary {
+  margin-top: 0;
+  padding: 0;
+}
+
+.chat-request-follow-status .known-followers-avatar {
+  width: 20px;
+  height: 20px;
+}
+
 .known-followers-avatar .avatar,
 .known-followers-avatar .avatar-image-frame,
 .known-followers-avatar .avatar-image {

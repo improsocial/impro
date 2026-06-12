@@ -14,6 +14,7 @@ import {
   isBlockingUser,
   isEmptyPost,
   isPostView,
+  getInteractionProfileDids,
   getLastInteractionTimestamp,
   isGroupConvo,
   markBlockedQuoteNotFound,
@@ -437,6 +438,28 @@ export class Derived extends ReactiveStore {
     this.$convoListCursor = new Signal.Computed(() =>
       this.dataStore.$convoListCursor.get(),
     );
+    // The convo's members plus the hydrated profiles its interactions
+    // reference (group convo member lists are partial)
+    this.$convoProfiles = new ComputedMap((convoId) => {
+      const convo = this.dataStore.$convos.get(convoId);
+      if (!convo) return [];
+      const messages = this.dataStore.$convoMessages.get(convoId);
+      const interactions = [
+        convo.lastMessage,
+        convo.lastReaction,
+        ...(messages?.messages ?? []),
+      ];
+      const referencedDids = new Set(
+        interactions.flatMap((interaction) =>
+          getInteractionProfileDids(interaction),
+        ),
+      );
+      const referencedProfiles = [...referencedDids]
+        .filter((did) => !convo.members.some((member) => member.did === did))
+        .map((did) => this.$hydratedProfiles.get(did))
+        .filter(Boolean);
+      return [...convo.members, ...referencedProfiles];
+    });
     this.$convoForProfile = new ComputedMap((profileDid) => {
       const convoIds = [...this.dataStore.$convos.keys()];
       for (const convoId of convoIds) {

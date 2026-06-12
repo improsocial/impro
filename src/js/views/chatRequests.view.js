@@ -5,11 +5,15 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { displayRelativeTime } from "/js/utils.js";
 import {
+  getConvoPreviewText,
   getDisplayName,
-  isGroupConvo,
+  getGroupConvoDetails,
+  getGroupConvoOwner,
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { avatarStackTemplate } from "/js/templates/avatarStack.template.js";
+import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 
 class ChatRequestsView extends View {
@@ -37,18 +41,32 @@ class ChatRequestsView extends View {
     }
 
     function requestItemTemplate({ convo }) {
+      const groupDetails = getGroupConvoDetails(convo);
+      const currentUser = dataLayer.derived.$currentUser.get();
       const lastMessage = convo.lastMessage;
-      const members = convo.members.filter(
-        (member) => member.did !== dataLayer.derived.$currentUser.get()?.did,
+      const otherMembers = convo.members.filter(
+        (member) => member.did !== currentUser?.did,
       );
-      const otherMember = members[0];
+      const otherMember = groupDetails ? null : otherMembers[0];
       const timeAgo = lastMessage
         ? displayRelativeTime(lastMessage.sentAt)
         : "";
-      const messagePreview = lastMessage?.text || "No messages yet";
+      const messagePreview = lastMessage
+        ? getConvoPreviewText(lastMessage, {
+            currentUser,
+            convo,
+            profiles: dataLayer.derived.$convoProfiles.get(convo.id),
+          })
+        : "No messages yet";
+      const canAccept = !groupDetails || groupDetails.lockStatus === "unlocked";
 
       return html`
-        <div class="chat-request-item">
+        <div
+          class="chat-request-item"
+          data-testid=${groupDetails
+            ? "request-item-group"
+            : "request-item-direct"}
+        >
           <div
             class="chat-request-header"
             @click=${() => {
@@ -56,36 +74,65 @@ class ChatRequestsView extends View {
             }}
           >
             <div class="convo-avatar">
-              ${otherMember
-                ? avatarTemplate({ author: otherMember })
-                : html`<div class="avatar-placeholder"></div>`}
+              ${(() => {
+                if (groupDetails) {
+                  return avatarStackTemplate({ authors: otherMembers });
+                }
+                return otherMember
+                  ? avatarTemplate({ author: otherMember })
+                  : html`<div class="avatar-placeholder"></div>`;
+              })()}
             </div>
             <div class="convo-content">
               <div class="convo-header">
-                <div class="convo-name">${getDisplayName(otherMember)}</div>
+                <div class="convo-name">
+                  ${groupDetails
+                    ? groupDetails.name
+                    : getDisplayName(otherMember)}
+                </div>
                 ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
               </div>
               <div class="convo-handle">
-                ${otherMember?.handle && otherMember?.handle !== MISSING_HANDLE
+                ${!groupDetails &&
+                otherMember?.handle &&
+                otherMember?.handle !== MISSING_HANDLE
                   ? `@${otherMember.handle}`
                   : ""}
               </div>
               <div class="convo-preview">${messagePreview}</div>
-              <div class="chat-request-follow-status">
-                Not followed by anyone you're following
-              </div>
+              ${(() => {
+                if (!groupDetails) {
+                  return html`<div class="chat-request-follow-status">
+                    ${knownFollowersSummaryTemplate({
+                      profile: otherMember,
+                      showPlaceholder: true,
+                    })}
+                  </div>`;
+                }
+                const groupOwner = getGroupConvoOwner(convo);
+                return groupOwner
+                  ? html`<div
+                      class="chat-request-follow-status"
+                      data-testid="request-invited-by"
+                    >
+                      ${getDisplayName(groupOwner)} added you
+                    </div>`
+                  : "";
+              })()}
             </div>
           </div>
           <div class="chat-request-actions">
-            <button
-              class="chat-request-button accept"
-              @click=${(e) => {
-                e.stopPropagation();
-                handleAccept(convo);
-              }}
-            >
-              Accept
-            </button>
+            ${canAccept
+              ? html`<button
+                  class="chat-request-button accept"
+                  @click=${(e) => {
+                    e.stopPropagation();
+                    handleAccept(convo);
+                  }}
+                >
+                  Accept
+                </button>`
+              : ""}
             <button
               class="chat-request-button reject"
               @click=${(e) => {
@@ -161,9 +208,7 @@ class ChatRequestsView extends View {
 
       // Filter to only show chat requests
       const chatRequests =
-        convos?.filter(
-          (convo) => convo.status === "request" && !isGroupConvo(convo),
-        ) || [];
+        convos?.filter((convo) => convo.status === "request") || [];
 
       render(
         html`<div id="chat-requests-view">
