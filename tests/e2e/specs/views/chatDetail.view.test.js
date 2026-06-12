@@ -416,6 +416,21 @@ test.describe("Chat detail view", () => {
       ).toContainText("3 members");
     });
 
+    test("should display member avatar stack in header", async ({ page }) => {
+      const mockServer = setupGroupConvo();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const header = page.locator('#chat-detail-view [data-testid="header"]');
+      const avatarStack = header.locator('[data-testid="member-avatar-stack"]');
+      await expect(avatarStack).toBeVisible({ timeout: 10000 });
+      await expect(
+        avatarStack.locator(".member-avatar-stack-item"),
+      ).toHaveCount(2);
+    });
+
     test("should show author names and avatars on received message clusters", async ({
       page,
     }) => {
