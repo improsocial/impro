@@ -119,7 +119,7 @@ export function createSystemMessage({ id, dataType, data = {}, sentAt }) {
   };
 }
 
-export function createMessage({ id, text, senderDid, sentAt }) {
+export function createMessage({ id, text, senderDid, sentAt, embed }) {
   return {
     $type: "chat.bsky.convo.defs#messageView",
     id,
@@ -129,6 +129,7 @@ export function createMessage({ id, text, senderDid, sentAt }) {
     sender: { did: senderDid },
     sentAt: sentAt || "2025-01-15T12:00:00.000Z",
     reactions: [],
+    ...(embed ? { embed } : {}),
   };
 }
 

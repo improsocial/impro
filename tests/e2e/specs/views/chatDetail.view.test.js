@@ -99,6 +99,86 @@ test.describe("Chat detail view", () => {
     await expect(chatDetailView.locator(".message-sent")).toHaveCount(1);
   });
 
+  test("should render an embed-only message without an empty bubble", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const quotedUri = "at://did:plc:author2/app.bsky.feed.post/quoted1";
+    const recordEmbed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        uri: quotedUri,
+        cid: "bafyreitestquoted",
+        author: {
+          did: "did:plc:author2",
+          handle: "author2.bsky.social",
+          displayName: "Quoted Author",
+          avatar: "",
+          viewer: { muted: false, blockedBy: false },
+          labels: [],
+          createdAt: "2025-01-01T00:00:00.000Z",
+        },
+        value: {
+          $type: "app.bsky.feed.post",
+          text: "The shared post",
+          createdAt: "2025-01-01T00:00:00.000Z",
+          langs: ["en"],
+        },
+        labels: [],
+        likeCount: 0,
+        replyCount: 0,
+        repostCount: 0,
+        quoteCount: 0,
+        indexedAt: "2025-01-01T00:00:00.000Z",
+        embeds: [],
+      },
+    };
+    const messages = [
+      createMessage({
+        id: "msg-2",
+        text: "",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:01:00.000Z",
+        embed: recordEmbed,
+      }),
+      createMessage({
+        id: "msg-1",
+        text: "Check this out",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-embed")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(chatDetailView.locator(".message-embed")).toContainText(
+      "The shared post",
+    );
+    // Only the text message gets a bubble; the embed-only message renders none
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1);
+    await expect(chatDetailView.locator(".message-text")).toContainText(
+      "Check this out",
+    );
+  });
+
   test("should send a message and display it", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({
