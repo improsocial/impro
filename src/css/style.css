@@ -850,6 +850,11 @@ header {
   height: var(--chat-detail-header-height);
 }
 
+#chat-detail-view .header-row .member-avatar-stack {
+  width: var(--avatar-size-post);
+  height: var(--avatar-size-post);
+}
+
 .header > .header-row {
   display: flex;
   flex-direction: row;
