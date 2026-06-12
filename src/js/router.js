@@ -3,6 +3,25 @@ import { effect } from "/js/signals.js";
 
 const MAX_PAGES = 5;
 
+// Browsers fire auxclick rather than click for the middle button, so
+// we need to manually dispatch a click event for it
+function bindMiddleClickRedispatch() {
+  if (window.__middleClickRedispatchBound) return;
+  window.__middleClickRedispatchBound = true;
+  window.addEventListener("auxclick", (event) => {
+    if (event.button !== 1 || event.defaultPrevented) return;
+    if (event.target.closest?.("a")) return;
+    event.target.dispatchEvent(
+      new MouseEvent("click", {
+        bubbles: true,
+        cancelable: true,
+        composed: true,
+        button: 1,
+      }),
+    );
+  });
+}
+
 export function bindToPage(root, source, event, handler) {
   if (!source) return;
   const usesEmitterApi = typeof source.on === "function";
@@ -45,6 +64,7 @@ export class Router extends EventEmitter {
     this.currentPath = null;
     this.pages = new Map();
     this.scrollStates = new Map();
+    bindMiddleClickRedispatch();
     // Disable scroll restoration
     window.history.scrollRestoration = "manual";
     // Save scroll when navigating away from the page
@@ -188,11 +208,17 @@ export class Router extends EventEmitter {
   }
 
   _shouldOpenInNewTab() {
-    // If last event was a click or Enter, check for meta key
+    // If last event was a click or Enter, check for meta key / middle button
     const event = window.event;
-    if (!event || (!event.metaKey && !event.ctrlKey)) return false;
-    if (event instanceof MouseEvent) return true;
-    return event instanceof KeyboardEvent && event.key === "Enter";
+    if (!event) return false;
+    if (event instanceof MouseEvent) {
+      return event.metaKey || event.ctrlKey || event.button === 1;
+    }
+    return (
+      event instanceof KeyboardEvent &&
+      event.key === "Enter" &&
+      (event.metaKey || event.ctrlKey)
+    );
   }
 
   async go(path) {

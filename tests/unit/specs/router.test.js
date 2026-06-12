@@ -458,6 +458,100 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
   });
 });
 
+t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
+  const originalOpen = window.open;
+  let openMock;
+  let button;
+
+  beforeEach(() => {
+    openMock = mock();
+    window.open = openMock;
+    button = document.createElement("button");
+    document.body.appendChild(button);
+  });
+
+  afterEach(() => {
+    window.open = originalOpen;
+    button.remove();
+    window.history.replaceState(originalState, "", originalPath);
+  });
+
+  function middleClick(target, options = {}) {
+    target.dispatchEvent(
+      new MouseEvent("auxclick", { button: 1, bubbles: true, ...options }),
+    );
+  }
+
+  it("should open in a new tab on middle click instead of navigating", () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/middle-test", () => Promise.resolve({}));
+
+    let navigated = false;
+    router.on("navigate", () => (navigated = true));
+    window.history.replaceState(null, "", "/starting-path");
+    button.addEventListener("click", () => router.go("/middle-test"));
+
+    middleClick(button);
+
+    assertEquals(openMock.calls, [["/middle-test", "_blank"]]);
+    assertEquals(navigated, false);
+    assertEquals(window.location.pathname, "/starting-path");
+  });
+
+  it("should open the previous route in a new tab on middle click of back", () => {
+    const router = new Router();
+    window.history.replaceState({ previousRoute: "/prior-path" }, "", "/here");
+    button.addEventListener("click", () => router.back());
+
+    middleClick(button);
+
+    assertEquals(openMock.calls, [["/prior-path", "_blank"]]);
+    assertEquals(window.location.pathname, "/here");
+  });
+
+  it("should ignore auxclicks from non-middle buttons", () => {
+    new Router();
+    const clickHandler = mock();
+    button.addEventListener("click", clickHandler);
+
+    middleClick(button, { button: 2 });
+
+    assertEquals(clickHandler.calls.length, 0);
+    assertEquals(openMock.calls.length, 0);
+  });
+
+  it("should leave middle clicks on anchors to native handling", () => {
+    new Router();
+    const anchor = document.createElement("a");
+    anchor.href = "/native-link";
+    button.appendChild(anchor);
+    const clickHandler = mock();
+    button.addEventListener("click", clickHandler);
+
+    middleClick(anchor);
+
+    assertEquals(clickHandler.calls.length, 0);
+    assertEquals(openMock.calls.length, 0);
+  });
+
+  it("should not re-dispatch when the auxclick default is prevented", () => {
+    new Router();
+    button.addEventListener("auxclick", (event) => event.preventDefault());
+    const clickHandler = mock();
+    button.addEventListener("click", clickHandler);
+
+    middleClick(button, { cancelable: true });
+
+    assertEquals(clickHandler.calls.length, 0);
+    assertEquals(openMock.calls.length, 0);
+  });
+});
+
 t.describe("previousRoute", (it) => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
