@@ -5,6 +5,7 @@ import {
   createConvo,
   createGroupConvo,
   createMessage,
+  createMessageLog,
   createProfile,
   createSystemMessage,
 } from "../../factories.js";
@@ -574,6 +575,122 @@ test.describe("Chat detail view", () => {
       "No messages yet!",
       { timeout: 10000 },
     );
+  });
+
+  test.describe("Scrolling on new messages", () => {
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+
+    function setupOverflowingConvo() {
+      const mockServer = new MockServer();
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      const messages = [];
+      for (let messageNumber = 30; messageNumber >= 1; messageNumber--) {
+        messages.push(
+          createMessage({
+            id: `msg-${messageNumber}`,
+            text: `Message number ${messageNumber}`,
+            senderDid: alice.did,
+            sentAt: `2025-01-15T12:${String(messageNumber).padStart(2, "0")}:00.000Z`,
+          }),
+        );
+      }
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", messages);
+      return mockServer;
+    }
+
+    function getScroller(page) {
+      return page.locator("#chat-detail-view infinite-scroll-container");
+    }
+
+    function getDistanceFromBottom(page) {
+      return getScroller(page).evaluate(
+        (scroller) =>
+          scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight,
+      );
+    }
+
+    function queueIncomingMessage(mockServer) {
+      mockServer.addChatLogs([
+        createMessageLog({
+          convoId: "convo-1",
+          message: createMessage({
+            id: "msg-new",
+            text: "Just arrived!",
+            senderDid: alice.did,
+            sentAt: "2025-01-15T13:00:00.000Z",
+          }),
+        }),
+      ]);
+    }
+
+    test("should scroll to the bottom when a new message arrives while at the bottom", async ({
+      page,
+    }) => {
+      const mockServer = setupOverflowingConvo();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(30, {
+        timeout: 10000,
+      });
+      await expect
+        .poll(() => getDistanceFromBottom(page))
+        .toBeLessThanOrEqual(10);
+
+      queueIncomingMessage(mockServer);
+
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(31, {
+        timeout: 15000,
+      });
+      await expect
+        .poll(() => getDistanceFromBottom(page))
+        .toBeLessThanOrEqual(10);
+    });
+
+    test("should keep the scroll position when a new message arrives while scrolled up", async ({
+      page,
+    }) => {
+      const mockServer = setupOverflowingConvo();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(30, {
+        timeout: 10000,
+      });
+      await expect
+        .poll(() => getDistanceFromBottom(page))
+        .toBeLessThanOrEqual(10);
+
+      await getScroller(page).evaluate((scroller) => {
+        scroller.scrollTop = 0;
+      });
+
+      queueIncomingMessage(mockServer);
+
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(31, {
+        timeout: 15000,
+      });
+      // Give any erroneous scroll-to-bottom a chance to run before asserting
+      await page.waitForTimeout(250);
+      const scrollTop = await getScroller(page).evaluate(
+        (scroller) => scroller.scrollTop,
+      );
+      expect(scrollTop).toBeLessThanOrEqual(10);
+    });
   });
 
   test.describe("Logged-out behavior", () => {

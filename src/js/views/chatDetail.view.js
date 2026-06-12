@@ -748,22 +748,36 @@ class ChatDetailView extends View {
       );
     });
 
-    // Scroll to bottom on initial load
+    // Scroll to bottom on initial load, and stay scrolled when
+    // new messages arrive (if the user is already at the bottom)
     let initialLoad = true;
+    let newestMessageId = null;
     pageEffect(root, () => {
-      const messages = dataLayer.derived.$convoMessages.get(convoId);
+      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
-      if (!messages || !currentUser || !convo) {
+      if (!messagesData || !currentUser || !convo) {
         return;
       }
+      // Messages are stored newest-first
+      const latestMessageId = messagesData.messages?.[0]?.id ?? null;
       if (initialLoad) {
         initialLoad = false;
+        newestMessageId = latestMessageId;
         requestAnimationFrame(() => {
           scrollToBottom({ onlyIfNeeded: true });
           // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
           state.$loadingEnabled.set(true);
         });
+        return;
+      }
+      if (latestMessageId !== newestMessageId) {
+        newestMessageId = latestMessageId;
+        if (wasAtBottom) {
+          requestAnimationFrame(() => {
+            scrollToBottom();
+          });
+        }
       }
     });
 
