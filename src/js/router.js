@@ -187,7 +187,19 @@ export class Router extends EventEmitter {
     this.emit("page-shown", this.currentPage);
   }
 
+  _shouldOpenInNewTab() {
+    // If last event was a click or Enter, check for meta key
+    const event = window.event;
+    if (!event || (!event.metaKey && !event.ctrlKey)) return false;
+    if (event instanceof MouseEvent) return true;
+    return event instanceof KeyboardEvent && event.key === "Enter";
+  }
+
   async go(path) {
+    if (this._shouldOpenInNewTab()) {
+      window.open(path, "_blank");
+      return;
+    }
     window.history.pushState(
       { previousRoute: window.location.pathname },
       "",
@@ -198,6 +210,10 @@ export class Router extends EventEmitter {
   }
 
   async back() {
+    if (this._shouldOpenInNewTab()) {
+      window.open(this.previousRoute ?? "/", "_blank");
+      return;
+    }
     if (!!window.history.state?.previousRoute) {
       window.history.back();
     } else {
