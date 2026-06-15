@@ -246,6 +246,38 @@ test.describe("Chat detail view", () => {
     ).toContainText("Chats", { timeout: 10000 });
   });
 
+  test("should open bsky.app link from chat menu", async ({ page }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="chat-menu-button"]'),
+    ).toBeVisible({ timeout: 10000 });
+
+    const popupPromise = page.waitForEvent("popup");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView
+      .locator('[data-testid="menu-action-chat-open-in-bsky"]')
+      .click();
+
+    const popup = await popupPromise;
+    expect(popup.url()).toBe("https://bsky.app/messages/convo-1");
+  });
+
   test("should add emoji reaction to a message", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({

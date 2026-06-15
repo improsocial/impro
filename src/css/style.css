@@ -4647,7 +4647,8 @@ emoji-picker {
 }
 
 .feed-menu-button,
-.list-menu-button {
+.list-menu-button,
+.chat-menu-button {
   border: none;
   background: none;
   cursor: pointer;
@@ -4661,7 +4662,8 @@ emoji-picker {
 }
 
 .feed-menu-button span,
-.list-menu-button span {
+.list-menu-button span,
+.chat-menu-button span {
   position: relative;
   top: -2px;
 }

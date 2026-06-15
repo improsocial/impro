@@ -91,6 +91,10 @@ export function getPermalinkForProfile(profile) {
   return getPermalinkOrigin() + linkToProfile(profile);
 }
 
+export function getPermalinkForConvo(convoId) {
+  return `${getPermalinkOrigin()}/messages/${encodePathSegment(convoId)}`;
+}
+
 export function linkToLogin({ query = {} } = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {

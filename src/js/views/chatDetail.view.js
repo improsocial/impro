@@ -18,6 +18,7 @@ import { showToast } from "/js/toasts.js";
 import { wait, raf, differenceInMinutes, enableLongPress } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { hapticsImpactMedium } from "/js/haptics.js";
+import { getPermalinkForConvo } from "/js/navigation.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/lib/emoji-picker-element.js";
@@ -667,6 +668,7 @@ class ChatDetailView extends View {
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = state.$isSendingMessage.get();
       const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
+      const convoPermalink = getPermalinkForConvo(convoId);
 
       const otherMember = state.$otherMember.get();
       const title = groupDetails
@@ -702,6 +704,28 @@ class ChatDetailView extends View {
                 title,
                 subtitle,
                 leftButton: "back",
+                rightItemTemplate: () => html`
+                  <button
+                    class="chat-menu-button"
+                    data-testid="chat-menu-button"
+                    @click=${function (e) {
+                      const contextMenu = this.nextElementSibling;
+                      contextMenu.open(e.clientX, e.clientY);
+                    }}
+                  >
+                    <span>...</span>
+                  </button>
+                  <context-menu>
+                    <context-menu-item
+                      data-testid="menu-action-chat-open-in-bsky"
+                      @click=${() => {
+                        window.open(convoPermalink, "_blank");
+                      }}
+                    >
+                      Open in bsky.app
+                    </context-menu-item>
+                  </context-menu>
+                `,
               })}
               <main class="chat-detail-main">
                 ${(() => {
