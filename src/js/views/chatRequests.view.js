@@ -12,7 +12,7 @@ import {
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { avatarStackTemplate } from "/js/templates/avatarStack.template.js";
+import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 
@@ -76,7 +76,7 @@ class ChatRequestsView extends View {
             <div class="convo-avatar">
               ${(() => {
                 if (groupDetails) {
-                  return avatarStackTemplate({ authors: otherMembers });
+                  return avatarGroupTemplate({ authors: otherMembers });
                 }
                 return otherMember
                   ? avatarTemplate({ author: otherMember })

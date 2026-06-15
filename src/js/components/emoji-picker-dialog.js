@@ -18,11 +18,18 @@ class EmojiPickerDialog extends Component {
     this.close();
   }
 
-  open() {
+  open(anchor) {
     if (this.isOpen) {
       return;
     }
+    this._anchor = anchor ?? this;
     const picker = document.createElement("emoji-picker");
+    // Take the picker out of normal flow before insertion so it can't push the
+    // anchor (e.g. a flex-centered emoji button) around while we're measuring.
+    picker.style.position = "fixed";
+    picker.style.top = "0";
+    picker.style.left = "0";
+    picker.style.visibility = "hidden";
     this.appendChild(picker);
     this.scrollLock.lock();
     this.isOpen = true;
@@ -30,6 +37,7 @@ class EmojiPickerDialog extends Component {
     this._positionPicker();
     this._reposition = () => this._positionPicker();
     window.addEventListener("resize", this._reposition);
+    this._disposers = [this._attachOutsideClickClose()];
   }
 
   close() {
@@ -37,11 +45,30 @@ class EmojiPickerDialog extends Component {
       return;
     }
     window.removeEventListener("resize", this._reposition);
+    for (const dispose of this._disposers ?? []) {
+      dispose();
+    }
+    this._disposers = null;
     this._reposition = null;
     this._picker = null;
+    this._anchor = null;
     this.innerHTML = "";
     this.scrollLock.unlock();
     this.isOpen = false;
+  }
+
+  // Close on any click outside the dialog. Deferred to the next tick so the
+  // click that opened the dialog doesn't immediately close it.
+  _attachOutsideClickClose() {
+    const handler = () => this.close();
+    const timer = setTimeout(() => {
+      document.addEventListener("click", handler);
+    }, 0);
+    // Dispose
+    return () => {
+      clearTimeout(timer);
+      document.removeEventListener("click", handler);
+    };
   }
 
   // Position the picker as a fixed-viewport overlay so it can't fall off
@@ -53,7 +80,7 @@ class EmojiPickerDialog extends Component {
       return;
     }
     const margin = 8;
-    const anchor = this.getBoundingClientRect();
+    const anchor = (this._anchor ?? this).getBoundingClientRect();
     const pickerRect = picker.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
@@ -76,6 +103,7 @@ class EmojiPickerDialog extends Component {
     picker.style.top = `${top}px`;
     picker.style.left = `${left}px`;
     picker.style.bottom = "auto";
+    picker.style.visibility = "";
   }
 
   _handleEmojiClick = (event) => {

@@ -1,6 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import "/js/components/chat-input.js";
+
+await import("/js/components/chat-input.js");
 
 const t = new TestSuite("ChatInput");
 

@@ -559,6 +559,146 @@ test.describe("Chat detail view", () => {
     await expect(chatDetailView.locator("emoji-picker")).toHaveCount(0);
   });
 
+  test("should insert an emoji into the message input from the emoji button", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const textarea = chatDetailView.locator(".message-input-field");
+    await textarea.fill("hello ");
+
+    await chatDetailView.locator(".message-input-emoji-button").click();
+
+    const picker = chatDetailView.locator(
+      "chat-input emoji-picker-dialog emoji-picker",
+    );
+    await expect(picker).toHaveCount(1, { timeout: 5000 });
+
+    await picker.locator('button.emoji[aria-label*="party popper"]').click();
+
+    await expect(textarea).toHaveValue("hello 🎉");
+    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
+      0,
+    );
+  });
+
+  test("should close the chat-input emoji picker when clicking outside", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator(".message-input-emoji-button"),
+    ).toBeVisible({ timeout: 10000 });
+
+    await chatDetailView.locator(".message-input-emoji-button").click();
+    await expect(
+      chatDetailView.locator("chat-input emoji-picker-dialog emoji-picker"),
+    ).toHaveCount(1, { timeout: 5000 });
+
+    await chatDetailView
+      .locator('[data-testid="header-title"]')
+      .click({ force: true });
+
+    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
+      0,
+    );
+  });
+
+  test("should toggle the chat-input emoji picker closed when the button is clicked twice", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const emojiButton = chatDetailView.locator(".message-input-emoji-button");
+    await expect(emojiButton).toBeVisible({ timeout: 10000 });
+
+    await emojiButton.click();
+    await expect(
+      chatDetailView.locator("chat-input emoji-picker-dialog emoji-picker"),
+    ).toHaveCount(1, { timeout: 5000 });
+
+    await emojiButton.click();
+    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
+      0,
+    );
+  });
+
+  test("should hide the chat-input emoji button on mobile viewports", async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 600, height: 800 });
+
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-input-field")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      chatDetailView.locator(".message-input-emoji-button"),
+    ).toBeHidden();
+  });
+
   test.describe("Group conversations", () => {
     const alice = createProfile({
       did: "did:plc:alice1",
@@ -624,11 +764,9 @@ test.describe("Chat detail view", () => {
       await page.goto("/messages/group-1");
 
       const header = page.locator('#chat-detail-view [data-testid="header"]');
-      const avatarStack = header.locator('[data-testid="member-avatar-stack"]');
-      await expect(avatarStack).toBeVisible({ timeout: 10000 });
-      await expect(
-        avatarStack.locator(".member-avatar-stack-item"),
-      ).toHaveCount(2);
+      const avatarGroup = header.locator('[data-testid="avatar-group"]');
+      await expect(avatarGroup).toBeVisible({ timeout: 10000 });
+      await expect(avatarGroup.locator(".avatar-group-item")).toHaveCount(2);
     });
 
     test("should show author names and avatars on received message clusters", async ({

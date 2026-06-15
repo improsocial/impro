@@ -1,16 +1,6 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-
-// The emoji-picker-element library reads `Element.prototype` at module load,
-// so expose JSDOM's Element on the global before the dialog module is imported.
-globalThis.Element = globalThis.window.Element;
-
-// Pre-register a stub `emoji-picker` so the real library does not try to
-// define itself (it depends on browser features JSDOM doesn't implement).
-class EmojiPickerStub extends globalThis.window.HTMLElement {}
-globalThis.customElements.define("emoji-picker", EmojiPickerStub);
-
-await import("/js/components/emoji-picker-dialog.js");
+import "/js/components/emoji-picker-dialog.js";
 
 const t = new TestSuite("EmojiPickerDialog");
 

@@ -11,7 +11,7 @@ import {
   getSystemMessageDisplayText,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { avatarStackTemplate } from "/js/templates/avatarStack.template.js";
+import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
@@ -398,7 +398,7 @@ class ChatDetailView extends View {
               if (dialog.isOpen) {
                 dialog.close();
               } else {
-                dialog.open();
+                dialog.open(e.currentTarget);
               }
             }}
           >
@@ -695,7 +695,7 @@ class ChatDetailView extends View {
                     const otherMembers = convo.members.filter(
                       (member) => member.did !== currentUser?.did,
                     );
-                    return avatarStackTemplate({ authors: otherMembers });
+                    return avatarGroupTemplate({ authors: otherMembers });
                   }
                   return otherMember
                     ? avatarTemplate({ author: otherMember })

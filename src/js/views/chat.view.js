@@ -13,7 +13,7 @@ import {
   MISSING_HANDLE,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { avatarStackTemplate } from "/js/templates/avatarStack.template.js";
+import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class ChatView extends View {
@@ -47,7 +47,7 @@ class ChatView extends View {
           <div class="convo-avatar">
             ${(() => {
               if (groupDetails) {
-                return avatarStackTemplate({ authors: otherMembers });
+                return avatarGroupTemplate({ authors: otherMembers });
               }
               return otherUser
                 ? avatarTemplate({ author: otherUser })
