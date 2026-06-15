@@ -3904,6 +3904,7 @@ chat-input {
 .reaction-palette-button {
   background: transparent;
   border: none;
+  color: inherit;
   width: 44px;
   height: 44px;
   display: flex;
