@@ -21,7 +21,9 @@ import { hapticsImpactMedium } from "/js/haptics.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
-import "/js/lib/emoji-picker-element.js";
+import "/js/components/emoji-picker-dialog.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
 
 class ChatDetailView extends View {
   async render({
@@ -392,23 +394,21 @@ class ChatDetailView extends View {
           <button
             class="reaction-palette-button reaction-palette-button-more"
             @click=${(e) => {
-              const openEmojiPicker = root.querySelector("emoji-picker");
-              if (openEmojiPicker) {
-                openEmojiPicker.remove();
-                return;
+              const dialog = e.currentTarget.nextElementSibling;
+              if (dialog.isOpen) {
+                dialog.close();
+              } else {
+                dialog.open();
               }
-              const emojiPicker = document.createElement("emoji-picker");
-              emojiPicker.addEventListener("emoji-click", (e) => {
-                handleEmojiSelect(e.detail.unicode, message.id, currentUserDid);
-              });
-              emojiPicker.addEventListener("click", (e) => {
-                e.stopPropagation();
-              });
-              e.target.parentElement.appendChild(emojiPicker);
             }}
           >
             <span class="reaction-palette-button-inner">...</span>
           </button>
+          <emoji-picker-dialog
+            @select=${(e) => {
+              handleEmojiSelect(e.detail.emoji, message.id, currentUserDid);
+            }}
+          ></emoji-picker-dialog>
         </div>
       `;
     }

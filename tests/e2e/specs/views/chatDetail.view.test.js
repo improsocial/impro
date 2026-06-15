@@ -391,6 +391,174 @@ test.describe("Chat detail view", () => {
     });
   });
 
+  test("should open the emoji picker from the reaction palette more button", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const messageEl = chatDetailView.locator(".message").first();
+    const box = await messageEl.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+
+    await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // No picker mounted before the more button is clicked
+    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(0);
+
+    await chatDetailView.locator(".reaction-palette-button-more").click();
+
+    // Picker appears inside the dialog
+    await expect(
+      chatDetailView.locator("emoji-picker-dialog emoji-picker"),
+    ).toHaveCount(1, { timeout: 5000 });
+  });
+
+  test("should add a reaction when an emoji is selected from the picker", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const messageEl = chatDetailView.locator(".message").first();
+    const box = await messageEl.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+
+    await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({
+      timeout: 5000,
+    });
+
+    await chatDetailView.locator(".reaction-palette-button-more").click();
+
+    const picker = chatDetailView.locator("emoji-picker-dialog emoji-picker");
+    await expect(picker).toHaveCount(1, { timeout: 5000 });
+
+    // Click the emoji from the picker's grid. The data fixture lives in
+    // MockServer; Playwright pierces the picker's shadow DOM automatically.
+    await picker.locator('button.emoji[aria-label*="party popper"]').click();
+
+    await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(1, {
+      timeout: 5000,
+    });
+    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("🎉");
+  });
+
+  test("should toggle the emoji picker closed when the more button is clicked twice", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const messages = [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    const messageEl = chatDetailView.locator(".message").first();
+    const box = await messageEl.boundingBox();
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.waitForTimeout(600);
+    await page.mouse.up();
+
+    await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({
+      timeout: 5000,
+    });
+
+    const moreButton = chatDetailView.locator(".reaction-palette-button-more");
+    await moreButton.click();
+    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(1, {
+      timeout: 5000,
+    });
+
+    await moreButton.click();
+    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(0);
+  });
+
   test.describe("Group conversations", () => {
     const alice = createProfile({
       did: "did:plc:alice1",

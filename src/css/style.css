@@ -4001,12 +4001,10 @@ chat-input {
   line-height: 1;
 }
 
-emoji-picker {
+emoji-picker-dialog emoji-picker {
   --num-columns: 6;
   --category-emoji-size: 1.125rem;
-
-  position: absolute;
-  bottom: 100%;
+  --input-font-size: 16px;
 }
 
 .chat-icon.filled circle {
