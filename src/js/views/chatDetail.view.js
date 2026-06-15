@@ -15,10 +15,10 @@ import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes, enableLongPress } from "/js/utils.js";
+import { wait, raf, differenceInMinutes, isMobileViewport } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { hapticsImpactMedium } from "/js/haptics.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
+import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -43,7 +43,8 @@ class ChatDetailView extends View {
     const state = new ReactiveStore("chatDetailView");
     state.$loadingEnabled = new Signal.State(false);
     state.$isSendingMessage = new Signal.State(false);
-    state.$selectedMessageId = new Signal.State(null);
+    state.$activeMessageId = new Signal.State(null);
+    state.$paletteMessageId = new Signal.State(null);
 
     function focusChatInput() {
       const chatInput = root.querySelector("chat-input");
@@ -162,8 +163,9 @@ class ChatDetailView extends View {
 
     const messageFetcher = new MessageFetcher(dataLayer, convoId);
 
-    function closeReactionPalette() {
-      state.$selectedMessageId.set(null);
+    function clearMessageSelection() {
+      state.$activeMessageId.set(null);
+      state.$paletteMessageId.set(null);
     }
 
     async function handleEmojiSelect(emoji, messageId, currentUserDid) {
@@ -174,7 +176,7 @@ class ChatDetailView extends View {
           emoji,
           currentUserDid,
         );
-        closeReactionPalette();
+        clearMessageSelection();
       } catch (error) {
         console.error(error);
         showToast("Failed to add reaction", { style: "error" });
@@ -207,15 +209,42 @@ class ChatDetailView extends View {
       }
     }
 
-    function handleLongPress(message) {
-      hapticsImpactMedium();
-      state.$selectedMessageId.set(message.id);
-      // close on click outside
-      setTimeout(() => {
-        document.addEventListener("click", () => closeReactionPalette(), {
-          once: true,
-        });
-      }, 500);
+    function handleMessageClick(messageId) {
+      if (!isMobileViewport()) {
+        return;
+      }
+      const current = state.$activeMessageId.get();
+      if (current === messageId) {
+        clearMessageSelection();
+      } else {
+        state.$activeMessageId.set(messageId);
+        state.$paletteMessageId.set(null);
+      }
+    }
+
+    function handleEmojiTriggerClick(messageId) {
+      const current = state.$paletteMessageId.get();
+      state.$activeMessageId.set(messageId);
+      state.$paletteMessageId.set(current === messageId ? null : messageId);
+    }
+
+    // Clear active message / palette on outside click
+    function handleRootClick(event) {
+      if (
+        state.$activeMessageId.get() === null &&
+        state.$paletteMessageId.get() === null
+      ) {
+        return;
+      }
+      if (
+        event.target.closest(".message") ||
+        event.target.closest(".reaction-palette") ||
+        event.target.closest(".message-emoji-trigger") ||
+        event.target.closest("emoji-picker-dialog")
+      ) {
+        return;
+      }
+      clearMessageSelection();
     }
 
     async function handleSendMessage(messageText) {
@@ -419,20 +448,15 @@ class ChatDetailView extends View {
       currentUserDid,
       showAvatar,
       author,
-      onLongPress,
-      isSelected,
+      isActive,
+      isPaletteOpen,
     }) {
       return html`
         <div
-          class="message-wrapper ${isSelected ? "message-wrapper-active" : ""}"
+          class="message-wrapper ${isActive ? "message-wrapper-active" : ""}"
         >
           <div
-            ${ref((el) => {
-              if (el) {
-                enableLongPress(el);
-              }
-            })}
-            @long-press=${(e) => onLongPress(message, e)}
+            @click=${() => handleMessageClick(message.id)}
             class="message ${isCurrentUser
               ? "message-sent"
               : "message-received"}"
@@ -458,6 +482,17 @@ class ChatDetailView extends View {
                 </div>`
               : null}
             ${reactionBubblesTemplate({ message, isCurrentUser })}
+            <button
+              class="message-emoji-trigger"
+              aria-label="React to message"
+              data-testid="message-emoji-trigger"
+              @click=${(e) => {
+                e.stopPropagation();
+                handleEmojiTriggerClick(message.id);
+              }}
+            >
+              ${emojiIconTemplate()}
+            </button>
           </div>
           ${message.embed
             ? html`<div
@@ -473,7 +508,7 @@ class ChatDetailView extends View {
                 </div>
               </div>`
             : ""}
-          ${isSelected
+          ${isPaletteOpen
             ? reactionPaletteTemplate({ message, currentUserDid })
             : ""}
         </div>
@@ -526,8 +561,8 @@ class ChatDetailView extends View {
               currentUserDid,
               showAvatar: index === 0,
               author,
-              onLongPress: (msg, e) => handleLongPress(msg, e),
-              isSelected: state.$selectedMessageId.get() === message.id,
+              isActive: state.$activeMessageId.get() === message.id,
+              isPaletteOpen: state.$paletteMessageId.get() === message.id,
             }),
           )}
           <div
@@ -808,6 +843,8 @@ class ChatDetailView extends View {
         }
       }
     });
+
+    root.addEventListener("click", handleRootClick);
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser().then(() => {

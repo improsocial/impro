@@ -3774,6 +3774,45 @@ image-carousel {
   max-width: 50%;
 }
 
+.message-emoji-trigger {
+  background: transparent;
+  border: none;
+  padding: 0;
+  width: 32px;
+  height: 32px;
+  align-self: center;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color-muted);
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.message-emoji-trigger .emoji-icon {
+  width: 20px;
+  height: 20px;
+}
+
+.message-wrapper-active .message-emoji-trigger {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (hover: hover) {
+  .message:hover .message-emoji-trigger {
+    opacity: 1;
+    pointer-events: auto;
+  }
+  .message-emoji-trigger:hover {
+    color: var(--text-color);
+  }
+}
+
 /* Skeleton loader for messages */
 .message.skeleton {
   pointer-events: none;
