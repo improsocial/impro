@@ -3863,7 +3863,7 @@ chat-input {
 
 .message-input-field {
   flex: 1;
-  width: 100%;
+  min-width: 0;
   padding: 12px 16px;
   border: 1px solid var(--highlight-color);
   border-radius: var(--message-input-border-radius);
@@ -3893,6 +3893,7 @@ chat-input {
 .message-input-field-wrapper {
   position: relative;
   flex: 1;
+  min-width: 0;
   display: flex;
 }
 
