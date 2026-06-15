@@ -3722,6 +3722,7 @@ image-carousel {
 
 .message-bubble {
   max-width: 70%;
+  min-width: 0;
   padding: 10px 14px;
   border-radius: var(--message-bubble-border-radius);
   word-wrap: break-word;
