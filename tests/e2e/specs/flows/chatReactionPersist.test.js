@@ -44,13 +44,12 @@ test.describe("Chat reaction persistence flow", () => {
     const messageBubble = chatDetailView.locator(".message-bubble");
     await expect(messageBubble).toHaveCount(1, { timeout: 10000 });
 
-    // Long-press to open reaction palette
-    const messageEl = chatDetailView.locator(".message").first();
-    const box = await messageEl.boundingBox();
-    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-    await page.mouse.down();
-    await page.waitForTimeout(600);
-    await page.mouse.up();
+    // Click the message, then the emoji trigger to open the reaction palette
+    await chatDetailView.locator(".message-bubble").first().click();
+    await chatDetailView
+      .locator('[data-testid="message-emoji-trigger"]')
+      .first()
+      .click();
 
     // Reaction palette should appear
     await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({

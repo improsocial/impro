@@ -252,7 +252,7 @@ test.describe("Chat view", () => {
       await expect(groupItem.locator(".convo-handle")).toHaveText("");
     });
 
-    test("should stack at most three member avatars", async ({ page }) => {
+    test("should stack at most four member avatars", async ({ page }) => {
       const mockServer = new MockServer();
       const carol = createProfile({
         did: "did:plc:carol1",
@@ -264,10 +264,15 @@ test.describe("Chat view", () => {
         handle: "dave.bsky.social",
         displayName: "Dave",
       });
+      const eve = createProfile({
+        did: "did:plc:eve1",
+        handle: "eve.bsky.social",
+        displayName: "Eve",
+      });
       const groupConvo = createGroupConvo({
         id: "group-1",
         name: "Book Club",
-        otherMembers: [alice, bob, carol, dave],
+        otherMembers: [alice, bob, carol, dave, eve],
         lastMessage: createMessage({
           id: "msg-1",
           text: "Hello",
@@ -282,7 +287,7 @@ test.describe("Chat view", () => {
 
       const stack = page.locator('[data-testid="avatar-group"]');
       await expect(stack).toBeVisible({ timeout: 10000 });
-      await expect(stack.locator(".avatar-group-item")).toHaveCount(3);
+      await expect(stack.locator(".avatar-group-item")).toHaveCount(4);
     });
 
     test("should display direct and group conversations together", async ({
