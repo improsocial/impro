@@ -3901,7 +3901,7 @@ chat-input {
 .message-input-emoji-wrapper {
   position: absolute;
   right: 6px;
-  bottom: 6px;
+  bottom: 7px;
   display: flex;
   align-items: center;
 }
