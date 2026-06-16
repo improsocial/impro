@@ -105,3 +105,11 @@ class LocalStorageStub {
 }
 
 globalThis.localStorage = new LocalStorageStub();
+
+globalThis.Element = globalThis.window.Element;
+
+// Real emoji element makes a fetch / uses indexeddb, so stub it
+class EmojiPickerStub extends globalThis.window.HTMLElement {}
+if (!globalThis.customElements.get("emoji-picker")) {
+  globalThis.customElements.define("emoji-picker", EmojiPickerStub);
+}

@@ -68,12 +68,35 @@ function unlockScroll(container) {
   window.scrollTo(0, scrollTo);
 }
 
+function findScrollableAncestor(element) {
+  let current = element.parentElement;
+  while (
+    current &&
+    current !== document.body &&
+    current !== document.documentElement
+  ) {
+    const style = window.getComputedStyle(current);
+    const overflowY = style.overflowY;
+    if (
+      (overflowY === "auto" || overflowY === "scroll") &&
+      current.scrollHeight > current.clientHeight
+    ) {
+      return current;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
 let __activeScrollLock = null;
 
 export class ScrollLock {
-  constructor() {
+  constructor(target) {
+    this.target = target ?? null;
     this.container = document.querySelector(".page-visible"); // todo find better way to get container
     this.locked = false;
+    this._lockedAncestor = null;
+    this._previousAncestorOverflow = "";
   }
 
   lock() {
@@ -85,6 +108,13 @@ export class ScrollLock {
       return;
     }
     lockScroll(this.container);
+    // If target is passed, lock the nearest scrollable ancestor of that target in addition to the outer page
+    const ancestor = this.target ? findScrollableAncestor(this.target) : null;
+    if (ancestor) {
+      this._lockedAncestor = ancestor;
+      this._previousAncestorOverflow = ancestor.style.overflow;
+      ancestor.style.overflow = "hidden";
+    }
     this.locked = true;
     __activeScrollLock = this;
   }
@@ -92,6 +122,11 @@ export class ScrollLock {
   unlock() {
     if (!this.locked) {
       return;
+    }
+    if (this._lockedAncestor) {
+      this._lockedAncestor.style.overflow = this._previousAncestorOverflow;
+      this._lockedAncestor = null;
+      this._previousAncestorOverflow = "";
     }
     unlockScroll(this.container);
     this.locked = false;

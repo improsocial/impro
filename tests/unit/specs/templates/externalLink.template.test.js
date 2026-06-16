@@ -188,6 +188,59 @@ t.describe("externalLinkTemplate", (it) => {
     link.dispatchEvent(event);
     assertEquals(event.defaultPrevented, true);
   });
+
+  it("should override description to 'Group chat' for bsky.app group chat links", () => {
+    const groupChatUrls = [
+      "https://bsky.app/chat/abc1234",
+      "https://bsky.app/chat/abcDEF123",
+      "https://bsky.app/chat/abcd123XYZ",
+    ];
+    for (const url of groupChatUrls) {
+      const container = document.createElement("div");
+      render(
+        externalLinkTemplate({
+          url,
+          title: "Example",
+          description: "Original description",
+        }),
+        container,
+      );
+      assertEquals(
+        container
+          .querySelector("[data-testid='external-link-description']")
+          .textContent.trim(),
+        "Group chat",
+      );
+    }
+  });
+
+  it("should not override description for non-group-chat bsky.app links", () => {
+    const nonGroupChatUrls = [
+      "https://bsky.app/chat/abc",
+      "https://bsky.app/chat/abcdefghijk",
+      "https://bsky.app/chat/abc1234/extra",
+      "https://bsky.app/chat/abc-123",
+      "https://bsky.app/profile/foo.bsky.social",
+      "https://example.com/chat/abc1234",
+    ];
+    for (const url of nonGroupChatUrls) {
+      const container = document.createElement("div");
+      render(
+        externalLinkTemplate({
+          url,
+          title: "Example",
+          description: "Original description",
+        }),
+        container,
+      );
+      assertEquals(
+        container
+          .querySelector("[data-testid='external-link-description']")
+          .textContent.trim(),
+        "Original description",
+      );
+    }
+  });
 });
 
 await t.run();

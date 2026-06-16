@@ -250,6 +250,28 @@ export class MockServer {
   }
 
   async setup(page) {
+    // Stub emoji-picker-element's CDN data fetch so tests don't hit the
+    // network. Returns a tiny fixture with one emoji per group the library
+    // requires (its assertEmojiData rejects an empty list).
+    await page.route("**/emoji-picker-element-data@*/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        headers: { etag: '"test-emoji-data"' },
+        body: JSON.stringify([
+          {
+            annotation: "party popper",
+            emoji: "🎉",
+            group: 0,
+            order: 1,
+            version: 0.6,
+            shortcodes: ["tada"],
+            tags: ["celebration"],
+          },
+        ]),
+      }),
+    );
+
     // Plugin fixture routes — serve a self-contained test plugin so plugin
     // e2e tests don't depend on plugins-local/.
     await page.route("**/plugins-local/index.json", (route) =>

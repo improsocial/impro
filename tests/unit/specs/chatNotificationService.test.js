@@ -77,9 +77,64 @@ t.describe("markNotificationsAsReadForConvo", (it) => {
     const api = { listConvos: listConvosFn };
     const service = new ChatNotificationService(api);
 
-    await service.markNotificationsAsReadForConvo();
+    await service.markNotificationsAsReadForConvo("1");
 
     assertEquals(listConvosFn.calls.length, 1);
+  });
+
+  it("should optimistically remove the convo id from the unread set", async () => {
+    const convos = [{ id: "1" }, { id: "2" }, { id: "3" }];
+    const api = createMockApi({ convos });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 3);
+
+    // Don't await — assert the optimistic update before the refetch resolves
+    const pending = service.markNotificationsAsReadForConvo("2");
+    assertEquals(service.$numNotifications.get(), 2);
+    await pending;
+  });
+
+  it("should not decrement when the convo id is not in the unread set", async () => {
+    const convos = [{ id: "1" }];
+    const api = createMockApi({ convos });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 1);
+
+    const pending = service.markNotificationsAsReadForConvo("unknown");
+    assertEquals(service.$numNotifications.get(), 1);
+    await pending;
+  });
+
+  it("should suppress a locally-read convo that the server still reports as unread", async () => {
+    let convos = [{ id: "1" }, { id: "2" }];
+    const api = {
+      listConvos: async () => ({ convos }),
+    };
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 2);
+
+    await service.markNotificationsAsReadForConvo("2");
+    assertEquals(service.$numNotifications.get(), 1);
+
+    // Server hasn't caught up — still returns convo 2 as unread.
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 1);
+
+    // Server catches up — convo 2 drops from the unread list.
+    convos = [{ id: "1" }];
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 1);
+
+    // Server later flags convo 2 unread again (e.g. new message) — should count.
+    convos = [{ id: "1" }, { id: "2" }];
+    await service.fetchNumNotifications();
+    assertEquals(service.$numNotifications.get(), 2);
   });
 });
 

@@ -1,7 +1,9 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
+import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { isMobileViewport } from "/js/utils.js";
+import "/js/components/emoji-picker-dialog.js";
 
 class ChatInput extends Component {
   static get observedAttributes() {
@@ -82,6 +84,29 @@ class ChatInput extends Component {
     }
   }
 
+  handleEmojiButtonClick(event) {
+    const dialog = this.querySelector("emoji-picker-dialog");
+    if (!dialog) return;
+    if (dialog.isOpen) {
+      dialog.close();
+    } else {
+      dialog.open(event.currentTarget);
+    }
+  }
+
+  handleEmojiSelect(emoji) {
+    const textarea = this.querySelector(".message-input-field");
+    if (!textarea) return;
+    const start = textarea.selectionStart ?? textarea.value.length;
+    const end = textarea.selectionEnd ?? textarea.value.length;
+    textarea.value =
+      textarea.value.slice(0, start) + emoji + textarea.value.slice(end);
+    const cursor = start + emoji.length;
+    textarea.focus();
+    textarea.setSelectionRange(cursor, cursor);
+    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+  }
+
   handleKeyDown(e) {
     if (e.key === "Enter" && !e.shiftKey) {
       if (isMobileViewport()) return;
@@ -93,15 +118,34 @@ class ChatInput extends Component {
   render() {
     const template = html`
       <div class="message-input-container">
-        <textarea
-          maxlength="10000"
-          class="message-input-field"
-          placeholder="Write a message"
-          rows="1"
-          ?disabled=${this.disabled}
-          @input=${() => this.updateTextareaHeight()}
-          @keydown=${(e) => this.handleKeyDown(e)}
-        ></textarea>
+        <div class="message-input-field-wrapper">
+          <textarea
+            maxlength="10000"
+            class="message-input-field"
+            placeholder="Write a message"
+            rows="1"
+            ?disabled=${this.disabled}
+            @input=${() => this.updateTextareaHeight()}
+            @keydown=${(e) => this.handleKeyDown(e)}
+          ></textarea>
+          <div class="message-input-emoji-wrapper">
+            <button
+              class="message-input-emoji-button"
+              type="button"
+              aria-label="Open emoji picker"
+              ?disabled=${this.disabled}
+              @click=${(e) => this.handleEmojiButtonClick(e)}
+            >
+              ${emojiIconTemplate()}
+            </button>
+            <emoji-picker-dialog
+              @select=${(e) => {
+                this.handleEmojiSelect(e.detail.emoji);
+                e.currentTarget.close();
+              }}
+            ></emoji-picker-dialog>
+          </div>
+        </div>
         <button
           class="message-input-send-button"
           ?disabled=${this.disabled}

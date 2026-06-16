@@ -145,11 +145,19 @@ test.describe("Profile followers view", () => {
     const initialCount = await items.count();
     expect(initialCount).toBeLessThan(60);
 
-    // Scroll to bottom to trigger infinite scroll
-    await items.last().scrollIntoViewIfNeeded();
-
-    // Verify more followers loaded
-    await expect(items).toHaveCount(60, { timeout: 10000 });
+    // Scroll the window to the bottom to trigger infinite scroll. Loop
+    // because a single fetch may not yield the full set in one batch.
+    await expect
+      .poll(
+        async () => {
+          await page.evaluate(() =>
+            window.scrollTo(0, document.body.scrollHeight),
+          );
+          return await items.count();
+        },
+        { timeout: 10000, intervals: [200] },
+      )
+      .toBe(60);
     await expect(view).toContainText("Follower 60");
   });
 

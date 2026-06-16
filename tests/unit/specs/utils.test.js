@@ -835,8 +835,11 @@ function pressEvent(
 t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
   let el;
   let longPressCount;
+  let originalSetTimeout;
 
   beforeEach(() => {
+    originalSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
     el = document.createElement("div");
     document.body.appendChild(el);
     longPressCount = 0;
@@ -844,6 +847,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
   });
 
   afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
     // Consume any click suppressor a long-press left armed on the document so
     // it cannot leak into the next test.
     document.dispatchEvent(pressEvent("click"));
