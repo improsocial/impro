@@ -856,6 +856,25 @@ export class Requests {
     const res = await this.api.getChatLogs({ cursor });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
     for (const log of logsForConvo) {
+      const isReactionLog =
+        log.$type === "chat.bsky.convo.defs#logAddReaction" ||
+        log.$type === "chat.bsky.convo.defs#logRemoveReaction";
+      if (isReactionLog && log.message?.id) {
+        if (log.relatedProfiles) {
+          this.dataStore.setProfiles(log.relatedProfiles);
+        }
+        this.dataStore.$messages.set(log.message.id, log.message);
+        const convoMessages = this.dataStore.$convoMessages.get(convoId);
+        if (convoMessages) {
+          this.dataStore.$convoMessages.set(convoId, {
+            messages: convoMessages.messages.map((message) =>
+              message.id === log.message.id ? log.message : message,
+            ),
+            cursor: convoMessages.cursor,
+          });
+        }
+        continue;
+      }
       const isUserMessage =
         log.$type === "chat.bsky.convo.defs#logCreateMessage";
       const isSystemMessage = CONVO_LOG_SYSTEM_MESSAGE_TYPES.has(log.$type);

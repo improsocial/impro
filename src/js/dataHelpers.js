@@ -477,29 +477,46 @@ function getSenderDisplayName(senderDid, { currentUser, profiles }) {
   return sender ? getDisplayName(sender) : "Someone";
 }
 
+function getEmbedPreviewText(embed) {
+  if (!embed) {
+    return "";
+  }
+  if (embed.$type === "app.bsky.embed.record#view") {
+    return "(quoted post)";
+  }
+  return "(contains embedded content)";
+}
+
 export function getConvoPreviewText(
   interaction,
   { currentUser, convo, profiles },
 ) {
   switch (interaction.$type) {
     case "chat.bsky.convo.defs#messageView": {
+      const text = interaction.text || getEmbedPreviewText(interaction.embed);
       if (isGroupConvo(convo)) {
         const senderName = getSenderDisplayName(interaction.sender.did, {
           currentUser,
           profiles,
         });
-        return `${senderName}: ${interaction.text}`;
+        return `${senderName}: ${text}`;
       }
       return interaction.sender.did === currentUser?.did
-        ? "You: " + interaction.text
-        : interaction.text;
+        ? "You: " + text
+        : text;
     }
     case "chat.bsky.convo.defs#messageAndReactionView": {
+      let text = "";
+      if (interaction.message) {
+        text = interaction.message.text
+          ? '"' + interaction.message.text + '"'
+          : getEmbedPreviewText(interaction.message.embed);
+      }
       const displayName = getSenderDisplayName(
         interaction.reaction.sender.did,
         { currentUser, profiles },
       );
-      return `${displayName} reacted ${interaction.reaction.value} to "${interaction.message.text}"`;
+      return `${displayName} reacted ${interaction.reaction.value} to ${text}`;
     }
     case "chat.bsky.convo.defs#deletedMessageView":
       return "Deleted message";
@@ -528,7 +545,31 @@ export function getInteractionProfileDids(interaction) {
     interaction.reaction?.sender?.did,
     interaction.data?.member?.did,
     interaction.data?.addedBy?.did,
+    ...(interaction.reactions?.map((reaction) => reaction.sender?.did) ?? []),
+    ...(interaction.message?.reactions?.map(
+      (reaction) => reaction.sender?.did,
+    ) ?? []),
   ].filter(Boolean);
+}
+
+// Group reactions by value
+// Returns: [{ value, senders, count }, ...]
+export function groupReactions(reactions) {
+  const groups = new Map();
+  for (const reaction of reactions || []) {
+    const existing = groups.get(reaction.value);
+    if (existing) {
+      existing.senders.push(reaction.sender);
+      existing.count += 1;
+    } else {
+      groups.set(reaction.value, {
+        value: reaction.value,
+        senders: [reaction.sender],
+        count: 1,
+      });
+    }
+  }
+  return [...groups.values()];
 }
 
 export function getGroupConvoDetails(convo) {

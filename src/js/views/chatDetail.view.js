@@ -9,6 +9,7 @@ import {
   getDisplayName,
   getGroupConvoDetails,
   getSystemMessageDisplayText,
+  groupReactions,
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
@@ -22,6 +23,7 @@ import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
+import "/js/components/reactions-dialog.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 
@@ -45,6 +47,7 @@ class ChatDetailView extends View {
     state.$isSendingMessage = new Signal.State(false);
     state.$activeMessageId = new Signal.State(null);
     state.$paletteMessageId = new Signal.State(null);
+    state.$reactionsDialogMessageId = new Signal.State(null);
 
     function focusChatInput() {
       const chatInput = root.querySelector("chat-input");
@@ -168,7 +171,54 @@ class ChatDetailView extends View {
       state.$paletteMessageId.set(null);
     }
 
+    function getMessage(messageId) {
+      return dataLayer.derived.$convoMessages
+        .get(convoId)
+        ?.messages.find((message) => message.id === messageId);
+    }
+
+    const EMOJI_REACTION_LIMIT = 5;
+
+    function getUserDistinctReactionValues(message, currentUserDid) {
+      const values = new Set();
+      for (const reaction of message.reactions || []) {
+        if (reaction.sender.did === currentUserDid) {
+          values.add(reaction.value);
+        }
+      }
+      return values;
+    }
+
+    function hasAlreadyReacted(message, currentUserDid, emoji) {
+      return (message.reactions || []).some(
+        (reaction) =>
+          reaction.sender.did === currentUserDid && reaction.value === emoji,
+      );
+    }
+
+    function hasReachedReactionLimit(message, currentUserDid) {
+      return (
+        getUserDistinctReactionValues(message, currentUserDid).size >=
+        EMOJI_REACTION_LIMIT
+      );
+    }
+
+    function hasSelfReacted(message, currentUserDid) {
+      return getUserDistinctReactionValues(message, currentUserDid).size > 0;
+    }
+
     async function handleEmojiSelect(emoji, messageId, currentUserDid) {
+      const message = getMessage(messageId);
+      if (
+        message &&
+        !hasAlreadyReacted(message, currentUserDid, emoji) &&
+        hasReachedReactionLimit(message, currentUserDid)
+      ) {
+        showToast(`Reaction limit reached (${EMOJI_REACTION_LIMIT})`, {
+          style: "error",
+        });
+        return;
+      }
       try {
         await dataLayer.mutations.addMessageReaction(
           convoId,
@@ -179,31 +229,47 @@ class ChatDetailView extends View {
         clearMessageSelection();
       } catch (error) {
         console.error(error);
-        showToast("Failed to add reaction", { style: "error" });
+        showToast("Failed to add emoji reaction", { style: "error" });
       }
     }
 
-    async function handleReactionClick(emoji, messageId, isOwnReaction) {
+    async function handleReactionClick(
+      emoji,
+      messageId,
+      isOwnReaction,
+      currentUserDid,
+    ) {
+      if (!isOwnReaction) {
+        const message = getMessage(messageId);
+        if (message && hasReachedReactionLimit(message, currentUserDid)) {
+          showToast(`Reaction limit reached (${EMOJI_REACTION_LIMIT})`, {
+            style: "error",
+          });
+          return;
+        }
+      }
       try {
         if (isOwnReaction) {
           await dataLayer.mutations.removeMessageReaction(
             convoId,
             messageId,
             emoji,
+            currentUserDid,
           );
         } else {
           await dataLayer.mutations.addMessageReaction(
             convoId,
             messageId,
             emoji,
+            currentUserDid,
           );
         }
       } catch (error) {
         console.error(error);
         showToast(
           isOwnReaction
-            ? "Failed to remove reaction"
-            : "Failed to add reaction",
+            ? "Failed to remove emoji reaction"
+            : "Failed to add emoji reaction",
           { style: "error" },
         );
       }
@@ -351,77 +417,149 @@ class ChatDetailView extends View {
       return days;
     }
 
-    function reactionBubblesTemplate({ message, isCurrentUser }) {
+    function reactionBubblesTemplate({
+      message,
+      isCurrentUser,
+      currentUserDid,
+      isGroup,
+      convo,
+    }) {
       const reactions = message.reactions || [];
       if (reactions.length === 0) {
         return "";
       }
+      const groupedReactions = groupReactions(reactions);
+      const selfReacted = hasSelfReacted(message, currentUserDid);
+      const showTotalCount =
+        reactions.length > 1 && groupedReactions.length !== reactions.length;
 
-      const currentUser = dataLayer.derived.$currentUser.get();
-
-      // Group reactions by emoji
-      const reactionGroups = reactions.reduce((acc, reaction) => {
-        if (!acc[reaction.value]) {
-          acc[reaction.value] = {
-            emoji: reaction.value,
-            count: 0,
-            dids: [],
-          };
-        }
-        acc[reaction.value].count++;
-        acc[reaction.value].dids.push(reaction.sender.did);
-        return acc;
-      }, {});
-
-      const groupedReactions = Object.values(reactionGroups);
+      function describeReactors(senders) {
+        const names = senders
+          .map((sender) => {
+            if (sender.did === currentUserDid) return "You";
+            const profile = getMemberProfile(convo, sender.did);
+            return profile ? getDisplayName(profile) : "Someone";
+          })
+          .filter(Boolean);
+        if (names.length === 0) return "Someone";
+        if (names.length === 1) return names[0];
+        if (names.length === 2) return `${names[0]} and ${names[1]}`;
+        return `${names.length} people`;
+      }
 
       return html`
         <div
           class="message-reactions ${isCurrentUser
             ? "message-reactions-sent"
-            : "message-reactions-received"}"
+            : "message-reactions-received"} ${selfReacted
+            ? "message-reactions-own"
+            : ""}"
+          data-testid="message-reactions"
+          data-teststate=${selfReacted ? "own" : "other"}
+          @click=${(e) => {
+            if (!isGroup) return;
+            e.stopPropagation();
+            state.$reactionsDialogMessageId.set(message.id);
+          }}
+          aria-label=${isGroup ? "Tap to view reactions" : ""}
         >
           ${groupedReactions.map((group) => {
-            const isOwnReaction = group.dids.includes(currentUser?.did);
+            const isOwnReaction = group.senders.some(
+              (sender) => sender.did === currentUserDid,
+            );
+            const bubbleClass = `reaction-bubble ${isOwnReaction ? "reaction-bubble-own" : ""}`;
+            const bubbleContent = html`
+              <span class="reaction-emoji">${group.value}</span>
+            `;
+            if (isGroup) {
+              return html`
+                <span
+                  class=${bubbleClass}
+                  data-testid="reaction-bubble"
+                  data-teststate=${isOwnReaction ? "own" : "other"}
+                >
+                  ${bubbleContent}
+                </span>
+              `;
+            }
             return html`
               <button
-                class="reaction-bubble ${isOwnReaction
-                  ? "reaction-bubble-own"
-                  : ""}"
-                @click=${() =>
-                  handleReactionClick(group.emoji, message.id, isOwnReaction)}
+                class=${bubbleClass}
+                data-testid="reaction-bubble"
+                data-teststate=${isOwnReaction ? "own" : "other"}
+                aria-label=${`${describeReactors(group.senders)} reacted ${group.value}`}
+                @click=${(e) => {
+                  e.stopPropagation();
+                  handleReactionClick(
+                    group.value,
+                    message.id,
+                    isOwnReaction,
+                    currentUserDid,
+                  );
+                }}
               >
-                <span class="reaction-emoji">${group.emoji}</span>
-                ${group.count > 1
-                  ? html`<span class="reaction-count">${group.count}</span>`
-                  : ""}
+                ${bubbleContent}
               </button>
             `;
           })}
+          ${showTotalCount
+            ? html`<span class="reaction-count">${reactions.length}</span>`
+            : ""}
         </div>
       `;
     }
 
     function reactionPaletteTemplate({ message, currentUserDid }) {
-      const emojis = ["👍", "😂", "❤️", "👀", "😢"];
-
+      const emojis = ["❤️", "👍", "😆", "👀", "😢"];
+      const limitReached = hasReachedReactionLimit(message, currentUserDid);
       return html`
-        <div class="reaction-palette" @click=${(e) => e.stopPropagation()}>
-          ${emojis.map(
-            (emoji) => html`
+        <div
+          class="reaction-palette"
+          data-testid="reaction-palette"
+          @click=${(e) => e.stopPropagation()}
+        >
+          ${emojis.map((emoji) => {
+            const isActive = hasAlreadyReacted(message, currentUserDid, emoji);
+            const isDisabled = limitReached && !isActive;
+            return html`
               <button
-                class="reaction-palette-button"
+                class="reaction-palette-button ${isActive
+                  ? "reaction-palette-button-active"
+                  : ""}"
+                data-testid="reaction-palette-button"
+                data-teststate=${isActive
+                  ? "active"
+                  : isDisabled
+                    ? "disabled"
+                    : "default"}
+                ?disabled=${isDisabled}
+                aria-pressed=${isActive ? "true" : "false"}
+                aria-label=${isActive
+                  ? `Remove ${emoji} reaction`
+                  : `React with ${emoji}`}
                 @click=${(e) => {
                   e.stopPropagation();
-                  handleEmojiSelect(emoji, message.id, currentUserDid);
+                  if (isActive) {
+                    handleReactionClick(
+                      emoji,
+                      message.id,
+                      true,
+                      currentUserDid,
+                    );
+                    clearMessageSelection();
+                  } else {
+                    handleEmojiSelect(emoji, message.id, currentUserDid);
+                  }
                 }}
               >
                 <span class="reaction-palette-button-inner">${emoji}</span>
               </button>
-            `,
-          )}
+            `;
+          })}
           <button
             class="reaction-palette-button reaction-palette-button-more"
+            data-testid="reaction-palette-more"
+            aria-label="Open emoji picker"
             @click=${(e) => {
               const dialog = e.currentTarget.nextElementSibling;
               if (dialog.isOpen) {
@@ -450,6 +588,9 @@ class ChatDetailView extends View {
       author,
       isActive,
       isPaletteOpen,
+      isGroup,
+      canReactNow,
+      convo,
     }) {
       return html`
         <div
@@ -470,44 +611,48 @@ class ChatDetailView extends View {
               : !isCurrentUser && !showAvatar
                 ? html`<div class="message-avatar-spacer"></div>`
                 : ""}
-            ${message.text
-              ? html`<div class="message-bubble">
-                  <div class="message-text">
-                    ${richTextTemplate({
-                      text: message.text,
-                      facets: message.facets,
-                      truncateUrls: true,
+            <div class="message-content">
+              ${message.text
+                ? html`<div class="message-bubble">
+                    <div class="message-text">
+                      ${richTextTemplate({
+                        text: message.text,
+                        facets: message.facets,
+                        truncateUrls: true,
+                      })}
+                    </div>
+                  </div>`
+                : null}
+              ${message.embed
+                ? html`<div class="message-embed">
+                    ${postEmbedTemplate({
+                      embed: message.embed,
+                      isAuthenticated: true,
                     })}
-                  </div>
-                </div>`
-              : null}
-            ${reactionBubblesTemplate({ message, isCurrentUser })}
-            <button
-              class="message-emoji-trigger"
-              aria-label="React to message"
-              data-testid="message-emoji-trigger"
-              @click=${(e) => {
-                e.stopPropagation();
-                handleEmojiTriggerClick(message.id);
-              }}
-            >
-              ${emojiIconTemplate()}
-            </button>
+                  </div>`
+                : null}
+              ${reactionBubblesTemplate({
+                message,
+                isCurrentUser,
+                currentUserDid,
+                isGroup,
+                convo,
+              })}
+            </div>
+            ${canReactNow
+              ? html`<button
+                  class="message-emoji-trigger"
+                  aria-label="React to message"
+                  data-testid="message-emoji-trigger"
+                  @click=${(e) => {
+                    e.stopPropagation();
+                    handleEmojiTriggerClick(message.id);
+                  }}
+                >
+                  ${emojiIconTemplate()}
+                </button>`
+              : ""}
           </div>
-          ${message.embed
-            ? html`<div
-                class="message ${isCurrentUser
-                  ? "message-sent"
-                  : "message-received"}"
-              >
-                <div class="message-embed">
-                  ${postEmbedTemplate({
-                    embed: message.embed,
-                    isAuthenticated: true,
-                  })}
-                </div>
-              </div>`
-            : ""}
           ${isPaletteOpen
             ? reactionPaletteTemplate({ message, currentUserDid })
             : ""}
@@ -536,7 +681,13 @@ class ChatDetailView extends View {
       `;
     }
 
-    function messageGroupTemplate({ group, convo, isGroup, currentUserDid }) {
+    function messageGroupTemplate({
+      group,
+      convo,
+      isGroup,
+      currentUserDid,
+      canReactNow,
+    }) {
       const author = group.isCurrentUser
         ? null
         : getMemberProfile(convo, group.senderDid);
@@ -563,6 +714,9 @@ class ChatDetailView extends View {
               author,
               isActive: state.$activeMessageId.get() === message.id,
               isPaletteOpen: state.$paletteMessageId.get() === message.id,
+              isGroup,
+              canReactNow,
+              convo,
             }),
           )}
           <div
@@ -591,6 +745,7 @@ class ChatDetailView extends View {
       convo,
       isGroup,
       hasMore,
+      canReactNow,
     }) {
       if (!messages || messages.length === 0) {
         return html`<div class="chat-detail-empty">
@@ -649,6 +804,7 @@ class ChatDetailView extends View {
                         convo,
                         isGroup,
                         currentUserDid,
+                        canReactNow,
                       }),
                 )}
               </div>`;
@@ -703,7 +859,9 @@ class ChatDetailView extends View {
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = state.$isSendingMessage.get();
       const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
+      const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
       const convoPermalink = getPermalinkForConvo(convoId);
+      const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
 
       const otherMember = state.$otherMember.get();
       const title = groupDetails
@@ -776,6 +934,7 @@ class ChatDetailView extends View {
                       convo,
                       isGroup: !!groupDetails,
                       hasMore,
+                      canReactNow,
                     });
                   } else {
                     return html`<div
@@ -804,6 +963,31 @@ class ChatDetailView extends View {
                       ></chat-input>`}
                 </div>
               </main>
+              ${reactionsDialogMessageId
+                ? html`<reactions-dialog
+                    .messageId=${reactionsDialogMessageId}
+                    .convoId=${convoId}
+                    .currentUserDid=${currentUser?.did}
+                    .dataLayer=${dataLayer}
+                    @close=${() => state.$reactionsDialogMessageId.set(null)}
+                    @remove-reaction=${async (e) => {
+                      const { emoji } = e.detail;
+                      try {
+                        await dataLayer.mutations.removeMessageReaction(
+                          convoId,
+                          reactionsDialogMessageId,
+                          emoji,
+                          currentUser?.did,
+                        );
+                      } catch (error) {
+                        console.error(error);
+                        showToast("Failed to remove emoji reaction", {
+                          style: "error",
+                        });
+                      }
+                    }}
+                  ></reactions-dialog>`
+                : ""}
             `,
           })}
         </div>`,

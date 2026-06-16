@@ -32,6 +32,7 @@ import {
   getGroupConvoDetails,
   getGroupConvoOwner,
   getSystemMessageDisplayText,
+  groupReactions,
   isGroupConvo,
 } from "/js/dataHelpers.js";
 
@@ -1568,6 +1569,51 @@ t.describe("getConvoPreviewText", (it) => {
     );
   });
 
+  it("should fall back to a generic label for embed-only messages", () => {
+    const embedMessage = {
+      ...messageView({ text: "", senderDid: alice.did }),
+      embed: { $type: "app.bsky.embed.images#view" },
+    };
+    assertEquals(
+      getConvoPreviewText(embedMessage, {
+        currentUser,
+        convo: directConvo,
+        profiles: directConvo.members,
+      }),
+      "(contains embedded content)",
+    );
+    assertEquals(
+      getConvoPreviewText(
+        { ...embedMessage, sender: { did: currentUser.did } },
+        { currentUser, convo: directConvo, profiles: directConvo.members },
+      ),
+      "You: (contains embedded content)",
+    );
+    assertEquals(
+      getConvoPreviewText(embedMessage, {
+        currentUser,
+        convo: groupConvo,
+        profiles: groupConvo.members,
+      }),
+      "Alice: (contains embedded content)",
+    );
+  });
+
+  it("should label quoted-post embeds distinctly", () => {
+    const recordEmbedMessage = {
+      ...messageView({ text: "", senderDid: alice.did }),
+      embed: { $type: "app.bsky.embed.record#view" },
+    };
+    assertEquals(
+      getConvoPreviewText(recordEmbedMessage, {
+        currentUser,
+        convo: directConvo,
+        profiles: directConvo.members,
+      }),
+      "(quoted post)",
+    );
+  });
+
   it("should describe reactions", () => {
     const reaction = {
       $type: "chat.bsky.convo.defs#messageAndReactionView",
@@ -1678,6 +1724,46 @@ t.describe("getInteractionProfileDids", (it) => {
       }),
       [],
     );
+  });
+});
+
+t.describe("groupReactions", (it) => {
+  const reaction = (value, did) => ({
+    value,
+    sender: { did },
+    createdAt: "2026-01-01T00:00:00Z",
+  });
+
+  it("groups by emoji value, preserving first-seen order", () => {
+    const groups = groupReactions([
+      reaction("❤️", "did:plc:a"),
+      reaction("👍", "did:plc:b"),
+      reaction("❤️", "did:plc:b"),
+    ]);
+    assertEquals(groups.length, 2);
+    assertEquals(groups[0].value, "❤️");
+    assertEquals(groups[0].count, 2);
+    assertEquals(groups[0].senders.length, 2);
+    assertEquals(groups[0].senders[0].did, "did:plc:a");
+    assertEquals(groups[0].senders[1].did, "did:plc:b");
+    assertEquals(groups[1].value, "👍");
+    assertEquals(groups[1].count, 1);
+  });
+
+  it("returns an empty array for empty or missing input", () => {
+    assertEquals(groupReactions([]).length, 0);
+    assertEquals(groupReactions(null).length, 0);
+    assertEquals(groupReactions(undefined).length, 0);
+  });
+
+  it("keeps each sender entry even when the same user reacts twice with one emoji", () => {
+    const groups = groupReactions([
+      reaction("❤️", "did:plc:a"),
+      reaction("❤️", "did:plc:a"),
+    ]);
+    assertEquals(groups.length, 1);
+    assertEquals(groups[0].count, 2);
+    assertEquals(groups[0].senders.length, 2);
   });
 });
 
