@@ -306,8 +306,7 @@ class ChatDetailView extends View {
       if (
         event.target.closest(".message") ||
         event.target.closest(".reaction-palette") ||
-        event.target.closest(".message-emoji-trigger") ||
-        event.target.closest("emoji-picker-dialog")
+        event.target.closest(".message-emoji-trigger")
       ) {
         return;
       }

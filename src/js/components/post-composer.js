@@ -14,6 +14,7 @@ import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirm } from "/js/modals.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
+import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import {
   validateVideoFile,
@@ -26,6 +27,7 @@ import { quotedPostTemplate } from "/js/templates/postEmbed.template.js";
 import { createEmbedFromPost } from "/js/dataHelpers.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
+import "/js/components/emoji-picker-dialog.js";
 
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
 const QUOTE_POST_PATHNAME_PATTERN =
@@ -355,6 +357,22 @@ class PostComposer extends Component {
                   >
                     ${imageIconTemplate()}
                   </button>
+                  <div class="post-composer-emoji-wrapper">
+                    <button
+                      type="button"
+                      class="post-composer-emoji-button"
+                      aria-label="Open emoji picker"
+                      @click=${(e) => this.handleEmojiButtonClick(e)}
+                    >
+                      ${emojiIconTemplate()}
+                    </button>
+                    <emoji-picker-dialog
+                      @select=${(e) => {
+                        this.handleEmojiSelect(e.detail.emoji);
+                        e.currentTarget.close();
+                      }}
+                    ></emoji-picker-dialog>
+                  </div>
                 </div>
                 <div
                   class=${classnames("word-count", {
@@ -376,6 +394,41 @@ class PostComposer extends Component {
       `,
       this,
     );
+  }
+
+  handleEmojiButtonClick(event) {
+    const dialog = this.querySelector("emoji-picker-dialog");
+    if (!dialog) return;
+    if (dialog.isOpen) {
+      dialog.close();
+      return;
+    }
+    const selection = window.getSelection();
+    const richTextInput = this.querySelector("rich-text-input");
+    const editable = richTextInput?.querySelector(".rich-text-input");
+    if (
+      editable &&
+      selection?.rangeCount &&
+      editable.contains(selection.getRangeAt(0).commonAncestorContainer)
+    ) {
+      this._savedEmojiRange = selection.getRangeAt(0).cloneRange();
+    } else {
+      this._savedEmojiRange = null;
+    }
+    dialog.open(event.currentTarget);
+  }
+
+  handleEmojiSelect(emoji) {
+    const richTextInput = this.querySelector("rich-text-input");
+    if (!richTextInput) return;
+    richTextInput.focus();
+    if (this._savedEmojiRange) {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(this._savedEmojiRange);
+    }
+    document.execCommand("insertText", false, emoji);
+    this._savedEmojiRange = null;
   }
 
   handleExternalLinkEmbedPreviewClose() {

@@ -4385,10 +4385,28 @@ chat-input {
   flex: 0 0 auto;
 }
 
-emoji-picker-dialog emoji-picker {
+emoji-picker-dialog emoji-picker,
+.emoji-picker-dialog-host emoji-picker {
   --num-columns: 6;
   --category-emoji-size: 1.125rem;
   --input-font-size: 16px;
+}
+
+.emoji-picker-dialog-host {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  width: fit-content;
+  height: fit-content;
+  overflow: visible;
+}
+
+.emoji-picker-dialog-host::backdrop {
+  background: transparent;
 }
 
 .chat-icon.filled circle {
@@ -5424,7 +5442,6 @@ emoji-picker-dialog emoji-picker {
 .post-composer-bottom-bar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .post-composer-quoted-post-container {
@@ -5507,6 +5524,41 @@ emoji-picker-dialog emoji-picker {
   width: 24px;
   height: 24px;
   color: var(--highlight-color);
+}
+
+.post-composer-emoji-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 799px) {
+  .post-composer-emoji-wrapper {
+    display: none;
+  }
+}
+
+.post-composer-emoji-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--icon-button-border-radius);
+  color: var(--highlight-color);
+  transition: background-color 0.2s;
+}
+
+@media (min-width: 800px) {
+  .post-composer-emoji-button:hover {
+    background-color: var(--background-color-secondary);
+  }
+}
+
+.post-composer-emoji-button .emoji-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .word-count {
