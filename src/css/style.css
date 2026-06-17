@@ -4224,7 +4224,7 @@ chat-input {
 }
 
 .bottom-sheet.reactions-dialog {
-  height: 25em;
+  height: 28em;
 }
 
 @media (min-width: 800px) {
