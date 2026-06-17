@@ -420,6 +420,10 @@ class PostComposer extends Component {
   async handleMediaSelect(e) {
     const files = Array.from(e.target.files);
     e.target.value = "";
+    await this.addMediaFiles(files);
+  }
+
+  async addMediaFiles(files) {
     if (files.length === 0) return;
 
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
@@ -675,7 +679,13 @@ class PostComposer extends Component {
     this.render();
   }
 
-  handlePaste() {
+  handlePaste(e) {
+    const pastedFiles = Array.from(e.clipboardData?.files ?? []);
+    if (pastedFiles.length > 0) {
+      e.preventDefault();
+      this.addMediaFiles(pastedFiles);
+      return;
+    }
     // Unlike external links, add quote posts immediately if a link is pasted
     // Wait a tick so handleInput runs first
     requestAnimationFrame(() => {

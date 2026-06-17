@@ -504,4 +504,123 @@ t.describe("PostComposer - initial text/cursor", (it) => {
   });
 });
 
+function makeImageFile(name = "pasted.png") {
+  return { name, type: "image/png" };
+}
+
+function makeVideoFile(name = "clip.mp4") {
+  return { name, type: "video/mp4" };
+}
+
+function stubReadFileAsDataUrl(element) {
+  element.readFileAsDataUrl = (file) =>
+    Promise.resolve(`data:${file.type};base64,stub-${file.name}`);
+}
+
+function makePasteEvent(files) {
+  let prevented = false;
+  return {
+    clipboardData: { files, items: [] },
+    preventDefault: () => {
+      prevented = true;
+    },
+    get defaultPrevented() {
+      return prevented;
+    },
+  };
+}
+
+t.describe("PostComposer - paste media", (it) => {
+  it("adds pasted image files to selected images", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    const event = makePasteEvent([makeImageFile()]);
+    element.handlePaste(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(element._selectedImages.length, 1);
+    assert(element._selectedImages[0].dataUrl.startsWith("data:image/png"));
+    assert(event.defaultPrevented);
+  });
+
+  it("adds multiple pasted images up to the 4-image cap", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    element._selectedImages = [
+      { file: {}, dataUrl: "data:..." },
+      { file: {}, dataUrl: "data:..." },
+      { file: {}, dataUrl: "data:..." },
+    ];
+    const event = makePasteEvent([
+      makeImageFile("a.png"),
+      makeImageFile("b.png"),
+      makeImageFile("c.png"),
+    ]);
+    element.handlePaste(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(element._selectedImages.length, 4);
+  });
+
+  it("does not add pasted images when a video is already selected", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    element._selectedVideo = { file: {}, status: "done" };
+    const event = makePasteEvent([makeImageFile()]);
+    element.handlePaste(event);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    assertEquals(element._selectedImages.length, 0);
+    assert(event.defaultPrevented);
+  });
+
+  it("ignores pastes with no files (and does not preventDefault)", () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._unresolvedFacets = [];
+    const event = makePasteEvent([]);
+    element.handlePaste(event);
+    assert(!event.defaultPrevented);
+    assertEquals(element._selectedImages.length, 0);
+  });
+});
+
+t.describe("PostComposer - addMediaFiles", (it) => {
+  it("routes image files to addImageFiles", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    await element.addMediaFiles([makeImageFile()]);
+    assertEquals(element._selectedImages.length, 1);
+  });
+
+  it("rejects mixed image and video files", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
+    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element._selectedVideo, null);
+  });
+
+  it("rejects unsupported file types without adding anything", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    stubReadFileAsDataUrl(element);
+    await element.addMediaFiles([
+      makeImageFile(),
+      { name: "note.txt", type: "text/plain" },
+    ]);
+    assertEquals(element._selectedImages.length, 0);
+  });
+
+  it("returns early on empty input", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    await element.addMediaFiles([]);
+    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element._selectedVideo, null);
+  });
+});
+
 await t.run();
