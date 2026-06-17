@@ -2278,10 +2278,64 @@ animated-button {
 }
 
 .post-video {
+  position: relative;
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--video-border-radius);
   overflow: hidden;
   transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
+}
+
+.post-video > .alt-indicator {
+  pointer-events: auto;
+  top: 8px;
+  right: 8px;
+  left: auto;
+  padding: 1px 3px;
+  color: var(--white);
+  background: var(--alt-indicator-background);
+  border: none;
+  cursor: pointer;
+}
+
+.alt-text-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--off-white);
+  max-width: min(600px, calc(100vw - 40px));
+  max-height: 80vh;
+  overflow: visible;
+  margin: auto;
+}
+
+.alt-text-dialog::backdrop {
+  background: var(--overlay-color-darkest);
+}
+
+.alt-text-dialog-text {
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.alt-text-dialog-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  color: var(--overlay-text-color);
+  font-size: 24px;
+  cursor: pointer;
+  background: var(--overlay-color);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--icon-button-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
 }
 
 .post-video streaming-video,

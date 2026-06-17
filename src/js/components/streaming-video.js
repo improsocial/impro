@@ -23,6 +23,7 @@ class StreamingVideo extends Component {
       return;
     }
     this.src = this.getAttribute("src");
+    this.alt = this.getAttribute("alt") || "";
     this.controls = this.getAttribute("controls") !== null;
     this.autoplay = this.getAttribute("autoplay") !== null;
     this.muted = this.getAttribute("muted") !== null;
@@ -37,7 +38,11 @@ class StreamingVideo extends Component {
 
   render() {
     render(
-      html`<video controls=${this.controls} muted=${this.muted}></video>`,
+      html`<video
+        controls=${this.controls}
+        muted=${this.muted}
+        aria-label=${this.alt || null}
+      ></video>`,
       this,
     );
     const video = this.querySelector("video");
