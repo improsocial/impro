@@ -873,6 +873,10 @@ header {
   min-width: 0;
 }
 
+.header .header-avatar {
+  margin-left: 8px;
+}
+
 .header .header-title {
   font-size: 18px;
   font-weight: 600;
