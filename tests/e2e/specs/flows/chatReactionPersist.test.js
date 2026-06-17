@@ -56,14 +56,14 @@ test.describe("Chat reaction persistence flow", () => {
       timeout: 5000,
     });
 
-    // Click the thumbs up emoji
+    // Click the heart emoji (first in the palette)
     await chatDetailView.locator(".reaction-palette-button").first().click();
 
     // Reaction bubble should appear
     await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(1, {
       timeout: 5000,
     });
-    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("👍");
+    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("❤️");
 
     // Navigate away to the chat list
     await page.goto("/messages");
@@ -88,6 +88,6 @@ test.describe("Chat reaction persistence flow", () => {
     await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(1, {
       timeout: 5000,
     });
-    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("👍");
+    await expect(chatDetailView.locator(".reaction-emoji")).toContainText("❤️");
   });
 });
