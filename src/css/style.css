@@ -9,6 +9,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  color: inherit;
+}
+
 html,
 body,
 #app-root {
@@ -377,7 +381,6 @@ main {
   padding: 8px 15px;
   border-radius: var(--pill-button-border-radius);
   border: none;
-  color: var(--text-color);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
@@ -555,7 +558,6 @@ form button {
   border-radius: var(--pill-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: var(--background-color);
-  color: var(--text-color);
   cursor: pointer;
 }
 
@@ -3559,7 +3561,6 @@ image-carousel {
 
 .chat-request-button.reject {
   background-color: var(--text-input-background-color);
-  color: var(--text-color);
 }
 
 @media (min-width: 800px) {
@@ -5878,7 +5879,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 
 .modal-dialog-button.cancel-button {
   background-color: light-dark(var(--lightest-gray), var(--light-gray));
-  color: var(--text-color);
 }
 
 @media (min-width: 800px) {
@@ -5994,7 +5994,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
-  color: var(--text-color);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -7278,7 +7277,6 @@ moderation-warning .toggle-content {
 .error-state button {
   border: none;
   border-radius: var(--pill-button-border-radius);
-  color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
   margin-top: 16px;
@@ -7454,7 +7452,6 @@ moderation-warning .toggle-content {
   border: none;
   border-right: var(--hair) solid var(--generic-border-color);
   background-color: var(--background-color);
-  color: var(--text-color);
   cursor: pointer;
   transition: all 0.15s;
 }

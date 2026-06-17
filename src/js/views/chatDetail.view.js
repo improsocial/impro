@@ -772,7 +772,7 @@ class ChatDetailView extends View {
               // Maintain scroll position using scrollHeight difference
               const previousScrollHeight = scrollContainer.scrollHeight;
               const previousScrollTop = scrollContainer.scrollTop;
-              await loadMessages({ renderOnLoad: false });
+              await loadMessages();
               await raf();
               await raf();
               // Restore scroll position
