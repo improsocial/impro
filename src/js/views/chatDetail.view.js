@@ -8,6 +8,7 @@ import { auth } from "/js/auth.js";
 import {
   getDisplayName,
   getGroupConvoDetails,
+  isGroupConvo,
   getSystemMessageDisplayText,
   groupReactions,
 } from "/js/dataHelpers.js";
@@ -822,29 +823,22 @@ class ChatDetailView extends View {
       </div>`;
     }
 
-    function getOtherMember(currentUser, convo) {
-      if (!currentUser || !convo) {
-        return null;
-      }
-      return convo.members.find((member) => member.did !== currentUser?.did);
-    }
-
     async function loadMessages({ reload = false } = {}) {
       await dataLayer.requests.loadConvoMessages(convoId, {
         reload,
         limit: CHAT_MESSAGES_PAGE_SIZE,
       });
-      // can be async
-      dataLayer.mutations.markConvoAsRead(convoId);
-      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
     }
 
-    // Put this in a computed to avoid an extra render when we mark a convo as read
-    state.$otherMember = new Signal.Computed(() => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const convo = dataLayer.derived.$convos.get(convoId);
-      return getOtherMember(currentUser, convo);
-    });
+    function getOtherMember(currentUser, convo) {
+      if (!currentUser || !convo) {
+        return null;
+      }
+      if (isGroupConvo(convo)) {
+        return null;
+      }
+      return convo.members.find((member) => member.did !== currentUser?.did);
+    }
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -862,20 +856,20 @@ class ChatDetailView extends View {
       const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
       const convoPermalink = getPermalinkForConvo(convoId);
       const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
-
-      const otherMember = state.$otherMember.get();
-      const title = groupDetails
-        ? groupDetails.name
-        : otherMember
-          ? getDisplayName(otherMember)
-          : "";
-      const subtitle = groupDetails
-        ? `${groupDetails.memberCount} ${
-            groupDetails.memberCount === 1 ? "member" : "members"
-          }`
-        : otherMember?.handle
-          ? `@${otherMember.handle}`
-          : "";
+      let title = "";
+      let subtitle = "";
+      if (groupDetails) {
+        title = groupDetails.name;
+        subtitle = `${groupDetails.memberCount} ${
+          groupDetails.memberCount === 1 ? "member" : "members"
+        }`;
+      } else {
+        const otherMember = getOtherMember(currentUser, convo);
+        if (otherMember) {
+          title = getDisplayName(otherMember);
+          subtitle = otherMember?.handle ? `@${otherMember.handle}` : "";
+        }
+      }
 
       render(
         html`<div id="chat-detail-view">
@@ -890,6 +884,7 @@ class ChatDetailView extends View {
                     );
                     return avatarGroupTemplate({ authors: otherMembers });
                   }
+                  const otherMember = getOtherMember(currentUser, convo);
                   return otherMember
                     ? avatarTemplate({ author: otherMember })
                     : "";
@@ -1025,6 +1020,33 @@ class ChatDetailView extends View {
             scrollToBottom();
           });
         }
+      }
+    });
+
+    // Timestamp of the latest (non-current-user) message
+    const $latestMessageTimestamp = new Signal.Computed(() => {
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
+      const messages = messagesData?.messages ?? null;
+      if (!messages || !currentUser) {
+        return null;
+      }
+      const otherMessages = messages.filter(
+        (message) => message.sender?.did !== currentUser.did,
+      );
+      if (!otherMessages.length) {
+        return null;
+      }
+      // Messages are ordered newest -> oldest
+      return otherMessages[0].sentAt;
+    });
+
+    // Mark messages as read when new messages are loaded
+    pageEffect(root, () => {
+      const latestMessageTimestamp = $latestMessageTimestamp.get();
+      if (latestMessageTimestamp) {
+        dataLayer.mutations.markConvoAsRead(convoId);
+        chatNotificationService?.markNotificationsAsReadForConvo(convoId);
       }
     });
 

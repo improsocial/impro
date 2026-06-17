@@ -25,6 +25,7 @@ let globalTick = 0;
 class State {
   __debugName = "<State>";
   __lastChangedTick = 0;
+  __version = 0;
   #value;
   #watchers = new Set();
   #dependents = new Set();
@@ -44,6 +45,7 @@ class State {
     if (this.#equals(newValue, this.#value)) return;
     this.#value = newValue;
     this.__lastChangedTick = ++globalTick;
+    this.__version++;
 
     for (const dependent of [...this.#dependents]) dependent._markDirty(this);
     for (const watcher of [...this.#watchers]) watcher._notify(this);
@@ -66,16 +68,22 @@ class State {
 class Computed {
   __debugName = "<Computed>";
   __quiet = false;
+  __version = 0;
   #cb;
   #value;
+  #hasValue = false;
+  #equals;
+
   #dirty = true;
   #deps = new Set();
+  #depVersions = null;
   #dependents = new Set();
   #watchers = new Set();
   #dirtyFrom = new Set();
 
-  constructor(cb) {
+  constructor(cb, { equals = Object.is } = {}) {
     this.#cb = cb;
+    this.#equals = equals;
   }
 
   get() {
@@ -85,11 +93,36 @@ class Computed {
   }
 
   #recompute() {
+    if (this.#hasValue && this.#depVersions) {
+      let anyChanged = false;
+      for (const dep of this.#deps) {
+        dep.get();
+        if (dep.__version !== this.#depVersions.get(dep)) {
+          anyChanged = true;
+          break;
+        }
+      }
+      if (!anyChanged) {
+        this.#dirty = false;
+        this.#dirtyFrom = new Set();
+        return;
+      }
+    }
+
     for (const dep of this.#deps) dep._removeDependent(this);
     const tracked = new Set();
-    this.#value = withTracking(tracked, () => this.#cb.call(this));
+    const newValue = withTracking(tracked, () => this.#cb.call(this));
     this.#deps = tracked;
     for (const dep of this.#deps) dep._addDependent(this);
+
+    this.#depVersions = new Map();
+    for (const dep of this.#deps) this.#depVersions.set(dep, dep.__version);
+
+    if (!this.#hasValue || !this.#equals(newValue, this.#value)) {
+      this.#value = newValue;
+      this.__version++;
+    }
+    this.#hasValue = true;
     this.#dirty = false;
     this.#dirtyFrom = new Set();
   }
@@ -169,7 +202,13 @@ class Watcher {
 
 export const Signal = { State, Computed, subtle: { Watcher } };
 
-function logEffectTrigger(effectComputed, debugName, debugDepth, lastRunTick) {
+function logEffectTrigger(
+  effectComputed,
+  debugName,
+  debugDepth,
+  lastRunTick,
+  dirtyFromOverride,
+) {
   const lines = [`[T${globalTick}] effect(${debugName}) firing, caused by:`];
   const seen = new Set();
   // ancestorBars: for each ancestor level, true if that level still has siblings below
@@ -201,7 +240,9 @@ function logEffectTrigger(effectComputed, debugName, debugDepth, lastRunTick) {
       });
     }
   };
-  const rootMarkers = [...effectComputed._getDirtyFrom()];
+  const rootMarkers = [
+    ...(dirtyFromOverride ?? effectComputed._getDirtyFrom()),
+  ];
   rootMarkers.forEach((marker, i) => {
     walk(marker, [], i === rootMarkers.length - 1);
   });
@@ -212,7 +253,9 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
   let cleanup;
   let lastRunTick = 0;
   let hasRun = false;
+  let ranThisFlush = false;
   const computed = new Computed(() => {
+    ranThisFlush = true;
     if (typeof cleanup === "function") cleanup();
     cleanup = cb();
   });
@@ -220,12 +263,24 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
 
   let pendingFlush = false;
   const run = () => {
-    if (hasRun && debugName) {
-      logEffectTrigger(computed, debugName, debugDepth, lastRunTick);
-    }
-    lastRunTick = globalTick;
-    hasRun = true;
+    const dirtyFromSnapshot =
+      hasRun && debugName ? new Set(computed._getDirtyFrom()) : null;
+    const prevRunTick = lastRunTick;
+    ranThisFlush = false;
     computed.get();
+    if (ranThisFlush) {
+      if (hasRun && debugName) {
+        logEffectTrigger(
+          computed,
+          debugName,
+          debugDepth,
+          prevRunTick,
+          dirtyFromSnapshot,
+        );
+      }
+      lastRunTick = globalTick;
+      hasRun = true;
+    }
     watcher.watch(); // re-arm
   };
 

@@ -1,5 +1,5 @@
 import { wait } from "/js/utils.js";
-import { Signal } from "/js/signals.js";
+import { Signal, untrack } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
 
@@ -32,10 +32,12 @@ export class ChatNotificationService {
   }
   async markNotificationsAsReadForConvo(convoId) {
     this._locallyReadConvoIds.add(convoId);
-    const unreadConvos = this.$unreadConvoIds.get();
-    this.$unreadConvoIds.set(
-      unreadConvos.difference(this._locallyReadConvoIds),
-    );
+    untrack(() => {
+      const unreadConvos = this.$unreadConvoIds.get();
+      this.$unreadConvoIds.set(
+        unreadConvos.difference(this._locallyReadConvoIds),
+      );
+    });
     this.fetchNumNotifications();
   }
 }
