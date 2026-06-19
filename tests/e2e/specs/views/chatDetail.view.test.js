@@ -434,13 +434,13 @@ test.describe("Chat detail view", () => {
     });
 
     // No picker mounted before the more button is clicked
-    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(0);
+    await expect(page.locator("emoji-picker")).toHaveCount(0);
 
     await chatDetailView.locator(".reaction-palette-button-more").click();
 
-    // Picker appears inside the dialog
+    // Picker is mounted as a top-layer dialog appended to document.body
     await expect(
-      chatDetailView.locator("emoji-picker-dialog emoji-picker"),
+      page.locator("dialog.emoji-picker-dialog-host emoji-picker"),
     ).toHaveCount(1, { timeout: 5000 });
   });
 
@@ -489,7 +489,7 @@ test.describe("Chat detail view", () => {
 
     await chatDetailView.locator(".reaction-palette-button-more").click();
 
-    const picker = chatDetailView.locator("emoji-picker-dialog emoji-picker");
+    const picker = page.locator("dialog.emoji-picker-dialog-host emoji-picker");
     await expect(picker).toHaveCount(1, { timeout: 5000 });
 
     // Click the emoji from the picker's grid. The data fixture lives in
@@ -502,7 +502,7 @@ test.describe("Chat detail view", () => {
     await expect(chatDetailView.locator(".reaction-emoji")).toContainText("🎉");
   });
 
-  test("should toggle the emoji picker closed when the more button is clicked twice", async ({
+  test("should close the emoji picker when the backdrop is clicked", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -547,12 +547,15 @@ test.describe("Chat detail view", () => {
 
     const moreButton = chatDetailView.locator(".reaction-palette-button-more");
     await moreButton.click();
-    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(1, {
+    await expect(page.locator("emoji-picker")).toHaveCount(1, {
       timeout: 5000,
     });
 
-    await moreButton.click();
-    await expect(chatDetailView.locator("emoji-picker")).toHaveCount(0);
+    // Click outside the picker to close it via the dialog backdrop
+    await chatDetailView
+      .locator('[data-testid="header-title"]')
+      .click({ force: true });
+    await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
   test("should insert an emoji into the message input from the emoji button", async ({
@@ -580,17 +583,13 @@ test.describe("Chat detail view", () => {
 
     await chatDetailView.locator(".message-input-emoji-button").click();
 
-    const picker = chatDetailView.locator(
-      "chat-input emoji-picker-dialog emoji-picker",
-    );
+    const picker = page.locator("dialog.emoji-picker-dialog-host emoji-picker");
     await expect(picker).toHaveCount(1, { timeout: 5000 });
 
     await picker.locator('button.emoji[aria-label*="party popper"]').click();
 
     await expect(textarea).toHaveValue("hello 🎉");
-    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
-      0,
-    );
+    await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
   test("should close the chat-input emoji picker when clicking outside", async ({
@@ -619,50 +618,14 @@ test.describe("Chat detail view", () => {
 
     await chatDetailView.locator(".message-input-emoji-button").click();
     await expect(
-      chatDetailView.locator("chat-input emoji-picker-dialog emoji-picker"),
+      page.locator("dialog.emoji-picker-dialog-host emoji-picker"),
     ).toHaveCount(1, { timeout: 5000 });
 
     await chatDetailView
       .locator('[data-testid="header-title"]')
       .click({ force: true });
 
-    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
-      0,
-    );
-  });
-
-  test("should toggle the chat-input emoji picker closed when the button is clicked twice", async ({
-    page,
-  }) => {
-    const mockServer = new MockServer();
-    const alice = createProfile({
-      did: "did:plc:alice1",
-      handle: "alice.bsky.social",
-      displayName: "Alice",
-    });
-    const convo = createConvo({
-      id: "convo-1",
-      otherMember: alice,
-    });
-    mockServer.addConvos([convo]);
-    await mockServer.setup(page);
-
-    await login(page);
-    await page.goto("/messages/convo-1");
-
-    const chatDetailView = page.locator("#chat-detail-view");
-    const emojiButton = chatDetailView.locator(".message-input-emoji-button");
-    await expect(emojiButton).toBeVisible({ timeout: 10000 });
-
-    await emojiButton.click();
-    await expect(
-      chatDetailView.locator("chat-input emoji-picker-dialog emoji-picker"),
-    ).toHaveCount(1, { timeout: 5000 });
-
-    await emojiButton.click();
-    await expect(chatDetailView.locator("chat-input emoji-picker")).toHaveCount(
-      0,
-    );
+    await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
   test("should hide the chat-input emoji button on mobile viewports", async ({
