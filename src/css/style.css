@@ -755,6 +755,8 @@ input[type="color"]::-moz-color-swatch {
   align-items: center;
   gap: 3em;
   height: 28px;
+  padding-top: 8px;
+  margin-bottom: 8px;
 }
 
 .skeleton-action {
