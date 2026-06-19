@@ -194,21 +194,138 @@ test.describe("Post embeds view — gallery carousel", () => {
 });
 
 test.describe("Post embeds view — video", () => {
-  test("renders a video embed with a streaming-video player", async ({
-    page,
-  }) => {
-    const post = buildPost({
+  function buildVideoPost({ alt } = {}) {
+    return buildPost({
       embed: {
         $type: "app.bsky.embed.video#view",
         playlist: "",
         aspectRatio: { width: 16, height: 9 },
+        ...(alt !== undefined ? { alt } : {}),
       },
     });
-    await setupSinglePostThread(page, post);
+  }
+
+  test("renders a video embed with a streaming-video player", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildVideoPost());
 
     const view = page.locator("#post-detail-view");
     await expect(view.locator(".post-video")).toBeVisible({ timeout: 10000 });
     await expect(view.locator("streaming-video")).toHaveCount(1);
+  });
+
+  test("does not render ALT badge when video has no alt text", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildVideoPost());
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator(".post-video")).toBeVisible({ timeout: 10000 });
+    await expect(view.locator('[data-testid="video-alt-badge"]')).toHaveCount(
+      0,
+    );
+  });
+
+  test("clicking the ALT badge opens a dialog with the alt text", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(
+      page,
+      buildVideoPost({ alt: "A dog playing fetch" }),
+    );
+
+    const view = page.locator("#post-detail-view");
+    const badge = view.locator('[data-testid="video-alt-badge"]');
+    await expect(badge).toBeVisible({ timeout: 10000 });
+
+    await badge.click();
+
+    const dialog = page.locator('[data-testid="alt-text-dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("A dog playing fetch");
+  });
+
+  test("Escape closes the alt-text dialog and removes it from the DOM", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(
+      page,
+      buildVideoPost({ alt: "Sunset over the bay" }),
+    );
+
+    const view = page.locator("#post-detail-view");
+    await view.locator('[data-testid="video-alt-badge"]').click();
+
+    const dialog = page.locator('[data-testid="alt-text-dialog"]');
+    await expect(dialog).toBeVisible();
+
+    await page.keyboard.press("Escape");
+
+    await expect(dialog).toHaveCount(0);
+  });
+
+  test("close button closes the alt-text dialog and removes it from the DOM", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildVideoPost({ alt: "Some alt text" }));
+
+    const view = page.locator("#post-detail-view");
+    await view.locator('[data-testid="video-alt-badge"]').click();
+
+    const dialog = page.locator('[data-testid="alt-text-dialog"]');
+    await expect(dialog).toBeVisible();
+
+    await dialog.locator('[data-testid="alt-text-dialog-close"]').click();
+
+    await expect(dialog).toHaveCount(0);
+  });
+});
+
+test.describe("Post embeds view — gif", () => {
+  function buildGifPost({ description = "" } = {}) {
+    return buildPost({
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri: "https://media.tenor.com/AAAACabcdef/funny.gif",
+          title: "Funny GIF",
+          description,
+          thumb: "",
+        },
+      },
+    });
+  }
+
+  test("does not render ALT badge when gif has no description", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildGifPost());
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator("gif-player")).toHaveCount(1, { timeout: 10000 });
+    await expect(view.locator('[data-testid="video-alt-badge"]')).toHaveCount(
+      0,
+    );
+  });
+
+  test("clicking the ALT badge on a gif opens a dialog with the alt text", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(
+      page,
+      buildGifPost({ description: "A cat falling off a couch" }),
+    );
+
+    const view = page.locator("#post-detail-view");
+    const badge = view.locator('[data-testid="video-alt-badge"]');
+    await expect(badge).toBeVisible({ timeout: 10000 });
+
+    await badge.click();
+
+    const dialog = page.locator('[data-testid="alt-text-dialog"]');
+    await expect(dialog).toBeVisible();
+    await expect(dialog).toContainText("A cat falling off a couch");
   });
 });
 

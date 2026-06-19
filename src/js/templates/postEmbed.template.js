@@ -1,4 +1,4 @@
-import { html } from "/js/lib/lit-html.js";
+import { html, render } from "/js/lib/lit-html.js";
 import {
   getRKey,
   doHideAuthorOnUnauthenticated,
@@ -294,13 +294,68 @@ function videoTemplate({ video }) {
       e.preventDefault();
     }}
   >
-    <streaming-video src="${video.playlist}" controls muted></streaming-video>
+    <streaming-video
+      src="${video.playlist}"
+      alt="${video.alt ?? ""}"
+      controls
+      muted
+    ></streaming-video>
+    ${video.alt
+      ? html`<button
+          class="alt-indicator"
+          data-testid="video-alt-badge"
+          @click=${(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            openAltTextDialog(video.alt);
+          }}
+        >
+          ALT
+        </button>`
+      : ""}
   </div>`;
+}
+
+function openAltTextDialog(altText) {
+  const dialog = document.createElement("dialog");
+  dialog.className = "alt-text-dialog";
+  dialog.dataset.testid = "alt-text-dialog";
+  dialog.addEventListener("close", () => dialog.remove());
+  dialog.addEventListener("click", (e) => {
+    if (e.target === dialog) dialog.close();
+  });
+  render(
+    html`<button
+        class="alt-text-dialog-close"
+        data-testid="alt-text-dialog-close"
+        @click=${() => dialog.close()}
+        aria-label="Close"
+      >
+        ×
+      </button>
+      <p class="alt-text-dialog-text">${altText}</p>`,
+    dialog,
+  );
+  document.body.appendChild(dialog);
+  dialog.showModal();
 }
 
 function gifPlayerTemplate({ uri, alt }) {
   return html` <div class="post-video">
     <gif-player src="${uri}" alt="${alt}"></gif-player>
+    ${alt
+      ? html`<button
+          class="alt-indicator"
+          data-testid="video-alt-badge"
+          @click=${(e) => {
+            e.stopPropagation();
+            e.preventDefault();
+            openAltTextDialog(alt);
+          }}
+        >
+          ALT
+        </button>`
+      : ""}
   </div>`;
 }
 

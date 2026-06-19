@@ -250,6 +250,17 @@ export class MockServer {
   }
 
   async setup(page) {
+    // Stub gif proxy fetches (gif-player loads from these CDNs).
+    await page.route(
+      /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,
+      (route) =>
+        route.fulfill({
+          status: 200,
+          contentType: "video/webm",
+          body: "",
+        }),
+    );
+
     // Stub emoji-picker-element's CDN data fetch so tests don't hit the
     // network. Returns a tiny fixture with one emoji per group the library
     // requires (its assertEmojiData rejects an empty list).

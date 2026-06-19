@@ -9,8 +9,6 @@ class EmojiPickerDialog extends Component {
     }
     this.scrollLock = new ScrollLock(this);
     this.isOpen = false;
-    this.addEventListener("emoji-click", this._handleEmojiClick);
-    this.addEventListener("click", (event) => event.stopPropagation());
     this._initialized = true;
   }
 
@@ -23,21 +21,27 @@ class EmojiPickerDialog extends Component {
       return;
     }
     this._anchor = anchor ?? this;
+    const dialog = document.createElement("dialog");
+    dialog.className = "emoji-picker-dialog-host";
     const picker = document.createElement("emoji-picker");
-    // Take the picker out of normal flow before insertion so it can't push the
-    // anchor (e.g. a flex-centered emoji button) around while we're measuring.
-    picker.style.position = "fixed";
-    picker.style.top = "0";
-    picker.style.left = "0";
     picker.style.visibility = "hidden";
-    this.appendChild(picker);
+    dialog.appendChild(picker);
+    dialog.addEventListener("emoji-click", this._handleEmojiClick);
+    dialog.addEventListener("click", (event) => {
+      // A click whose target is the dialog itself means the backdrop was clicked
+      if (event.target === dialog) {
+        this.close();
+      }
+    });
+    document.body.appendChild(dialog);
+    dialog.showModal();
     this.scrollLock.lock();
     this.isOpen = true;
+    this._dialog = dialog;
     this._picker = picker;
     this._positionPicker();
     this._reposition = () => this._positionPicker();
     window.addEventListener("resize", this._reposition);
-    this._disposers = [this._attachOutsideClickClose()];
   }
 
   close() {
@@ -45,64 +49,49 @@ class EmojiPickerDialog extends Component {
       return;
     }
     window.removeEventListener("resize", this._reposition);
-    for (const dispose of this._disposers ?? []) {
-      dispose();
-    }
-    this._disposers = null;
     this._reposition = null;
     this._picker = null;
+    if (this._dialog?.open) {
+      this._dialog.close();
+    }
+    this._dialog?.remove();
+    this._dialog = null;
     this._anchor = null;
-    this.innerHTML = "";
     this.scrollLock.unlock();
     this.isOpen = false;
-  }
-
-  // Close on any click outside the dialog. Deferred to the next tick so the
-  // click that opened the dialog doesn't immediately close it.
-  _attachOutsideClickClose() {
-    const handler = () => this.close();
-    const timer = setTimeout(() => {
-      document.addEventListener("click", handler);
-    }, 0);
-    // Dispose
-    return () => {
-      clearTimeout(timer);
-      document.removeEventListener("click", handler);
-    };
   }
 
   // Position the picker as a fixed-viewport overlay so it can't fall off
   // small screens. Prefers placing it above the dialog (the previous default)
   // and flips below when there isn't room.
   _positionPicker() {
+    const dialog = this._dialog;
     const picker = this._picker;
-    if (!picker) {
+    if (!dialog || !picker) {
       return;
     }
     const margin = 8;
     const anchor = (this._anchor ?? this).getBoundingClientRect();
-    const pickerRect = picker.getBoundingClientRect();
+    const dialogRect = dialog.getBoundingClientRect();
     const viewportWidth = window.innerWidth;
     const viewportHeight = window.innerHeight;
 
-    let top = anchor.top - pickerRect.height - margin;
+    let top = anchor.top - dialogRect.height - margin;
     if (top < margin) {
       const below = anchor.bottom + margin;
       top =
-        below + pickerRect.height <= viewportHeight - margin
+        below + dialogRect.height <= viewportHeight - margin
           ? below
-          : Math.max(margin, viewportHeight - pickerRect.height - margin);
+          : Math.max(margin, viewportHeight - dialogRect.height - margin);
     }
 
     let left = anchor.left;
-    if (left + pickerRect.width > viewportWidth - margin) {
-      left = Math.max(margin, viewportWidth - pickerRect.width - margin);
+    if (left + dialogRect.width > viewportWidth - margin) {
+      left = Math.max(margin, viewportWidth - dialogRect.width - margin);
     }
 
-    picker.style.position = "fixed";
-    picker.style.top = `${top}px`;
-    picker.style.left = `${left}px`;
-    picker.style.bottom = "auto";
+    dialog.style.top = `${top}px`;
+    dialog.style.left = `${left}px`;
     picker.style.visibility = "";
   }
 

@@ -36,7 +36,9 @@ export function headerTemplate({
           >
             ←
           </button>`}
-      ${avatarTemplate ? avatarTemplate() : ""}
+      ${avatarTemplate
+        ? html`<div class="header-avatar">${avatarTemplate()}</div>`
+        : ""}
       ${title
         ? html`<div
             class="header-title-container"

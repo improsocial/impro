@@ -12,35 +12,44 @@ function connectElement(element) {
   return container;
 }
 
+function getHostDialog() {
+  return document.body.querySelector("dialog.emoji-picker-dialog-host");
+}
+
 t.beforeEach(() => {
   document.body.innerHTML = "";
 });
 
 t.describe("EmojiPickerDialog - initial state", (it) => {
-  it("should start closed with no picker child", () => {
+  it("should start closed with no host dialog in the DOM", () => {
     const element = document.createElement("emoji-picker-dialog");
     connectElement(element);
     assertEquals(element.isOpen, false);
-    assertEquals(element.querySelector("emoji-picker"), null);
+    assertEquals(getHostDialog(), null);
   });
 });
 
 t.describe("EmojiPickerDialog - open / close", (it) => {
-  it("should append an emoji-picker child and flip isOpen on open()", () => {
+  it("should append a top-level host dialog containing an emoji-picker on open()", () => {
     const element = document.createElement("emoji-picker-dialog");
     connectElement(element);
     element.open();
     assertEquals(element.isOpen, true);
-    assert(element.querySelector("emoji-picker") !== null);
+    const host = getHostDialog();
+    assert(host !== null, "host dialog should be in the body");
+    assertEquals(host.parentElement, document.body);
+    assert(host.querySelector("emoji-picker") !== null);
+    // The picker should NOT live inside the <emoji-picker-dialog> element.
+    assertEquals(element.querySelector("emoji-picker"), null);
   });
 
-  it("should remove the picker and flip isOpen on close()", () => {
+  it("should remove the host dialog and flip isOpen on close()", () => {
     const element = document.createElement("emoji-picker-dialog");
     connectElement(element);
     element.open();
     element.close();
     assertEquals(element.isOpen, false);
-    assertEquals(element.querySelector("emoji-picker"), null);
+    assertEquals(getHostDialog(), null);
   });
 
   it("should be a no-op when open() is called twice in a row", () => {
@@ -48,7 +57,10 @@ t.describe("EmojiPickerDialog - open / close", (it) => {
     connectElement(element);
     element.open();
     element.open();
-    assertEquals(element.querySelectorAll("emoji-picker").length, 1);
+    assertEquals(
+      document.body.querySelectorAll("dialog.emoji-picker-dialog-host").length,
+      1,
+    );
   });
 });
 
@@ -63,7 +75,7 @@ t.describe("EmojiPickerDialog - emoji-click forwarding", (it) => {
       received = event.detail;
     });
 
-    const picker = element.querySelector("emoji-picker");
+    const picker = getHostDialog().querySelector("emoji-picker");
     picker.dispatchEvent(
       new CustomEvent("emoji-click", {
         detail: { unicode: "🎉" },
@@ -74,27 +86,36 @@ t.describe("EmojiPickerDialog - emoji-click forwarding", (it) => {
     assert(received !== null, "select event should fire");
     assertEquals(received.emoji, "🎉");
   });
+});
 
-  it("should stop click propagation past the dialog", () => {
+t.describe("EmojiPickerDialog - backdrop click", (it) => {
+  it("should close when the host dialog itself is clicked (backdrop)", () => {
     const element = document.createElement("emoji-picker-dialog");
-    const container = connectElement(element);
+    connectElement(element);
     element.open();
 
-    let containerClicked = false;
-    container.addEventListener("click", () => {
-      containerClicked = true;
-    });
+    const host = getHostDialog();
+    host.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
-    element
-      .querySelector("emoji-picker")
-      .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    assertEquals(element.isOpen, false);
+    assertEquals(getHostDialog(), null);
+  });
 
-    assertEquals(containerClicked, false);
+  it("should NOT close when a click originates inside the picker", () => {
+    const element = document.createElement("emoji-picker-dialog");
+    connectElement(element);
+    element.open();
+
+    const picker = getHostDialog().querySelector("emoji-picker");
+    picker.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+    assertEquals(element.isOpen, true);
+    assert(getHostDialog() !== null);
   });
 });
 
 t.describe("EmojiPickerDialog - disconnection cleanup", (it) => {
-  it("should close (remove picker, clear isOpen) when removed from the DOM", () => {
+  it("should close (remove host dialog, clear isOpen) when removed from the DOM", () => {
     const element = document.createElement("emoji-picker-dialog");
     const container = connectElement(element);
     element.open();
@@ -103,7 +124,7 @@ t.describe("EmojiPickerDialog - disconnection cleanup", (it) => {
     container.removeChild(element);
 
     assertEquals(element.isOpen, false);
-    assertEquals(element.querySelector("emoji-picker"), null);
+    assertEquals(getHostDialog(), null);
   });
 });
 

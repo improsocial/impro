@@ -9,6 +9,10 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  color: inherit;
+}
+
 html,
 body,
 #app-root {
@@ -377,7 +381,6 @@ main {
   padding: 8px 15px;
   border-radius: var(--pill-button-border-radius);
   border: none;
-  color: var(--text-color);
   cursor: pointer;
   font-size: 14px;
   transition: all 0.2s;
@@ -555,7 +558,6 @@ form button {
   border-radius: var(--pill-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: var(--background-color);
-  color: var(--text-color);
   cursor: pointer;
 }
 
@@ -869,6 +871,10 @@ header {
   margin-left: 8px;
   flex: 1;
   min-width: 0;
+}
+
+.header .header-avatar {
+  margin-left: 8px;
 }
 
 .header .header-title {
@@ -2053,8 +2059,8 @@ button.sidebar-plugin-nav-item {
   align-items: center;
   gap: 12px;
   height: 28px;
-  padding-top: 4px;
-  margin-bottom: 4px;
+  padding-top: 8px;
+  margin-bottom: 8px;
 }
 
 .large-post .post-actions {
@@ -2276,10 +2282,64 @@ animated-button {
 }
 
 .post-video {
+  position: relative;
   border: var(--hair) solid var(--post-border-color);
   border-radius: var(--video-border-radius);
   overflow: hidden;
   transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
+}
+
+.post-video > .alt-indicator {
+  pointer-events: auto;
+  top: 8px;
+  right: 8px;
+  left: auto;
+  padding: 1px 3px;
+  color: var(--white);
+  background: var(--alt-indicator-background);
+  border: none;
+  cursor: pointer;
+}
+
+.alt-text-dialog {
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--off-white);
+  max-width: min(600px, calc(100vw - 40px));
+  max-height: 80vh;
+  overflow: visible;
+  margin: auto;
+}
+
+.alt-text-dialog::backdrop {
+  background: var(--overlay-color-darkest);
+}
+
+.alt-text-dialog-text {
+  font-size: 16px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  margin: 0;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.alt-text-dialog-close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  color: var(--overlay-text-color);
+  font-size: 24px;
+  cursor: pointer;
+  background: var(--overlay-color);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--icon-button-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
 }
 
 .post-video streaming-video,
@@ -3559,7 +3619,6 @@ image-carousel {
 
 .chat-request-button.reject {
   background-color: var(--text-input-background-color);
-  color: var(--text-color);
 }
 
 @media (min-width: 800px) {
@@ -4169,7 +4228,7 @@ chat-input {
 }
 
 .bottom-sheet.reactions-dialog {
-  height: 25em;
+  height: 28em;
 }
 
 @media (min-width: 800px) {
@@ -4330,10 +4389,28 @@ chat-input {
   flex: 0 0 auto;
 }
 
-emoji-picker-dialog emoji-picker {
+emoji-picker-dialog emoji-picker,
+.emoji-picker-dialog-host emoji-picker {
   --num-columns: 6;
   --category-emoji-size: 1.125rem;
   --input-font-size: 16px;
+}
+
+.emoji-picker-dialog-host {
+  position: fixed;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  max-width: none;
+  max-height: none;
+  width: fit-content;
+  height: fit-content;
+  overflow: visible;
+}
+
+.emoji-picker-dialog-host::backdrop {
+  background: transparent;
 }
 
 .chat-icon.filled circle {
@@ -5369,7 +5446,6 @@ emoji-picker-dialog emoji-picker {
 .post-composer-bottom-bar-left {
   display: flex;
   align-items: center;
-  gap: 8px;
 }
 
 .post-composer-quoted-post-container {
@@ -5452,6 +5528,41 @@ emoji-picker-dialog emoji-picker {
   width: 24px;
   height: 24px;
   color: var(--highlight-color);
+}
+
+.post-composer-emoji-wrapper {
+  display: flex;
+  align-items: center;
+}
+
+@media (max-width: 799px) {
+  .post-composer-emoji-wrapper {
+    display: none;
+  }
+}
+
+.post-composer-emoji-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--icon-button-border-radius);
+  color: var(--highlight-color);
+  transition: background-color 0.2s;
+}
+
+@media (min-width: 800px) {
+  .post-composer-emoji-button:hover {
+    background-color: var(--background-color-secondary);
+  }
+}
+
+.post-composer-emoji-button .emoji-icon {
+  width: 24px;
+  height: 24px;
 }
 
 .word-count {
@@ -5878,7 +5989,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 
 .modal-dialog-button.cancel-button {
   background-color: light-dark(var(--lightest-gray), var(--light-gray));
-  color: var(--text-color);
 }
 
 @media (min-width: 800px) {
@@ -5994,7 +6104,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   font-size: 32px;
   line-height: 1;
   cursor: pointer;
-  color: var(--text-color);
   padding: 0;
   width: 32px;
   height: 32px;
@@ -7278,7 +7387,6 @@ moderation-warning .toggle-content {
 .error-state button {
   border: none;
   border-radius: var(--pill-button-border-radius);
-  color: var(--text-color);
   cursor: pointer;
   padding: 8px 16px;
   margin-top: 16px;
@@ -7454,7 +7562,6 @@ moderation-warning .toggle-content {
   border: none;
   border-right: var(--hair) solid var(--generic-border-color);
   background-color: var(--background-color);
-  color: var(--text-color);
   cursor: pointer;
   transition: all 0.15s;
 }
