@@ -1157,28 +1157,24 @@ export class Requests {
     await this.loadActorLists(currentUser.did, { reload });
   }
 
-  // Note: this loads ALL list memberships for the current user
-  // social-app also does this, but we could probably use constellation
-  // to do this more efficiently in the future
-  async loadCurrentUserListMemberships({ reload = false } = {}) {
-    const existing = this.dataStore.$currentUserListMemberships.get();
-    if (existing && !reload) {
+  async loadListsWithMembershipForActor(
+    actorDid,
+    { reload = false, limit = 50 } = {},
+  ) {
+    const existing = this.dataStore.$listsWithMembershipByActor.get(actorDid);
+    if (existing && !reload && !existing.cursor) {
       return;
     }
-    const items = [];
-    let cursor = "";
-    do {
-      const data = await this.api.getListItems({ cursor, limit: 100 });
-      for (const record of data.records) {
-        items.push({
-          uri: record.uri,
-          listUri: record.value.list,
-          subjectDid: record.value.subject,
-        });
-      }
-      cursor = data.cursor || "";
-    } while (cursor);
-    this.dataStore.$currentUserListMemberships.set(items);
+    const cursor = reload ? "" : existing?.cursor || "";
+    const data = await this.api.getListsWithMembership(actorDid, {
+      limit,
+      cursor,
+    });
+    const prevItems = reload || !existing ? [] : existing.items;
+    this.dataStore.$listsWithMembershipByActor.set(actorDid, {
+      items: [...prevItems, ...data.listsWithMembership],
+      cursor: data.cursor || null,
+    });
   }
 
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {

@@ -8110,10 +8110,13 @@ toggle-switch {
 }
 
 .add-to-lists-dialog-rows {
-  display: flex;
-  flex-direction: column;
   max-height: 60vh;
   overflow-y: auto;
+}
+
+.add-to-lists-dialog-rows .infinite-scroll-container {
+  display: flex;
+  flex-direction: column;
 }
 
 .add-to-lists-row .add-to-lists-toggle {
@@ -8148,6 +8151,17 @@ toggle-switch {
 .add-to-lists-dialog-loading .loading-spinner {
   height: 24px;
   width: 24px;
+}
+
+.add-to-lists-dialog-loading-more {
+  display: flex;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.add-to-lists-dialog-loading-more .loading-spinner {
+  height: 20px;
+  width: 20px;
 }
 
 tab-bar[full-width] {

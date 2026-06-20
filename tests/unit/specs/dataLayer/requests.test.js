@@ -1983,6 +1983,105 @@ t.describe("loadActorFeeds", (it) => {
   });
 });
 
+t.describe("loadListsWithMembershipForActor", (it) => {
+  const actorDid = "did:plc:target";
+  const list1 = { uri: "at://owner/app.bsky.graph.list/1", name: "L1" };
+  const list2 = { uri: "at://owner/app.bsky.graph.list/2", name: "L2" };
+
+  it("should store the first page keyed by actor", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getListsWithMembership: async () => ({
+        listsWithMembership: [
+          { list: list1, listItem: { uri: "li1", subject: actorDid } },
+          { list: list2 },
+        ],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListsWithMembershipForActor(actorDid);
+
+    const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
+    assertEquals(stored.items.length, 2);
+    assertEquals(stored.cursor, "next");
+    assertEquals(stored.items[0].listItem.uri, "li1");
+  });
+
+  it("should append the next page when called again with a cached cursor", async () => {
+    const dataStore = new DataStore();
+    dataStore.$listsWithMembershipByActor.set(actorDid, {
+      items: [{ list: list1 }],
+      cursor: "c1",
+    });
+    let capturedCursor;
+    const mockApi = {
+      getListsWithMembership: async (_actor, { cursor }) => {
+        capturedCursor = cursor;
+        return {
+          listsWithMembership: [{ list: list2 }],
+          cursor: null,
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListsWithMembershipForActor(actorDid);
+
+    assertEquals(capturedCursor, "c1");
+    const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
+    assertEquals(stored.items.length, 2);
+    assertEquals(stored.cursor, null);
+  });
+
+  it("should short-circuit when fully loaded", async () => {
+    const dataStore = new DataStore();
+    dataStore.$listsWithMembershipByActor.set(actorDid, {
+      items: [{ list: list1 }],
+      cursor: null,
+    });
+    let called = false;
+    const mockApi = {
+      getListsWithMembership: async () => {
+        called = true;
+        return { listsWithMembership: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListsWithMembershipForActor(actorDid);
+
+    assertEquals(called, false);
+  });
+
+  it("should refetch from scratch on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$listsWithMembershipByActor.set(actorDid, {
+      items: [{ list: list1 }],
+      cursor: "c1",
+    });
+    let capturedCursor;
+    const mockApi = {
+      getListsWithMembership: async (_actor, { cursor }) => {
+        capturedCursor = cursor;
+        return {
+          listsWithMembership: [{ list: list2 }],
+          cursor: "next",
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListsWithMembershipForActor(actorDid, { reload: true });
+
+    assertEquals(capturedCursor, "");
+    const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
+    assertEquals(stored.items.length, 1);
+    assertEquals(stored.items[0].list.uri, list2.uri);
+  });
+});
+
 t.describe("loadHashtagFeed", (it) => {
   it("should store hashtag feed posts on first load", async () => {
     const dataStore = new DataStore();

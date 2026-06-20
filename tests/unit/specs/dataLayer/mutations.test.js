@@ -2953,13 +2953,41 @@ t.describe("addProfileToList", (it) => {
       mockPreferencesProvider,
     );
 
+    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
+      items: [{ list: testList }],
+      cursor: null,
+    });
+
     await mutations.addProfileToList(testProfile, testList);
 
-    const memberships = dataStore.$currentUserListMemberships.get();
-    assertEquals(memberships.length, 1);
-    assertEquals(memberships[0].uri, "listitem-real-uri");
-    assertEquals(memberships[0].listUri, testList.uri);
-    assertEquals(memberships[0].subjectDid, testProfile.did);
+    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
+    assertEquals(entry.items.length, 1);
+    assertEquals(entry.items[0].listItem.uri, "listitem-real-uri");
+    assertEquals(entry.items[0].listItem.subject, testProfile.did);
+  });
+
+  it("should leave the membership map untouched when no entry is cached for the actor", async () => {
+    const mockApi = {
+      createListItemRecord: async () => ({ uri: "listitem-real-uri" }),
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.addProfileToList(testProfile, testList);
+
+    assertEquals(
+      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
+      null,
+    );
   });
 
   it("should prepend the profile to a cached list-members entry when present", async () => {
@@ -3014,8 +3042,10 @@ t.describe("addProfileToList", (it) => {
       caught = error;
     }
     assertEquals(caught.message, "nope");
-    const memberships = dataStore.$currentUserListMemberships.get() ?? null;
-    assertEquals(memberships, null);
+    assertEquals(
+      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
+      null,
+    );
   });
 });
 
@@ -3035,13 +3065,15 @@ t.describe("removeProfileFromList", (it) => {
       deleteListItemRecord: async () => {},
     };
     const dataStore = new DataStore();
-    dataStore.$currentUserListMemberships.set([
-      {
-        uri: membershipUri,
-        listUri: testList.uri,
-        subjectDid: testProfile.did,
-      },
-    ]);
+    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
+      items: [
+        {
+          list: testList,
+          listItem: { uri: membershipUri, subject: testProfile.did },
+        },
+      ],
+      cursor: null,
+    });
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3055,7 +3087,32 @@ t.describe("removeProfileFromList", (it) => {
 
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
-    assertEquals(dataStore.$currentUserListMemberships.get().length, 0);
+    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
+    assertEquals(entry.items[0].listItem ?? null, null);
+  });
+
+  it("should leave the membership map untouched when no entry is cached for the actor", async () => {
+    const mockApi = {
+      deleteListItemRecord: async () => {},
+    };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.removeProfileFromList(testProfile, testList, membershipUri);
+
+    assertEquals(
+      dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
+      null,
+    );
   });
 
   it("should remove the profile from a cached list-members entry", async () => {
@@ -3063,13 +3120,15 @@ t.describe("removeProfileFromList", (it) => {
       deleteListItemRecord: async () => {},
     };
     const dataStore = new DataStore();
-    dataStore.$currentUserListMemberships.set([
-      {
-        uri: membershipUri,
-        listUri: testList.uri,
-        subjectDid: testProfile.did,
-      },
-    ]);
+    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
+      items: [
+        {
+          list: testList,
+          listItem: { uri: membershipUri, subject: testProfile.did },
+        },
+      ],
+      cursor: null,
+    });
     dataStore.$listMembers.set(testList.uri, {
       members: [
         { did: testProfile.did, handle: testProfile.handle },
@@ -3102,12 +3161,11 @@ t.describe("removeProfileFromList", (it) => {
       },
     };
     const dataStore = new DataStore();
-    const initial = {
-      uri: membershipUri,
-      listUri: testList.uri,
-      subjectDid: testProfile.did,
-    };
-    dataStore.$currentUserListMemberships.set([initial]);
+    const initialListItem = { uri: membershipUri, subject: testProfile.did };
+    dataStore.$listsWithMembershipByActor.set(testProfile.did, {
+      items: [{ list: testList, listItem: initialListItem }],
+      cursor: null,
+    });
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
@@ -3130,9 +3188,9 @@ t.describe("removeProfileFromList", (it) => {
       caught = error;
     }
     assertEquals(caught.message, "boom");
-    const memberships = dataStore.$currentUserListMemberships.get();
-    assertEquals(memberships.length, 1);
-    assertEquals(memberships[0].uri, membershipUri);
+    const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
+    assertEquals(entry.items.length, 1);
+    assertEquals(entry.items[0].listItem.uri, membershipUri);
   });
 });
 

@@ -22,7 +22,6 @@ export class DataStore extends ReactiveStore {
     this.$convoListCursor = new Signal.State(null);
     this.$blockedProfiles = new Signal.State(null);
     this.$mutedProfiles = new Signal.State(null);
-    this.$currentUserListMemberships = new Signal.State(null);
     this.$latestProfileSearchRequestTime = new Signal.State(null);
     this.$latestPostSearchRequestTime = new Signal.State(null);
     this.$latestFeedSearchRequestTime = new Signal.State(null);
@@ -47,6 +46,7 @@ export class DataStore extends ReactiveStore {
     this.$listMembers = new SignalMap();
     this.$actorFeeds = new SignalMap();
     this.$actorLists = new SignalMap();
+    this.$listsWithMembershipByActor = new SignalMap();
     this.$hashtagFeeds = new SignalMap();
     this.$profileFollowers = new SignalMap();
     this.$profileFollows = new SignalMap();

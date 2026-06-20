@@ -373,6 +373,20 @@ export class Api {
     return res.data;
   }
 
+  async getListsWithMembership(actor, { limit = 50, cursor = "" } = {}) {
+    const query = { actor, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("app.bsky.graph.getListsWithMembership", {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getActorLists(did, { limit = 50, cursor = "" } = {}) {
     const query = { actor: did, limit };
     if (cursor) {
