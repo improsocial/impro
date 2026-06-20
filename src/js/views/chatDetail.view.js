@@ -173,7 +173,7 @@ class ChatDetailView extends View {
     }
 
     function getMessage(messageId) {
-      return dataLayer.derived.$convoMessages
+      return dataLayer.derived.$hydratedConvoMessages
         .get(convoId)
         ?.messages.find((message) => message.id === messageId);
     }
@@ -351,10 +351,13 @@ class ChatDetailView extends View {
         }
         const senderDid = message.sender.did;
         const isCurrentUser = senderDid === currentUserDid;
+        const lastMessage = currentGroup?.messages.at(-1);
         if (
           !currentGroup ||
           currentGroup.senderDid !== senderDid ||
-          differenceInMinutes(currentGroup.lastSentAt, message.sentAt) > 5
+          differenceInMinutes(currentGroup.lastSentAt, message.sentAt) > 5 ||
+          message.replyTo ||
+          lastMessage?.replyTo
         ) {
           // Start a new group
           currentGroup = {
@@ -580,6 +583,83 @@ class ChatDetailView extends View {
       `;
     }
 
+    function getReplyQuoteText(replyTo) {
+      const text = replyTo?.text;
+      if (text && text.trim()) {
+        return { text, muted: false };
+      }
+      const embedType = replyTo?.embed?.$type;
+      if (embedType === "chat.bsky.embed.record#view") {
+        return { text: "(contains embedded content)", muted: true };
+      }
+      if (embedType === "chat.bsky.embed.joinLink#view") {
+        return { text: "(chat invite link)", muted: true };
+      }
+      return { text: "No text", muted: true };
+    }
+
+    function messageReplyQuoteTemplate({
+      replyTo,
+      senderProfile,
+      isCurrentUser,
+    }) {
+      if (!replyTo) return null;
+      const { text, muted } = getReplyQuoteText(replyTo);
+      const senderName = senderProfile
+        ? getDisplayName(senderProfile)
+        : "Unknown";
+      return html`<div
+        class="message-reply-quote ${isCurrentUser
+          ? "message-reply-quote-sent"
+          : "message-reply-quote-received"}"
+        data-testid="message-reply-quote"
+      >
+        <div
+          class="message-reply-quote-sender"
+          data-testid="reply-quote-sender"
+        >
+          ${senderName}
+        </div>
+        <div
+          class="message-reply-quote-text ${muted
+            ? "message-reply-quote-text-muted"
+            : ""}"
+          data-testid="reply-quote-text"
+        >
+          ${text}
+        </div>
+      </div>`;
+    }
+
+    function messageReplyCaptionTemplate({
+      replierProfile,
+      originalSenderProfile,
+      isCurrentUserReplier,
+      isOriginalSenderCurrentUser,
+    }) {
+      const originalName = isOriginalSenderCurrentUser
+        ? isCurrentUserReplier
+          ? "yourself"
+          : "you"
+        : originalSenderProfile
+          ? getDisplayName(originalSenderProfile)
+          : "someone";
+      const captionText = isCurrentUserReplier
+        ? `You replied to ${originalName}`
+        : `${
+            replierProfile ? getDisplayName(replierProfile) : "Someone"
+          } replied to ${originalName}`;
+      return html`<div
+        class="message-reply-caption ${isCurrentUserReplier
+          ? "message-reply-caption-sent"
+          : "message-reply-caption-received"}"
+        data-testid="message-reply-caption"
+      >
+        <span class="message-reply-caption-arrow" aria-hidden="true">⤷</span>
+        <span>${captionText}</span>
+      </div>`;
+    }
+
     function messageTemplate({
       message,
       isCurrentUser,
@@ -592,6 +672,11 @@ class ChatDetailView extends View {
       canReactNow,
       convo,
     }) {
+      const replyTo = message.replyTo;
+      const replySenderProfile =
+        replyTo && replyTo.sender
+          ? getMemberProfile(convo, replyTo.sender.did)
+          : null;
       return html`
         <div
           class="message-wrapper ${isActive ? "message-wrapper-active" : ""}"
@@ -622,6 +707,13 @@ class ChatDetailView extends View {
                 : null}
               ${message.text
                 ? html`<div class="message-bubble">
+                    ${replyTo
+                      ? messageReplyQuoteTemplate({
+                          replyTo,
+                          senderProfile: replySenderProfile,
+                          isCurrentUser,
+                        })
+                      : null}
                     <div class="message-text">
                       ${richTextTemplate({
                         text: message.text,
@@ -691,13 +783,30 @@ class ChatDetailView extends View {
       const author = group.isCurrentUser
         ? null
         : getMemberProfile(convo, group.senderDid);
+      const leadingReplyTo = group.messages[0]?.replyTo ?? null;
+      const replierProfile = group.isCurrentUser
+        ? null
+        : getMemberProfile(convo, group.senderDid);
+      const originalSenderProfile =
+        leadingReplyTo && leadingReplyTo.sender
+          ? getMemberProfile(convo, leadingReplyTo.sender.did)
+          : null;
       return html`
         <div
           class="message-group ${group.isCurrentUser
             ? "message-group-sent"
             : "message-group-received"}"
         >
-          ${isGroup && !group.isCurrentUser
+          ${leadingReplyTo && (isGroup || group.isCurrentUser)
+            ? messageReplyCaptionTemplate({
+                replierProfile,
+                originalSenderProfile,
+                isCurrentUserReplier: group.isCurrentUser,
+                isOriginalSenderCurrentUser:
+                  leadingReplyTo.sender?.did === currentUserDid,
+              })
+            : ""}
+          ${isGroup && !group.isCurrentUser && !leadingReplyTo
             ? html`<div
                 class="message-author-name"
                 data-testid="message-author-name"
@@ -843,7 +952,8 @@ class ChatDetailView extends View {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
       const groupDetails = convo ? getGroupConvoDetails(convo) : null;
-      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
+      const messagesData =
+        dataLayer.derived.$hydratedConvoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
       const messagesRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
@@ -994,7 +1104,8 @@ class ChatDetailView extends View {
     let initialLoad = true;
     let newestMessageId = null;
     pageEffect(root, () => {
-      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
+      const messagesData =
+        dataLayer.derived.$hydratedConvoMessages.get(convoId);
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
       if (!messagesData || !currentUser || !convo) {
@@ -1025,7 +1136,8 @@ class ChatDetailView extends View {
     // Timestamp of the latest (non-current-user) message
     const $latestMessageTimestamp = new Signal.Computed(() => {
       const currentUser = dataLayer.derived.$currentUser.get();
-      const messagesData = dataLayer.derived.$convoMessages.get(convoId);
+      const messagesData =
+        dataLayer.derived.$hydratedConvoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
       if (!messages || !currentUser) {
         return null;

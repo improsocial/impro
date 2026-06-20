@@ -3799,6 +3799,67 @@ image-carousel {
   text-decoration: underline;
 }
 
+.message-reply-quote {
+  padding: 4px 8px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+  font-size: 13px;
+  opacity: 0.9;
+}
+
+.message-sent .message-reply-quote {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.message-received .message-reply-quote {
+  background-color: light-dark(rgba(0, 0, 0, 0.06), rgba(255, 255, 255, 0.1));
+}
+
+.message-reply-quote-sender {
+  font-weight: 600;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.message-reply-quote-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.message-reply-quote-text-muted {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.message-reply-caption {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--text-color-muted);
+  margin-bottom: 2px;
+}
+
+.message-reply-caption-arrow {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.message-reply-caption-sent {
+  justify-content: flex-end;
+  padding-right: 4px;
+}
+
+.message-reply-caption-received {
+  justify-content: flex-start;
+  padding-left: 44px;
+}
+
 .message-sent a {
   color: var(--off-white);
 }

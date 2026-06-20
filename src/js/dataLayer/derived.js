@@ -485,6 +485,9 @@ export class Derived extends ReactiveStore {
         cursor: messages.cursor,
       };
     });
+    this.$hydratedConvoMessages = new ComputedMap((convoId) => {
+      return this.$convoMessages.get(convoId);
+    });
     this.$postLikes = new ComputedMap((postUri) => {
       const data = this.dataStore.$postLikes.get(postUri);
       if (!data) return data;

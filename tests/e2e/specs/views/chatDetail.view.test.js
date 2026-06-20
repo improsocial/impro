@@ -180,6 +180,98 @@ test.describe("Chat detail view", () => {
     );
   });
 
+  test("should render a reply with a quote of the original message", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "What time are we meeting?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    const reply = createMessage({
+      id: "msg-2",
+      text: "Around 7pm",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:01:00.000Z",
+      replyTo: original,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [reply, original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    const quote = chatDetailView.locator('[data-testid="message-reply-quote"]');
+    await expect(quote).toHaveCount(1);
+    await expect(quote.locator('[data-testid="reply-quote-text"]')).toHaveText(
+      "What time are we meeting?",
+    );
+    // User-sent replies in 1:1 convos render a "You replied to X" caption
+    const caption = chatDetailView.locator(
+      '[data-testid="message-reply-caption"]',
+    );
+    await expect(caption).toHaveCount(1);
+    await expect(caption).toContainText("You replied to Alice");
+  });
+
+  test("should render a subtle fallback when the quoted message has no text", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+      embed: { $type: "chat.bsky.embed.record#view" },
+    });
+    const reply = createMessage({
+      id: "msg-2",
+      text: "neat",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:01:00.000Z",
+      replyTo: original,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [reply, original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const quote = chatDetailView.locator('[data-testid="message-reply-quote"]');
+    await expect(quote).toHaveCount(1, { timeout: 10000 });
+    await expect(quote.locator('[data-testid="reply-quote-text"]')).toHaveText(
+      "(contains embedded content)",
+    );
+  });
+
   test("should send a message and display it", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({
@@ -774,6 +866,50 @@ test.describe("Chat detail view", () => {
       await expect(
         chatDetailView.locator(".message-received .message-avatar"),
       ).toHaveCount(2);
+    });
+
+    test("should render a reply caption above a reply bubble in group chats", async ({
+      page,
+    }) => {
+      const original = createMessage({
+        id: "msg-1",
+        text: "Who is bringing snacks?",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      });
+      const reply = createMessage({
+        id: "msg-2",
+        text: "I will",
+        senderDid: bob.did,
+        sentAt: "2025-01-15T12:01:00.000Z",
+        replyTo: original,
+      });
+      const mockServer = setupGroupConvo({ messages: [reply, original] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+        timeout: 10000,
+      });
+      const caption = chatDetailView.locator(
+        '[data-testid="message-reply-caption"]',
+      );
+      await expect(caption).toHaveCount(1);
+      await expect(caption).toContainText("Bob");
+      await expect(caption).toContainText("Alice");
+      // The reply's quote box is still rendered inside the bubble
+      await expect(
+        chatDetailView.locator('[data-testid="message-reply-quote"]'),
+      ).toHaveCount(1);
+      // The caption replaces the normal author-name header for the reply cluster
+      const authorNames = chatDetailView.locator(
+        '[data-testid="message-author-name"]',
+      );
+      await expect(authorNames).toHaveCount(1);
+      await expect(authorNames).toContainText("Alice");
     });
 
     test("should render system messages", async ({ page }) => {
