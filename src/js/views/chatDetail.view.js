@@ -612,6 +612,14 @@ class ChatDetailView extends View {
                 ? html`<div class="message-avatar-spacer"></div>`
                 : ""}
             <div class="message-content">
+              ${message.embed
+                ? html`<div class="message-embed">
+                    ${postEmbedTemplate({
+                      embed: message.embed,
+                      isAuthenticated: true,
+                    })}
+                  </div>`
+                : null}
               ${message.text
                 ? html`<div class="message-bubble">
                     <div class="message-text">
@@ -621,14 +629,6 @@ class ChatDetailView extends View {
                         truncateUrls: true,
                       })}
                     </div>
-                  </div>`
-                : null}
-              ${message.embed
-                ? html`<div class="message-embed">
-                    ${postEmbedTemplate({
-                      embed: message.embed,
-                      isAuthenticated: true,
-                    })}
                   </div>`
                 : null}
               ${reactionBubblesTemplate({

@@ -4158,7 +4158,7 @@ chat-input {
   max-width: 100%;
 }
 
-.message-content .message-bubble + .message-embed {
+.message-content .message-embed + .message-bubble {
   margin-top: 4px;
 }
 
