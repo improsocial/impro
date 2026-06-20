@@ -1758,6 +1758,35 @@ t.describe("pollConvoMessages", (it, { beforeEach }) => {
     assertEquals(dataStore.$convos.get(convoId).kind.memberCount, 2);
   });
 
+  it("should remove a message when a logDeleteMessage event arrives", async () => {
+    dataStore.$convoMessages.set(convoId, {
+      messages: [{ id: "m1" }, { id: "m2" }],
+      cursor: null,
+    });
+    dataStore.$messages.set("m1", { id: "m1" });
+    const requests = makeRequestsWithLogs([
+      {
+        $type: "chat.bsky.convo.defs#logDeleteMessage",
+        rev: "rev1",
+        convoId,
+        message: {
+          $type: "chat.bsky.convo.defs#deletedMessageView",
+          id: "m1",
+          rev: "rev1",
+          sender: { did: otherDid },
+          sentAt: "2026-06-11T00:00:00.000Z",
+        },
+      },
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    const stored = dataStore.$convoMessages.get(convoId);
+    assertEquals(stored.messages.length, 1);
+    assertEquals(stored.messages[0].id, "m2");
+    assertEquals(dataStore.$messages.get("m1"), null);
+  });
+
   it("should ignore join-request log events", async () => {
     const requests = makeRequestsWithLogs([
       {

@@ -875,6 +875,23 @@ export class Requests {
         }
         continue;
       }
+      if (
+        log.$type === "chat.bsky.convo.defs#logDeleteMessage" &&
+        log.message?.id
+      ) {
+        const messageId = log.message.id;
+        const convoMessages = this.dataStore.$convoMessages.get(convoId);
+        if (convoMessages) {
+          this.dataStore.$convoMessages.set(convoId, {
+            messages: convoMessages.messages.filter(
+              (message) => message.id !== messageId,
+            ),
+            cursor: convoMessages.cursor,
+          });
+        }
+        this.dataStore.$messages.delete(messageId);
+        continue;
+      }
       const isUserMessage =
         log.$type === "chat.bsky.convo.defs#logCreateMessage";
       const isSystemMessage = CONVO_LOG_SYSTEM_MESSAGE_TYPES.has(log.$type);
