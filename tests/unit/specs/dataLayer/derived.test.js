@@ -670,4 +670,65 @@ t.describe("$convoForProfile", (it) => {
   });
 });
 
+t.describe("$hydratedConvoMessages", (it) => {
+  const convoId = "convo-1";
+
+  it("should return null when the convo has no messages", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assertEquals(derived.$hydratedConvoMessages.get(convoId), null);
+  });
+
+  function seedMessages(dataStore, convoMessages, cursor = null) {
+    for (const message of convoMessages) {
+      dataStore.$messages.set(message.id, message);
+    }
+    dataStore.$convoMessages.set(convoId, {
+      messages: convoMessages,
+      cursor,
+    });
+  }
+
+  it("should pass through raw messages and cursor", () => {
+    const dataStore = new DataStore();
+    seedMessages(
+      dataStore,
+      [
+        { id: "m1", sender: { did: "did:plc:alice" }, text: "hello" },
+        { id: "m2", sender: { did: "did:plc:bob" }, text: "hi" },
+      ],
+      "abc",
+    );
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(result.cursor, "abc");
+    assertEquals(result.messages.length, 2);
+    assertEquals(result.messages[0].id, "m1");
+    assertEquals(result.messages[1].id, "m2");
+  });
+
+  it("should preserve replyTo when present on a message", () => {
+    const dataStore = new DataStore();
+    const replyTo = {
+      $type: "chat.bsky.convo.defs#messageView",
+      id: "m1",
+      sender: { did: "did:plc:alice" },
+      text: "original",
+    };
+    seedMessages(dataStore, [
+      { id: "m1", sender: { did: "did:plc:alice" }, text: "original" },
+      {
+        id: "m2",
+        sender: { did: "did:plc:bob" },
+        text: "reply text",
+        replyTo,
+      },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(result.messages[1].replyTo.id, "m1");
+    assertEquals(result.messages[1].replyTo.text, "original");
+  });
+});
+
 await t.run();

@@ -393,8 +393,8 @@ export class Derived extends ReactiveStore {
     this.$actorLists = new ComputedMap((did) =>
       this.dataStore.$actorLists.get(did),
     );
-    this.$currentUserListMemberships = new Signal.Computed(() =>
-      this.dataStore.$currentUserListMemberships.get(),
+    this.$listsWithMembershipByActor = new ComputedMap((did) =>
+      this.dataStore.$listsWithMembershipByActor.get(did),
     );
     this.$profileChatStatus = new ComputedMap((did) =>
       this.dataStore.$profileChatStatus.get(did),
@@ -484,6 +484,9 @@ export class Derived extends ReactiveStore {
         ),
         cursor: messages.cursor,
       };
+    });
+    this.$hydratedConvoMessages = new ComputedMap((convoId) => {
+      return this.$convoMessages.get(convoId);
     });
     this.$postLikes = new ComputedMap((postUri) => {
       const data = this.dataStore.$postLikes.get(postUri);

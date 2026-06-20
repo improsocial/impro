@@ -251,11 +251,10 @@ export class Mutations {
 
   async addProfileToList(profile, list) {
     const result = await this.api.createListItemRecord(list.uri, profile.did);
-    const current = this.dataStore.$currentUserListMemberships.get() || [];
-    this.dataStore.$currentUserListMemberships.set([
-      ...current,
-      { uri: result.uri, listUri: list.uri, subjectDid: profile.did },
-    ]);
+    this._patchListMembershipForActor(profile.did, list.uri, {
+      uri: result.uri,
+      subject: profile.did,
+    });
     // Add to cached list members
     const cachedMembers = this.dataStore.$listMembers.get(list.uri);
     if (
@@ -271,10 +270,7 @@ export class Mutations {
 
   async removeProfileFromList(profile, list, membershipUri) {
     await this.api.deleteListItemRecord(membershipUri);
-    const current = this.dataStore.$currentUserListMemberships.get() || [];
-    this.dataStore.$currentUserListMemberships.set(
-      current.filter((membership) => membership.uri !== membershipUri),
-    );
+    this._patchListMembershipForActor(profile.did, list.uri, null);
     // Remove from cached list members
     const cachedMembers = this.dataStore.$listMembers.get(list.uri);
     if (cachedMembers) {
@@ -285,6 +281,19 @@ export class Mutations {
         ),
       });
     }
+  }
+
+  _patchListMembershipForActor(actorDid, listUri, listItem) {
+    const existing = this.dataStore.$listsWithMembershipByActor.get(actorDid);
+    if (!existing) return;
+    this.dataStore.$listsWithMembershipByActor.set(actorDid, {
+      ...existing,
+      items: existing.items.map((entry) =>
+        entry.list.uri === listUri
+          ? { ...entry, listItem: listItem || undefined }
+          : entry,
+      ),
+    });
   }
 
   async unfollowProfile(profile) {

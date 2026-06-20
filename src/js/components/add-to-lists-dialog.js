@@ -4,6 +4,7 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { isModerationList } from "/js/dataHelpers.js";
+import "/js/components/infinite-scroll-container.js";
 
 class AddToListsDialog extends Component {
   connectedCallback() {
@@ -30,12 +31,10 @@ class AddToListsDialog extends Component {
 
   async _load() {
     try {
-      await Promise.all([
-        this.dataLayer.requests.loadCurrentUserLists({ reload: true }),
-        this.dataLayer.requests.loadCurrentUserListMemberships({
-          reload: true,
-        }),
-      ]);
+      await this.dataLayer.requests.loadListsWithMembershipForActor(
+        this.profile.did,
+        { reload: true },
+      );
     } catch (error) {
       console.error(error);
       this.state.$loadError.set(error.message || "Could not load your lists.");
@@ -46,35 +45,34 @@ class AddToListsDialog extends Component {
     return this.dataLayer.derived.$currentUser.get()?.did ?? null;
   }
 
-  _getLists() {
-    const did = this._currentUserDid();
-    if (!did) return null;
-    const actorLists = this.dataLayer.derived.$actorLists.get(did);
-    if (!actorLists) return null;
-    return actorLists.lists;
-  }
-
-  _getMembershipForList(listUri) {
-    const memberships =
-      this.dataLayer.derived.$currentUserListMemberships.get();
-    if (!memberships) return undefined;
-    return memberships.find(
-      (membership) =>
-        membership.listUri === listUri &&
-        membership.subjectDid === this.profile.did,
+  _getListsWithMembership() {
+    return (
+      this.dataLayer.derived.$listsWithMembershipByActor.get(
+        this.profile.did,
+      ) ?? null
     );
   }
 
-  async _onToggle(list) {
+  async _loadMore() {
+    try {
+      await this.dataLayer.requests.loadListsWithMembershipForActor(
+        this.profile.did,
+      );
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  async _onToggle(entry) {
+    const list = entry.list;
     if (this.state.$pendingByListUri.has(list.uri)) return;
-    const membership = this._getMembershipForList(list.uri);
     this.state.$pendingByListUri.add(list.uri);
     try {
-      if (membership) {
+      if (entry.listItem) {
         await this.profileInteractionHandler.handleRemoveFromList(
           this.profile,
           list,
-          membership.uri,
+          entry.listItem.uri,
         );
       } else {
         await this.profileInteractionHandler.handleAddToList(
@@ -90,10 +88,10 @@ class AddToListsDialog extends Component {
   }
 
   render() {
-    const lists = this._getLists();
-    const memberships =
-      this.dataLayer.derived.$currentUserListMemberships.get();
-    const isLoading = lists === null || memberships === null;
+    const listsWithMembership = this._getListsWithMembership();
+    const entries = listsWithMembership ? listsWithMembership.items : null;
+    const hasMore = !!listsWithMembership?.cursor;
+    const isLoading = entries === null;
     const loadError = this.state.$loadError.get();
     render(
       html`
@@ -136,7 +134,7 @@ class AddToListsDialog extends Component {
                     >
                       <div class="loading-spinner"></div>
                     </div>`
-                  : lists.length === 0
+                  : entries.length === 0
                     ? html`<div
                         class="add-to-lists-dialog-empty"
                         data-testid="add-to-lists-empty"
@@ -145,7 +143,25 @@ class AddToListsDialog extends Component {
                       </div>`
                     : html`
                         <div class="add-to-lists-dialog-rows">
-                          ${lists.map((list) => this._renderRow(list))}
+                          <infinite-scroll-container
+                            lookahead="400px"
+                            ?disabled=${!hasMore}
+                            @load-more=${async (event) => {
+                              if (!hasMore) return;
+                              await this._loadMore();
+                              event.detail.resume();
+                            }}
+                          >
+                            ${entries.map((entry) => this._renderRow(entry))}
+                            ${hasMore
+                              ? html`<div
+                                  class="add-to-lists-dialog-loading-more"
+                                  data-testid="add-to-lists-loading-more"
+                                >
+                                  <div class="loading-spinner"></div>
+                                </div>`
+                              : null}
+                          </infinite-scroll-container>
                         </div>
                       `}
             </div>
@@ -156,9 +172,9 @@ class AddToListsDialog extends Component {
     );
   }
 
-  _renderRow(list) {
-    const membership = this._getMembershipForList(list.uri);
-    const isMember = !!membership;
+  _renderRow(entry) {
+    const list = entry.list;
+    const isMember = !!entry.listItem;
     const isPending = this.state.$pendingByListUri.has(list.uri);
     const isModList = isModerationList(list);
     const currentUserDid = this._currentUserDid();
@@ -195,9 +211,16 @@ class AddToListsDialog extends Component {
           data-testid="add-to-lists-toggle"
           data-teststate=${isMember ? "member" : "not-member"}
           ?disabled=${isPending}
-          @click=${() => this._onToggle(list)}
+          @click=${() => this._onToggle(entry)}
         >
-          ${isPending ? "..." : isMember ? "Remove" : "Add"}
+          ${isPending
+            ? html`<div
+                class="loading-spinner"
+                data-testid="loading-spinner"
+              ></div>`
+            : isMember
+              ? "Remove"
+              : "Add"}
         </button>
       </div>
     `;

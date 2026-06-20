@@ -1224,6 +1224,34 @@ export class MockServer {
       });
     });
 
+    await page.route(
+      "**/xrpc/app.bsky.graph.getListsWithMembership*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const actor = url.searchParams.get("actor");
+        const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+        const cursorParam = url.searchParams.get("cursor") || "";
+        const start = cursorParam ? parseInt(cursorParam, 10) : 0;
+        const lists = this.actorLists.get(userProfile.did) || [];
+        const page = lists.slice(start, start + limit);
+        const listsWithMembership = page.map((list) => {
+          const item = this.currentUserListItems.find(
+            (entry) => entry.listUri === list.uri && entry.subjectDid === actor,
+          );
+          return item
+            ? { list, listItem: { uri: item.uri, subject: actor } }
+            : { list };
+        });
+        const nextStart = start + page.length;
+        const cursor = nextStart < lists.length ? String(nextStart) : "";
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ listsWithMembership, cursor }),
+        });
+      },
+    );
+
     await page.route("**/xrpc/app.bsky.feed.getLikes*", (route) => {
       const url = new URL(route.request().url());
       const uri = url.searchParams.get("uri");

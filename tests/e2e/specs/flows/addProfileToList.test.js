@@ -93,6 +93,48 @@ test.describe("Add profile to list → List Detail flow", () => {
     await expect(listView).toContainText("Other User");
   });
 
+  test("loads additional list pages as the user scrolls the dialog", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(otherUser);
+
+    const TOTAL_LISTS = 60;
+    const lists = Array.from({ length: TOTAL_LISTS }, (_, index) => {
+      const rkey = `mylist${index}`;
+      return createList({
+        uri: `at://${userProfile.did}/app.bsky.graph.list/${rkey}`,
+        name: `List ${index}`,
+        creatorHandle: userProfile.handle,
+      });
+    });
+    mockServer.addLists(lists);
+    mockServer.addActorLists(userProfile.did, lists);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${otherUser.did}`);
+
+    const dialog = await openAddToListsDialog(page);
+    const rows = dialog.locator('[data-testid="add-to-lists-row"]');
+
+    // First page is 50 lists (the default limit).
+    await expect(rows).toHaveCount(50, { timeout: 5000 });
+    await expect(
+      dialog.locator('[data-testid="add-to-lists-loading-more"]'),
+    ).toBeVisible();
+
+    // Scrolling the dialog list to the bottom triggers the next page.
+    await dialog.locator(".add-to-lists-dialog-rows").evaluate((element) => {
+      element.scrollTop = element.scrollHeight;
+    });
+
+    await expect(rows).toHaveCount(TOTAL_LISTS, { timeout: 5000 });
+    await expect(
+      dialog.locator('[data-testid="add-to-lists-loading-more"]'),
+    ).toHaveCount(0);
+  });
+
   test("removing a profile from a list updates the cached list detail view", async ({
     page,
   }) => {
