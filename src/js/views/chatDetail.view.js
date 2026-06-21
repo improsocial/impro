@@ -583,14 +583,14 @@ class ChatDetailView extends View {
       `;
     }
 
-    function getReplyQuoteText(replyTo) {
+    function getReplyQuotePreviewText(replyTo) {
       const text = replyTo?.text;
       if (text && text.trim()) {
         return { text, muted: false };
       }
       const embedType = replyTo?.embed?.$type;
-      if (embedType === "chat.bsky.embed.record#view") {
-        return { text: "(contains embedded content)", muted: true };
+      if (embedType === "app.bsky.embed.record#view") {
+        return { text: "(quoted post)", muted: true };
       }
       if (embedType === "chat.bsky.embed.joinLink#view") {
         return { text: "(chat invite link)", muted: true };
@@ -604,7 +604,7 @@ class ChatDetailView extends View {
       isCurrentUser,
     }) {
       if (!replyTo) return null;
-      const { text, muted } = getReplyQuoteText(replyTo);
+      const { text, muted } = getReplyQuotePreviewText(replyTo);
       const senderName = senderProfile
         ? getDisplayName(senderProfile)
         : "Unknown";

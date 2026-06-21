@@ -248,7 +248,7 @@ test.describe("Chat detail view", () => {
       text: "",
       senderDid: alice.did,
       sentAt: "2025-01-15T12:00:00.000Z",
-      embed: { $type: "chat.bsky.embed.record#view" },
+      embed: { $type: "app.bsky.embed.record#view" },
     });
     const reply = createMessage({
       id: "msg-2",
@@ -268,7 +268,7 @@ test.describe("Chat detail view", () => {
     const quote = chatDetailView.locator('[data-testid="message-reply-quote"]');
     await expect(quote).toHaveCount(1, { timeout: 10000 });
     await expect(quote.locator('[data-testid="reply-quote-text"]')).toHaveText(
-      "(contains embedded content)",
+      "(quoted post)",
     );
   });
 
