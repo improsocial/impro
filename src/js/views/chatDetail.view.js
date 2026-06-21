@@ -50,6 +50,29 @@ class ChatDetailView extends View {
     state.$paletteMessageId = new Signal.State(null);
     state.$reactionsDialogMessageId = new Signal.State(null);
 
+    function triggerHighlightAnimation(messageEl) {
+      messageEl.classList.remove("message-highlighted");
+      // Force a reflow
+      void messageEl.offsetWidth;
+      messageEl.classList.add("message-highlighted");
+      messageEl.addEventListener(
+        "animationend",
+        () => messageEl.classList.remove("message-highlighted"),
+        { once: true },
+      );
+    }
+
+    function scrollToAndHighlightMessage(messageId) {
+      const element = root.querySelector(
+        `.message-wrapper[data-message-id="${CSS.escape(messageId)}"]`,
+      );
+      if (!element) {
+        return;
+      }
+      element.scrollIntoView({ block: "center" });
+      triggerHighlightAnimation(element);
+    }
+
     function focusChatInput() {
       const chatInput = root.querySelector("chat-input");
       if (chatInput) {
@@ -613,6 +636,10 @@ class ChatDetailView extends View {
           ? "message-reply-quote-sent"
           : "message-reply-quote-received"}"
         data-testid="message-reply-quote"
+        @click=${(event) => {
+          event.stopPropagation();
+          scrollToAndHighlightMessage(replyTo.id);
+        }}
       >
         <div
           class="message-reply-quote-sender"
@@ -632,6 +659,7 @@ class ChatDetailView extends View {
     }
 
     function messageReplyCaptionTemplate({
+      replyTo,
       replierProfile,
       originalSenderProfile,
       isCurrentUserReplier,
@@ -654,6 +682,10 @@ class ChatDetailView extends View {
           ? "message-reply-caption-sent"
           : "message-reply-caption-received"}"
         data-testid="message-reply-caption"
+        @click=${(event) => {
+          event.stopPropagation();
+          scrollToAndHighlightMessage(replyTo.id);
+        }}
       >
         <span class="message-reply-caption-arrow" aria-hidden="true">⤷</span>
         <span>${captionText}</span>
@@ -680,6 +712,7 @@ class ChatDetailView extends View {
       return html`
         <div
           class="message-wrapper ${isActive ? "message-wrapper-active" : ""}"
+          data-message-id=${message.id}
         >
           <div
             @click=${() => handleMessageClick(message.id)}
@@ -799,6 +832,7 @@ class ChatDetailView extends View {
         >
           ${leadingReplyTo && (isGroup || group.isCurrentUser)
             ? messageReplyCaptionTemplate({
+                replyTo: leadingReplyTo,
                 replierProfile,
                 originalSenderProfile,
                 isCurrentUserReplier: group.isCurrentUser,

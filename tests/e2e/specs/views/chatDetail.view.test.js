@@ -248,7 +248,21 @@ test.describe("Chat detail view", () => {
       text: "",
       senderDid: alice.did,
       sentAt: "2025-01-15T12:00:00.000Z",
-      embed: { $type: "app.bsky.embed.record#view" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewRecord",
+          uri: "at://did:plc:alice1/app.bsky.feed.post/quoted",
+          cid: "bafyquoted",
+          author: alice,
+          value: {
+            $type: "app.bsky.feed.post",
+            text: "Original post",
+            createdAt: "2025-01-15T11:59:00.000Z",
+          },
+          indexedAt: "2025-01-15T11:59:00.000Z",
+        },
+      },
     });
     const reply = createMessage({
       id: "msg-2",
@@ -270,6 +284,57 @@ test.describe("Chat detail view", () => {
     await expect(quote.locator('[data-testid="reply-quote-text"]')).toHaveText(
       "(quoted post)",
     );
+  });
+
+  test("tapping a reply quote highlights the original message then fades", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-original",
+      text: "What time are we meeting?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    const reply = createMessage({
+      id: "msg-reply",
+      text: "Around 7pm",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:01:00.000Z",
+      replyTo: original,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [reply, original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+      timeout: 10000,
+    });
+
+    const originalWrapper = chatDetailView.locator(
+      '.message-wrapper[data-message-id="msg-original"]',
+    );
+    await expect(originalWrapper).not.toHaveClass(/message-highlighted/);
+
+    await chatDetailView.locator('[data-testid="message-reply-quote"]').click();
+
+    await expect(originalWrapper).toHaveClass(/message-highlighted/);
+    await expect(originalWrapper).not.toHaveClass(/message-highlighted/, {
+      timeout: 2500,
+    });
   });
 
   test("should send a message and display it", async ({ page }) => {

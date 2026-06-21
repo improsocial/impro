@@ -3805,6 +3805,7 @@ image-carousel {
   border-radius: 8px;
   font-size: 13px;
   opacity: 0.9;
+  cursor: pointer;
 }
 
 .message-sent .message-reply-quote {
@@ -3843,6 +3844,7 @@ image-carousel {
   font-size: 12px;
   color: var(--text-color-muted);
   margin-bottom: 2px;
+  cursor: pointer;
 }
 
 .message-reply-caption-arrow {
@@ -3858,6 +3860,28 @@ image-carousel {
 .message-reply-caption-received {
   justify-content: flex-start;
   padding-left: 44px;
+}
+
+@keyframes message-highlight-flash {
+  0% {
+    background-color: transparent;
+  }
+  10%,
+  37% {
+    background-color: color-mix(
+      in srgb,
+      var(--highlight-color) 22%,
+      transparent
+    );
+  }
+  67% {
+    background-color: transparent;
+  }
+}
+
+.message-wrapper.message-highlighted {
+  border-radius: 12px;
+  animation: message-highlight-flash 1000ms ease-out;
 }
 
 .message-sent a {
