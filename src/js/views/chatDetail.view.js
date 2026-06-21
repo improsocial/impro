@@ -69,7 +69,7 @@ class ChatDetailView extends View {
       if (!element) {
         return;
       }
-      element.scrollIntoView({ block: "center" });
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
       triggerHighlightAnimation(element);
     }
 
