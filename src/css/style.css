@@ -3868,7 +3868,7 @@ image-carousel {
   padding-left: 44px;
 }
 
-@keyframes message-highlight-flash {
+@keyframes message-highlight-flash-received {
   0% {
     background-color: transparent;
   }
@@ -3885,9 +3885,52 @@ image-carousel {
   }
 }
 
-.message-wrapper.message-highlighted {
-  border-radius: 12px;
-  animation: message-highlight-flash 1000ms ease-out;
+@keyframes message-highlight-flash-sent {
+  0% {
+    background-color: var(--highlight-flash-base);
+  }
+  10%,
+  37% {
+    background-color: color-mix(
+      in srgb,
+      var(--overlay-text-color) 30%,
+      var(--highlight-flash-base)
+    );
+  }
+  67% {
+    background-color: var(--highlight-flash-base);
+  }
+}
+
+.message-wrapper.message-highlighted .message-received .message-bubble,
+.message-wrapper.message-highlighted
+  .message-received
+  .message-embed
+  > .quoted-post,
+.message-wrapper.message-highlighted
+  .message-received
+  .message-embed
+  > .quoted-post-link
+  > .quoted-post {
+  animation: message-highlight-flash-received 1500ms ease-out;
+}
+
+.message-wrapper.message-highlighted .message-sent .message-bubble {
+  --highlight-flash-base: var(--highlight-color);
+  animation: message-highlight-flash-sent 1500ms ease-out;
+}
+
+.message-wrapper.message-highlighted
+  .message-sent
+  .message-embed
+  > .quoted-post,
+.message-wrapper.message-highlighted
+  .message-sent
+  .message-embed
+  > .quoted-post-link
+  > .quoted-post {
+  --highlight-flash-base: var(--highlight-color-tint);
+  animation: message-highlight-flash-sent 1500ms ease-out;
 }
 
 .message-sent a {

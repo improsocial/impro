@@ -63,14 +63,14 @@ class ChatDetailView extends View {
     }
 
     function scrollToAndHighlightMessage(messageId) {
-      const element = root.querySelector(
+      const wrapper = root.querySelector(
         `.message-wrapper[data-message-id="${CSS.escape(messageId)}"]`,
       );
-      if (!element) {
+      if (!wrapper) {
         return;
       }
-      element.scrollIntoView({ block: "center", behavior: "smooth" });
-      triggerHighlightAnimation(element);
+      wrapper.scrollIntoView({ block: "center", behavior: "smooth" });
+      triggerHighlightAnimation(wrapper);
     }
 
     function focusChatInput() {
