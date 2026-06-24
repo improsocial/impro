@@ -8,15 +8,7 @@ class NotFoundView extends View {
         html`<div id="not-found-view">
           <main>
             <h1>Not Found</h1>
-            <a
-              href="/"
-              @click=${(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                window.router.go(`/`);
-              }}
-              >Go Home</a
-            >
+            <a href="/">Go Home</a>
           </main>
         </div>`,
         root,

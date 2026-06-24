@@ -383,7 +383,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
     click({ metaKey: true });
 
     assertEquals(openMock.calls.length, 1);
-    assertEquals(openMock.calls[0], ["/meta-test", "_blank"]);
+    assertEquals(openMock.calls[0], ["/meta-test", "_blank", "noopener"]);
     assertEquals(navigated, false);
     assertEquals(window.location.pathname, "/starting-path");
   });
@@ -394,7 +394,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ ctrlKey: true });
 
-    assertEquals(openMock.calls, [["/ctrl-test", "_blank"]]);
+    assertEquals(openMock.calls, [["/ctrl-test", "_blank", "noopener"]]);
   });
 
   it("should navigate normally on unmodified click", () => {
@@ -418,7 +418,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
       new KeyboardEvent("keydown", { key: "Enter", metaKey: true }),
     );
 
-    assertEquals(openMock.calls, [["/enter-test", "_blank"]]);
+    assertEquals(openMock.calls, [["/enter-test", "_blank", "noopener"]]);
   });
 
   it("should navigate normally when metaKey is held on a non-Enter key", () => {
@@ -443,7 +443,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ metaKey: true });
 
-    assertEquals(openMock.calls, [["/prior-path", "_blank"]]);
+    assertEquals(openMock.calls, [["/prior-path", "_blank", "noopener"]]);
     assertEquals(window.location.pathname, "/here");
   });
 
@@ -454,7 +454,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ metaKey: true });
 
-    assertEquals(openMock.calls, [["/", "_blank"]]);
+    assertEquals(openMock.calls, [["/", "_blank", "noopener"]]);
   });
 });
 
@@ -498,7 +498,7 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
 
     middleClick(button);
 
-    assertEquals(openMock.calls, [["/middle-test", "_blank"]]);
+    assertEquals(openMock.calls, [["/middle-test", "_blank", "noopener"]]);
     assertEquals(navigated, false);
     assertEquals(window.location.pathname, "/starting-path");
   });
@@ -510,7 +510,7 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
 
     middleClick(button);
 
-    assertEquals(openMock.calls, [["/prior-path", "_blank"]]);
+    assertEquals(openMock.calls, [["/prior-path", "_blank", "noopener"]]);
     assertEquals(window.location.pathname, "/here");
   });
 

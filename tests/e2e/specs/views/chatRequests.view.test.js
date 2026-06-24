@@ -111,6 +111,41 @@ test.describe("Chat requests view", () => {
     ).toHaveCount(0);
   });
 
+  test("should navigate to the conversation when clicking the request header", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const requester = createRequester();
+    const directRequest = createConvo({
+      id: "convo-req-1",
+      otherMember: requester,
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-1",
+        text: "Hey, can we chat?",
+        senderDid: requester.did,
+      }),
+    });
+    mockServer.addConvos([directRequest]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const requestsView = page.locator("#chat-requests-view");
+    const directItem = requestsView.locator(
+      '[data-testid="request-item-direct"]',
+    );
+    await expect(directItem).toHaveCount(1, { timeout: 10000 });
+
+    await directItem.locator(".chat-request-header").click();
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Requester One", { timeout: 10000 });
+  });
+
   test("should accept a group invite and navigate to the group conversation", async ({
     page,
   }) => {

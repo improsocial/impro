@@ -12,6 +12,7 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
+import "/js/components/container-link.js";
 import {
   OG_CARD_SERVICE_URL,
   TENOR_GIF_PROXY_URL,
@@ -154,24 +155,9 @@ export function quotedPostTemplate({
     }
   }
   const postText = quotedPost.value.text || "";
-  return html`<div
+  return html`<container-link
     class="quoted-post-link"
-    role="link"
-    tabindex="0"
-    @click=${(e) => {
-      // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
-      if (e.target.closest("a")) {
-        return;
-      }
-      e.stopPropagation();
-      window.router.go(linkToPost(quotedPost));
-    }}
-    @keydown=${(e) => {
-      if (e.key !== "Enter") return;
-      if (e.target.closest("a")) return;
-      e.preventDefault();
-      window.router.go(linkToPost(quotedPost));
-    }}
+    href=${linkToPost(quotedPost)}
   >
     <div class="quoted-post post-content embed-card">
       ${mutedWrapperTemplate({
@@ -216,7 +202,7 @@ export function quotedPostTemplate({
         `,
       })}
     </div>
-  </div>`;
+  </container-link>`;
 }
 
 const MIN_POST_MEDIA_ASPECT_RATIO = 1 / 2;

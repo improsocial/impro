@@ -1570,6 +1570,12 @@ button.sidebar-plugin-nav-item {
   justify-content: center;
 }
 
+container-link {
+  display: block;
+  color: inherit;
+  text-decoration: none;
+}
+
 .post {
   padding-top: 10px;
   padding-left: 16px;

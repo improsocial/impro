@@ -6,6 +6,7 @@ import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBad
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
+import "/js/components/container-link.js";
 
 export function profileListItemTemplate({
   actor,
@@ -28,11 +29,8 @@ export function profileListItemTemplate({
     !isBlocking &&
     !isBlockedBy;
   const description = actor.description?.trim();
-  return html`<div
-    @click=${(event) => {
-      if (event.target.closest("a,button")) return;
-      window.router.go(linkToProfile(actor));
-    }}
+  return html`<container-link
+    href=${linkToProfile(actor)}
     class="profile-list-item"
   >
     <div class="profile-list-item-row">
@@ -100,7 +98,7 @@ export function profileListItemTemplate({
           ${richTextTemplate({ text: description })}
         </div>`
       : ""}
-  </div>`;
+  </container-link>`;
 }
 
 export function profileListItemSkeletonTemplate() {

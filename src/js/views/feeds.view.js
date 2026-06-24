@@ -6,6 +6,7 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { linkToList } from "/js/navigation.js";
+import "/js/components/container-link.js";
 
 class FeedsView extends View {
   async render({ root, context: { dataLayer, mainLayout } }) {
@@ -54,11 +55,10 @@ class FeedsView extends View {
                       }
                       if (item.type === "list") {
                         return html`
-                          <div
+                          <container-link
                             class="feeds-list-item clickable"
                             data-testid="feeds-list-item-list"
-                            @click=${() =>
-                              window.router.go(linkToList(item.data))}
+                            href=${linkToList(item.data)}
                           >
                             <div class="feeds-list-item-avatar">
                               ${item.data.avatar
@@ -86,7 +86,7 @@ class FeedsView extends View {
                                   </div>`
                                 : ""}
                             </div>
-                          </div>
+                          </container-link>
                         `;
                       }
                       return feedGeneratorListItemTemplate({

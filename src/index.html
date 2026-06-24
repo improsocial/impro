@@ -379,14 +379,8 @@
           if (e.defaultPrevented) {
             return;
           }
-          // Let the browser handle modifier/middle clicks (open in new tab/window)
-          if (
-            e.metaKey ||
-            e.ctrlKey ||
-            e.shiftKey ||
-            e.altKey ||
-            e.button !== 0
-          ) {
+          // Let the browser handle alt-click (download)
+          if (e.altKey) {
             return;
           }
           if (anchor.href.startsWith("/")) {

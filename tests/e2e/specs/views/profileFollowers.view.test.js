@@ -58,6 +58,30 @@ test.describe("Profile followers view", () => {
     await expect(view).toContainText("Charlie");
   });
 
+  test("should navigate to the profile when clicking a follower row", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    mockServer.addProfile(alice);
+    mockServer.addProfileFollowers(profileUser.did, [alice]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/followers`);
+
+    const view = page.locator("#profile-followers-view");
+    await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await view.locator(".profile-list-item").first().click();
+
+    await expect(page).toHaveURL(`/profile/${alice.handle}`, {
+      timeout: 10000,
+    });
+  });
+
   test("should display singular 'follower' for count of 1", async ({
     page,
   }) => {

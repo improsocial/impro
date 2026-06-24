@@ -1,14 +1,15 @@
 import { html } from "/js/lib/lit-html.js";
 import { linkToFeed } from "/js/navigation.js";
+import "/js/components/container-link.js";
 
 export function feedGeneratorListItemTemplate({
   feedGenerator,
   currentUserDid,
 }) {
   return html`
-    <div
+    <container-link
       class="feeds-list-item clickable"
-      @click=${() => window.router.go(linkToFeed(feedGenerator))}
+      href=${linkToFeed(feedGenerator)}
     >
       <div class="feeds-list-item-avatar">
         ${feedGenerator.avatar
@@ -34,6 +35,6 @@ export function feedGeneratorListItemTemplate({
             </div>`
           : ""}
       </div>
-    </div>
+    </container-link>
   `;
 }
