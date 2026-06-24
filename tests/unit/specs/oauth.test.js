@@ -840,7 +840,7 @@ t.describe("multi-account logout", (it) => {
 });
 
 t.describe("soft logout (clearSession)", (it) => {
-  it("clearSession removes the session blob but keeps the account entry and current did", async () => {
+  it("clearSession removes the session blob and current did but keeps the account entry", async () => {
     const client = await buildClient();
     await runCallback(client, {
       requestId: "r1",
@@ -853,10 +853,19 @@ t.describe("soft logout (clearSession)", (it) => {
     assertEquals(accounts.length, 1);
     assertEquals(accounts[0].did, "did:plc:alice");
     assertEquals(accounts[0].handle, "alice.bsky.social");
-    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
   });
 
-  it("clearSession() no-arg targets the current did", async () => {
+  it("clearSession of a non-current account leaves the current did intact", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
+    // current is bob
+    client.clearSession("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:bob");
+  });
+
+  it("clearSession() no-arg targets the current did and clears it", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
@@ -864,6 +873,7 @@ t.describe("soft logout (clearSession)", (it) => {
     client.clearSession();
     assertEquals(localStorage.getItem("oauth_session:did:plc:bob"), null);
     assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
+    assertEquals(localStorage.getItem("oauth_current_did"), null);
     assertEquals(client.listAccounts().length, 2);
   });
 
