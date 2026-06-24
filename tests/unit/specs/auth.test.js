@@ -582,22 +582,21 @@ t.describe("Auth account management", (it, { afterEach }) => {
   });
 });
 
-t.describe("Auth.softLogout", (it) => {
-  it("delegates to provider.softLogout with the did", async () => {
+t.describe("Auth.logout", (it) => {
+  it("delegates to provider.logout with the did", async () => {
     const provider = makeMockProvider();
-    provider.softLogout = mock(() => Promise.resolve());
     const manager = new Auth(provider);
-    await manager.softLogout("did:plc:alice");
-    assertEquals(provider.softLogout.calls.length, 1);
-    assertEquals(provider.softLogout.calls[0][0], "did:plc:alice");
-    assertEquals(provider.logout.calls.length, 0);
+    await manager.logout("did:plc:alice");
+    assertEquals(provider.logout.calls.length, 1);
+    assertEquals(provider.logout.calls[0][0], "did:plc:alice");
   });
 
-  it("falls back to provider.logout when the provider has no softLogout", async () => {
+  it("delegates to provider.logout with no did when called without args", async () => {
     const provider = makeMockProvider();
     const manager = new Auth(provider);
-    await manager.softLogout("did:plc:alice");
+    await manager.logout();
     assertEquals(provider.logout.calls.length, 1);
+    assertEquals(provider.logout.calls[0][0], null);
   });
 });
 

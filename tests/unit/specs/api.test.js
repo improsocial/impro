@@ -253,14 +253,14 @@ t.describe("request", (it) => {
 });
 
 t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
-  const originalSoftLogout = auth.softLogout;
+  const originalLogout = auth.logout;
 
   beforeEach(() => {
-    auth.softLogout = mock(() => Promise.resolve());
+    auth.logout = mock(() => Promise.resolve());
   });
 
   afterEach(() => {
-    auth.softLogout = originalSoftLogout;
+    auth.logout = originalLogout;
     restoreWindow();
   });
 
@@ -282,8 +282,8 @@ t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
       await Promise.resolve();
     }
 
-    assertEquals(auth.softLogout.calls.length, 1);
-    assertEquals(auth.softLogout.calls[0][0], "did:plc:testuser");
+    assertEquals(auth.logout.calls.length, 1);
+    assertEquals(auth.logout.calls[0][0], "did:plc:testuser");
     assertEquals(capturedHrefs.at(-1), "/login?handle=alice.bsky.social");
   });
 
@@ -304,7 +304,7 @@ t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
       await Promise.resolve();
     }
 
-    assertEquals(auth.softLogout.calls.length, 1);
+    assertEquals(auth.logout.calls.length, 1);
     assertEquals(capturedHrefs.at(-1), "/login");
   });
 });
