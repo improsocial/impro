@@ -2056,6 +2056,10 @@ container-link {
   height: 24px;
 }
 
+.account-switcher-item.account-switcher-add {
+  color: var(--text-color-secondary);
+}
+
 .account-switcher-current-check .icon {
   width: 24px;
   height: 24px;
@@ -7149,6 +7153,7 @@ img[data-lightbox] {
   flex-direction: column;
   min-width: 0;
   flex-grow: 1;
+  gap: 1px;
 }
 
 .account-switcher-display-name {
@@ -7159,15 +7164,11 @@ img[data-lightbox] {
 }
 
 .account-switcher-handle {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-color-muted);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.account-switcher-item-reauth .account-switcher-avatar {
-  opacity: 0.6;
 }
 
 .account-switcher-reauth-hint {
@@ -7319,6 +7320,10 @@ moderation-warning .toggle-content {
   }
 }
 
+#login-form[hidden] {
+  display: none;
+}
+
 #login-form {
   display: flex;
   flex-direction: column;
@@ -7327,6 +7332,33 @@ moderation-warning .toggle-content {
   gap: 8px;
   width: 100%;
   padding: 24px 16px;
+}
+
+#login-view .saved-accounts-section {
+  width: 100%;
+  padding: 24px 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#login-view .saved-accounts-heading {
+  color: var(--text-color-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  margin: 0;
+  padding-bottom: 0;
+}
+
+#login-view .account-switcher-names-skeleton {
+  gap: 1px;
+  justify-content: flex-start;
+  padding: 2px 0;
+}
+
+#login-view .account-switcher-names-skeleton .skeleton-line-short,
+#login-view .account-switcher-names-skeleton .skeleton-line-shorter {
+  height: 12px;
 }
 
 #login-form input {
