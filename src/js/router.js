@@ -208,22 +208,24 @@ export class Router extends EventEmitter {
   }
 
   _shouldOpenInNewTab() {
-    // If last event was a click or Enter, check for meta key / middle button
+    // If last event was a click or Enter, check for modifier keys / middle button
     const event = window.event;
     if (!event) return false;
     if (event instanceof MouseEvent) {
-      return event.metaKey || event.ctrlKey || event.button === 1;
+      return (
+        event.metaKey || event.ctrlKey || event.shiftKey || event.button === 1
+      );
     }
     return (
       event instanceof KeyboardEvent &&
       event.key === "Enter" &&
-      (event.metaKey || event.ctrlKey)
+      (event.metaKey || event.ctrlKey || event.shiftKey)
     );
   }
 
   async go(path) {
     if (this._shouldOpenInNewTab()) {
-      window.open(path, "_blank");
+      window.open(path, "_blank", "noopener");
       return;
     }
     window.history.pushState(
@@ -237,7 +239,7 @@ export class Router extends EventEmitter {
 
   async back() {
     if (this._shouldOpenInNewTab()) {
-      window.open(this.previousRoute ?? "/", "_blank");
+      window.open(this.previousRoute ?? "/", "_blank", "noopener");
       return;
     }
     if (!!window.history.state?.previousRoute) {

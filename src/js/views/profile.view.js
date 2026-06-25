@@ -20,6 +20,7 @@ import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGenerat
 import { linkToList } from "/js/navigation.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
+import "/js/components/container-link.js";
 
 class ProfileView extends View {
   async render({
@@ -211,10 +212,10 @@ class ProfileView extends View {
 
     function actorListItemTemplate({ list }) {
       return html`
-        <div
+        <container-link
           class="feeds-list-item clickable"
           data-testid="feeds-list-item-list"
-          @click=${() => window.router.go(linkToList(list))}
+          href=${linkToList(list)}
         >
           <div class="feeds-list-item-avatar">
             <img
@@ -232,7 +233,7 @@ class ProfileView extends View {
                 </div>`
               : ""}
           </div>
-        </div>
+        </container-link>
       `;
     }
 

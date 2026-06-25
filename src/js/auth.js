@@ -167,7 +167,7 @@ export class BasicAuthProvider {
     return session;
   }
 
-  async logout() {
+  async logout(did = null) {
     const session = await this.getSession();
     if (!session) return;
     await session.delete();
@@ -244,12 +244,7 @@ export class OAuthProvider {
     // }
   }
 
-  async logout() {
-    const client = await this.getClient();
-    await client.logout();
-  }
-
-  async softLogout(did = null) {
+  async logout(did = null) {
     const client = await this.getClient();
     client.clearSession(did);
   }
@@ -300,15 +295,8 @@ export class Auth {
     return this.provider.getSession();
   }
 
-  logout() {
-    return this.provider.logout();
-  }
-
-  softLogout(did = null) {
-    if (this.provider.softLogout) {
-      return this.provider.softLogout(did);
-    }
-    return this.provider.logout();
+  logout(did = null) {
+    return this.provider.logout(did);
   }
 
   supportsMultipleAccounts() {
@@ -384,7 +372,7 @@ export class Auth {
       return;
     }
     try {
-      await this.provider.logout();
+      await this.logout();
     } catch (error) {
       console.error(error);
     }

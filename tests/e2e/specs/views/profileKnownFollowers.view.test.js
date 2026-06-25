@@ -60,6 +60,30 @@ test.describe("Profile known followers view", () => {
     await expect(view).toContainText("Charlie");
   });
 
+  test("should navigate to the profile when clicking a known follower row", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addProfile(profileUser);
+    mockServer.addProfile(alice);
+    mockServer.addKnownFollowers(profileUser.did, [alice]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto(`/profile/${profileUser.did}/known-followers`);
+
+    const view = page.locator("#profile-known-followers-view");
+    await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await view.locator(".profile-list-item").first().click();
+
+    await expect(page).toHaveURL(`/profile/${alice.handle}`, {
+      timeout: 10000,
+    });
+  });
+
   test("should display empty state when no known followers", async ({
     page,
   }) => {

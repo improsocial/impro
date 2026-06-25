@@ -22,6 +22,7 @@ import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/lightbox-image-group.js";
+import "/js/components/container-link.js";
 
 function contentWarningTemplate({
   post,
@@ -97,25 +98,10 @@ export function smallPostTemplate({
     doHideAuthorOnUnauthenticated(post.author);
   const postText = post.record.text || "";
   const content = html`
-    <div
+    <container-link
       class="post small-post clickable"
       data-testid="small-post"
-      role="link"
-      tabindex="0"
-      @click=${(e) => {
-        // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
-        if (e.target.closest("a")) {
-          return;
-        }
-        e.stopPropagation();
-        window.router.go(linkToPost(post));
-      }}
-      @keydown=${(e) => {
-        if (e.key !== "Enter") return;
-        if (e.target.closest("a")) return;
-        e.preventDefault();
-        window.router.go(linkToPost(post));
-      }}
+      href=${linkToPost(post)}
     >
       <div class="post-content-with-space">
         <div class="post-content-left">
@@ -227,7 +213,7 @@ export function smallPostTemplate({
           })}
         </div>
       </div>
-    </div>
+    </container-link>
   `;
 
   return content;

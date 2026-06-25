@@ -29,6 +29,20 @@ import { contactsIconTemplate } from "/js/templates/icons/contactsIcon.template.
 import "/js/components/tab-bar.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
+import "/js/components/container-link.js";
+
+function notificationItemTemplate({ href, isUnread, children }) {
+  const unreadClass = isUnread ? "unread" : "";
+  if (href) {
+    return html`<container-link
+      class="notification-item notification-item-clickable ${unreadClass}"
+      href=${href}
+    >
+      ${children}
+    </container-link>`;
+  }
+  return html`<div class="notification-item ${unreadClass}">${children}</div>`;
+}
 
 class NotificationsView extends View {
   async render({
@@ -279,22 +293,10 @@ class NotificationsView extends View {
       const timeAgo = displayRelativeTime(firstNotif.indexedAt);
       const isUnread = !firstNotif.isRead;
       const profileLink = linkToProfile(post.author);
-      return html`
-        <div
-          @click=${(e) => {
-            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
-            if (e.target.closest("a")) {
-              return;
-            }
-            if (isUnavailablePost(post)) {
-              return;
-            }
-            window.router.go(linkToPost(post));
-          }}
-          class="notification-item notification-item-clickable ${isUnread
-            ? "unread"
-            : ""}"
-        >
+      return notificationItemTemplate({
+        href: isUnavailablePost(post) ? null : linkToPost(post),
+        isUnread,
+        children: html`
           <div class="notification-icon">
             ${notificationsIconTemplate({ filled: true })}
           </div>
@@ -311,8 +313,8 @@ class NotificationsView extends View {
             </div>
             ${postPreviewTemplate({ post: post })}
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function likeNotificationTemplate({ notificationGroup, isRepost = false }) {
@@ -324,22 +326,10 @@ class NotificationsView extends View {
       // Get the liked post for preview
       const likedPost = firstNotif.subject;
 
-      return html`
-        <div
-          @click=${(e) => {
-            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
-            if (e.target.closest("a")) {
-              return;
-            }
-            if (isUnavailablePost(likedPost)) {
-              return;
-            }
-            window.router.go(linkToPost(likedPost));
-          }}
-          class="notification-item notification-item-clickable ${isUnread
-            ? "unread"
-            : ""}"
-        >
+      return notificationItemTemplate({
+        href: isUnavailablePost(likedPost) ? null : linkToPost(likedPost),
+        isUnread,
+        children: html`
           <div class="notification-icon">
             ${heartIconTemplate({ filled: true })}
           </div>
@@ -352,8 +342,8 @@ class NotificationsView extends View {
             </div>
             ${postPreviewTemplate({ post: likedPost })}
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function repostNotificationTemplate({
@@ -367,22 +357,10 @@ class NotificationsView extends View {
 
       // Get the reposted post for preview
       const repostedPost = firstNotif.subject;
-      return html`
-        <div
-          @click=${(e) => {
-            // if the click is on an anchor, don't go to the post, but let it bubble up so the router can handle it.
-            if (e.target.closest("a")) {
-              return;
-            }
-            if (isUnavailablePost(repostedPost)) {
-              return;
-            }
-            window.router.go(linkToPost(repostedPost));
-          }}
-          class="notification-item notification-item-clickable ${isUnread
-            ? "unread"
-            : ""}"
-        >
+      return notificationItemTemplate({
+        href: isUnavailablePost(repostedPost) ? null : linkToPost(repostedPost),
+        isUnread,
+        children: html`
           <div class="notification-icon">${repostIconTemplate()}</div>
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
@@ -393,8 +371,8 @@ class NotificationsView extends View {
             </div>
             ${postPreviewTemplate({ post: repostedPost })}
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function replyNotificationTemplate({ notificationGroup, currentUser }) {
@@ -430,16 +408,10 @@ class NotificationsView extends View {
       const { repo, rkey } = subjectUri ? parseUri(subjectUri) : {};
       const subjectLink = repo && rkey ? `/profile/${repo}/feed/${rkey}` : null;
 
-      return html`
-        <div
-          @click=${(e) => {
-            if (e.target.closest("a") || !subjectLink) return;
-            window.router.go(subjectLink);
-          }}
-          class="notification-item ${subjectLink
-            ? "notification-item-clickable"
-            : ""} ${isUnread ? "unread" : ""}"
-        >
+      return notificationItemTemplate({
+        href: subjectLink,
+        isUnread,
+        children: html`
           <div class="notification-icon">
             ${heartIconTemplate({ filled: true })}
           </div>
@@ -451,8 +423,8 @@ class NotificationsView extends View {
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function starterpackJoinedNotificationTemplate({ notificationGroup }) {
@@ -465,16 +437,10 @@ class NotificationsView extends View {
       const subjectLink =
         repo && rkey ? `/profile/${repo}/starter-pack/${rkey}` : null;
 
-      return html`
-        <div
-          @click=${(e) => {
-            if (e.target.closest("a") || !subjectLink) return;
-            window.router.go(subjectLink);
-          }}
-          class="notification-item ${subjectLink
-            ? "notification-item-clickable"
-            : ""} ${isUnread ? "unread" : ""}"
-        >
+      return notificationItemTemplate({
+        href: subjectLink,
+        isUnread,
+        children: html`
           <div class="notification-icon">
             ${userIconTemplate({ filled: true })}
           </div>
@@ -486,8 +452,8 @@ class NotificationsView extends View {
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function verifiedNotificationTemplate({ notificationGroup }) {
@@ -547,16 +513,10 @@ class NotificationsView extends View {
         firstNotif.author.displayName || firstNotif.author.handle;
       const profileLink = linkToProfile(firstNotif.author);
 
-      return html`
-        <div
-          @click=${(e) => {
-            if (e.target.closest("a")) return;
-            window.router.go(profileLink);
-          }}
-          class="notification-item notification-item-clickable ${isUnread
-            ? "unread"
-            : ""}"
-        >
+      return notificationItemTemplate({
+        href: profileLink,
+        isUnread,
+        children: html`
           <div class="notification-icon">${contactsIconTemplate()}</div>
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
@@ -573,8 +533,8 @@ class NotificationsView extends View {
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
-        </div>
-      `;
+        `,
+      });
     }
 
     function notificationGroupTemplate({ notificationGroup, currentUser }) {

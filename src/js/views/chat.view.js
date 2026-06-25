@@ -15,6 +15,7 @@ import {
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import "/js/components/infinite-scroll-container.js";
+import "/js/components/container-link.js";
 
 class ChatView extends View {
   async render({ root, router, context: { dataLayer, mainLayout } }) {
@@ -37,12 +38,10 @@ class ChatView extends View {
         : "";
       const isUnread = convo.unreadCount > 0;
       return html`
-        <div
+        <container-link
           class="convo-item ${isUnread ? "unread" : ""}"
           data-testid=${groupDetails ? "convo-item-group" : "convo-item-direct"}
-          @click=${() => {
-            router.go(`/messages/${convo.id}`);
-          }}
+          href=${`/messages/${convo.id}`}
         >
           <div class="convo-avatar">
             ${(() => {
@@ -79,7 +78,7 @@ class ChatView extends View {
                 : "No messages yet"}
             </div>
           </div>
-        </div>
+        </container-link>
       `;
     }
 
@@ -109,17 +108,15 @@ class ChatView extends View {
         (convo) => convo.unreadCount > 0,
       );
       return html`
-        <div
+        <container-link
           class="chat-requests-banner ${hasUnreadRequests ? "unread" : ""}"
-          @click=${() => {
-            router.go("/messages/inbox");
-          }}
+          href="/messages/inbox"
         >
           <div class="chat-requests-content">
             <div class="chat-requests-title">Chat requests</div>
           </div>
           <div class="chat-requests-arrow">→</div>
-        </div>
+        </container-link>
       `;
     }
 

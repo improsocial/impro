@@ -8,6 +8,7 @@ import { linkToFeed } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 
@@ -255,9 +256,9 @@ class SearchView extends View {
           ${feedSearchResults.map((feedGenerator) => {
             const isPinned = preferences.isFeedPinned(feedGenerator.uri);
             return html`
-              <div
+              <container-link
                 class="feeds-list-item clickable"
-                @click=${() => window.router.go(linkToFeed(feedGenerator))}
+                href=${linkToFeed(feedGenerator)}
               >
                 <div class="feeds-list-item-avatar">
                   ${feedGenerator.avatar
@@ -304,7 +305,7 @@ class SearchView extends View {
                     ${isPinned ? "Unpin feed" : "Pin feed"}
                   </button>
                 </div>
-              </div>
+              </container-link>
             `;
           })}
           ${feedSearchHasMore

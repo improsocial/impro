@@ -411,6 +411,29 @@ test.describe("Post embeds view — quoted post", () => {
     await expect(view).toContainText("@author2.bsky.social");
   });
 
+  test("clicking the quoted post navigates to the quoted post detail", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: quotedRecord({ text: "The quoted post body" }),
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator(".quoted-post-link").first()).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".quoted-post-link").first().click();
+
+    await expect(page).toHaveURL("/profile/author2.bsky.social/post/quoted1", {
+      timeout: 10000,
+    });
+  });
+
   test("renders blocked-quote indicator for a viewBlocked record", async ({
     page,
   }) => {

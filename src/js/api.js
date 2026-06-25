@@ -94,7 +94,7 @@ export class Api {
           ? (this.session.handle ?? null)
           : null;
         const did = this.isAuthenticated ? (this.session.did ?? null) : null;
-        await auth.softLogout(did);
+        await auth.logout(did);
         window.location.href = linkToLogin({ query: { handle } });
         await new Promise(() => {});
       }

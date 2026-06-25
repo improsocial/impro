@@ -152,19 +152,25 @@ export function graphemeCount(str) {
 }
 
 export function formatLargeNumber(number) {
+  if (number >= 1_000_000) {
+    return formatWithSuffix(number / 1_000_000, "M");
+  }
   if (number >= 1000) {
-    const stringified = String(number / 1000);
-    const [integer, decimal] = stringified.split(".");
-    let formatted = integer;
-    if (decimal) {
-      const truncatedDecimal = decimal.slice(0, 1);
-      if (truncatedDecimal !== "0") {
-        formatted += "." + truncatedDecimal;
-      }
-    }
-    return formatted + "K";
+    return formatWithSuffix(number / 1000, "K");
   }
   return number;
+}
+
+function formatWithSuffix(value, suffix) {
+  const [integer, decimal] = String(value).split(".");
+  let formatted = integer;
+  if (decimal) {
+    const truncatedDecimal = decimal.slice(0, 1);
+    if (truncatedDecimal !== "0") {
+      formatted += "." + truncatedDecimal;
+    }
+  }
+  return formatted + suffix;
 }
 
 // E.g. September 29, 2025 at 3:44 PM

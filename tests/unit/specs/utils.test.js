@@ -205,6 +205,14 @@ t.describe("formatLargeNumber", (it) => {
     assertEquals(formatLargeNumber(50), 50);
     assertEquals(formatLargeNumber(999), 999);
   });
+
+  it("should format numbers >= 1,000,000 with M suffix", () => {
+    assertEquals(formatLargeNumber(1_000_000), "1M");
+    assertEquals(formatLargeNumber(1_500_000), "1.5M");
+    assertEquals(formatLargeNumber(2_990_000), "2.9M");
+    assertEquals(formatLargeNumber(12_345_678), "12.3M");
+    assertEquals(formatLargeNumber(1_099_000), "1M");
+  });
 });
 
 t.describe("formatFullTimestamp", (it) => {

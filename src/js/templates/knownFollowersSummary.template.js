@@ -40,7 +40,6 @@ export function knownFollowersSummaryTemplate({
     class="known-followers-summary"
     data-testid="known-followers-summary"
     href=${linkToProfileKnownFollowers(profile)}
-    @click=${(event) => event.stopPropagation()}
   >
     <div class="known-followers-avatars">
       ${avatars.map(

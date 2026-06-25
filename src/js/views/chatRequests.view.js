@@ -15,6 +15,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
+import "/js/components/container-link.js";
 
 class ChatRequestsView extends View {
   async render({ root, router, context: { dataLayer, mainLayout } }) {
@@ -67,11 +68,9 @@ class ChatRequestsView extends View {
             ? "request-item-group"
             : "request-item-direct"}
         >
-          <div
+          <container-link
             class="chat-request-header"
-            @click=${() => {
-              router.go(`/messages/${convo.id}`);
-            }}
+            href=${`/messages/${convo.id}`}
           >
             <div class="convo-avatar">
               ${(() => {
@@ -120,7 +119,7 @@ class ChatRequestsView extends View {
                   : "";
               })()}
             </div>
-          </div>
+          </container-link>
           <div class="chat-request-actions">
             ${canAccept
               ? html`<button
