@@ -258,10 +258,8 @@ class LoginView extends View {
                         </span>
                         <span
                           class="account-switcher-names account-switcher-names-skeleton"
+                          data-testid="account-switcher-skeleton"
                         >
-                          <span
-                            class="skeleton-line-shorter skeleton-animate"
-                          ></span>
                           <span
                             class="skeleton-line-short skeleton-animate"
                           ></span>

@@ -7135,11 +7135,6 @@ img[data-lightbox] {
   height: 40px;
 }
 
-.account-switcher-names-skeleton {
-  gap: 6px;
-  justify-content: center;
-}
-
 .account-switcher-add-icon {
   width: 40px;
   height: 40px;
@@ -7154,6 +7149,11 @@ img[data-lightbox] {
   min-width: 0;
   flex-grow: 1;
   gap: 1px;
+}
+
+.account-switcher-names.account-switcher-names-skeleton {
+  gap: 6px;
+  justify-content: center;
 }
 
 .account-switcher-display-name {
@@ -7348,17 +7348,6 @@ moderation-warning .toggle-content {
   font-weight: 400;
   margin: 0;
   padding-bottom: 0;
-}
-
-#login-view .account-switcher-names-skeleton {
-  gap: 1px;
-  justify-content: flex-start;
-  padding: 2px 0;
-}
-
-#login-view .account-switcher-names-skeleton .skeleton-line-short,
-#login-view .account-switcher-names-skeleton .skeleton-line-shorter {
-  height: 12px;
 }
 
 #login-form input {
