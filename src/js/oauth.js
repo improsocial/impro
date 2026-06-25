@@ -702,9 +702,6 @@ export class OauthClient {
     if (!targetDid) return;
     localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
     this.sessionsByDid.delete(targetDid);
-    if (localStorage.getItem(CURRENT_DID_KEY) === targetDid) {
-      localStorage.removeItem(CURRENT_DID_KEY);
-    }
   }
 
   async logout(did) {
