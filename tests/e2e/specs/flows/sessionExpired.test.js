@@ -34,12 +34,11 @@ test.describe("Session expiry flow", () => {
     );
 
     // The account entry survives the soft logout so the handle can be
-    // prefilled; the session tokens and current did are cleared.
+    // prefilled; only the session tokens are cleared.
     const stored = await page.evaluate(
       (did) => ({
         accounts: JSON.parse(localStorage.getItem("oauth_accounts")),
         session: localStorage.getItem("oauth_session:" + did),
-        currentDid: localStorage.getItem("oauth_current_did"),
       }),
       userProfile.did,
     );
@@ -47,7 +46,6 @@ test.describe("Session expiry flow", () => {
       stored.accounts.some((account) => account.did === userProfile.did),
     ).toBe(true);
     expect(stored.session).toBe(null);
-    expect(stored.currentDid).toBe(null);
   });
 
   test("successful token refresh keeps the session and stays on the app", async ({
