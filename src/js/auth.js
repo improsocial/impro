@@ -246,7 +246,7 @@ export class OAuthProvider {
 
   async logout(did = null) {
     const client = await this.getClient();
-    client.clearSession(did);
+    await client.revoke(did);
   }
 
   async listAccounts() {
@@ -261,7 +261,7 @@ export class OAuthProvider {
 
   async removeAccount(did) {
     const client = await this.getClient();
-    await client.logout(did);
+    await client.removeAccount(did);
   }
 
   supportsMultipleAccounts() {

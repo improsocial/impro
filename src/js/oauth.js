@@ -697,20 +697,50 @@ export class OauthClient {
     localStorage.setItem(CURRENT_DID_KEY, did);
   }
 
-  clearSession(did = null) {
+  async _sendRevokeRequest(did) {
+    const sessionDataStr = localStorage.getItem(SESSION_KEY_PREFIX + did);
+    if (!sessionDataStr) return;
+    let sessionData;
+    try {
+      sessionData = JSON.parse(sessionDataStr);
+    } catch {
+      return;
+    }
+    const revocationEndpoint =
+      sessionData?.authServerMetadata?.revocation_endpoint;
+    const refreshToken = sessionData?.refreshToken;
+    if (!revocationEndpoint || !refreshToken) return;
+    try {
+      await this.dpopRequests.fetch(revocationEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        body: new URLSearchParams({
+          token: refreshToken,
+          token_type_hint: "refresh_token",
+          client_id: sessionData.clientId ?? this.clientId,
+        }).toString(),
+      });
+    } catch (error) {
+      console.warn("oauth: revoke on sign-out failed", error);
+    }
+  }
+
+  async revoke(did = null) {
     const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
     if (!targetDid) return;
+    await this._sendRevokeRequest(targetDid);
     localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
     this.sessionsByDid.delete(targetDid);
   }
 
-  async logout(did) {
+  async removeAccount(did) {
     const targetDid = did ?? localStorage.getItem(CURRENT_DID_KEY);
     if (!targetDid) return;
     const accounts = readAccounts();
     if (!accounts.some((entry) => entry.did === targetDid)) return;
-    localStorage.removeItem(SESSION_KEY_PREFIX + targetDid);
-    this.sessionsByDid.delete(targetDid);
+    await this.revoke(targetDid);
     deleteAccount(targetDid);
     const remaining = readAccounts();
     if (localStorage.getItem(CURRENT_DID_KEY) === targetDid) {
