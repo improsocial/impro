@@ -3893,7 +3893,7 @@ image-carousel {
   37% {
     background-color: color-mix(
       in srgb,
-      var(--overlay-text-color) 30%,
+      var(--overlay-text-color) 50%,
       var(--highlight-flash-base)
     );
   }
