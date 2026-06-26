@@ -12,6 +12,7 @@ import {
   BasicAuthSession,
   RefreshTokenError,
 } from "/js/auth.js";
+import { TimeoutError } from "/js/utils.js";
 
 const t = new TestSuite("auth");
 
@@ -579,6 +580,42 @@ t.describe("Auth account management", (it, { afterEach }) => {
     assertEquals(provider.switchToAccount.calls.length, 0);
     assertEquals(provider.removeAccount.calls.length, 1);
     assert(capturedHrefs.at(-1).includes("/login"));
+  });
+});
+
+t.describe("Auth.login", (it, { beforeEach, afterEach }) => {
+  const originalSetTimeout = globalThis.setTimeout;
+  beforeEach(() => {
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
+  it("delegates to provider.login with the args object intact", async () => {
+    const provider = {
+      login: mock(() => Promise.resolve("session")),
+    };
+    const manager = new Auth(provider);
+    const args = { handle: "alice.test", returnTo: "/feed" };
+    const result = await manager.login(args);
+    assertEquals(result, "session");
+    assertEquals(provider.login.calls.length, 1);
+    assertEquals(provider.login.calls[0][0], args);
+  });
+
+  it("throws TimeoutError when provider.login hangs past the timeout", async () => {
+    const provider = {
+      login: mock(() => new Promise(() => {})),
+    };
+    const manager = new Auth(provider);
+    let threw = null;
+    try {
+      await manager.login({ handle: "alice.test" });
+    } catch (error) {
+      threw = error;
+    }
+    assert(threw instanceof TimeoutError);
   });
 });
 

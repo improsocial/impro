@@ -1,12 +1,6 @@
 import { View } from "/js/views/view.js";
-import {
-  auth,
-  BasicAuthProvider,
-  InvalidUsernameError,
-  AuthError,
-} from "/js/auth.js";
+import { auth, BasicAuthProvider, getLoginErrorMessage } from "/js/auth.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { withTimeout, TimeoutError } from "/js/utils.js";
 import { AppViewConfig, DEFAULT_APP_VIEW_CONFIGS } from "/js/config.js";
 import {
   getAppViewConfig,
@@ -39,7 +33,6 @@ class LoginView extends View {
     const state = new ReactiveStore("loginView");
     state.$loading = new Signal.State(false);
     state.$errorMessage = new Signal.State(null);
-    state.$prefillHandle = new Signal.State(null);
     state.$appViewSelection = new Signal.State(storedConfig.id);
     state.$customAppViewServiceDid = new Signal.State(
       isStoredCustom ? storedConfig.appViewServiceDid : "",
@@ -57,14 +50,6 @@ class LoginView extends View {
     function getCurrentReturnTo() {
       const params = new URLSearchParams(window.location.search);
       return validateReturnToParam(params.get("returnTo"));
-    }
-
-    function getAuthErrorMessage(error) {
-      if (error instanceof TimeoutError) return "Request timed out";
-      if (error instanceof InvalidUsernameError) return "Invalid username";
-      if (error instanceof AuthError) return "Authorization failed";
-      console.error(error);
-      return "Failed to sign in";
     }
 
     function resolveSelectedAppViewConfig() {
@@ -105,16 +90,14 @@ class LoginView extends View {
           fullHandle = fullHandle.slice(1);
         }
         const returnTo = getCurrentReturnTo();
-        await withTimeout(async () => {
-          if (isBasicAuth) {
-            await auth.provider.login(fullHandle, password);
-          } else {
-            await auth.provider.login(fullHandle, { returnTo });
-          }
-        }, 10000);
+        await auth.login(
+          isBasicAuth
+            ? { handle: fullHandle, password }
+            : { handle: fullHandle, returnTo },
+        );
         window.location.href = returnTo ?? "/";
       } catch (error) {
-        state.$errorMessage.set(getAuthErrorMessage(error));
+        state.$errorMessage.set(getLoginErrorMessage(error));
         state.$loading.set(false);
       }
     }
@@ -168,23 +151,19 @@ class LoginView extends View {
       state.$pendingAccountDid.set(account.did);
       try {
         if (account.needsReauth) {
-          await withTimeout(
-            () => auth.provider.login(account.handle, { returnTo }),
-            10000,
-          );
+          await auth.login({ handle: account.handle, returnTo });
         } else {
           await auth.provider.switchToAccount(account.did);
           window.location.href = returnTo ?? "/";
         }
       } catch (error) {
         state.$pendingAccountDid.set(null);
-        state.$errorMessage.set(getAuthErrorMessage(error));
+        state.$errorMessage.set(getLoginErrorMessage(error));
       }
     }
 
     function handleUseAnotherAccount() {
       if (state.$pendingAccountDid.get() !== null) return;
-      state.$prefillHandle.set("");
       state.$forceShowForm.set(true);
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
@@ -343,7 +322,6 @@ class LoginView extends View {
         state.$appViewSelection.get() === CUSTOM_APP_VIEW_CONFIG_ID;
       const loading = state.$loading.get();
       const errorMessage = state.$errorMessage.get();
-      const prefillHandle = state.$prefillHandle.get();
       const appViewSelection = state.$appViewSelection.get();
       const customAppViewServiceDid = state.$customAppViewServiceDid.get();
       const customChatServiceDid = state.$customChatServiceDid.get();
@@ -390,7 +368,6 @@ class LoginView extends View {
                     autocorrect="off"
                     autocapitalize="off"
                     spellcheck="false"
-                    .value=${prefillHandle ?? ""}
                   />
                 </div>
                 ${isBasicAuth
@@ -509,10 +486,6 @@ class LoginView extends View {
     root.addEventListener("page-enter", async () => {
       // this can happen when the oauth callback fails - see callback.html
       const params = new URLSearchParams(window.location.search);
-      const prefillHandle = params.get("handle");
-      if (prefillHandle) {
-        state.$prefillHandle.set(prefillHandle);
-      }
       const errorMessage = params.get("error_message");
       if (errorMessage) {
         state.$errorMessage.set(errorMessage);

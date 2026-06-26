@@ -4,7 +4,7 @@ import {
   HandleNotFoundError,
   InvalidAuthUrlError,
 } from "/js/oauth.js";
-import { isDev, isNative } from "/js/utils.js";
+import { isDev, isNative, TimeoutError, withTimeout } from "/js/utils.js";
 import { linkToLogin, validateReturnToParam } from "/js/navigation.js";
 
 export class RefreshTokenError extends Error {
@@ -26,6 +26,14 @@ export class AuthError extends Error {
     super(message);
     this.name = "AuthError";
   }
+}
+
+export function getLoginErrorMessage(error) {
+  if (error instanceof TimeoutError) return "Request timed out";
+  if (error instanceof InvalidUsernameError) return "Invalid username";
+  if (error instanceof AuthError) return "Authorization failed";
+  console.error(error);
+  return "Failed to sign in";
 }
 
 function parseJwt(token) {
@@ -144,7 +152,7 @@ export class BasicAuthProvider {
     return this.session;
   }
 
-  async login(handle, password) {
+  async login({ handle, password }) {
     const serviceEndpoint = await getServiceEndpointForHandle(handle);
     const res = await fetch(
       serviceEndpoint + "/xrpc/com.atproto.server.createSession",
@@ -212,7 +220,7 @@ export class OAuthProvider {
     return client.getSession();
   }
 
-  async login(handle, { returnTo } = {}) {
+  async login({ handle, returnTo }) {
     const client = await this.getClient();
     let authUrl = null;
     try {
@@ -297,6 +305,14 @@ export class Auth {
 
   logout(did = null) {
     return this.provider.logout(did);
+  }
+
+  async login(args, { timeout = 10000 } = {}) {
+    const call = () => this.provider.login(args);
+    if (timeout) {
+      return withTimeout(call, timeout);
+    }
+    return call();
   }
 
   supportsMultipleAccounts() {
