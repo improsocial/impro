@@ -276,6 +276,7 @@ export class RichTextInput extends Component {
 
   disconnectedCallback() {
     this.clearHighlights();
+    this.closeTypeahead();
   }
 
   clearHighlights() {
@@ -355,47 +356,67 @@ export class RichTextInput extends Component {
           >
             ${this.placeholder}
           </div>
-          ${this.mentionSuggestions.length > 0
-            ? mentionSuggestionsTemplate({
-                mentionSuggestions: this.mentionSuggestions,
-                selectedSuggestionIndex: this.selectedSuggestionIndex,
-                onSelect: (actor) => this.selectMention(actor),
-              })
-            : ""}
         </div>
       `,
       this,
     );
+  }
 
-    // Position the typeahead below the @ symbol
-    if (this.mentionSuggestions.length > 0) {
-      requestAnimationFrame(() => {
-        this.positionTypeahead();
-      });
+  openTypeahead() {
+    if (this._typeaheadHost) return;
+    this._typeaheadHost = document.createElement("div");
+    this._typeaheadHost.className = "mention-typeahead-host";
+    this._typeaheadHost.popover = "manual";
+    const parent = this.closest("dialog") ?? document.body;
+    parent.appendChild(this._typeaheadHost);
+    this._repositionTypeahead = () => this.positionTypeahead();
+    window.addEventListener("resize", this._repositionTypeahead);
+    window.addEventListener("scroll", this._repositionTypeahead, true);
+    this.updateTypeahead();
+    if (typeof this._typeaheadHost.showPopover === "function") {
+      this._typeaheadHost.showPopover();
     }
   }
 
-  positionTypeahead() {
-    const typeahead = this.querySelector("#mention-typeahead");
-    const input = this.querySelector(".rich-text-input");
+  updateTypeahead() {
+    if (!this._typeaheadHost) return;
+    render(
+      mentionSuggestionsTemplate({
+        mentionSuggestions: this.mentionSuggestions,
+        selectedSuggestionIndex: this.selectedSuggestionIndex,
+        onSelect: (actor) => this.selectMention(actor),
+      }),
+      this._typeaheadHost,
+    );
+    requestAnimationFrame(() => this.positionTypeahead());
+  }
 
+  closeTypeahead() {
+    if (!this._typeaheadHost) return;
+    window.removeEventListener("resize", this._repositionTypeahead);
+    window.removeEventListener("scroll", this._repositionTypeahead, true);
+    this._typeaheadHost.remove();
+    this._typeaheadHost = null;
+    this._repositionTypeahead = null;
+  }
+
+  positionTypeahead() {
+    const typeahead = this._typeaheadHost?.querySelector("#mention-typeahead");
+    const input = this.querySelector(".rich-text-input");
     if (!typeahead || !input || this.currentMentionStart === null) return;
 
-    const inputRect = input.getBoundingClientRect();
     const range = rangeForCharRange(
       input,
       this.currentMentionStart,
       this.currentMentionStart,
     );
+    if (!range) return;
 
-    if (range) {
-      const rect = range.getBoundingClientRect();
-
-      // Position below the @ symbol (relative to input container)
-      typeahead.style.top = `${rect.bottom - inputRect.top}px`;
-      typeahead.style.left = `${rect.left - inputRect.left}px`;
-      typeahead.style.width = `${inputRect.width}px`;
-    }
+    const rect = range.getBoundingClientRect();
+    const inputRect = input.getBoundingClientRect();
+    typeahead.style.top = `${rect.bottom}px`;
+    typeahead.style.left = `${inputRect.left}px`;
+    typeahead.style.width = `${inputRect.width}px`;
   }
 
   paintFacets() {
@@ -482,15 +503,21 @@ export class RichTextInput extends Component {
         pendingMention.query,
       );
       this.mentionSuggestions = suggestions;
+      if (suggestions.length === 0) {
+        this.closeTypeahead();
+      } else if (this._typeaheadHost) {
+        this.updateTypeahead();
+      } else {
+        this.openTypeahead();
+      }
     } else {
       this.mentionSuggestions = [];
       this.selectedSuggestionIndex = null;
       this.currentMentionQuery = null;
       this.currentMentionStart = null;
       this.currentMentionEnd = null;
+      this.closeTypeahead();
     }
-
-    this.render();
   }
 
   selectMention(actor) {
@@ -520,7 +547,7 @@ export class RichTextInput extends Component {
     this.currentMentionQuery = null;
     this.currentMentionStart = null;
     this.currentMentionEnd = null;
-    this.render();
+    this.closeTypeahead();
   }
 
   handleKeydown(e) {
@@ -535,7 +562,7 @@ export class RichTextInput extends Component {
             this.mentionSuggestions.length - 1,
           );
         }
-        this.render();
+        this.updateTypeahead();
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
         if (this.selectedSuggestionIndex === null) {
@@ -546,7 +573,7 @@ export class RichTextInput extends Component {
             0,
           );
         }
-        this.render();
+        this.updateTypeahead();
       } else if (e.key === "Enter" || e.key === "Tab") {
         e.preventDefault();
         const index = this.selectedSuggestionIndex ?? 0;
@@ -562,7 +589,7 @@ export class RichTextInput extends Component {
         this.currentMentionQuery = null;
         this.currentMentionStart = null;
         this.currentMentionEnd = null;
-        this.render();
+        this.closeTypeahead();
       }
     }
   }
@@ -575,6 +602,7 @@ export class RichTextInput extends Component {
     this.facets = getUnresolvedFacetsFromText(this.text);
 
     this.paintFacets();
+    this.render();
 
     this.updateMentionSuggestions();
 

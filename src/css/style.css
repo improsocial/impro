@@ -5806,8 +5806,19 @@ emoji-picker-dialog emoji-picker,
   }
 }
 
+.mention-typeahead-host,
+.mention-typeahead-host:popover-open {
+  position: fixed;
+  inset: unset;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: transparent;
+  overflow: visible;
+}
+
 .mention-typeahead {
-  position: absolute;
+  position: fixed;
   background: var(--context-menu-background-color);
   border: 1px solid var(--generic-border-color);
   border-radius: var(--typeahead-border-radius);
