@@ -1,9 +1,10 @@
-import { html } from "/js/lib/lit-html.js";
+import { html, ref } from "/js/lib/lit-html.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import {
   classnames,
   formatLargeNumber,
   formatNumNotifications,
+  enableLongPress,
 } from "/js/utils.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
@@ -174,6 +175,7 @@ export function sidebarTemplate({
   onClickActiveItem,
   onClickComposeButton,
   pluginSidebarItems = [],
+  onLongPressProfile = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
@@ -249,7 +251,15 @@ export function sidebarTemplate({
     <animated-sidebar>
       <!-- Profile Section -->
       <div class="sidebar-profile" data-testid="sidebar-profile">
-        <div class="sidebar-profile-avatar">
+        <div
+          class="sidebar-profile-avatar"
+          ${ref((el) => {
+            if (el) {
+              enableLongPress(el);
+            }
+          })}
+          @long-press=${onLongPressProfile ? () => onLongPressProfile() : null}
+        >
           ${currentUser
             ? html`${avatarTemplate({ author: currentUser })}`
             : html`<div class="avatar-placeholder"></div>`}

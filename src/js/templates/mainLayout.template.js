@@ -68,6 +68,7 @@ export function mainLayoutTemplate({
               onClickActiveItem: onClickActiveNavItem,
               onClickComposeButton,
               pluginSidebarItems: pluginService.getSidebarItems(),
+              onLongPressProfile,
             })
           : ""}
       </div>

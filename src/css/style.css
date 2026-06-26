@@ -7055,9 +7055,15 @@ img[data-lightbox] {
 }
 
 .account-switcher-content {
-  /* Extra top padding leaves room for the sheet drag handle on mobile */
   padding: 16px;
+  /* Extra top padding leaves room for the sheet drag handle on mobile */
   padding-top: 20px;
+}
+
+@media (min-width: 800px) {
+  .account-switcher-content {
+    padding-top: 16px;
+  }
 }
 
 .account-switcher-header {
