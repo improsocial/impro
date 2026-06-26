@@ -5592,6 +5592,22 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 12px;
 }
 
+.rich-text-input {
+  white-space: pre-wrap;
+  line-height: 1.4;
+  min-height: 1lh;
+}
+
+/* Force a trailing newline to render as a visible empty line */
+.rich-text-input::after {
+  content: "\200B";
+}
+
+/* Some browsers add a trailing <br> for newlines, skip the ZWS in that case */
+.rich-text-input:has(> br:last-child)::after {
+  content: none;
+}
+
 .post-composer .rich-text-input {
   width: 100%;
   min-height: 120px;
@@ -5604,13 +5620,16 @@ emoji-picker-dialog emoji-picker,
   outline: none;
 }
 
-.post-composer .rich-text-input a {
+/* Composer link/tag/mention styling: color only, no underline — matches
+   Twitter/Slack composer convention and avoids overlap with spellcheck. */
+.rich-text-input::highlight(rt-link) {
   color: var(--text-link-color);
 }
-
-.rich-text-input .rich-text {
-  /* show line breaks */
-  white-space: pre-wrap;
+.rich-text-input::highlight(rt-mention) {
+  color: var(--text-link-color);
+}
+.rich-text-input::highlight(rt-tag) {
+  color: var(--text-link-color);
 }
 
 .rich-text-input-placeholder {

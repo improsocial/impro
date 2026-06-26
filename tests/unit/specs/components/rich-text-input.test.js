@@ -21,7 +21,7 @@ t.describe("RichTextInput - rendering", (it) => {
     document.body.appendChild(element);
     const input = element.querySelector(".rich-text-input");
     assert(input !== null);
-    assertEquals(input.getAttribute("contenteditable"), "true");
+    assertEquals(input.getAttribute("contenteditable"), "plaintext-only");
   });
 
   it("should render placeholder", () => {
@@ -505,6 +505,54 @@ t.describe("RichTextInput - setCursor", (it) => {
     document.body.appendChild(element);
     element.setText("abc");
     assertEquals(lastCursorOffset(element, -5), 0);
+  });
+});
+
+t.describe("RichTextInput - plaintext flow", (it) => {
+  it("reads multi-line textContent verbatim on input", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+    input.textContent = "line one\nline two\nline three";
+    input.dispatchEvent(new Event("input"));
+    assertEquals(element.text, "line one\nline two\nline three");
+  });
+
+  it("syncs editable textContent on setText (single Text node)", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("alpha\nbeta");
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(input.textContent, "alpha\nbeta");
+    assertEquals(input.childNodes.length, 1);
+    assertEquals(input.firstChild.nodeType, 3); // TEXT_NODE
+  });
+
+  it("ignores input events during IME composition", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+    input.dispatchEvent(new window.Event("compositionstart"));
+    input.textContent = "partial";
+    input.dispatchEvent(new Event("input"));
+    assertEquals(element.text, "");
+    input.dispatchEvent(new window.Event("compositionend"));
+    assertEquals(element.text, "partial");
+  });
+
+  it("restores textContent after undo without DOM walking", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.history = [
+      { text: "first", facets: [], cursorPosition: 5 },
+      { text: "first second", facets: [], cursorPosition: 12 },
+    ];
+    element.historyIndex = 1;
+    element.text = "first second";
+    element.undo();
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(element.text, "first");
+    assertEquals(input.textContent, "first");
   });
 });
 

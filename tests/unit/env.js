@@ -44,6 +44,28 @@ globalThis.window.matchMedia = (query) => ({
   dispatchEvent: () => {},
 });
 
+class HighlightStub {
+  constructor(...ranges) {
+    this._ranges = new Set(ranges);
+  }
+  add(range) {
+    this._ranges.add(range);
+  }
+  delete(range) {
+    return this._ranges.delete(range);
+  }
+  clear() {
+    this._ranges.clear();
+  }
+  [Symbol.iterator]() {
+    return this._ranges[Symbol.iterator]();
+  }
+}
+globalThis.Highlight = HighlightStub;
+globalThis.window.Highlight = HighlightStub;
+globalThis.CSS = { highlights: new Map() };
+globalThis.window.CSS = globalThis.CSS;
+
 class IntersectionObserver {
   observe() {}
   unobserve() {}
@@ -107,6 +129,7 @@ class LocalStorageStub {
 globalThis.localStorage = new LocalStorageStub();
 
 globalThis.Element = globalThis.window.Element;
+globalThis.Range = globalThis.window.Range;
 
 // Real emoji element makes a fetch / uses indexeddb, so stub it
 class EmojiPickerStub extends globalThis.window.HTMLElement {}
