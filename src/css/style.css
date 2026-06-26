@@ -5605,13 +5605,15 @@ emoji-picker-dialog emoji-picker,
   outline: none;
 }
 
-.post-composer .rich-text-input a {
-  color: var(--text-link-color);
-}
-
-.rich-text-input .rich-text {
+.rich-text-input {
   /* show line breaks */
   white-space: pre-wrap;
+}
+
+::highlight(facet-mention),
+::highlight(facet-link),
+::highlight(facet-tag) {
+  color: var(--text-link-color);
 }
 
 .rich-text-input-placeholder {

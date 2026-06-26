@@ -108,6 +108,31 @@ globalThis.localStorage = new LocalStorageStub();
 
 globalThis.Element = globalThis.window.Element;
 
+class HighlightStub {
+  constructor(...ranges) {
+    this._ranges = new Set(ranges);
+  }
+  add(range) {
+    this._ranges.add(range);
+  }
+  delete(range) {
+    return this._ranges.delete(range);
+  }
+  clear() {
+    this._ranges.clear();
+  }
+  get size() {
+    return this._ranges.size;
+  }
+}
+globalThis.Highlight = HighlightStub;
+globalThis.window.Highlight = HighlightStub;
+if (typeof globalThis.window.CSS === "undefined") {
+  globalThis.window.CSS = {};
+}
+globalThis.window.CSS.highlights = new Map();
+globalThis.CSS = globalThis.window.CSS;
+
 // Real emoji element makes a fetch / uses indexeddb, so stub it
 class EmojiPickerStub extends globalThis.window.HTMLElement {}
 if (!globalThis.customElements.get("emoji-picker")) {

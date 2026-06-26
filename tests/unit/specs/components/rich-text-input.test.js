@@ -6,6 +6,7 @@ const t = new TestSuite("RichTextInput");
 
 t.beforeEach(() => {
   document.body.innerHTML = "";
+  CSS.highlights.clear();
 });
 
 t.describe("RichTextInput - rendering", (it) => {
@@ -60,13 +61,6 @@ t.describe("RichTextInput - initial state", (it) => {
     assert(!placeholder.classList.contains("hidden"));
   });
 
-  it("should initialize history with empty state", () => {
-    const element = document.createElement("rich-text-input");
-    document.body.appendChild(element);
-    assertEquals(element.history.length, 1);
-    assertEquals(element.history[0].text, "");
-  });
-
   it("should have no mention suggestions initially", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
@@ -78,8 +72,7 @@ t.describe("RichTextInput - placeholder visibility", (it) => {
   it("should hide placeholder when text is entered", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-    element.text = "Hello";
-    element.render();
+    element.setText("Hello");
     const placeholder = element.querySelector(".rich-text-input-placeholder");
     assert(placeholder.classList.contains("hidden"));
   });
@@ -87,10 +80,8 @@ t.describe("RichTextInput - placeholder visibility", (it) => {
   it("should show placeholder when text is cleared", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-    element.text = "Hello";
-    element.render();
-    element.text = "";
-    element.render();
+    element.setText("Hello");
+    element.setText("");
     const placeholder = element.querySelector(".rich-text-input-placeholder");
     assert(!placeholder.classList.contains("hidden"));
   });
@@ -138,138 +129,76 @@ t.describe("RichTextInput - input handling", (it) => {
 
     assert(Array.isArray(receivedFacets));
   });
-});
 
-t.describe("RichTextInput - mention detection", (it) => {
-  it("should detect pending mention", () => {
+  it("skips updates while IME composition is in progress", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-    element.text = "Hello @user";
+    element.setText("hello");
 
-    // Simulate cursor at end
+    let inputEvents = 0;
+    element.addEventListener("input", () => {
+      inputEvents++;
+    });
+
     const input = element.querySelector(".rich-text-input");
-    input.textContent = "Hello @user";
+    input.dispatchEvent(new window.CompositionEvent("compositionstart"));
+    input.textContent = "hello でも";
+    input.dispatchEvent(new Event("input"));
 
-    const pendingMention = element.detectPendingMention();
-    // Note: This test may be flaky without proper cursor positioning
-    // In real usage, the cursor position matters
+    assertEquals(element.text, "hello");
+    assertEquals(inputEvents, 0);
+  });
+
+  it("resumes updates after composition ends", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("hello");
+
+    const input = element.querySelector(".rich-text-input");
+    input.dispatchEvent(new window.CompositionEvent("compositionstart"));
+    input.textContent = "hello でも";
+    input.dispatchEvent(new window.CompositionEvent("compositionend"));
+
+    assertEquals(element.text, "hello でも");
   });
 });
 
-t.describe("RichTextInput - undo/redo", (it) => {
-  it("should support undo", () => {
+t.describe("RichTextInput - facet highlights", (it) => {
+  it("paints a highlight range for a link facet", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-
-    // Add initial state
-    element.text = "Hello";
-    element.facets = [];
-    element.history = [
-      { text: "", facets: [], cursorPosition: 0 },
-      { text: "Hello", facets: [], cursorPosition: 5 },
-    ];
-    element.historyIndex = 1;
-
-    element.undo();
-
-    assertEquals(element.text, "");
-    assertEquals(element.historyIndex, 0);
+    element.setText("Check https://example.com today");
+    const linkHighlight = CSS.highlights.get("facet-link");
+    assert(linkHighlight, "facet-link highlight should be set");
+    assertEquals(linkHighlight.size, 1);
   });
 
-  it("should support redo", () => {
+  it("paints a highlight range for a hashtag", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-
-    element.text = "";
-    element.facets = [];
-    element.history = [
-      { text: "", facets: [], cursorPosition: 0 },
-      { text: "Hello", facets: [], cursorPosition: 5 },
-    ];
-    element.historyIndex = 0;
-
-    element.redo();
-
-    assertEquals(element.text, "Hello");
-    assertEquals(element.historyIndex, 1);
+    element.setText("hello #news");
+    const tagHighlight = CSS.highlights.get("facet-tag");
+    assert(tagHighlight, "facet-tag highlight should be set");
+    assertEquals(tagHighlight.size, 1);
   });
 
-  it("should not undo past beginning", () => {
+  it("clears highlights when text has no facets", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-
-    element.history = [{ text: "", facets: [], cursorPosition: 0 }];
-    element.historyIndex = 0;
-
-    element.undo();
-
-    assertEquals(element.historyIndex, 0);
+    element.setText("hello #news");
+    assertEquals(CSS.highlights.get("facet-tag").size, 1);
+    element.setText("hello world");
+    assertEquals(CSS.highlights.get("facet-tag").size, 0);
   });
 
-  it("should not redo past end", () => {
+  it("does not write innerHTML for facet rendering", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
-
-    element.history = [{ text: "", facets: [], cursorPosition: 0 }];
-    element.historyIndex = 0;
-
-    element.redo();
-
-    assertEquals(element.historyIndex, 0);
-  });
-});
-
-t.describe("RichTextInput - keyboard shortcuts", (it) => {
-  it("should handle Ctrl+Z for undo", () => {
-    const element = document.createElement("rich-text-input");
-    document.body.appendChild(element);
-
-    element.history = [
-      { text: "", facets: [], cursorPosition: 0 },
-      { text: "Hello", facets: [], cursorPosition: 5 },
-    ];
-    element.historyIndex = 1;
-    element.text = "Hello";
-
-    const event = new window.KeyboardEvent("keydown", {
-      key: "z",
-      ctrlKey: true,
-    });
-    let prevented = false;
-    event.preventDefault = () => {
-      prevented = true;
-    };
-
-    element.handleKeydown(event);
-
-    assertEquals(element.historyIndex, 0);
-    assert(prevented);
-  });
-
-  it("should handle Ctrl+Y for redo", () => {
-    const element = document.createElement("rich-text-input");
-    document.body.appendChild(element);
-
-    element.history = [
-      { text: "", facets: [], cursorPosition: 0 },
-      { text: "Hello", facets: [], cursorPosition: 5 },
-    ];
-    element.historyIndex = 0;
-    element.text = "";
-
-    const event = new window.KeyboardEvent("keydown", {
-      key: "y",
-      ctrlKey: true,
-    });
-    let prevented = false;
-    event.preventDefault = () => {
-      prevented = true;
-    };
-
-    element.handleKeydown(event);
-
-    assertEquals(element.historyIndex, 1);
-    assert(prevented);
+    element.setText("hello #news today");
+    const input = element.querySelector(".rich-text-input");
+    // No anchors or spans should be injected — DOM stays as the user typed it.
+    assertEquals(input.querySelectorAll("a, span").length, 0);
+    assertEquals(input.textContent, "hello #news today");
   });
 });
 
@@ -327,55 +256,67 @@ t.describe("RichTextInput - mention suggestions navigation", (it) => {
   });
 });
 
-t.describe("RichTextInput - link click suppression", (it) => {
-  it("should prevent default on click of links inside the editor", () => {
+t.describe("RichTextInput - selectMention", (it) => {
+  function withExecCommandStub(fn) {
+    const calls = [];
+    const original = document.execCommand;
+    document.execCommand = (name, _ui, value) => {
+      calls.push({ name, value });
+      return true;
+    };
+    try {
+      fn(calls);
+    } finally {
+      document.execCommand = original;
+    }
+  }
+
+  it("inserts @handle followed by a trailing space via execCommand", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
+    element.setText("Hi @al");
+    element.currentMentionStart = 3;
+    element.currentMentionEnd = 6;
+    element.mentionSuggestions = [{ handle: "alice.bsky.social" }];
 
-    const input = element.querySelector(".rich-text-input");
-    input.innerHTML = '<a href="https://example.com">https://example.com</a>';
-    const anchor = input.querySelector("a");
-
-    const event = new window.MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
+    withExecCommandStub((calls) => {
+      element.selectMention({ handle: "alice.bsky.social", did: "did:alice" });
+      assertEquals(calls.length, 1);
+      assertEquals(calls[0].name, "insertText");
+      assertEquals(calls[0].value, "@alice.bsky.social ");
     });
-    anchor.dispatchEvent(event);
-
-    assert(event.defaultPrevented);
   });
 
-  it("should prevent default on auxclick of links inside the editor", () => {
+  it("clears typeahead state after selecting a mention", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
+    element.setText("Hi @al");
+    element.currentMentionStart = 3;
+    element.currentMentionEnd = 6;
+    element.currentMentionQuery = "al";
+    element.mentionSuggestions = [{ handle: "alice.bsky.social" }];
+    element.selectedSuggestionIndex = 0;
 
-    const input = element.querySelector(".rich-text-input");
-    input.innerHTML = '<a href="https://example.com">https://example.com</a>';
-    const anchor = input.querySelector("a");
-
-    const event = new window.MouseEvent("auxclick", {
-      bubbles: true,
-      cancelable: true,
+    withExecCommandStub(() => {
+      element.selectMention({ handle: "alice.bsky.social", did: "did:alice" });
     });
-    anchor.dispatchEvent(event);
 
-    assert(event.defaultPrevented);
+    assertEquals(element.mentionSuggestions.length, 0);
+    assertEquals(element.selectedSuggestionIndex, null);
+    assertEquals(element.currentMentionStart, null);
+    assertEquals(element.currentMentionEnd, null);
+    assertEquals(element.currentMentionQuery, null);
   });
 
-  it("should not prevent default on clicks that are not on a link", () => {
+  it("no-ops when there is no pending mention", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
+    element.currentMentionStart = null;
 
-    const input = element.querySelector(".rich-text-input");
-    input.textContent = "just some text";
-
-    const event = new window.MouseEvent("click", {
-      bubbles: true,
-      cancelable: true,
+    withExecCommandStub((calls) => {
+      element.selectMention({ handle: "alice.bsky.social" });
+      assertEquals(calls.length, 0);
     });
-    input.dispatchEvent(event);
-
-    assert(!event.defaultPrevented);
   });
 });
 
@@ -392,7 +333,7 @@ t.describe("RichTextInput - reinitialization protection", (it) => {
 });
 
 t.describe("RichTextInput - setText", (it) => {
-  it("updates text and renders it into the contenteditable", () => {
+  it("updates text and writes it into the contenteditable", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("Hello world");
@@ -435,14 +376,6 @@ t.describe("RichTextInput - setText", (it) => {
     assertEquals(detail.text, "hi");
     assertEquals(detail.facets, element.facets);
   });
-
-  it("schedules a history save", () => {
-    const element = document.createElement("rich-text-input");
-    document.body.appendChild(element);
-    assertEquals(element.historyDebounceTimer, null);
-    element.setText("first");
-    assert(element.historyDebounceTimer !== null);
-  });
 });
 
 t.describe("RichTextInput - setCursor", (it) => {
@@ -470,9 +403,6 @@ t.describe("RichTextInput - setCursor", (it) => {
     return captured;
   }
 
-  // For plain text rendered through richTextTemplate, content is wrapped as
-  // <div class="rich-text"><div>TEXT</div></div>; the walker lands on the
-  // inner text node and the offset equals the resolved index.
   function lastCursorOffset(element, cursor) {
     const captured = withSelectionSpy(() => element.setCursor(cursor));
     if (captured.length === 0) return null;
