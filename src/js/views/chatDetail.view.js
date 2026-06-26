@@ -111,14 +111,38 @@ class ChatDetailView extends View {
       scroller.scrollTop = scroller.scrollHeight;
     }
 
+    // Scroll to bottom, rescrolling on resize events
+    function pinScrollToBottom({ durationMs = 1000 } = {}) {
+      const scroller = getMessageScroller();
+      if (!scroller) {
+        return;
+      }
+      scroller.scrollTop = scroller.scrollHeight;
+      const messageList = scroller.querySelector(".message-list");
+      if (!messageList || typeof ResizeObserver === "undefined") {
+        return;
+      }
+      const observer = new ResizeObserver(() => {
+        scroller.scrollTop = scroller.scrollHeight;
+      });
+      observer.observe(messageList);
+      observer.observe(scroller);
+      const stop = () => observer.disconnect();
+      scroller.addEventListener("touchmove", stop, {
+        once: true,
+        passive: true,
+      });
+      scroller.addEventListener("wheel", stop, { once: true, passive: true });
+      setTimeout(stop, durationMs);
+    }
+
     function isScrolledToBottom() {
       const scroller = getMessageScroller();
       if (!scroller) {
         return false;
       }
-      // 10px threshold
       return (
-        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 10
+        scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <= 60
       );
     }
 
@@ -1151,7 +1175,7 @@ class ChatDetailView extends View {
         initialLoad = false;
         newestMessageId = latestMessageId;
         requestAnimationFrame(() => {
-          scrollToBottom({ onlyIfNeeded: true });
+          pinScrollToBottom();
           // Only enable loading after scroll, otherwise the infinite scroll container will start loading immediately
           state.$loadingEnabled.set(true);
         });
