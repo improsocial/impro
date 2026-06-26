@@ -178,11 +178,11 @@ t.describe("OauthClient.getSession", (it) => {
   });
 });
 
-t.describe("OauthClient.logout", (it) => {
+t.describe("OauthClient.removeAccount", (it) => {
   it("should remove the current session and clear the current did", async () => {
     const client = await buildClient();
     writeSession({ did: "did:plc:test" });
-    await client.logout();
+    await client.removeAccount();
     assertEquals(localStorage.getItem("oauth_session:did:plc:test"), null);
     assertEquals(localStorage.getItem("oauth_current_did"), null);
     assertEquals(localStorage.getItem("oauth_accounts"), null);
@@ -190,7 +190,7 @@ t.describe("OauthClient.logout", (it) => {
 
   it("should be a no-op when no session exists", async () => {
     const client = await buildClient();
-    await client.logout();
+    await client.removeAccount();
     assertEquals(localStorage.getItem("oauth_current_did"), null);
   });
 });
@@ -784,13 +784,13 @@ t.describe("current account pointer", (it) => {
   });
 });
 
-t.describe("multi-account logout", (it) => {
-  it("logout(nonCurrent) removes that account and leaves current intact", async () => {
+t.describe("multi-account removeAccount", (it) => {
+  it("removeAccount(nonCurrent) removes that account and leaves current intact", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
     // current is bob
-    await client.logout("did:plc:alice");
+    await client.removeAccount("did:plc:alice");
     assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:bob");
     assert(localStorage.getItem("oauth_session:did:plc:bob") !== null);
@@ -798,56 +798,56 @@ t.describe("multi-account logout", (it) => {
     assertEquals(client.listAccounts()[0].did, "did:plc:bob");
   });
 
-  it("logout(current) with others present rolls current to first remaining", async () => {
+  it("removeAccount(current) with others present rolls current to first remaining", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
     // current is bob
-    await client.logout("did:plc:bob");
+    await client.removeAccount("did:plc:bob");
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
     assertEquals(localStorage.getItem("oauth_session:did:plc:bob"), null);
   });
 
-  it("logout() no-arg with current set behaves like logout(current)", async () => {
+  it("removeAccount() no-arg with current set behaves like removeAccount(current)", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
-    await client.logout();
+    await client.removeAccount();
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
   });
 
-  it("logout of last account clears the current did key", async () => {
+  it("removeAccount of last account clears the current did key", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
-    await client.logout("did:plc:alice");
+    await client.removeAccount("did:plc:alice");
     assertEquals(localStorage.getItem("oauth_current_did"), null);
     assertEquals(localStorage.getItem("oauth_accounts"), null);
   });
 
-  it("logout(unknownDid) is a no-op", async () => {
+  it("removeAccount(unknownDid) is a no-op", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
-    await client.logout("did:plc:nobody");
+    await client.removeAccount("did:plc:nobody");
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
     assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
   });
 
-  it("logout() with no current set is a no-op", async () => {
+  it("removeAccount() with no current set is a no-op", async () => {
     const client = await buildClient();
-    await client.logout();
+    await client.removeAccount();
     assertEquals(localStorage.getItem("oauth_current_did"), null);
   });
 });
 
-t.describe("soft logout (clearSession)", (it) => {
-  it("clearSession removes the session blob but keeps the account entry and current did", async () => {
+t.describe("soft logout (revoke)", (it) => {
+  it("revoke removes the session blob but keeps the account entry and current did", async () => {
     const client = await buildClient();
     await runCallback(client, {
       requestId: "r1",
       sub: "did:plc:alice",
       handle: "alice.bsky.social",
     });
-    client.clearSession("did:plc:alice");
+    await client.revoke("did:plc:alice");
     assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
     const accounts = client.listAccounts();
     assertEquals(accounts.length, 1);
@@ -856,29 +856,29 @@ t.describe("soft logout (clearSession)", (it) => {
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
   });
 
-  it("clearSession() no-arg targets the current did", async () => {
+  it("revoke() no-arg targets the current did", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
     // current is bob
-    client.clearSession();
+    await client.revoke();
     assertEquals(localStorage.getItem("oauth_session:did:plc:bob"), null);
     assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
     assertEquals(client.listAccounts().length, 2);
   });
 
-  it("clearSession with no current did is a no-op", async () => {
+  it("revoke with no current did is a no-op", async () => {
     const client = await buildClient();
-    client.clearSession();
+    await client.revoke();
     assertEquals(localStorage.getItem("oauth_current_did"), null);
     assertEquals(localStorage.getItem("oauth_accounts"), null);
   });
 
-  it("clearSession evicts the cached session so getSession returns null", async () => {
+  it("revoke evicts the cached session so getSession returns null", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     assert((await client.getSession("did:plc:alice")) !== null);
-    client.clearSession("did:plc:alice");
+    await client.revoke("did:plc:alice");
     assertEquals(await client.getSession("did:plc:alice"), null);
   });
 
@@ -886,7 +886,7 @@ t.describe("soft logout (clearSession)", (it) => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
     await runCallback(client, { requestId: "r2", sub: "did:plc:bob" });
-    client.clearSession("did:plc:alice");
+    await client.revoke("did:plc:alice");
     const accounts = client.listAccounts();
     const alice = accounts.find((entry) => entry.did === "did:plc:alice");
     const bob = accounts.find((entry) => entry.did === "did:plc:bob");
@@ -894,10 +894,10 @@ t.describe("soft logout (clearSession)", (it) => {
     assertEquals(bob.needsReauth, false);
   });
 
-  it("handleCallback after clearSession restores the session and clears needsReauth", async () => {
+  it("handleCallback after revoke restores the session and clears needsReauth", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
-    client.clearSession("did:plc:alice");
+    await client.revoke("did:plc:alice");
     await runCallback(client, { requestId: "r2", sub: "did:plc:alice" });
     assert(localStorage.getItem("oauth_session:did:plc:alice") !== null);
     assertEquals(localStorage.getItem("oauth_current_did"), "did:plc:alice");
@@ -1133,6 +1133,98 @@ t.describe("DPoP sanity across accounts", (it) => {
     ).jwk;
     assertEquals(aliceJwk.x, bobJwk.x);
     assertEquals(aliceJwk.y, bobJwk.y);
+  });
+});
+
+t.describe("OauthClient.revoke (server-side)", (it) => {
+  const REVOCATION_URL = "https://auth.example.com/revoke";
+
+  function writeSessionWithRevocation(did) {
+    writeSession({
+      did,
+      refreshToken: "rt-" + did,
+      authServerMetadata: {
+        token_endpoint: "https://auth.example.com/token",
+        revocation_endpoint: REVOCATION_URL,
+      },
+    });
+  }
+
+  it("revoke posts to revocation_endpoint with the refresh token", async () => {
+    const client = await buildClient();
+    writeSessionWithRevocation("did:plc:alice");
+    globalThis.fetch.__interceptJson(REVOCATION_URL, {});
+    await client.revoke("did:plc:alice");
+    const revokeCall = globalThis.fetch.calls.find((entry) =>
+      entry.url.startsWith(REVOCATION_URL),
+    );
+    assert(revokeCall !== undefined);
+    assertEquals(revokeCall.options.method, "POST");
+    const body = new URLSearchParams(revokeCall.options.body);
+    assertEquals(body.get("token"), "rt-did:plc:alice");
+    assertEquals(body.get("token_type_hint"), "refresh_token");
+    assertEquals(
+      body.get("client_id"),
+      "https://app.example.com/client-metadata.json",
+    );
+    assert(revokeCall.options.headers.DPoP !== undefined);
+    // Local state is still cleared.
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+  });
+
+  it("removeAccount also revokes server-side before clearing", async () => {
+    const client = await buildClient();
+    writeSessionWithRevocation("did:plc:alice");
+    globalThis.fetch.__interceptJson(REVOCATION_URL, {});
+    await client.removeAccount("did:plc:alice");
+    const revokeCall = globalThis.fetch.calls.find((entry) =>
+      entry.url.startsWith(REVOCATION_URL),
+    );
+    assert(revokeCall !== undefined);
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+    assertEquals(localStorage.getItem("oauth_accounts"), null);
+  });
+
+  it("clears local state even when the revocation request fails", async () => {
+    const client = await buildClient();
+    writeSessionWithRevocation("did:plc:alice");
+    globalThis.fetch.__intercept(REVOCATION_URL, async () => ({
+      ok: false,
+      status: 500,
+      statusText: "Server Error",
+      headers: { get: () => null },
+      json: async () => ({ error: "server_error" }),
+      text: async () => "boom",
+    }));
+    await client.revoke("did:plc:alice");
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+  });
+
+  it("swallows network errors from the revocation request", async () => {
+    const client = await buildClient();
+    writeSessionWithRevocation("did:plc:alice");
+    globalThis.fetch.__intercept(REVOCATION_URL, async () => {
+      throw new Error("network down");
+    });
+    let threw = null;
+    try {
+      await client.revoke("did:plc:alice");
+    } catch (error) {
+      threw = error;
+    }
+    assertEquals(threw, null);
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
+  });
+
+  it("skips the revocation call when no revocation_endpoint is advertised", async () => {
+    const client = await buildClient();
+    writeSession({ did: "did:plc:alice" }); // no revocation_endpoint in fixture
+    await client.revoke("did:plc:alice");
+    const revokeCall = globalThis.fetch.calls.find((entry) =>
+      entry.url.includes("/revoke"),
+    );
+    assertEquals(revokeCall, undefined);
+    assertEquals(localStorage.getItem("oauth_session:did:plc:alice"), null);
   });
 });
 

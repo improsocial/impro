@@ -90,12 +90,9 @@ export class Api {
         error instanceof OauthRefreshTokenError
       ) {
         console.error("Token refresh error", error);
-        const handle = this.isAuthenticated
-          ? (this.session.handle ?? null)
-          : null;
         const did = this.isAuthenticated ? (this.session.did ?? null) : null;
         await auth.logout(did);
-        window.location.href = linkToLogin({ query: { handle } });
+        window.location.href = linkToLogin();
         await new Promise(() => {});
       }
       throw error;

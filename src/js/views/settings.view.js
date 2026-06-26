@@ -7,7 +7,7 @@ import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.templat
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
 import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
-import { auth } from "/js/auth.js";
+import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
@@ -268,9 +268,19 @@ class SettingsView extends View {
                             did: account.did,
                           });
                           if (account.needsReauth) {
-                            window.location.href = linkToLogin({
-                              query: { addAccount: 1, handle: account.handle },
-                            });
+                            try {
+                              await auth.login({
+                                handle: account.handle,
+                                returnTo:
+                                  window.location.pathname +
+                                  window.location.search,
+                              });
+                            } catch (error) {
+                              $pendingAccountSwitcherAction.set(null);
+                              showToast(getLoginErrorMessage(error), {
+                                style: "error",
+                              });
+                            }
                             return;
                           }
                           try {

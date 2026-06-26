@@ -264,7 +264,7 @@ t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
     restoreWindow();
   });
 
-  it("soft-logs-out and redirects to login with the handle", async () => {
+  it("soft-logs-out and redirects to login", async () => {
     const capturedHrefs = mockWindowLocation("");
     const session = {
       serviceEndpoint: "https://test.example.com",
@@ -284,27 +284,6 @@ t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
 
     assertEquals(auth.logout.calls.length, 1);
     assertEquals(auth.logout.calls[0][0], "did:plc:testuser");
-    assertEquals(capturedHrefs.at(-1), "/login?handle=alice.bsky.social");
-  });
-
-  it("redirects to plain login when the session has no handle", async () => {
-    const capturedHrefs = mockWindowLocation("");
-    const session = {
-      serviceEndpoint: "https://test.example.com",
-      did: "did:plc:testuser",
-      handle: null,
-      fetch: async () => {
-        throw new TokenRefreshError("refresh failed");
-      },
-    };
-    const api = new Api(session);
-
-    api.request("com.example.method").catch(() => {});
-    for (let i = 0; i < 50 && capturedHrefs.length === 0; i++) {
-      await Promise.resolve();
-    }
-
-    assertEquals(auth.logout.calls.length, 1);
     assertEquals(capturedHrefs.at(-1), "/login");
   });
 });

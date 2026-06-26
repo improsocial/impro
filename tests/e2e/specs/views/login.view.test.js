@@ -1,6 +1,8 @@
 import { test, expect } from "../../base.js";
 import { MockServer } from "../../mockServer.js";
-import { login } from "../../helpers.js";
+import { login, loginWithAccounts } from "../../helpers.js";
+import { userProfile } from "../../fixtures.js";
+import { createProfile } from "../../factories.js";
 
 test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {
@@ -84,16 +86,6 @@ test.describe("Login view", () => {
     ).toHaveCount(0);
   });
 
-  test("prefills the handle input from the handle query param", async ({
-    page,
-  }) => {
-    await page.goto("/login?handle=alice.bsky.social");
-
-    await expect(page.locator('input[name="handle"]')).toHaveValue(
-      "alice.bsky.social",
-    );
-  });
-
   test("prefills the advanced section from localStorage", async ({ page }) => {
     await page.addInitScript(() => {
       localStorage.setItem(
@@ -144,6 +136,125 @@ test.describe("Login view", () => {
       await login(page);
       await page.goto("/login?returnTo=%2F%2Fevil.com");
       await expect(page).toHaveURL(/\/$/, { timeout: 10000 });
+    });
+  });
+
+  test.describe("saved accounts list", () => {
+    test("is not rendered when no accounts are stored", async ({ page }) => {
+      await page.goto("/login");
+      await expect(
+        page.locator('[data-testid="saved-accounts-list"]'),
+      ).toHaveCount(0);
+    });
+
+    test("renders a row per saved account and a 'Use another account' row", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const otherProfile = createProfile({
+        did: "did:plc:saveduser",
+        handle: "saved.bsky.social",
+        displayName: "Saved User",
+      });
+      mockServer.addProfile(userProfile);
+      mockServer.addProfile(otherProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle, needsReauth: true },
+        {
+          did: otherProfile.did,
+          handle: otherProfile.handle,
+          needsReauth: true,
+        },
+      ]);
+
+      await page.goto("/login");
+
+      const list = page.locator('[data-testid="saved-accounts-list"]');
+      await expect(list).toBeVisible();
+      await expect(
+        list.locator('[data-testid="saved-account-row"]'),
+      ).toHaveCount(2);
+      await expect(
+        list.locator('[data-testid="saved-account-add"]'),
+      ).toBeVisible();
+    });
+
+    test("needsReauth rows show the 'Sign in again' hint and start the OAuth flow on click", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle, needsReauth: true },
+      ]);
+
+      await page.goto("/login");
+
+      const row = page.locator(
+        `[data-testid="saved-account-row"][data-handle="${userProfile.handle}"]`,
+      );
+      await expect(row).toHaveAttribute("data-teststate", "reauth");
+      await expect(
+        row.locator('[data-testid="saved-account-reauth-hint"]'),
+      ).toBeVisible();
+
+      await page.route("**/plc.directory/**", (route) =>
+        route.fulfill({ status: 500, body: "" }),
+      );
+      await row.click();
+      await expect(page.locator(".error-message")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(page).not.toHaveURL(/addAccount=1/);
+    });
+
+    test("'Use another account' clears and focuses the handle input", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle, needsReauth: true },
+      ]);
+
+      await page.goto("/login");
+      await expect(
+        page.locator('[data-testid="saved-accounts-list"]'),
+      ).toBeVisible();
+      await expect(page.locator("#login-form")).toBeHidden();
+
+      await page.locator('[data-testid="saved-account-add"]').click();
+      await expect(
+        page.locator('[data-testid="saved-accounts-list"]'),
+      ).toBeHidden();
+      await expect(page.locator("#login-form")).toBeVisible();
+      await expect(page.locator('input[name="handle"]')).toHaveValue("");
+      await expect(page.locator('input[name="handle"]')).toBeFocused();
+    });
+
+    test("Back button returns from the form to the accounts list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(userProfile);
+      await mockServer.setup(page);
+      await loginWithAccounts(page, [
+        { did: userProfile.did, handle: userProfile.handle, needsReauth: true },
+      ]);
+
+      await page.goto("/login");
+      await page.locator('[data-testid="saved-account-add"]').click();
+      await expect(page.locator("#login-form")).toBeVisible();
+
+      await page.getByRole("button", { name: "Back" }).click();
+      await expect(
+        page.locator('[data-testid="saved-accounts-list"]'),
+      ).toBeVisible();
+      await expect(page.locator("#login-form")).toBeHidden();
+      await expect(page).toHaveURL(/\/login/);
     });
   });
 

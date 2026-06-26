@@ -289,24 +289,24 @@ test.describe("Account switch flow with an account needing re-auth", () => {
     ).toHaveAttribute("data-teststate", "current");
   });
 
-  test("selecting a re-auth account goes to login with the handle prefilled", async ({
+  test("selecting a re-auth account starts the OAuth flow", async ({
     page,
   }) => {
     const dialog = await openSwitcherDialog(page);
 
+    await page.route("**/plc.directory/**", (route) =>
+      route.fulfill({ status: 500, body: "" }),
+    );
     await dialog
       .locator(
         `[data-testid="account-switcher-item"][data-did="${otherProfile.did}"]`,
       )
       .click();
 
-    await expect(page).toHaveURL(
-      `/login?addAccount=1&handle=${otherProfile.handle}`,
-      { timeout: 10000 },
-    );
-    await expect(page.locator('input[name="handle"]')).toHaveValue(
-      otherProfile.handle,
-    );
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).not.toHaveURL(/\/login/);
     // The account is still saved; only its session is missing.
     const accounts = await page.evaluate(() =>
       JSON.parse(localStorage.getItem("oauth_accounts")),

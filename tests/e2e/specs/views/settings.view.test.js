@@ -289,7 +289,7 @@ test.describe("Settings view", () => {
       ).toHaveCount(0);
     });
 
-    test("an account needing re-auth shows the sign-in-again state and routes to login", async ({
+    test("an account needing re-auth shows the sign-in-again state and starts the OAuth flow on click", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -320,15 +320,15 @@ test.describe("Settings view", () => {
 
       const row = view.locator('[data-testid="settings-account-row"]');
       await expect(row).toHaveAttribute("data-teststate", "reauth");
-      await row.click();
 
-      await expect(page).toHaveURL(
-        `/login?addAccount=1&handle=${otherProfile.handle}&returnTo=%2Fsettings`,
-        { timeout: 10000 },
+      await page.route("**/plc.directory/**", (route) =>
+        route.fulfill({ status: 500, body: "" }),
       );
-      await expect(page.locator('input[name="handle"]')).toHaveValue(
-        otherProfile.handle,
-      );
+      await row.click();
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(page).not.toHaveURL(/\/login/);
     });
   });
 

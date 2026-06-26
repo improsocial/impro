@@ -2,7 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss } from "/js/utils.js";
-import { auth } from "/js/auth.js";
+import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
 import { linkToLogin } from "/js/navigation.js";
@@ -248,9 +248,15 @@ class AccountSwitcherDialog extends Component {
     }
     if (account.needsReauth) {
       this.state.$pendingAction.set({ type: "switch", did: account.did });
-      window.location.href = linkToLogin({
-        query: { addAccount: 1, handle: account.handle },
-      });
+      try {
+        await auth.login({
+          handle: account.handle,
+          returnTo: window.location.pathname + window.location.search,
+        });
+      } catch (error) {
+        this.state.$pendingAction.set(null);
+        showToast(getLoginErrorMessage(error), { style: "error" });
+      }
       return;
     }
     this.state.$pendingAction.set({ type: "switch", did: account.did });
