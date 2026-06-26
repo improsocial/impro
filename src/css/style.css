@@ -7134,10 +7134,7 @@ img[data-lightbox] {
   object-fit: cover;
 }
 
-[data-testid="settings-account-row"]
-  .vertical-nav-icon
-  .avatar
-  .avatar-image-frame {
+.settings-account-row .vertical-nav-icon .avatar .avatar-image-frame {
   width: 26px;
   height: 26px;
   border: none;
@@ -7145,7 +7142,7 @@ img[data-lightbox] {
 
 /* Keep the inline context-menu host out of flex layout so it doesn't add a
    `gap` between the ellipsis trigger and the right edge of the row. */
-[data-testid="settings-account-row"] > context-menu {
+.settings-account-row > context-menu {
   position: absolute;
 }
 
@@ -7274,12 +7271,12 @@ img[data-lightbox] {
   cursor: default;
 }
 
-.account-switcher-item[data-teststate="pending"] {
+.account-switcher-item.is-pending {
   opacity: 1;
 }
 
 @media (min-width: 800px) {
-  .account-switcher-item[data-teststate="pending"] {
+  .account-switcher-item.is-pending {
     background-color: var(--post-hover-color);
   }
 }

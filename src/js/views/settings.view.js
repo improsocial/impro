@@ -93,7 +93,7 @@ class SettingsView extends View {
                   const profile = accountProfiles[account.did] ?? null;
                   return html`
                     <div
-                      class="vertical-nav-item"
+                      class="vertical-nav-item settings-account-row"
                       data-testid="settings-account-row"
                       data-account-did=${account.did}
                       data-teststate=${account.needsReauth ? "reauth" : "ok"}
