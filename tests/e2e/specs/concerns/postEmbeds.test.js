@@ -560,6 +560,320 @@ test.describe("Post embeds view — feed generator / list", () => {
     await expect(feed).toContainText("@creator1.bsky.social");
   });
 
+  test("when logged out, clicking the invite action opens bsky.app in a new tab", async ({
+    page,
+    context,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 5,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: false,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+        },
+      },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    mockServer.setPostThread(post.uri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post,
+      replies: [],
+    });
+    await mockServer.setup(page);
+    await page.goto(postPath);
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="join-link-embed"]')).toBeVisible({
+      timeout: 10000,
+    });
+    const popupPromise = context.waitForEvent("page");
+    await view.locator('[data-testid="join-link-embed-action"]').click();
+    const popup = await popupPromise;
+    expect(popup.url()).toBe("https://bsky.app/chat/abcd1234");
+    await popup.close();
+  });
+
+  test("clicking Join on an invite embed in a post opens the join dialog", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 5,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: false,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    await view
+      .locator('[data-testid="join-link-embed-action"]')
+      .click({ timeout: 10000 });
+    await expect(
+      page.locator('[data-testid="join-group-chat-dialog"]'),
+    ).toBeVisible();
+  });
+
+  test("renders an available chat invite embed with group name and join action", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 5,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: false,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    const embed = view.locator('[data-testid="join-link-embed"]');
+    await expect(embed).toBeVisible({ timeout: 10000 });
+    await expect(
+      embed.locator('[data-testid="join-link-embed-name"]'),
+    ).toContainText("Friends of Bsky");
+    await expect(
+      embed.locator('[data-testid="join-link-embed-meta"]'),
+    ).toContainText("5/50 members");
+    await expect(
+      embed.locator('[data-testid="join-link-embed-action"]'),
+    ).toHaveAttribute("data-teststate", "join");
+  });
+
+  test("renders a Request to join action when the chat requires approval", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 5,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: true,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    const action = view.locator('[data-testid="join-link-embed-action"]');
+    await expect(action).toHaveAttribute("data-teststate", "request", {
+      timeout: 10000,
+    });
+    await expect(action).toContainText("Request to join");
+  });
+
+  test("renders disabled state when the chat is full", async ({ page }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 50,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: false,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    const action = view.locator('[data-testid="join-link-embed-action"]');
+    await expect(action).toHaveAttribute("data-teststate", "full", {
+      timeout: 10000,
+    });
+    await expect(action).toBeDisabled();
+  });
+
+  test("renders the unavailable state for a disabled invite preview", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#disabledJoinLinkPreviewView",
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    await expect(
+      view.locator('[data-testid="join-link-embed-unavailable"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("renders the unavailable state for an unknown preview $type", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: { $type: "chat.bsky.group.defs#someFutureVariant" },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    await expect(
+      view.locator('[data-testid="join-link-embed-unavailable"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("upgrades an external embed of a bsky.app chat invite URL into the invite card", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri: "https://bsky.app/chat/abcd1234",
+          title: "Friends of Bsky",
+          description: "",
+          thumb: "",
+        },
+      },
+    });
+    const mockServer = new MockServer();
+    mockServer.addPosts([post]);
+    mockServer.setPostThread(post.uri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post,
+      replies: [],
+    });
+    mockServer.setJoinLinkPreview("abcd1234", {
+      $type: "chat.bsky.group.defs#joinLinkPreviewView",
+      code: "abcd1234",
+      name: "Friends of Bsky",
+      memberCount: 5,
+      memberLimit: 50,
+      joinRule: "open",
+      requireApproval: false,
+      owner: {
+        did: "did:plc:owner",
+        handle: "owner.bsky.social",
+        displayName: "Owner",
+        avatar: "",
+        viewer: {},
+        labels: [],
+        createdAt: "2025-01-01T00:00:00.000Z",
+      },
+      viewer: {},
+    });
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(postPath);
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="join-link-embed"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="external-link"]')).toHaveCount(0);
+  });
+
+  test("falls back to the plain external embed when the invite preview can't be resolved", async ({
+    page,
+  }) => {
+    const post = buildPost({
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri: "https://bsky.app/chat/abcd1234",
+          title: "Friends of Bsky",
+          description: "Group chat invite",
+          thumb: "",
+        },
+      },
+    });
+    await setupSinglePostThread(page, post);
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="external-link"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="join-link-embed"]')).toHaveCount(
+      0,
+    );
+  });
+
   test("renders a list embed with list name and creator handle", async ({
     page,
   }) => {

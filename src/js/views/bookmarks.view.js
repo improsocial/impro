@@ -15,6 +15,7 @@ class BookmarksView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -50,6 +51,7 @@ class BookmarksView extends View {
                   postInteractionHandler,
                   emptyMessage: "No saved posts yet!",
                   pluginService,
+                  groupChatLinkService,
                 })}
               </main>
             `,

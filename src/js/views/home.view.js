@@ -21,6 +21,7 @@ class HomeView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
@@ -232,6 +233,7 @@ class HomeView extends View {
                           enableFeedFeedback: acceptsInteractions,
                           onLoadMore: () => loadCurrentFeed(),
                           pluginService,
+                          groupChatLinkService,
                           showEndMessage: true,
                         })}
                   </div>`;

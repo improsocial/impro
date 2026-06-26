@@ -28,6 +28,7 @@ class ListDetailView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -269,6 +270,7 @@ class ListDetailView extends View {
                             onLoadMore: () => loadFeed(),
                             postInteractionHandler,
                             pluginService,
+                            groupChatLinkService,
                             showEndMessage: true,
                           })}
                         </div>`

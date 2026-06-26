@@ -18,6 +18,7 @@ class HashtagView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -105,6 +106,7 @@ class HashtagView extends View {
                     enableFeedFeedback: false,
                     onLoadMore: () => loadCurrentFeed(),
                     pluginService,
+                    groupChatLinkService,
                   })}
                 </div>`;
               })}

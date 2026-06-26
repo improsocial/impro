@@ -14,6 +14,8 @@ export class MockServer {
     this.convos = [];
     this.convoMessages = new Map();
     this.chatLogs = [];
+    this.joinLinkPreviews = new Map();
+    this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
     this.interactionPayloads = [];
     this.blobCounter = 0;
@@ -173,6 +175,12 @@ export class MockServer {
 
   addPosts(posts) {
     this.posts.push(...posts);
+    for (const post of posts) {
+      const preview = post?.embed?.joinLinkPreview;
+      if (preview?.code) {
+        this.joinLinkPreviews.set(preview.code, preview);
+      }
+    }
   }
 
   addPostLikes(postUri, likes) {
@@ -231,6 +239,20 @@ export class MockServer {
 
   addConvoMessages(convoId, messages) {
     this.convoMessages.set(convoId, messages);
+    for (const message of messages) {
+      const preview = message?.embed?.joinLinkPreview;
+      if (preview?.code) {
+        this.joinLinkPreviews.set(preview.code, preview);
+      }
+    }
+  }
+
+  setJoinLinkPreview(code, preview) {
+    this.joinLinkPreviews.set(code, preview);
+  }
+
+  failJoinLinkRequest(code) {
+    this.failJoinLinkCodes.add(code);
   }
 
   // Abort all subsequent document navigations (reloads, redirects) so the
@@ -698,6 +720,49 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ message: message || {} }),
+      });
+    });
+
+    await page.route(
+      "**/xrpc/chat.bsky.group.getJoinLinkPreviews*",
+      (route) => {
+        const url = new URL(route.request().url());
+        const codes = url.searchParams.getAll("codes");
+        const joinLinkPreviews = codes
+          .map((code) => this.joinLinkPreviews.get(code))
+          .filter(Boolean);
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ joinLinkPreviews }),
+        });
+      },
+    );
+
+    await page.route("**/xrpc/chat.bsky.group.requestJoin*", (route) => {
+      const body = route.request().postDataJSON();
+      const code = body?.code;
+      if (this.failJoinLinkCodes.has(code)) {
+        return route.fulfill({
+          status: 500,
+          contentType: "application/json",
+          body: JSON.stringify({ error: "ServerError" }),
+        });
+      }
+      const preview = this.joinLinkPreviews.get(code);
+      if (preview?.$type === "chat.bsky.group.defs#joinLinkPreviewView") {
+        this.joinLinkPreviews.set(code, {
+          ...preview,
+          viewer: {
+            ...(preview.viewer ?? {}),
+            requestedAt: new Date().toISOString(),
+          },
+        });
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ status: "pending" }),
       });
     });
 

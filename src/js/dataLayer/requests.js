@@ -11,6 +11,8 @@ import {
   parseUri,
   isGroupConvo,
   getGroupConvoDetails,
+  getJoinLinkCodesFromPosts,
+  getJoinLinkCodesFromMessages,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
@@ -249,6 +251,7 @@ export class Requests {
     if (blockedPostUris.length > 0) {
       await this._loadBlockedPosts(blockedPostUris);
     }
+    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Save post thread
     this.dataStore.$postThreads.set(postURI, postThread);
     this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
@@ -443,6 +446,7 @@ export class Requests {
     if (blockedPostUris.length > 0) {
       await this._loadBlockedPosts(blockedPostUris);
     }
+    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Filter posts with plugins
     await this.pluginService.refreshFiltersForFeed(feedURI, feed);
     if (existingFeed && !reload) {
@@ -589,6 +593,9 @@ export class Requests {
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
       }
+      await this._loadJoinLinkPreviews(
+        getJoinLinkCodesFromPosts(searchResults),
+      );
     }
     const existingResults = this.dataStore.$postSearchResults.get();
     if (existingResults && cursor) {
@@ -687,6 +694,7 @@ export class Requests {
     if (blockedPostUris.length > 0) {
       await this._loadBlockedPosts(blockedPostUris);
     }
+    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Save feed
     if (existingFeed && !reload) {
       // Append to existing feed
@@ -809,6 +817,21 @@ export class Requests {
     this.dataStore.$convos.set(convoId, res.convo);
   }
 
+  async _loadJoinLinkPreviews(codes) {
+    const distinct = unique((codes ?? []).filter(Boolean));
+    if (distinct.length === 0) return;
+    try {
+      const res = await this.api.getJoinLinkPreviews(distinct);
+      for (const preview of res.joinLinkPreviews ?? []) {
+        if (preview?.code) {
+          this.dataStore.$joinLinkPreviewsByCode.set(preview.code, preview);
+        }
+      }
+    } catch (error) {
+      console.error("Failed to load join link previews", error);
+    }
+  }
+
   async loadConvoForProfile(profileDid) {
     const res = await this.api.getConvoForMembers([profileDid]);
     this.dataStore.$convos.set(res.convo.id, res.convo);
@@ -849,12 +872,16 @@ export class Requests {
     } else {
       this.dataStore.$convoMessages.set(convoId, res);
     }
+    await this._loadJoinLinkPreviews(
+      getJoinLinkCodesFromMessages(res.messages),
+    );
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
     const currentUser = this.dataStore.$currentUser.get();
     const res = await this.api.getChatLogs({ cursor });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
+    const newMessages = [];
     for (const log of logsForConvo) {
       const isReactionLog =
         log.$type === "chat.bsky.convo.defs#logAddReaction" ||
@@ -928,7 +955,9 @@ export class Requests {
         messages: [log.message, ...convoMessages.messages],
         cursor: convoMessages.cursor,
       });
+      newMessages.push(log.message);
     }
+    await this._loadJoinLinkPreviews(getJoinLinkCodesFromMessages(newMessages));
     return res.cursor;
   }
 
@@ -1229,6 +1258,9 @@ export class Requests {
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
       }
+      await this._loadJoinLinkPreviews(
+        getJoinLinkCodesFromPosts(searchResults),
+      );
     }
 
     // Convert posts to feed format
@@ -1280,6 +1312,7 @@ export class Requests {
       if (blockedPostUris.length > 0) {
         await this._loadBlockedPosts(blockedPostUris);
       }
+      await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(posts));
     }
 
     // Convert to feed format

@@ -84,6 +84,7 @@ export function smallPostTemplate({
   replyToAuthor = null,
   lazyLoadImages = false,
   pluginService,
+  groupChatLinkService = null,
 }) {
   if (isBlockedPost(post)) {
     return blockedPostTemplate();
@@ -173,6 +174,7 @@ export function smallPostTemplate({
                           mediaLabel: post.mediaLabel,
                           lazyLoadImages,
                           isAuthenticated,
+                          groupChatLinkService,
                         })}
                       </div>`
                     : null}`}

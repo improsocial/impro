@@ -107,6 +107,7 @@ export function largePostTemplate({
   afterDelete = null,
   afterHide = null,
   pluginService,
+  groupChatLinkService = null,
 }) {
   if (isBlockedPost(post)) {
     return blockedPostTemplate();
@@ -165,6 +166,7 @@ export function largePostTemplate({
                     embed: post.embed,
                     mediaLabel: post.mediaLabel,
                     isAuthenticated,
+                    groupChatLinkService,
                   })}
                 </div>`
               : null}

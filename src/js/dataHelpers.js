@@ -1,4 +1,5 @@
 import { unique } from "/js/utils.js";
+import { IN_APP_LINK_DOMAINS } from "/js/config.js";
 
 export const INVALID_HANDLE = "handle.invalid";
 export const MISSING_HANDLE = "missing.invalid";
@@ -893,4 +894,72 @@ export function transformNestedQuotes(post, transform) {
       transform(nestedQuotedPost),
     );
   });
+}
+
+const CHAT_INVITE_PATH_REGEX = /^\/chat\/([a-zA-Z0-9]{7,10})$/;
+
+export function getInviteCodeFromUrl(url) {
+  if (!url) return null;
+  let pathname;
+  try {
+    const parsed = new URL(
+      url.startsWith("/") ? `https://bsky.app${url}` : url,
+    );
+    if (
+      !url.startsWith("/") &&
+      !IN_APP_LINK_DOMAINS.includes(parsed.hostname)
+    ) {
+      return null;
+    }
+    pathname = parsed.pathname;
+  } catch {
+    return null;
+  }
+  return pathname.match(CHAT_INVITE_PATH_REGEX)?.[1] ?? null;
+}
+
+export function isInviteLinkUrl(url) {
+  return getInviteCodeFromUrl(url) !== null;
+}
+
+export function getJoinLinkCodeFromEmbed(embed) {
+  if (embed?.$type === "chat.bsky.embed.joinLink#view") {
+    return embed.joinLinkPreview?.code ?? null;
+  }
+  if (embed?.$type === "app.bsky.embed.external#view") {
+    return getInviteCodeFromUrl(embed.external?.uri);
+  }
+  return null;
+}
+
+export function getJoinLinkCodesFromPosts(posts) {
+  return (posts ?? [])
+    .map((post) => getJoinLinkCodeFromEmbed(post?.embed))
+    .filter(Boolean);
+}
+
+export function getJoinLinkCodesFromMessages(messages) {
+  return (messages ?? [])
+    .map((message) => getJoinLinkCodeFromEmbed(message?.embed))
+    .filter(Boolean);
+}
+
+export function attachJoinLinkPreviewToEmbed(embed, preview) {
+  if (embed?.$type === "chat.bsky.embed.joinLink#view") {
+    if (preview === embed.joinLinkPreview) return null;
+    return { ...embed, joinLinkPreview: preview };
+  }
+  if (embed?.$type === "app.bsky.embed.external#view") {
+    return {
+      $type: "chat.bsky.embed.joinLink#view",
+      joinLinkPreview: preview,
+    };
+  }
+  return null;
+}
+
+const JOIN_LINK_PREVIEW_TYPE = "chat.bsky.group.defs#joinLinkPreviewView";
+
+export function isAvailableJoinLinkPreview(preview) {
+  return preview?.$type === JOIN_LINK_PREVIEW_TYPE;
 }

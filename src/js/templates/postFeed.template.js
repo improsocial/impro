@@ -45,6 +45,7 @@ function replyContextTemplate({
   onClickShowMore,
   enableFeedFeedback,
   pluginService,
+  groupChatLinkService,
 }) {
   const root = reply.root;
   const parent = reply.parent;
@@ -68,6 +69,7 @@ function replyContextTemplate({
               onClickShowMore,
               enableFeedFeedback,
               pluginService,
+              groupChatLinkService,
               isParent: true,
             })}
           `
@@ -98,6 +100,7 @@ function replyContextTemplate({
               onClickShowMore,
               enableFeedFeedback,
               pluginService,
+              groupChatLinkService,
               isParent: true,
             })}
           `
@@ -116,6 +119,7 @@ function feedItemTemplate({
   onClickShowMore,
   enableFeedFeedback,
   pluginService,
+  groupChatLinkService,
 }) {
   const post = feedItem.post;
   const reply = feedItem.reply;
@@ -149,6 +153,7 @@ function feedItemTemplate({
             onClickShowMore,
             enableFeedFeedback,
             pluginService,
+            groupChatLinkService,
           })
         : ""}
       ${postTemplate({
@@ -167,6 +172,7 @@ function feedItemTemplate({
         replyToAuthor,
         enableFeedFeedback,
         pluginService,
+        groupChatLinkService,
       })}
     </div>
   `;
@@ -194,6 +200,7 @@ export function postFeedTemplate({
   emptyMessage = null,
   showEndMessage = false,
   pluginService,
+  groupChatLinkService = null,
 }) {
   if (!feed) {
     return feedSkeletonTemplate();
@@ -239,6 +246,7 @@ export function postFeedTemplate({
                   onClickShowMore,
                   enableFeedFeedback,
                   pluginService,
+                  groupChatLinkService,
                 }),
               )}
             </div>`;

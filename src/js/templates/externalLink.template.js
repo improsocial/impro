@@ -5,27 +5,14 @@ function getDomainFromUri(uri) {
   return new URL(uri).hostname;
 }
 
-function isGroupChatLink(url) {
-  try {
-    const { hostname, pathname } = new URL(url);
-    return (
-      hostname === "bsky.app" && /^\/chat\/[a-zA-Z0-9]{7,10}$/.test(pathname)
-    );
-  } catch {
-    return false;
-  }
-}
-
 export function externalLinkTemplate({
   url,
   title,
-  description: rawDescription,
+  description,
   image,
   lazyLoadImages,
   disableNavigation,
 }) {
-  // Remporary override for group chat links
-  const description = isGroupChatLink(url) ? "Group chat" : rawDescription;
   return html`<div class="external-link embed-card" data-testid="external-link">
     <a
       href="${sanitizeUri(url)}"

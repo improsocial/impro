@@ -27,7 +27,6 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/reactions-dialog.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
-
 class ChatDetailView extends View {
   async render({
     root,
@@ -37,6 +36,7 @@ class ChatDetailView extends View {
       chatNotificationService,
       identityResolver,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -759,6 +759,8 @@ class ChatDetailView extends View {
                     ${postEmbedTemplate({
                       embed: message.embed,
                       isAuthenticated: true,
+                      currentConvoId: convoId,
+                      groupChatLinkService,
                     })}
                   </div>`
                 : null}

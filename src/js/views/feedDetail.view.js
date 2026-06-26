@@ -24,6 +24,7 @@ class FeedDetailView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -119,6 +120,7 @@ class FeedDetailView extends View {
                     onLoadMore: () => loadFeed(),
                     postInteractionHandler,
                     pluginService,
+                    groupChatLinkService,
                     showEndMessage: true,
                   })}
                 </div>

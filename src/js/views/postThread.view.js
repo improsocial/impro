@@ -39,6 +39,7 @@ class PostThreadView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
+      groupChatLinkService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -200,6 +201,7 @@ class PostThreadView extends View {
             replyContext: getReplyContext(i, numReplies),
             lazyLoadImages,
             pluginService,
+            groupChatLinkService,
           });
         })}
       </div>`;
@@ -280,6 +282,7 @@ class PostThreadView extends View {
                           ignoreMuteWarning: true,
                           lazyLoadImages: true,
                           pluginService,
+                          groupChatLinkService,
                         }),
                       )}
                     </hidden-replies-section>`
@@ -395,6 +398,7 @@ class PostThreadView extends View {
                   replyContext,
                   ignoreMuteWarning: true,
                   pluginService,
+                  groupChatLinkService,
                 }),
               });
             })}
@@ -421,6 +425,7 @@ class PostThreadView extends View {
                   currentUser,
                   isAuthenticated,
                   pluginService,
+                  groupChatLinkService,
                   isUserPost: currentUser?.did === mainPost?.author?.did,
                   postInteractionHandler,
                   afterHide: () => {

@@ -1206,6 +1206,137 @@ test.describe("Chat detail view", () => {
     });
   });
 
+  test.describe("Chat invite (joinLink) embeds", () => {
+    function makeJoinLinkEmbed(overrides = {}) {
+      return {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#joinLinkPreviewView",
+          code: "abcd1234",
+          name: "Friends of Bsky",
+          memberCount: 5,
+          memberLimit: 50,
+          joinRule: "open",
+          requireApproval: false,
+          owner: {
+            did: "did:plc:owner",
+            handle: "owner.bsky.social",
+            displayName: "Owner",
+            avatar: "",
+            viewer: {},
+            labels: [],
+            createdAt: "2025-01-01T00:00:00.000Z",
+          },
+          viewer: {},
+          ...overrides,
+        },
+      };
+    }
+
+    test("renders an available invite embed with name and join action", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({ id: "convo-1", otherMember: alice });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+          embed: makeJoinLinkEmbed(),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const view = page.locator("#chat-detail-view");
+      const embed = view.locator('[data-testid="join-link-embed"]');
+      await expect(embed).toBeVisible({ timeout: 10000 });
+      await expect(
+        embed.locator('[data-testid="join-link-embed-name"]'),
+      ).toContainText("Friends of Bsky");
+      await expect(
+        embed.locator('[data-testid="join-link-embed-action"]'),
+      ).toHaveAttribute("data-teststate", "join");
+    });
+
+    test("renders an unavailable card for disabled previews", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({ id: "convo-1", otherMember: alice });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+          embed: {
+            $type: "chat.bsky.embed.joinLink#view",
+            joinLinkPreview: {
+              $type: "chat.bsky.group.defs#disabledJoinLinkPreviewView",
+            },
+          },
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const view = page.locator("#chat-detail-view");
+      await expect(
+        view.locator('[data-testid="join-link-embed-unavailable"]'),
+      ).toBeVisible({ timeout: 10000 });
+    });
+
+    test("renders Copy action when invite points at the current chat", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({ id: "convo-1", otherMember: alice });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+          embed: makeJoinLinkEmbed({ convo: { id: "convo-1" } }),
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const view = page.locator("#chat-detail-view");
+      await expect(
+        view.locator('[data-testid="join-link-embed-action"]'),
+      ).toHaveAttribute("data-teststate", "copy", { timeout: 10000 });
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

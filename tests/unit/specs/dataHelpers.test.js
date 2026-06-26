@@ -34,6 +34,13 @@ import {
   getSystemMessageDisplayText,
   groupReactions,
   isGroupConvo,
+  isInviteLinkUrl,
+  getInviteCodeFromUrl,
+  isAvailableJoinLinkPreview,
+  getJoinLinkCodeFromEmbed,
+  getJoinLinkCodesFromPosts,
+  getJoinLinkCodesFromMessages,
+  attachJoinLinkPreviewToEmbed,
 } from "/js/dataHelpers.js";
 
 const t = new TestSuite("dataHelpers");
@@ -1764,6 +1771,259 @@ t.describe("groupReactions", (it) => {
     assertEquals(groups.length, 1);
     assertEquals(groups[0].count, 2);
     assertEquals(groups[0].senders.length, 2);
+  });
+});
+
+t.describe("getInviteCodeFromUrl", (it) => {
+  it("extracts code from absolute bsky.app URL", () => {
+    assertEquals(
+      getInviteCodeFromUrl("https://bsky.app/chat/abcd1234"),
+      "abcd1234",
+    );
+  });
+
+  it("extracts code from relative path", () => {
+    assertEquals(getInviteCodeFromUrl("/chat/abcd1234"), "abcd1234");
+  });
+
+  it("ignores query and hash", () => {
+    assertEquals(getInviteCodeFromUrl("/chat/abcd1234?ref=x#y"), "abcd1234");
+  });
+
+  it("rejects non-bsky hosts", () => {
+    assertEquals(
+      getInviteCodeFromUrl("https://example.com/chat/abcd1234"),
+      null,
+    );
+  });
+
+  it("accepts impro.social hosts", () => {
+    assertEquals(
+      getInviteCodeFromUrl("https://impro.social/chat/abcd1234"),
+      "abcd1234",
+    );
+    assertEquals(
+      getInviteCodeFromUrl("https://dev.impro.social/chat/abcd1234"),
+      "abcd1234",
+    );
+  });
+
+  it("rejects malformed codes", () => {
+    assertEquals(getInviteCodeFromUrl("/chat/short"), null);
+    assertEquals(getInviteCodeFromUrl("/chat/!!!!!!!!"), null);
+  });
+
+  it("rejects unrelated paths", () => {
+    assertEquals(getInviteCodeFromUrl("/profile/foo"), null);
+    assertEquals(getInviteCodeFromUrl(""), null);
+    assertEquals(getInviteCodeFromUrl(null), null);
+  });
+});
+
+t.describe("isInviteLinkUrl", (it) => {
+  it("is true for valid invite URLs", () => {
+    assertEquals(isInviteLinkUrl("https://bsky.app/chat/abcd1234"), true);
+    assertEquals(isInviteLinkUrl("/chat/abcd1234"), true);
+  });
+
+  it("is false otherwise", () => {
+    assertEquals(isInviteLinkUrl("https://bsky.app/profile/x"), false);
+    assertEquals(isInviteLinkUrl(""), false);
+  });
+});
+
+t.describe("getJoinLinkCodeFromEmbed", (it) => {
+  it("returns the code from a chat invite view embed", () => {
+    assertEquals(
+      getJoinLinkCodeFromEmbed({
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: { code: "abcd1234" },
+      }),
+      "abcd1234",
+    );
+  });
+
+  it("returns null for a chat invite view embed without a code", () => {
+    assertEquals(
+      getJoinLinkCodeFromEmbed({
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: {
+          $type: "chat.bsky.group.defs#disabledJoinLinkPreviewView",
+        },
+      }),
+      null,
+    );
+  });
+
+  it("returns the code from an external embed whose URI is an invite link", () => {
+    assertEquals(
+      getJoinLinkCodeFromEmbed({
+        $type: "app.bsky.embed.external#view",
+        external: { uri: "https://bsky.app/chat/abcd1234" },
+      }),
+      "abcd1234",
+    );
+  });
+
+  it("returns null for an external embed pointing elsewhere", () => {
+    assertEquals(
+      getJoinLinkCodeFromEmbed({
+        $type: "app.bsky.embed.external#view",
+        external: { uri: "https://example.com" },
+      }),
+      null,
+    );
+  });
+
+  it("returns null for unrelated embed types and falsy input", () => {
+    assertEquals(
+      getJoinLinkCodeFromEmbed({ $type: "app.bsky.embed.images#view" }),
+      null,
+    );
+    assertEquals(getJoinLinkCodeFromEmbed(null), null);
+    assertEquals(getJoinLinkCodeFromEmbed(undefined), null);
+  });
+});
+
+t.describe("getJoinLinkCodesFromPosts", (it) => {
+  it("collects codes from joinLink and external invite embeds", () => {
+    const posts = [
+      {
+        embed: {
+          $type: "chat.bsky.embed.joinLink#view",
+          joinLinkPreview: { code: "aaaaaaa" },
+        },
+      },
+      {
+        embed: {
+          $type: "app.bsky.embed.external#view",
+          external: { uri: "https://bsky.app/chat/bbbbbbb" },
+        },
+      },
+    ];
+    assertEquals(getJoinLinkCodesFromPosts(posts), ["aaaaaaa", "bbbbbbb"]);
+  });
+
+  it("skips posts without an embed or with unrelated embeds", () => {
+    const posts = [
+      { embed: null },
+      { embed: { $type: "app.bsky.embed.images#view" } },
+      { embed: undefined },
+      undefined,
+    ];
+    assertEquals(getJoinLinkCodesFromPosts(posts), []);
+  });
+
+  it("returns an empty array for null/undefined input", () => {
+    assertEquals(getJoinLinkCodesFromPosts(null), []);
+    assertEquals(getJoinLinkCodesFromPosts(undefined), []);
+  });
+});
+
+t.describe("getJoinLinkCodesFromMessages", (it) => {
+  it("collects codes from message join link embeds", () => {
+    const messages = [
+      {
+        embed: {
+          $type: "chat.bsky.embed.joinLink#view",
+          joinLinkPreview: { code: "aaaaaaa" },
+        },
+      },
+      { embed: null },
+      {
+        embed: {
+          $type: "app.bsky.embed.external#view",
+          external: { uri: "https://bsky.app/chat/bbbbbbb" },
+        },
+      },
+    ];
+    assertEquals(getJoinLinkCodesFromMessages(messages), [
+      "aaaaaaa",
+      "bbbbbbb",
+    ]);
+  });
+
+  it("returns an empty array for null/undefined input", () => {
+    assertEquals(getJoinLinkCodesFromMessages(null), []);
+    assertEquals(getJoinLinkCodesFromMessages(undefined), []);
+  });
+});
+
+t.describe("attachJoinLinkPreviewToEmbed", (it) => {
+  const fresh = {
+    $type: "chat.bsky.group.defs#joinLinkPreviewView",
+    code: "abcd1234",
+    name: "Updated",
+  };
+
+  it("returns null for unrelated embeds", () => {
+    assertEquals(
+      attachJoinLinkPreviewToEmbed(
+        { $type: "app.bsky.embed.images#view" },
+        fresh,
+      ),
+      null,
+    );
+  });
+
+  it("returns null when the cached preview is the same reference", () => {
+    assertEquals(
+      attachJoinLinkPreviewToEmbed(
+        { $type: "chat.bsky.embed.joinLink#view", joinLinkPreview: fresh },
+        fresh,
+      ),
+      null,
+    );
+  });
+
+  it("attaches a fresh preview to a joinLink embed", () => {
+    const updated = attachJoinLinkPreviewToEmbed(
+      {
+        $type: "chat.bsky.embed.joinLink#view",
+        joinLinkPreview: { code: "abcd1234", name: "Stale" },
+      },
+      fresh,
+    );
+    assertEquals(updated.$type, "chat.bsky.embed.joinLink#view");
+    assertEquals(updated.joinLinkPreview, fresh);
+  });
+
+  it("upgrades an external invite embed into a joinLink embed", () => {
+    const updated = attachJoinLinkPreviewToEmbed(
+      {
+        $type: "app.bsky.embed.external#view",
+        external: { uri: "https://bsky.app/chat/abcd1234" },
+      },
+      fresh,
+    );
+    assertEquals(updated.$type, "chat.bsky.embed.joinLink#view");
+    assertEquals(updated.joinLinkPreview, fresh);
+  });
+});
+
+function makeJoinLinkPreview(overrides = {}) {
+  return {
+    $type: "chat.bsky.group.defs#joinLinkPreviewView",
+    code: "abcdefg",
+    name: "Friends of Bsky",
+    memberCount: 5,
+    memberLimit: 50,
+    joinRule: "open",
+    requireApproval: false,
+    owner: { did: "did:plc:owner", handle: "owner.test", viewer: {} },
+    viewer: {},
+    ...overrides,
+  };
+}
+
+t.describe("isAvailableJoinLinkPreview", (it) => {
+  it("returns true only for the available variant", () => {
+    assert(isAvailableJoinLinkPreview(makeJoinLinkPreview()));
+    assert(
+      !isAvailableJoinLinkPreview({
+        $type: "chat.bsky.group.defs#disabledJoinLinkPreviewView",
+      }),
+    );
   });
 });
 

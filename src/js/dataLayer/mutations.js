@@ -1046,6 +1046,30 @@ export class Mutations {
     return res;
   }
 
+  async requestJoinGroupChat(code) {
+    const res = await this.api.requestJoinGroupChat(code);
+    const preview = this.dataStore.$joinLinkPreviewsByCode.get(code);
+    if (
+      preview?.$type === "chat.bsky.group.defs#joinLinkPreviewView" &&
+      preview.code === code
+    ) {
+      const updatedPreview = { ...preview };
+      if (res.status === "joined" && res.convo) {
+        updatedPreview.convo = res.convo;
+      } else {
+        updatedPreview.viewer = {
+          ...(preview.viewer ?? {}),
+          requestedAt: getCurrentTimestamp(),
+        };
+      }
+      this.dataStore.$joinLinkPreviewsByCode.set(code, updatedPreview);
+    }
+    if (res.status === "joined" && res.convo) {
+      this.dataStore.$convos.set(res.convo.id, res.convo);
+    }
+    return res;
+  }
+
   async acceptConvo(convo) {
     await this.api.acceptConvo(convo.id);
 
