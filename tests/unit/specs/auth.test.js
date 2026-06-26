@@ -500,6 +500,56 @@ t.describe("Auth account management", (it, { afterEach }) => {
     assertEquals(provider.listAccounts.calls.length, 1);
   });
 
+  it("listAccounts flips needsReauth on accounts whose stored scope is stale", async () => {
+    globalThis.window = {
+      ...originalWindow,
+      env: { oauthScopes: "atproto rpc:a rpc:b" },
+    };
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        {
+          did: "did:plc:alice",
+          handle: "alice.test",
+          scope: "atproto rpc:a",
+          needsReauth: false,
+        },
+        {
+          did: "did:plc:bob",
+          handle: "bob.test",
+          scope: "atproto rpc:a rpc:b",
+          needsReauth: false,
+        },
+        {
+          did: "did:plc:carol",
+          handle: "carol.test",
+          scope: null,
+          needsReauth: true,
+        },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    const byDid = Object.fromEntries(
+      accounts.map((entry) => [entry.did, entry]),
+    );
+    assertEquals(byDid["did:plc:alice"].needsReauth, true);
+    assertEquals(byDid["did:plc:bob"].needsReauth, false);
+    assertEquals(byDid["did:plc:carol"].needsReauth, true);
+  });
+
+  it("listAccounts leaves needsReauth alone for providers that don't expose scope", async () => {
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test", needsReauth: false },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    assertEquals(accounts[0].needsReauth, false);
+  });
+
   it("supportsMultipleAccounts reflects the provider capability", () => {
     const multi = new Auth(makeMultiAccountProvider({ accounts: [] }));
     assertEquals(multi.supportsMultipleAccounts(), true);

@@ -894,6 +894,17 @@ t.describe("soft logout (revoke)", (it) => {
     assertEquals(bob.needsReauth, false);
   });
 
+  it("listAccounts exposes the stored scope per account", async () => {
+    const client = await buildClient();
+    await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });
+    writeSession({ did: "did:plc:carol", scope: "atproto rpc:custom" });
+    const accounts = client.listAccounts();
+    const alice = accounts.find((entry) => entry.did === "did:plc:alice");
+    const carol = accounts.find((entry) => entry.did === "did:plc:carol");
+    assertEquals(alice.scope, "atproto");
+    assertEquals(carol.scope, "atproto rpc:custom");
+  });
+
   it("handleCallback after revoke restores the session and clears needsReauth", async () => {
     const client = await buildClient();
     await runCallback(client, { requestId: "r1", sub: "did:plc:alice" });

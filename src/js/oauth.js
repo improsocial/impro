@@ -686,11 +686,21 @@ export class OauthClient {
   }
 
   listAccounts() {
-    return readAccounts().map((account) => ({
-      ...account,
-      needsReauth:
-        localStorage.getItem(SESSION_KEY_PREFIX + account.did) === null,
-    }));
+    return readAccounts().map((account) => {
+      const sessionDataStr = localStorage.getItem(
+        SESSION_KEY_PREFIX + account.did,
+      );
+      if (sessionDataStr === null) {
+        return { ...account, scope: null, needsReauth: true };
+      }
+      let scope = null;
+      try {
+        scope = JSON.parse(sessionDataStr)?.scope ?? null;
+      } catch {
+        // pass
+      }
+      return { ...account, scope, needsReauth: false };
+    });
   }
 
   switchToAccount(did) {

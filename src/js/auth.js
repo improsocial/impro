@@ -328,7 +328,17 @@ export class Auth {
   }
 
   async listAccounts() {
-    return this.provider.listAccounts?.() ?? [];
+    const accounts = (await this.provider.listAccounts?.()) ?? [];
+    const requiredScope = window.env?.oauthScopes ?? "";
+    // Mark accounts with out-of-date scopes as "needsReauth"
+    return accounts.map((account) => {
+      const scopesOutOfDate =
+        getMissingScopes(account.scope ?? "", requiredScope).length > 0;
+      return {
+        ...account,
+        needsReauth: account.needsReauth || scopesOutOfDate,
+      };
+    });
   }
 
   async switchAccount(did) {
