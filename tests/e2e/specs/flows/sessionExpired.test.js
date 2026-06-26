@@ -16,7 +16,7 @@ test.describe("Session expiry flow", () => {
     await mockServer.setup(page);
   });
 
-  test("stale token soft-logs-out and lands on login with the handle prefilled", async ({
+  test("stale token soft-logs-out and lands on the login accounts list", async ({
     page,
   }) => {
     mockServer.failTokenRefresh();
@@ -26,15 +26,13 @@ test.describe("Session expiry flow", () => {
 
     await page.goto("/");
 
-    await expect(page).toHaveURL(`/login?handle=${userProfile.handle}`, {
-      timeout: 10000,
-    });
-    await expect(page.locator('input[name="handle"]')).toHaveValue(
-      userProfile.handle,
-    );
+    await expect(page).toHaveURL("/login", { timeout: 10000 });
+    await expect(
+      page.locator('[data-testid="saved-accounts-list"]'),
+    ).toBeVisible();
 
-    // The account entry survives the soft logout so the handle can be
-    // prefilled; only the session tokens are cleared.
+    // The account entry survives the soft logout so it shows up in the
+    // accounts list; only the session tokens are cleared.
     const stored = await page.evaluate(
       (did) => ({
         accounts: JSON.parse(localStorage.getItem("oauth_accounts")),
