@@ -1437,7 +1437,8 @@ button.sidebar-plugin-nav-item {
 }
 
 /* Long-press to open the account switcher: stop iOS link previews / text
-   selection from hijacking the hold gesture on the profile tab. */
+   selection from hijacking the hold gesture */
+.sidebar-profile-avatar.long-press-enabled,
 .footer-nav-item.long-press-enabled {
   -webkit-touch-callout: none;
   -webkit-user-select: none;

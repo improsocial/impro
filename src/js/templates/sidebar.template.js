@@ -246,15 +246,17 @@ export function sidebarTemplate({
   const handle = currentUser?.handle ? "@" + currentUser.handle : null;
   const followersCount = currentUser?.followersCount ?? null;
   const followsCount = currentUser?.followsCount ?? null;
-
+  const longPressEnabled = !!onLongPressProfile;
   return html`
     <animated-sidebar>
       <!-- Profile Section -->
       <div class="sidebar-profile" data-testid="sidebar-profile">
         <div
-          class="sidebar-profile-avatar"
+          class=${classnames("sidebar-profile-avatar", {
+            "long-press-enabled": longPressEnabled,
+          })}
           ${ref((el) => {
-            if (el) {
+            if (el && longPressEnabled) {
               enableLongPress(el);
             }
           })}
