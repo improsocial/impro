@@ -53,10 +53,6 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
   }
 }
 
-function textPartTemplate({ text }) {
-  return text;
-}
-
 function facetOverlaps(facet1, facet2) {
   return (
     facet1.index.byteStart < facet2.index.byteEnd &&
@@ -64,44 +60,7 @@ function facetOverlaps(facet1, facet2) {
   );
 }
 
-function richTextLineTemplate({ text, facets, byteOffset, truncateUrls }) {
-  if (text.length === 0) {
-    return html`<div><br /></div>`;
-  }
-  let parts = [];
-  let currentIndex = 0;
-  const sortedFacets = sortBy(facets, (facet) => facet.index.byteStart);
-  // Filter overlapping facets
-  const distinctFacets = [];
-  for (const facet of sortedFacets) {
-    if (!distinctFacets.some((f) => facetOverlaps(f, facet))) {
-      distinctFacets.push(facet);
-    }
-  }
-  for (const facet of distinctFacets) {
-    const textPart = sliceByByte(
-      text,
-      currentIndex,
-      facet.index.byteStart - byteOffset,
-    );
-    parts.push(textPartTemplate({ text: textPart }));
-    const wrappedText = sliceByByte(
-      text,
-      facet.index.byteStart - byteOffset,
-      facet.index.byteEnd - byteOffset,
-    );
-    parts.push(facetTemplate({ facet, wrappedText, truncateUrls }));
-    currentIndex = facet.index.byteEnd - byteOffset;
-  }
-  const finalTextPart = sliceByByte(text, currentIndex);
-  parts.push(textPartTemplate({ text: finalTextPart }));
-  return html`<div>${parts}</div>`;
-}
-
 export function richTextTemplate({ text, facets = [], truncateUrls = false }) {
-  const lines = text.split("\n");
-  const divs = [];
-  // If facets are longer than the overall byte length of the text, clamp them to fit
   const textByteLength = getByteLength(text);
   const clampedFacets = facets.map((facet) =>
     clampFacetIndex(facet, {
@@ -109,24 +68,26 @@ export function richTextTemplate({ text, facets = [], truncateUrls = false }) {
       byteEnd: textByteLength,
     }),
   );
-  let byteOffset = 0;
-  for (const line of lines) {
-    const lineByteLength = getByteLength(line);
-    const facetsForLine = clampedFacets.filter(
-      (facet) =>
-        facet.index.byteStart >= byteOffset &&
-        facet.index.byteEnd <= byteOffset + lineByteLength,
-    );
-    divs.push(
-      richTextLineTemplate({
-        text: line,
-        facets: facetsForLine,
-        byteOffset,
-        truncateUrls,
-      }),
-    );
-    byteOffset += lineByteLength + 1; // +1 for the newline character
+  const sortedFacets = sortBy(clampedFacets, (facet) => facet.index.byteStart);
+  const distinctFacets = [];
+  for (const facet of sortedFacets) {
+    if (!distinctFacets.some((f) => facetOverlaps(f, facet))) {
+      distinctFacets.push(facet);
+    }
   }
+  const parts = [];
+  let currentIndex = 0;
+  for (const facet of distinctFacets) {
+    parts.push(sliceByByte(text, currentIndex, facet.index.byteStart));
+    const wrappedText = sliceByByte(
+      text,
+      facet.index.byteStart,
+      facet.index.byteEnd,
+    );
+    parts.push(facetTemplate({ facet, wrappedText, truncateUrls }));
+    currentIndex = facet.index.byteEnd;
+  }
+  parts.push(sliceByByte(text, currentIndex));
   // prettier-ignore
-  return html`<div class="rich-text" data-testid="rich-text">${divs}</div>`;
+  return html`<div class="rich-text" data-testid="rich-text">${parts}</div>`;
 }
