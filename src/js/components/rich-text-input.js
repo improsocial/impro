@@ -16,6 +16,23 @@ CSS.highlights.set("rt-link", sharedHighlights.link);
 CSS.highlights.set("rt-mention", sharedHighlights.mention);
 CSS.highlights.set("rt-tag", sharedHighlights.tag);
 
+// Detect whether we need a trailing sentinel in this browser
+let __needsTrailingSentinel = null;
+function needsTrailingSentinel() {
+  if (__needsTrailingSentinel !== null) return __needsTrailingSentinel;
+  const probe = document.createElement("div");
+  probe.style.cssText =
+    "position:absolute;visibility:hidden;white-space:pre-wrap;line-height:1.4;top:-9999px;left:-9999px;";
+  document.body.appendChild(probe);
+  probe.textContent = "a";
+  const single = probe.offsetHeight;
+  probe.textContent = "a\n";
+  const trailing = probe.offsetHeight;
+  document.body.removeChild(probe);
+  __needsTrailingSentinel = trailing <= single;
+  return __needsTrailingSentinel;
+}
+
 function isTrailingSentinel(node) {
   return (
     node &&
@@ -342,6 +359,7 @@ export class RichTextInput extends Component {
     if (!input) return;
     const existing = input.querySelector("br[data-trailing-sentinel]");
     if (existing) existing.remove();
+    if (!needsTrailingSentinel()) return;
     if (!this.text.endsWith("\n")) return;
     // Native trailing <br> (desktop browsers add one automatically) already
     // renders the empty line, so no sentinel is needed.
