@@ -5599,16 +5599,6 @@ emoji-picker-dialog emoji-picker,
   min-height: 1lh;
 }
 
-/* Force a trailing newline to render as a visible empty line */
-.rich-text-input::after {
-  content: "\200B";
-}
-
-/* Some browsers add a trailing <br> for newlines, skip the ZWS in that case */
-.rich-text-input:has(> br:last-child)::after {
-  content: none;
-}
-
 .post-composer .rich-text-input {
   width: 100%;
   min-height: 120px;

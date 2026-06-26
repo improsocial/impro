@@ -16,6 +16,15 @@ CSS.highlights.set("rt-link", sharedHighlights.link);
 CSS.highlights.set("rt-mention", sharedHighlights.mention);
 CSS.highlights.set("rt-tag", sharedHighlights.tag);
 
+function isTrailingSentinel(node) {
+  return (
+    node &&
+    node.nodeName === "BR" &&
+    node.hasAttribute &&
+    node.hasAttribute("data-trailing-sentinel")
+  );
+}
+
 function clearHighlightRangesInElement(highlight, element) {
   for (const range of [...highlight]) {
     if (!range.startContainer || !element.contains(range.startContainer)) {
@@ -46,6 +55,7 @@ function getCursorPosition(editableDiv) {
   let found = false;
 
   function countNodeChars(node) {
+    if (isTrailingSentinel(node)) return;
     if (node.nodeType === Node.TEXT_NODE) {
       position += node.textContent.length;
     } else if (node.nodeName === "BR") {
@@ -59,6 +69,7 @@ function getCursorPosition(editableDiv) {
 
   function walkNodes(node) {
     if (found) return;
+    if (isTrailingSentinel(node)) return;
 
     if (node === endContainer) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -98,6 +109,7 @@ function setCursorPosition(editableDiv, position) {
   let foundOffset = 0;
 
   function walkTextNodes(node) {
+    if (isTrailingSentinel(node)) return false;
     if (node.nodeType === Node.TEXT_NODE) {
       const nodeLength =
         node.textContent === "\n" ? 1 : node.textContent.length;
@@ -322,6 +334,21 @@ export class RichTextInput extends Component {
     if (input.textContent !== this.text) {
       input.textContent = this.text;
     }
+    this.updateTrailingSentinel();
+  }
+
+  updateTrailingSentinel() {
+    const input = this.querySelector(".rich-text-input");
+    if (!input) return;
+    const existing = input.querySelector("br[data-trailing-sentinel]");
+    if (existing) existing.remove();
+    if (!this.text.endsWith("\n")) return;
+    // Native trailing <br> (desktop browsers add one automatically) already
+    // renders the empty line, so no sentinel is needed.
+    if (input.lastChild && input.lastChild.nodeName === "BR") return;
+    const br = document.createElement("br");
+    br.setAttribute("data-trailing-sentinel", "");
+    input.appendChild(br);
   }
 
   refreshHighlights() {
@@ -688,6 +715,7 @@ export class RichTextInput extends Component {
       this.facets = newFacets;
     }
 
+    this.updateTrailingSentinel();
     this.refreshHighlights();
     // Check for mention typeahead
     this.updateMentionSuggestions();
