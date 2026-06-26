@@ -141,6 +141,7 @@
         handleAppViewResetQueryParam();
 
         await auth.handleForceLogoutParam();
+        await auth.ensureCurrentScopes();
 
         const session = await auth.getSession();
         const appViewConfig = getAppViewConfig();

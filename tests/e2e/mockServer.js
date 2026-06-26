@@ -605,6 +605,23 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/chat.bsky.convo.getUnreadCounts*", (route) => {
+      const unreadAcceptedConvos = this.convos.filter(
+        (convo) => convo.unreadCount > 0 && convo.status !== "request",
+      ).length;
+      const unreadRequestConvos = this.convos.filter(
+        (convo) => convo.unreadCount > 0 && convo.status === "request",
+      ).length;
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          unreadAcceptedConvos: Math.min(100, unreadAcceptedConvos),
+          unreadRequestConvos: Math.min(100, unreadRequestConvos),
+        }),
+      });
+    });
+
     await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) => {
       const url = new URL(route.request().url());
       const readState = url.searchParams.get("readState");

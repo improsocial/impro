@@ -126,6 +126,7 @@ const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.getConvoForMembers",
   "rpc:chat.bsky.convo.getLog",
   "rpc:chat.bsky.convo.getMessages",
+  "rpc:chat.bsky.convo.getUnreadCounts",
   "rpc:chat.bsky.convo.leaveConvo",
   "rpc:chat.bsky.convo.listConvos",
   "rpc:chat.bsky.convo.muteConvo",

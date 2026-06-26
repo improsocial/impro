@@ -890,6 +890,25 @@ t.describe("getNumNotifications", (it) => {
   });
 });
 
+t.describe("getChatUnreadCounts", (it) => {
+  it("should fetch chat unread counts via the chat proxy", async () => {
+    const session = createMockSession({
+      unreadAcceptedConvos: 4,
+      unreadRequestConvos: 1,
+    });
+    const api = new Api(session);
+
+    const result = await api.getChatUnreadCounts();
+
+    const { url, options } = session.getLastFetchOptions();
+    assert(url.includes("chat.bsky.convo.getUnreadCounts"));
+    assert(url.includes("includeGroupChats=true"));
+    assertEquals(options.headers["atproto-proxy"], api.chatAppViewServiceDid);
+    assertEquals(result.unreadAcceptedConvos, 4);
+    assertEquals(result.unreadRequestConvos, 1);
+  });
+});
+
 t.describe("getNotifications", (it) => {
   it("should fetch notifications", async () => {
     const session = createMockSession({

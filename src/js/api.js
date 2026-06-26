@@ -785,6 +785,16 @@ export class Api {
     });
   }
 
+  async getChatUnreadCounts({ includeGroupChats = true } = {}) {
+    const res = await this.request("chat.bsky.convo.getUnreadCounts", {
+      query: { includeGroupChats },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async addMessageReaction(convoId, messageId, emoji) {
     const res = await this.request("chat.bsky.convo.addReaction", {
       method: "POST",

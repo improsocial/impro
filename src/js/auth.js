@@ -291,6 +291,14 @@ export class OAuthProvider {
 
 const FORCE_LOGOUT_QUERY_PARAM = "force-logout";
 
+export function getMissingScopes(grantedScope, requiredScope) {
+  const granted = new Set(grantedScope.split(/\s+/).filter(Boolean));
+  return requiredScope
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((scope) => !granted.has(scope));
+}
+
 export class Auth {
   constructor(provider) {
     if (!provider) {
@@ -380,6 +388,21 @@ export class Auth {
       return new Promise(() => {});
     }
     return null;
+  }
+
+  async ensureCurrentScopes() {
+    const session = await this.provider.getSession();
+    if (!session?.scope) return;
+    const missing = getMissingScopes(session.scope, window.env.oauthScopes);
+    if (missing.length === 0) return;
+    console.warn("OAuth scopes are out of date, forcing re-auth:", missing);
+    try {
+      await this.logout();
+    } catch (error) {
+      console.error(error);
+    }
+    window.location.href = linkToLogin();
+    return new Promise(() => {});
   }
 
   async handleForceLogoutParam() {

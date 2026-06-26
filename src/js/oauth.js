@@ -441,6 +441,10 @@ export class Session {
   get serviceEndpoint() {
     return this.sessionData.serviceEndpoint;
   }
+
+  get scope() {
+    return this.sessionData.scope ?? null;
+  }
 }
 
 class AuthServer {
