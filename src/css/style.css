@@ -1812,7 +1812,7 @@ container-link {
 }
 
 .small-post .pinned-label {
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 5px;
   color: var(--text-color-muted);
   display: flex;
@@ -1827,7 +1827,7 @@ container-link {
 }
 
 .small-post .repost-label {
-  font-size: 13px;
+  font-size: 14px;
   margin-bottom: 5px;
   color: var(--text-color-muted);
   display: flex;
@@ -2042,7 +2042,7 @@ container-link {
 }
 
 .reply-to-author {
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-color-muted);
   margin-top: 4px;
 }
