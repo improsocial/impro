@@ -1,68 +1,15 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
+import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
-import { deepClone, getIndexFromByteIndex } from "/js/utils.js";
+import { deepClone } from "/js/utils.js";
 import { TYPEAHEAD_SERVICE_URL } from "/js/config.js";
-
-const sharedHighlights = {
-  link: new Highlight(),
-  mention: new Highlight(),
-  tag: new Highlight(),
-};
-
-CSS.highlights.set("rt-link", sharedHighlights.link);
-CSS.highlights.set("rt-mention", sharedHighlights.mention);
-CSS.highlights.set("rt-tag", sharedHighlights.tag);
-
-// Detect whether we need a trailing sentinel in this browser
-let __needsTrailingSentinel = null;
-function needsTrailingSentinel() {
-  if (__needsTrailingSentinel !== null) return __needsTrailingSentinel;
-  const probe = document.createElement("div");
-  probe.style.cssText =
-    "position:absolute;visibility:hidden;white-space:pre-wrap;line-height:1.4;top:-9999px;left:-9999px;";
-  document.body.appendChild(probe);
-  probe.textContent = "a";
-  const single = probe.offsetHeight;
-  probe.textContent = "a\n";
-  const trailing = probe.offsetHeight;
-  document.body.removeChild(probe);
-  __needsTrailingSentinel = trailing <= single;
-  return __needsTrailingSentinel;
-}
-
-function isTrailingSentinel(node) {
-  return (
-    node &&
-    node.nodeName === "BR" &&
-    node.hasAttribute &&
-    node.hasAttribute("data-trailing-sentinel")
-  );
-}
-
-function clearHighlightRangesInElement(highlight, element) {
-  for (const range of [...highlight]) {
-    if (!range.startContainer || !element.contains(range.startContainer)) {
-      continue;
-    }
-    highlight.delete(range);
-  }
-}
-
-function getHighlightForFacet(facet) {
-  const type = facet.features?.[0]?.$type;
-  if (type === "app.bsky.richtext.facet#link") return sharedHighlights.link;
-  if (type === "app.bsky.richtext.facet#mention")
-    return sharedHighlights.mention;
-  if (type === "app.bsky.richtext.facet#tag") return sharedHighlights.tag;
-  return null;
-}
 
 function getCursorPosition(editableDiv) {
   const sel = window.getSelection();
-  if (!sel || !sel.rangeCount) return 0;
+  if (!sel.rangeCount) return 0;
 
   const range = sel.getRangeAt(0);
   const endContainer = range.endContainer;
@@ -71,22 +18,8 @@ function getCursorPosition(editableDiv) {
   let position = 0;
   let found = false;
 
-  function countNodeChars(node) {
-    if (isTrailingSentinel(node)) return;
-    if (node.nodeType === Node.TEXT_NODE) {
-      position += node.textContent.length;
-    } else if (node.nodeName === "BR") {
-      position += 1;
-    } else {
-      for (let child of node.childNodes) {
-        countNodeChars(child);
-      }
-    }
-  }
-
   function walkNodes(node) {
     if (found) return;
-    if (isTrailingSentinel(node)) return;
 
     if (node === endContainer) {
       if (node.nodeType === Node.TEXT_NODE) {
@@ -105,10 +38,44 @@ function getCursorPosition(editableDiv) {
       position += node.textContent.length;
     } else if (node.nodeName === "BR") {
       position += 1;
+    } else if (node.nodeName === "DIV" && node !== editableDiv) {
+      for (let child of node.childNodes) {
+        walkNodes(child);
+        if (found) return;
+      }
+      // Add 1 for the newline after the DIV, but only if it didn't end with BR
+      // (BR already counted as newline, so don't double-count)
+      if (!found) {
+        const lastChild = node.childNodes[node.childNodes.length - 1];
+        if (!lastChild || lastChild.nodeName !== "BR") {
+          position += 1;
+        }
+      }
     } else {
       for (let child of node.childNodes) {
         walkNodes(child);
         if (found) return;
+      }
+    }
+  }
+
+  function countNodeChars(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      position += node.textContent.length;
+    } else if (node.nodeName === "BR") {
+      position += 1;
+    } else if (node.nodeName === "DIV") {
+      for (let child of node.childNodes) {
+        countNodeChars(child);
+      }
+      // Only add newline if DIV didn't end with BR (which already counted)
+      const lastChild = node.childNodes[node.childNodes.length - 1];
+      if (!lastChild || lastChild.nodeName !== "BR") {
+        position += 1;
+      }
+    } else {
+      for (let child of node.childNodes) {
+        countNodeChars(child);
       }
     }
   }
@@ -125,8 +92,8 @@ function setCursorPosition(editableDiv, position) {
   let foundNode = null;
   let foundOffset = 0;
 
+  // Recursive function to walk through all text nodes
   function walkTextNodes(node) {
-    if (isTrailingSentinel(node)) return false;
     if (node.nodeType === Node.TEXT_NODE) {
       const nodeLength =
         node.textContent === "\n" ? 1 : node.textContent.length;
@@ -145,6 +112,15 @@ function setCursorPosition(editableDiv, position) {
         return true;
       }
       currentPos += 1;
+    } else if (node.nodeName === "DIV") {
+      for (let child of node.childNodes) {
+        if (walkTextNodes(child)) return true;
+      }
+      // Add 1 for newline, but only if DIV didn't end with BR (which already counted)
+      const lastChild = node.childNodes[node.childNodes.length - 1];
+      if (!lastChild || lastChild.nodeName !== "BR") {
+        currentPos += 1;
+      }
     } else {
       for (let child of node.childNodes) {
         if (walkTextNodes(child)) return true;
@@ -164,6 +140,84 @@ function setCursorPosition(editableDiv, position) {
     // Ensure the cursor is visible
     editableDiv.focus();
   }
+}
+
+function getContentEditableText(element) {
+  if (
+    element.childNodes.length === 1 &&
+    element.childNodes[0].nodeName === "BR"
+  ) {
+    return "";
+  }
+  function extractText(node) {
+    let text = "";
+    if (node.nodeType === Node.TEXT_NODE) {
+      return node.textContent;
+    }
+    if (node.nodeName === "BR") {
+      return "\n";
+    }
+    const blockElements = [
+      "DIV",
+      "P",
+      "H1",
+      "H2",
+      "H3",
+      "H4",
+      "H5",
+      "H6",
+      "LI",
+      "BLOCKQUOTE",
+    ];
+    const isBlock = blockElements.includes(node.nodeName);
+    for (let child of node.childNodes) {
+      text += extractText(child);
+    }
+    if (isBlock && node !== element && text && !text.endsWith("\n")) {
+      text += "\n";
+    }
+    return text;
+  }
+  let result = extractText(element);
+  if (result.endsWith("\n")) {
+    result = result.slice(0, -1);
+  }
+  return result;
+}
+
+function getRangeForCharAtIndex(container, charIndex) {
+  let charCount = 0;
+  let foundNode = null;
+  let foundOffset = 0;
+
+  function walkTextNodes(node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const nodeLength =
+        node.textContent === "\n" ? 1 : node.textContent.length;
+      if (charCount + nodeLength > charIndex) {
+        foundNode = node;
+        foundOffset = charIndex - charCount;
+        return true;
+      }
+      charCount += nodeLength;
+    } else {
+      for (let child of node.childNodes) {
+        if (walkTextNodes(child)) return true;
+      }
+    }
+    return false;
+  }
+
+  walkTextNodes(container);
+
+  if (foundNode) {
+    const range = document.createRange();
+    range.setStart(foundNode, foundOffset);
+    range.setEnd(foundNode, foundOffset);
+    return range;
+  }
+
+  return null;
 }
 
 function mentionSuggestionsTemplate({
@@ -221,8 +275,6 @@ export class RichTextInput extends Component {
     this.currentMentionStart = null;
     this.currentMentionEnd = null;
     this.resolvedMentions = new Map();
-    this._composing = false;
-
     this.render();
     this.initialized = true;
   }
@@ -239,8 +291,7 @@ export class RichTextInput extends Component {
     const unresolvedFacets = getUnresolvedFacetsFromText(this.text);
     this.facets = this.partiallyResolveFacets(unresolvedFacets);
     this.render();
-    this.syncText();
-    this.refreshHighlights();
+    this.updateFacets();
     this.saveHistory();
     this.dispatchEvent(
       new CustomEvent("input", {
@@ -262,16 +313,9 @@ export class RichTextInput extends Component {
         <div class="rich-text-input-container">
           <div
             class="rich-text-input"
-            contenteditable="plaintext-only"
+            contenteditable="true"
             @input=${(e) => {
               e.stopPropagation();
-              this.handleInput(e);
-            }}
-            @compositionstart=${() => {
-              this._composing = true;
-            }}
-            @compositionend=${(e) => {
-              this._composing = false;
               this.handleInput(e);
             }}
             @keydown=${(e) => {
@@ -329,70 +373,28 @@ export class RichTextInput extends Component {
 
     if (!typeahead || !input || this.currentMentionStart === null) return;
 
-    const textNode = input.firstChild;
-    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
-
+    // Get the input container rect for left/right positioning
     const inputRect = input.getBoundingClientRect();
-    const startChar = Math.min(this.currentMentionStart, textNode.length);
-    const endChar = Math.min(startChar + 1, textNode.length);
-    const range = document.createRange();
-    range.setStart(textNode, startChar);
-    range.setEnd(textNode, endChar);
-    const rect = range.getBoundingClientRect();
 
-    typeahead.style.top = `${rect.bottom - inputRect.top}px`;
-    typeahead.style.left = `${rect.left - inputRect.left}px`;
-    typeahead.style.width = `${inputRect.width}px`;
+    // Get range at the @ symbol position
+    const range = getRangeForCharAtIndex(input, this.currentMentionStart);
+
+    if (range) {
+      const rect = range.getBoundingClientRect();
+
+      // Position below the @ symbol (relative to input container)
+      typeahead.style.top = `${rect.bottom - inputRect.top}px`;
+      typeahead.style.left = `${rect.left - inputRect.left}px`;
+      typeahead.style.width = `${inputRect.width}px`;
+    }
   }
 
-  syncText() {
+  updateFacets() {
     const input = this.querySelector(".rich-text-input");
-    if (!input) return;
-    if (input.textContent !== this.text) {
-      input.textContent = this.text;
-    }
-    this.updateTrailingSentinel();
-  }
-
-  updateTrailingSentinel() {
-    const input = this.querySelector(".rich-text-input");
-    if (!input) return;
-    const existing = input.querySelector("br[data-trailing-sentinel]");
-    if (existing) existing.remove();
-    if (!needsTrailingSentinel()) return;
-    if (!this.text.endsWith("\n")) return;
-    // Native trailing <br> (desktop browsers add one automatically) already
-    // renders the empty line, so no sentinel is needed.
-    if (input.lastChild && input.lastChild.nodeName === "BR") return;
-    const br = document.createElement("br");
-    br.setAttribute("data-trailing-sentinel", "");
-    input.appendChild(br);
-  }
-
-  refreshHighlights() {
-    const input = this.querySelector(".rich-text-input");
-    if (!input) return;
-
-    const textNode = input.firstChild;
-    for (const highlight of Object.values(sharedHighlights)) {
-      clearHighlightRangesInElement(highlight, input);
-    }
-
-    if (!textNode || textNode.nodeType !== Node.TEXT_NODE) return;
-
-    for (const facet of this.facets) {
-      const highlight = getHighlightForFacet(facet);
-      if (!highlight) continue;
-      const startChar = getIndexFromByteIndex(this.text, facet.index.byteStart);
-      const endChar = getIndexFromByteIndex(this.text, facet.index.byteEnd);
-      if (startChar < 0 || endChar > textNode.length || startChar >= endChar) {
-        continue;
-      }
-      const range = new Range();
-      range.setStart(textNode, startChar);
-      range.setEnd(textNode, endChar);
-      highlight.add(range);
-    }
+    input.innerHTML = "";
+    const div = document.createElement("div");
+    render(richTextTemplate({ text: this.text, facets: this.facets }), div);
+    input.innerHTML = div.innerHTML;
   }
 
   detectPendingMention() {
@@ -495,9 +497,8 @@ export class RichTextInput extends Component {
     this.currentMentionStart = null;
 
     // Update the UI
+    this.updateFacets();
     this.render();
-    this.syncText();
-    this.refreshHighlights();
 
     // Set cursor after the mention
     setTimeout(() => {
@@ -612,9 +613,8 @@ export class RichTextInput extends Component {
     this.text = prev.text;
     this.facets = prev.facets;
 
+    this.updateFacets();
     this.render();
-    this.syncText();
-    this.refreshHighlights();
 
     setTimeout(() => {
       setCursorPosition(input, prev.cursorPosition);
@@ -637,9 +637,8 @@ export class RichTextInput extends Component {
     this.text = next.text;
     this.facets = next.facets;
 
+    this.updateFacets();
     this.render();
-    this.syncText();
-    this.refreshHighlights();
 
     const input = this.querySelector(".rich-text-input");
     setTimeout(() => {
@@ -714,11 +713,10 @@ export class RichTextInput extends Component {
   }
 
   handleInput(e) {
-    // Skip while an IME composition is in progress
-    if (this._composing) return;
-
     const prevText = this.text;
-    this.text = e.target.textContent;
+    this.text = getContentEditableText(e.target);
+
+    let cursorPosition = getCursorPosition(e.target);
 
     // Save to history if text changed
     if (prevText !== this.text) {
@@ -732,9 +730,9 @@ export class RichTextInput extends Component {
     if (JSON.stringify(this.facets) !== JSON.stringify(newFacets)) {
       this.facets = newFacets;
     }
+    this.updateFacets();
+    setCursorPosition(e.target, cursorPosition);
 
-    this.updateTrailingSentinel();
-    this.refreshHighlights();
     // Check for mention typeahead
     this.updateMentionSuggestions();
 

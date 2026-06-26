@@ -5593,12 +5593,6 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 12px;
 }
 
-.rich-text-input {
-  white-space: pre-wrap;
-  line-height: 1.4;
-  min-height: 1lh;
-}
-
 .post-composer .rich-text-input {
   width: 100%;
   min-height: 120px;
@@ -5611,16 +5605,13 @@ emoji-picker-dialog emoji-picker,
   outline: none;
 }
 
-/* Composer link/tag/mention styling: color only, no underline — matches
-   Twitter/Slack composer convention and avoids overlap with spellcheck. */
-.rich-text-input::highlight(rt-link) {
+.post-composer .rich-text-input a {
   color: var(--text-link-color);
 }
-.rich-text-input::highlight(rt-mention) {
-  color: var(--text-link-color);
-}
-.rich-text-input::highlight(rt-tag) {
-  color: var(--text-link-color);
+
+.rich-text-input .rich-text {
+  /* show line breaks */
+  white-space: pre-wrap;
 }
 
 .rich-text-input-placeholder {
