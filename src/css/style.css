@@ -3979,16 +3979,19 @@ image-carousel {
   color: inherit;
 }
 
-.message-embed .chat-join-link-embed {
-  background: var(--text-input-background-color);
-  border-radius: var(--message-bubble-border-radius);
-  border: none;
+.chat-join-link-embed {
   padding: 12px;
   display: flex;
   flex-direction: column;
   gap: 12px;
   min-width: 240px;
   max-width: 100%;
+}
+
+.message-embed .chat-join-link-embed {
+  background: var(--text-input-background-color);
+  border-radius: var(--message-bubble-border-radius);
+  border: none;
 }
 
 .message-sent .message-embed .chat-join-link-embed {
