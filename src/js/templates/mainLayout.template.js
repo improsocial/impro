@@ -14,6 +14,7 @@ export function createMainLayout(context) {
     postComposerService,
     accountSwitcherService,
     pluginService,
+    groupChatLinkService,
   } = context;
   const onLongPressProfile =
     accountSwitcherService && auth.supportsMultipleAccounts()
@@ -31,6 +32,7 @@ export function createMainLayout(context) {
       onClickComposeButton: () =>
         postComposerService.composePost({ currentUser }),
       onLongPressProfile,
+      groupChatLinkService,
       ...options,
     });
   };
@@ -49,6 +51,7 @@ export function mainLayoutTemplate({
   showSidebarOverlay = true,
   pluginService,
   onLongPressProfile = null,
+  groupChatLinkService,
 }) {
   // This fixes a weird performance bug that was happening on the postThread view
   // (specifically with the profile image)
@@ -56,44 +59,52 @@ export function mainLayoutTemplate({
   const isLargeScreen = window.innerWidth > 800;
   const doRenderSidebar = isLargeScreen || showSidebarOverlay;
   return html`
-    <div class="view-columns">
-      <div class="view-column-left">
-        ${doRenderSidebar
-          ? sidebarTemplate({
-              isAuthenticated,
-              currentUser,
-              activeNavItem,
-              numNotifications,
-              numChatNotifications,
-              onClickActiveItem: onClickActiveNavItem,
-              onClickComposeButton,
-              pluginSidebarItems: pluginService.getSidebarItems(),
-              onLongPressProfile,
-            })
-          : ""}
+    <div
+      @chat-join-link:click=${(e) =>
+        groupChatLinkService.handleAction(
+          e.detail.actionType,
+          e.detail.preview,
+        )}
+    >
+      <div class="view-columns">
+        <div class="view-column-left">
+          ${doRenderSidebar
+            ? sidebarTemplate({
+                isAuthenticated,
+                currentUser,
+                activeNavItem,
+                numNotifications,
+                numChatNotifications,
+                onClickActiveItem: onClickActiveNavItem,
+                onClickComposeButton,
+                pluginSidebarItems: pluginService.getSidebarItems(),
+                onLongPressProfile,
+              })
+            : ""}
+        </div>
+        <div class="view-column-center" data-testid="view-column-center">
+          ${children}
+        </div>
+        <div class="view-column-right"></div>
       </div>
-      <div class="view-column-center" data-testid="view-column-center">
-        ${children}
-      </div>
-      <div class="view-column-right"></div>
+      ${footerTemplate({
+        isAuthenticated,
+        currentUser,
+        activeNavItem,
+        numNotifications,
+        numChatNotifications,
+        onClickActiveItem: onClickActiveNavItem,
+        onLongPressProfile,
+      })}
+      ${currentUser && showFloatingComposeButton
+        ? html`<button
+            class="floating-compose-button"
+            data-testid="floating-compose-button"
+            @click=${() => onClickComposeButton()}
+          >
+            ${editIconTemplate()}
+          </button>`
+        : ""}
     </div>
-    ${footerTemplate({
-      isAuthenticated,
-      currentUser,
-      activeNavItem,
-      numNotifications,
-      numChatNotifications,
-      onClickActiveItem: onClickActiveNavItem,
-      onLongPressProfile,
-    })}
-    ${currentUser && showFloatingComposeButton
-      ? html`<button
-          class="floating-compose-button"
-          data-testid="floating-compose-button"
-          @click=${() => onClickComposeButton()}
-        >
-          ${editIconTemplate()}
-        </button>`
-      : ""}
   `;
 }

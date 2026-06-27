@@ -36,7 +36,6 @@ class ChatDetailView extends View {
       chatNotificationService,
       identityResolver,
       mainLayout,
-      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -760,7 +759,6 @@ class ChatDetailView extends View {
                       embed: message.embed,
                       isAuthenticated: true,
                       currentConvoId: convoId,
-                      groupChatLinkService,
                     })}
                   </div>`
                 : null}

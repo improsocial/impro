@@ -34,7 +34,6 @@ class ProfileView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
-      groupChatLinkService,
     },
   }) {
     const defaultAuthorFeeds = [
@@ -505,7 +504,6 @@ class ProfileView extends View {
                         postInteractionHandler,
                         onLoadMore: () => loadAuthorFeed(),
                         pluginService,
-                        groupChatLinkService,
                         showEndMessage: true,
                       })}
                     </div>`;

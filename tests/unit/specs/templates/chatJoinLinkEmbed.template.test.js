@@ -29,7 +29,6 @@ function renderEmbed({ preview, currentConvoId = null } = {}) {
         joinLinkPreview: preview,
       },
       currentConvoId,
-      onClick: () => {},
     }),
     container,
   );
@@ -148,40 +147,24 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
     assertEquals(label, "Requested");
   });
 
-  it("invokes onClick with the action type when the button is clicked", () => {
-    const container = document.createElement("div");
+  it("dispatches a bubbling chat-join-link:click event when the button is clicked", () => {
+    const preview = makeJoinLinkPreview();
+    const container = renderEmbed({ preview });
     const received = [];
-    render(
-      chatJoinLinkEmbedTemplate({
-        embed: {
-          $type: "chat.bsky.embed.joinLink#view",
-          joinLinkPreview: makeJoinLinkPreview(),
-        },
-        currentConvoId: null,
-        onClick: (actionType) => received.push(actionType),
-      }),
-      container,
+    container.addEventListener("chat-join-link:click", (event) =>
+      received.push(event.detail),
     );
     container.querySelector("[data-testid='join-link-embed-action']").click();
-    assertEquals(received, ["join"]);
+    assertEquals(received, [{ actionType: "join", preview }]);
   });
 
-  it("does not invoke onClick when the action is disabled", () => {
-    const container = document.createElement("div");
+  it("does not dispatch an event when the action is disabled", () => {
+    const container = renderEmbed({
+      preview: makeJoinLinkPreview({ memberCount: 50, memberLimit: 50 }),
+    });
     const received = [];
-    render(
-      chatJoinLinkEmbedTemplate({
-        embed: {
-          $type: "chat.bsky.embed.joinLink#view",
-          joinLinkPreview: makeJoinLinkPreview({
-            memberCount: 50,
-            memberLimit: 50,
-          }),
-        },
-        currentConvoId: null,
-        onClick: (actionType) => received.push(actionType),
-      }),
-      container,
+    container.addEventListener("chat-join-link:click", (event) =>
+      received.push(event.detail),
     );
     container.querySelector("[data-testid='join-link-embed-action']").click();
     assertEquals(received, []);

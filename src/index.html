@@ -180,9 +180,7 @@
           ? new AccountSwitcherService(dataLayer)
           : null;
         const reportService = session ? new ReportService(dataLayer) : null;
-        const groupChatLinkService = session
-          ? new GroupChatLinkService(dataLayer)
-          : null;
+        const groupChatLinkService = new GroupChatLinkService(dataLayer);
         const interactionHandlers = new InteractionHandlers({
           session,
           dataLayer,

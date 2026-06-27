@@ -16,7 +16,6 @@ class PostQuotesView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
-      groupChatLinkService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -82,7 +81,6 @@ class PostQuotesView extends View {
                       postInteractionHandler,
                       emptyMessage: "No quotes yet.",
                       pluginService,
-                      groupChatLinkService,
                     })}
               </main>`,
           })}

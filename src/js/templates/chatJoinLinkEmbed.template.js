@@ -17,7 +17,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
 
   if (convoId && convoId === currentConvoId) {
     return {
-      kind: "copy",
+      type: "copy",
       label: "Copy link",
       icon: "link",
       side: "left",
@@ -26,7 +26,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
   }
   if (convoId) {
     return {
-      kind: "open",
+      type: "open",
       label: "Open chat",
       icon: "arrow-right",
       side: "right",
@@ -36,7 +36,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
 
   if (preview.memberCount >= preview.memberLimit) {
     return {
-      kind: "full",
+      type: "full",
       label: "This chat is full",
       icon: "hand",
       side: "left",
@@ -45,7 +45,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
   }
   if (preview.joinRule === "followedByOwner" && !isFollowing) {
     return {
-      kind: "follow-required",
+      type: "follow-required",
       label: "Only people the chat owner follows can join",
       icon: "hand",
       side: "left",
@@ -54,7 +54,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
   }
   if (hasRequested) {
     return {
-      kind: "requested",
+      type: "requested",
       label: "Requested",
       icon: "check",
       side: "left",
@@ -62,7 +62,7 @@ function deriveJoinLinkAction({ preview, currentConvoId }) {
     };
   }
   return {
-    kind: preview.requireApproval ? "request" : "join",
+    type: preview.requireApproval ? "request" : "join",
     label: preview.requireApproval ? "Request to join" : "Join",
     icon: "join",
     side: "left",
@@ -105,19 +105,24 @@ function ownerRowTemplate({ owner }) {
   </div>`;
 }
 
-function actionButtonTemplate({ action, onClick }) {
+function actionButtonTemplate({ action, preview }) {
   if (!action) return null;
   const iconFn = ACTION_ICONS[action.icon];
   const icon = iconFn ? iconFn() : null;
   return html`<button
-    class="chat-join-link-action chat-join-link-action-${action.kind}"
+    class="chat-join-link-action chat-join-link-action-${action.type}"
     data-testid="join-link-embed-action"
-    data-teststate=${action.kind}
+    data-teststate=${action.type}
     ?disabled=${action.disabled}
-    @click=${(event) => {
+    @click=${function (event) {
       event.stopPropagation();
       if (action.disabled) return;
-      onClick?.(action.kind);
+      this.dispatchEvent(
+        new CustomEvent("chat-join-link:click", {
+          detail: { actionType: action.type, preview },
+          bubbles: true,
+        }),
+      );
     }}
   >
     ${action.side === "left" ? icon : null}
@@ -126,7 +131,7 @@ function actionButtonTemplate({ action, onClick }) {
   </button>`;
 }
 
-export function chatJoinLinkEmbedTemplate({ embed, currentConvoId, onClick }) {
+export function chatJoinLinkEmbedTemplate({ embed, currentConvoId }) {
   const preview = embed?.joinLinkPreview;
 
   if (!isAvailableJoinLinkPreview(preview)) {
@@ -170,6 +175,6 @@ export function chatJoinLinkEmbedTemplate({ embed, currentConvoId, onClick }) {
         ${ownerRowTemplate({ owner: preview.owner })}
       </div>
     </div>
-    ${actionButtonTemplate({ action, onClick })}
+    ${actionButtonTemplate({ action, preview })}
   </div>`;
 }

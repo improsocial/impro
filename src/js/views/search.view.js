@@ -21,7 +21,6 @@ class SearchView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
-      groupChatLinkService,
     },
   }) {
     const state = new ReactiveStore("searchView");
@@ -173,7 +172,6 @@ class SearchView extends View {
                   isUserPost: currentUser?.did === post.author?.did,
                   postInteractionHandler,
                   pluginService,
-                  groupChatLinkService,
                 })}
               </div>`,
           )}

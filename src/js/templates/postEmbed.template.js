@@ -116,7 +116,6 @@ export function quotedPostTemplate({
   quotedPost,
   lazyLoadImages,
   isAuthenticated,
-  groupChatLinkService = null,
 }) {
   if (!quotedPost) {
     return html`<div class="quoted-post embed-card">Post not found</div>`;
@@ -197,7 +196,6 @@ export function quotedPostTemplate({
                     mediaLabel: quotedPost.mediaLabel,
                     lazyLoadImages,
                     isAuthenticated,
-                    groupChatLinkService,
                   })}
                 </div>`
               : ""}
@@ -508,12 +506,7 @@ function listTemplate({ list }) {
   </div>`;
 }
 
-function recordEmbedTemplate({
-  record,
-  lazyLoadImages,
-  isAuthenticated,
-  groupChatLinkService,
-}) {
+function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
       if (
@@ -527,7 +520,6 @@ function recordEmbedTemplate({
         quotedPost: record,
         lazyLoadImages,
         isAuthenticated,
-        groupChatLinkService,
       });
     // This only happens if the author is blocking the viewer
     case "app.bsky.embed.record#viewBlocked":
@@ -556,7 +548,6 @@ export function postEmbedTemplate({
   lazyLoadImages = false,
   isAuthenticated,
   currentConvoId = null,
-  groupChatLinkService = null,
 }) {
   if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
     return null;
@@ -567,7 +558,6 @@ export function postEmbedTemplate({
         record: embed.record,
         lazyLoadImages,
         isAuthenticated,
-        groupChatLinkService,
       });
     case "app.bsky.embed.recordWithMedia#view":
       return html`
@@ -576,13 +566,11 @@ export function postEmbedTemplate({
           mediaLabel,
           lazyLoadImages,
           isAuthenticated,
-          groupChatLinkService,
         })}
         ${recordEmbedTemplate({
           record: embed.record.record,
           lazyLoadImages,
           isAuthenticated,
-          groupChatLinkService,
         })}
       `;
     case "app.bsky.embed.video#view":
@@ -614,23 +602,8 @@ export function postEmbedTemplate({
         external: embed.external,
         lazyLoadImages,
       });
-    case "chat.bsky.embed.joinLink#view": {
-      const preview = embed.joinLinkPreview;
-      const onClick = groupChatLinkService
-        ? (actionType) =>
-            groupChatLinkService.handleAction({ actionType, preview })
-        : () =>
-            window.open(
-              `https://bsky.app/chat/${preview?.code}`,
-              "_blank",
-              "noopener",
-            );
-      return chatJoinLinkEmbedTemplate({
-        embed,
-        currentConvoId,
-        onClick,
-      });
-    }
+    case "chat.bsky.embed.joinLink#view":
+      return chatJoinLinkEmbedTemplate({ embed, currentConvoId });
     default:
       console.warn("Embed type not supported: ", embed.$type);
       break;

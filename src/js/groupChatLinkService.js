@@ -1,16 +1,23 @@
 import "/js/components/join-group-chat-dialog.js";
 import { showToast } from "/js/toasts.js";
-import { isAvailableJoinLinkPreview } from "/js/dataHelpers.js";
 
 export class GroupChatLinkService {
   constructor(dataLayer) {
     this.dataLayer = dataLayer;
   }
 
-  handleAction({ actionType, preview }) {
+  handleAction(actionType, preview) {
     if (actionType === "copy") {
       navigator.clipboard?.writeText(`https://bsky.app/chat/${preview.code}`);
       showToast("Copied to clipboard", { style: "success" });
+      return;
+    }
+    if (!this.dataLayer.isAuthenticated) {
+      window.open(
+        `https://bsky.app/chat/${preview.code}`,
+        "_blank",
+        "noopener",
+      );
       return;
     }
     if (actionType === "open") {
@@ -19,7 +26,6 @@ export class GroupChatLinkService {
       return;
     }
     if (actionType === "join" || actionType === "request") {
-      if (!isAvailableJoinLinkPreview(preview)) return;
       this._openJoinDialog(preview);
       return;
     }

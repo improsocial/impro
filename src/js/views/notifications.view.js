@@ -54,7 +54,6 @@ class NotificationsView extends View {
       pluginService,
       interactionHandlers,
       mainLayout,
-      groupChatLinkService,
     },
   }) {
     await auth.requireAuth();
@@ -395,7 +394,6 @@ class NotificationsView extends View {
             postInteractionHandler,
             ignoreMuteWarning: true,
             pluginService,
-            groupChatLinkService,
           })}
         </div>
       `;
