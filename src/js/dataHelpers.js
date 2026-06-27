@@ -485,7 +485,7 @@ function getEmbedPreviewText(embed) {
   if (embed.$type === "app.bsky.embed.record#view") {
     return "(quoted post)";
   }
-  return "(contains embedded content)";
+  return "(embedded content)";
 }
 
 export function getConvoPreviewText(

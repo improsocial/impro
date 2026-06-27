@@ -235,7 +235,7 @@ class SettingsMutedWordsView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Muted words",
-                onClickBackButton: () => window.router.go("/settings"),
+                backButtonFallbackRoute: "/settings",
               })}
               <main>
                 <form

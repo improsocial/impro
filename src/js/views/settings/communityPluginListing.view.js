@@ -126,8 +126,7 @@ class SettingsCommunityPluginListingView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Community plugins",
-                onClickBackButton: () =>
-                  window.router.go("/settings/plugins/community"),
+                backButtonFallbackRoute: "/settings/plugins/community",
               })}
               <main>
                 ${(() => {

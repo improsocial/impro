@@ -220,8 +220,7 @@ class ChatRequestsView extends View {
               ${headerTemplate({
                 title: "Chat requests",
                 showLoadingSpinner: convosRequestStatus.loading && !!convos,
-                leftButton: "back",
-                onClickBackButton: () => router.back(),
+                backButtonFallbackRoute: "/messages",
               })}
               <main class="chat-requests-main">
                 ${(() => {

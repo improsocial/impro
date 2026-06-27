@@ -1587,14 +1587,14 @@ t.describe("getConvoPreviewText", (it) => {
         convo: directConvo,
         profiles: directConvo.members,
       }),
-      "(contains embedded content)",
+      "(embedded content)",
     );
     assertEquals(
       getConvoPreviewText(
         { ...embedMessage, sender: { did: currentUser.did } },
         { currentUser, convo: directConvo, profiles: directConvo.members },
       ),
-      "You: (contains embedded content)",
+      "You: (embedded content)",
     );
     assertEquals(
       getConvoPreviewText(embedMessage, {
@@ -1602,7 +1602,7 @@ t.describe("getConvoPreviewText", (it) => {
         convo: groupConvo,
         profiles: groupConvo.members,
       }),
-      "Alice: (contains embedded content)",
+      "Alice: (embedded content)",
     );
   });
 

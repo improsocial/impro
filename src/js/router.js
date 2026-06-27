@@ -223,29 +223,33 @@ export class Router extends EventEmitter {
     );
   }
 
-  async go(path) {
+  async go(path, { replace = false } = {}) {
     if (this._shouldOpenInNewTab()) {
       window.open(path, "_blank", "noopener");
       return;
     }
-    window.history.pushState(
-      { previousRoute: window.location.pathname },
-      "",
-      path,
-    );
+    if (replace) {
+      window.history.replaceState(null, "", path);
+    } else {
+      window.history.pushState(
+        { previousRoute: window.location.pathname },
+        "",
+        path,
+      );
+    }
     this.emit("navigate");
     await this.load(path);
   }
 
-  async back() {
+  async back({ fallbackRoute = null } = {}) {
     if (this._shouldOpenInNewTab()) {
       window.open(this.previousRoute ?? "/", "_blank", "noopener");
       return;
     }
-    if (!!window.history.state?.previousRoute) {
+    if (this.previousRoute !== null) {
       window.history.back();
     } else {
-      this.go("/");
+      this.go(fallbackRoute ?? "/", { replace: true });
     }
   }
 

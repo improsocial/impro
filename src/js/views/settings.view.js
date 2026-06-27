@@ -233,17 +233,7 @@ class SettingsView extends View {
             onClickActiveNavItem: () => window.scrollTo(0, 0),
             children: html`${headerTemplate({
                 title: "Settings",
-                onClickBackButton: () => {
-                  // If navigating from settings detail page, go home instead of navigating back
-                  if (
-                    window.router.previousRoute &&
-                    window.router.previousRoute.startsWith("/settings/")
-                  ) {
-                    window.router.go("/");
-                  } else {
-                    window.router.back();
-                  }
-                },
+                backButtonFallbackRoute: "/",
               })}
               <main>
                 <nav class="vertical-nav">

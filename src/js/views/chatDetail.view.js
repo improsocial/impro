@@ -1060,7 +1060,7 @@ class ChatDetailView extends View {
                 },
                 title,
                 subtitle,
-                leftButton: "back",
+                backButtonFallbackRoute: "/messages",
                 rightItemTemplate: () => html`
                   <button
                     class="chat-menu-button"
