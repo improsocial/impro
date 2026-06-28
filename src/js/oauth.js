@@ -529,20 +529,22 @@ export class InvalidAuthUrlError extends Error {
 }
 
 export class OauthClient {
-  constructor({ clientId, redirectUri, dpopKeypair }) {
+  constructor({ clientId, redirectUri, dpopKeypair, proxyUrl = null }) {
     this.clientId = clientId;
     this.redirectUri = redirectUri;
+    this.proxyUrl = proxyUrl;
     this.dpopRequests = new DPoPRequests(dpopKeypair);
     this.sessionsByDid = new Map();
   }
 
-  static async load({ clientId, redirectUri }) {
+  static async load({ clientId, redirectUri, proxyUrl = null }) {
     const dpopKeypair = await loadOrGenerateDPoPKeypair();
     migrateLegacySession();
     return new OauthClient({
       clientId,
       redirectUri,
       dpopKeypair,
+      proxyUrl,
     });
   }
 
@@ -557,7 +559,8 @@ export class OauthClient {
         `DID doc for ${did} does not reference handle: ${handle}`,
       );
     }
-    const serviceEndpoint = getServiceEndpointFromDidDoc(didDoc);
+    const pdsEndpoint = getServiceEndpointFromDidDoc(didDoc);
+    const serviceEndpoint = this.proxyUrl ?? pdsEndpoint;
     const resourceMetadata = await fetchResourceServerMetadata(serviceEndpoint);
     if (
       !resourceMetadata.authorization_servers ||
@@ -591,6 +594,7 @@ export class OauthClient {
     const parResponse = await authServer.sendPAR({
       client_id: this.clientId,
       response_type: "code",
+      response_mode: "query",
       redirect_uri: this.redirectUri,
       state: encodeURIComponent(JSON.stringify({ requestId, ...state })),
       code_challenge: codeChallenge,
