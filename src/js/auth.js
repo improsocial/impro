@@ -207,7 +207,7 @@ export class OAuthProvider {
 
   async getClient() {
     if (!this._client) {
-      const proxyClientId = window.env.proxyClientId || null;
+      const proxyClientId = window.env.oatproxyClientId || null;
       const proxyOrigin = proxyClientId ? new URL(proxyClientId).origin : null;
       const baseRedirect = `https://${window.env.hostName}/callback.html`;
       const redirectUri =
