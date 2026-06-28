@@ -207,14 +207,13 @@ export class OAuthProvider {
 
   async getClient() {
     if (!this._client) {
-      const proxyClientId =
-        "https://auth.impro.social/oauth/downstream/client-metadata.json";
+      const proxyClientId = window.env.proxyClientId || null;
       const proxyOrigin = proxyClientId ? new URL(proxyClientId).origin : null;
-      const realRedirect = `https://${window.env.hostName}/callback.html`;
+      const baseRedirect = `https://${window.env.hostName}/callback.html`;
       const redirectUri =
-        proxyOrigin && new URL(realRedirect).origin !== proxyOrigin
-          ? `${proxyOrigin}?oatproxyActualRedirect=${encodeURIComponent(realRedirect)}`
-          : realRedirect;
+        proxyOrigin && new URL(baseRedirect).origin !== proxyOrigin
+          ? `${proxyOrigin}?oatproxyActualRedirect=${encodeURIComponent(baseRedirect)}`
+          : baseRedirect;
       this._client = await OauthClient.load({
         clientId:
           proxyClientId ??

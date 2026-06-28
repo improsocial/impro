@@ -11,4 +11,5 @@ export default {
   environment: process.env.ENVIRONMENT ?? "development",
   playwright: process.env.PLAYWRIGHT ? "true" : "",
   oauthScopes: OAUTH_SCOPES,
+  proxyClientId: process.env.OATPROXY_CLIENT_ID ?? "",
 };
