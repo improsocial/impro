@@ -281,10 +281,10 @@ export class RichTextInput extends Component {
 
   clearHighlights() {
     if (!this._facetHighlights) return;
-    for (const [name, ranges] of this._facetHighlights) {
+    for (const [name] of this._facetHighlights) {
       const highlight = CSS.highlights.get(name);
       if (!highlight) continue;
-      for (const range of ranges) highlight.delete(range);
+      highlight.clear();
     }
     this._facetHighlights = new Map();
   }

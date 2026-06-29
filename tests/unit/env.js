@@ -19,6 +19,8 @@ globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
 globalThis.MouseEvent = dom.window.MouseEvent;
 globalThis.MutationObserver = dom.window.MutationObserver;
+globalThis.FileReader = dom.window.FileReader;
+globalThis.Blob = dom.window.Blob;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 // Node has its own global navigator; alias JSDOM's so code under test and
 // tests (which mock properties on window.navigator) see the same object.

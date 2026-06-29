@@ -7,6 +7,7 @@ import {
   classnames,
   enableDragToDismiss,
   graphemeCount,
+  readFileAsDataUrl,
   resetScrollOnBlur,
   sanitizeUri,
 } from "/js/utils.js";
@@ -531,7 +532,7 @@ class PostComposer extends Component {
 
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const file = files[i];
-      const dataUrl = await this.readFileAsDataUrl(file);
+      const dataUrl = await readFileAsDataUrl(file);
       this._selectedImages.push({
         file,
         dataUrl,
@@ -546,15 +547,6 @@ class PostComposer extends Component {
     }
 
     this.render();
-  }
-
-  readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   handleRemoveImage(index) {
@@ -872,7 +864,7 @@ class PostComposer extends Component {
     );
   }
 
-  confirmClose() {
+  async confirmClose() {
     // Todo - check for other unsaved changes
     if (
       this._postText.length === 0 &&
@@ -881,11 +873,18 @@ class PostComposer extends Component {
     ) {
       return true;
     }
-    return confirmModal("Are you sure you'd like to discard this draft?", {
-      title: "Discard draft?",
-      confirmButtonStyle: "danger",
-      confirmButtonText: "Discard",
-    });
+    const richTextInput = this.querySelector("rich-text-input");
+    richTextInput?.clearHighlights();
+    const confirmed = await confirmModal(
+      "Are you sure you'd like to discard this draft?",
+      {
+        title: "Discard draft?",
+        confirmButtonStyle: "danger",
+        confirmButtonText: "Discard",
+      },
+    );
+    if (!confirmed) richTextInput?.paintFacets();
+    return confirmed;
   }
 }
 

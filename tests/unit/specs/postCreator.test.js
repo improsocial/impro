@@ -266,10 +266,14 @@ t.describe("external embed preparation", (it) => {
       const api = makeApi();
       api.uploadBlob = async () => ({
         ref: { $link: "bafythumb" },
-        mimeType: "image/png",
+        mimeType: "image/jpeg",
         size: 42,
       });
-      const pc = new PostCreator(api, mockIdentityResolver);
+      const pc = new PostCreator(
+        api,
+        mockIdentityResolver,
+        makeImageCompressor(),
+      );
       await pc.createPost({
         postText: "hi",
         external: {
@@ -282,8 +286,44 @@ t.describe("external embed preparation", (it) => {
       const thumb = api.lastEmbed.external.thumb;
       assertEquals(thumb.$type, "blob");
       assertEquals(thumb.ref.$link, "bafythumb");
-      assertEquals(thumb.mimeType, "image/png");
+      assertEquals(thumb.mimeType, "image/jpeg");
       assertEquals(thumb.size, 42);
+    } finally {
+      globalThis.fetch = originalFetch;
+    }
+  });
+
+  it("compresses the preview image before uploading", async () => {
+    const originalFetch = globalThis.fetch;
+    globalThis.fetch = async () => ({
+      blob: async () => new Blob(["original-bytes"], { type: "image/png" }),
+    });
+    try {
+      const api = makeApi();
+      const uploadedBlobs = [];
+      api.uploadBlob = async (blob) => {
+        uploadedBlobs.push(blob);
+        return {
+          ref: { $link: "bafythumb" },
+          mimeType: "image/jpeg",
+          size: 1,
+        };
+      };
+      const imageCompressor = makeImageCompressor();
+      const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
+      await pc.createPost({
+        postText: "hi",
+        external: {
+          title: "Example",
+          description: "An example link",
+          url: "https://example.com",
+          image: "https://example.com/preview.png",
+        },
+      });
+      assertEquals(imageCompressor.compressed.length, 1);
+      assert(imageCompressor.compressed[0].startsWith("data:image/png"));
+      assertEquals(uploadedBlobs.length, 1);
+      assertEquals(uploadedBlobs[0].type, "image/jpeg");
     } finally {
       globalThis.fetch = originalFetch;
     }

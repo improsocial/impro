@@ -254,6 +254,15 @@ export function raf() {
   return new Promise((resolve) => requestAnimationFrame(resolve));
 }
 
+export function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (event) => resolve(event.target.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 export function buildQueryString(obj) {
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(obj)) {

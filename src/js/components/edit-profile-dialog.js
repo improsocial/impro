@@ -6,6 +6,7 @@ import {
   classnames,
   enableDragToDismiss,
   graphemeCount,
+  readFileAsDataUrl,
   resetScrollOnBlur,
 } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
@@ -385,22 +386,13 @@ class EditProfileDialog extends Component {
       return;
     }
 
-    const dataUrl = await this._readFileAsDataUrl(file);
+    const dataUrl = await readFileAsDataUrl(file);
     event.target.value = "";
 
     this._croppingTarget = this._pendingPickTarget;
     this._croppingImageSrc = dataUrl;
     this._pendingPickTarget = null;
     this.render();
-  }
-
-  _readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (event) => resolve(event.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   async _applyCrop() {

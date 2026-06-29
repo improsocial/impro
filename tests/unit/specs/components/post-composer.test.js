@@ -505,16 +505,11 @@ t.describe("PostComposer - initial text/cursor", (it) => {
 });
 
 function makeImageFile(name = "pasted.png") {
-  return { name, type: "image/png" };
+  return new globalThis.window.File(["png-bytes"], name, { type: "image/png" });
 }
 
 function makeVideoFile(name = "clip.mp4") {
-  return { name, type: "video/mp4" };
-}
-
-function stubReadFileAsDataUrl(element) {
-  element.readFileAsDataUrl = (file) =>
-    Promise.resolve(`data:${file.type};base64,stub-${file.name}`);
+  return new globalThis.window.File(["mp4-bytes"], name, { type: "video/mp4" });
 }
 
 function makePasteEvent(files) {
@@ -534,10 +529,9 @@ t.describe("PostComposer - paste media", (it) => {
   it("adds pasted image files to selected images", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     const event = makePasteEvent([makeImageFile()]);
     element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 10));
     assertEquals(element._selectedImages.length, 1);
     assert(element._selectedImages[0].dataUrl.startsWith("data:image/png"));
     assert(event.defaultPrevented);
@@ -546,7 +540,6 @@ t.describe("PostComposer - paste media", (it) => {
   it("adds multiple pasted images up to the 4-image cap", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     element._selectedImages = [
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
@@ -558,18 +551,17 @@ t.describe("PostComposer - paste media", (it) => {
       makeImageFile("c.png"),
     ]);
     element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 10));
     assertEquals(element._selectedImages.length, 4);
   });
 
   it("does not add pasted images when a video is already selected", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     element._selectedVideo = { file: {}, status: "done" };
     const event = makePasteEvent([makeImageFile()]);
     element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 10));
     assertEquals(element._selectedImages.length, 0);
     assert(event.defaultPrevented);
   });
@@ -589,7 +581,6 @@ t.describe("PostComposer - addMediaFiles", (it) => {
   it("routes image files to addImageFiles", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     await element.addMediaFiles([makeImageFile()]);
     assertEquals(element._selectedImages.length, 1);
   });
@@ -597,7 +588,6 @@ t.describe("PostComposer - addMediaFiles", (it) => {
   it("rejects mixed image and video files", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
     assertEquals(element._selectedImages.length, 0);
     assertEquals(element._selectedVideo, null);
@@ -606,7 +596,6 @@ t.describe("PostComposer - addMediaFiles", (it) => {
   it("rejects unsupported file types without adding anything", async () => {
     const element = createPostComposer();
     connectElement(element);
-    stubReadFileAsDataUrl(element);
     await element.addMediaFiles([
       makeImageFile(),
       { name: "note.txt", type: "text/plain" },
