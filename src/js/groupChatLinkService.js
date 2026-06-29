@@ -1,4 +1,5 @@
-import "/js/components/join-group-chat-dialog.js";
+import { html } from "/js/lib/lit-html.js";
+import { showActionModal, showInfoModal } from "/js/modals.js";
 import { showToast } from "/js/toasts.js";
 
 export class GroupChatLinkService {
@@ -30,36 +31,29 @@ export class GroupChatLinkService {
       return;
     }
     if (actionType === "requested") {
-      showToast("Request pending — the group owner will review it.", {
-        style: "default",
+      showInfoModal({
+        title: "Request pending",
+        message: "The group owner will review your request.",
       });
     }
   }
 
   _openJoinDialog(preview) {
-    if (this.currentDialog) {
-      console.warn("Join group chat dialog already open");
-      return;
-    }
-    const dialog = document.createElement("join-group-chat-dialog");
-    dialog.setAttribute("name", preview.name ?? "");
-    if (preview.requireApproval) dialog.setAttribute("require-approval", "");
-    dialog.addEventListener("confirm", (event) =>
-      this._submit({ preview, ...event.detail }),
-    );
-    dialog.addEventListener("dialog-closed", () => {
-      dialog.remove();
-      this.currentDialog = null;
+    const name = preview.name ?? "";
+    showActionModal({
+      title: preview.requireApproval ? "Request to join" : "Join group chat",
+      message: preview.requireApproval
+        ? html`Send a request to join <strong>${name}</strong>. The group owner
+            will review your request before you can see messages.`
+        : html`You're about to join <strong>${name}</strong>.`,
+      confirmButtonText: preview.requireApproval ? "Send request" : "Join",
+      onConfirm: () => this._submit(preview),
     });
-    this.currentDialog = dialog;
-    document.body.appendChild(dialog);
-    dialog.open();
   }
 
-  async _submit({ preview, successCallback, errorCallback }) {
+  async _submit(preview) {
     try {
       await this.dataLayer.mutations.requestJoinGroupChat(preview.code);
-      successCallback();
       showToast(
         preview.requireApproval
           ? "Request sent — the group owner will review your request."
@@ -68,10 +62,10 @@ export class GroupChatLinkService {
       );
     } catch (error) {
       console.error(error);
-      errorCallback();
       showToast("Could not send join request. Please try again.", {
         style: "error",
       });
+      throw error;
     }
   }
 }

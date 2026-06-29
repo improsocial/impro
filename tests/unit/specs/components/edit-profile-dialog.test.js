@@ -450,7 +450,7 @@ t.describe("EditProfileDialog - close", (it) => {
     cancelButton.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const confirmDialog = document.body.querySelector(".modal-dialog");
+    const confirmDialog = document.body.querySelector(".confirm-modal");
     assert(
       confirmDialog !== null,
       "Discard confirmation should be shown when there are unsaved changes",
@@ -485,7 +485,7 @@ t.describe("EditProfileDialog - close", (it) => {
     dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    const confirmDialog = document.body.querySelector(".modal-dialog");
+    const confirmDialog = document.body.querySelector(".confirm-modal");
     assertEquals(
       confirmDialog,
       null,

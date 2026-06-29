@@ -221,17 +221,15 @@ test.describe("Join link embed flows", () => {
       await page.locator('[data-testid="join-link-embed-action"]').click();
 
       await expect(
-        page.locator('[data-testid="join-group-chat-dialog"]'),
+        page.locator('[data-testid="modal-confirm-button"]'),
       ).toBeVisible();
-      await page
-        .locator('[data-testid="join-group-chat-dialog-confirm"]')
-        .click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
 
       await expect(page.locator('[data-testid="toast"]')).toContainText(
         "Request sent",
       );
       await expect(
-        page.locator('[data-testid="join-group-chat-dialog"]'),
+        page.locator('[data-testid="modal-confirm-button"]'),
       ).toHaveCount(0);
     });
 
@@ -253,7 +251,7 @@ test.describe("Join link embed flows", () => {
       });
       await action.click();
 
-      await expect(page.locator('[data-testid="toast"]')).toContainText(
+      await expect(page.locator('[data-testid="modal-title"]')).toContainText(
         "Request pending",
       );
     });
@@ -276,9 +274,7 @@ test.describe("Join link embed flows", () => {
       });
       await action.click();
 
-      await page
-        .locator('[data-testid="join-group-chat-dialog-confirm"]')
-        .click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
 
       await expect(action).toHaveAttribute("data-teststate", "requested", {
         timeout: 10000,
@@ -300,15 +296,13 @@ test.describe("Join link embed flows", () => {
       });
       await action.click();
 
-      await page
-        .locator('[data-testid="join-group-chat-dialog-confirm"]')
-        .click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
 
       await expect(page.locator('[data-testid="toast"]')).toContainText(
         "Could not send join request",
       );
       await expect(
-        page.locator('[data-testid="join-group-chat-dialog"]'),
+        page.locator('[data-testid="modal-confirm-button"]'),
       ).toBeVisible();
     });
 
@@ -321,15 +315,13 @@ test.describe("Join link embed flows", () => {
 
       await page.locator('[data-testid="join-link-embed-action"]').click();
       await expect(
-        page.locator('[data-testid="join-group-chat-dialog"]'),
+        page.locator('[data-testid="modal-confirm-button"]'),
       ).toBeVisible();
 
-      await page
-        .locator('[data-testid="join-group-chat-dialog-cancel"]')
-        .click();
+      await page.locator('[data-testid="modal-cancel-button"]').click();
 
       await expect(
-        page.locator('[data-testid="join-group-chat-dialog"]'),
+        page.locator('[data-testid="modal-confirm-button"]'),
       ).toHaveCount(0);
       await expect(
         page.locator('[data-testid="join-link-embed-action"]'),
@@ -342,7 +334,7 @@ test.describe("Join link embed flows", () => {
       await page.goto(postPath);
 
       await page.locator('[data-testid="join-link-embed-action"]').click();
-      const dialog = page.locator('[data-testid="join-group-chat-dialog"]');
+      const dialog = page.locator("dialog.action-modal");
       await expect(dialog).toBeVisible();
 
       // Click at the very top-left corner (outside the dialog content)

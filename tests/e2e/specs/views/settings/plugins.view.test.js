@@ -111,7 +111,7 @@ test.describe("Settings plugins view", () => {
 
     await sampleItem.locator(".plugin-uninstall-button").click();
 
-    const dialog = page.locator("dialog.modal-dialog");
+    const dialog = page.locator("dialog.confirm-modal");
     await expect(dialog).toBeVisible();
     await expect(dialog.locator(".modal-dialog-title")).toContainText(
       "Uninstall plugin?",
@@ -137,7 +137,7 @@ test.describe("Settings plugins view", () => {
     await expect(sampleItem).toBeVisible({ timeout: 10000 });
     await sampleItem.locator(".plugin-uninstall-button").click();
 
-    const dialog = page.locator("dialog.modal-dialog");
+    const dialog = page.locator("dialog.confirm-modal");
     await dialog.locator(".cancel-button").click();
 
     await expect(sampleItem).toBeVisible();

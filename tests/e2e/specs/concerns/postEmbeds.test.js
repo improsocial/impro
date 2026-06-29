@@ -643,7 +643,7 @@ test.describe("Post embeds view — feed generator / list", () => {
       .locator('[data-testid="join-link-embed-action"]')
       .click({ timeout: 10000 });
     await expect(
-      page.locator('[data-testid="join-group-chat-dialog"]'),
+      page.locator('[data-testid="modal-confirm-button"]'),
     ).toBeVisible();
   });
 

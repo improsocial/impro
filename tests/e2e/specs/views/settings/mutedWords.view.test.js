@@ -129,7 +129,7 @@ test.describe("Settings Muted Words view", () => {
     await view.locator('[data-testid="muted-word-delete"]').click();
 
     // Confirm dialog should appear
-    const dialog = page.locator("dialog.modal-dialog");
+    const dialog = page.locator("dialog.confirm-modal");
     await expect(dialog).toBeVisible({ timeout: 5000 });
     // The interpolated word name is the SUT — verify it flows into the dialog.
     await expect(dialog.locator('[data-testid="modal-message"]')).toContainText(

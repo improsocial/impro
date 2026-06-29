@@ -4097,32 +4097,6 @@ image-carousel {
   height: 18px;
 }
 
-.join-group-chat-dialog .join-group-chat-dialog-content {
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
-
-.join-group-chat-dialog-title {
-  font-size: 18px;
-  font-weight: 700;
-  margin: 0;
-}
-
-.join-group-chat-dialog-body {
-  font-size: 16px;
-  color: var(--text-color);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.join-group-chat-dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
 .message-emoji-trigger {
   background: transparent;
   border: none;
@@ -5615,6 +5589,24 @@ emoji-picker-dialog emoji-picker,
 .bottom-sheet::backdrop {
   background-color: var(--overlay-color-medium);
   animation: fade-in 0.2s ease-out;
+}
+
+.bottom-sheet.action-modal {
+  color: var(--text-color);
+}
+
+.bottom-sheet.action-modal .modal-dialog-content {
+  padding: 32px 24px 24px;
+}
+
+@media (min-width: 800px) {
+  .bottom-sheet.action-modal {
+    max-width: 410px;
+    width: 90%;
+  }
+  .bottom-sheet.action-modal .modal-dialog-content {
+    padding: 24px;
+  }
 }
 
 .post-composer-top-bar {
@@ -9362,8 +9354,22 @@ p.setting-item-desc {
   opacity: 0.75;
 }
 
-.modal-dialog.confirm-modal {
-  max-width: 320px;
+.bottom-sheet.confirm-modal {
+  color: var(--text-color);
+}
+
+.bottom-sheet.confirm-modal .modal-dialog-content {
+  padding: 32px 24px 24px;
+}
+
+@media (min-width: 800px) {
+  .bottom-sheet.confirm-modal {
+    max-width: 320px;
+    width: 90%;
+  }
+  .bottom-sheet.confirm-modal .modal-dialog-content {
+    padding: 24px;
+  }
 }
 
 .sidebar-action-items {

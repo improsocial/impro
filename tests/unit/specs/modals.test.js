@@ -142,7 +142,7 @@ t.describe("confirm", (it) => {
   it("should create a dialog in the DOM", () => {
     clearDOM();
     confirm("Are you sure?");
-    const dialog = document.querySelector("dialog.modal-dialog");
+    const dialog = document.querySelector("dialog.confirm-modal");
     assert(dialog !== null);
   });
 

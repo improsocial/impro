@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { getThreadgateAllowSettings } from "/js/dataHelpers.js";
 import { linkToProfile, linkToLogin } from "/js/navigation.js";
+import { enableDragToDismiss } from "/js/utils.js";
 
 export function showSignInModal() {
   const dialog = document.createElement("dialog");
@@ -106,7 +107,7 @@ export async function confirm(
 ) {
   return new Promise((resolve) => {
     const dialog = document.createElement("dialog");
-    dialog.classList.add("modal-dialog", "confirm-modal");
+    dialog.classList.add("bottom-sheet", "confirm-modal");
 
     render(
       html`
@@ -165,9 +166,109 @@ export async function confirm(
 
     document.body.appendChild(dialog);
     dialog.showModal();
+    enableDragToDismiss(dialog, {
+      onClose: () => dismiss(false),
+      ignoreTouchTarget: (element) => element.closest("button") !== null,
+    });
 
     // Allow tests to resolve externally
     globalThis.__testConfirmation?.(resolve);
+  });
+}
+
+export async function showActionModal({
+  title = null,
+  message,
+  confirmButtonText = "Confirm",
+  confirmButtonStyle = "primary",
+  onConfirm,
+}) {
+  return new Promise((resolve) => {
+    const dialog = document.createElement("dialog");
+    dialog.classList.add("bottom-sheet", "action-modal");
+
+    let isPending = false;
+
+    const renderContents = () => {
+      render(
+        html`
+          <div class="modal-dialog-content">
+            ${title
+              ? html`<h2 class="modal-dialog-title" data-testid="modal-title">
+                  ${title}
+                </h2>`
+              : null}
+            <p class="modal-dialog-message" data-testid="modal-message">
+              ${message}
+            </p>
+            <div class="modal-dialog-buttons">
+              <button
+                class="modal-dialog-button cancel-button"
+                data-testid="modal-cancel-button"
+                ?disabled=${isPending}
+                @click=${() => dismiss(false)}
+              >
+                Cancel
+              </button>
+              <button
+                class="modal-dialog-button confirm-button ${confirmButtonStyle}-button"
+                data-testid="modal-confirm-button"
+                ?disabled=${isPending}
+                @click=${runConfirm}
+              >
+                ${isPending
+                  ? html`<span
+                      class="loading-spinner"
+                      data-testid="loading-spinner"
+                    ></span>`
+                  : confirmButtonText}
+              </button>
+            </div>
+          </div>
+        `,
+        dialog,
+      );
+    };
+
+    const dismiss = (result) => {
+      if (isPending) return;
+      dialog.close();
+      dialog.remove();
+      resolve(result);
+    };
+
+    const runConfirm = async () => {
+      if (isPending) return;
+      isPending = true;
+      renderContents();
+      try {
+        await onConfirm?.();
+        dialog.close();
+        dialog.remove();
+        resolve(true);
+      } catch {
+        isPending = false;
+        renderContents();
+      }
+    };
+
+    renderContents();
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target.tagName === "DIALOG") dismiss(false);
+    });
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      dismiss(false);
+    });
+
+    document.body.appendChild(dialog);
+    dialog.showModal();
+    enableDragToDismiss(dialog, {
+      onClose: () => dismiss(false),
+      confirmDismiss: () => !isPending,
+      ignoreTouchTarget: (element) => element.closest("button") !== null,
+    });
   });
 }
 
