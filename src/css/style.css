@@ -357,8 +357,6 @@ main {
 }
 
 .rich-text {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: pre-wrap;
   word-wrap: break-word;
 }
