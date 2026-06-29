@@ -638,6 +638,7 @@ input[type="color"]::-moz-color-swatch {
   display: inline-block;
   width: 16px;
   height: 16px;
+  vertical-align: middle;
   border: 2px solid light-dark(var(--lighter-gray), var(--light-gray));
   border-top: 2px solid var(--highlight-color);
   border-radius: 50%;
@@ -6251,6 +6252,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   border-radius: var(--pill-button-border-radius);
   border: none;
   font-size: 14px;
+  line-height: 20px;
   cursor: pointer;
   transition: background-color 0.2s;
   text-decoration: none;
