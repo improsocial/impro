@@ -223,9 +223,8 @@ export class Requests {
     ]);
     // Save posts
     const postsToSave = this.normalizer.getPostsFromPostThread(postThread);
+    await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    // Load any blocked posts if necessary
-    const blockedPostUris = getBlockedPostUris(postsToSave);
     const parent = postThread.parent;
     if (parent) {
       const topParent = flattenParents(postThread)[0];
@@ -248,10 +247,6 @@ export class Requests {
       });
     }
 
-    if (blockedPostUris.length > 0) {
-      await this._loadBlockedPosts(blockedPostUris);
-    }
-    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Save post thread
     this.dataStore.$postThreads.set(postURI, postThread);
     this.dataStore.$postThreadOthers.set(postURI, postThreadOther);
@@ -262,6 +257,7 @@ export class Requests {
   async loadPost(postURI) {
     const labelers = this.requireLabelers();
     const post = await this.api.getPost(postURI, { labelers });
+    await this._loadPostDependencies([post]);
     this.dataStore.setPosts([post]);
   }
 
@@ -269,6 +265,7 @@ export class Requests {
     if (postURIs.length === 0) return;
     const labelers = this.requireLabelers();
     const posts = await this.api.getPosts(postURIs, { labelers });
+    await this._loadPostDependencies(posts);
     this.dataStore.setPosts(posts);
   }
 
@@ -317,6 +314,7 @@ export class Requests {
       for (const post of posts) {
         loadedPostsByUri.set(post.uri, post);
       }
+      await this._loadPostDependencies(posts);
       this.dataStore.setPosts(posts);
 
       // Walk up from the current blocked post to find the next unresolved parent
@@ -410,6 +408,7 @@ export class Requests {
           isBlockedReply: true,
         };
       });
+      await this._loadPostDependencies(repliesToAdd);
       this.dataStore.setPosts(repliesToAdd);
       loadedReplies.push(
         ...repliesToAdd.map((post) => {
@@ -440,13 +439,8 @@ export class Requests {
           : await this.api.getFeed(feedURI, { limit, cursor, labelers });
     // Save posts
     const postsToSave = this.normalizer.getPostsFromFeed(feed);
+    await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    // Load any blocked posts if necessary
-    const blockedPostUris = getBlockedPostUris(postsToSave);
-    if (blockedPostUris.length > 0) {
-      await this._loadBlockedPosts(blockedPostUris);
-    }
-    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Filter posts with plugins
     await this.pluginService.refreshFiltersForFeed(feedURI, feed);
     if (existingFeed && !reload) {
@@ -493,6 +487,7 @@ export class Requests {
   }
 
   async _loadBlockedPosts(blockedPostUris) {
+    if (blockedPostUris.length === 0) return;
     const labelers = this.requireLabelers();
     const fetchedBlockedPosts = await this.api.getPosts(blockedPostUris, {
       labelers,
@@ -588,14 +583,8 @@ export class Requests {
         replyParentUris.length > 0
           ? await this.api.getPosts(replyParentUris, { labelers })
           : [];
+      await this._loadPostDependencies(searchResults);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
-      const blockedPostUris = getBlockedPostUris(searchResults);
-      if (blockedPostUris.length > 0) {
-        await this._loadBlockedPosts(blockedPostUris);
-      }
-      await this._loadJoinLinkPreviews(
-        getJoinLinkCodesFromPosts(searchResults),
-      );
     }
     const existingResults = this.dataStore.$postSearchResults.get();
     if (existingResults && cursor) {
@@ -688,13 +677,8 @@ export class Requests {
 
     // Save posts
     const postsToSave = this.normalizer.getPostsFromFeed(feed);
+    await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    // Load any blocked posts if necessary
-    const blockedPostUris = getBlockedPostUris(postsToSave);
-    if (blockedPostUris.length > 0) {
-      await this._loadBlockedPosts(blockedPostUris);
-    }
-    await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(postsToSave));
     // Save feed
     if (existingFeed && !reload) {
       // Append to existing feed
@@ -719,6 +703,7 @@ export class Requests {
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris, { labelers });
+      await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
     const previousCursor = this.dataStore.$notificationCursor.get();
@@ -761,6 +746,7 @@ export class Requests {
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris, { labelers });
+      await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
     const previousCursor = this.dataStore.$mentionNotificationCursor.get();
@@ -817,6 +803,18 @@ export class Requests {
     this.dataStore.$convos.set(convoId, res.convo);
   }
 
+  async _loadPostDependencies(posts) {
+    const results = await Promise.allSettled([
+      this._loadBlockedPosts(getBlockedPostUris(posts)),
+      this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(posts)),
+    ]);
+    for (const result of results) {
+      if (result.status === "rejected") {
+        console.error("Failed to load post dependency", result.reason);
+      }
+    }
+  }
+
   async _loadJoinLinkPreviews(codes) {
     const distinct = unique((codes ?? []).filter(Boolean));
     if (distinct.length === 0) return;
@@ -861,6 +859,9 @@ export class Requests {
     if (res.relatedProfiles) {
       this.dataStore.setProfiles(res.relatedProfiles);
     }
+    await this._loadJoinLinkPreviews(
+      getJoinLinkCodesFromMessages(res.messages),
+    );
     // Save individual messages
     for (const message of res.messages) {
       this.dataStore.$messages.set(message.id, message);
@@ -873,9 +874,6 @@ export class Requests {
     } else {
       this.dataStore.$convoMessages.set(convoId, res);
     }
-    await this._loadJoinLinkPreviews(
-      getJoinLinkCodesFromMessages(res.messages),
-    );
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
@@ -995,6 +993,7 @@ export class Requests {
         ? await this.api.getPosts(replyParentUris, { labelers })
         : [];
     // Save posts and parents
+    await this._loadPostDependencies(res.posts);
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
     if (existingQuotes && cursor) {
       // Append to existing quotes
@@ -1254,14 +1253,8 @@ export class Requests {
         replyParentUris.length > 0
           ? await this.api.getPosts(replyParentUris, { labelers })
           : [];
+      await this._loadPostDependencies(searchResults);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
-      const blockedPostUris = getBlockedPostUris(searchResults);
-      if (blockedPostUris.length > 0) {
-        await this._loadBlockedPosts(blockedPostUris);
-      }
-      await this._loadJoinLinkPreviews(
-        getJoinLinkCodesFromPosts(searchResults),
-      );
     }
 
     // Convert posts to feed format
@@ -1308,12 +1301,8 @@ export class Requests {
         replyParentUris.length > 0
           ? await this.api.getPosts(replyParentUris, { labelers })
           : [];
+      await this._loadPostDependencies(posts);
       this.dataStore.setPosts([...posts, ...parentPosts]);
-      const blockedPostUris = getBlockedPostUris(posts);
-      if (blockedPostUris.length > 0) {
-        await this._loadBlockedPosts(blockedPostUris);
-      }
-      await this._loadJoinLinkPreviews(getJoinLinkCodesFromPosts(posts));
     }
 
     // Convert to feed format
