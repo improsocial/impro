@@ -47,9 +47,9 @@ function pluginSidebarItemTemplate({ entry }) {
 function showAboutModal() {
   alertModal(
     html`<div>
-      Impro is an <strong>alternative Bluesky client</strong> built from the
-      ground up to be extensible and customizable. You can find more information
-      about the project, including the full source code, at our
+      Impro is a Bluesky client built from the ground-up to be lightweight and
+      extensible. You can find more information about the project, including the
+      full source code, at our
       <a href="https://github.com/improsocial/impro/blob/main/README.md"
         >GitHub repository</a
       >.
