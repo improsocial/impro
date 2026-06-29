@@ -168,8 +168,8 @@ t.describe("RichTextInput - facet highlights", (it) => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("Check https://example.com today");
-    const overlay = element.querySelector(".rich-text-input-overlay");
-    const facets = overlay.querySelectorAll(".facet");
+    const input = element.querySelector(".rich-text-input");
+    const facets = input.querySelectorAll(".facet");
     assertEquals(facets.length, 1);
     assertEquals(facets[0].textContent, "https://example.com");
   });
@@ -178,8 +178,8 @@ t.describe("RichTextInput - facet highlights", (it) => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("hello #news");
-    const overlay = element.querySelector(".rich-text-input-overlay");
-    const facets = overlay.querySelectorAll(".facet");
+    const input = element.querySelector(".rich-text-input");
+    const facets = input.querySelectorAll(".facet");
     assertEquals(facets.length, 1);
     assertEquals(facets[0].textContent, "#news");
   });
@@ -188,19 +188,17 @@ t.describe("RichTextInput - facet highlights", (it) => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("hello #news");
-    const overlay = element.querySelector(".rich-text-input-overlay");
-    assertEquals(overlay.querySelectorAll(".facet").length, 1);
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(input.querySelectorAll(".facet").length, 1);
     element.setText("hello world");
-    assertEquals(overlay.querySelectorAll(".facet").length, 0);
+    assertEquals(input.querySelectorAll(".facet").length, 0);
   });
 
-  it("does not write innerHTML for facet rendering", () => {
+  it("preserves the text content across facet rendering", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("hello #news today");
     const input = element.querySelector(".rich-text-input");
-    // No anchors or spans should be injected — DOM stays as the user typed it.
-    assertEquals(input.querySelectorAll("a, span").length, 0);
     assertEquals(input.textContent, "hello #news today");
   });
 });

@@ -3,7 +3,7 @@ import { Component } from "/js/components/component.js";
 import { getUnresolvedFacetsFromText } from "/js/facetHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
-import { getIndexFromByteIndex } from "/js/utils.js";
+import { getIndexFromByteIndex, getByteLength } from "/js/utils.js";
 import { TYPEAHEAD_SERVICE_URL } from "/js/config.js";
 
 const FACET_TYPES = new Set([
@@ -11,6 +11,61 @@ const FACET_TYPES = new Set([
   "app.bsky.richtext.facet#link",
   "app.bsky.richtext.facet#tag",
 ]);
+
+function facetsOverlap(a, b) {
+  return (
+    a.index.byteStart < b.index.byteEnd && a.index.byteEnd > b.index.byteStart
+  );
+}
+
+function editableLineTemplate(lineText, lineFacets, lineByteOffset) {
+  if (lineText.length === 0) return html`<div><br /></div>`;
+  const parts = [];
+  let cursor = 0;
+  for (const facet of lineFacets) {
+    const startChar = getIndexFromByteIndex(
+      lineText,
+      facet.index.byteStart - lineByteOffset,
+    );
+    const endChar = getIndexFromByteIndex(
+      lineText,
+      facet.index.byteEnd - lineByteOffset,
+    );
+    if (startChar < cursor) continue;
+    if (cursor < startChar) parts.push(lineText.slice(cursor, startChar));
+    parts.push(
+      html`<span class="facet">${lineText.slice(startChar, endChar)}</span>`,
+    );
+    cursor = endChar;
+  }
+  if (cursor < lineText.length) parts.push(lineText.slice(cursor));
+  return html`<div>${parts}</div>`;
+}
+
+function editableContentTemplate(text, facets) {
+  const valid = facets
+    .filter((f) => FACET_TYPES.has(f.features[0]?.$type))
+    .sort((a, b) => a.index.byteStart - b.index.byteStart);
+  const distinct = [];
+  for (const facet of valid) {
+    if (!distinct.some((d) => facetsOverlap(d, facet))) distinct.push(facet);
+  }
+
+  const lines = text.split("\n");
+  const divs = [];
+  let byteOffset = 0;
+  for (const line of lines) {
+    const lineByteLength = getByteLength(line);
+    const lineFacets = distinct.filter(
+      (facet) =>
+        facet.index.byteStart >= byteOffset &&
+        facet.index.byteEnd <= byteOffset + lineByteLength,
+    );
+    divs.push(editableLineTemplate(line, lineFacets, byteOffset));
+    byteOffset += lineByteLength + 1;
+  }
+  return html`${divs}`;
+}
 
 function findNodeAtCharOffset(root, target) {
   let pos = 0;
@@ -277,10 +332,6 @@ export class RichTextInput extends Component {
 
   setText(text) {
     this.text = text;
-    const input = this.querySelector(".rich-text-input");
-    if (input) {
-      input.textContent = text;
-    }
     this.facets = getUnresolvedFacetsFromText(this.text);
     this.render();
     this.paintFacets();
@@ -302,7 +353,6 @@ export class RichTextInput extends Component {
     render(
       html`
         <div class="rich-text-input-container">
-          <div class="rich-text-input-overlay" aria-hidden="true"></div>
           <div
             class="rich-text-input"
             contenteditable="true"
@@ -312,10 +362,6 @@ export class RichTextInput extends Component {
             }}
             @keydown=${(e) => {
               this.handleKeydown(e);
-            }}
-            @scroll=${(e) => {
-              const overlay = this.querySelector(".rich-text-input-overlay");
-              if (overlay) overlay.scrollTop = e.target.scrollTop;
             }}
             @compositionstart=${() => {
               this.isComposing = true;
@@ -404,28 +450,16 @@ export class RichTextInput extends Component {
   }
 
   paintFacets() {
-    const overlay = this.querySelector(".rich-text-input-overlay");
-    if (!overlay) return;
+    const input = this.querySelector(".rich-text-input");
+    if (!input) return;
+    const hadFocus = document.activeElement === input;
+    const cursorPos = hadFocus ? getCursorPosition(input) : null;
 
-    const sorted = [...this.facets]
-      .filter((f) => FACET_TYPES.has(f.features[0]?.$type))
-      .sort((a, b) => a.index.byteStart - b.index.byteStart);
+    const scratch = document.createElement("div");
+    render(editableContentTemplate(this.text, this.facets), scratch);
+    input.innerHTML = scratch.innerHTML;
 
-    const parts = [];
-    let cursor = 0;
-    for (const facet of sorted) {
-      const charStart = getIndexFromByteIndex(this.text, facet.index.byteStart);
-      const charEnd = getIndexFromByteIndex(this.text, facet.index.byteEnd);
-      if (charStart < cursor) continue;
-      if (cursor < charStart) parts.push(this.text.slice(cursor, charStart));
-      parts.push(
-        html`<span class="facet">${this.text.slice(charStart, charEnd)}</span>`,
-      );
-      cursor = charEnd;
-    }
-    if (cursor < this.text.length) parts.push(this.text.slice(cursor));
-
-    render(html`${parts}`, overlay);
+    if (hadFocus && cursorPos !== null) setCursorPosition(input, cursorPos);
   }
 
   detectPendingMention() {
@@ -535,11 +569,6 @@ export class RichTextInput extends Component {
   }
 
   handleKeydown(e) {
-    if (e.key === "Enter" && this.mentionSuggestions.length === 0) {
-      e.preventDefault();
-      document.execCommand("insertText", false, "\n");
-      return;
-    }
     if (this.mentionSuggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
