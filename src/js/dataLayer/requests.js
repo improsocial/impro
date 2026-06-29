@@ -820,6 +820,7 @@ export class Requests {
   async _loadJoinLinkPreviews(codes) {
     const distinct = unique((codes ?? []).filter(Boolean));
     if (distinct.length === 0) return;
+    if (!this.api.isAuthenticated) return;
     try {
       const res = await this.api.getJoinLinkPreviews(distinct);
       for (const preview of res.joinLinkPreviews ?? []) {
