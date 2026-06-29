@@ -535,6 +535,11 @@ export class RichTextInput extends Component {
   }
 
   handleKeydown(e) {
+    if (e.key === "Enter" && this.mentionSuggestions.length === 0) {
+      e.preventDefault();
+      document.execCommand("insertText", false, "\n");
+      return;
+    }
     if (this.mentionSuggestions.length > 0) {
       if (e.key === "ArrowDown") {
         e.preventDefault();
