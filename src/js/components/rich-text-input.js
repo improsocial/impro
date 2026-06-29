@@ -13,9 +13,11 @@ const FACET_HIGHLIGHT_NAMES = {
 };
 
 function getOrCreateHighlight(name) {
-  CSS.highlights.delete(name);
-  const highlight = new Highlight();
-  CSS.highlights.set(name, highlight);
+  let highlight = CSS.highlights.get(name);
+  if (!highlight) {
+    highlight = new Highlight();
+    CSS.highlights.set(name, highlight);
+  }
   return highlight;
 }
 
@@ -440,6 +442,10 @@ export class RichTextInput extends Component {
     }
 
     this._facetHighlights = byType;
+
+    // iOS Safari sometimes fails to repaint ::highlight after the
+    // contenteditable DOM mutates (e.g. on Enter). Force a layout read.
+    void input.offsetHeight;
   }
 
   detectPendingMention() {
