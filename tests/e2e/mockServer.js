@@ -15,6 +15,7 @@ export class MockServer {
     this.convoMessages = new Map();
     this.chatLogs = [];
     this.joinLinkPreviews = new Map();
+    this.joinLinkJoinedConvos = new Map();
     this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
     this.interactionPayloads = [];
@@ -253,6 +254,10 @@ export class MockServer {
 
   failJoinLinkRequest(code) {
     this.failJoinLinkCodes.add(code);
+  }
+
+  setJoinLinkJoinedConvo(code, convo) {
+    this.joinLinkJoinedConvos.set(code, convo);
   }
 
   // Abort all subsequent document navigations (reloads, redirects) so the
@@ -750,19 +755,28 @@ export class MockServer {
         });
       }
       const preview = this.joinLinkPreviews.get(code);
+      const joinedConvo =
+        preview?.requireApproval === false
+          ? this.joinLinkJoinedConvos.get(code)
+          : null;
       if (preview?.$type === "chat.bsky.group.defs#joinLinkPreviewView") {
         this.joinLinkPreviews.set(code, {
           ...preview,
+          ...(joinedConvo ? { convo: joinedConvo } : {}),
           viewer: {
             ...(preview.viewer ?? {}),
-            requestedAt: new Date().toISOString(),
+            ...(joinedConvo ? {} : { requestedAt: new Date().toISOString() }),
           },
         });
       }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ status: "pending" }),
+        body: JSON.stringify(
+          joinedConvo
+            ? { status: "joined", convo: joinedConvo }
+            : { status: "pending" },
+        ),
       });
     });
 

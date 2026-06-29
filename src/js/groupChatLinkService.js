@@ -104,7 +104,7 @@ export class GroupChatLinkService {
     if (actionType === "join" || actionType === "request") {
       JoinChatModal.open({
         preview,
-        onSubmit: () => this._submit(preview),
+        onSubmit: () => this.handleJoinChatModalSubmit(preview),
       });
       return;
     }
@@ -115,15 +115,20 @@ export class GroupChatLinkService {
     }
   }
 
-  async _submit(preview) {
+  async handleJoinChatModalSubmit(preview) {
     try {
-      await this.dataLayer.mutations.requestJoinGroupChat(preview.code);
+      const res = await this.dataLayer.mutations.requestJoinGroupChat(
+        preview.code,
+      );
       showToast(
         preview.requireApproval
           ? "Request sent — the group owner will review your request."
           : "Joined group chat",
         { style: "success" },
       );
+      if (res?.status === "joined" && res.convo?.id) {
+        window.router.go(`/messages/${res.convo.id}`);
+      }
     } catch (error) {
       console.error(error);
       showToast("Could not send join request. Please try again.", {

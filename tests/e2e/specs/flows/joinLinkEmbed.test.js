@@ -281,6 +281,39 @@ test.describe("Join link embed flows", () => {
       });
     });
 
+    test("on open-join success, navigates to the joined chat", async ({
+      page,
+    }) => {
+      const owner = createProfile({
+        did: "did:plc:owner",
+        handle: "owner.bsky.social",
+        displayName: "Owner",
+      });
+      const joinedConvo = createConvo({
+        id: "joined-convo",
+        otherMember: owner,
+      });
+      const mockServer = new MockServer();
+      mockServer.addConvos([joinedConvo]);
+      mockServer.addConvoMessages("joined-convo", []);
+      mockServer.setJoinLinkJoinedConvo("abcd1234", joinedConvo);
+      await setupInvitePostThread(page, makeJoinLinkPreview(), { mockServer });
+      await login(page);
+      await page.goto(postPath);
+
+      const action = page.locator('[data-testid="join-link-embed-action"]');
+      await expect(action).toHaveAttribute("data-teststate", "join", {
+        timeout: 10000,
+      });
+      await action.click();
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      await expect(page).toHaveURL(/\/messages\/joined-convo$/, {
+        timeout: 10000,
+      });
+      await expect(page.locator("#chat-detail-view")).toBeVisible();
+    });
+
     test("on failure, the dialog stays open and an error toast appears", async ({
       page,
     }) => {
