@@ -1,4 +1,3 @@
-import { Normalizer } from "/js/dataLayer/normalizer.js";
 import {
   flattenParents,
   replaceTopParent,
@@ -13,6 +12,8 @@ import {
   getGroupConvoDetails,
   getJoinLinkCodesFromPosts,
   getJoinLinkCodesFromMessages,
+  getPostsFromPostThread,
+  getPostsFromFeed,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
@@ -134,7 +135,6 @@ export class Requests {
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
     this.constellation = constellation ?? new Constellation();
-    this.normalizer = new Normalizer();
     this.statusStore = new StatusStore();
     // Enable status tracking
     this.enableStatus(
@@ -222,7 +222,7 @@ export class Requests {
       }),
     ]);
     // Save posts
-    const postsToSave = this.normalizer.getPostsFromPostThread(postThread);
+    const postsToSave = getPostsFromPostThread(postThread);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
     const parent = postThread.parent;
@@ -438,7 +438,7 @@ export class Requests {
           ? await this.api.getListFeed(feedURI, { limit, cursor, labelers })
           : await this.api.getFeed(feedURI, { limit, cursor, labelers });
     // Save posts
-    const postsToSave = this.normalizer.getPostsFromFeed(feed);
+    const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
     // Filter posts with plugins
@@ -676,7 +676,7 @@ export class Requests {
     }
 
     // Save posts
-    const postsToSave = this.normalizer.getPostsFromFeed(feed);
+    const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
     // Save feed

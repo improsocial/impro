@@ -963,3 +963,31 @@ const JOIN_LINK_PREVIEW_TYPE = "chat.bsky.group.defs#joinLinkPreviewView";
 export function isAvailableJoinLinkPreview(preview) {
   return preview?.$type === JOIN_LINK_PREVIEW_TYPE;
 }
+
+export function getPostsFromPostThread(postThread) {
+  const posts = [];
+  if (postThread.post) {
+    posts.push(postThread.post);
+  }
+  posts.push(...getParentPosts(postThread));
+  posts.push(...getNestedReplyPosts(postThread));
+  return unique(posts, { by: "uri" });
+}
+
+export function getPostsFromFeed(feed) {
+  const posts = [];
+  for (const feedItem of feed.feed) {
+    posts.push(feedItem.post);
+    if (feedItem.reply) {
+      const root = feedItem.reply.root;
+      if (root.$type === "app.bsky.feed.defs#postView") {
+        posts.push(root);
+      }
+      const parent = feedItem.reply.parent;
+      if (parent.$type === "app.bsky.feed.defs#postView") {
+        posts.push(parent);
+      }
+    }
+  }
+  return unique(posts, { by: "uri" });
+}
