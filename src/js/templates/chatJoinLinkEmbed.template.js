@@ -11,7 +11,7 @@ import { linkToProfile } from "/js/navigation.js";
 
 function deriveJoinLinkAction({ preview, currentConvoId }) {
   if (!isAvailableJoinLinkPreview(preview)) return null;
-  const convoId = preview.convo?.id ?? preview.convoId ?? null;
+  const convoId = preview.convo?.id ?? null;
   const isFollowing = preview.owner?.viewer?.followedBy ?? false;
   const hasRequested = !convoId && preview.viewer?.requestedAt != null;
 
