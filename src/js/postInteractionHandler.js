@@ -1,6 +1,6 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
 
 export class PostInteractionHandler {
@@ -73,7 +73,7 @@ export class PostInteractionHandler {
 
   async handleDeletePost(post) {
     if (
-      !(await confirm(
+      !(await confirmModal(
         "If you remove this post, you won't be able to recover it.",
         {
           title: "Delete this post?",
@@ -116,7 +116,7 @@ export class PostInteractionHandler {
 
   async handleHidePost(post) {
     if (
-      !(await confirm("This post will be hidden from feeds and threads.", {
+      !(await confirmModal("This post will be hidden from feeds and threads.", {
         title: "Hide this post?",
         confirmButtonText: "Hide",
       }))
@@ -154,7 +154,7 @@ export class PostInteractionHandler {
 
   async handleBlockAuthor(profile, doBlock) {
     if (doBlock) {
-      const confirmed = await confirm(
+      const confirmed = await confirmModal(
         "Blocked accounts cannot reply in your threads, mention you, or otherwise interact with you.",
         {
           title: "Block Account?",

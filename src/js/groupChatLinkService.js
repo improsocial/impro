@@ -1,6 +1,81 @@
 import { html } from "/js/lib/lit-html.js";
-import { showActionModal, showInfoModal } from "/js/modals.js";
+import { Modal } from "/js/modals/modal.js";
+import { alertModal } from "/js/modals/alert.modal.js";
 import { showToast } from "/js/toasts.js";
+
+class JoinChatModal extends Modal {
+  get className() {
+    return "bottom-sheet text-modal join-chat-modal";
+  }
+
+  get attributes() {
+    return { "data-testid": "join-chat-modal" };
+  }
+
+  constructor(options) {
+    super(options);
+    this.isPending = false;
+  }
+
+  canDismiss() {
+    return !this.isPending;
+  }
+
+  render({ dismiss, update, props: { preview, onSubmit } }) {
+    const name = preview.name ?? "";
+    const runConfirm = async () => {
+      if (this.isPending) return;
+      this.isPending = true;
+      update();
+      try {
+        await onSubmit();
+        this.isPending = false;
+        dismiss(true);
+      } catch {
+        this.isPending = false;
+        update();
+      }
+    };
+    return html`
+      <div class="modal-dialog-content">
+        <h2 class="modal-dialog-title" data-testid="modal-title">
+          ${preview.requireApproval ? "Request to join" : "Join group chat"}
+        </h2>
+        <p class="modal-dialog-message" data-testid="modal-message">
+          ${preview.requireApproval
+            ? html`Send a request to join <strong>${name}</strong>. The group
+                owner will review your request before you can see messages.`
+            : html`You're about to join <strong>${name}</strong>.`}
+        </p>
+        <div class="modal-dialog-buttons">
+          <button
+            class="modal-dialog-button cancel-button"
+            data-testid="modal-cancel-button"
+            ?disabled=${this.isPending}
+            @click=${() => dismiss(false)}
+          >
+            Cancel
+          </button>
+          <button
+            class="modal-dialog-button confirm-button primary-button"
+            data-testid="modal-confirm-button"
+            ?disabled=${this.isPending}
+            @click=${runConfirm}
+          >
+            ${this.isPending
+              ? html`<span
+                  class="loading-spinner"
+                  data-testid="loading-spinner"
+                ></span>`
+              : preview.requireApproval
+                ? "Send request"
+                : "Join"}
+          </button>
+        </div>
+      </div>
+    `;
+  }
+}
 
 export class GroupChatLinkService {
   constructor(dataLayer) {
@@ -27,28 +102,17 @@ export class GroupChatLinkService {
       return;
     }
     if (actionType === "join" || actionType === "request") {
-      this._openJoinDialog(preview);
+      JoinChatModal.open({
+        preview,
+        onSubmit: () => this._submit(preview),
+      });
       return;
     }
     if (actionType === "requested") {
-      showInfoModal({
+      alertModal("The group owner will review your request.", {
         title: "Request pending",
-        message: "The group owner will review your request.",
       });
     }
-  }
-
-  _openJoinDialog(preview) {
-    const name = preview.name ?? "";
-    showActionModal({
-      title: preview.requireApproval ? "Request to join" : "Join group chat",
-      message: preview.requireApproval
-        ? html`Send a request to join <strong>${name}</strong>. The group owner
-            will review your request before you can see messages.`
-        : html`You're about to join <strong>${name}</strong>.`,
-      confirmButtonText: preview.requireApproval ? "Send request" : "Join",
-      onConfirm: () => this._submit(preview),
-    });
   }
 
   async _submit(preview) {

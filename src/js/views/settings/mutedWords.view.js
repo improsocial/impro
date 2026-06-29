@@ -3,7 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import "/js/components/context-menu.js";
@@ -92,7 +92,7 @@ class SettingsMutedWordsView extends View {
     }
 
     async function handleRemove(word) {
-      const confirmed = await confirm(
+      const confirmed = await confirmModal(
         `This will delete "${word.value}" from your muted words. You can always add it back later.`,
         {
           title: "Are you sure?",

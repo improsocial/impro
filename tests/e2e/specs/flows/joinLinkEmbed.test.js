@@ -334,7 +334,7 @@ test.describe("Join link embed flows", () => {
       await page.goto(postPath);
 
       await page.locator('[data-testid="join-link-embed-action"]').click();
-      const dialog = page.locator("dialog.action-modal");
+      const dialog = page.locator('[data-testid="join-chat-modal"]');
       await expect(dialog).toBeVisible();
 
       // Click at the very top-left corner (outside the dialog content)

@@ -4,7 +4,7 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/rendered-markdown.js";
@@ -70,7 +70,7 @@ class SettingsCommunityPluginListingView extends View {
     async function toggleInstall(listing) {
       const wasInstalled = listing.installed;
       if (wasInstalled) {
-        const confirmed = await confirm(
+        const confirmed = await confirmModal(
           `"${listing.name}" will be uninstalled and its settings will be deleted.`,
           {
             title: "Uninstall plugin?",

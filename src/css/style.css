@@ -5591,24 +5591,6 @@ emoji-picker-dialog emoji-picker,
   animation: fade-in 0.2s ease-out;
 }
 
-.bottom-sheet.action-modal {
-  color: var(--text-color);
-}
-
-.bottom-sheet.action-modal .modal-dialog-content {
-  padding: 32px 24px 24px;
-}
-
-@media (min-width: 800px) {
-  .bottom-sheet.action-modal {
-    max-width: 410px;
-    width: 90%;
-  }
-  .bottom-sheet.action-modal .modal-dialog-content {
-    padding: 24px;
-  }
-}
-
 .post-composer-top-bar {
   display: flex;
   justify-content: space-between;
@@ -6237,7 +6219,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   color: var(--text-color);
 }
 
-.info-modal .modal-dialog-message {
+.alert-modal .modal-dialog-message {
   margin-bottom: 12px;
 }
 
@@ -6305,12 +6287,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 
 .modal-dialog-button.full-width {
   width: 100%;
-}
-
-.modal-dialog.compact {
-  max-width: 320px;
-  width: auto;
-  min-width: 280px;
 }
 
 .modal-dialog-buttons {
@@ -9354,20 +9330,23 @@ p.setting-item-desc {
   opacity: 0.75;
 }
 
-.bottom-sheet.confirm-modal {
+.bottom-sheet.text-modal {
   color: var(--text-color);
 }
 
-.bottom-sheet.confirm-modal .modal-dialog-content {
+.bottom-sheet.text-modal .modal-dialog-content {
   padding: 32px 24px 24px;
 }
 
 @media (min-width: 800px) {
-  .bottom-sheet.confirm-modal {
-    max-width: 320px;
+  .bottom-sheet.text-modal {
     width: 90%;
+    max-width: 410px;
   }
-  .bottom-sheet.confirm-modal .modal-dialog-content {
+  .bottom-sheet.text-modal.compact {
+    max-width: 320px;
+  }
+  .bottom-sheet.text-modal .modal-dialog-content {
     padding: 24px;
   }
 }

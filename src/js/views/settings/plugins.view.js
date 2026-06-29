@@ -8,7 +8,7 @@ import { globeIconTemplate } from "/js/templates/icons/globeIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { trashCanIconTemplate } from "/js/templates/icons/trashCanIcon.template.js";
 import { reloadIconTemplate } from "/js/templates/icons/reloadIcon.template.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, SignalSet, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
@@ -28,7 +28,7 @@ class SettingsPluginsView extends View {
     state.$updatingAll = new Signal.State(false);
 
     async function uninstallPlugin(plugin) {
-      const confirmed = await confirm(
+      const confirmed = await confirmModal(
         `"${plugin.name}" will be uninstalled and its settings will be deleted.`,
         {
           title: "Uninstall plugin?",

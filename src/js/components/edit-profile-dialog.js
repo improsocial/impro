@@ -14,7 +14,7 @@ import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
 import { cameraIconTemplate } from "/js/templates/icons/cameraIcon.template.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 
 const MAX_DISPLAY_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 256;
@@ -507,7 +507,7 @@ class EditProfileDialog extends Component {
 
   async confirmClose() {
     if (!this._isDirty || !!this._croppingTarget || this._saving) return true;
-    return confirm("Are you sure you want to discard your changes?", {
+    return confirmModal("Are you sure you want to discard your changes?", {
       title: "Discard changes?",
       confirmButtonStyle: "danger",
       confirmButtonText: "Discard",

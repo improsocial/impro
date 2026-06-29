@@ -15,7 +15,7 @@ import { classnames } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
@@ -291,7 +291,7 @@ class SettingsView extends View {
                           });
                         },
                         onRemove: async (account) => {
-                          const ok = await confirm(
+                          const ok = await confirmModal(
                             `Remove @${account.handle} from this device?`,
                             {
                               title: "Remove account?",
@@ -333,11 +333,14 @@ class SettingsView extends View {
                     data-testid="settings-sign-out"
                     @click=${async () => {
                       if (
-                        !(await confirm("Are you sure you want to sign out?", {
-                          title: "Sign out?",
-                          confirmButtonStyle: "danger",
-                          confirmButtonText: "Sign out",
-                        }))
+                        !(await confirmModal(
+                          "Are you sure you want to sign out?",
+                          {
+                            title: "Sign out?",
+                            confirmButtonStyle: "danger",
+                            confirmButtonText: "Sign out",
+                          },
+                        ))
                       ) {
                         return;
                       }

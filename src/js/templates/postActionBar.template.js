@@ -14,7 +14,7 @@ import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
 import { getRKey, canReplyToPost } from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
-import { showSignInModal } from "/js/modals.js";
+import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -270,7 +270,7 @@ export function postActionBarTemplate({
             ?disabled=${!canReply}
             @click=${() => {
               if (!isAuthenticated) {
-                return showSignInModal();
+                return SignInModal.open();
               }
               onClickReply(post);
             }}
@@ -292,7 +292,7 @@ export function postActionBarTemplate({
             @click=${function (e) {
               e.stopPropagation();
               if (!isAuthenticated) {
-                return showSignInModal();
+                return SignInModal.open();
               }
               const contextMenu = this.nextElementSibling;
               contextMenu.open(e.clientX, e.clientY);
@@ -311,7 +311,7 @@ export function postActionBarTemplate({
               data-teststate=${isReposted ? "reposted" : "not-reposted"}
               @click=${() => {
                 if (!isAuthenticated) {
-                  showSignInModal();
+                  SignInModal.open();
                   return;
                 }
                 onClickRepost(post, !isReposted);
@@ -324,7 +324,7 @@ export function postActionBarTemplate({
               ?disabled=${!canQuotePost || !currentUser}
               @click=${() => {
                 if (!isAuthenticated) {
-                  showSignInModal();
+                  SignInModal.open();
                   return;
                 }
                 onClickQuotePost(post);
@@ -344,7 +344,7 @@ export function postActionBarTemplate({
               @click=${(e) => {
                 e.stopPropagation();
                 if (!isAuthenticated) {
-                  showSignInModal();
+                  SignInModal.open();
                   return;
                 }
                 onClickLike(post, !isLiked);
@@ -373,7 +373,7 @@ export function postActionBarTemplate({
               @click=${(e) => {
                 e.stopPropagation();
                 if (!isAuthenticated) {
-                  showSignInModal();
+                  SignInModal.open();
                   return;
                 }
                 onClickBookmark(post, !isBookmarked);

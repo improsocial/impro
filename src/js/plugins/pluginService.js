@@ -1,5 +1,10 @@
 import { PluginBridge } from "/js/plugins/pluginBridge.js";
-import { showPluginModal, hidePluginModal } from "/js/modals.js";
+import {
+  showPluginModal,
+  hidePluginModal,
+  showPluginInstallPermissionsModal,
+  showPluginUpdatePermissionsModal,
+} from "/js/plugins/pluginModal.js";
 import { showPluginToast, hidePluginToast, showToast } from "/js/toasts.js";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 import {
@@ -16,10 +21,6 @@ import {
   diffPermissions,
   isEmptyPermissions,
 } from "/js/plugins/pluginPermissions.js";
-import {
-  showPluginInstallPermissionsModal,
-  showPluginUpdatePermissionsModal,
-} from "/js/modals.js";
 import { compareVersions, isDev, sortBy } from "/js/utils.js";
 import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";

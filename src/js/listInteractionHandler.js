@@ -1,6 +1,6 @@
 import { hapticsImpactMedium } from "/js/haptics.js";
 import { showToast } from "/js/toasts.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 
 export class ListInteractionHandler {
   constructor(dataLayer) {
@@ -29,7 +29,7 @@ export class ListInteractionHandler {
   }
 
   async handleMuteList(list) {
-    const confirmed = await confirm(
+    const confirmed = await confirmModal(
       "The users on this list will be muted for you. Their posts won't appear in your feeds. Muting is private.",
       {
         title: "Mute these accounts?",
@@ -58,7 +58,7 @@ export class ListInteractionHandler {
   }
 
   async handleBlockList(list) {
-    const confirmed = await confirm(
+    const confirmed = await confirmModal(
       "The users on this list will be blocked. They won't be able to interact with you, and you won't see their content. Blocking is public.",
       {
         title: "Block these accounts?",

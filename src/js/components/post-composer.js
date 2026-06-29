@@ -11,7 +11,7 @@ import {
   sanitizeUri,
 } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
@@ -881,7 +881,7 @@ class PostComposer extends Component {
     ) {
       return true;
     }
-    return confirm("Are you sure you'd like to discard this draft?", {
+    return confirmModal("Are you sure you'd like to discard this draft?", {
       title: "Discard draft?",
       confirmButtonStyle: "danger",
       confirmButtonText: "Discard",
