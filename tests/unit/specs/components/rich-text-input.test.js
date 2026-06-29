@@ -164,31 +164,34 @@ t.describe("RichTextInput - input handling", (it) => {
 });
 
 t.describe("RichTextInput - facet highlights", (it) => {
-  it("paints a highlight range for a link facet", () => {
+  it("paints a facet span for a link", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("Check https://example.com today");
-    const linkHighlight = CSS.highlights.get("facet-link");
-    assert(linkHighlight, "facet-link highlight should be set");
-    assertEquals(linkHighlight.size, 1);
+    const overlay = element.querySelector(".rich-text-input-overlay");
+    const facets = overlay.querySelectorAll(".facet");
+    assertEquals(facets.length, 1);
+    assertEquals(facets[0].textContent, "https://example.com");
   });
 
-  it("paints a highlight range for a hashtag", () => {
+  it("paints a facet span for a hashtag", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("hello #news");
-    const tagHighlight = CSS.highlights.get("facet-tag");
-    assert(tagHighlight, "facet-tag highlight should be set");
-    assertEquals(tagHighlight.size, 1);
+    const overlay = element.querySelector(".rich-text-input-overlay");
+    const facets = overlay.querySelectorAll(".facet");
+    assertEquals(facets.length, 1);
+    assertEquals(facets[0].textContent, "#news");
   });
 
-  it("clears highlights when text has no facets", () => {
+  it("clears facet spans when text has no facets", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.setText("hello #news");
-    assertEquals(CSS.highlights.get("facet-tag").size, 1);
+    const overlay = element.querySelector(".rich-text-input-overlay");
+    assertEquals(overlay.querySelectorAll(".facet").length, 1);
     element.setText("hello world");
-    assertEquals(CSS.highlights.get("facet-tag").size, 0);
+    assertEquals(overlay.querySelectorAll(".facet").length, 0);
   });
 
   it("does not write innerHTML for facet rendering", () => {

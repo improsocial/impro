@@ -5716,21 +5716,32 @@ emoji-picker-dialog emoji-picker,
   min-height: 120px;
   border: none;
   background: transparent;
-  color: var(--text-color);
+  color: transparent;
+  caret-color: var(--text-color);
   font-size: 16px;
   font-family: inherit;
   resize: none;
   outline: none;
 }
 
-.rich-text-input {
-  /* show line breaks */
+.rich-text-input,
+.rich-text-input-overlay {
   white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
-::highlight(facet-mention),
-::highlight(facet-link),
-::highlight(facet-tag) {
+.rich-text-input-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  color: var(--text-color);
+  font: inherit;
+  font-size: 16px;
+  font-family: inherit;
+}
+
+.rich-text-input-overlay .facet {
   color: var(--text-link-color);
 }
 

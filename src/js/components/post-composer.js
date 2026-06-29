@@ -864,7 +864,7 @@ class PostComposer extends Component {
     );
   }
 
-  async confirmClose() {
+  confirmClose() {
     // Todo - check for other unsaved changes
     if (
       this._postText.length === 0 &&
@@ -873,18 +873,11 @@ class PostComposer extends Component {
     ) {
       return true;
     }
-    const richTextInput = this.querySelector("rich-text-input");
-    richTextInput?.clearHighlights();
-    const confirmed = await confirmModal(
-      "Are you sure you'd like to discard this draft?",
-      {
-        title: "Discard draft?",
-        confirmButtonStyle: "danger",
-        confirmButtonText: "Discard",
-      },
-    );
-    if (!confirmed) richTextInput?.paintFacets();
-    return confirmed;
+    return confirmModal("Are you sure you'd like to discard this draft?", {
+      title: "Discard draft?",
+      confirmButtonStyle: "danger",
+      confirmButtonText: "Discard",
+    });
   }
 }
 

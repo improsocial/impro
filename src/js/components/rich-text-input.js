@@ -6,20 +6,11 @@ import { getDisplayName } from "/js/dataHelpers.js";
 import { getIndexFromByteIndex } from "/js/utils.js";
 import { TYPEAHEAD_SERVICE_URL } from "/js/config.js";
 
-const FACET_HIGHLIGHT_NAMES = {
-  "app.bsky.richtext.facet#mention": "facet-mention",
-  "app.bsky.richtext.facet#link": "facet-link",
-  "app.bsky.richtext.facet#tag": "facet-tag",
-};
-
-function getOrCreateHighlight(name) {
-  let highlight = CSS.highlights.get(name);
-  if (!highlight) {
-    highlight = new Highlight();
-    CSS.highlights.set(name, highlight);
-  }
-  return highlight;
-}
+const FACET_TYPES = new Set([
+  "app.bsky.richtext.facet#mention",
+  "app.bsky.richtext.facet#link",
+  "app.bsky.richtext.facet#tag",
+]);
 
 function findNodeAtCharOffset(root, target) {
   let pos = 0;
@@ -269,24 +260,12 @@ export class RichTextInput extends Component {
     this.currentMentionStart = null;
     this.currentMentionEnd = null;
     this.isComposing = false;
-    this._facetHighlights = new Map();
     this.render();
     this.initialized = true;
   }
 
   disconnectedCallback() {
-    this.clearHighlights();
     this.closeTypeahead();
-  }
-
-  clearHighlights() {
-    if (!this._facetHighlights) return;
-    for (const [name] of this._facetHighlights) {
-      const highlight = CSS.highlights.get(name);
-      if (!highlight) continue;
-      highlight.clear();
-    }
-    this._facetHighlights = new Map();
   }
 
   focus() {
@@ -323,6 +302,7 @@ export class RichTextInput extends Component {
     render(
       html`
         <div class="rich-text-input-container">
+          <div class="rich-text-input-overlay" aria-hidden="true"></div>
           <div
             class="rich-text-input"
             contenteditable="true"
@@ -332,6 +312,10 @@ export class RichTextInput extends Component {
             }}
             @keydown=${(e) => {
               this.handleKeydown(e);
+            }}
+            @scroll=${(e) => {
+              const overlay = this.querySelector(".rich-text-input-overlay");
+              if (overlay) overlay.scrollTop = e.target.scrollTop;
             }}
             @compositionstart=${() => {
               this.isComposing = true;
@@ -420,32 +404,28 @@ export class RichTextInput extends Component {
   }
 
   paintFacets() {
-    if (typeof CSS === "undefined" || !("highlights" in CSS)) return;
-    const input = this.querySelector(".rich-text-input");
-    if (!input) return;
+    const overlay = this.querySelector(".rich-text-input-overlay");
+    if (!overlay) return;
 
-    this.clearHighlights();
+    const sorted = [...this.facets]
+      .filter((f) => FACET_TYPES.has(f.features[0]?.$type))
+      .sort((a, b) => a.index.byteStart - b.index.byteStart);
 
-    const byType = new Map();
-    for (const facet of this.facets) {
-      const featureType = facet.features[0]?.$type;
-      const highlightName = FACET_HIGHLIGHT_NAMES[featureType];
-      if (!highlightName) continue;
+    const parts = [];
+    let cursor = 0;
+    for (const facet of sorted) {
       const charStart = getIndexFromByteIndex(this.text, facet.index.byteStart);
       const charEnd = getIndexFromByteIndex(this.text, facet.index.byteEnd);
-      const range = rangeForCharRange(input, charStart, charEnd);
-      if (!range) continue;
-      const highlight = getOrCreateHighlight(highlightName);
-      highlight.add(range);
-      if (!byType.has(highlightName)) byType.set(highlightName, []);
-      byType.get(highlightName).push(range);
+      if (charStart < cursor) continue;
+      if (cursor < charStart) parts.push(this.text.slice(cursor, charStart));
+      parts.push(
+        html`<span class="facet">${this.text.slice(charStart, charEnd)}</span>`,
+      );
+      cursor = charEnd;
     }
+    if (cursor < this.text.length) parts.push(this.text.slice(cursor));
 
-    this._facetHighlights = byType;
-
-    // iOS Safari sometimes fails to repaint ::highlight after the
-    // contenteditable DOM mutates (e.g. on Enter). Force a layout read.
-    void input.offsetHeight;
+    render(html`${parts}`, overlay);
   }
 
   detectPendingMention() {
