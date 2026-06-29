@@ -13,11 +13,9 @@ const FACET_HIGHLIGHT_NAMES = {
 };
 
 function getOrCreateHighlight(name) {
-  let highlight = CSS.highlights.get(name);
-  if (!highlight) {
-    highlight = new Highlight();
-    CSS.highlights.set(name, highlight);
-  }
+  CSS.highlights.delete(name);
+  const highlight = new Highlight();
+  CSS.highlights.set(name, highlight);
   return highlight;
 }
 
