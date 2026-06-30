@@ -457,6 +457,83 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     assertEquals(warning.getAttribute("icon-style"), "closed-eye");
   });
 
+  it("should use closed-eye icon-style for a hidden quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: post.record,
+        uri: post.uri,
+        isHidden: true,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("label"), "Post hidden by you");
+    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+  });
+
+  it("should prefer muted-account label over hidden for a quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: { ...post.author, viewer: { muted: true } },
+        value: post.record,
+        uri: post.uri,
+        isHidden: true,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("label"), "Muted Account");
+  });
+
+  it("should prefer hidden label over muted-word for a quoted post", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: post.record,
+        uri: post.uri,
+        hasMutedWord: true,
+        isHidden: true,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const warning = container.querySelector(
+      "moderation-warning.quoted-account-muted-warning",
+    );
+    assert(warning !== null);
+    assertEquals(warning.getAttribute("label"), "Post hidden by you");
+  });
+
   it("should use info icon-style for a content-labeled quoted post", () => {
     const embed = {
       $type: "app.bsky.embed.record#view",
