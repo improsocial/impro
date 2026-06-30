@@ -2515,6 +2515,31 @@ t.describe("markConvoAsRead", (it) => {
     // SignalMap returns null for uninitialized keys (was `undefined` pre-refactor).
     assertEquals(dataStore.$convos.get("missing"), null);
   });
+
+  it("should not call the api when the convo has no unread messages", async () => {
+    const convoId = "convo-read";
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convoId, { id: convoId, unreadCount: 0 });
+    let callCount = 0;
+    const mutations = makeMutations(
+      {
+        markConvoAsRead: async () => {
+          callCount++;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.markConvoAsRead(convoId);
+
+    assertEquals(callCount, 0);
+  });
 });
 
 t.describe("addMessageReaction", (it) => {

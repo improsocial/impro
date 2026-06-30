@@ -1104,11 +1104,13 @@ export class Mutations {
   }
 
   async markConvoAsRead(convoId) {
-    await this.api.markConvoAsRead(convoId);
     const convo = this.dataStore.$convos.get(convoId);
-    if (convo) {
+    if (!convo?.unreadCount) return;
+    await this.api.markConvoAsRead(convoId);
+    const latest = this.dataStore.$convos.get(convoId);
+    if (latest) {
       this.dataStore.$convos.set(convoId, {
-        ...convo,
+        ...latest,
         unreadCount: 0,
       });
     }
