@@ -435,7 +435,7 @@ export class Preferences {
           }
         }
       }
-      if (item.targets.includes("tags")) {
+      if (item.targets.includes("tag")) {
         const tagFacets = facets ? getTagsFromFacets(facets) : [];
         for (const tagFacet of tagFacets) {
           const tagText = tagFacet.features[0].tag;

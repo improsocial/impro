@@ -1075,7 +1075,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", targets: ["tags"] }],
+        items: [{ value: "spam", targets: ["tag"] }],
       },
     ];
 
@@ -1104,7 +1104,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", targets: ["tags"] }],
+        items: [{ value: "spam", targets: ["tag"] }],
       },
     ];
 
@@ -1129,7 +1129,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", targets: ["tags"] }],
+        items: [{ value: "spam", targets: ["tag"] }],
       },
     ];
 
@@ -1149,7 +1149,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
     const obj = [
       {
         $type: "app.bsky.actor.defs#mutedWordsPref",
-        items: [{ value: "spam", targets: ["content", "tags"] }],
+        items: [{ value: "spam", targets: ["content", "tag"] }],
       },
     ];
 
