@@ -7,6 +7,7 @@ import {
 } from "/js/dataHelpers.js";
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
+import { untrack } from "/js/signals.js";
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -1104,7 +1105,7 @@ export class Mutations {
   }
 
   async markConvoAsRead(convoId) {
-    const convo = this.dataStore.$convos.get(convoId);
+    const convo = untrack(() => this.dataStore.$convos.get(convoId));
     if (!convo?.unreadCount) return;
     await this.api.markConvoAsRead(convoId);
     const latest = this.dataStore.$convos.get(convoId);
