@@ -49,7 +49,7 @@ t.describe("automatedAccountBadgeTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector(".automated-account-badge");
     badge.click();
-    const dialog = document.querySelector("dialog.info-modal");
+    const dialog = document.querySelector('[data-testid="alert-modal"]');
     assert(dialog !== null);
     assert(dialog.textContent.includes("Automated account"));
     assert(

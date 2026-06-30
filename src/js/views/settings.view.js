@@ -15,7 +15,7 @@ import { classnames } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal } from "/js/signals.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
@@ -93,7 +93,7 @@ class SettingsView extends View {
                   const profile = accountProfiles[account.did] ?? null;
                   return html`
                     <div
-                      class="vertical-nav-item"
+                      class="vertical-nav-item settings-account-row"
                       data-testid="settings-account-row"
                       data-account-did=${account.did}
                       data-teststate=${account.needsReauth ? "reauth" : "ok"}
@@ -233,17 +233,7 @@ class SettingsView extends View {
             onClickActiveNavItem: () => window.scrollTo(0, 0),
             children: html`${headerTemplate({
                 title: "Settings",
-                onClickBackButton: () => {
-                  // If navigating from settings detail page, go home instead of navigating back
-                  if (
-                    window.router.previousRoute &&
-                    window.router.previousRoute.startsWith("/settings/")
-                  ) {
-                    window.router.go("/");
-                  } else {
-                    window.router.back();
-                  }
-                },
+                backButtonFallbackRoute: "/",
               })}
               <main>
                 <nav class="vertical-nav">
@@ -301,7 +291,7 @@ class SettingsView extends View {
                           });
                         },
                         onRemove: async (account) => {
-                          const ok = await confirm(
+                          const ok = await confirmModal(
                             `Remove @${account.handle} from this device?`,
                             {
                               title: "Remove account?",
@@ -343,11 +333,14 @@ class SettingsView extends View {
                     data-testid="settings-sign-out"
                     @click=${async () => {
                       if (
-                        !(await confirm("Are you sure you want to sign out?", {
-                          title: "Sign out?",
-                          confirmButtonStyle: "danger",
-                          confirmButtonText: "Sign out",
-                        }))
+                        !(await confirmModal(
+                          "Are you sure you want to sign out?",
+                          {
+                            title: "Sign out?",
+                            confirmButtonStyle: "danger",
+                            confirmButtonText: "Sign out",
+                          },
+                        ))
                       ) {
                         return;
                       }

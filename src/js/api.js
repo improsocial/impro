@@ -785,6 +785,16 @@ export class Api {
     });
   }
 
+  async getChatUnreadCounts({ includeGroupChats = true } = {}) {
+    const res = await this.request("chat.bsky.convo.getUnreadCounts", {
+      query: { includeGroupChats },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async addMessageReaction(convoId, messageId, emoji) {
     const res = await this.request("chat.bsky.convo.addReaction", {
       method: "POST",
@@ -813,6 +823,27 @@ export class Api {
       },
     });
     return res.data.message;
+  }
+
+  async getJoinLinkPreviews(codes) {
+    const res = await this.request("chat.bsky.group.getJoinLinkPreviews", {
+      query: { codes },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async requestJoinGroupChat(code) {
+    const res = await this.request("chat.bsky.group.requestJoin", {
+      method: "POST",
+      body: { code },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
   }
 
   async getLikes(postUri, { limit = 50, cursor, labelers = [] } = {}) {

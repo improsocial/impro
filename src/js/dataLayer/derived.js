@@ -20,6 +20,8 @@ import {
   markBlockedQuoteNotFound,
   replaceBlockedQuote,
   transformNestedQuotes,
+  attachJoinLinkPreviewToEmbed,
+  getJoinLinkCodeFromEmbed,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
 import {
@@ -113,6 +115,7 @@ export class Derived extends ReactiveStore {
         return null;
       }
       let result = this.resolveBlockedQuote(post);
+      result = this.attachJoinLinkPreview(result);
       result = applyMutedWords(result, preferences);
       result = applyIsHidden(result, preferences);
       result = applyLabels(result, preferences);
@@ -479,9 +482,10 @@ export class Derived extends ReactiveStore {
       const messages = this.dataStore.$convoMessages.get(convoId);
       if (!messages) return null;
       return {
-        messages: messages.messages.map((message) =>
-          this.patchStore.$patchedMessages.get(message.id),
-        ),
+        messages: messages.messages.map((message) => {
+          const patched = this.patchStore.$patchedMessages.get(message.id);
+          return this.attachJoinLinkPreview(patched);
+        }),
         cursor: messages.cursor,
       };
     });
@@ -551,6 +555,16 @@ export class Derived extends ReactiveStore {
     this.$mentionNotificationCursor = new Signal.Computed(() =>
       this.dataStore.$mentionNotificationCursor.get(),
     );
+  }
+
+  attachJoinLinkPreview(item) {
+    const code = getJoinLinkCodeFromEmbed(item?.embed);
+    if (!code) return item;
+    const preview = this.dataStore.$joinLinkPreviewsByCode.get(code);
+    if (!preview) return item;
+    const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
+    if (!updated) return item;
+    return { ...item, embed: updated };
   }
 
   resolveBlockedQuote(post) {

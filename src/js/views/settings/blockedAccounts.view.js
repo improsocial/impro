@@ -38,7 +38,7 @@ class SettingsBlockedAccountsView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Blocked accounts",
-                onClickBackButton: () => window.router.go("/settings"),
+                backButtonFallbackRoute: "/settings",
               })}
               <main>
                 <p

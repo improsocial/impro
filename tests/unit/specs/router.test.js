@@ -342,6 +342,25 @@ t.describe("go", (it) => {
       window.history.replaceState(originalState, "", originalPath);
     }
   });
+
+  it("should replace the current history entry when called with replace: true", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/go-replace-test", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", "/starting-path");
+    const lengthBefore = window.history.length;
+
+    try {
+      await router.go("/go-replace-test", { replace: true });
+      assertEquals(window.location.pathname, "/go-replace-test");
+      assertEquals(window.history.length, lengthBefore);
+      assertEquals(window.history.state?.previousRoute, undefined);
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
 });
 
 t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
@@ -645,6 +664,65 @@ t.describe("back", (it) => {
       assertEquals(window.location.pathname, "/");
     } finally {
       window.history.back = originalBack;
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should navigate to fallbackRoute when no previousRoute exists", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/messages", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", originalPath);
+
+    try {
+      await router.back({ fallbackRoute: "/messages" });
+      assertEquals(window.location.pathname, "/messages");
+    } finally {
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should ignore fallbackRoute when a previousRoute exists", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+
+    window.history.replaceState({ previousRoute: "/prior" }, "", originalPath);
+
+    const originalBack = window.history.back.bind(window.history);
+    let backCalled = false;
+    window.history.back = () => {
+      backCalled = true;
+    };
+
+    const pathBefore = window.location.pathname;
+    try {
+      await router.back({ fallbackRoute: "/messages" });
+      assert(backCalled);
+      assertEquals(window.location.pathname, pathBefore);
+    } finally {
+      window.history.back = originalBack;
+      window.history.replaceState(originalState, "", originalPath);
+    }
+  });
+
+  it("should replace history when falling back, not push", async () => {
+    const router = new Router();
+    const container = document.createElement("div");
+    router.mount(container);
+    router.addRoute("/messages", () => Promise.resolve({}));
+
+    window.history.replaceState(null, "", "/deep-link");
+    const lengthBefore = window.history.length;
+
+    try {
+      await router.back({ fallbackRoute: "/messages" });
+      assertEquals(window.location.pathname, "/messages");
+      assertEquals(window.history.length, lengthBefore);
+      assertEquals(router.previousRoute, null);
+    } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
   });

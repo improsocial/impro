@@ -24,6 +24,7 @@ import "/js/components/streaming-video.js";
 import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
 import "/js/components/image-carousel.js";
+import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
 
 function galleryItemsToImages(items) {
   return (items ?? [])
@@ -546,6 +547,7 @@ export function postEmbedTemplate({
   enabledEmbedTypes,
   lazyLoadImages = false,
   isAuthenticated,
+  currentConvoId = null,
 }) {
   if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
     return null;
@@ -600,6 +602,8 @@ export function postEmbedTemplate({
         external: embed.external,
         lazyLoadImages,
       });
+    case "chat.bsky.embed.joinLink#view":
+      return chatJoinLinkEmbedTemplate({ embed, currentConvoId });
     default:
       console.warn("Embed type not supported: ", embed.$type);
       break;

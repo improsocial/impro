@@ -119,7 +119,7 @@ class SettingsAdvancedView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Advanced",
-                onClickBackButton: () => window.router.go("/settings"),
+                backButtonFallbackRoute: "/settings",
               })}
               <main>
                 <form

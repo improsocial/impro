@@ -1,4 +1,4 @@
-import { getPostLangs, wait } from "/js/utils.js";
+import { getPostLangs, readFileAsDataUrl, wait } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import {
   getUnresolvedFacetsFromText,
@@ -191,7 +191,10 @@ export class PostCreator {
       try {
         const imageRes = await fetch(externalImage);
         const imageBlob = await imageRes.blob();
-        const blob = await this.api.uploadBlob(imageBlob);
+        const dataUrl = await readFileAsDataUrl(imageBlob);
+        const compressedImage =
+          await this.imageCompressor.compressImage(dataUrl);
+        const blob = await this.api.uploadBlob(compressedImage.blob);
         externalEmbed.external.thumb = {
           $type: "blob",
           mimeType: blob.mimeType,

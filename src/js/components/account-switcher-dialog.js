@@ -133,7 +133,7 @@ class AccountSwitcherDialog extends Component {
                   <button
                     class="account-switcher-item ${account.needsReauth
                       ? "account-switcher-item-reauth"
-                      : ""}"
+                      : ""} ${isPendingRow ? "is-pending" : ""}"
                     data-testid="account-switcher-item"
                     data-did=${account.did}
                     data-teststate=${isPendingRow

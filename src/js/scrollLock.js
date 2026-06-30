@@ -107,6 +107,12 @@ export class ScrollLock {
     if (this.locked) {
       return;
     }
+    if (!this.container) {
+      console.warn(
+        "ScrollLock: no .page-visible container found; skipping lock",
+      );
+      return;
+    }
     lockScroll(this.container);
     // If target is passed, lock the nearest scrollable ancestor of that target in addition to the outer page
     const ancestor = this.target ? findScrollableAncestor(this.target) : null;

@@ -18,7 +18,7 @@ import {
   noop,
   sortBy,
 } from "/js/utils.js";
-import { showSignInModal } from "/js/modals.js";
+import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/detected-rich-text.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
@@ -336,7 +336,7 @@ export function profileCardTemplate({
               return html`<button
                 @click=${() => {
                   if (!isAuthenticated) {
-                    return showSignInModal();
+                    return SignInModal.open();
                   }
                   onClickSubscribe(profile, !isSubscribed, labelerInfo);
                 }}
@@ -355,7 +355,7 @@ export function profileCardTemplate({
           return html`<button
             @click=${() => {
               if (!isAuthenticated) {
-                return showSignInModal();
+                return SignInModal.open();
               }
               onClickFollow(profile, !isFollowing);
             }}

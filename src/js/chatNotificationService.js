@@ -1,17 +1,14 @@
 import { wait } from "/js/utils.js";
-import { Signal, untrack } from "/js/signals.js";
+import { Signal } from "/js/signals.js";
 
 const POLLING_INTERVAL_SECONDS = 10;
 
 export class ChatNotificationService {
   constructor(api) {
     this.api = api;
-    this.$unreadConvoIds = new Signal.State(new Set());
-    this.$numNotifications = new Signal.Computed(
-      () => this.$unreadConvoIds.get().size,
-    );
-    // Store read convo IDs locally to override unread count until the server catches up
-    this._locallyReadConvoIds = new Set();
+    this.$numNotifications = new Signal.State(0);
+    this._optimisticallyReadIds = new Set();
+    this._lastServerTotal = 0;
   }
 
   async startPolling() {
@@ -21,23 +18,31 @@ export class ChatNotificationService {
       await wait(pollingInterval);
     }
   }
+
   async fetchNumNotifications() {
-    const unreadConvos = await this.api.listConvos({ readState: "unread" });
-    const incomingIds = new Set(unreadConvos.convos.map((convo) => convo.id));
-    // Drop overrides for convos the server no longer reports as unread.
-    for (const id of this._locallyReadConvoIds) {
-      if (!incomingIds.has(id)) this._locallyReadConvoIds.delete(id);
+    const { unreadAcceptedConvos = 0, unreadRequestConvos = 0 } =
+      await this.api.getChatUnreadCounts();
+    const serverTotal = unreadAcceptedConvos + unreadRequestConvos;
+    // The server total dropped by `delta` since the last poll — that many
+    // optimistic reads have been confirmed, so stop subtracting them.
+    const delta = Math.max(0, this._lastServerTotal - serverTotal);
+    for (const id of [...this._optimisticallyReadIds].slice(0, delta)) {
+      this._optimisticallyReadIds.delete(id);
     }
-    this.$unreadConvoIds.set(incomingIds.difference(this._locallyReadConvoIds));
+    this._lastServerTotal = serverTotal;
+    const adjusted = Math.max(
+      0,
+      serverTotal - this._optimisticallyReadIds.size,
+    );
+    this.$numNotifications.set(adjusted);
   }
-  async markNotificationsAsReadForConvo(convoId) {
-    this._locallyReadConvoIds.add(convoId);
-    untrack(() => {
-      const unreadConvos = this.$unreadConvoIds.get();
-      this.$unreadConvoIds.set(
-        unreadConvos.difference(this._locallyReadConvoIds),
-      );
-    });
-    this.fetchNumNotifications();
+
+  markNotificationsAsReadForConvo(convoId) {
+    if (this._optimisticallyReadIds.has(convoId)) return;
+    this._optimisticallyReadIds.add(convoId);
+    const count = this.$numNotifications.get();
+    if (count > 0) {
+      this.$numNotifications.set(count - 1);
+    }
   }
 }

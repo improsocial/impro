@@ -617,7 +617,7 @@ test.describe("Home view", () => {
       const replyButton = view.locator('[data-testid="reply-button"]').first();
       await replyButton.click();
 
-      const modal = page.locator("dialog.modal-dialog");
+      const modal = page.locator('[data-testid="sign-in-modal"]');
       await expect(modal).toBeVisible();
       await expect(modal).toContainText("Sign in");
       await expect(modal).toContainText("Sign in to join the conversation!");

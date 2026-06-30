@@ -180,23 +180,37 @@ t.describe("richTextTemplate", (it) => {
     assertEquals(links.length, 2);
   });
 
-  it("should render multiline text with separate divs", () => {
+  it("should preserve newlines in multiline text", () => {
     const text = "Line one\nLine two\nLine three";
     const result = richTextTemplate({ text, facets: [] });
     const container = document.createElement("div");
     render(result, container);
     const richText = container.querySelector("[data-testid='rich-text']");
-    const divs = richText.querySelectorAll("div");
-    assertEquals(divs.length, 3);
+    assertEquals(richText.textContent, text);
   });
 
-  it("should render empty line as br element", () => {
-    const text = "Line one\n\nLine three";
-    const result = richTextTemplate({ text, facets: [] });
+  it("should render a facet that spans multiple lines", () => {
+    const url = "https://example.com";
+    const text = `before\n${url}\nafter`;
+    const facets = [
+      {
+        index: { byteStart: 7, byteEnd: 7 + url.length },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: url,
+          },
+        ],
+      },
+    ];
+    const result = richTextTemplate({ text, facets });
     const container = document.createElement("div");
     render(result, container);
-    const br = container.querySelector("br");
-    assert(br !== null);
+    const link = container.querySelector("a");
+    assert(link !== null);
+    assertEquals(link.textContent, url);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assertEquals(richText.textContent, text);
   });
 });
 

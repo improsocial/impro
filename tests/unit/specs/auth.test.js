@@ -11,6 +11,7 @@ import {
   BasicAuthProvider,
   BasicAuthSession,
   RefreshTokenError,
+  getMissingScopes,
 } from "/js/auth.js";
 import { TimeoutError } from "/js/utils.js";
 
@@ -499,6 +500,56 @@ t.describe("Auth account management", (it, { afterEach }) => {
     assertEquals(provider.listAccounts.calls.length, 1);
   });
 
+  it("listAccounts flips needsReauth on accounts whose stored scope is stale", async () => {
+    globalThis.window = {
+      ...originalWindow,
+      env: { oauthScopes: "atproto rpc:a rpc:b" },
+    };
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        {
+          did: "did:plc:alice",
+          handle: "alice.test",
+          scope: "atproto rpc:a",
+          needsReauth: false,
+        },
+        {
+          did: "did:plc:bob",
+          handle: "bob.test",
+          scope: "atproto rpc:a rpc:b",
+          needsReauth: false,
+        },
+        {
+          did: "did:plc:carol",
+          handle: "carol.test",
+          scope: null,
+          needsReauth: true,
+        },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    const byDid = Object.fromEntries(
+      accounts.map((entry) => [entry.did, entry]),
+    );
+    assertEquals(byDid["did:plc:alice"].needsReauth, true);
+    assertEquals(byDid["did:plc:bob"].needsReauth, false);
+    assertEquals(byDid["did:plc:carol"].needsReauth, true);
+  });
+
+  it("listAccounts leaves needsReauth alone for providers that don't expose scope", async () => {
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        { did: "did:plc:alice", handle: "alice.test", needsReauth: false },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    assertEquals(accounts[0].needsReauth, false);
+  });
+
   it("supportsMultipleAccounts reflects the provider capability", () => {
     const multi = new Auth(makeMultiAccountProvider({ accounts: [] }));
     assertEquals(multi.supportsMultipleAccounts(), true);
@@ -634,6 +685,117 @@ t.describe("Auth.logout", (it) => {
     await manager.logout();
     assertEquals(provider.logout.calls.length, 1);
     assertEquals(provider.logout.calls[0][0], null);
+  });
+});
+
+t.describe("getMissingScopes", (it) => {
+  it("returns an empty array when granted matches required", () => {
+    const result = getMissingScopes(
+      "atproto rpc:a rpc:b",
+      "atproto rpc:a rpc:b",
+    );
+    assertEquals(result.length, 0);
+  });
+
+  it("returns scopes present in required but missing from granted", () => {
+    const result = getMissingScopes("atproto rpc:a", "atproto rpc:a rpc:b");
+    assertEquals(result, ["rpc:b"]);
+  });
+
+  it("ignores extra scopes in granted that are not required", () => {
+    const result = getMissingScopes("atproto rpc:a rpc:extra", "atproto rpc:a");
+    assertEquals(result.length, 0);
+  });
+
+  it("tolerates extra whitespace and empty tokens", () => {
+    const result = getMissingScopes("  atproto   rpc:a  ", "atproto rpc:a");
+    assertEquals(result.length, 0);
+  });
+
+  it("treats scopes with different query params as distinct", () => {
+    // Exact-string match: ?aud=* and ?aud=did:web:foo are not equivalent.
+    const result = getMissingScopes("rpc:a?aud=did:web:foo", "rpc:a?aud=*");
+    assertEquals(result, ["rpc:a?aud=*"]);
+  });
+});
+
+t.describe("Auth.ensureCurrentScopes", (it, { afterEach }) => {
+  const originalEnv = globalThis.window.env;
+
+  afterEach(() => {
+    globalThis.window = originalWindow;
+    globalThis.window.env = originalEnv;
+  });
+
+  it("does nothing when there is no session", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = { oauthScopes: "atproto rpc:a" };
+    const provider = makeMockProvider();
+    const manager = new Auth(provider);
+    await manager.ensureCurrentScopes();
+    assertEquals(capturedHrefs.length, 0);
+    assertEquals(provider.logout.calls.length, 0);
+  });
+
+  it("does nothing when the session has no scope (BasicAuth)", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = { oauthScopes: "atproto rpc:a" };
+    const provider = makeMockProvider();
+    provider.getSession = mock(() => Promise.resolve({ scope: undefined }));
+    const manager = new Auth(provider);
+    await manager.ensureCurrentScopes();
+    assertEquals(capturedHrefs.length, 0);
+    assertEquals(provider.logout.calls.length, 0);
+  });
+
+  it("does nothing when granted scopes match required", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = { oauthScopes: "atproto rpc:a rpc:b" };
+    const provider = makeMockProvider();
+    provider.getSession = mock(() =>
+      Promise.resolve({ scope: "atproto rpc:a rpc:b" }),
+    );
+    const manager = new Auth(provider);
+    await manager.ensureCurrentScopes();
+    assertEquals(capturedHrefs.length, 0);
+    assertEquals(provider.logout.calls.length, 0);
+  });
+
+  it("logs out and redirects to login when a required scope is missing", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = { oauthScopes: "atproto rpc:a rpc:b" };
+    const provider = makeMockProvider();
+    provider.getSession = mock(() =>
+      Promise.resolve({ scope: "atproto rpc:a" }),
+    );
+    const manager = new Auth(provider);
+    manager.ensureCurrentScopes();
+    await Promise.resolve();
+    await Promise.resolve();
+    assertEquals(provider.logout.calls.length, 1);
+    assert(capturedHrefs.length > 0, "expected a redirect");
+    assert(capturedHrefs[0].includes("/login"));
+  });
+
+  it("still redirects to login when provider.logout throws", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = { oauthScopes: "atproto rpc:a rpc:b" };
+    const provider = makeMockProvider({
+      logoutFn: () => Promise.reject(new Error("logout failed")),
+    });
+    provider.getSession = mock(() =>
+      Promise.resolve({ scope: "atproto rpc:a" }),
+    );
+    const manager = new Auth(provider);
+    manager.ensureCurrentScopes();
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    assert(
+      capturedHrefs.length > 0,
+      "expected a redirect despite logout error",
+    );
+    assert(capturedHrefs[0].includes("/login"));
   });
 });
 

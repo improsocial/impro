@@ -1,7 +1,7 @@
 import { html } from "/js/lib/lit-html.js";
 import { isAutomatedAccount } from "/js/dataHelpers.js";
 import { automatedAccountIconTemplate } from "/js/templates/icons/automatedAccountIcon.template.js";
-import { showInfoModal } from "/js/modals.js";
+import { alertModal } from "/js/modals/alert.modal.js";
 
 export function automatedAccountBadgeTemplate({ profile }) {
   if (!isAutomatedAccount(profile)) return "";
@@ -12,9 +12,8 @@ export function automatedAccountBadgeTemplate({ profile }) {
     @click=${(e) => {
       e.preventDefault();
       e.stopPropagation();
-      showInfoModal({
+      alertModal("This account has been marked as automated by its owner.", {
         title: "Automated account",
-        message: "This account has been marked as automated by its owner.",
         confirmButtonText: "Okay",
       });
     }}

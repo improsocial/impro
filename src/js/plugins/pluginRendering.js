@@ -1,4 +1,4 @@
-import { showExternalLinkWarningModal } from "/js/modals.js";
+import { ExternalLinkWarningModal } from "/js/modals/externalLinkWarning.modal.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
@@ -162,7 +162,7 @@ export class PluginRenderer {
         const href = element.getAttribute("href");
         if (!href || !isExternalHref(href)) return;
         event.preventDefault();
-        showExternalLinkWarningModal({ href });
+        ExternalLinkWarningModal.open({ href });
       });
     }
     if (tag === "plugin-profiles-list") {

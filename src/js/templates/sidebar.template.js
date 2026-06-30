@@ -1,9 +1,10 @@
-import { html } from "/js/lib/lit-html.js";
+import { html, ref } from "/js/lib/lit-html.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import {
   classnames,
   formatLargeNumber,
   formatNumNotifications,
+  enableLongPress,
 } from "/js/utils.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
@@ -22,7 +23,7 @@ import {
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
 import "/js/components/plugin-icon.js";
-import { showInfoModal } from "/js/modals.js";
+import { alertModal } from "/js/modals/alert.modal.js";
 
 function pluginSidebarItemTemplate({ entry }) {
   return html`
@@ -44,18 +45,17 @@ function pluginSidebarItemTemplate({ entry }) {
 }
 
 function showAboutModal() {
-  showInfoModal({
-    title: "About Impro",
-    message: html`<div>
-      Impro is an <strong>alternative Bluesky client</strong> built from the
-      ground up to be extensible and customizable. You can find more information
-      about the project, including the full source code, at our
+  alertModal(
+    html`<div>
+      Impro is a Bluesky client built from the ground-up to be lightweight and
+      extensible. You can find more information about the project, including the
+      full source code, at our
       <a href="https://github.com/improsocial/impro/blob/main/README.md"
         >GitHub repository</a
       >.
     </div>`,
-    confirmButtonText: "Got it!",
-  });
+    { title: "About Impro", confirmButtonText: "Got it!" },
+  );
 }
 
 function sidebarNavTemplate({
@@ -174,6 +174,7 @@ export function sidebarTemplate({
   onClickActiveItem,
   onClickComposeButton,
   pluginSidebarItems = [],
+  onLongPressProfile = null,
 }) {
   if (!isAuthenticated) {
     return loggedOutSidebarTemplate({
@@ -244,12 +245,22 @@ export function sidebarTemplate({
   const handle = currentUser?.handle ? "@" + currentUser.handle : null;
   const followersCount = currentUser?.followersCount ?? null;
   const followsCount = currentUser?.followsCount ?? null;
-
+  const longPressEnabled = !!onLongPressProfile;
   return html`
     <animated-sidebar>
       <!-- Profile Section -->
       <div class="sidebar-profile" data-testid="sidebar-profile">
-        <div class="sidebar-profile-avatar">
+        <div
+          class=${classnames("sidebar-profile-avatar", {
+            "long-press-enabled": longPressEnabled,
+          })}
+          ${ref((el) => {
+            if (el && longPressEnabled) {
+              enableLongPress(el);
+            }
+          })}
+          @long-press=${onLongPressProfile ? () => onLongPressProfile() : null}
+        >
           ${currentUser
             ? html`${avatarTemplate({ author: currentUser })}`
             : html`<div class="avatar-placeholder"></div>`}

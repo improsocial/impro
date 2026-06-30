@@ -1,3 +1,4 @@
+import { OAUTH_SCOPES } from "../../src/oauthScopes.js";
 import { userProfile } from "./fixtures.js";
 
 // Hold the pointer down on an element long enough to trigger a long-press
@@ -21,6 +22,7 @@ export async function login(page) {
     authServerMetadata: {
       token_endpoint: `https://fake.bsky.social/oauth/token`,
     },
+    scope: OAUTH_SCOPES,
   };
   await page.addInitScript((session) => {
     localStorage.setItem("oauth_session", JSON.stringify(session));
@@ -34,37 +36,41 @@ export async function login(page) {
 // shows as needing re-auth), `expired: true` writes a blob whose access token
 // is already past its expiry so the first request triggers a refresh.
 export async function loginWithAccounts(page, accounts) {
-  await page.addInitScript((accountsArg) => {
-    if (sessionStorage.getItem("test-accounts-seeded") === "true") return;
-    sessionStorage.setItem("test-accounts-seeded", "true");
-    const accountEntries = [];
-    for (const account of accountsArg) {
-      if (!account.needsReauth) {
-        const session = {
+  await page.addInitScript(
+    ({ accountsArg, scopeArg }) => {
+      if (sessionStorage.getItem("test-accounts-seeded") === "true") return;
+      sessionStorage.setItem("test-accounts-seeded", "true");
+      const accountEntries = [];
+      for (const account of accountsArg) {
+        if (!account.needsReauth) {
+          const session = {
+            did: account.did,
+            serviceEndpoint: "https://fake.bsky.social",
+            accessToken: "mock-access-token",
+            refreshToken: "mock-refresh-token",
+            expiresAt: account.expired
+              ? Date.now() - 1000
+              : Date.now() + 3600000 * 24,
+            clientId: "https://localhost/oauth-client-metadata.json",
+            authServerMetadata: {
+              token_endpoint: "https://fake.bsky.social/oauth/token",
+            },
+            scope: scopeArg,
+          };
+          localStorage.setItem(
+            "oauth_session:" + account.did,
+            JSON.stringify(session),
+          );
+        }
+        accountEntries.push({
           did: account.did,
-          serviceEndpoint: "https://fake.bsky.social",
-          accessToken: "mock-access-token",
-          refreshToken: "mock-refresh-token",
-          expiresAt: account.expired
-            ? Date.now() - 1000
-            : Date.now() + 3600000 * 24,
-          clientId: "https://localhost/oauth-client-metadata.json",
-          authServerMetadata: {
-            token_endpoint: "https://fake.bsky.social/oauth/token",
-          },
-        };
-        localStorage.setItem(
-          "oauth_session:" + account.did,
-          JSON.stringify(session),
-        );
+          handle: account.handle ?? null,
+          pdsUrl: "https://fake.bsky.social",
+        });
       }
-      accountEntries.push({
-        did: account.did,
-        handle: account.handle ?? null,
-        pdsUrl: "https://fake.bsky.social",
-      });
-    }
-    localStorage.setItem("oauth_accounts", JSON.stringify(accountEntries));
-    localStorage.setItem("oauth_current_did", accountsArg[0].did);
-  }, accounts);
+      localStorage.setItem("oauth_accounts", JSON.stringify(accountEntries));
+      localStorage.setItem("oauth_current_did", accountsArg[0].did);
+    },
+    { accountsArg: accounts, scopeArg: OAUTH_SCOPES },
+  );
 }

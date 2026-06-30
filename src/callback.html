@@ -19,13 +19,35 @@
         const code = params.get("code");
         const state = params.get("state");
         const iss = params.get("iss");
+        const errorParam = params.get("error");
+        const errorDescription = params.get("error_description");
+
+        const parsedState = state
+          ? JSON.parse(decodeURIComponent(state))
+          : null;
+        const returnToFromState = parsedState
+          ? validateReturnToParam(parsedState.returnTo)
+          : null;
+
+        if (errorParam) {
+          const errorParams = new URLSearchParams();
+          errorParams.set(
+            "error_message",
+            errorDescription
+              ? `Login failed: ${errorDescription}`
+              : `Login failed: ${errorParam}`,
+          );
+          if (returnToFromState) {
+            errorParams.set("returnTo", returnToFromState);
+          }
+          window.location.href = "/login?" + errorParams.toString();
+          return;
+        }
 
         if (!code || !state || !iss) {
           window.location.href = "/";
           return;
         }
-
-        const parsedState = JSON.parse(decodeURIComponent(state));
 
         if (
           parsedState.loopback === true &&
@@ -36,22 +58,21 @@
             "http://localhost:8080/callback.html" + window.location.search;
           return;
         }
-        const returnTo = validateReturnToParam(parsedState.returnTo);
         try {
           await auth.provider.handleOauthCallback(window.location.href);
-          window.location.href = returnTo ?? "/";
+          window.location.href = returnToFromState ?? "/";
           return;
         } catch (error) {
           console.error("error", error);
-          const params = new URLSearchParams();
-          params.set(
+          const failureParams = new URLSearchParams();
+          failureParams.set(
             "error_message",
             "OAuth callback failed. Please try again.",
           );
-          if (returnTo) {
-            params.set("returnTo", returnTo);
+          if (returnToFromState) {
+            failureParams.set("returnTo", returnToFromState);
           }
-          window.location.href = "/login?" + params.toString();
+          window.location.href = "/login?" + failureParams.toString();
           return;
         }
       }

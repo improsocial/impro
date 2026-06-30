@@ -7,11 +7,12 @@ import {
   classnames,
   enableDragToDismiss,
   graphemeCount,
+  readFileAsDataUrl,
   resetScrollOnBlur,
   sanitizeUri,
 } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
-import { confirm } from "/js/modals.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
@@ -531,7 +532,7 @@ class PostComposer extends Component {
 
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const file = files[i];
-      const dataUrl = await this.readFileAsDataUrl(file);
+      const dataUrl = await readFileAsDataUrl(file);
       this._selectedImages.push({
         file,
         dataUrl,
@@ -546,15 +547,6 @@ class PostComposer extends Component {
     }
 
     this.render();
-  }
-
-  readFileAsDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = (e) => resolve(e.target.result);
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
   }
 
   handleRemoveImage(index) {
@@ -881,7 +873,7 @@ class PostComposer extends Component {
     ) {
       return true;
     }
-    return confirm("Are you sure you'd like to discard this draft?", {
+    return confirmModal("Are you sure you'd like to discard this draft?", {
       title: "Discard draft?",
       confirmButtonStyle: "danger",
       confirmButtonText: "Discard",

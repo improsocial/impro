@@ -207,9 +207,19 @@ export class OAuthProvider {
 
   async getClient() {
     if (!this._client) {
+      const proxyClientId = window.env.oatproxyClientId || null;
+      const proxyOrigin = proxyClientId ? new URL(proxyClientId).origin : null;
+      const baseRedirect = `https://${window.env.hostName}/callback.html`;
+      const redirectUri =
+        proxyOrigin && new URL(baseRedirect).origin !== proxyOrigin
+          ? `${proxyOrigin}?oatproxyActualRedirect=${encodeURIComponent(baseRedirect)}`
+          : baseRedirect;
       this._client = await OauthClient.load({
-        clientId: `https://${window.env.hostName}/oauth-client-metadata.json`,
-        redirectUri: `https://${window.env.hostName}/callback.html`,
+        clientId:
+          proxyClientId ??
+          `https://${window.env.hostName}/oauth-client-metadata.json`,
+        redirectUri,
+        proxyUrl: proxyOrigin,
       });
     }
     return this._client;
@@ -291,6 +301,14 @@ export class OAuthProvider {
 
 const FORCE_LOGOUT_QUERY_PARAM = "force-logout";
 
+export function getMissingScopes(grantedScope, requiredScope) {
+  const granted = new Set(grantedScope.split(/\s+/).filter(Boolean));
+  return requiredScope
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((scope) => !granted.has(scope));
+}
+
 export class Auth {
   constructor(provider) {
     if (!provider) {
@@ -320,7 +338,17 @@ export class Auth {
   }
 
   async listAccounts() {
-    return this.provider.listAccounts?.() ?? [];
+    const accounts = (await this.provider.listAccounts?.()) ?? [];
+    const requiredScope = window.env?.oauthScopes ?? "";
+    // Mark accounts with out-of-date scopes as "needsReauth"
+    return accounts.map((account) => {
+      const scopesOutOfDate =
+        getMissingScopes(account.scope ?? "", requiredScope).length > 0;
+      return {
+        ...account,
+        needsReauth: account.needsReauth || scopesOutOfDate,
+      };
+    });
   }
 
   async switchAccount(did) {
@@ -380,6 +408,21 @@ export class Auth {
       return new Promise(() => {});
     }
     return null;
+  }
+
+  async ensureCurrentScopes() {
+    const session = await this.provider.getSession();
+    if (!session?.scope) return;
+    const missing = getMissingScopes(session.scope, window.env.oauthScopes);
+    if (missing.length === 0) return;
+    console.warn("OAuth scopes are out of date, forcing re-auth:", missing);
+    try {
+      await this.logout();
+    } catch (error) {
+      console.error(error);
+    }
+    window.location.href = linkToLogin();
+    return new Promise(() => {});
   }
 
   async handleForceLogoutParam() {

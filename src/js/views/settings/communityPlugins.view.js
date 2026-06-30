@@ -33,7 +33,7 @@ class SettingsCommunityPluginsView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Community plugins",
-                onClickBackButton: () => window.router.go("/settings/plugins"),
+                backButtonFallbackRoute: "/settings/plugins",
               })}
               <main>
                 ${error

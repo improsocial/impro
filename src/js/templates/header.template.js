@@ -8,6 +8,7 @@ export function headerTemplate({
   avatarTemplate = null,
   showLoadingSpinner = false,
   leftButton = "back",
+  backButtonFallbackRoute = null,
   onClickBackButton = null,
   onClickMenuButton = null,
   rightItemTemplate = null,
@@ -32,7 +33,7 @@ export function headerTemplate({
             data-testid="back-button"
             @click=${onClickBackButton
               ? () => onClickBackButton()
-              : () => router.back()}
+              : () => router.back({ fallbackRoute: backButtonFallbackRoute })}
           >
             ←
           </button>`}

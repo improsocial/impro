@@ -19,6 +19,8 @@ globalThis.Event = dom.window.Event;
 globalThis.KeyboardEvent = dom.window.KeyboardEvent;
 globalThis.MouseEvent = dom.window.MouseEvent;
 globalThis.MutationObserver = dom.window.MutationObserver;
+globalThis.FileReader = dom.window.FileReader;
+globalThis.Blob = dom.window.Blob;
 globalThis.getComputedStyle = dom.window.getComputedStyle;
 // Node has its own global navigator; alias JSDOM's so code under test and
 // tests (which mock properties on window.navigator) see the same object.
@@ -107,6 +109,31 @@ class LocalStorageStub {
 globalThis.localStorage = new LocalStorageStub();
 
 globalThis.Element = globalThis.window.Element;
+
+class HighlightStub {
+  constructor(...ranges) {
+    this._ranges = new Set(ranges);
+  }
+  add(range) {
+    this._ranges.add(range);
+  }
+  delete(range) {
+    return this._ranges.delete(range);
+  }
+  clear() {
+    this._ranges.clear();
+  }
+  get size() {
+    return this._ranges.size;
+  }
+}
+globalThis.Highlight = HighlightStub;
+globalThis.window.Highlight = HighlightStub;
+if (typeof globalThis.window.CSS === "undefined") {
+  globalThis.window.CSS = {};
+}
+globalThis.window.CSS.highlights = new Map();
+globalThis.CSS = globalThis.window.CSS;
 
 // Real emoji element makes a fetch / uses indexeddb, so stub it
 class EmojiPickerStub extends globalThis.window.HTMLElement {}

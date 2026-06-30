@@ -53,6 +53,7 @@ export class DataStore extends ReactiveStore {
     this.$knownFollowers = new SignalMap();
     this.$profileChatStatus = new SignalMap();
     this.$labelerInfo = new SignalMap();
+    this.$joinLinkPreviewsByCode = new SignalMap();
   }
 
   setPosts(posts) {

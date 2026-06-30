@@ -354,6 +354,35 @@ t.describe("sidebarTemplate - compose button", (it) => {
   });
 });
 
+t.describe("sidebarTemplate - profile long-press", (it) => {
+  function renderSidebar({ onLongPressProfile = null } = {}) {
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({
+        isAuthenticated: true,
+        currentUser: mockUser,
+        onLongPressProfile,
+      }),
+      container,
+    );
+    return container.querySelector(".sidebar-profile-avatar");
+  }
+
+  // Press timing and click suppression are enableLongPress behavior, covered
+  // in utils.test.js; here we only verify the sidebar wires the handler up.
+  it("invokes the handler when a long-press fires on the profile avatar", () => {
+    let fired = 0;
+    const avatar = renderSidebar({ onLongPressProfile: () => fired++ });
+    avatar.dispatchEvent(new CustomEvent("long-press"));
+    assertEquals(fired, 1);
+  });
+
+  it("does not throw when a long-press fires and no handler is provided", () => {
+    const avatar = renderSidebar();
+    avatar.dispatchEvent(new CustomEvent("long-press"));
+  });
+});
+
 t.describe("sidebarTemplate - plugin sidebar items", (it) => {
   it("should not render any plugin items when pluginSidebarItems is empty", () => {
     const result = sidebarTemplate({

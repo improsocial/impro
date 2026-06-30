@@ -37,7 +37,7 @@ class SettingsMutedAccountsView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: "Muted accounts",
-                onClickBackButton: () => window.router.go("/settings"),
+                backButtonFallbackRoute: "/settings",
               })}
               <main>
                 <p

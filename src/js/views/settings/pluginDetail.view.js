@@ -73,7 +73,7 @@ class SettingsPluginDetailView extends View {
             onClickActiveNavItem: () => window.router.go("/settings"),
             children: html`${headerTemplate({
                 title: pluginDetails?.name ?? pluginId,
-                onClickBackButton: () => window.router.go("/settings/plugins"),
+                backButtonFallbackRoute: "/settings/plugins",
               })}
               <main>
                 ${(() => {
