@@ -877,7 +877,6 @@ export class Requests {
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
-    const currentUser = this.dataStore.$currentUser.get();
     const res = await this.api.getChatLogs({ cursor });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
     const newMessages = [];
@@ -922,10 +921,6 @@ export class Requests {
         log.$type === "chat.bsky.convo.defs#logCreateMessage";
       const isSystemMessage = CONVO_LOG_SYSTEM_MESSAGE_TYPES.has(log.$type);
       if (!isUserMessage && !isSystemMessage) continue;
-      if (isUserMessage && log.message.sender.did === currentUser?.did) {
-        // Skip if the message is from the current user, since we already set it in the store
-        continue;
-      }
       // Group chats include profile info here
       if (log.relatedProfiles) {
         this.dataStore.setProfiles(log.relatedProfiles);
