@@ -1018,11 +1018,12 @@ export class Mutations {
     this.dataStore.$posts.set(post.uri, createNotFoundPost(post.uri));
   }
 
-  async createMessage(convoId, { text, facets }) {
+  async createMessage(convoId, { text, facets, replyTo }) {
     // no optimistic update
     const res = await this.api.sendMessage(convoId, {
       text,
       facets,
+      replyTo,
     });
     this.dataStore.$messages.set(res.id, res);
     // Add the new message to the chat messages array in the dataStore

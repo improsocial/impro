@@ -1060,6 +1060,213 @@ test.describe("Chat detail view", () => {
     });
   });
 
+  test("clicking the message more button opens Reply menu and staging shows the chip", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "How are you?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const wrapper = chatDetailView.locator(
+      '.message-wrapper[data-message-id="msg-1"]',
+    );
+    await expect(wrapper).toBeVisible({ timeout: 10000 });
+
+    await wrapper
+      .locator('[data-testid="message-more-trigger"]')
+      .click({ force: true });
+
+    const replyItem = page.locator('[data-testid="message-action-reply"]');
+    await expect(replyItem).toBeVisible();
+    await replyItem.click();
+
+    const preview = chatDetailView.locator(
+      '[data-testid="message-reply-preview"]',
+    );
+    await expect(preview).toBeVisible();
+    await expect(
+      preview.locator('[data-testid="reply-preview-sender"]'),
+    ).toContainText("Alice");
+    await expect(
+      preview.locator('[data-testid="reply-preview-text"]'),
+    ).toContainText("How are you?");
+
+    // Clearing the reply hides the chip
+    await preview.locator('[data-testid="reply-preview-clear"]').click();
+    await expect(preview).toHaveCount(0);
+  });
+
+  test("message more button is hidden for locked group chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const groupConvo = createGroupConvo({
+      id: "convo-1",
+      name: "Group",
+      otherMembers: [alice],
+      lockStatus: "locked",
+    });
+    const message = createMessage({
+      id: "msg-1",
+      text: "Hi there",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    mockServer.addConvos([groupConvo]);
+    mockServer.addConvoMessages("convo-1", [message]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="chat-locked-notice"]'),
+    ).toBeVisible({ timeout: 10000 });
+
+    const wrapper = chatDetailView.locator(
+      '.message-wrapper[data-message-id="msg-1"]',
+    );
+    await expect(wrapper).toBeVisible();
+    await expect(
+      wrapper.locator('[data-testid="message-more-trigger"]'),
+    ).toHaveCount(0);
+  });
+
+  test("sending with a staged reply includes replyTo and clears the chip", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "How are you?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const wrapper = chatDetailView.locator(
+      '.message-wrapper[data-message-id="msg-1"]',
+    );
+    await expect(wrapper).toBeVisible({ timeout: 10000 });
+
+    await wrapper
+      .locator('[data-testid="message-more-trigger"]')
+      .click({ force: true });
+    await page.locator('[data-testid="message-action-reply"]').click();
+
+    const preview = chatDetailView.locator(
+      '[data-testid="message-reply-preview"]',
+    );
+    await expect(preview).toBeVisible();
+
+    await chatDetailView.locator(".message-input-field").fill("Doing great!");
+    await chatDetailView.locator(".message-input-send-button").click();
+
+    await expect(preview).toHaveCount(0);
+    await expect(chatDetailView.locator(".message-sent")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    expect(mockServer.sentMessageRequests).toHaveLength(1);
+    expect(mockServer.sentMessageRequests[0].message.replyTo).toEqual({
+      messageId: "msg-1",
+    });
+  });
+
+  test("shows block-specific toast and keeps the staged reply when send fails due to a block", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "How are you?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [original]);
+    mockServer.failSendMessage({
+      message: "block between recipient and sender",
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const wrapper = chatDetailView.locator(
+      '.message-wrapper[data-message-id="msg-1"]',
+    );
+    await expect(wrapper).toBeVisible({ timeout: 10000 });
+
+    await wrapper
+      .locator('[data-testid="message-more-trigger"]')
+      .click({ force: true });
+    await page.locator('[data-testid="message-action-reply"]').click();
+
+    const preview = chatDetailView.locator(
+      '[data-testid="message-reply-preview"]',
+    );
+    await expect(preview).toBeVisible();
+
+    await chatDetailView.locator(".message-input-field").fill("Doing great!");
+    await chatDetailView.locator(".message-input-send-button").click();
+
+    await expect(page.locator('[data-testid="toast"]')).toContainText(
+      "Can't send: block between you and recipient",
+    );
+    await expect(preview).toBeVisible();
+  });
+
   test("should show empty state when there are no messages", async ({
     page,
   }) => {
