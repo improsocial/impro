@@ -1213,10 +1213,11 @@ class ChatDetailView extends View {
     // Mark messages as read when new messages are loaded
     pageEffect(root, () => {
       const latestMessageTimestamp = $latestMessageTimestamp.get();
-      if (latestMessageTimestamp) {
-        dataLayer.mutations.markConvoAsRead(convoId);
-        chatNotificationService?.markNotificationsAsReadForConvo(convoId);
-      }
+      if (!latestMessageTimestamp) return;
+      const convo = dataLayer.derived.$convos.get(convoId);
+      if (!convo?.unreadCount) return;
+      dataLayer.mutations.markConvoAsRead(convoId);
+      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
     });
 
     root.addEventListener("click", handleRootClick);

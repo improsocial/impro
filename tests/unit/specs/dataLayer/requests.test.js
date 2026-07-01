@@ -1659,14 +1659,31 @@ t.describe("pollConvoMessages", (it, { beforeEach }) => {
     assertEquals(dataStore.$messages.get("m1").id, "m1");
   });
 
-  it("should skip messages sent by the current user", async () => {
+  it("should ingest the current user's own messages when not already stored", async () => {
     const requests = makeRequestsWithLogs([
       makeMessageLog("m1", currentUserDid),
     ]);
 
     await requests.pollConvoMessages(convoId);
 
-    assertEquals(dataStore.$convoMessages.get(convoId).messages.length, 0);
+    const stored = dataStore.$convoMessages.get(convoId);
+    assertEquals(stored.messages.length, 1);
+    assertEquals(stored.messages[0].id, "m1");
+    assertEquals(dataStore.$messages.get("m1").id, "m1");
+  });
+
+  it("should dedupe the current user's own messages already in the store", async () => {
+    dataStore.$convoMessages.set(convoId, {
+      messages: [{ id: "m1" }],
+      cursor: null,
+    });
+    const requests = makeRequestsWithLogs([
+      makeMessageLog("m1", currentUserDid),
+    ]);
+
+    await requests.pollConvoMessages(convoId);
+
+    assertEquals(dataStore.$convoMessages.get(convoId).messages.length, 1);
   });
 
   it("should ingest every system-message log kind", async () => {

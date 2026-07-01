@@ -135,6 +135,11 @@ export function quotedPostTemplate({
     mutedLabel = "Hidden by muted word";
     mutedIconStyle = "closed-eye";
   }
+  if (quotedPost.isHidden) {
+    isMuted = true;
+    mutedLabel = "Post hidden by you";
+    mutedIconStyle = "closed-eye";
+  }
   // this has precedence, in the case that both are true
   if (quotedPost.author.viewer?.muted) {
     isMuted = true;

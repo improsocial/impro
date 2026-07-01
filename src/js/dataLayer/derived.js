@@ -30,6 +30,7 @@ import {
   SignalMap,
   ComputedMap,
   ReactiveStore,
+  untrack,
 } from "/js/signals.js";
 
 function applyMutedWords(post, preferences) {
@@ -466,7 +467,7 @@ export class Derived extends ReactiveStore {
     this.$convoForProfile = new ComputedMap((profileDid) => {
       const convoIds = [...this.dataStore.$convos.keys()];
       for (const convoId of convoIds) {
-        const convo = this.dataStore.$convos.get(convoId);
+        const convo = untrack(() => this.dataStore.$convos.get(convoId));
         if (!convo) continue;
         if (isGroupConvo(convo)) continue;
         if (
