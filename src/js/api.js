@@ -700,15 +700,16 @@ export class Api {
     return res.data;
   }
 
-  async sendMessage(convoId, { text, facets }) {
+  async sendMessage(convoId, { text, facets, replyTo }) {
+    const message = { text, facets };
+    if (replyTo) {
+      message.replyTo = replyTo;
+    }
     const res = await this.request("chat.bsky.convo.sendMessage", {
       method: "POST",
       body: {
         convoId,
-        message: {
-          text,
-          facets,
-        },
+        message,
       },
       headers: {
         "atproto-proxy": this.chatAppViewServiceDid,

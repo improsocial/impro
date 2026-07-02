@@ -2388,6 +2388,56 @@ t.describe("createMessage", (it) => {
     assertEquals(stored.lastMessage.id, sentMessage.id);
     assertEquals(stored.lastMessage.$type, "chat.bsky.convo.defs#messageView");
   });
+
+  it("should pass replyTo to the api", async () => {
+    let apiCalledWith = null;
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      {
+        sendMessage: async (id, body) => {
+          apiCalledWith = body;
+          return sentMessage;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    await mutations.createMessage(convoId, {
+      text: "hello",
+      replyTo: { messageId: "msg-target" },
+    });
+    assertEquals(apiCalledWith.replyTo.messageId, "msg-target");
+  });
+
+  it("should propagate the raw error on send failure", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      {
+        sendMessage: async () => {
+          throw new Error("block between recipient and sender");
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    let caught = null;
+    try {
+      await mutations.createMessage(convoId, { text: "hello" });
+    } catch (error) {
+      caught = error;
+    }
+    assertEquals(caught?.message, "block between recipient and sender");
+  });
 });
 
 t.describe("acceptConvo", (it) => {

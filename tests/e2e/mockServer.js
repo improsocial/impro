@@ -21,6 +21,8 @@ export class MockServer {
     this.interactionPayloads = [];
     this.blobCounter = 0;
     this.messageCounter = 0;
+    this.sentMessageRequests = [];
+    this.sendMessageFailure = null;
     this.typeaheadProfiles = [];
     this.externalLinkCards = new Map();
     this.feedGenerators = [];
@@ -254,6 +256,10 @@ export class MockServer {
 
   failJoinLinkRequest(code) {
     this.failJoinLinkCodes.add(code);
+  }
+
+  failSendMessage({ status = 400, error = "InvalidRequest", message }) {
+    this.sendMessageFailure = { status, error, message };
   }
 
   setJoinLinkJoinedConvo(code, convo) {
@@ -687,6 +693,15 @@ export class MockServer {
 
     await page.route("**/xrpc/chat.bsky.convo.sendMessage*", (route) => {
       const body = route.request().postDataJSON();
+      this.sentMessageRequests.push(body);
+      if (this.sendMessageFailure) {
+        const { status, error, message } = this.sendMessageFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
       const msgId = ++this.messageCounter;
       const sentMessage = {
         id: `msg-sent-${msgId}`,

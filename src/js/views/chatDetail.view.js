@@ -48,6 +48,90 @@ class ChatDetailView extends View {
     state.$activeMessageId = new Signal.State(null);
     state.$paletteMessageId = new Signal.State(null);
     state.$reactionsDialogMessageId = new Signal.State(null);
+    state.$stagedReply = new Signal.State(null);
+
+    function setReply(message) {
+      if (!message) return;
+      state.$stagedReply.set(message);
+      raf().then(() => focusChatInput());
+    }
+
+    function clearReply() {
+      state.$stagedReply.set(null);
+    }
+
+    function messageReplyPreviewTemplate({ staged, senderProfile }) {
+      const senderName = senderProfile
+        ? getDisplayName(senderProfile)
+        : "Unknown";
+      const { text: previewText, muted } = getReplyQuotePreviewText(staged);
+      return html`<div
+        class="message-reply-preview"
+        data-testid="message-reply-preview"
+      >
+        <div class="message-reply-preview-accent" aria-hidden="true"></div>
+        <div class="message-reply-preview-content">
+          <div
+            class="message-reply-preview-sender"
+            data-testid="reply-preview-sender"
+          >
+            Replying to ${senderName}
+          </div>
+          <div
+            class="message-reply-preview-text ${muted
+              ? "message-reply-preview-text-muted"
+              : ""}"
+            data-testid="reply-preview-text"
+          >
+            ${previewText}
+          </div>
+        </div>
+        <button
+          class="message-reply-preview-clear"
+          type="button"
+          aria-label="Clear reply"
+          data-testid="reply-preview-clear"
+          @click=${() => clearReply()}
+        >
+          ×
+        </button>
+      </div>`;
+    }
+
+    function messageContextMenuTemplate({ message }) {
+      return html`
+        <context-menu-item
+          data-testid="message-action-reply"
+          @click=${() => setReply(message)}
+        >
+          Reply
+        </context-menu-item>
+      `;
+    }
+
+    function openMessageContextMenu(event, { message }) {
+      const menu = document.createElement("context-menu");
+      menu.classList.add("message-context-menu");
+      const itemHolder = document.createElement("div");
+      render(messageContextMenuTemplate({ message }), itemHolder);
+      while (itemHolder.firstChild) menu.appendChild(itemHolder.firstChild);
+      document.body.appendChild(menu);
+      menu.open(event.clientX, event.clientY);
+      // Keep the message marked active while the menu is open so the
+      // trigger button doesn't lose :hover visibility behind the modal.
+      const previousActiveId = state.$activeMessageId.get();
+      state.$activeMessageId.set(message.id);
+      menu.querySelector("dialog").addEventListener(
+        "close",
+        () => {
+          menu.remove();
+          if (state.$activeMessageId.get() === message.id) {
+            state.$activeMessageId.set(previousActiveId);
+          }
+        },
+        { once: true },
+      );
+    }
 
     function triggerHighlightAnimation(messageEl) {
       messageEl.classList.remove("message-highlighted");
@@ -352,7 +436,8 @@ class ChatDetailView extends View {
       if (
         event.target.closest(".message") ||
         event.target.closest(".reaction-palette") ||
-        event.target.closest(".message-emoji-trigger")
+        event.target.closest(".message-emoji-trigger") ||
+        event.target.closest(".message-more-trigger")
       ) {
         return;
       }
@@ -361,18 +446,27 @@ class ChatDetailView extends View {
 
     async function handleSendMessage(messageText) {
       state.$isSendingMessage.set(true);
+      const stagedReply = state.$stagedReply.get();
       try {
         const facets = await getFacetsFromText(messageText, identityResolver);
         await dataLayer.mutations.createMessage(convoId, {
           text: messageText,
           facets,
+          replyTo: stagedReply ? { messageId: stagedReply.id } : null,
         });
+        state.$stagedReply.set(null);
         await raf();
         await raf();
         scrollToBottom();
       } catch (error) {
         console.error(error);
-        showToast("Failed to send message", { style: "error" });
+        const serverMessage = error?.data?.message ?? error?.message ?? "";
+        const errorMessage = /block between recipient and sender/i.test(
+          serverMessage,
+        )
+          ? "Can't send: block between you and recipient"
+          : "Failed to send message";
+        showToast(errorMessage, { style: "error" });
       } finally {
         state.$isSendingMessage.set(false);
         await raf();
@@ -790,16 +884,27 @@ class ChatDetailView extends View {
             </div>
             ${canReactNow
               ? html`<button
-                  class="message-emoji-trigger"
-                  aria-label="React to message"
-                  data-testid="message-emoji-trigger"
-                  @click=${(e) => {
-                    e.stopPropagation();
-                    handleEmojiTriggerClick(message.id);
-                  }}
-                >
-                  ${emojiIconTemplate()}
-                </button>`
+                    class="message-emoji-trigger"
+                    aria-label="React to message"
+                    data-testid="message-emoji-trigger"
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      handleEmojiTriggerClick(message.id);
+                    }}
+                  >
+                    ${emojiIconTemplate()}
+                  </button>
+                  <button
+                    class="message-more-trigger"
+                    aria-label="Message actions"
+                    data-testid="message-more-trigger"
+                    @click=${(e) => {
+                      e.stopPropagation();
+                      openMessageContextMenu(e, { message });
+                    }}
+                  >
+                    <span>...</span>
+                  </button>`
               : ""}
           </div>
           ${isPaletteOpen
@@ -1023,6 +1128,11 @@ class ChatDetailView extends View {
       const canReactNow = !!convo && convo.status !== "disabled" && !isLocked;
       const convoPermalink = getPermalinkForConvo(convoId);
       const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
+      const stagedReply = state.$stagedReply.get();
+      const stagedReplySenderProfile =
+        stagedReply && stagedReply.sender
+          ? getMemberProfile(convo, stagedReply.sender.did)
+          : null;
       let title = "";
       let subtitle = "";
       if (groupDetails) {
@@ -1117,12 +1227,20 @@ class ChatDetailView extends View {
                           ? "This chat has ended."
                           : "This chat is locked. New messages can't be sent."}
                       </div>`
-                    : html`<chat-input
-                        @send=${(e) => handleSendMessage(e.detail.message)}
-                        @height-change=${handleInputHeightChange}
-                        ?disabled=${!messages || isSendingMessage}
-                        ?loading=${isSendingMessage}
-                      ></chat-input>`}
+                    : html`
+                        ${stagedReply
+                          ? messageReplyPreviewTemplate({
+                              staged: stagedReply,
+                              senderProfile: stagedReplySenderProfile,
+                            })
+                          : ""}
+                        <chat-input
+                          @send=${(e) => handleSendMessage(e.detail.message)}
+                          @height-change=${handleInputHeightChange}
+                          ?disabled=${!messages || isSendingMessage}
+                          ?loading=${isSendingMessage}
+                        ></chat-input>
+                      `}
                 </div>
               </main>
               ${reactionsDialogMessageId
@@ -1208,6 +1326,18 @@ class ChatDetailView extends View {
       }
       // Messages are ordered newest -> oldest
       return otherMessages[0].sentAt;
+    });
+
+    // Clear the staged reply if the conversation becomes locked or disabled
+    // (e.g. a lock-status change arrives while the user is composing).
+    pageEffect(root, () => {
+      if (!state.$stagedReply.get()) return;
+      const convo = dataLayer.derived.$convos.get(convoId);
+      const groupDetails = convo ? getGroupConvoDetails(convo) : null;
+      const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
+      if (isLocked || convo?.status === "disabled") {
+        state.$stagedReply.set(null);
+      }
     });
 
     // Mark messages as read when new messages are loaded

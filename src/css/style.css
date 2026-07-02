@@ -4096,7 +4096,8 @@ image-carousel {
   height: 18px;
 }
 
-.message-emoji-trigger {
+.message-emoji-trigger,
+.message-more-trigger {
   background: transparent;
   border: none;
   padding: 0;
@@ -4120,17 +4121,26 @@ image-carousel {
   height: 20px;
 }
 
-.message-wrapper-active .message-emoji-trigger {
+.message-more-trigger span {
+  font-weight: 600;
+  position: relative;
+  top: -4px;
+}
+
+.message-wrapper-active .message-emoji-trigger,
+.message-wrapper-active .message-more-trigger {
   opacity: 1;
   pointer-events: auto;
 }
 
 @media (hover: hover) {
-  .message:hover .message-emoji-trigger {
+  .message:hover .message-emoji-trigger,
+  .message:hover .message-more-trigger {
     opacity: 1;
     pointer-events: auto;
   }
-  .message-emoji-trigger:hover {
+  .message-emoji-trigger:hover,
+  .message-more-trigger:hover {
     color: var(--text-color);
   }
 }
@@ -4149,10 +4159,63 @@ image-carousel {
 
 .message-input-wrapper {
   display: flex;
+  flex-direction: column;
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
+}
+
+.message-reply-preview {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background-color: var(--background-color);
+  border-top: 1px solid var(--generic-border-color);
+  z-index: var(--message-input-z-index);
+  font-size: 16px;
+}
+
+.message-reply-preview-accent {
+  width: 3px;
+  align-self: stretch;
+  background-color: var(--highlight-color);
+  border-radius: 2px;
+}
+
+.message-reply-preview-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-reply-preview-sender {
+  font-size: 13px;
+  color: var(--text-color-muted);
+  font-weight: 600;
+}
+
+.message-reply-preview-text {
+  font-size: 15px;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.message-reply-preview-text-muted {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.message-reply-preview-clear {
+  background: none;
+  border: none;
+  font-size: 24px;
+  line-height: 1;
+  color: var(--text-color-muted);
+  cursor: pointer;
+  padding: 4px 8px;
 }
 
 .message-input-container {
