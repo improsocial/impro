@@ -317,6 +317,16 @@ main {
   margin: 0 auto;
 }
 
+@media (max-width: 799px) {
+  .view-column-center main {
+    padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+  }
+
+  .view-column-center main.chat-detail-main {
+    padding-bottom: 0;
+  }
+}
+
 .container {
   display: flex;
   margin: 0 auto;
@@ -1508,7 +1518,6 @@ button.sidebar-plugin-nav-item {
   width: 100%;
   max-width: 100%;
   overflow: hidden;
-  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
 
 .feed > div {
@@ -1532,14 +1541,6 @@ button.sidebar-plugin-nav-item {
   background-color: var(--post-border-color);
   transform: scaleY(0.5);
   transform-origin: bottom;
-}
-
-.post-list {
-  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
-}
-
-.post-list > div {
-  border-bottom: var(--hair) solid var(--post-border-color);
 }
 
 .feed-end-message {
@@ -1966,10 +1967,7 @@ container-link {
 
 .post-thread {
   min-height: calc(100dvh - 46px - var(--safe-area-inset-bottom));
-  padding-bottom: calc(
-    var(--footer-height) + var(--safe-area-inset-bottom) +
-      var(--post-thread-reply-prompt-height)
-  );
+  padding-bottom: var(--post-thread-reply-prompt-height);
 }
 
 @media (min-width: 800px) {
@@ -5062,10 +5060,6 @@ emoji-picker-dialog emoji-picker,
   gap: 8px;
 }
 
-.profile-list {
-  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
-}
-
 .profile-list-item {
   display: flex;
   flex-direction: column;
@@ -5293,7 +5287,6 @@ emoji-picker-dialog emoji-picker,
   display: flex;
   flex-direction: column;
   gap: 0;
-  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
 
 .feeds-list-header {
@@ -8909,7 +8902,6 @@ image-cropper {
   list-style: none;
   padding: 0;
   margin: 0;
-  padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));
 }
 
 .plugin-list-loading {
@@ -9138,7 +9130,7 @@ image-cropper {
 
 .plugin-listing-readme {
   border-top: var(--hair) solid var(--post-border-color);
-  padding: 16px 16px calc(var(--footer-height) + var(--safe-area-inset-bottom));
+  padding: 16px;
 }
 
 #settings-community-plugin-listing-view rendered-markdown {
