@@ -4121,6 +4121,11 @@ image-carousel {
   height: 20px;
 }
 
+.message-more-trigger {
+  position: relative;
+  left: -8px;
+}
+
 .message-more-trigger span {
   font-weight: 600;
   position: relative;

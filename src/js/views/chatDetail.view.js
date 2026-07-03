@@ -17,7 +17,13 @@ import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
-import { wait, raf, differenceInMinutes, isMobileViewport } from "/js/utils.js";
+import {
+  wait,
+  raf,
+  differenceInMinutes,
+  isMobileViewport,
+  canHover,
+} from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
@@ -407,7 +413,7 @@ class ChatDetailView extends View {
     }
 
     function handleMessageClick(messageId) {
-      if (!isMobileViewport()) {
+      if (!isMobileViewport() && canHover()) {
         return;
       }
       const current = state.$activeMessageId.get();

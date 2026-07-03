@@ -1553,4 +1553,71 @@ test.describe("Chat detail view", () => {
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });
+
+  test.describe("Tablet (touch, desktop-width viewport)", () => {
+    test.use({
+      hasTouch: true,
+      viewport: { width: 900, height: 1200 },
+    });
+
+    test.beforeEach(async ({ page }) => {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "Hey there!",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+    });
+
+    test("tapping a message reveals the emoji trigger and opens the palette", async ({
+      page,
+    }) => {
+      const chatDetailView = page.locator("#chat-detail-view");
+      const wrapper = chatDetailView.locator(
+        '.message-wrapper[data-message-id="msg-1"]',
+      );
+      await expect(wrapper).toBeVisible({ timeout: 10000 });
+
+      await wrapper.locator(".message-bubble").tap();
+      await expect(wrapper).toHaveClass(/message-wrapper-active/);
+
+      await wrapper.locator('[data-testid="message-emoji-trigger"]').click();
+      await expect(chatDetailView.locator(".reaction-palette")).toBeVisible();
+    });
+
+    test("tapping a message reveals the more trigger and opens the context menu", async ({
+      page,
+    }) => {
+      const chatDetailView = page.locator("#chat-detail-view");
+      const wrapper = chatDetailView.locator(
+        '.message-wrapper[data-message-id="msg-1"]',
+      );
+      await expect(wrapper).toBeVisible({ timeout: 10000 });
+
+      await wrapper.locator(".message-bubble").tap();
+      await expect(wrapper).toHaveClass(/message-wrapper-active/);
+
+      await wrapper.locator('[data-testid="message-more-trigger"]').click();
+      await expect(
+        page.locator('[data-testid="message-action-reply"]'),
+      ).toBeVisible();
+    });
+  });
 });
