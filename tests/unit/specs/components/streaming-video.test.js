@@ -49,6 +49,56 @@ t.describe("StreamingVideo - attributes", (it) => {
     document.body.appendChild(element);
     assertEquals(element.muted, true);
   });
+
+  it("should read loop attribute", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    element.setAttribute("loop", "");
+    document.body.appendChild(element);
+    assertEquals(element.loop, true);
+  });
+
+  it("should read playsinline attribute", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    element.setAttribute("playsinline", "");
+    document.body.appendChild(element);
+    assertEquals(element.playsinline, true);
+  });
+});
+
+t.describe("StreamingVideo - video element attributes", (it) => {
+  it("should not render controls on the video when attribute is absent", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    document.body.appendChild(element);
+    const video = element.querySelector("video");
+    assertEquals(video.controls, false);
+    assert(!video.autoplay);
+    assert(!video.loop);
+  });
+
+  it("should render loop, autoplay, and playsinline on the video when set", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.mp4");
+    element.setAttribute("loop", "");
+    element.setAttribute("autoplay", "");
+    element.setAttribute("playsinline", "");
+    document.body.appendChild(element);
+    const video = element.querySelector("video");
+    assert(video.loop);
+    assert(video.autoplay);
+    assert(video.playsInline);
+  });
+
+  it("should read alt attribute and set aria-label", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.mp4");
+    element.setAttribute("alt", "A funny gif");
+    document.body.appendChild(element);
+    const video = element.querySelector("video");
+    assertEquals(video.getAttribute("aria-label"), "A funny gif");
+  });
 });
 
 t.describe("StreamingVideo - muted state", (it) => {
@@ -115,6 +165,96 @@ t.describe("StreamingVideo - streaming state", (it) => {
 
     // Clean up
     delete window.Hls;
+  });
+
+  it("should append a source element for mp4 sources", async () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test-video.mp4");
+    document.body.appendChild(element);
+
+    await element.enableStreaming();
+
+    const source = element.querySelector("video source");
+    assert(source !== null);
+    assertEquals(source.src.endsWith("test-video.mp4"), true);
+    assertEquals(source.type, "video/mp4");
+  });
+
+  it("should use the webm type for webm sources", async () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test-video.webm");
+    document.body.appendChild(element);
+
+    await element.enableStreaming();
+
+    const source = element.querySelector("video source");
+    assertEquals(source.type, "video/webm");
+  });
+
+  it("should only attach a progressive source once", async () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test-video.mp4");
+    document.body.appendChild(element);
+
+    await element.enableStreaming();
+    await element.enableStreaming();
+
+    const sources = element.querySelectorAll("video source");
+    assertEquals(sources.length, 1);
+  });
+});
+
+t.describe("StreamingVideo - resume autoplay", (it) => {
+  it("should resume a paused autoplay video", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    element.setAttribute("autoplay", "");
+    document.body.appendChild(element);
+
+    const video = element.querySelector("video");
+    let playCalled = false;
+    video.play = () => {
+      playCalled = true;
+      return Promise.resolve();
+    };
+
+    element.resumeAutoplay();
+    assert(playCalled);
+  });
+
+  it("should not resume a video that is already playing", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    element.setAttribute("autoplay", "");
+    document.body.appendChild(element);
+
+    const video = element.querySelector("video");
+    Object.defineProperty(video, "paused", { value: false });
+    let playCalled = false;
+    video.play = () => {
+      playCalled = true;
+      return Promise.resolve();
+    };
+
+    element.resumeAutoplay();
+    assert(!playCalled);
+  });
+
+  it("should not resume a non-autoplay video", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    element.setAttribute("controls", "");
+    document.body.appendChild(element);
+
+    const video = element.querySelector("video");
+    let playCalled = false;
+    video.play = () => {
+      playCalled = true;
+      return Promise.resolve();
+    };
+
+    element.resumeAutoplay();
+    assert(!playCalled);
   });
 });
 
