@@ -200,29 +200,43 @@ class ChatDetailView extends View {
       scroller.scrollTop = scroller.scrollHeight;
     }
 
-    // Scroll to bottom, rescrolling on resize events
+    // Scroll to bottom, re-forcing it every frame for the duration so late
+    // layout shifts (images, fonts, embeds) can't leave the view short
     function pinScrollToBottom({ durationMs = 1000 } = {}) {
       const scroller = getMessageScroller();
       if (!scroller) {
         return;
       }
-      scroller.scrollTop = scroller.scrollHeight;
-      const messageList = scroller.querySelector(".message-list");
-      if (!messageList || typeof ResizeObserver === "undefined") {
-        return;
-      }
-      const observer = new ResizeObserver(() => {
+      let stopped = false;
+      const stop = () => {
+        stopped = true;
+      };
+      const startTime = performance.now();
+      let lastPinnedScrollTop = null;
+      const step = () => {
+        if (stopped) {
+          return;
+        }
+        // If the position moved above where we last pinned it, the user
+        // (or other code) scrolled up - stop fighting them
+        if (
+          lastPinnedScrollTop !== null &&
+          scroller.scrollTop < lastPinnedScrollTop - 1
+        ) {
+          return;
+        }
         scroller.scrollTop = scroller.scrollHeight;
-      });
-      observer.observe(messageList);
-      observer.observe(scroller);
-      const stop = () => observer.disconnect();
+        lastPinnedScrollTop = scroller.scrollTop;
+        if (performance.now() - startTime < durationMs) {
+          requestAnimationFrame(step);
+        }
+      };
+      step();
       scroller.addEventListener("touchmove", stop, {
         once: true,
         passive: true,
       });
       scroller.addEventListener("wheel", stop, { once: true, passive: true });
-      setTimeout(stop, durationMs);
     }
 
     function isScrolledToBottom() {
