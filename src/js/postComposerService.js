@@ -1,4 +1,5 @@
 import "/js/components/post-composer.js";
+import { createEmbedFromPost } from "/js/dataHelpers.js";
 import { showToast } from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
 import { linkToPostFromUri } from "/js/navigation.js";
@@ -39,7 +40,9 @@ export class PostComposerService {
       this.currentPostComposer.identityResolver = this.identityResolver;
       this.currentPostComposer.replyTo = replyTo;
       this.currentPostComposer.replyRoot = replyRoot;
-      this.currentPostComposer.quotedPost = quotedPost;
+      this.currentPostComposer.quotedRecord = quotedPost
+        ? createEmbedFromPost(quotedPost)
+        : null;
       this.currentPostComposer.currentUser = currentUser;
       if (composerInit) {
         this.currentPostComposer.initialText = composerInit.text;
@@ -51,7 +54,7 @@ export class PostComposerService {
           external,
           replyTo,
           replyRoot,
-          quotedPost,
+          quotedRecord,
           images,
           video,
           successCallback,
@@ -63,7 +66,7 @@ export class PostComposerService {
             external,
             replyTo,
             replyRoot,
-            quotedPost,
+            quotedRecord,
             images,
             video,
           });
@@ -91,7 +94,7 @@ export class PostComposerService {
     external,
     replyTo,
     replyRoot,
-    quotedPost,
+    quotedRecord,
     images,
     video,
   }) {
@@ -101,7 +104,7 @@ export class PostComposerService {
         external,
         replyTo,
         replyRoot,
-        quotedPost,
+        quotedRecord,
         images,
         video,
       });

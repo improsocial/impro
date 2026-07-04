@@ -555,7 +555,11 @@ function listTemplate({ list }) {
   </div>`;
 }
 
-function recordEmbedTemplate({ record, lazyLoadImages, isAuthenticated }) {
+export function recordEmbedTemplate({
+  record,
+  lazyLoadImages,
+  isAuthenticated,
+}) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
       if (

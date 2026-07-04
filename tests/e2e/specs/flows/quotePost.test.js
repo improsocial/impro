@@ -40,9 +40,7 @@ test.describe("Quote post flow", () => {
     await richTextInput.type("My take on this post");
 
     // Click Post button
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });
@@ -92,9 +90,7 @@ test.describe("Quote post flow", () => {
     await richTextInput.click();
     await richTextInput.type("Quoting this great post");
 
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
     await expect(composer).not.toBeVisible({ timeout: 10000 });
 
     // Navigate to the original post's Quotes page

@@ -2,7 +2,13 @@ import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { userProfile } from "../../fixtures.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createProfile } from "../../factories.js";
+import {
+  createPost,
+  createProfile,
+  createFeedGenerator,
+  createList,
+  createStarterPack,
+} from "../../factories.js";
 
 test.describe("Create post flow", () => {
   test("should show created post on profile after composing from home", async ({
@@ -31,9 +37,7 @@ test.describe("Create post flow", () => {
     await richTextInput.type(postText);
 
     // Click the Post button
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });
@@ -112,9 +116,7 @@ test.describe("Create post flow", () => {
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();
 
     // Click Post
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });
@@ -176,9 +178,7 @@ test.describe("Create post flow", () => {
     ).toContainText("This is a great article about testing");
 
     // Click Post
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });
@@ -236,9 +236,7 @@ test.describe("Create post flow", () => {
     );
 
     // Click Post
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });
@@ -252,6 +250,154 @@ test.describe("Create post flow", () => {
     );
     await expect(profileView).toContainText("My thoughts:");
     await expect(profileView).toContainText("Original post to be quoted");
+  });
+
+  test("should create post with feed generator embed by pasting feed URL", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addFeedGenerators([
+      createFeedGenerator({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+        displayName: "Cool Feed",
+        creatorHandle: "creator1.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type(
+      "Try this: https://bsky.app/profile/creator1.bsky.social/feed/cool-feed ",
+    );
+
+    await expect(composer.locator(".feed-generator-embed")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(composer.locator(".feed-generator-embed")).toContainText(
+      "Cool Feed",
+    );
+
+    await composer.locator('[data-testid="composer-submit-button"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    await expect(profileView.locator('[data-testid="feed-item"]')).toHaveCount(
+      1,
+      { timeout: 10000 },
+    );
+    await expect(profileView).toContainText("Try this:");
+    await expect(profileView.locator(".feed-generator-embed")).toContainText(
+      "Cool Feed",
+    );
+  });
+
+  test("should create post with list embed by pasting list URL", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addLists([
+      createList({
+        uri: "at://did:plc:creator1/app.bsky.graph.list/cool-list",
+        name: "Cool List",
+        creatorHandle: "creator1.bsky.social",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type(
+      "Follow these folks: https://bsky.app/profile/creator1.bsky.social/lists/cool-list ",
+    );
+
+    await expect(composer.locator(".list-embed")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(composer.locator(".list-embed")).toContainText("Cool List");
+
+    await composer.locator('[data-testid="composer-submit-button"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    await expect(profileView.locator('[data-testid="feed-item"]')).toHaveCount(
+      1,
+      { timeout: 10000 },
+    );
+    await expect(profileView.locator(".list-embed")).toContainText("Cool List");
+  });
+
+  test("should create post with starter pack embed by pasting starter pack URL", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addStarterPacks([
+      createStarterPack({
+        uri: "at://did:plc:creator1/app.bsky.graph.starterpack/cool-pack",
+        name: "Cool Pack",
+        creatorHandle: "creator1.bsky.social",
+        description: "People to follow",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    await expect(homeView).toBeVisible({ timeout: 10000 });
+    await page.locator('[data-testid="sidebar-compose-button"]').click();
+
+    const composer = page.locator("post-composer .post-composer");
+    await expect(composer).toBeVisible({ timeout: 10000 });
+
+    const richTextInput = composer.locator(".rich-text-input");
+    await richTextInput.click();
+    await richTextInput.type(
+      "Great starting point: https://bsky.app/starter-pack/creator1.bsky.social/cool-pack ",
+    );
+
+    await expect(composer.locator(".starter-pack-embed")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(composer.locator(".starter-pack-embed")).toContainText(
+      "Cool Pack",
+    );
+
+    await composer.locator('[data-testid="composer-submit-button"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
+
+    await page.goto(`/profile/${userProfile.did}`);
+    const profileView = page.locator("#profile-view");
+    await expect(profileView.locator('[data-testid="feed-item"]')).toHaveCount(
+      1,
+      { timeout: 10000 },
+    );
+    await expect(profileView.locator(".starter-pack-embed")).toContainText(
+      "Cool Pack",
+    );
   });
 
   test("should create post with mention and hashtag facet resolution", async ({
@@ -305,9 +451,7 @@ test.describe("Create post flow", () => {
     await page.keyboard.type(" loves #testing ");
 
     // Click Post
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Wait for the composer to close
     await expect(composer).not.toBeVisible({ timeout: 10000 });

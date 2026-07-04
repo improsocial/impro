@@ -222,6 +222,36 @@ export function createList({
   };
 }
 
+export function createStarterPack({ uri, name, creatorHandle, description }) {
+  const creatorDid = uri.split("/")[2];
+  const rkey = uri.split("/").pop();
+  return {
+    uri,
+    cid: "bafyreitest" + rkey,
+    record: {
+      $type: "app.bsky.graph.starterpack",
+      name,
+      description: description || "",
+      list: `at://${creatorDid}/app.bsky.graph.list/${rkey}`,
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    creator: {
+      did: creatorDid,
+      handle: creatorHandle,
+      displayName: creatorHandle.split(".")[0],
+      avatar: "",
+      viewer: { muted: false, blockedBy: false },
+      labels: [],
+      createdAt: "2025-01-01T00:00:00.000Z",
+    },
+    listItemCount: 3,
+    joinedWeekCount: 0,
+    joinedAllTimeCount: 0,
+    indexedAt: "2025-01-01T00:00:00.000Z",
+    labels: [],
+  };
+}
+
 export function createNotification({
   reason,
   author,

@@ -564,9 +564,7 @@ test.describe("Post thread view", () => {
       .fill("My reply text");
 
     // Click the Reply button to send
-    await composer
-      .locator("button.rounded-button-primary", { hasText: "Reply" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // The composer should close and the reply should appear in the thread
     await expect(composer.locator("dialog")).not.toBeVisible({

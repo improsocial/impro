@@ -961,7 +961,7 @@ export class Mutations {
     external,
     replyTo,
     replyRoot,
-    quotedPost,
+    quotedRecord,
     images,
     video,
   }) {
@@ -970,7 +970,7 @@ export class Mutations {
       external,
       replyTo,
       replyRoot,
-      quotedPost,
+      quotedRecord,
       images,
       video,
     });

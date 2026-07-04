@@ -94,6 +94,18 @@ export class Declarative {
     return list;
   }
 
+  async ensureStarterPack(starterPackUri) {
+    let starterPack = this.derived.$starterPacks.get(starterPackUri);
+    if (!starterPack) {
+      await this.requests.loadStarterPack(starterPackUri);
+      starterPack = this.derived.$starterPacks.get(starterPackUri);
+    }
+    if (!starterPack) {
+      throw new Error("Starter pack not found");
+    }
+    return starterPack;
+  }
+
   async ensurePinnedItems() {
     let pinnedItems = this.derived.$hydratedPinnedItems.get();
     if (!pinnedItems) {

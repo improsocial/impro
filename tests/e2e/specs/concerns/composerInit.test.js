@@ -96,9 +96,7 @@ test.describe("Composer init plugin flow", () => {
     await richTextInput.click();
     await page.keyboard.type("Hello world");
 
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     await expect(composer).not.toBeVisible({ timeout: 10000 });
 

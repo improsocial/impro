@@ -829,4 +829,61 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
   });
 });
 
+t.describe("postEmbedTemplate - record embeds", (it) => {
+  it("renders a feed generator embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#generatorView",
+        uri: "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
+        cid: "feedcid",
+        displayName: "Cool Feed",
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".feed-generator-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool Feed"));
+    assert(card.textContent.includes("@creator.bsky.social"));
+  });
+
+  it("renders a list embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.graph.defs#listView",
+        uri: "at://did:plc:creator/app.bsky.graph.list/cool-list",
+        cid: "listcid",
+        name: "Cool List",
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".list-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool List"));
+    assert(card.textContent.includes("@creator.bsky.social"));
+  });
+
+  it("renders a starter pack embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.graph.defs#starterPackViewBasic",
+        uri: "at://did:plc:creator/app.bsky.graph.starterpack/cool-pack",
+        cid: "packcid",
+        record: {
+          name: "Cool Pack",
+          description: "People to follow",
+        },
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".starter-pack-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool Pack"));
+    assert(card.textContent.includes("People to follow"));
+    assert(card.textContent.includes("@creator.bsky.social"));
+  });
+});
+
 await t.run();

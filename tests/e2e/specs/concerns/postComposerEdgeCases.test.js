@@ -34,9 +34,9 @@ test.describe("Post Composer Edge Cases", () => {
     const contentEditable = composer.locator(
       "rich-text-input [contenteditable]",
     );
-    const postButton = composer.locator(".rounded-button-primary", {
-      hasText: "Post",
-    });
+    const postButton = composer.locator(
+      '[data-testid="composer-submit-button"]',
+    );
     const wordCount = composer.locator(".word-count");
     const wordCountText = composer.locator(".word-count-text");
 
@@ -220,9 +220,11 @@ test.describe("Post Composer Edge Cases", () => {
     await expect(replyContext).toContainText("This is the parent post content");
     await expect(replyContext).toContainText("Author One");
 
-    // Verify the submit button says "Reply" not "Post"
+    // Verify the submit button is in its reply state, not post state
     await expect(
-      composer.locator("button.rounded-button-primary", { hasText: "Reply" }),
+      composer.locator(
+        '[data-testid="composer-submit-button"][data-teststate="reply"]',
+      ),
     ).toBeVisible();
 
     // Verify placeholder says "Write your reply"
@@ -264,9 +266,7 @@ test.describe("Post Composer Edge Cases", () => {
     await richTextInput.type("This post will fail to send");
 
     // Click Post
-    await composer
-      .locator(".rounded-button-primary", { hasText: "Post" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // Verify error toast appears
     const errorToast = page.locator('[data-testid="toast"].error');

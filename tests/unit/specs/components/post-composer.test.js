@@ -631,8 +631,8 @@ t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
     const element = createPostComposer();
     connectElement(element);
     let loadedQuoteUrl = null;
-    element.loadQuotedPostFromLink = () => {
-      loadedQuoteUrl = element._quotedPostUrl;
+    element.loadQuotedRecordFromLink = () => {
+      loadedQuoteUrl = element._quotedRecordUrl;
     };
     element._unresolvedFacets = [
       makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
@@ -650,10 +650,10 @@ t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
     const element = createPostComposer();
     connectElement(element);
     let loadCalled = false;
-    element.loadQuotedPostFromLink = () => {
+    element.loadQuotedRecordFromLink = () => {
       loadCalled = true;
     };
-    element._quotedPostUrl = "https://bsky.app/profile/bob.test/post/3xyz";
+    element._quotedRecordUrl = "https://bsky.app/profile/bob.test/post/3xyz";
     element._unresolvedFacets = [
       makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
     ];
@@ -661,11 +661,306 @@ t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     assert(!loadCalled);
     assertEquals(
-      element._quotedPostUrl,
+      element._quotedRecordUrl,
       "https://bsky.app/profile/bob.test/post/3xyz",
     );
   });
 });
+
+t.describe(
+  "PostComposer - record link embeds",
+  (it, { beforeEach, afterEach }) => {
+    let element;
+
+    beforeEach(() => {
+      globalThis.fetch = () => Promise.resolve({ ok: false });
+      element = createPostComposer();
+      element.identityResolver = {
+        resolveHandle: async () => "did:plc:creator1",
+      };
+      element.dataLayer = {
+        declarative: {
+          ensureFeedGenerator: async (uri) => ({
+            uri,
+            cid: "feedcid",
+            displayName: "Cool Feed",
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ensureList: async (uri) => ({
+            uri,
+            cid: "listcid",
+            name: "Cool List",
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ensureStarterPack: async (uri) => ({
+            $type: "app.bsky.graph.defs#starterPackView",
+            uri,
+            cid: "packcid",
+            record: { name: "Cool Pack", description: "People to follow" },
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ensurePost: async (uri) => ({
+            uri,
+            cid: "postcid",
+            author: {
+              did: "did:plc:creator1",
+              handle: "creator1.test",
+              displayName: "Creator One",
+              avatar: null,
+            },
+            record: {
+              text: "Original post",
+              createdAt: "2025-01-01T00:00:00Z",
+            },
+            indexedAt: "2025-01-01T00:00:00.000Z",
+            labels: [],
+          }),
+        },
+      };
+      connectElement(element);
+    });
+
+    afterEach(() => {
+      delete globalThis.fetch;
+    });
+
+    function inputLink(url) {
+      const facet = makeLinkFacet(url);
+      element._unresolvedFacets = [facet];
+      element.handleInput({
+        detail: { text: `check ${url} `, facets: [facet] },
+      });
+      return new Promise((resolve) => setTimeout(resolve, 0));
+    }
+
+    it("preserves quotedRecord set before connectedCallback and renders its preview", () => {
+      const preSeeded = document.createElement("post-composer");
+      preSeeded.currentUser = element.currentUser;
+      preSeeded.quotedRecord = {
+        $type: "app.bsky.feed.defs#generatorView",
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+        cid: "feedcid",
+        displayName: "Cool Feed",
+        creator: { did: "did:plc:creator1", handle: "creator1.test" },
+      };
+      connectElement(preSeeded);
+      assertEquals(
+        preSeeded.quotedRecord.$type,
+        "app.bsky.feed.defs#generatorView",
+      );
+      assert(
+        preSeeded.querySelector(
+          ".post-composer-embed-preview .feed-generator-embed",
+        ) !== null,
+      );
+    });
+
+    it("attaches a quoted post embed from a pasted post URL", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/post/3abc");
+      assertEquals(
+        element.quotedRecord.$type,
+        "app.bsky.embed.record#viewRecord",
+      );
+      assertEquals(
+        element.quotedRecord.uri,
+        "at://did:plc:creator1/app.bsky.feed.post/3abc",
+      );
+      assert(
+        element.querySelector(".post-composer-embed-preview .quoted-post") !==
+          null,
+      );
+    });
+
+    it("resolves DID-form URLs without handle resolution", async () => {
+      element.identityResolver = {
+        resolveHandle: async () => {
+          throw new Error("should not be called");
+        },
+      };
+      await inputLink(
+        "https://bsky.app/profile/did:plc:creator1/feed/cool-feed",
+      );
+      assertEquals(
+        element.quotedRecord.uri,
+        "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+      );
+    });
+
+    it("attaches a feed generator embed from a pasted feed URL", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      assertEquals(
+        element.quotedRecord.$type,
+        "app.bsky.feed.defs#generatorView",
+      );
+      assertEquals(
+        element.quotedRecord.uri,
+        "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+      );
+      assert(
+        element.querySelector(
+          ".post-composer-embed-preview .feed-generator-embed",
+        ) !== null,
+      );
+      assertEquals(element._externalLinkUrl, null);
+    });
+
+    it("attaches a list embed from a pasted list URL", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
+      assertEquals(element.quotedRecord.$type, "app.bsky.graph.defs#listView");
+      assertEquals(
+        element.quotedRecord.uri,
+        "at://did:plc:creator1/app.bsky.graph.list/cool-list",
+      );
+      assert(
+        element.querySelector(".post-composer-embed-preview .list-embed") !==
+          null,
+      );
+    });
+
+    it("attaches a starter pack embed from a bsky.app starter-pack URL", async () => {
+      await inputLink("https://bsky.app/starter-pack/creator1.test/cool-pack");
+      assertEquals(
+        element.quotedRecord.$type,
+        "app.bsky.graph.defs#starterPackViewBasic",
+      );
+      assertEquals(
+        element.quotedRecord.uri,
+        "at://did:plc:creator1/app.bsky.graph.starterpack/cool-pack",
+      );
+      assert(
+        element.querySelector(
+          ".post-composer-embed-preview .starter-pack-embed",
+        ) !== null,
+      );
+    });
+
+    it("attaches a starter pack embed from a profile starter-pack URL", async () => {
+      await inputLink(
+        "https://bsky.app/profile/creator1.test/starter-pack/cool-pack",
+      );
+      assertEquals(
+        element.quotedRecord.$type,
+        "app.bsky.graph.defs#starterPackViewBasic",
+      );
+    });
+
+    it("treats unrecognized in-app URLs as external links", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/follows");
+      assertEquals(element.quotedRecord, null);
+      assertEquals(
+        element._externalLinkUrl,
+        "https://bsky.app/profile/creator1.test/follows",
+      );
+    });
+
+    it("does not attach a second record embed when one is attached", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
+      assertEquals(
+        element.quotedRecord.$type,
+        "app.bsky.feed.defs#generatorView",
+      );
+      assertEquals(
+        element._quotedRecordUrl,
+        "https://bsky.app/profile/creator1.test/feed/cool-feed",
+      );
+    });
+
+    it("does not start a second record load while one is pending", async () => {
+      let feedLoadCount = 0;
+      let listLoadCount = 0;
+      element.dataLayer.declarative.ensureFeedGenerator = () => {
+        feedLoadCount++;
+        return new Promise(() => {});
+      };
+      element.dataLayer.declarative.ensureList = () => {
+        listLoadCount++;
+        return new Promise(() => {});
+      };
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
+      assertEquals(feedLoadCount, 1);
+      assertEquals(listLoadCount, 0);
+      assertEquals(
+        element._quotedRecordUrl,
+        "https://bsky.app/profile/creator1.test/feed/cool-feed",
+      );
+      assertEquals(element.quotedRecord, null);
+    });
+
+    it("ignores a record load that resolves after the embed was cleared", async () => {
+      let resolveLoad = null;
+      element.dataLayer.declarative.ensureFeedGenerator = () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        });
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      element.handleQuotedEmbedPreviewClose();
+      resolveLoad({
+        uri: "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+        cid: "feedcid",
+        displayName: "Cool Feed",
+        creator: { did: "did:plc:creator1", handle: "creator1.test" },
+      });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      assertEquals(element.quotedRecord, null);
+      assertEquals(element.querySelector(".post-composer-embed-preview"), null);
+    });
+
+    it("rejects the URL when the record fails to load", async () => {
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        element.dataLayer.declarative.ensureFeedGenerator = async () => {
+          throw new Error("not found");
+        };
+        const url = "https://bsky.app/profile/creator1.test/feed/cool-feed";
+        await inputLink(url);
+        assertEquals(element.quotedRecord, null);
+        assertEquals(element._quotedRecordUrl, null);
+        assert(element._rejectedLinkEmbeds.has(url));
+      } finally {
+        console.error = originalError;
+      }
+    });
+
+    it("clears the record embed when the preview is closed", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      element.handleQuotedEmbedPreviewClose();
+      assertEquals(element.quotedRecord, null);
+      assertEquals(element._quotedRecordUrl, null);
+      assertEquals(element.querySelector(".post-composer-embed-preview"), null);
+    });
+
+    it("sends the record embed as quotedRecord", async () => {
+      await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
+      element._postText = "check this feed";
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      element.send();
+      assertEquals(receivedDetail.quotedRecord, element.quotedRecord);
+    });
+
+    it("attaches a record embed instead of an external link when pasted", async () => {
+      let loadedRecordUrl = null;
+      element.loadQuotedRecordFromLink = () => {
+        loadedRecordUrl = element._quotedRecordUrl;
+      };
+      element._unresolvedFacets = [
+        makeLinkFacet("https://bsky.app/profile/creator1.test/feed/cool-feed"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assertEquals(
+        loadedRecordUrl,
+        "https://bsky.app/profile/creator1.test/feed/cool-feed",
+      );
+      assertEquals(element._externalLinkUrl, null);
+    });
+  },
+);
 
 t.describe("PostComposer - addMediaFiles", (it) => {
   it("routes image files to addImageFiles", async () => {

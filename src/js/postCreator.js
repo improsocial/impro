@@ -28,7 +28,7 @@ export class PostCreator {
     external,
     replyTo,
     replyRoot,
-    quotedPost,
+    quotedRecord,
     images,
     video,
   }) {
@@ -56,13 +56,13 @@ export class PostCreator {
     // Build embed(s)
     let embed = null;
 
-    let quotedPostEmbed = null;
-    if (quotedPost) {
-      quotedPostEmbed = {
+    let quotedRecordEmbed = null;
+    if (quotedRecord) {
+      quotedRecordEmbed = {
         $type: "app.bsky.embed.record",
         record: {
-          uri: quotedPost.uri,
-          cid: quotedPost.cid,
+          uri: quotedRecord.uri,
+          cid: quotedRecord.cid,
         },
       };
     }
@@ -70,16 +70,16 @@ export class PostCreator {
     // Prioritize video > images > external link (these are mutually exclusive)
     const mediaEmbed = videoEmbed || imagesEmbed || externalEmbed;
 
-    if (mediaEmbed && quotedPostEmbed) {
+    if (mediaEmbed && quotedRecordEmbed) {
       embed = {
         $type: "app.bsky.embed.recordWithMedia",
         media: mediaEmbed,
-        record: quotedPostEmbed,
+        record: quotedRecordEmbed,
       };
     } else if (mediaEmbed) {
       embed = mediaEmbed;
-    } else if (quotedPostEmbed) {
-      embed = quotedPostEmbed;
+    } else if (quotedRecordEmbed) {
+      embed = quotedRecordEmbed;
     }
 
     const res = await this.api.createPost({

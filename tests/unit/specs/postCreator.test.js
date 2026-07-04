@@ -171,13 +171,31 @@ t.describe("createPost embed selection", (it) => {
     assertEquals(api.lastEmbed.$type, "app.bsky.embed.video");
   });
 
-  it("wraps video in recordWithMedia when there is a quoted post", async () => {
+  it("builds a bare record embed from any quoted record's uri and cid", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    await pc.createPost({
+      postText: "hi",
+      quotedRecord: {
+        uri: "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
+        cid: "feedcid",
+      },
+    });
+    assertEquals(api.lastEmbed.$type, "app.bsky.embed.record");
+    assertEquals(
+      api.lastEmbed.record.uri,
+      "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
+    );
+    assertEquals(api.lastEmbed.record.cid, "feedcid");
+  });
+
+  it("wraps video in recordWithMedia when there is a quoted record", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({
       postText: "hi",
       video: videoFixture(),
-      quotedPost: { uri: "at://x", cid: "c" },
+      quotedRecord: { uri: "at://x", cid: "c" },
     });
     assertEquals(api.lastEmbed.$type, "app.bsky.embed.recordWithMedia");
     assertEquals(api.lastEmbed.media.$type, "app.bsky.embed.video");

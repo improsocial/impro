@@ -1066,6 +1066,11 @@ export class Requests {
     this.dataStore.$lists.set(listUri, data.list);
   }
 
+  async loadStarterPack(starterPackUri) {
+    const starterPack = await this.api.getStarterPack(starterPackUri);
+    this.dataStore.$starterPacks.set(starterPackUri, starterPack);
+  }
+
   async loadListMembers(listUri, { reload = false, limit = 50 } = {}) {
     const existing = this.dataStore.$listMembers.get(listUri);
     let cursor = existing ? existing.cursor : "";

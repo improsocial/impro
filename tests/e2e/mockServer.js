@@ -39,6 +39,7 @@ export class MockServer {
     this.pinnedFeedUris = [];
     this.pinnedListUris = [];
     this.lists = [];
+    this.starterPacks = [];
     this.listMembers = new Map();
     this.currentUserListItems = [];
     this.posts = [];
@@ -118,6 +119,10 @@ export class MockServer {
 
   addLists(lists) {
     this.lists.push(...lists);
+  }
+
+  addStarterPacks(starterPacks) {
+    this.starterPacks.push(...starterPacks);
   }
 
   addListMembers(listUri, profiles) {
@@ -1319,6 +1324,29 @@ export class MockServer {
       });
     });
 
+    await page.route("https://ogcard.cdn.bsky.app/**", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.graph.getStarterPack?*", (route) => {
+      const url = new URL(route.request().url());
+      const starterPackUri = url.searchParams.get("starterPack");
+      const starterPack =
+        this.starterPacks.find((s) => s.uri === starterPackUri) || {};
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ starterPack }),
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.graph.getLists*", (route) => {
       const url = new URL(route.request().url());
       const actor = url.searchParams.get("actor") || "";
@@ -1595,6 +1623,9 @@ export class MockServer {
         (g) => g.creator.handle === handle,
       );
       const list = this.lists.find((l) => l.creator?.handle === handle);
+      const starterPack = this.starterPacks.find(
+        (s) => s.creator?.handle === handle,
+      );
       const profileEntry = [...this.profiles.values()].find(
         (p) => p.handle === handle,
       );
@@ -1602,6 +1633,7 @@ export class MockServer {
         postAuthor?.did ||
         generator?.creator?.did ||
         list?.creator?.did ||
+        starterPack?.creator?.did ||
         profileEntry?.did;
       if (!did) {
         return route.fulfill({
@@ -1807,15 +1839,25 @@ export class MockServer {
             },
           };
         } else if (recordEmbed?.$type === "app.bsky.embed.record") {
-          quotedPostUri = recordEmbed.record.uri;
+          const quotedRecordUri = recordEmbed.record.uri;
           const allQuotePosts = [
             ...this.timelinePosts,
             ...this.bookmarks,
             ...this.searchPosts,
             ...this.posts,
           ];
-          const quotedPost = allQuotePosts.find((p) => p.uri === quotedPostUri);
+          const quotedPost = allQuotePosts.find(
+            (p) => p.uri === quotedRecordUri,
+          );
+          const quotedGenerator = this.feedGenerators.find(
+            (g) => g.uri === quotedRecordUri,
+          );
+          const quotedList = this.lists.find((l) => l.uri === quotedRecordUri);
+          const quotedStarterPack = this.starterPacks.find(
+            (s) => s.uri === quotedRecordUri,
+          );
           if (quotedPost) {
+            quotedPostUri = quotedRecordUri;
             embed = {
               $type: "app.bsky.embed.record#view",
               record: {
@@ -1830,6 +1872,30 @@ export class MockServer {
               },
             };
             quotedPost.quoteCount = (quotedPost.quoteCount || 0) + 1;
+          } else if (quotedGenerator) {
+            embed = {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                $type: "app.bsky.feed.defs#generatorView",
+                ...quotedGenerator,
+              },
+            };
+          } else if (quotedList) {
+            embed = {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                $type: "app.bsky.graph.defs#listView",
+                ...quotedList,
+              },
+            };
+          } else if (quotedStarterPack) {
+            embed = {
+              $type: "app.bsky.embed.record#view",
+              record: {
+                $type: "app.bsky.graph.defs#starterPackViewBasic",
+                ...quotedStarterPack,
+              },
+            };
           }
         }
 

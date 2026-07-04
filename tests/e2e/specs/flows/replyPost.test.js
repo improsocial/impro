@@ -49,9 +49,7 @@ test.describe("Reply flow", () => {
       .fill("My reply to the thread");
 
     // Click the Reply button to send
-    await composer
-      .locator("button.rounded-button-primary", { hasText: "Reply" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     // The composer should close and the reply should appear in the thread
     await expect(composer.locator("dialog")).not.toBeVisible({
@@ -103,9 +101,7 @@ test.describe("Reply flow", () => {
       .locator("rich-text-input [contenteditable]")
       .fill("Another reply");
 
-    await composer
-      .locator("button.rounded-button-primary", { hasText: "Reply" })
-      .click();
+    await composer.locator('[data-testid="composer-submit-button"]').click();
 
     await expect(composer.locator("dialog")).not.toBeVisible({
       timeout: 10000,
