@@ -327,6 +327,16 @@ export class Api {
     return res.data.feeds;
   }
 
+  async getStarterPack(starterPackURI) {
+    const res = await this.request(`app.bsky.graph.getStarterPack`, {
+      query: { starterPack: starterPackURI },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data.starterPack;
+  }
+
   async getList(listURI, { limit = 1, cursor = "" } = {}) {
     const query = { list: listURI, limit };
     if (cursor) {

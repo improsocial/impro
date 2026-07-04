@@ -241,6 +241,9 @@ export class Derived extends ReactiveStore {
     this.$lists = new ComputedMap((listUri) =>
       this.dataStore.$lists.get(listUri),
     );
+    this.$starterPacks = new ComputedMap((starterPackUri) =>
+      this.dataStore.$starterPacks.get(starterPackUri),
+    );
     this.$listMembers = new ComputedMap((listUri) => {
       const data = this.dataStore.$listMembers.get(listUri);
       if (!data) return data;

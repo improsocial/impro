@@ -374,6 +374,176 @@ t.describe("postEmbedTemplate - external links", (it) => {
   });
 });
 
+t.describe("postEmbedTemplate - external YouTube", (it) => {
+  function youtubeExternalEmbed(uri) {
+    return {
+      $type: "app.bsky.embed.external#view",
+      external: {
+        uri,
+        title: "A video",
+        description: "A description",
+        thumb: "https://example.com/thumb.jpg",
+      },
+    };
+  }
+
+  it("renders a youtube-embed for a watch URL", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=32s"),
+    );
+    const embedElement = container.querySelector(
+      "[data-testid='youtube-embed']",
+    );
+    assert(embedElement !== null);
+    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assertEquals(embedElement.getAttribute("start"), "32");
+    assertEquals(
+      embedElement.getAttribute("thumb"),
+      "https://example.com/thumb.jpg",
+    );
+    assertEquals(
+      container.querySelector("[data-testid='external-link']"),
+      null,
+    );
+  });
+
+  it("uses a 16:9 aspect ratio for regular videos", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed("https://www.youtube.com/watch?v=dQw4w9WgXcQ"),
+    );
+    const embedElement = container.querySelector(
+      "[data-testid='youtube-embed']",
+    );
+    assertEquals(embedElement.style.aspectRatio, String(16 / 9));
+  });
+
+  it("uses a portrait aspect ratio for shorts", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed("https://youtube.com/shorts/dQw4w9WgXcQ"),
+    );
+    const embedElement = container.querySelector(
+      "[data-testid='youtube-embed']",
+    );
+    assertEquals(embedElement.style.aspectRatio, String(9 / 16));
+  });
+
+  it("renders watch URLs on all YouTube hostnames", () => {
+    const hostnames = [
+      "www.youtube.com",
+      "youtube.com",
+      "m.youtube.com",
+      "music.youtube.com",
+    ];
+    for (const hostname of hostnames) {
+      const container = renderEmbed(
+        youtubeExternalEmbed(`https://${hostname}/watch?v=dQw4w9WgXcQ`),
+      );
+      const embedElement = container.querySelector(
+        "[data-testid='youtube-embed']",
+      );
+      assert(embedElement !== null);
+      assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    }
+  });
+
+  it("renders youtu.be links", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed("https://youtu.be/dQw4w9WgXcQ"),
+    );
+    const embedElement = container.querySelector(
+      "[data-testid='youtube-embed']",
+    );
+    assert(embedElement !== null);
+    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assertEquals(embedElement.getAttribute("start"), "0");
+  });
+
+  it("renders live URLs as regular videos", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed("https://youtube.com/live/dQw4w9WgXcQ"),
+    );
+    const embedElement = container.querySelector(
+      "[data-testid='youtube-embed']",
+    );
+    assert(embedElement !== null);
+    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assertEquals(embedElement.style.aspectRatio, String(16 / 9));
+  });
+
+  it("converts hour/minute/second start times to seconds", () => {
+    const cases = [
+      ["1m30s", "90"],
+      ["1h2m3s", "3723"],
+      ["1h", "3600"],
+      ["45s", "45"],
+    ];
+    for (const [rawStartTime, expectedSeconds] of cases) {
+      const container = renderEmbed(
+        youtubeExternalEmbed(`https://youtu.be/dQw4w9WgXcQ?t=${rawStartTime}`),
+      );
+      const embedElement = container.querySelector(
+        "[data-testid='youtube-embed']",
+      );
+      assertEquals(embedElement.getAttribute("start"), expectedSeconds);
+    }
+  });
+
+  it("degrades unparseable start times to 0", () => {
+    for (const rawStartTime of ["abc", "1x30s", "m"]) {
+      const container = renderEmbed(
+        youtubeExternalEmbed(`https://youtu.be/dQw4w9WgXcQ?t=${rawStartTime}`),
+      );
+      const embedElement = container.querySelector(
+        "[data-testid='youtube-embed']",
+      );
+      assertEquals(embedElement.getAttribute("start"), "0");
+    }
+  });
+
+  it("falls back to the external link card for non-video YouTube URLs", () => {
+    const uris = [
+      "https://youtube.com/",
+      "https://youtube.com/shorts/",
+      "https://youtube.com/live/",
+      "https://youtube.com/random",
+    ];
+    for (const uri of uris) {
+      const container = renderEmbed(youtubeExternalEmbed(uri));
+      assert(container.querySelector("[data-testid='external-link']") !== null);
+      assertEquals(
+        container.querySelector("[data-testid='youtube-embed']"),
+        null,
+      );
+    }
+  });
+
+  it("falls back to the external link card for non-YouTube and spoofed hosts", () => {
+    const uris = [
+      "https://example.com/watch?v=dQw4w9WgXcQ",
+      "https://youtube.com.evil.com/watch?v=dQw4w9WgXcQ",
+    ];
+    for (const uri of uris) {
+      const container = renderEmbed(youtubeExternalEmbed(uri));
+      assert(container.querySelector("[data-testid='external-link']") !== null);
+      assertEquals(
+        container.querySelector("[data-testid='youtube-embed']"),
+        null,
+      );
+    }
+  });
+
+  it("falls back to the external link card for video ids with illegal characters", () => {
+    const container = renderEmbed(
+      youtubeExternalEmbed('https://www.youtube.com/watch?v=abc"def'),
+    );
+    assert(container.querySelector("[data-testid='external-link']") !== null);
+    assertEquals(
+      container.querySelector("[data-testid='youtube-embed']"),
+      null,
+    );
+  });
+});
+
 t.describe("postEmbedTemplate - quoted posts", (it) => {
   it("should render quoted post embed", () => {
     const embed = {
@@ -656,6 +826,63 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     assert(link !== null);
     assert(link.textContent.endsWith("..."));
     assert(link.textContent.length < url.length);
+  });
+});
+
+t.describe("postEmbedTemplate - record embeds", (it) => {
+  it("renders a feed generator embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.feed.defs#generatorView",
+        uri: "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
+        cid: "feedcid",
+        displayName: "Cool Feed",
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".feed-generator-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool Feed"));
+    assert(card.textContent.includes("@creator.bsky.social"));
+  });
+
+  it("renders a list embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.graph.defs#listView",
+        uri: "at://did:plc:creator/app.bsky.graph.list/cool-list",
+        cid: "listcid",
+        name: "Cool List",
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".list-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool List"));
+    assert(card.textContent.includes("@creator.bsky.social"));
+  });
+
+  it("renders a starter pack embed", () => {
+    const container = renderEmbed({
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.graph.defs#starterPackViewBasic",
+        uri: "at://did:plc:creator/app.bsky.graph.starterpack/cool-pack",
+        cid: "packcid",
+        record: {
+          name: "Cool Pack",
+          description: "People to follow",
+        },
+        creator: { did: "did:plc:creator", handle: "creator.bsky.social" },
+      },
+    });
+    const card = container.querySelector(".starter-pack-embed");
+    assert(card !== null);
+    assert(card.textContent.includes("Cool Pack"));
+    assert(card.textContent.includes("People to follow"));
+    assert(card.textContent.includes("@creator.bsky.social"));
   });
 });
 

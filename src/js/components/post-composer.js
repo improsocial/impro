@@ -24,25 +24,51 @@ import {
   VideoValidationError,
 } from "/js/videoUtils.js";
 import { IN_APP_LINK_DOMAINS, LINK_CARD_SERVICE_URL } from "/js/config.js";
-import { quotedPostTemplate } from "/js/templates/postEmbed.template.js";
+import { recordEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { createEmbedFromPost } from "/js/dataHelpers.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
 
 // e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
-const QUOTE_POST_PATHNAME_PATTERN =
-  /^\/profile\/[a-zA-Z0-9.-]+\/post\/[a-zA-Z0-9.-]+$/;
+const RECORD_LINK_PATTERNS = [
+  {
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/post\/([a-zA-Z0-9.-]+)$/,
+    collection: "app.bsky.feed.post",
+  },
+  {
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/feed\/([a-zA-Z0-9.-]+)$/,
+    collection: "app.bsky.feed.generator",
+  },
+  {
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/lists\/([a-zA-Z0-9.-]+)$/,
+    collection: "app.bsky.graph.list",
+  },
+  {
+    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/starter-pack\/([a-zA-Z0-9.-]+)$/,
+    collection: "app.bsky.graph.starterpack",
+  },
+  {
+    pattern: /^\/starter-pack\/([a-zA-Z0-9:.-]+)\/([a-zA-Z0-9.-]+)$/,
+    collection: "app.bsky.graph.starterpack",
+  },
+];
 
-function isQuotePostLink(url) {
+function parseRecordLink(url) {
   try {
     const parsedUrl = new URL(url);
-    return (
-      IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname) &&
-      QUOTE_POST_PATHNAME_PATTERN.test(parsedUrl.pathname)
-    );
+    if (!IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
+      return null;
+    }
+    for (const { pattern, collection } of RECORD_LINK_PATTERNS) {
+      const match = pattern.exec(parsedUrl.pathname);
+      if (match) {
+        return { collection, didOrHandle: match[1], rkey: match[2] };
+      }
+    }
+    return null;
   } catch (error) {
-    return false;
+    return null;
   }
 }
 
@@ -197,7 +223,8 @@ class PostComposer extends Component {
     this.initialCursor = this.initialCursor ?? null;
     this._isSending = false;
     this._unresolvedFacets = [];
-    this._quotedPostUrl = null;
+    this._quotedRecordUrl = null;
+    this.quotedRecord = this.quotedRecord ?? null;
     this._externalLinkUrl = null;
     this._externalLinkEmbedData = null;
     this._rejectedLinkEmbeds = new Set();
@@ -264,6 +291,8 @@ class PostComposer extends Component {
               </button>
               <button
                 class="rounded-button rounded-button-primary"
+                data-testid="composer-submit-button"
+                data-teststate=${this.replyTo ? "reply" : "post"}
                 @click=${() => this.send()}
                 .disabled=${this._isSending ||
                 isAboveCharLimit ||
@@ -319,19 +348,19 @@ class PostComposer extends Component {
                       onEditAltText: () => this.handleEditVideoAltText(),
                     })
                   : ""}
-                ${this.quotedPost
+                ${this.quotedRecord
                   ? html`<div class="post-composer-embed-preview">
                       <button
                         class="embed-preview-close-button"
                         @click=${() => {
-                          this.handleQuotedPostEmbedPreviewClose();
+                          this.handleQuotedEmbedPreviewClose();
                         }}
                       >
                         <span>×</span>
                       </button>
                       <div inert>
-                        ${quotedPostTemplate({
-                          quotedPost: createEmbedFromPost(this.quotedPost),
+                        ${recordEmbedTemplate({
+                          record: this.quotedRecord,
                           isAuthenticated: true,
                         })}
                       </div>
@@ -439,28 +468,46 @@ class PostComposer extends Component {
     this.render();
   }
 
-  handleQuotedPostEmbedPreviewClose() {
-    this._quotedPostUrl = null;
-    this.quotedPost = null;
+  handleQuotedEmbedPreviewClose() {
+    this._quotedRecordUrl = null;
+    this.quotedRecord = null;
     this.render();
   }
 
-  async loadQuotedPostFromLink() {
+  async loadQuotedRecordFromLink() {
+    const url = this._quotedRecordUrl;
     try {
-      const parsedUrl = new URL(this._quotedPostUrl);
-      const didOrHandle = parsedUrl.pathname.split("/")[2];
+      const { collection, didOrHandle, rkey } = parseRecordLink(url);
       const did = didOrHandle.startsWith("did:")
         ? didOrHandle
         : await this.identityResolver.resolveHandle(didOrHandle);
-      const rkey = parsedUrl.pathname.split("/")[4];
-      const postUri = `at://${did}/app.bsky.feed.post/${rkey}`;
-      this.quotedPost = await this.dataLayer.declarative.ensurePost(postUri);
+      const recordUri = `at://${did}/${collection}/${rkey}`;
+      let record = null;
+      if (collection === "app.bsky.feed.post") {
+        const post = await this.dataLayer.declarative.ensurePost(recordUri);
+        record = createEmbedFromPost(post);
+      } else if (collection === "app.bsky.feed.generator") {
+        const view =
+          await this.dataLayer.declarative.ensureFeedGenerator(recordUri);
+        record = { ...view, $type: "app.bsky.feed.defs#generatorView" };
+      } else if (collection === "app.bsky.graph.list") {
+        const view = await this.dataLayer.declarative.ensureList(recordUri);
+        record = { ...view, $type: "app.bsky.graph.defs#listView" };
+      } else {
+        const view =
+          await this.dataLayer.declarative.ensureStarterPack(recordUri);
+        record = { ...view, $type: "app.bsky.graph.defs#starterPackViewBasic" };
+      }
+      // the embed may have been closed or replaced while the record was loading
+      if (this._quotedRecordUrl !== url) return;
+      this.quotedRecord = record;
       this.render();
     } catch (error) {
-      console.error("Error loading quoted post from link: ", error);
-      this._quotedPostUrl = null;
-      this._rejectedLinkEmbeds.add(this._quotedPostUrl);
-      return;
+      console.error("Error loading record embed from link: ", error);
+      this._rejectedLinkEmbeds.add(url);
+      if (this._quotedRecordUrl === url) {
+        this._quotedRecordUrl = null;
+      }
     }
   }
 
@@ -692,10 +739,10 @@ class PostComposer extends Component {
             // automatically reject links if there's an existing link embed
             this._rejectedLinkEmbeds.add(url);
           } else if (!this._rejectedLinkEmbeds.has(url)) {
-            if (isQuotePostLink(url)) {
-              if (!this.quotedPost) {
-                this._quotedPostUrl = url;
-                this.loadQuotedPostFromLink();
+            if (parseRecordLink(url)) {
+              if (!this.quotedRecord && !this._quotedRecordUrl) {
+                this._quotedRecordUrl = url;
+                this.loadQuotedRecordFromLink();
               }
             } else {
               this._externalLinkUrl = url;
@@ -731,18 +778,22 @@ class PostComposer extends Component {
       this.addMediaFiles(pastedFiles);
       return;
     }
-    // Unlike external links, add quote posts immediately if a link is pasted
+    // Attach link embeds immediately if a link is pasted
     // Wait a tick so handleInput runs first
     requestAnimationFrame(() => {
-      if (this.quotedPost || this._quotedPostUrl) return;
       for (const facet of this._unresolvedFacets) {
         const feature = facet.features[0];
         if (feature.$type === "app.bsky.richtext.facet#link") {
           const url = feature.uri;
-          if (isQuotePostLink(url) && !this._rejectedLinkEmbeds.has(url)) {
-            this._quotedPostUrl = url;
-            this.loadQuotedPostFromLink();
-            break;
+          if (this._rejectedLinkEmbeds.has(url)) continue;
+          if (parseRecordLink(url)) {
+            if (!this.quotedRecord && !this._quotedRecordUrl) {
+              this._quotedRecordUrl = url;
+              this.loadQuotedRecordFromLink();
+            }
+          } else if (!this._externalLinkUrl) {
+            this._externalLinkUrl = url;
+            this.loadExternalLinkEmbedPreview();
           }
         }
       }
@@ -854,7 +905,7 @@ class PostComposer extends Component {
           external: this._externalLinkEmbedData,
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,
-          quotedPost: this.quotedPost,
+          quotedRecord: this.quotedRecord,
           images: this._selectedImages,
           video: this._selectedVideo,
           successCallback,

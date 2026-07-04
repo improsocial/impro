@@ -174,6 +174,41 @@ t.describe("externalLinkTemplate", (it) => {
     assertEquals(event.defaultPrevented, false);
   });
 
+  it("should render a play icon for a video link with an image", () => {
+    const result = externalLinkTemplate({
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Example Video",
+      description: "Test",
+      image: "https://example.com/thumb.jpg",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(container.querySelector(".play-icon") !== null);
+  });
+
+  it("should not render a play icon for a non-video link", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com/article",
+      title: "Example",
+      description: "Test",
+      image: "https://example.com/image.jpg",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".play-icon"), null);
+  });
+
+  it("should not render a play icon for a video link without an image", () => {
+    const result = externalLinkTemplate({
+      url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      title: "Example Video",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(container.querySelector(".play-icon"), null);
+  });
+
   it("should prevent navigation when disableNavigation is true", () => {
     const result = externalLinkTemplate({
       url: "https://example.com",

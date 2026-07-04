@@ -346,6 +346,61 @@ test.describe("Post embeds view — gif", () => {
   });
 });
 
+test.describe("Post embeds view — YouTube", () => {
+  function buildYouTubePost(uri) {
+    return buildPost({
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri,
+          title: "A video",
+          description: "A description",
+          thumb: "",
+        },
+      },
+    });
+  }
+
+  test("renders a click-to-play embed and loads the player on click", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(
+      page,
+      buildYouTubePost("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=32s"),
+    );
+
+    const view = page.locator("#post-detail-view");
+    const embed = view.locator('[data-testid="youtube-embed"]');
+    await expect(embed).toBeVisible({ timeout: 10000 });
+    await expect(embed).toHaveAttribute("data-teststate", "preview");
+    await expect(
+      view.locator('[data-testid="youtube-embed-iframe"]'),
+    ).toHaveCount(0);
+
+    await view.locator('[data-testid="youtube-embed-play"]').click();
+
+    const iframe = view.locator('[data-testid="youtube-embed-iframe"]');
+    await expect(iframe).toBeVisible();
+    await expect(iframe).toHaveAttribute(
+      "src",
+      /youtube-nocookie\.com\/embed\/dQw4w9WgXcQ\?autoplay=1&start=32/,
+    );
+    await expect(embed).toHaveAttribute("data-teststate", "playing");
+  });
+
+  test("renders a plain link card for non-video YouTube URLs", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildYouTubePost("https://youtube.com/"));
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="external-link"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="youtube-embed"]')).toHaveCount(0);
+  });
+});
+
 test.describe("Post embeds view — external link", () => {
   test("renders title, description, and domain", async ({ page }) => {
     const post = buildPost({
