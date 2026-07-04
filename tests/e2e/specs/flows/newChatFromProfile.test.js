@@ -43,7 +43,13 @@ test.describe("New chat from profile flow", () => {
     ).toContainText("Alice", { timeout: 10000 });
 
     // Send a message
-    await chatDetailView.locator(".message-input-field").fill("Hi Alice!");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.fill("Hi Alice!");
     await chatDetailView.locator(".message-input-send-button").click();
 
     // Wait for the sent message to appear

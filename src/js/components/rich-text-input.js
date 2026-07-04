@@ -34,7 +34,9 @@ function editableLineTemplate(lineText, lineFacets, lineByteOffset) {
     if (startChar < cursor) continue;
     if (cursor < startChar) parts.push(lineText.slice(cursor, startChar));
     parts.push(
-      html`<span class="facet">${lineText.slice(startChar, endChar)}</span>`,
+      html`<span class="facet" data-testid="facet"
+        >${lineText.slice(startChar, endChar)}</span
+      >`,
     );
     cursor = endChar;
   }
@@ -274,13 +276,30 @@ function mentionSuggestionsTemplate({
   onSelect,
 }) {
   return html`
-    <div class="mention-typeahead" id="mention-typeahead">
+    <div
+      class="mention-typeahead"
+      id="mention-typeahead"
+      data-testid="mention-typeahead"
+      @mousedown=${(e) => {
+        // Keep focus in the input so its blur handler doesn't close the
+        // typeahead before a suggestion click lands
+        e.preventDefault();
+      }}
+    >
+      ${mentionSuggestions.length === 0
+        ? html`
+            <div class="mention-typeahead-empty" data-testid="empty-state">
+              No results
+            </div>
+          `
+        : ""}
       ${mentionSuggestions.map(
         (actor, index) => html`
           <div
             class="mention-suggestion ${index === selectedSuggestionIndex
               ? "selected"
               : ""}"
+            data-testid="mention-suggestion"
             @click=${() => onSelect(actor)}
           >
             ${avatarTemplate({
@@ -291,7 +310,12 @@ function mentionSuggestionsTemplate({
               <div class="mention-suggestion-name">
                 ${getDisplayName(actor)}
               </div>
-              <div class="mention-suggestion-handle">@${actor.handle}</div>
+              <div
+                class="mention-suggestion-handle"
+                data-testid="mention-suggestion-handle"
+              >
+                @${actor.handle}
+              </div>
             </div>
           </div>
         `,
@@ -301,12 +325,19 @@ function mentionSuggestionsTemplate({
 }
 
 export class RichTextInput extends Component {
+  static get observedAttributes() {
+    return ["disabled"];
+  }
+
   connectedCallback() {
     if (this.initialized) {
       this.paintFacets();
       return;
     }
     this.placeholder = this.getAttribute("placeholder") || "";
+    this.typeaheadDirection =
+      this.getAttribute("typeahead-direction") || "down";
+    this.disabled = this.getAttribute("disabled") !== null;
     this.facets = [];
     this.text = "";
     this.mentionSuggestions = [];
@@ -315,12 +346,24 @@ export class RichTextInput extends Component {
     this.currentMentionStart = null;
     this.currentMentionEnd = null;
     this.isComposing = false;
+    this.isPasting = false;
     this.render();
+    // Give the empty editable its <div><br></div> line structure so it keeps
+    // its one-line height before the first input
+    this.paintFacets();
     this.initialized = true;
   }
 
   disconnectedCallback() {
     this.closeTypeahead();
+  }
+
+  attributeChangedCallback(name) {
+    if (!this.initialized) return;
+    if (name === "disabled") {
+      this.disabled = this.getAttribute("disabled") !== null;
+      this.render();
+    }
   }
 
   focus() {
@@ -330,6 +373,19 @@ export class RichTextInput extends Component {
     }
   }
 
+  blur() {
+    const input = this.querySelector(".rich-text-input");
+    if (input) {
+      input.blur();
+    }
+  }
+
+  getCursor() {
+    const input = this.querySelector(".rich-text-input");
+    if (!input) return null;
+    return getCursorPosition(input);
+  }
+
   setText(text) {
     this.text = text;
     this.facets = getUnresolvedFacetsFromText(this.text);
@@ -337,7 +393,7 @@ export class RichTextInput extends Component {
     this.paintFacets();
     this.dispatchEvent(
       new CustomEvent("input", {
-        detail: { text: this.text, facets: this.facets },
+        detail: { text: this.text, facets: this.facets, inputType: null },
       }),
     );
   }
@@ -355,13 +411,17 @@ export class RichTextInput extends Component {
         <div class="rich-text-input-container">
           <div
             class="rich-text-input"
-            contenteditable="true"
+            data-testid="rich-text-input"
+            contenteditable=${this.disabled ? "false" : "true"}
             @input=${(e) => {
               e.stopPropagation();
               this.handleInput(e);
             }}
             @keydown=${(e) => {
               this.handleKeydown(e);
+            }}
+            @blur=${() => {
+              this.resetMentionState();
             }}
             @compositionstart=${() => {
               this.isComposing = true;
@@ -376,7 +436,14 @@ export class RichTextInput extends Component {
               const text = (e.clipboardData || window.clipboardData).getData(
                 "text/plain",
               );
-              document.execCommand("insertText", false, text);
+              // execCommand fires the input event synchronously, so
+              // handleInput runs while this flag is set
+              this.isPasting = true;
+              try {
+                document.execCommand("insertText", false, text);
+              } finally {
+                this.isPasting = false;
+              }
             }}
           ></div>
           <div
@@ -444,9 +511,13 @@ export class RichTextInput extends Component {
 
     const rect = range.getBoundingClientRect();
     const inputRect = input.getBoundingClientRect();
-    typeahead.style.top = `${rect.bottom}px`;
+    if (this.typeaheadDirection === "up") {
+      typeahead.classList.add("mention-typeahead-above");
+      typeahead.style.bottom = `${window.innerHeight - inputRect.top}px`;
+    } else {
+      typeahead.style.top = `${rect.bottom}px`;
+    }
     typeahead.style.left = `${inputRect.left}px`;
-    typeahead.style.width = `${inputRect.width}px`;
   }
 
   paintFacets() {
@@ -520,22 +591,26 @@ export class RichTextInput extends Component {
       const suggestions = await this.fetchMentionSuggestions(
         pendingMention.query,
       );
+      // A newer input superseded this request while it was in flight
+      if (this.currentMentionQuery !== pendingMention.query) return;
       this.mentionSuggestions = suggestions;
-      if (suggestions.length === 0) {
-        this.closeTypeahead();
-      } else if (this._typeaheadHost) {
+      if (this._typeaheadHost) {
         this.updateTypeahead();
       } else {
         this.openTypeahead();
       }
     } else {
-      this.mentionSuggestions = [];
-      this.selectedSuggestionIndex = null;
-      this.currentMentionQuery = null;
-      this.currentMentionStart = null;
-      this.currentMentionEnd = null;
-      this.closeTypeahead();
+      this.resetMentionState();
     }
+  }
+
+  resetMentionState() {
+    this.mentionSuggestions = [];
+    this.selectedSuggestionIndex = null;
+    this.currentMentionQuery = null;
+    this.currentMentionStart = null;
+    this.currentMentionEnd = null;
+    this.closeTypeahead();
   }
 
   selectMention(actor) {
@@ -559,13 +634,7 @@ export class RichTextInput extends Component {
       document.execCommand("insertText", false, mention);
     }
 
-    // Clear mention state
-    this.mentionSuggestions = [];
-    this.selectedSuggestionIndex = null;
-    this.currentMentionQuery = null;
-    this.currentMentionStart = null;
-    this.currentMentionEnd = null;
-    this.closeTypeahead();
+    this.resetMentionState();
   }
 
   handleKeydown(e) {
@@ -602,13 +671,13 @@ export class RichTextInput extends Component {
       } else if (e.key === "Escape") {
         e.preventDefault();
         e.stopPropagation();
-        this.mentionSuggestions = [];
-        this.selectedSuggestionIndex = null;
-        this.currentMentionQuery = null;
-        this.currentMentionStart = null;
-        this.currentMentionEnd = null;
-        this.closeTypeahead();
+        this.resetMentionState();
       }
+    } else if (this._typeaheadHost && e.key === "Escape") {
+      // The typeahead can be open with no suggestions (empty state)
+      e.preventDefault();
+      e.stopPropagation();
+      this.resetMentionState();
     }
   }
 
@@ -629,6 +698,7 @@ export class RichTextInput extends Component {
         detail: {
           text: this.text,
           facets: this.facets,
+          inputType: this.isPasting ? "insertFromPaste" : e.inputType || null,
         },
       }),
     );

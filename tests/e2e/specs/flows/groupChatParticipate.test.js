@@ -68,7 +68,13 @@ test.describe("Group chat participation flow", () => {
     ).toContainText("Alice");
 
     // Send a message
-    await chatDetailView.locator(".message-input-field").fill("Count me in!");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.fill("Count me in!");
     await chatDetailView.locator(".message-input-send-button").click();
     await expect(
       chatDetailView.locator(".message-sent .message-text"),

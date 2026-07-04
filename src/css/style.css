@@ -4349,7 +4349,6 @@ image-carousel {
   gap: 12px;
   padding: 12px 16px;
   background-color: var(--background-color);
-  border-top: 1px solid var(--generic-border-color);
   position: relative;
   min-height: var(--message-input-min-height);
   z-index: var(--message-input-z-index);
@@ -4371,19 +4370,20 @@ chat-input {
   height: var(--avatar-size-message-input);
 }
 
-.message-input-field {
+chat-input rich-text-input {
   flex: 1;
   min-width: 0;
+}
+
+chat-input .rich-text-input {
   padding: 12px 16px;
-  border: 1px solid var(--highlight-color);
+  border: none;
   border-radius: var(--message-input-border-radius);
-  background-color: var(--background-color);
+  background-color: var(--text-input-background-color);
   color: var(--text-color);
   font-size: 16px;
   font-family: inherit;
   outline: none;
-  transition: border-color 0.2s;
-  resize: none;
   /* Cap auto-grow so a long multi-line message scrolls internally instead of
      pushing the whole input bar up off the top of the (short, mobile) viewport. */
   max-height: min(120px, 30vh);
@@ -4392,12 +4392,14 @@ chat-input {
   scrollbar-width: none;
 }
 
-.message-input-field:focus {
-  border-color: var(--highlight-color);
+chat-input .rich-text-input[contenteditable="false"] {
+  opacity: 0.6;
 }
 
-.message-input-field:disabled {
-  opacity: 0.6;
+chat-input .rich-text-input-placeholder {
+  padding: 12px 16px;
+  font-size: 16px;
+  line-height: 1.4;
 }
 
 .message-input-field-wrapper {
@@ -4422,7 +4424,8 @@ chat-input {
 }
 
 @media (min-width: 800px) {
-  .message-input-field-wrapper .message-input-field {
+  .message-input-field-wrapper .rich-text-input,
+  .message-input-field-wrapper .rich-text-input-placeholder {
     padding-right: 46px;
   }
 }
@@ -6126,7 +6129,25 @@ emoji-picker-dialog emoji-picker,
   margin-top: 8px;
   max-height: 320px;
   overflow-y: auto;
+  min-width: 240px;
+  max-width: min(320px, calc(100vw - 24px));
   z-index: var(--mention-typeahead-z-index);
+}
+
+.mention-typeahead.mention-typeahead-above {
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+.mention-typeahead-empty {
+  display: flex;
+  align-items: center;
+  /* Match the height of a suggestion row: its avatar plus the row padding
+     (border-box, so the padding counts into min-height) */
+  min-height: calc(var(--avatar-size-post) + 20px);
+  padding: 10px 18px;
+  color: var(--text-color-muted);
+  font-size: 14px;
 }
 
 .mention-suggestion {
