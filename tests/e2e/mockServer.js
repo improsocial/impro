@@ -294,6 +294,15 @@ export class MockServer {
         }),
     );
 
+    // Stub the YouTube embed player so tests don't hit the network.
+    await page.route("https://www.youtube-nocookie.com/**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "text/html",
+        body: "<!doctype html><html><body></body></html>",
+      }),
+    );
+
     // Stub emoji-picker-element's CDN data fetch so tests don't hit the
     // network. Returns a tiny fixture with one emoji per group the library
     // requires (its assertEmojiData rejects an empty list).

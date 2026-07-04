@@ -23,6 +23,7 @@ import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
 import "/js/components/moderation-warning.js";
 import "/js/components/image-carousel.js";
+import "/js/components/youtube-embed.js";
 import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
 
 function galleryItemsToImages(items) {
@@ -367,6 +368,72 @@ function gifPlayerTemplate({ uri, alt, aspectRatio = null }) {
   </div>`;
 }
 
+const YOUTUBE_VIDEO_ID_REGEX = /^[A-Za-z0-9_-]+$/;
+const YOUTUBE_HOSTNAMES = [
+  "www.youtube.com",
+  "youtube.com",
+  "m.youtube.com",
+  "music.youtube.com",
+];
+
+function parseYouTubeVideoFromUrl(url) {
+  if (!url) return null;
+  let parsedUrl;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+  let videoId = null;
+  let isShort = false;
+  if (parsedUrl.hostname === "youtu.be") {
+    videoId = parsedUrl.pathname.split("/")[1];
+  } else if (YOUTUBE_HOSTNAMES.includes(parsedUrl.hostname)) {
+    const [, page, pathVideoId] = parsedUrl.pathname.split("/");
+    isShort = page === "shorts";
+    if (isShort || page === "live") {
+      videoId = pathVideoId;
+    } else {
+      videoId = parsedUrl.searchParams.get("v");
+    }
+  }
+  if (!videoId || !YOUTUBE_VIDEO_ID_REGEX.test(videoId)) return null;
+  const startTime = parseYouTubeStartTime(parsedUrl.searchParams.get("t"));
+  return { videoId, startTime, isShort };
+}
+
+function parseYouTubeStartTime(rawValue) {
+  if (!rawValue) return 0;
+  const match = rawValue.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
+  if (!match || !(match[1] || match[2] || match[3])) return 0;
+  const [, hours, minutes, seconds] = match;
+  return (
+    Number(hours ?? 0) * 3600 + Number(minutes ?? 0) * 60 + Number(seconds ?? 0)
+  );
+}
+
+const YOUTUBE_VIDEO_ASPECT_RATIO = 16 / 9;
+const YOUTUBE_SHORT_ASPECT_RATIO = 9 / 16;
+
+function youtubeEmbedTemplate({ youtubeVideo, external }) {
+  const aspectRatio = youtubeVideo.isShort
+    ? YOUTUBE_SHORT_ASPECT_RATIO
+    : YOUTUBE_VIDEO_ASPECT_RATIO;
+  return html`<youtube-embed
+    class="post-video youtube-embed"
+    data-testid="youtube-embed"
+    style="aspect-ratio: ${aspectRatio};"
+    video-id=${youtubeVideo.videoId}
+    start=${youtubeVideo.startTime}
+    thumb=${external.thumb ?? ""}
+    video-title=${external.title ?? ""}
+    @click=${(e) => {
+      e.stopPropagation();
+      e.preventDefault();
+    }}
+  ></youtube-embed>`;
+}
+
 function isTenorGifUrl(url) {
   try {
     const parsedUrl = new URL(url);
@@ -439,6 +506,10 @@ function externalTemplate({ external, lazyLoadImages }) {
       uri: getKlipyGifPlayerUri(external.uri),
       alt: external.description,
     });
+  }
+  const youtubeVideo = parseYouTubeVideoFromUrl(external.uri);
+  if (youtubeVideo) {
+    return youtubeEmbedTemplate({ youtubeVideo, external });
   }
   return externalLinkTemplate({
     url: external.uri,
