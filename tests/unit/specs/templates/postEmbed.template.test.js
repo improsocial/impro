@@ -1,6 +1,9 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
-import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
+import {
+  postEmbedTemplate,
+  recordEmbedTemplate,
+} from "/js/templates/postEmbed.template.js";
 import { post } from "../../fixtures.js";
 import { render } from "/js/lib/lit-html.js";
 
@@ -826,6 +829,115 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
     assert(link !== null);
     assert(link.textContent.endsWith("..."));
     assert(link.textContent.length < url.length);
+  });
+});
+
+t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
+  function makeViewRecord({ embeds } = {}) {
+    return {
+      $type: "app.bsky.embed.record#viewRecord",
+      author: post.author,
+      value: post.record,
+      uri: post.uri,
+      cid: "quotedcid",
+      ...(embeds ? { embeds } : {}),
+    };
+  }
+
+  function renderRecord(record, { condensed } = {}) {
+    const container = document.createElement("div");
+    render(
+      recordEmbedTemplate({ record, isAuthenticated: true, condensed }),
+      container,
+    );
+    return container;
+  }
+
+  it("renders without the condensed class by default", () => {
+    const container = renderRecord(makeViewRecord());
+    assert(container.querySelector(".quoted-post") !== null);
+    assertEquals(container.querySelector(".quoted-post-condensed"), null);
+  });
+
+  it("adds the condensed class when condensed", () => {
+    const container = renderRecord(makeViewRecord(), { condensed: true });
+    assert(container.querySelector(".quoted-post-condensed") !== null);
+  });
+
+  it("renders image thumbnails instead of the full embed when condensed", () => {
+    const record = makeViewRecord({
+      embeds: [
+        {
+          $type: "app.bsky.embed.images#view",
+          images: [
+            { thumb: "thumb1.jpg", fullsize: "full1.jpg", alt: "first" },
+            { thumb: "thumb2.jpg", fullsize: "full2.jpg", alt: "" },
+          ],
+        },
+      ],
+    });
+    const container = renderRecord(record, { condensed: true });
+    const thumbs = container.querySelectorAll(".quoted-post-media-thumb");
+    assertEquals(thumbs.length, 2);
+    assertEquals(thumbs[0].getAttribute("src"), "thumb1.jpg");
+    assertEquals(thumbs[0].getAttribute("alt"), "first");
+    assertEquals(container.querySelector(".post-embed"), null);
+  });
+
+  it("caps condensed image thumbnails at four", () => {
+    const images = Array.from({ length: 6 }, (unused, index) => ({
+      thumb: `thumb${index}.jpg`,
+      fullsize: `full${index}.jpg`,
+      alt: "",
+    }));
+    const record = makeViewRecord({
+      embeds: [{ $type: "app.bsky.embed.images#view", images }],
+    });
+    const container = renderRecord(record, { condensed: true });
+    assertEquals(
+      container.querySelectorAll(".quoted-post-media-thumb").length,
+      4,
+    );
+  });
+
+  it("renders a video thumbnail with a play button when condensed", () => {
+    const record = makeViewRecord({
+      embeds: [
+        {
+          $type: "app.bsky.embed.video#view",
+          cid: "videocid",
+          playlist: "playlist.m3u8",
+          thumbnail: "poster.jpg",
+          alt: "a video",
+        },
+      ],
+    });
+    const container = renderRecord(record, { condensed: true });
+    const thumb = container.querySelector(
+      ".quoted-post-media-video .quoted-post-media-thumb",
+    );
+    assert(thumb !== null);
+    assertEquals(thumb.getAttribute("src"), "poster.jpg");
+    assert(container.querySelector(".video-preview-play-button") !== null);
+  });
+
+  it("skips non-media embeds entirely when condensed", () => {
+    const record = makeViewRecord({
+      embeds: [
+        {
+          $type: "app.bsky.embed.external#view",
+          external: {
+            uri: "https://example.com",
+            title: "Example",
+            description: "An example site",
+          },
+        },
+      ],
+    });
+    const container = renderRecord(record, { condensed: true });
+    assertEquals(container.querySelector(".post-embed"), null);
+    assertEquals(container.querySelector(".quoted-post-media-thumbs"), null);
+    assertEquals(container.querySelector(".external-link-embed"), null);
   });
 });
 

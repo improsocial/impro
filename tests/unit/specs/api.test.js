@@ -1014,6 +1014,33 @@ t.describe("sendMessage", (it) => {
     const body = JSON.parse(options.body);
     assertEquals(body.convoId, "convo1");
     assertEquals(body.message.text, "hello");
+    assertEquals(body.message.embed, undefined);
+  });
+
+  it("should include embed when provided", async () => {
+    const session = createMockSession({ id: "msg1", text: "hello" });
+    const api = new Api(session);
+
+    const embed = {
+      $type: "app.bsky.embed.record",
+      record: { uri: "at://did:plc:abc/app.bsky.feed.post/3abc", cid: "cid1" },
+    };
+    await api.sendMessage("convo1", { text: "hello", facets: [], embed });
+
+    const { options } = session.getLastFetchOptions();
+    const body = JSON.parse(options.body);
+    assertEquals(body.message.embed, embed);
+  });
+
+  it("should omit embed when null", async () => {
+    const session = createMockSession({ id: "msg1", text: "hello" });
+    const api = new Api(session);
+
+    await api.sendMessage("convo1", { text: "hello", facets: [], embed: null });
+
+    const { options } = session.getLastFetchOptions();
+    const body = JSON.parse(options.body);
+    assertEquals(body.message.embed, undefined);
   });
 });
 

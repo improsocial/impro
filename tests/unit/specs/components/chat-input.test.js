@@ -244,6 +244,73 @@ t.describe("ChatInput - send event", (it) => {
   });
 });
 
+t.describe("ChatInput - embed-only send", (it) => {
+  it("should dispatch send with an empty message when has-embed is set", () => {
+    const element = document.createElement("chat-input");
+    element.setAttribute("has-embed", "");
+    document.body.appendChild(element);
+
+    let receivedMessage = null;
+    element.addEventListener("send", (e) => {
+      receivedMessage = e.detail.message;
+    });
+
+    const button = element.querySelector(".message-input-send-button");
+    button.click();
+
+    assertEquals(receivedMessage, "");
+  });
+});
+
+t.describe("ChatInput - input-change event", (it) => {
+  function setup() {
+    const element = document.createElement("chat-input");
+    document.body.appendChild(element);
+    const textarea = element.querySelector(".message-input-field");
+    const events = [];
+    element.addEventListener("input-change", (e) => {
+      events.push(e.detail);
+    });
+    return { element, textarea, events };
+  }
+
+  it("emits the current text on input", () => {
+    const { textarea, events } = setup();
+    textarea.value = "hello world";
+    textarea.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+
+    assertEquals(events.length, 1);
+    assertEquals(events[0].text, "hello world");
+  });
+
+  it("passes the inputType through, defaulting to null", () => {
+    const { textarea, events } = setup();
+    textarea.value = "pasted text";
+    textarea.dispatchEvent(
+      new window.InputEvent("input", {
+        bubbles: true,
+        inputType: "insertFromPaste",
+      }),
+    );
+    textarea.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+
+    assertEquals(events.length, 2);
+    assertEquals(events[0].inputType, "insertFromPaste");
+    assertEquals(events[1].inputType, null);
+  });
+
+  it("includes the selection range", () => {
+    const { textarea, events } = setup();
+    textarea.value = "hello world";
+    textarea.setSelectionRange(2, 5);
+    textarea.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+
+    assertEquals(events.length, 1);
+    assertEquals(events[0].selectionStart, 2);
+    assertEquals(events[0].selectionEnd, 5);
+  });
+});
+
 t.describe("ChatInput - keyboard handling", (it) => {
   it("should send message on Enter key", () => {
     const element = document.createElement("chat-input");

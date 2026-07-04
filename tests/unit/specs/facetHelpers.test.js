@@ -5,6 +5,8 @@ import {
   resolveFacets,
   getFacetsFromText,
   getTagsFromFacets,
+  getLinkUrlsFromText,
+  stripLeadingOrTrailingLink,
   richTextToString,
 } from "/js/facetHelpers.js";
 
@@ -592,6 +594,73 @@ t.describe("richTextToString", (it) => {
     assertEquals(
       richTextToString(text, facets),
       "héllo https://example.com/x/full",
+    );
+  });
+});
+
+t.describe("getLinkUrlsFromText", (it) => {
+  it("returns urls for links in the text", () => {
+    assertEquals(
+      getLinkUrlsFromText("check this https://bsky.app/profile/alice.test"),
+      ["https://bsky.app/profile/alice.test"],
+    );
+  });
+
+  it("normalizes scheme-less links to https", () => {
+    assertEquals(
+      getLinkUrlsFromText("check bsky.app/profile/alice.test/post/3abc out"),
+      ["https://bsky.app/profile/alice.test/post/3abc"],
+    );
+  });
+
+  it("returns an empty array when there are no links", () => {
+    assertEquals(getLinkUrlsFromText("just some plain text"), []);
+    assertEquals(getLinkUrlsFromText(""), []);
+  });
+});
+
+t.describe("stripLeadingOrTrailingLink", (it) => {
+  const url = "https://bsky.app/profile/alice.test/post/3abc";
+
+  it("strips a leading link", () => {
+    assertEquals(
+      stripLeadingOrTrailingLink(`${url} check this out`, url),
+      "check this out",
+    );
+  });
+
+  it("strips a trailing link", () => {
+    assertEquals(
+      stripLeadingOrTrailingLink(`check this out ${url}`, url),
+      "check this out",
+    );
+  });
+
+  it("returns an empty string for link-only text", () => {
+    assertEquals(stripLeadingOrTrailingLink(url, url), "");
+    assertEquals(stripLeadingOrTrailingLink(`  ${url} `, url), "");
+  });
+
+  it("leaves a mid-text link in place", () => {
+    const text = `look at ${url} right there`;
+    assertEquals(stripLeadingOrTrailingLink(text, url), text);
+  });
+
+  it("strips a scheme-less link matching the normalized url", () => {
+    assertEquals(
+      stripLeadingOrTrailingLink(
+        "bsky.app/profile/alice.test/post/3abc so cool",
+        url,
+      ),
+      "so cool",
+    );
+  });
+
+  it("leaves text unchanged when the url does not match any link", () => {
+    const text = `check this out ${url}`;
+    assertEquals(
+      stripLeadingOrTrailingLink(text, "https://bsky.app/profile/other"),
+      text,
     );
   });
 });

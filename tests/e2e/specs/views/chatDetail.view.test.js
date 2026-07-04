@@ -6,6 +6,7 @@ import {
   createGroupConvo,
   createMessage,
   createMessageLog,
+  createPost,
   createProfile,
   createSystemMessage,
 } from "../../factories.js";
@@ -1617,6 +1618,230 @@ test.describe("Chat detail view", () => {
       await wrapper.locator('[data-testid="message-more-trigger"]').click();
       await expect(
         page.locator('[data-testid="message-action-reply"]'),
+      ).toBeVisible();
+    });
+  });
+
+  test.describe("Record link embeds in composer", () => {
+    const quotedPostUri = "at://did:plc:author2/app.bsky.feed.post/3quoted";
+    const quotedPostLink =
+      "https://bsky.app/profile/did:plc:author2/post/3quoted";
+
+    async function setupConvoWithQuotablePost(page, { postDelayMs = 0 } = {}) {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      const quotablePost = createPost({
+        uri: quotedPostUri,
+        text: "The quotable post",
+        authorHandle: "author2.bsky.social",
+        authorDisplayName: "Author Two",
+      });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "Hey there!",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+        }),
+      ]);
+      mockServer.addPosts([quotablePost], { delayMs: postDelayMs });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".message-input-field")).toBeVisible({
+        timeout: 10000,
+      });
+      return { mockServer, chatDetailView, quotablePost };
+    }
+
+    test("stages a preview for a pasted post link and removes it via the close button", async ({
+      page,
+    }) => {
+      const { chatDetailView } = await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .fill(`check this ${quotedPostLink} `);
+
+      const preview = chatDetailView.locator(
+        '[data-testid="message-embed-preview"]',
+      );
+      await expect(preview).toBeVisible();
+      await expect(preview).toContainText("The quotable post");
+
+      await chatDetailView
+        .locator('[data-testid="message-embed-preview-remove"]')
+        .click();
+      await expect(preview).toHaveCount(0);
+    });
+
+    test("stages a preview immediately on paste without a trailing space", async ({
+      page,
+    }) => {
+      const { chatDetailView } = await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .evaluate((textarea, link) => {
+          textarea.value = link;
+          textarea.dispatchEvent(
+            new InputEvent("input", {
+              bubbles: true,
+              inputType: "insertFromPaste",
+            }),
+          );
+        }, quotedPostLink);
+
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toBeVisible();
+    });
+
+    test("sends the message with a record embed and strips the trailing link", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .fill(`check this ${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="ready"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("check this");
+      expect(sentMessage.embed).toEqual({
+        $type: "app.bsky.embed.record",
+        record: { uri: quotablePost.uri, cid: quotablePost.cid },
+      });
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toHaveCount(0);
+    });
+
+    test("sends an embed-only message when the input contains just the link", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .fill(`${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="ready"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("");
+      expect(sentMessage.embed.record.uri).toBe(quotablePost.uri);
+    });
+
+    test("attaches the embed when sent while the preview is still loading", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page, { postDelayMs: 1500 });
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .fill(`check this ${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="loading"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect
+        .poll(() => mockServer.sentMessageRequests.length, { timeout: 10000 })
+        .toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("check this");
+      expect(sentMessage.embed).toEqual({
+        $type: "app.bsky.embed.record",
+        record: { uri: quotablePost.uri, cid: quotablePost.cid },
+      });
+    });
+
+    test("shows an error preview for an unresolvable link and sends the message as plain text", async ({
+      page,
+    }) => {
+      const missingPostLink =
+        "https://bsky.app/profile/did:plc:author2/post/3missing";
+      const { mockServer, chatDetailView } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator(".message-input-field")
+        .fill(`look at this ${missingPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe(`look at this ${missingPostLink}`);
+      expect(sentMessage.embed).toBe(undefined);
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toHaveCount(0);
+    });
+
+    test("does not send an embed-only message when the embed can't be resolved", async ({
+      page,
+    }) => {
+      const missingPostLink =
+        "https://bsky.app/profile/did:plc:author2/post/3missing";
+      const { mockServer, chatDetailView } =
+        await setupConvoWithQuotablePost(page);
+
+      const input = chatDetailView.locator(".message-input-field");
+      await input.fill(`${missingPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
+      ).toBeVisible();
+
+      await input.fill("");
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      expect(mockServer.sentMessageRequests.length).toBe(0);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
       ).toBeVisible();
     });
   });

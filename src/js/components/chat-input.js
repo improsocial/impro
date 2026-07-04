@@ -68,20 +68,37 @@ class ChatInput extends Component {
     );
   }
 
+  handleInput(event) {
+    this.updateTextareaHeight();
+    const textarea = event.target;
+    this.dispatchEvent(
+      new CustomEvent("input-change", {
+        detail: {
+          text: textarea.value,
+          inputType: event.inputType || null,
+          selectionStart: textarea.selectionStart,
+          selectionEnd: textarea.selectionEnd,
+        },
+      }),
+    );
+  }
+
   handleSend() {
     if (this.disabled) return;
     const textarea = this.querySelector(".message-input-field");
-    const message = textarea?.value.trim();
-    if (message) {
-      this.dispatchEvent(
-        new CustomEvent("send", {
-          detail: { message },
-        }),
-      );
-      // Clear input after sending
+    const message = textarea?.value.trim() ?? "";
+    const hasEmbed = this.getAttribute("has-embed") !== null;
+    if (!message && !hasEmbed) return;
+    this.dispatchEvent(
+      new CustomEvent("send", {
+        detail: { message },
+      }),
+    );
+    // Clear input after sending
+    if (textarea) {
       textarea.value = "";
-      this.updateTextareaHeight();
     }
+    this.updateTextareaHeight();
   }
 
   handleEmojiButtonClick(event) {
@@ -125,7 +142,7 @@ class ChatInput extends Component {
             placeholder="Write a message"
             rows="1"
             ?disabled=${this.disabled}
-            @input=${() => this.updateTextareaHeight()}
+            @input=${(e) => this.handleInput(e)}
             @keydown=${(e) => this.handleKeyDown(e)}
           ></textarea>
           <div class="message-input-emoji-wrapper">

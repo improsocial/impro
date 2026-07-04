@@ -2414,6 +2414,32 @@ t.describe("createMessage", (it) => {
     assertEquals(apiCalledWith.replyTo.messageId, "msg-target");
   });
 
+  it("should pass embed to the api", async () => {
+    let apiCalledWith = null;
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      {
+        sendMessage: async (id, body) => {
+          apiCalledWith = body;
+          return sentMessage;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    const embed = {
+      $type: "app.bsky.embed.record",
+      record: { uri: "at://did:plc:abc/app.bsky.feed.post/3abc", cid: "cid1" },
+    };
+    await mutations.createMessage(convoId, { text: "hello", embed });
+    assertEquals(apiCalledWith.embed, embed);
+  });
+
   it("should propagate the raw error on send failure", async () => {
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);

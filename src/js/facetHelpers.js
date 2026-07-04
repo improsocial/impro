@@ -172,6 +172,35 @@ export async function getFacetsFromText(text, identityResolver) {
   return resolvedFacets;
 }
 
+export function getLinkUrlsFromText(text) {
+  if (!text) {
+    return [];
+  }
+  return getLinkFacetsFromText(text).map((facet) => facet.features[0].uri);
+}
+
+// Removes the link matching `url` from the text when it sits at the very
+// start or end of the message (ignoring surrounding whitespace). Matching is
+// facet-based because a typed link without a scheme (e.g. "bsky.app/...")
+// produces a normalized facet uri that doesn't appear verbatim in the text.
+export function stripLeadingOrTrailingLink(text, url) {
+  const linkFacets = getLinkFacetsFromText(text).filter(
+    (facet) => facet.features[0].uri === url,
+  );
+  const totalBytes = getByteLength(text);
+  for (const facet of linkFacets) {
+    const before = sliceByByte(text, 0, facet.index.byteStart);
+    const after = sliceByByte(text, facet.index.byteEnd, totalBytes);
+    if (before.trim() === "") {
+      return after.trimStart();
+    }
+    if (after.trim() === "") {
+      return before.trimEnd();
+    }
+  }
+  return text;
+}
+
 export function getTagsFromFacets(facets) {
   return facets.filter(
     (facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag",

@@ -2696,6 +2696,13 @@ animated-button {
   position: relative;
 }
 
+/* Quoted-post cards carry a margin-top for the feed context; inside preview
+   containers it would leave the close button flush with the card's top edge. */
+.post-composer-embed-preview .quoted-post,
+.message-embed-preview .quoted-post {
+  margin-top: 0;
+}
+
 .embed-preview-close-button {
   z-index: 1;
   position: absolute;
@@ -3327,7 +3334,7 @@ image-carousel {
   border: var(--hair) solid var(--post-border-color);
 }
 
-.notification-preview-video .video-preview-play-button {
+.video-preview-play-button {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -3338,7 +3345,7 @@ image-carousel {
   border-radius: 50%;
 }
 
-.notification-preview-video .video-preview-play-button::after {
+.video-preview-play-button::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -4284,6 +4291,56 @@ image-carousel {
   color: var(--text-color-muted);
   cursor: pointer;
   padding: 4px 8px;
+}
+
+.message-embed-preview {
+  position: relative;
+  padding: 8px 16px;
+  background-color: var(--background-color);
+  border-top: 1px solid var(--generic-border-color);
+  z-index: var(--message-input-z-index);
+}
+
+.message-embed-preview-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 64px;
+  border: var(--hair) solid var(--embed-border-color);
+  border-radius: var(--embed-border-radius);
+  color: var(--text-color-muted);
+}
+
+.quoted-post-condensed .post-text {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  overflow: hidden;
+}
+
+.quoted-post-media-thumbs {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.quoted-post-media-thumb {
+  width: 64px;
+  height: 64px;
+  object-fit: cover;
+  border-radius: var(--image-preview-border-radius);
+  background-color: var(--generic-border-color);
+  border: var(--hair) solid var(--post-border-color);
+}
+
+.quoted-post-media-video {
+  position: relative;
+}
+
+.message-embed-preview .embed-preview-close-button {
+  right: 24px;
+  top: 16px;
 }
 
 .message-input-container {
