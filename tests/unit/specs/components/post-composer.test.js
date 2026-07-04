@@ -577,6 +577,96 @@ t.describe("PostComposer - paste media", (it) => {
   });
 });
 
+function makeLinkFacet(url) {
+  return {
+    index: { byteStart: 0, byteEnd: url.length },
+    features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+  };
+}
+
+t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
+  beforeEach(() => {
+    globalThis.fetch = () => Promise.resolve({ ok: false });
+  });
+
+  afterEach(() => {
+    delete globalThis.fetch;
+  });
+
+  it("attaches an external link embed immediately when a link is pasted", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
+    element.handlePaste(makePasteEvent([]));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    assertEquals(element._externalLinkUrl, "https://example.com/article");
+    assertEquals(
+      element._externalLinkEmbedData.url,
+      "https://example.com/article",
+    );
+  });
+
+  it("does not attach an external link embed for a rejected URL", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._rejectedLinkEmbeds.add("https://example.com/article");
+    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
+    element.handlePaste(makePasteEvent([]));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    assertEquals(element._externalLinkUrl, null);
+    assertEquals(element._externalLinkEmbedData, null);
+  });
+
+  it("does not replace an existing external link embed", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    element._externalLinkUrl = "https://existing.com/page";
+    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
+    element.handlePaste(makePasteEvent([]));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    assertEquals(element._externalLinkUrl, "https://existing.com/page");
+  });
+
+  it("attaches a quote post instead of an external link embed for post links", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    let loadedQuoteUrl = null;
+    element.loadQuotedPostFromLink = () => {
+      loadedQuoteUrl = element._quotedPostUrl;
+    };
+    element._unresolvedFacets = [
+      makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+    ];
+    element.handlePaste(makePasteEvent([]));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    assertEquals(
+      loadedQuoteUrl,
+      "https://bsky.app/profile/alice.test/post/3abc",
+    );
+    assertEquals(element._externalLinkUrl, null);
+  });
+
+  it("does not attach a second quote post when one is already attached", async () => {
+    const element = createPostComposer();
+    connectElement(element);
+    let loadCalled = false;
+    element.loadQuotedPostFromLink = () => {
+      loadCalled = true;
+    };
+    element._quotedPostUrl = "https://bsky.app/profile/bob.test/post/3xyz";
+    element._unresolvedFacets = [
+      makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+    ];
+    element.handlePaste(makePasteEvent([]));
+    await new Promise((resolve) => requestAnimationFrame(resolve));
+    assert(!loadCalled);
+    assertEquals(
+      element._quotedPostUrl,
+      "https://bsky.app/profile/bob.test/post/3xyz",
+    );
+  });
+});
+
 t.describe("PostComposer - addMediaFiles", (it) => {
   it("routes image files to addImageFiles", async () => {
     const element = createPostComposer();

@@ -3,6 +3,7 @@ import {
   getRKey,
   doHideAuthorOnUnauthenticated,
   getLabelNameAndDescription,
+  parseYouTubeVideoFromUrl,
 } from "/js/dataHelpers.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -366,50 +367,6 @@ function gifPlayerTemplate({ uri, alt, aspectRatio = null }) {
         </button>`
       : ""}
   </div>`;
-}
-
-const YOUTUBE_VIDEO_ID_REGEX = /^[A-Za-z0-9_-]+$/;
-const YOUTUBE_HOSTNAMES = [
-  "www.youtube.com",
-  "youtube.com",
-  "m.youtube.com",
-  "music.youtube.com",
-];
-
-function parseYouTubeVideoFromUrl(url) {
-  if (!url) return null;
-  let parsedUrl;
-  try {
-    parsedUrl = new URL(url);
-  } catch {
-    return null;
-  }
-  let videoId = null;
-  let isShort = false;
-  if (parsedUrl.hostname === "youtu.be") {
-    videoId = parsedUrl.pathname.split("/")[1];
-  } else if (YOUTUBE_HOSTNAMES.includes(parsedUrl.hostname)) {
-    const [, page, pathVideoId] = parsedUrl.pathname.split("/");
-    isShort = page === "shorts";
-    if (isShort || page === "live") {
-      videoId = pathVideoId;
-    } else {
-      videoId = parsedUrl.searchParams.get("v");
-    }
-  }
-  if (!videoId || !YOUTUBE_VIDEO_ID_REGEX.test(videoId)) return null;
-  const startTime = parseYouTubeStartTime(parsedUrl.searchParams.get("t"));
-  return { videoId, startTime, isShort };
-}
-
-function parseYouTubeStartTime(rawValue) {
-  if (!rawValue) return 0;
-  const match = rawValue.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s?)?$/);
-  if (!match || !(match[1] || match[2] || match[3])) return 0;
-  const [, hours, minutes, seconds] = match;
-  return (
-    Number(hours ?? 0) * 3600 + Number(minutes ?? 0) * 60 + Number(seconds ?? 0)
-  );
 }
 
 const YOUTUBE_VIDEO_ASPECT_RATIO = 16 / 9;

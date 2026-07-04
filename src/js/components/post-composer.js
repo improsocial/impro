@@ -731,18 +731,22 @@ class PostComposer extends Component {
       this.addMediaFiles(pastedFiles);
       return;
     }
-    // Unlike external links, add quote posts immediately if a link is pasted
+    // Attach link embeds immediately if a link is pasted
     // Wait a tick so handleInput runs first
     requestAnimationFrame(() => {
-      if (this.quotedPost || this._quotedPostUrl) return;
       for (const facet of this._unresolvedFacets) {
         const feature = facet.features[0];
         if (feature.$type === "app.bsky.richtext.facet#link") {
           const url = feature.uri;
-          if (isQuotePostLink(url) && !this._rejectedLinkEmbeds.has(url)) {
-            this._quotedPostUrl = url;
-            this.loadQuotedPostFromLink();
-            break;
+          if (this._rejectedLinkEmbeds.has(url)) continue;
+          if (isQuotePostLink(url)) {
+            if (!this.quotedPost && !this._quotedPostUrl) {
+              this._quotedPostUrl = url;
+              this.loadQuotedPostFromLink();
+            }
+          } else if (!this._externalLinkUrl) {
+            this._externalLinkUrl = url;
+            this.loadExternalLinkEmbedPreview();
           }
         }
       }

@@ -36,6 +36,7 @@ import {
   isGroupConvo,
   isInviteLinkUrl,
   getInviteCodeFromUrl,
+  isVideoLink,
   isAvailableJoinLinkPreview,
   getJoinLinkCodeFromEmbed,
   getJoinLinkCodesFromPosts,
@@ -2260,6 +2261,35 @@ t.describe("getPostsFromFeed", (it) => {
     assertEquals(result[2].uri, "root1");
     assertEquals(result[3].uri, "parent1");
     assertEquals(result[4].uri, "post3");
+  });
+});
+
+t.describe("isVideoLink", (it) => {
+  it("returns true for youtube watch links", () => {
+    assert(isVideoLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
+    assert(isVideoLink("https://youtube.com/watch?v=dQw4w9WgXcQ"));
+    assert(isVideoLink("https://m.youtube.com/watch?v=dQw4w9WgXcQ"));
+  });
+
+  it("returns true for youtu.be links", () => {
+    assert(isVideoLink("https://youtu.be/dQw4w9WgXcQ"));
+  });
+
+  it("returns true for youtube shorts and live links", () => {
+    assert(isVideoLink("https://www.youtube.com/shorts/dQw4w9WgXcQ"));
+    assert(isVideoLink("https://www.youtube.com/live/dQw4w9WgXcQ"));
+  });
+
+  it("returns false for youtube pages that are not videos", () => {
+    assert(!isVideoLink("https://www.youtube.com/"));
+    assert(!isVideoLink("https://www.youtube.com/results?search_query=cats"));
+    assert(!isVideoLink("https://www.youtube.com/@somechannel"));
+  });
+
+  it("returns false for non-youtube links and invalid input", () => {
+    assert(!isVideoLink("https://example.com/watch?v=dQw4w9WgXcQ"));
+    assert(!isVideoLink("not a url"));
+    assert(!isVideoLink(null));
   });
 });
 
