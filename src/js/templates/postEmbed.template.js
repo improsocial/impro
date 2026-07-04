@@ -21,7 +21,6 @@ import {
 import { isSafari } from "/js/utils.js";
 import "/js/components/lightbox-image-group.js";
 import "/js/components/streaming-video.js";
-import "/js/components/gif-player.js";
 import "/js/components/moderation-warning.js";
 import "/js/components/image-carousel.js";
 import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
@@ -278,6 +277,13 @@ function imagesTemplate({ images, lazyLoad = false }) {
 
 function videoTemplate({ video }) {
   const aspectRatio = getPostMediaAspectRatio(video);
+  if (video.presentation === "gif") {
+    return gifPlayerTemplate({
+      uri: video.playlist,
+      alt: video.alt,
+      aspectRatio,
+    });
+  }
   return html`<div
     class="post-video"
     style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
@@ -332,9 +338,19 @@ function openAltTextDialog(altText) {
   dialog.showModal();
 }
 
-function gifPlayerTemplate({ uri, alt }) {
-  return html` <div class="post-video">
-    <gif-player src="${uri}" alt="${alt}"></gif-player>
+function gifPlayerTemplate({ uri, alt, aspectRatio = null }) {
+  return html` <div
+    class="post-video"
+    style=${aspectRatio ? `aspect-ratio: ${aspectRatio};` : ""}
+  >
+    <streaming-video
+      src="${uri}"
+      alt="${alt ?? ""}"
+      loop
+      autoplay
+      muted
+      playsinline
+    ></streaming-video>
     ${alt
       ? html`<button
           class="alt-indicator"

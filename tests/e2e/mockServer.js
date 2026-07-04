@@ -283,7 +283,7 @@ export class MockServer {
   }
 
   async setup(page) {
-    // Stub gif proxy fetches (gif-player loads from these CDNs).
+    // Stub gif proxy fetches (gif embeds stream from these CDNs).
     await page.route(
       /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,
       (route) =>

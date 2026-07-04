@@ -1,12 +1,15 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 
-// Only start loading the video when it's close to visible in the viewport
+// Only start loading the video when it's close to visible in the viewport.
+// Also fires when a hidden page is shown again, resuming autoplay videos
+// that were paused on page exit.
 const streamingVideoObserver = new IntersectionObserver(
   (entries) => {
     for (const entry of entries) {
       if (entry.isIntersecting) {
         entry.target.enableStreaming();
+        entry.target.resumeAutoplay();
       }
     }
   },
@@ -27,6 +30,8 @@ class StreamingVideo extends Component {
     this.controls = this.getAttribute("controls") !== null;
     this.autoplay = this.getAttribute("autoplay") !== null;
     this.muted = this.getAttribute("muted") !== null;
+    this.loop = this.getAttribute("loop") !== null;
+    this.playsinline = this.getAttribute("playsinline") !== null;
     this._streamingEnabled = false;
     this.render();
     this.initialized = true;
@@ -39,8 +44,11 @@ class StreamingVideo extends Component {
   render() {
     render(
       html`<video
-        controls=${this.controls}
-        muted=${this.muted}
+        ?controls=${this.controls}
+        ?autoplay=${this.autoplay}
+        ?loop=${this.loop}
+        ?playsinline=${this.playsinline}
+        ?muted=${this.muted}
         aria-label=${this.alt || null}
       ></video>`,
       this,
@@ -55,12 +63,25 @@ class StreamingVideo extends Component {
     });
   }
 
+  resumeAutoplay() {
+    if (!this.autoplay) {
+      return;
+    }
+    const video = this.querySelector("video");
+    if (video && video.paused) {
+      video.play().catch(() => {});
+    }
+  }
+
   async enableStreaming() {
     if (this._streamingEnabled) {
       return;
     }
     const video = this.querySelector("video");
-    if (video && this.src.includes(".m3u8")) {
+    if (!video) {
+      return;
+    }
+    if (this.src.includes(".m3u8")) {
       if (!window.Hls) {
         await import("/js/lib/hls.js");
       }
@@ -70,8 +91,13 @@ class StreamingVideo extends Component {
       });
       hls.loadSource(this.src);
       hls.attachMedia(video);
-      this._streamingEnabled = true;
+    } else {
+      const source = document.createElement("source");
+      source.src = this.src;
+      source.type = this.src.endsWith(".webm") ? "video/webm" : "video/mp4";
+      video.appendChild(source);
     }
+    this._streamingEnabled = true;
   }
 }
 

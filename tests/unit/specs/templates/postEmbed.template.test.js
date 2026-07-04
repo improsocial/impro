@@ -248,6 +248,60 @@ t.describe("postEmbedTemplate - video", (it) => {
     const el = renderVideo({ width: 0, height: 0 });
     assertEquals(el.style.aspectRatio, "");
   });
+
+  it("renders a video with controls and no looping by default", () => {
+    const el = renderVideo({ width: 16, height: 9 });
+    const player = el.querySelector("streaming-video");
+    assert(player.hasAttribute("controls"));
+    assert(!player.hasAttribute("loop"));
+    assert(!player.hasAttribute("autoplay"));
+  });
+});
+
+t.describe("postEmbedTemplate - gif presentation video", (it) => {
+  function renderGifVideo({ alt, aspectRatio } = {}) {
+    const result = postEmbedTemplate({
+      embed: {
+        $type: "app.bsky.embed.video#view",
+        playlist: "https://example.com/video.m3u8",
+        presentation: "gif",
+        alt,
+        aspectRatio,
+      },
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    return container.querySelector(".post-video");
+  }
+
+  it("renders a looping autoplaying muted player without controls", () => {
+    const el = renderGifVideo();
+    const player = el.querySelector("streaming-video");
+    assert(player !== null);
+    assert(player.hasAttribute("loop"));
+    assert(player.hasAttribute("autoplay"));
+    assert(player.hasAttribute("muted"));
+    assert(player.hasAttribute("playsinline"));
+    assert(!player.hasAttribute("controls"));
+    assertEquals(player.getAttribute("src"), "https://example.com/video.m3u8");
+  });
+
+  it("renders the aspect ratio inline on .post-video", () => {
+    const el = renderGifVideo({ aspectRatio: { width: 16, height: 9 } });
+    assertEquals(el.style.aspectRatio, String(16 / 9));
+  });
+
+  it("shows the ALT badge when alt text is present", () => {
+    const el = renderGifVideo({ alt: "A cat gif" });
+    assert(el.querySelector("[data-testid='video-alt-badge']") !== null);
+  });
+
+  it("omits the ALT badge when alt text is missing", () => {
+    const el = renderGifVideo();
+    assertEquals(el.querySelector("[data-testid='video-alt-badge']"), null);
+  });
 });
 
 t.describe("postEmbedTemplate - external links", (it) => {

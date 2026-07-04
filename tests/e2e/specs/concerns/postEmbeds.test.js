@@ -194,13 +194,14 @@ test.describe("Post embeds view — gallery carousel", () => {
 });
 
 test.describe("Post embeds view — video", () => {
-  function buildVideoPost({ alt } = {}) {
+  function buildVideoPost({ alt, presentation } = {}) {
     return buildPost({
       embed: {
         $type: "app.bsky.embed.video#view",
         playlist: "",
         aspectRatio: { width: 16, height: 9 },
         ...(alt !== undefined ? { alt } : {}),
+        ...(presentation !== undefined ? { presentation } : {}),
       },
     });
   }
@@ -213,6 +214,20 @@ test.describe("Post embeds view — video", () => {
     const view = page.locator("#post-detail-view");
     await expect(view.locator(".post-video")).toBeVisible({ timeout: 10000 });
     await expect(view.locator("streaming-video")).toHaveCount(1);
+  });
+
+  test("renders a gif-presentation video as a looping autoplay player without controls", async ({
+    page,
+  }) => {
+    await setupSinglePostThread(page, buildVideoPost({ presentation: "gif" }));
+
+    const view = page.locator("#post-detail-view");
+    const player = view.locator("streaming-video");
+    await expect(player).toBeVisible({ timeout: 10000 });
+    await expect(player).toHaveAttribute("loop");
+    await expect(player).toHaveAttribute("autoplay");
+    await expect(player).toHaveAttribute("muted");
+    await expect(player).not.toHaveAttribute("controls");
   });
 
   test("does not render ALT badge when video has no alt text", async ({
@@ -303,7 +318,9 @@ test.describe("Post embeds view — gif", () => {
     await setupSinglePostThread(page, buildGifPost());
 
     const view = page.locator("#post-detail-view");
-    await expect(view.locator("gif-player")).toHaveCount(1, { timeout: 10000 });
+    await expect(view.locator("streaming-video")).toHaveCount(1, {
+      timeout: 10000,
+    });
     await expect(view.locator('[data-testid="video-alt-badge"]')).toHaveCount(
       0,
     );
