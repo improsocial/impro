@@ -710,10 +710,13 @@ export class Api {
     return res.data;
   }
 
-  async sendMessage(convoId, { text, facets, replyTo }) {
+  async sendMessage(convoId, { text, facets, replyTo, embed }) {
     const message = { text, facets };
     if (replyTo) {
       message.replyTo = replyTo;
+    }
+    if (embed) {
+      message.embed = embed;
     }
     const res = await this.request("chat.bsky.convo.sendMessage", {
       method: "POST",

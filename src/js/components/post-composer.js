@@ -23,54 +23,12 @@ import {
   VideoUploader,
   VideoValidationError,
 } from "/js/videoUtils.js";
-import { IN_APP_LINK_DOMAINS, LINK_CARD_SERVICE_URL } from "/js/config.js";
+import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { recordEmbedTemplate } from "/js/templates/postEmbed.template.js";
-import { createEmbedFromPost } from "/js/dataHelpers.js";
+import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
-
-// e.g. https://bsky.app/profile/gracekind.net/post/3m63ewg5nws23
-const RECORD_LINK_PATTERNS = [
-  {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/post\/([a-zA-Z0-9.-]+)$/,
-    collection: "app.bsky.feed.post",
-  },
-  {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/feed\/([a-zA-Z0-9.-]+)$/,
-    collection: "app.bsky.feed.generator",
-  },
-  {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/lists\/([a-zA-Z0-9.-]+)$/,
-    collection: "app.bsky.graph.list",
-  },
-  {
-    pattern: /^\/profile\/([a-zA-Z0-9:.-]+)\/starter-pack\/([a-zA-Z0-9.-]+)$/,
-    collection: "app.bsky.graph.starterpack",
-  },
-  {
-    pattern: /^\/starter-pack\/([a-zA-Z0-9:.-]+)\/([a-zA-Z0-9.-]+)$/,
-    collection: "app.bsky.graph.starterpack",
-  },
-];
-
-function parseRecordLink(url) {
-  try {
-    const parsedUrl = new URL(url);
-    if (!IN_APP_LINK_DOMAINS.includes(parsedUrl.hostname)) {
-      return null;
-    }
-    for (const { pattern, collection } of RECORD_LINK_PATTERNS) {
-      const match = pattern.exec(parsedUrl.pathname);
-      if (match) {
-        return { collection, didOrHandle: match[1], rkey: match[2] };
-      }
-    }
-    return null;
-  } catch (error) {
-    return null;
-  }
-}
 
 function replyToTemplate({ post }) {
   return html`
@@ -477,27 +435,10 @@ class PostComposer extends Component {
   async loadQuotedRecordFromLink() {
     const url = this._quotedRecordUrl;
     try {
-      const { collection, didOrHandle, rkey } = parseRecordLink(url);
-      const did = didOrHandle.startsWith("did:")
-        ? didOrHandle
-        : await this.identityResolver.resolveHandle(didOrHandle);
-      const recordUri = `at://${did}/${collection}/${rkey}`;
-      let record = null;
-      if (collection === "app.bsky.feed.post") {
-        const post = await this.dataLayer.declarative.ensurePost(recordUri);
-        record = createEmbedFromPost(post);
-      } else if (collection === "app.bsky.feed.generator") {
-        const view =
-          await this.dataLayer.declarative.ensureFeedGenerator(recordUri);
-        record = { ...view, $type: "app.bsky.feed.defs#generatorView" };
-      } else if (collection === "app.bsky.graph.list") {
-        const view = await this.dataLayer.declarative.ensureList(recordUri);
-        record = { ...view, $type: "app.bsky.graph.defs#listView" };
-      } else {
-        const view =
-          await this.dataLayer.declarative.ensureStarterPack(recordUri);
-        record = { ...view, $type: "app.bsky.graph.defs#starterPackViewBasic" };
-      }
+      const record = await resolveRecordFromLink(url, {
+        identityResolver: this.identityResolver,
+        dataLayer: this.dataLayer,
+      });
       // the embed may have been closed or replaced while the record was loading
       if (this._quotedRecordUrl !== url) return;
       this.quotedRecord = record;

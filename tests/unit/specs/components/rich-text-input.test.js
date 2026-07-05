@@ -25,6 +25,14 @@ t.describe("RichTextInput - rendering", (it) => {
     assertEquals(input.getAttribute("contenteditable"), "true");
   });
 
+  it("should render an empty line when empty, so the input keeps its one-line height", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+    assert(input.querySelector("div > br") !== null);
+    assertEquals(element.text, "");
+  });
+
   it("should render placeholder", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
@@ -87,13 +95,22 @@ t.describe("RichTextInput - placeholder visibility", (it) => {
   });
 });
 
-t.describe("RichTextInput - focus method", (it) => {
+t.describe("RichTextInput - focus and blur methods", (it) => {
   it("should focus the contenteditable div when focus() is called", () => {
     const element = document.createElement("rich-text-input");
     document.body.appendChild(element);
     element.focus();
     const input = element.querySelector(".rich-text-input");
     assertEquals(document.activeElement, input);
+  });
+
+  it("should blur the contenteditable div when blur() is called", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.focus();
+    element.blur();
+    const input = element.querySelector(".rich-text-input");
+    assert(document.activeElement !== input);
   });
 });
 
@@ -128,6 +145,60 @@ t.describe("RichTextInput - input handling", (it) => {
     input.dispatchEvent(new Event("input"));
 
     assert(Array.isArray(receivedFacets));
+  });
+
+  it("reports insertFromPaste in the input detail for pasted text", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+
+    const details = [];
+    element.addEventListener("input", (event) => {
+      details.push(event.detail);
+    });
+
+    const originalExecCommand = document.execCommand;
+    // Like the browser, insert the text and fire input synchronously
+    document.execCommand = (name, _ui, value) => {
+      input.textContent = input.textContent + value;
+      input.dispatchEvent(new window.InputEvent("input"));
+      return true;
+    };
+    try {
+      const pasteEvent = new window.Event("paste", {
+        bubbles: true,
+        cancelable: true,
+      });
+      pasteEvent.clipboardData = { getData: () => "pasted" };
+      input.dispatchEvent(pasteEvent);
+    } finally {
+      document.execCommand = originalExecCommand;
+    }
+
+    assertEquals(details.length, 1);
+    assertEquals(details[0].text, "pasted");
+    assertEquals(details[0].inputType, "insertFromPaste");
+  });
+
+  it("passes the native inputType through in the input detail", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+
+    const details = [];
+    element.addEventListener("input", (event) => {
+      details.push(event.detail);
+    });
+
+    input.textContent = "a";
+    input.dispatchEvent(
+      new window.InputEvent("input", { inputType: "insertText" }),
+    );
+    element.setText("reset");
+
+    assertEquals(details.length, 2);
+    assertEquals(details[0].inputType, "insertText");
+    assertEquals(details[1].inputType, null);
   });
 
   it("skips updates while IME composition is in progress", () => {
@@ -254,6 +325,46 @@ t.describe("RichTextInput - mention suggestions navigation", (it) => {
 
     assertEquals(element.mentionSuggestions.length, 0);
     assertEquals(element.selectedSuggestionIndex, null);
+  });
+});
+
+t.describe("RichTextInput - blur", (it) => {
+  it("closes the typeahead and clears mention state on blur", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("Hi @al");
+    element.currentMentionStart = 3;
+    element.currentMentionEnd = 6;
+    element.currentMentionQuery = "al";
+    element.mentionSuggestions = [{ handle: "alice.bsky.social" }];
+    element.openTypeahead();
+    assert(document.querySelector(".mention-typeahead-host") !== null);
+
+    const input = element.querySelector(".rich-text-input");
+    input.dispatchEvent(new window.FocusEvent("blur"));
+
+    assertEquals(document.querySelector(".mention-typeahead-host"), null);
+    assertEquals(element.mentionSuggestions.length, 0);
+    assertEquals(element.currentMentionQuery, null);
+  });
+
+  it("prevents default on typeahead mousedown so suggestion clicks don't blur the input", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.mentionSuggestions = [{ handle: "alice.bsky.social" }];
+    element.openTypeahead();
+
+    const typeahead = document.querySelector(
+      ".mention-typeahead-host .mention-typeahead",
+    );
+    const mousedown = new window.MouseEvent("mousedown", {
+      bubbles: true,
+      cancelable: true,
+    });
+    typeahead.dispatchEvent(mousedown);
+
+    assert(mousedown.defaultPrevented);
+    element.closeTypeahead();
   });
 });
 
@@ -438,5 +549,240 @@ t.describe("RichTextInput - setCursor", (it) => {
     assertEquals(lastCursorOffset(element, -5), 0);
   });
 });
+
+t.describe("RichTextInput - disabled attribute", (it) => {
+  it("renders contenteditable=false when disabled is set", () => {
+    const element = document.createElement("rich-text-input");
+    element.setAttribute("disabled", "");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(input.getAttribute("contenteditable"), "false");
+  });
+
+  it("toggles contenteditable when the attribute changes", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    const input = element.querySelector(".rich-text-input");
+    assertEquals(input.getAttribute("contenteditable"), "true");
+    element.setAttribute("disabled", "");
+    assertEquals(input.getAttribute("contenteditable"), "false");
+    element.removeAttribute("disabled");
+    assertEquals(input.getAttribute("contenteditable"), "true");
+  });
+});
+
+t.describe("RichTextInput - getCursor", (it) => {
+  it("returns the caret position within the text", () => {
+    const element = document.createElement("rich-text-input");
+    document.body.appendChild(element);
+    element.setText("abcdef");
+    const input = element.querySelector(".rich-text-input");
+    const textNode = [...input.querySelector("div").childNodes].find(
+      (node) => node.nodeType === Node.TEXT_NODE,
+    );
+
+    const originalGetSelection = window.getSelection;
+    window.getSelection = () => ({
+      rangeCount: 1,
+      getRangeAt: () => ({ endContainer: textNode, endOffset: 3 }),
+    });
+    try {
+      assertEquals(element.getCursor(), 3);
+    } finally {
+      window.getSelection = originalGetSelection;
+    }
+  });
+});
+
+t.describe(
+  "RichTextInput - typeahead direction",
+  (it, { beforeEach, afterEach }) => {
+    let originalRangeRect;
+
+    beforeEach(() => {
+      originalRangeRect = window.Range.prototype.getBoundingClientRect;
+      window.Range.prototype.getBoundingClientRect = () => ({
+        top: 100,
+        bottom: 120,
+        left: 0,
+        right: 0,
+        width: 0,
+        height: 20,
+      });
+    });
+
+    afterEach(() => {
+      window.Range.prototype.getBoundingClientRect = originalRangeRect;
+    });
+
+    function openTypeaheadAt(element) {
+      element.setText("Hi @al");
+      element.currentMentionStart = 3;
+      element.currentMentionEnd = 6;
+      element.mentionSuggestions = [{ handle: "alice.bsky.social" }];
+      element.querySelector(".rich-text-input").getBoundingClientRect = () => ({
+        top: 200,
+        bottom: 240,
+        left: 10,
+        right: 310,
+        width: 300,
+        height: 40,
+      });
+      element.openTypeahead();
+      element.positionTypeahead();
+      return document.querySelector(
+        ".mention-typeahead-host .mention-typeahead",
+      );
+    }
+
+    it("opens downward from the caret by default", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      const typeahead = openTypeaheadAt(element);
+      assert(typeahead !== null);
+      assert(!typeahead.classList.contains("mention-typeahead-above"));
+      assertEquals(typeahead.style.top, "120px");
+      assertEquals(typeahead.style.bottom, "");
+      element.closeTypeahead();
+    });
+
+    it("opens upward when typeahead-direction is up", () => {
+      const element = document.createElement("rich-text-input");
+      element.setAttribute("typeahead-direction", "up");
+      document.body.appendChild(element);
+      const typeahead = openTypeaheadAt(element);
+      assert(typeahead !== null);
+      assert(typeahead.classList.contains("mention-typeahead-above"));
+      assertEquals(typeahead.style.bottom, `${window.innerHeight - 200}px`);
+      assertEquals(typeahead.style.top, "");
+      element.closeTypeahead();
+    });
+  },
+);
+
+t.describe(
+  "RichTextInput - typeahead empty state",
+  (it, { beforeEach, afterEach }) => {
+    let originalFetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+      globalThis.fetch = async () => ({
+        ok: true,
+        json: async () => ({ actors: [] }),
+      });
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    it("shows an empty state when the query has no matches", async () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("Hi @zz");
+      element.detectPendingMention = () => ({ query: "zz", start: 3, end: 6 });
+
+      await element.updateMentionSuggestions();
+
+      const emptyState = document.querySelector(
+        '.mention-typeahead [data-testid="empty-state"]',
+      );
+      assert(emptyState !== null);
+      assertEquals(document.querySelectorAll(".mention-suggestion").length, 0);
+      element.closeTypeahead();
+    });
+
+    it("closes the empty-state typeahead with Escape", async () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("Hi @zz");
+      element.detectPendingMention = () => ({ query: "zz", start: 3, end: 6 });
+      await element.updateMentionSuggestions();
+      assert(document.querySelector(".mention-typeahead-host") !== null);
+
+      const event = new window.KeyboardEvent("keydown", {
+        key: "Escape",
+        cancelable: true,
+      });
+      element.handleKeydown(event);
+
+      assert(event.defaultPrevented);
+      assertEquals(document.querySelector(".mention-typeahead-host"), null);
+      assertEquals(element.currentMentionQuery, null);
+    });
+  },
+);
+
+t.describe(
+  "RichTextInput - stale suggestion responses",
+  (it, { beforeEach, afterEach }) => {
+    let originalFetch;
+
+    beforeEach(() => {
+      originalFetch = globalThis.fetch;
+    });
+
+    afterEach(() => {
+      globalThis.fetch = originalFetch;
+    });
+
+    function deferredResponse() {
+      let resolve;
+      const promise = new Promise((promiseResolve) => {
+        resolve = promiseResolve;
+      });
+      return {
+        promise,
+        resolveWith: (actors) =>
+          resolve({ ok: true, json: async () => ({ actors }) }),
+      };
+    }
+
+    it("ignores a response that arrives after a newer request", async () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("Hi @al");
+
+      const first = deferredResponse();
+      const second = deferredResponse();
+      const pending = [first.promise, second.promise];
+      globalThis.fetch = () => pending.shift();
+
+      element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
+      const firstUpdate = element.updateMentionSuggestions();
+      element.detectPendingMention = () => ({ query: "ali", start: 3, end: 7 });
+      const secondUpdate = element.updateMentionSuggestions();
+
+      second.resolveWith([{ handle: "ali.bsky.social" }]);
+      await secondUpdate;
+      assertEquals(element.mentionSuggestions[0].handle, "ali.bsky.social");
+
+      first.resolveWith([{ handle: "al.bsky.social" }]);
+      await firstUpdate;
+      assertEquals(element.mentionSuggestions.length, 1);
+      assertEquals(element.mentionSuggestions[0].handle, "ali.bsky.social");
+      element.closeTypeahead();
+    });
+
+    it("ignores a response that arrives after the pending mention was cleared", async () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("Hi @al");
+
+      const first = deferredResponse();
+      globalThis.fetch = () => first.promise;
+
+      element.detectPendingMention = () => ({ query: "al", start: 3, end: 6 });
+      const firstUpdate = element.updateMentionSuggestions();
+      element.detectPendingMention = () => null;
+      await element.updateMentionSuggestions();
+
+      first.resolveWith([{ handle: "al.bsky.social" }]);
+      await firstUpdate;
+      assertEquals(element.mentionSuggestions.length, 0);
+    });
+  },
+);
 
 await t.run();

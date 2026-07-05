@@ -2,12 +2,17 @@ import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
-import { isMobileViewport } from "/js/utils.js";
+import { isMobileViewport, graphemeCount, getByteLength } from "/js/utils.js";
+import "/js/components/rich-text-input.js";
 import "/js/components/emoji-picker-dialog.js";
+
+// Limits from the chat.bsky.convo.defs#messageInput lexicon
+const MAX_MESSAGE_GRAPHEMES = 1000;
+const MAX_MESSAGE_BYTES = 10000;
 
 class ChatInput extends Component {
   static get observedAttributes() {
-    return ["disabled", "loading"];
+    return ["disabled", "loading", "has-embed"];
   }
 
   connectedCallback() {
@@ -18,7 +23,7 @@ class ChatInput extends Component {
     this.disabled = this.getAttribute("disabled") !== null;
     this.loading = this.getAttribute("loading") !== null;
     this.render();
-    this.updateTextareaHeight();
+    this.reportHeight();
     this._initialized = true;
   }
 
@@ -32,29 +37,17 @@ class ChatInput extends Component {
     } else if (name === "loading") {
       this.loading = this.getAttribute("loading") !== null;
       this.render();
+    } else if (name === "has-embed") {
+      this.render();
     }
   }
 
   focus() {
-    const textarea = this.querySelector(".message-input-field");
-    if (textarea) {
-      textarea.focus();
-    }
+    this.querySelector("rich-text-input")?.focus();
   }
 
   blur() {
-    const textarea = this.querySelector(".message-input-field");
-    if (textarea) {
-      textarea.blur();
-    }
-  }
-
-  updateTextareaHeight() {
-    const textarea = this.querySelector(".message-input-field");
-    if (!textarea) return;
-    textarea.style.height = "auto";
-    textarea.style.height = textarea.scrollHeight + "px";
-    this.reportHeight();
+    this.querySelector("rich-text-input")?.blur();
   }
 
   reportHeight() {
@@ -68,20 +61,39 @@ class ChatInput extends Component {
     );
   }
 
+  isOverLimit() {
+    return (
+      graphemeCount(this.messageText) > MAX_MESSAGE_GRAPHEMES ||
+      getByteLength(this.messageText) > MAX_MESSAGE_BYTES
+    );
+  }
+
+  handleInput(event) {
+    this.messageText = event.detail.text;
+    this.render();
+    this.reportHeight();
+    this.dispatchEvent(
+      new CustomEvent("input-change", {
+        detail: {
+          text: this.messageText,
+          inputType: event.detail.inputType ?? null,
+        },
+      }),
+    );
+  }
+
   handleSend() {
-    if (this.disabled) return;
-    const textarea = this.querySelector(".message-input-field");
-    const message = textarea?.value.trim();
-    if (message) {
-      this.dispatchEvent(
-        new CustomEvent("send", {
-          detail: { message },
-        }),
-      );
-      // Clear input after sending
-      textarea.value = "";
-      this.updateTextareaHeight();
-    }
+    if (this.disabled || this.isOverLimit()) return;
+    const message = this.messageText.trim();
+    const hasEmbed = this.getAttribute("has-embed") !== null;
+    if (!message && !hasEmbed) return;
+    this.dispatchEvent(
+      new CustomEvent("send", {
+        detail: { message },
+      }),
+    );
+    // Clear input after sending
+    this.querySelector("rich-text-input")?.setText("");
   }
 
   handleEmojiButtonClick(event) {
@@ -90,24 +102,24 @@ class ChatInput extends Component {
     if (dialog.isOpen) {
       dialog.close();
     } else {
+      // Capture the caret before the picker steals focus
+      this._emojiCursor = this.querySelector("rich-text-input")?.getCursor();
       dialog.open(event.currentTarget);
     }
   }
 
   handleEmojiSelect(emoji) {
-    const textarea = this.querySelector(".message-input-field");
-    if (!textarea) return;
-    const start = textarea.selectionStart ?? textarea.value.length;
-    const end = textarea.selectionEnd ?? textarea.value.length;
-    textarea.value =
-      textarea.value.slice(0, start) + emoji + textarea.value.slice(end);
-    const cursor = start + emoji.length;
-    textarea.focus();
-    textarea.setSelectionRange(cursor, cursor);
-    textarea.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    const richTextInput = this.querySelector("rich-text-input");
+    if (!richTextInput) return;
+    const text = richTextInput.text;
+    const cursor = this._emojiCursor ?? text.length;
+    richTextInput.setText(text.slice(0, cursor) + emoji + text.slice(cursor));
+    richTextInput.focus();
+    richTextInput.setCursor(cursor + emoji.length);
   }
 
   handleKeyDown(e) {
+    if (e.defaultPrevented) return;
     if (e.key === "Enter" && !e.shiftKey) {
       if (isMobileViewport()) return;
       e.preventDefault();
@@ -116,18 +128,19 @@ class ChatInput extends Component {
   }
 
   render() {
+    const overLimit = this.isOverLimit();
+    const hasEmbed = this.getAttribute("has-embed") !== null;
+    const canSend = this.messageText.trim().length > 0 || hasEmbed;
     const template = html`
       <div class="message-input-container">
         <div class="message-input-field-wrapper">
-          <textarea
-            maxlength="10000"
-            class="message-input-field"
+          <rich-text-input
             placeholder="Write a message"
-            rows="1"
+            typeahead-direction="up"
             ?disabled=${this.disabled}
-            @input=${() => this.updateTextareaHeight()}
+            @input=${(e) => this.handleInput(e)}
             @keydown=${(e) => this.handleKeyDown(e)}
-          ></textarea>
+          ></rich-text-input>
           <div class="message-input-emoji-wrapper">
             <button
               class="message-input-emoji-button"
@@ -148,7 +161,7 @@ class ChatInput extends Component {
         </div>
         <button
           class="message-input-send-button"
-          ?disabled=${this.disabled}
+          ?disabled=${this.disabled || overLimit || !canSend}
           @click=${() => this.handleSend()}
         >
           ${this.loading

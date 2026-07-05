@@ -153,6 +153,30 @@ test.describe("Post thread view", () => {
     expect(postTop).toBeLessThanOrEqual(headerHeight + 8);
   });
 
+  test("should not add scroll runway below a thread without parents", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addPosts([mainPost]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+    await expect(view.locator('[data-testid="large-post"]')).toBeVisible({
+      timeout: 10000,
+    });
+
+    // Nothing above the main post means no pinning scroll is needed, so the
+    // page should not be scrollable beyond its natural content.
+    const { scrollHeight, innerHeight } = await page.evaluate(() => ({
+      scrollHeight: document.documentElement.scrollHeight,
+      innerHeight: window.innerHeight,
+    }));
+    expect(scrollHeight - innerHeight).toBeLessThanOrEqual(1);
+  });
+
   test("should pin the main post under the header even if the user scrolled while loading", async ({
     page,
   }) => {

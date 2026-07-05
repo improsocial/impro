@@ -414,71 +414,73 @@ class PostThreadView extends View {
               .pluginService=${pluginService}
               .interactionHandlers=${interactionHandlers}
             ></plugin-slot>
-            ${hiddenUnauthenticated
-              ? noUnauthenticatedLargePostTemplate()
-              : largePostTemplate({
-                  post: mainPost,
-                  currentUser,
-                  isAuthenticated,
-                  pluginService,
-                  isUserPost: currentUser?.did === mainPost?.author?.did,
-                  postInteractionHandler,
-                  afterHide: () => {
-                    // if the main post is hidden, go back to the previous page
-                    router.back();
-                  },
-                  afterDelete: () => {
-                    // if the main post is deleted, go back to the previous page
-                    router.back();
-                  },
-                  onClickReply: async () => {
-                    await handleClickReply(mainPost, root, currentUser);
-                  },
-                  replyContext: hasParent ? "reply" : null,
-                })}
-            <plugin-slot
-              name="post-thread-view:after-main"
-              context-uri=${postUri}
-              .pluginService=${pluginService}
-              .interactionHandlers=${interactionHandlers}
-            ></plugin-slot>
-            ${isAuthenticated && currentUser && canReplyToPost(mainPost)
-              ? html`
-                  <div
-                    class="post-thread-reply-prompt"
-                    @click=${async () => {
+            <div class="post-thread-main-section">
+              ${hiddenUnauthenticated
+                ? noUnauthenticatedLargePostTemplate()
+                : largePostTemplate({
+                    post: mainPost,
+                    currentUser,
+                    isAuthenticated,
+                    pluginService,
+                    isUserPost: currentUser?.did === mainPost?.author?.did,
+                    postInteractionHandler,
+                    afterHide: () => {
+                      // if the main post is hidden, go back to the previous page
+                      router.back();
+                    },
+                    afterDelete: () => {
+                      // if the main post is deleted, go back to the previous page
+                      router.back();
+                    },
+                    onClickReply: async () => {
                       await handleClickReply(mainPost, root, currentUser);
-                    }}
-                  >
-                    <div class="post-thread-reply-prompt-inner">
-                      ${avatarTemplate({
-                        author: currentUser,
-                        clickAction: "none",
-                      })}
-                      <span class="post-thread-reply-prompt-text">
-                        Write your reply
-                      </span>
+                    },
+                    replyContext: hasParent ? "reply" : null,
+                  })}
+              <plugin-slot
+                name="post-thread-view:after-main"
+                context-uri=${postUri}
+                .pluginService=${pluginService}
+                .interactionHandlers=${interactionHandlers}
+              ></plugin-slot>
+              ${isAuthenticated && currentUser && canReplyToPost(mainPost)
+                ? html`
+                    <div
+                      class="post-thread-reply-prompt"
+                      @click=${async () => {
+                        await handleClickReply(mainPost, root, currentUser);
+                      }}
+                    >
+                      <div class="post-thread-reply-prompt-inner">
+                        ${avatarTemplate({
+                          author: currentUser,
+                          clickAction: "none",
+                        })}
+                        <span class="post-thread-reply-prompt-text">
+                          Write your reply
+                        </span>
+                      </div>
                     </div>
-                  </div>
-                `
-              : ""}
-            ${(() => {
-              if (hiddenUnauthenticated) {
+                  `
+                : ""}
+              ${(() => {
+                if (hiddenUnauthenticated) {
+                  return "";
+                }
+                if (replies) {
+                  return postThreadRepliesTemplate({
+                    replies,
+                    postAuthor,
+                    currentUser,
+                  });
+                }
+                const numReplies = mainPost?.replyCount;
+                if (numReplies > 0) {
+                  return repliesSkeletonTemplate({ numReplies });
+                }
                 return "";
-              }
-              if (replies) {
-                return postThreadRepliesTemplate({
-                  replies,
-                  postAuthor,
-                  currentUser,
-                });
-              }
-              const numReplies = mainPost?.replyCount;
-              if (numReplies > 0) {
-                return repliesSkeletonTemplate({ numReplies });
-              }
-              return "";
-            })()}
+              })()}
+            </div>
           </div>
         `;
       } catch (error) {
@@ -566,6 +568,20 @@ class PostThreadView extends View {
       const headerHeight = header.getBoundingClientRect().height;
       const largePostTop = largePost.getBoundingClientRect().top;
       const offset = largePostTop - headerHeight;
+      // The browser clamps scrolling at the document height, so when there
+      // isn't enough content below the post to pin it under the header,
+      // stretch the main section to provide the missing scroll runway.
+      const mainSection = root.querySelector(".post-thread-main-section");
+      if (mainSection) {
+        const targetScrollY = window.scrollY + offset;
+        const shortfall =
+          targetScrollY +
+          window.innerHeight -
+          document.documentElement.scrollHeight;
+        if (shortfall > 0) {
+          mainSection.style.minHeight = `${mainSection.offsetHeight + shortfall}px`;
+        }
+      }
       window.scrollBy(0, offset);
     }
 

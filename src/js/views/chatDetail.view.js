@@ -3,7 +3,11 @@ import { pageEffect } from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { getFacetsFromText } from "/js/facetHelpers.js";
+import {
+  getFacetsFromText,
+  getLinkUrlsFromText,
+  stripLeadingOrTrailingLink,
+} from "/js/facetHelpers.js";
 import { auth } from "/js/auth.js";
 import {
   getDisplayName,
@@ -12,9 +16,13 @@ import {
   getSystemMessageDisplayText,
   groupReactions,
 } from "/js/dataHelpers.js";
+import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
-import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
+import {
+  postEmbedTemplate,
+  recordEmbedTemplate,
+} from "/js/templates/postEmbed.template.js";
 import { CHAT_MESSAGES_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import {
@@ -55,6 +63,9 @@ class ChatDetailView extends View {
     state.$paletteMessageId = new Signal.State(null);
     state.$reactionsDialogMessageId = new Signal.State(null);
     state.$stagedReply = new Signal.State(null);
+    // null | { url, record, status: "loading" | "ready" | "error" }
+    state.$stagedRecordEmbed = new Signal.State(null);
+    const rejectedRecordLinks = new Set();
 
     function setReply(message) {
       if (!message) return;
@@ -64,6 +75,89 @@ class ChatDetailView extends View {
 
     function clearReply() {
       state.$stagedReply.set(null);
+    }
+
+    function handleComposerInput({ text, inputType }) {
+      const commit =
+        text.endsWith(" ") ||
+        text.endsWith("\n") ||
+        inputType === "insertFromPaste";
+      const urls = getLinkUrlsFromText(text);
+      for (const rejectedUrl of rejectedRecordLinks) {
+        if (!urls.includes(rejectedUrl)) {
+          rejectedRecordLinks.delete(rejectedUrl);
+        }
+      }
+      if (!commit || state.$stagedRecordEmbed.get()) return;
+      for (const url of urls) {
+        if (rejectedRecordLinks.has(url) || !parseRecordLink(url)) continue;
+        state.$stagedRecordEmbed.set({ url, record: null, status: "loading" });
+        loadStagedRecordEmbed(url);
+        break;
+      }
+    }
+
+    async function loadStagedRecordEmbed(url) {
+      try {
+        const record = await resolveRecordFromLink(url, {
+          identityResolver,
+          dataLayer,
+        });
+        // the embed may have been removed while the record was loading
+        if (state.$stagedRecordEmbed.get()?.url !== url) return;
+        state.$stagedRecordEmbed.set({ url, record, status: "ready" });
+      } catch (error) {
+        console.warn("Error loading record embed from link: ", error);
+        if (state.$stagedRecordEmbed.get()?.url === url) {
+          state.$stagedRecordEmbed.set({ url, record: null, status: "error" });
+        }
+      }
+    }
+
+    function clearStagedRecordEmbed() {
+      const staged = state.$stagedRecordEmbed.get();
+      if (staged) {
+        rejectedRecordLinks.add(staged.url);
+      }
+      state.$stagedRecordEmbed.set(null);
+    }
+
+    function stagedEmbedPreviewTemplate({ staged }) {
+      const { record, status } = staged;
+      let body;
+      if (status === "loading") {
+        body = html`<div class="message-embed-preview-pending">
+          <div class="loading-spinner"></div>
+        </div>`;
+      } else if (status === "error") {
+        body = html`<div class="message-embed-preview-pending">
+          Couldn't load embed
+        </div>`;
+      } else {
+        body = html`<div inert>
+          ${recordEmbedTemplate({
+            record,
+            isAuthenticated: true,
+            condensed: true,
+          })}
+        </div>`;
+      }
+      return html`<div
+        class="message-embed-preview"
+        data-testid="message-embed-preview"
+        data-teststate=${status}
+      >
+        <button
+          class="embed-preview-close-button"
+          type="button"
+          aria-label="Remove embed"
+          data-testid="message-embed-preview-remove"
+          @click=${() => clearStagedRecordEmbed()}
+        >
+          <span>×</span>
+        </button>
+        ${body}
+      </div>`;
     }
 
     function messageReplyPreviewTemplate({ staged, senderProfile }) {
@@ -468,13 +562,42 @@ class ChatDetailView extends View {
       state.$isSendingMessage.set(true);
       const stagedReply = state.$stagedReply.get();
       try {
-        const facets = await getFacetsFromText(messageText, identityResolver);
+        const staged = state.$stagedRecordEmbed.get();
+        let text = messageText;
+        let embed = null;
+        if (staged) {
+          let record = staged.record;
+          if (!record) {
+            try {
+              record = await resolveRecordFromLink(staged.url, {
+                identityResolver,
+                dataLayer,
+              });
+            } catch (error) {
+              console.warn("Error resolving record embed at send: ", error);
+            }
+          }
+          if (record) {
+            text = stripLeadingOrTrailingLink(text, staged.url);
+            embed = {
+              $type: "app.bsky.embed.record",
+              record: { uri: record.uri, cid: record.cid },
+            };
+          } else if (!text.trim()) {
+            showToast("Couldn't load embed", { style: "error" });
+            return;
+          }
+        }
+        const facets = await getFacetsFromText(text, identityResolver);
         await dataLayer.mutations.createMessage(convoId, {
-          text: messageText,
+          text,
           facets,
           replyTo: stagedReply ? { messageId: stagedReply.id } : null,
+          embed,
         });
         state.$stagedReply.set(null);
+        state.$stagedRecordEmbed.set(null);
+        rejectedRecordLinks.clear();
         await raf();
         await raf();
         scrollToBottom();
@@ -1149,6 +1272,7 @@ class ChatDetailView extends View {
       const convoPermalink = getPermalinkForConvo(convoId);
       const reactionsDialogMessageId = state.$reactionsDialogMessageId.get();
       const stagedReply = state.$stagedReply.get();
+      const stagedRecordEmbed = state.$stagedRecordEmbed.get();
       const stagedReplySenderProfile =
         stagedReply && stagedReply.sender
           ? getMemberProfile(convo, stagedReply.sender.did)
@@ -1254,9 +1378,16 @@ class ChatDetailView extends View {
                               senderProfile: stagedReplySenderProfile,
                             })
                           : ""}
+                        ${stagedRecordEmbed
+                          ? stagedEmbedPreviewTemplate({
+                              staged: stagedRecordEmbed,
+                            })
+                          : ""}
                         <chat-input
                           @send=${(e) => handleSendMessage(e.detail.message)}
+                          @input-change=${(e) => handleComposerInput(e.detail)}
                           @height-change=${handleInputHeightChange}
+                          ?has-embed=${!!stagedRecordEmbed}
                           ?disabled=${!messages || isSendingMessage}
                           ?loading=${isSendingMessage}
                         ></chat-input>
@@ -1348,15 +1479,17 @@ class ChatDetailView extends View {
       return otherMessages[0].sentAt;
     });
 
-    // Clear the staged reply if the conversation becomes locked or disabled
-    // (e.g. a lock-status change arrives while the user is composing).
+    // Clear the staged reply and record embed if the conversation becomes
+    // locked or disabled (e.g. a lock-status change arrives while the user
+    // is composing).
     pageEffect(root, () => {
-      if (!state.$stagedReply.get()) return;
+      if (!state.$stagedReply.get() && !state.$stagedRecordEmbed.get()) return;
       const convo = dataLayer.derived.$convos.get(convoId);
       const groupDetails = convo ? getGroupConvoDetails(convo) : null;
       const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
       if (isLocked || convo?.status === "disabled") {
         state.$stagedReply.set(null);
+        state.$stagedRecordEmbed.set(null);
       }
     });
 

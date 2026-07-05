@@ -50,6 +50,7 @@ export class MockServer {
     this.postThreadOthers = new Map();
     this.postThreads = new Map();
     this.postThreadDelays = new Map();
+    this.postDelays = new Map();
     this.profileFollowers = new Map();
     this.profileFollows = new Map();
     this.knownFollowers = new Map();
@@ -181,12 +182,15 @@ export class MockServer {
     this.notificationCursor = cursor;
   }
 
-  addPosts(posts) {
+  addPosts(posts, { delayMs = 0 } = {}) {
     this.posts.push(...posts);
     for (const post of posts) {
       const preview = post?.embed?.joinLinkPreview;
       if (preview?.code) {
         this.joinLinkPreviews.set(preview.code, preview);
+      }
+      if (delayMs > 0) {
+        this.postDelays.set(post.uri, delayMs);
       }
     }
   }
@@ -639,9 +643,16 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.feed.getPosts*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getPosts*", async (route) => {
       const url = new URL(route.request().url());
       const uris = url.searchParams.getAll("uris");
+      const delayMs = Math.max(
+        0,
+        ...uris.map((uri) => this.postDelays.get(uri) ?? 0),
+      );
+      if (delayMs > 0) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
       const posts = uris
         .map((uri) => this.posts.find((p) => p.uri === uri))
         .filter(Boolean);

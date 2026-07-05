@@ -6,6 +6,7 @@ import {
   createGroupConvo,
   createMessage,
   createMessageLog,
+  createPost,
   createProfile,
   createSystemMessage,
 } from "../../factories.js";
@@ -359,7 +360,13 @@ test.describe("Chat detail view", () => {
       chatDetailView.locator('[data-testid="header-title"]'),
     ).toContainText("Alice", { timeout: 10000 });
 
-    await chatDetailView.locator(".message-input-field").fill("Hey Alice!");
+    const messageInput = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(messageInput).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await messageInput.fill("Hey Alice!");
     await chatDetailView.locator(".message-input-send-button").click();
 
     await expect(chatDetailView.locator(".message-bubble")).toHaveCount(1, {
@@ -369,6 +376,218 @@ test.describe("Chat detail view", () => {
       "Hey Alice!",
     );
     await expect(chatDetailView.locator(".message-sent")).toHaveCount(1);
+  });
+
+  test("should mention a user via typeahead and send with a mention facet", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addTypeaheadProfiles([bob]);
+    mockServer.addProfile(bob);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.click();
+    await input.pressSequentially("hey @bo");
+
+    const typeahead = page.locator('[data-testid="mention-typeahead"]');
+    await expect(typeahead).toBeVisible({ timeout: 10000 });
+    await expect(
+      page.locator('[data-testid="mention-suggestion"]'),
+    ).toHaveCount(1);
+    await expect(
+      page.locator('[data-testid="mention-suggestion-handle"]'),
+    ).toContainText("@bob.bsky.social");
+
+    // The chat input is bottom-anchored, so the typeahead must open upward
+    const typeaheadBox = await typeahead.boundingBox();
+    const inputBox = await input.boundingBox();
+    expect(typeaheadBox.y + typeaheadBox.height).toBeLessThanOrEqual(
+      inputBox.y,
+    );
+
+    // Enter selects the mention instead of sending
+    await page.keyboard.press("Enter");
+    await expect(typeahead).not.toBeVisible({ timeout: 5000 });
+    await expect(input).toHaveText("hey @bob.bsky.social ");
+    expect(mockServer.sentMessageRequests).toHaveLength(0);
+
+    // The pending mention is highlighted as a facet in the input
+    await expect(input.locator('[data-testid="facet"]')).toHaveText(
+      "@bob.bsky.social",
+    );
+
+    // A second Enter sends the message with the resolved mention facet
+    await page.keyboard.press("Enter");
+    await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+    const sentMessage = mockServer.sentMessageRequests[0].message;
+    const mentionFeatures = (sentMessage.facets ?? []).flatMap((facet) =>
+      facet.features.filter(
+        (feature) => feature.$type === "app.bsky.richtext.facet#mention",
+      ),
+    );
+    expect(mentionFeatures).toHaveLength(1);
+    expect(mentionFeatures[0].did).toBe(bob.did);
+
+    await expect(chatDetailView.locator(".message-text")).toContainText(
+      "@bob.bsky.social",
+    );
+  });
+
+  test("should select a mention by clicking a typeahead suggestion", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addTypeaheadProfiles([bob]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.click();
+    await input.pressSequentially("hey @bo");
+
+    const typeahead = page.locator('[data-testid="mention-typeahead"]');
+    await expect(typeahead).toBeVisible({ timeout: 10000 });
+
+    await page.locator('[data-testid="mention-suggestion"]').click();
+
+    await expect(typeahead).not.toBeVisible({ timeout: 5000 });
+    await expect(input).toHaveText("hey @bob.bsky.social ");
+    // The input keeps focus through the click, so Enter still sends
+    await page.keyboard.press("Enter");
+    await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+  });
+
+  test("should show an empty state when no mention suggestions match", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.click();
+    await input.pressSequentially("hey @zz");
+
+    const typeahead = page.locator('[data-testid="mention-typeahead"]');
+    await expect(typeahead).toBeVisible({ timeout: 10000 });
+    await expect(
+      typeahead.locator('[data-testid="empty-state"]'),
+    ).toBeVisible();
+    await expect(
+      page.locator('[data-testid="mention-suggestion"]'),
+    ).toHaveCount(0);
+
+    await page.keyboard.press("Escape");
+    await expect(typeahead).not.toBeVisible();
+  });
+
+  test("should close the mention typeahead when the input loses focus", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addTypeaheadProfiles([bob]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.click();
+    await input.pressSequentially("hey @bo");
+
+    const typeahead = page.locator('[data-testid="mention-typeahead"]');
+    await expect(typeahead).toBeVisible({ timeout: 10000 });
+
+    await chatDetailView.locator('[data-testid="header-title"]').click();
+
+    await expect(typeahead).not.toBeVisible({ timeout: 5000 });
   });
 
   test("should navigate back to chat list when clicking back", async ({
@@ -735,8 +954,13 @@ test.describe("Chat detail view", () => {
     await page.goto("/messages/convo-1");
 
     const chatDetailView = page.locator("#chat-detail-view");
-    const textarea = chatDetailView.locator(".message-input-field");
-    await textarea.fill("hello ");
+    const input = chatDetailView.locator(
+      'chat-input [data-testid="rich-text-input"]',
+    );
+    await expect(input).toHaveAttribute("contenteditable", "true", {
+      timeout: 10000,
+    });
+    await input.fill("hello ");
 
     await chatDetailView.locator(".message-input-emoji-button").click();
 
@@ -745,7 +969,7 @@ test.describe("Chat detail view", () => {
 
     await picker.locator('button.emoji[aria-label*="party popper"]').click();
 
-    await expect(textarea).toHaveValue("hello 🎉");
+    await expect(input).toHaveText("hello 🎉");
     await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
@@ -807,7 +1031,9 @@ test.describe("Chat detail view", () => {
     await page.goto("/messages/convo-1");
 
     const chatDetailView = page.locator("#chat-detail-view");
-    await expect(chatDetailView.locator(".message-input-field")).toBeVisible({
+    await expect(
+      chatDetailView.locator('chat-input [data-testid="rich-text-input"]'),
+    ).toBeVisible({
       timeout: 10000,
     });
     await expect(
@@ -1200,7 +1426,9 @@ test.describe("Chat detail view", () => {
     );
     await expect(preview).toBeVisible();
 
-    await chatDetailView.locator(".message-input-field").fill("Doing great!");
+    await chatDetailView
+      .locator('chat-input [data-testid="rich-text-input"]')
+      .fill("Doing great!");
     await chatDetailView.locator(".message-input-send-button").click();
 
     await expect(preview).toHaveCount(0);
@@ -1258,7 +1486,9 @@ test.describe("Chat detail view", () => {
     );
     await expect(preview).toBeVisible();
 
-    await chatDetailView.locator(".message-input-field").fill("Doing great!");
+    await chatDetailView
+      .locator('chat-input [data-testid="rich-text-input"]')
+      .fill("Doing great!");
     await chatDetailView.locator(".message-input-send-button").click();
 
     await expect(page.locator('[data-testid="toast"]')).toContainText(
@@ -1617,6 +1847,235 @@ test.describe("Chat detail view", () => {
       await wrapper.locator('[data-testid="message-more-trigger"]').click();
       await expect(
         page.locator('[data-testid="message-action-reply"]'),
+      ).toBeVisible();
+    });
+  });
+
+  test.describe("Record link embeds in composer", () => {
+    const quotedPostUri = "at://did:plc:author2/app.bsky.feed.post/3quoted";
+    const quotedPostLink =
+      "https://bsky.app/profile/did:plc:author2/post/3quoted";
+
+    async function setupConvoWithQuotablePost(page, { postDelayMs = 0 } = {}) {
+      const mockServer = new MockServer();
+      const alice = createProfile({
+        did: "did:plc:alice1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const convo = createConvo({
+        id: "convo-1",
+        otherMember: alice,
+      });
+      const quotablePost = createPost({
+        uri: quotedPostUri,
+        text: "The quotable post",
+        authorHandle: "author2.bsky.social",
+        authorDisplayName: "Author Two",
+      });
+      mockServer.addConvos([convo]);
+      mockServer.addConvoMessages("convo-1", [
+        createMessage({
+          id: "msg-1",
+          text: "Hey there!",
+          senderDid: alice.did,
+          sentAt: "2025-01-15T12:00:00.000Z",
+        }),
+      ]);
+      mockServer.addPosts([quotablePost], { delayMs: postDelayMs });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/convo-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(
+        chatDetailView.locator('chat-input [data-testid="rich-text-input"]'),
+      ).toHaveAttribute("contenteditable", "true", { timeout: 10000 });
+      return { mockServer, chatDetailView, quotablePost };
+    }
+
+    test("stages a preview for a pasted post link and removes it via the close button", async ({
+      page,
+    }) => {
+      const { chatDetailView } = await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .fill(`check this ${quotedPostLink} `);
+
+      const preview = chatDetailView.locator(
+        '[data-testid="message-embed-preview"]',
+      );
+      await expect(preview).toBeVisible();
+      await expect(preview).toContainText("The quotable post");
+
+      await chatDetailView
+        .locator('[data-testid="message-embed-preview-remove"]')
+        .click();
+      await expect(preview).toHaveCount(0);
+    });
+
+    test("stages a preview immediately on paste without a trailing space", async ({
+      page,
+    }) => {
+      const { chatDetailView } = await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .evaluate((input, link) => {
+          input.focus();
+          const clipboardData = new DataTransfer();
+          clipboardData.setData("text/plain", link);
+          input.dispatchEvent(
+            new ClipboardEvent("paste", {
+              bubbles: true,
+              cancelable: true,
+              clipboardData,
+            }),
+          );
+        }, quotedPostLink);
+
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toBeVisible();
+    });
+
+    test("sends the message with a record embed and strips the trailing link", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .fill(`check this ${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="ready"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("check this");
+      expect(sentMessage.embed).toEqual({
+        $type: "app.bsky.embed.record",
+        record: { uri: quotablePost.uri, cid: quotablePost.cid },
+      });
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toHaveCount(0);
+    });
+
+    test("sends an embed-only message when the input contains just the link", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .fill(`${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="ready"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("");
+      expect(sentMessage.embed.record.uri).toBe(quotablePost.uri);
+    });
+
+    test("attaches the embed when sent while the preview is still loading", async ({
+      page,
+    }) => {
+      const { mockServer, chatDetailView, quotablePost } =
+        await setupConvoWithQuotablePost(page, { postDelayMs: 1500 });
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .fill(`check this ${quotedPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="loading"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect
+        .poll(() => mockServer.sentMessageRequests.length, { timeout: 10000 })
+        .toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe("check this");
+      expect(sentMessage.embed).toEqual({
+        $type: "app.bsky.embed.record",
+        record: { uri: quotablePost.uri, cid: quotablePost.cid },
+      });
+    });
+
+    test("shows an error preview for an unresolvable link and sends the message as plain text", async ({
+      page,
+    }) => {
+      const missingPostLink =
+        "https://bsky.app/profile/did:plc:author2/post/3missing";
+      const { mockServer, chatDetailView } =
+        await setupConvoWithQuotablePost(page);
+
+      await chatDetailView
+        .locator('chat-input [data-testid="rich-text-input"]')
+        .fill(`look at this ${missingPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
+      ).toBeVisible();
+
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect.poll(() => mockServer.sentMessageRequests.length).toBe(1);
+      const sentMessage = mockServer.sentMessageRequests[0].message;
+      expect(sentMessage.text).toBe(`look at this ${missingPostLink}`);
+      expect(sentMessage.embed).toBe(undefined);
+      await expect(
+        chatDetailView.locator('[data-testid="message-embed-preview"]'),
+      ).toHaveCount(0);
+    });
+
+    test("does not send an embed-only message when the embed can't be resolved", async ({
+      page,
+    }) => {
+      const missingPostLink =
+        "https://bsky.app/profile/did:plc:author2/post/3missing";
+      const { mockServer, chatDetailView } =
+        await setupConvoWithQuotablePost(page);
+
+      const input = chatDetailView.locator(
+        'chat-input [data-testid="rich-text-input"]',
+      );
+      await input.fill(`${missingPostLink} `);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
+      ).toBeVisible();
+
+      await input.fill("");
+      await chatDetailView.locator(".message-input-send-button").click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      expect(mockServer.sentMessageRequests.length).toBe(0);
+      await expect(
+        chatDetailView.locator(
+          '[data-testid="message-embed-preview"][data-teststate="error"]',
+        ),
       ).toBeVisible();
     });
   });

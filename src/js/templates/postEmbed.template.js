@@ -113,10 +113,41 @@ function showNestedEmbed(embed) {
   return true;
 }
 
+function condensedMediaTemplate({ embed }) {
+  if (embed?.$type === "app.bsky.embed.images#view") {
+    return html`<div class="quoted-post-media-thumbs">
+      ${embed.images
+        .slice(0, 4)
+        .map(
+          (image) =>
+            html`<img
+              class="quoted-post-media-thumb"
+              src="${image.thumb}"
+              alt="${image.alt || ""}"
+            />`,
+        )}
+    </div>`;
+  }
+  if (embed?.$type === "app.bsky.embed.video#view") {
+    return html`<div class="quoted-post-media-thumbs">
+      <div class="quoted-post-media-video">
+        <img
+          class="quoted-post-media-thumb"
+          src="${embed.thumbnail}"
+          alt="${embed.alt || ""}"
+        />
+        <div class="video-preview-play-button"></div>
+      </div>
+    </div>`;
+  }
+  return "";
+}
+
 export function quotedPostTemplate({
   quotedPost,
   lazyLoadImages,
   isAuthenticated,
+  condensed = false,
 }) {
   if (!quotedPost) {
     return html`<div class="quoted-post embed-card">Post not found</div>`;
@@ -166,7 +197,11 @@ export function quotedPostTemplate({
     class="quoted-post-link"
     href=${linkToPost(quotedPost)}
   >
-    <div class="quoted-post post-content embed-card">
+    <div
+      class="quoted-post post-content embed-card ${condensed
+        ? "quoted-post-condensed"
+        : ""}"
+    >
       ${mutedWrapperTemplate({
         isMuted,
         label: mutedLabel,
@@ -195,16 +230,18 @@ export function quotedPostTemplate({
                   })}
                 </div>`
               : ""}
-            ${embed && showNestedEmbed(embed)
-              ? html`<div class="post-embed">
-                  ${postEmbedTemplate({
-                    embed: embed,
-                    mediaLabel: quotedPost.mediaLabel,
-                    lazyLoadImages,
-                    isAuthenticated,
-                  })}
-                </div>`
-              : ""}
+            ${embed && condensed
+              ? condensedMediaTemplate({ embed })
+              : embed && showNestedEmbed(embed)
+                ? html`<div class="post-embed">
+                    ${postEmbedTemplate({
+                      embed: embed,
+                      mediaLabel: quotedPost.mediaLabel,
+                      lazyLoadImages,
+                      isAuthenticated,
+                    })}
+                  </div>`
+                : ""}
           </div>
         `,
       })}
@@ -559,6 +596,7 @@ export function recordEmbedTemplate({
   record,
   lazyLoadImages,
   isAuthenticated,
+  condensed = false,
 }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
@@ -573,6 +611,7 @@ export function recordEmbedTemplate({
         quotedPost: record,
         lazyLoadImages,
         isAuthenticated,
+        condensed,
       });
     // This only happens if the author is blocking the viewer
     case "app.bsky.embed.record#viewBlocked":
