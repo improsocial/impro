@@ -729,6 +729,104 @@ t.describe("$hydratedConvoMessages", (it) => {
     assertEquals(result.messages[1].replyTo.id, "m1");
     assertEquals(result.messages[1].replyTo.text, "original");
   });
+
+  function seedConvoMembers(dataStore, members) {
+    dataStore.$convos.set(convoId, { id: convoId, members });
+  }
+
+  const reaction = (value, did) => ({
+    value,
+    sender: { did },
+    createdAt: "2026-01-01T00:00:00Z",
+  });
+
+  it("should drop reactions from senders the viewer is blocking or blocked by", () => {
+    const dataStore = new DataStore();
+    seedConvoMembers(dataStore, [
+      {
+        did: "did:plc:blocked",
+        viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/1" },
+      },
+      { did: "did:plc:blocker", viewer: { blockedBy: true } },
+      { did: "did:plc:alice", viewer: {} },
+    ]);
+    seedMessages(dataStore, [
+      {
+        id: "m1",
+        sender: { did: "did:plc:alice" },
+        text: "hello",
+        reactions: [
+          reaction("❤️", "did:plc:blocked"),
+          reaction("👀", "did:plc:blocker"),
+          reaction("👍", "did:plc:alice"),
+        ],
+      },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(result.messages[0].reactions.length, 1);
+    assertEquals(result.messages[0].reactions[0].value, "👍");
+  });
+
+  it("should keep reactions from senders who are not convo members", () => {
+    const dataStore = new DataStore();
+    seedConvoMembers(dataStore, [{ did: "did:plc:alice", viewer: {} }]);
+    seedMessages(dataStore, [
+      {
+        id: "m1",
+        sender: { did: "did:plc:alice" },
+        text: "hello",
+        reactions: [reaction("❤️", "did:plc:departed")],
+      },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(result.messages[0].reactions.length, 1);
+  });
+
+  it("should leave messages without reactions untouched", () => {
+    const dataStore = new DataStore();
+    seedMessages(dataStore, [
+      { id: "m1", sender: { did: "did:plc:alice" }, text: "hello" },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(result.messages[0].reactions, undefined);
+  });
+
+  it("should not recompute when the convo changes but members stay the same", () => {
+    const dataStore = new DataStore();
+    const members = [{ did: "did:plc:alice", viewer: {} }];
+    dataStore.$convos.set(convoId, { id: convoId, members, unreadCount: 3 });
+    seedMessages(dataStore, [
+      {
+        id: "m1",
+        sender: { did: "did:plc:alice" },
+        text: "hello",
+        reactions: [reaction("👍", "did:plc:alice")],
+      },
+    ]);
+    const { derived } = makeDerived(dataStore);
+    const before = derived.$hydratedConvoMessages.get(convoId);
+
+    const convo = dataStore.$convos.get(convoId);
+    dataStore.$convos.set(convoId, { ...convo, unreadCount: 0 });
+    const after = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(after === before, true);
+
+    dataStore.$convos.set(convoId, {
+      ...convo,
+      members: [
+        {
+          did: "did:plc:alice",
+          viewer: { blocking: "at://did:plc:me/app.bsky.graph.block/1" },
+        },
+      ],
+    });
+    const afterBlock = derived.$hydratedConvoMessages.get(convoId);
+    assertEquals(afterBlock === before, false);
+    assertEquals(afterBlock.messages[0].reactions.length, 0);
+  });
 });
 
 await t.run();

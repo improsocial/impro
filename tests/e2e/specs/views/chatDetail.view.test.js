@@ -756,9 +756,29 @@ test.describe("Chat detail view", () => {
       },
     );
     await expect(chatDetailView.locator(".reaction-emoji")).toContainText("👍");
+    await expect(
+      chatDetailView.locator('[data-testid="message-reactions"]'),
+    ).toHaveAttribute("aria-label", "You reacted 👍");
 
-    // Click the own reaction bubble to remove it
-    await chatDetailView.locator(".reaction-bubble-own").click();
+    // A lone reaction bubble is not clickable
+    await expect(chatDetailView.locator("button.reaction-bubble")).toHaveCount(
+      0,
+    );
+
+    // Remove the reaction via the palette's active emoji button
+    await chatDetailView.locator(".message-bubble").first().click();
+    await chatDetailView
+      .locator('[data-testid="message-emoji-trigger"]')
+      .first()
+      .click();
+    await expect(chatDetailView.locator(".reaction-palette")).toBeVisible({
+      timeout: 5000,
+    });
+    await chatDetailView
+      .locator(
+        '[data-testid="reaction-palette-button"][data-teststate="active"]',
+      )
+      .click();
 
     // Reaction bubble should disappear
     await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(0, {
@@ -1283,6 +1303,134 @@ test.describe("Chat detail view", () => {
       await expect(
         chatDetailView.locator("infinite-scroll-container"),
       ).not.toHaveAttribute("disabled");
+    });
+
+    test("opens the reactions dialog from the pill with own reactions listed first", async ({
+      page,
+    }) => {
+      const message = createMessage({
+        id: "msg-1",
+        text: "Hello group",
+        senderDid: alice.did,
+      });
+      message.reactions = [
+        {
+          createdAt: "2025-01-15T12:05:00.000Z",
+          sender: { did: alice.did },
+          value: "❤️",
+        },
+        {
+          createdAt: "2025-01-15T12:06:00.000Z",
+          sender: { did: userProfile.did },
+          value: "👍",
+        },
+      ];
+      const mockServer = setupGroupConvo({ messages: [message] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      const reactionPill = chatDetailView.locator(
+        '[data-testid="message-reactions"]',
+      );
+      await expect(reactionPill).toBeVisible({ timeout: 10000 });
+
+      await reactionPill.click();
+      const dialog = page.locator('[data-testid="reactions-dialog"]');
+      await expect(dialog).toBeVisible({ timeout: 5000 });
+
+      const rows = dialog.locator('[data-testid="reaction-row"]');
+      await expect(rows).toHaveCount(2);
+      await expect(rows.first()).toHaveAttribute("data-teststate", "own");
+    });
+
+    test("caps visible reaction emojis at 10 and shows the total count", async ({
+      page,
+    }) => {
+      const message = createMessage({
+        id: "msg-1",
+        text: "Hello group",
+        senderDid: alice.did,
+      });
+      const emojis = [
+        "❤️",
+        "👍",
+        "😆",
+        "👀",
+        "😢",
+        "🎉",
+        "🔥",
+        "✨",
+        "🙌",
+        "💯",
+        "🚀",
+      ];
+      message.reactions = emojis.map((emoji, index) => ({
+        createdAt: `2025-01-15T12:${String(index).padStart(2, "0")}:00.000Z`,
+        sender: { did: index % 2 === 0 ? alice.did : bob.did },
+        value: emoji,
+      }));
+      const mockServer = setupGroupConvo({ messages: [message] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(10, {
+        timeout: 10000,
+      });
+      await expect(chatDetailView.locator(".reaction-count")).toHaveText("11");
+    });
+
+    test("hides reactions from blocked senders", async ({ page }) => {
+      const blockedBob = createProfile({
+        did: bob.did,
+        handle: bob.handle,
+        displayName: bob.displayName,
+        viewer: { blocking: "at://did:plc:testuser/app.bsky.graph.block/1" },
+      });
+      const message = createMessage({
+        id: "msg-1",
+        text: "Hello group",
+        senderDid: alice.did,
+      });
+      message.reactions = [
+        {
+          createdAt: "2025-01-15T12:05:00.000Z",
+          sender: { did: blockedBob.did },
+          value: "❤️",
+        },
+        {
+          createdAt: "2025-01-15T12:06:00.000Z",
+          sender: { did: alice.did },
+          value: "👍",
+        },
+      ];
+      const mockServer = setupGroupConvo({
+        otherMembers: [alice, blockedBob],
+        messages: [message],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".reaction-bubble")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(chatDetailView.locator(".reaction-emoji")).toContainText(
+        "👍",
+      );
+      await expect(
+        chatDetailView.locator('[data-testid="message-reactions"]'),
+      ).toHaveAttribute(
+        "aria-label",
+        "Alice reacted 👍. Tap to view reactions",
+      );
     });
   });
 

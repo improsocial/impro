@@ -4619,8 +4619,11 @@ chat-input .rich-text-input-placeholder {
   padding: 2px 8px;
   margin-top: -8px;
   position: relative;
-  cursor: pointer;
   user-select: none;
+}
+
+.message-reactions:not(.message-reactions-static) {
+  cursor: pointer;
 }
 
 .message-reactions-own {
@@ -4629,11 +4632,11 @@ chat-input .rich-text-input-placeholder {
 }
 
 @media (min-width: 800px) {
-  .message-reactions:hover {
+  .message-reactions:not(.message-reactions-static):hover {
     background-color: var(--post-hover-color);
   }
 
-  .message-reactions-own:hover {
+  .message-reactions-own:not(.message-reactions-static):hover {
     background-color: var(--highlight-color-tint-hover);
   }
 }
@@ -4652,13 +4655,8 @@ chat-input .rich-text-input-placeholder {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: transparent;
-  border: none;
   padding: 2px 0;
   font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-  color: inherit;
 }
 
 .reaction-emoji {

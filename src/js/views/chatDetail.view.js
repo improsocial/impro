@@ -448,10 +448,6 @@ class ChatDetailView extends View {
       );
     }
 
-    function hasSelfReacted(message, currentUserDid) {
-      return getUserDistinctReactionValues(message, currentUserDid).size > 0;
-    }
-
     async function handleEmojiSelect(emoji, messageId, currentUserDid) {
       const message = getMessage(messageId);
       if (
@@ -459,9 +455,10 @@ class ChatDetailView extends View {
         !hasAlreadyReacted(message, currentUserDid, emoji) &&
         hasReachedReactionLimit(message, currentUserDid)
       ) {
-        showToast(`Reaction limit reached (${EMOJI_REACTION_LIMIT})`, {
-          style: "error",
-        });
+        showToast(
+          `You cannot add more than ${EMOJI_REACTION_LIMIT} emoji reactions`,
+          { style: "info" },
+        );
         return;
       }
       try {
@@ -478,45 +475,17 @@ class ChatDetailView extends View {
       }
     }
 
-    async function handleReactionClick(
-      emoji,
-      messageId,
-      isOwnReaction,
-      currentUserDid,
-    ) {
-      if (!isOwnReaction) {
-        const message = getMessage(messageId);
-        if (message && hasReachedReactionLimit(message, currentUserDid)) {
-          showToast(`Reaction limit reached (${EMOJI_REACTION_LIMIT})`, {
-            style: "error",
-          });
-          return;
-        }
-      }
+    async function handleReactionRemove(emoji, messageId, currentUserDid) {
       try {
-        if (isOwnReaction) {
-          await dataLayer.mutations.removeMessageReaction(
-            convoId,
-            messageId,
-            emoji,
-            currentUserDid,
-          );
-        } else {
-          await dataLayer.mutations.addMessageReaction(
-            convoId,
-            messageId,
-            emoji,
-            currentUserDid,
-          );
-        }
+        await dataLayer.mutations.removeMessageReaction(
+          convoId,
+          messageId,
+          emoji,
+          currentUserDid,
+        );
       } catch (error) {
         console.error(error);
-        showToast(
-          isOwnReaction
-            ? "Failed to remove emoji reaction"
-            : "Failed to add emoji reaction",
-          { style: "error" },
-        );
+        showToast("Failed to remove emoji reaction", { style: "error" });
       }
     }
 
@@ -715,22 +684,29 @@ class ChatDetailView extends View {
         return "";
       }
       const groupedReactions = groupReactions(reactions);
-      const selfReacted = hasSelfReacted(message, currentUserDid);
+      const selfReacted = reactions.some(
+        (reaction) => reaction.sender.did === currentUserDid,
+      );
       const showTotalCount =
-        reactions.length > 1 && groupedReactions.length !== reactions.length;
+        reactions.length > 1 &&
+        (groupedReactions.length !== reactions.length ||
+          groupedReactions.length > 10);
 
-      function describeReactors(senders) {
-        const names = senders
-          .map((sender) => {
-            if (sender.did === currentUserDid) return "You";
-            const profile = getMemberProfile(convo, sender.did);
-            return profile ? getDisplayName(profile) : "Someone";
-          })
-          .filter(Boolean);
-        if (names.length === 0) return "Someone";
-        if (names.length === 1) return names[0];
-        if (names.length === 2) return `${names[0]} and ${names[1]}`;
-        return `${names.length} people`;
+      function describeReactions() {
+        if (reactions.length === 1) {
+          const [reaction] = reactions;
+          if (reaction.sender.did === currentUserDid) {
+            return `You reacted ${reaction.value}`;
+          }
+          const profile = getMemberProfile(convo, reaction.sender.did);
+          return `${profile ? getDisplayName(profile) : "Someone"} reacted ${reaction.value}`;
+        }
+        const senderCount = new Set(
+          reactions.map((reaction) => reaction.sender.did),
+        ).size;
+        return `${senderCount === 1 ? "1 person" : `${senderCount} people`} reacted – ${groupedReactions
+          .map((group) => group.value)
+          .join(" ")}`;
       }
 
       return html`
@@ -739,7 +715,7 @@ class ChatDetailView extends View {
             ? "message-reactions-sent"
             : "message-reactions-received"} ${selfReacted
             ? "message-reactions-own"
-            : ""}"
+            : ""} ${isGroup ? "" : "message-reactions-static"}"
           data-testid="message-reactions"
           data-teststate=${selfReacted ? "own" : "other"}
           @click=${(e) => {
@@ -747,45 +723,24 @@ class ChatDetailView extends View {
             e.stopPropagation();
             state.$reactionsDialogMessageId.set(message.id);
           }}
-          aria-label=${isGroup ? "Tap to view reactions" : ""}
+          aria-label=${isGroup
+            ? `${describeReactions()}. Tap to view reactions`
+            : describeReactions()}
         >
-          ${groupedReactions.map((group) => {
+          ${groupedReactions.slice(0, 10).map((group) => {
             const isOwnReaction = group.senders.some(
               (sender) => sender.did === currentUserDid,
             );
-            const bubbleClass = `reaction-bubble ${isOwnReaction ? "reaction-bubble-own" : ""}`;
-            const bubbleContent = html`
-              <span class="reaction-emoji">${group.value}</span>
-            `;
-            if (isGroup) {
-              return html`
-                <span
-                  class=${bubbleClass}
-                  data-testid="reaction-bubble"
-                  data-teststate=${isOwnReaction ? "own" : "other"}
-                >
-                  ${bubbleContent}
-                </span>
-              `;
-            }
             return html`
-              <button
-                class=${bubbleClass}
+              <span
+                class="reaction-bubble ${isOwnReaction
+                  ? "reaction-bubble-own"
+                  : ""}"
                 data-testid="reaction-bubble"
                 data-teststate=${isOwnReaction ? "own" : "other"}
-                aria-label=${`${describeReactors(group.senders)} reacted ${group.value}`}
-                @click=${(e) => {
-                  e.stopPropagation();
-                  handleReactionClick(
-                    group.value,
-                    message.id,
-                    isOwnReaction,
-                    currentUserDid,
-                  );
-                }}
               >
-                ${bubbleContent}
-              </button>
+                <span class="reaction-emoji">${group.value}</span>
+              </span>
             `;
           })}
           ${showTotalCount
@@ -826,12 +781,7 @@ class ChatDetailView extends View {
                 @click=${(e) => {
                   e.stopPropagation();
                   if (isActive) {
-                    handleReactionClick(
-                      emoji,
-                      message.id,
-                      true,
-                      currentUserDid,
-                    );
+                    handleReactionRemove(emoji, message.id, currentUserDid);
                     clearMessageSelection();
                   } else {
                     handleEmojiSelect(emoji, message.id, currentUserDid);
