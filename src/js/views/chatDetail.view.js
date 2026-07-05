@@ -1245,6 +1245,10 @@ class ChatDetailView extends View {
       render(
         html`<div id="chat-detail-view">
           ${mainLayout({
+            activeNavItem: "chat",
+            onClickActiveNavItem: () => {
+              router.go("/messages");
+            },
             showSidebarOverlay: false,
             children: html`
               ${headerTemplate({

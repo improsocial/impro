@@ -150,6 +150,13 @@ class ChatView extends View {
       </div>`;
     }
 
+    async function scrollAndReloadConvos() {
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: -1, behavior: "smooth" });
+      }
+      await loadConvoList({ reload: true });
+    }
+
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convos = dataLayer.derived.$convoList.get();
@@ -162,9 +169,8 @@ class ChatView extends View {
         html`<div id="chat-view">
           ${mainLayout({
             activeNavItem: "chat",
-            onClickActiveNavItem: async () => {
-              window.scrollTo(0, 0);
-              await loadConvoList({ reload: true });
+            onClickActiveNavItem: () => {
+              scrollAndReloadConvos();
             },
             children: html`
               ${headerTemplate({
