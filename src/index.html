@@ -414,6 +414,10 @@
 
         await router.load(window.location.pathname ?? "/");
 
+        // Sometimes clicks get swallowed after swipe-back navigations on iOS safari
+        // Adding a global touchstart listener fixes this for some reason
+        document.addEventListener("touchstart", () => {}, { passive: true });
+
         window.addEventListener("native-reload", () => {
           hapticsImpactLight();
           window.location.reload();
