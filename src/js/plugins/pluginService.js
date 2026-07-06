@@ -739,7 +739,7 @@ export class PluginService extends ReactiveStore {
   // RPC
 
   async getFilteredFeedItems(feedUri, feed) {
-    let filteredFeedItems = {};
+    const filteredFeedItems = {};
     for (const feedFilter of this.registries.feedFilters) {
       const feedItems = feed.feed;
       let results = null;
@@ -752,7 +752,11 @@ export class PluginService extends ReactiveStore {
         );
       }
       if (!results || typeof results !== "object") continue;
-      filteredFeedItems = { ...filteredFeedItems, ...results };
+      for (const [uri, keep] of Object.entries(results)) {
+        if (keep === false) {
+          filteredFeedItems[uri] = false;
+        }
+      }
     }
     return filteredFeedItems;
   }
