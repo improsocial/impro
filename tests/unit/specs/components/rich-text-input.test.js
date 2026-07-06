@@ -653,7 +653,7 @@ t.describe(
       const typeahead = openTypeaheadAt(element);
       assert(typeahead !== null);
       assert(typeahead.classList.contains("mention-typeahead-above"));
-      assertEquals(typeahead.style.bottom, `${window.innerHeight - 200}px`);
+      assertEquals(typeahead.style.bottom, `${window.innerHeight - 100}px`);
       assertEquals(typeahead.style.top, "");
       element.closeTypeahead();
     });
