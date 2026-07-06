@@ -2363,28 +2363,17 @@ animated-button {
 
 .youtube-embed {
   display: block;
-  background: var(--black);
 }
 
-.youtube-embed-play-button {
-  display: block;
+.youtube-embed.is-playing {
   position: relative;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--video-border-radius);
+  overflow: hidden;
+  background: var(--black);
+  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
-.youtube-embed-thumb {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.youtube-embed-play-button .play-icon,
 .external-link-image-wrapper .play-icon {
   position: absolute;
   top: 50%;
@@ -2398,11 +2387,10 @@ animated-button {
   transition: background 0.15s ease;
 }
 
-.youtube-embed-play-button:hover .play-icon {
+.youtube-embed .external-link a:hover .play-icon {
   background: color-mix(in srgb, var(--white) 85%, transparent);
 }
 
-.youtube-embed-play-button .play-icon svg,
 .external-link-image-wrapper .play-icon svg {
   width: 100%;
   height: 100%;
@@ -2465,6 +2453,12 @@ animated-button {
 
 .external-link-image-wrapper .play-icon {
   pointer-events: none;
+}
+
+.external-link-video-placeholder {
+  height: 96px;
+  background: var(--background-color);
+  border-bottom: var(--hair) solid var(--post-border-color);
 }
 
 .external-link-uri {
@@ -4389,10 +4383,10 @@ chat-input .rich-text-input {
   outline: none;
   /* Cap auto-grow so a long multi-line message scrolls internally instead of
      pushing the whole input bar up off the top of the (short, mobile) viewport. */
-  max-height: min(120px, 30vh);
+  max-height: min(250px, 50vh);
   overflow-y: auto;
   line-height: 1.4;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 chat-input .rich-text-input[contenteditable="false"] {

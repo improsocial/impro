@@ -405,9 +405,10 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       "https://example.com/thumb.jpg",
     );
     assertEquals(
-      container.querySelector("[data-testid='external-link']"),
-      null,
+      embedElement.getAttribute("url"),
+      "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=32s",
     );
+    assertEquals(embedElement.getAttribute("description"), "A description");
   });
 
   it("uses a 16:9 aspect ratio for regular videos", () => {
@@ -417,7 +418,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     const embedElement = container.querySelector(
       "[data-testid='youtube-embed']",
     );
-    assertEquals(embedElement.style.aspectRatio, String(16 / 9));
+    assertEquals(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
   });
 
   it("uses a portrait aspect ratio for shorts", () => {
@@ -427,7 +428,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     const embedElement = container.querySelector(
       "[data-testid='youtube-embed']",
     );
-    assertEquals(embedElement.style.aspectRatio, String(9 / 16));
+    assertEquals(embedElement.getAttribute("aspect-ratio"), String(9 / 16));
   });
 
   it("renders watch URLs on all YouTube hostnames", () => {
@@ -470,7 +471,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     );
     assert(embedElement !== null);
     assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
-    assertEquals(embedElement.style.aspectRatio, String(16 / 9));
+    assertEquals(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
   });
 
   it("converts hour/minute/second start times to seconds", () => {

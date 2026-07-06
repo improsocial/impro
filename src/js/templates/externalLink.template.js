@@ -4,7 +4,11 @@ import { isVideoLink } from "/js/dataHelpers.js";
 import { playIconTemplate } from "/js/templates/icons/playIcon.template.js";
 
 function getDomainFromUri(uri) {
-  return new URL(uri).hostname;
+  try {
+    return new URL(uri).hostname;
+  } catch (error) {
+    return null;
+  }
 }
 
 export function externalLinkTemplate({
@@ -14,12 +18,28 @@ export function externalLinkTemplate({
   image,
   lazyLoadImages,
   disableNavigation,
+  onClick,
+  ariaLabel = null,
 }) {
+  let clickHandler = null;
+  if (onClick) {
+    clickHandler = (event) => {
+      if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      onClick(event);
+    };
+  } else if (disableNavigation) {
+    clickHandler = (event) => event.preventDefault();
+  }
   return html`<div class="external-link embed-card" data-testid="external-link">
     <a
       href="${sanitizeUri(url)}"
       target="_blank"
-      @click=${disableNavigation ? (e) => e.preventDefault() : null}
+      aria-label=${ariaLabel ?? (title || url)}
+      @click=${clickHandler}
     >
       <div class="external-link-content">
         ${image
@@ -32,7 +52,13 @@ export function externalLinkTemplate({
               />
               ${isVideoLink(url) ? playIconTemplate() : ""}
             </div>`
-          : ""}
+          : isVideoLink(url)
+            ? html`<div
+                class="external-link-image-wrapper external-link-video-placeholder"
+              >
+                ${playIconTemplate()}
+              </div>`
+            : ""}
         <div class="external-link-text">
           <div class="external-link-title" data-testid="external-link-title">
             ${title || url}
