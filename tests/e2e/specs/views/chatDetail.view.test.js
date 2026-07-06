@@ -423,11 +423,15 @@ test.describe("Chat detail view", () => {
       page.locator('[data-testid="mention-suggestion-handle"]'),
     ).toContainText("@bob.bsky.social");
 
-    // The chat input is bottom-anchored, so the typeahead must open upward
+    // The chat input is bottom-anchored, so the typeahead must open upward,
+    // sitting above the line containing the caret
     const typeaheadBox = await typeahead.boundingBox();
-    const inputBox = await input.boundingBox();
+    const caretLineTop = await input.evaluate(() => {
+      const selection = window.getSelection();
+      return selection.getRangeAt(0).getBoundingClientRect().top;
+    });
     expect(typeaheadBox.y + typeaheadBox.height).toBeLessThanOrEqual(
-      inputBox.y,
+      caretLineTop,
     );
 
     // Enter selects the mention instead of sending
