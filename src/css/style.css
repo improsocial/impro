@@ -4581,7 +4581,7 @@ chat-input .rich-text-input-placeholder {
 
 @media (min-width: 800px) {
   .reaction-palette-button:hover {
-    background-color: var(--context-menu-item-hover-color);
+    background-color: var(--secondary-button-color);
   }
 }
 
@@ -4646,9 +4646,14 @@ chat-input .rich-text-input-placeholder {
   cursor: not-allowed;
 }
 
-.reaction-palette-button-active .reaction-palette-button-inner {
-  outline: 2px solid var(--highlight-color);
-  border-radius: 50%;
+.reaction-palette-button.reaction-palette-button-active {
+  background-color: var(--secondary-button-color);
+}
+
+@media (min-width: 800px) {
+  .reaction-palette-button.reaction-palette-button-active:hover {
+    background-color: var(--secondary-button-hover-color);
+  }
 }
 
 .reaction-bubble {
