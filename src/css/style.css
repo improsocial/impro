@@ -4166,6 +4166,16 @@ image-carousel {
   height: 18px;
 }
 
+.message-actions {
+  display: flex;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.message-sent .message-actions {
+  flex-direction: row-reverse;
+}
+
 .message-emoji-trigger,
 .message-more-trigger {
   background: transparent;
@@ -4173,8 +4183,6 @@ image-carousel {
   padding: 0;
   width: 32px;
   height: 32px;
-  align-self: center;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4189,11 +4197,6 @@ image-carousel {
 .message-emoji-trigger .emoji-icon {
   width: 20px;
   height: 20px;
-}
-
-.message-more-trigger {
-  position: relative;
-  left: -8px;
 }
 
 .message-more-trigger span {

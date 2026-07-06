@@ -976,7 +976,8 @@ class ChatDetailView extends View {
               })}
             </div>
             ${canReactNow
-              ? html`<button
+              ? html`<div class="message-actions">
+                  <button
                     class="message-emoji-trigger"
                     aria-label="React to message"
                     data-testid="message-emoji-trigger"
@@ -997,7 +998,8 @@ class ChatDetailView extends View {
                     }}
                   >
                     <span>...</span>
-                  </button>`
+                  </button>
+                </div>`
               : ""}
           </div>
           ${isPaletteOpen
