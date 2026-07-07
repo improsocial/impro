@@ -92,6 +92,15 @@ function applyLabels(post, preferences) {
   );
 }
 
+function filterBlockedReactions(reactions, memberProfiles) {
+  return (reactions || []).filter((reaction) => {
+    const profile = memberProfiles.find(
+      (member) => member.did === reaction.sender.did,
+    );
+    return !profile?.viewer?.blocking && !profile?.viewer?.blockedBy;
+  });
+}
+
 export class Derived extends ReactiveStore {
   constructor(
     dataStore,
@@ -482,13 +491,22 @@ export class Derived extends ReactiveStore {
       }
       return null;
     });
+    this.$convoMembers = new ComputedMap((convoId) => {
+      return this.dataStore.$convos.get(convoId)?.members ?? null;
+    });
     this.$convoMessages = new ComputedMap((convoId) => {
       const messages = this.dataStore.$convoMessages.get(convoId);
       if (!messages) return null;
+      const members = this.$convoMembers.get(convoId) ?? [];
       return {
         messages: messages.messages.map((message) => {
           const patched = this.patchStore.$patchedMessages.get(message.id);
-          return this.attachJoinLinkPreview(patched);
+          const hydrated = this.attachJoinLinkPreview(patched);
+          if (!hydrated.reactions) return hydrated;
+          return {
+            ...hydrated,
+            reactions: filterBlockedReactions(hydrated.reactions, members),
+          };
         }),
         cursor: messages.cursor,
       };

@@ -198,7 +198,7 @@ t.describe("externalLinkTemplate", (it) => {
     assertEquals(container.querySelector(".play-icon"), null);
   });
 
-  it("should not render a play icon for a video link without an image", () => {
+  it("should render a play icon placeholder for a video link without an image", () => {
     const result = externalLinkTemplate({
       url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       title: "Example Video",
@@ -206,7 +206,132 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".play-icon"), null);
+    const placeholder = container.querySelector(
+      ".external-link-video-placeholder",
+    );
+    assert(placeholder !== null);
+    assert(placeholder.querySelector(".play-icon") !== null);
+    assertEquals(container.querySelector(".external-link-image"), null);
+  });
+
+  it("should not render the video placeholder for a non-video link without an image", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com/article",
+      title: "Example",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector(".external-link-video-placeholder"),
+      null,
+    );
+  });
+
+  it("should call onClick and prevent navigation on a plain click", () => {
+    let clicked = false;
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "Example",
+      description: "Test",
+      onClick: () => {
+        clicked = true;
+      },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const link = container.querySelector("a");
+    const event = new window.MouseEvent("click", {
+      cancelable: true,
+      bubbles: true,
+    });
+    link.dispatchEvent(event);
+    assertEquals(clicked, true);
+    assertEquals(event.defaultPrevented, true);
+  });
+
+  it("should not call onClick on a modified click so the link opens normally", () => {
+    for (const modifier of ["metaKey", "ctrlKey", "shiftKey", "altKey"]) {
+      let clicked = false;
+      const result = externalLinkTemplate({
+        url: "https://example.com",
+        title: "Example",
+        description: "Test",
+        onClick: () => {
+          clicked = true;
+        },
+      });
+      const container = document.createElement("div");
+      render(result, container);
+      const link = container.querySelector("a");
+      const event = new window.MouseEvent("click", {
+        cancelable: true,
+        bubbles: true,
+        [modifier]: true,
+      });
+      link.dispatchEvent(event);
+      assert(clicked === false, `onClick fired on a ${modifier} click`);
+      assertEquals(event.defaultPrevented, false);
+    }
+  });
+
+  it("should label the link with ariaLabel when provided", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "Example",
+      description: "Test",
+      ariaLabel: "Play Example",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("a").getAttribute("aria-label"),
+      "Play Example",
+    );
+  });
+
+  it("should default the aria-label to the title", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "Example",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("a").getAttribute("aria-label"),
+      "Example",
+    );
+  });
+
+  it("should default the aria-label to the url when there is no title", () => {
+    const result = externalLinkTemplate({
+      url: "https://example.com",
+      title: "",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container.querySelector("a").getAttribute("aria-label"),
+      "https://example.com",
+    );
+  });
+
+  it("should render an empty domain instead of throwing for an unparseable url", () => {
+    const result = externalLinkTemplate({
+      url: "not a url",
+      title: "Example",
+      description: "Test",
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assertEquals(
+      container
+        .querySelector("[data-testid='external-link-domain']")
+        .textContent.trim(),
+      "",
+    );
   });
 
   it("should prevent navigation when disableNavigation is true", () => {

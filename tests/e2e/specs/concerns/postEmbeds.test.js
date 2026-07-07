@@ -373,11 +373,18 @@ test.describe("Post embeds view — YouTube", () => {
     const embed = view.locator('[data-testid="youtube-embed"]');
     await expect(embed).toBeVisible({ timeout: 10000 });
     await expect(embed).toHaveAttribute("data-teststate", "preview");
+    const card = embed.locator('[data-testid="external-link"]');
+    await expect(
+      card.locator('[data-testid="external-link-title"]'),
+    ).toHaveText("A video");
+    await expect(
+      card.locator('[data-testid="external-link-domain"]'),
+    ).toHaveText("www.youtube.com");
     await expect(
       view.locator('[data-testid="youtube-embed-iframe"]'),
     ).toHaveCount(0);
 
-    await view.locator('[data-testid="youtube-embed-play"]').click();
+    await card.locator("a").click();
 
     const iframe = view.locator('[data-testid="youtube-embed-iframe"]');
     await expect(iframe).toBeVisible();

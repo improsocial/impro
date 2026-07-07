@@ -414,16 +414,17 @@ function youtubeEmbedTemplate({ youtubeVideo, external }) {
     ? YOUTUBE_SHORT_ASPECT_RATIO
     : YOUTUBE_VIDEO_ASPECT_RATIO;
   return html`<youtube-embed
-    class="post-video youtube-embed"
+    class="youtube-embed"
     data-testid="youtube-embed"
-    style="aspect-ratio: ${aspectRatio};"
+    aspect-ratio=${aspectRatio}
     video-id=${youtubeVideo.videoId}
     start=${youtubeVideo.startTime}
     thumb=${external.thumb ?? ""}
     video-title=${external.title ?? ""}
+    url=${external.uri}
+    description=${external.description ?? ""}
     @click=${(e) => {
       e.stopPropagation();
-      e.preventDefault();
     }}
   ></youtube-embed>`;
 }

@@ -442,7 +442,7 @@ export class Requests {
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
     // Filter posts with plugins
-    await this.pluginService.refreshFiltersForFeed(feedURI, feed);
+    await this.pluginService.refreshFiltersForFeed(feedURI, feed, { reload });
     if (existingFeed && !reload) {
       // Append to existing feed
       this.dataStore.$feeds.set(feedURI, {

@@ -1,8 +1,9 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { playIconTemplate } from "/js/templates/icons/playIcon.template.js";
+import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 
 const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed";
+const DEFAULT_ASPECT_RATIO = String(16 / 9);
 
 class YoutubeEmbed extends Component {
   connectedCallback() {
@@ -13,6 +14,9 @@ class YoutubeEmbed extends Component {
     this.start = this.getAttribute("start");
     this.thumb = this.getAttribute("thumb");
     this.videoTitle = this.getAttribute("video-title") ?? "";
+    this.url = this.getAttribute("url");
+    this.description = this.getAttribute("description") ?? "";
+    this.aspectRatio = this.getAttribute("aspect-ratio");
     this.playing = false;
     this.dataset.teststate = "preview";
     this.render();
@@ -29,6 +33,8 @@ class YoutubeEmbed extends Component {
   play() {
     this.playing = true;
     this.dataset.teststate = "playing";
+    this.classList.add("is-playing");
+    this.style.aspectRatio = this.aspectRatio || DEFAULT_ASPECT_RATIO;
     this.render();
     this.querySelector("iframe")?.focus();
   }
@@ -44,28 +50,17 @@ class YoutubeEmbed extends Component {
             allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
             allowfullscreen
           ></iframe>`
-        : html`<button
-            class="youtube-embed-play-button"
-            data-testid="youtube-embed-play"
-            aria-label=${this.videoTitle
+        : externalLinkTemplate({
+            url: this.url,
+            title: this.videoTitle,
+            description: this.description,
+            image: this.thumb,
+            lazyLoadImages: true,
+            onClick: () => this.play(),
+            ariaLabel: this.videoTitle
               ? `Play YouTube video: ${this.videoTitle}`
-              : "Play YouTube video"}
-            @click=${(event) => {
-              event.stopPropagation();
-              event.preventDefault();
-              this.play();
-            }}
-          >
-            ${this.thumb
-              ? html`<img
-                  class="youtube-embed-thumb"
-                  src=${this.thumb}
-                  alt=""
-                  loading="lazy"
-                />`
-              : ""}
-            ${playIconTemplate()}
-          </button>`,
+              : "Play YouTube video",
+          }),
       this,
     );
   }

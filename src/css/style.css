@@ -2363,28 +2363,17 @@ animated-button {
 
 .youtube-embed {
   display: block;
-  background: var(--black);
 }
 
-.youtube-embed-play-button {
-  display: block;
+.youtube-embed.is-playing {
   position: relative;
-  width: 100%;
-  height: 100%;
-  padding: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--video-border-radius);
+  overflow: hidden;
+  background: var(--black);
+  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
-.youtube-embed-thumb {
-  display: block;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.youtube-embed-play-button .play-icon,
 .external-link-image-wrapper .play-icon {
   position: absolute;
   top: 50%;
@@ -2398,11 +2387,10 @@ animated-button {
   transition: background 0.15s ease;
 }
 
-.youtube-embed-play-button:hover .play-icon {
+.youtube-embed .external-link a:hover .play-icon {
   background: color-mix(in srgb, var(--white) 85%, transparent);
 }
 
-.youtube-embed-play-button .play-icon svg,
 .external-link-image-wrapper .play-icon svg {
   width: 100%;
   height: 100%;
@@ -2465,6 +2453,12 @@ animated-button {
 
 .external-link-image-wrapper .play-icon {
   pointer-events: none;
+}
+
+.external-link-video-placeholder {
+  height: 96px;
+  background: var(--background-color);
+  border-bottom: var(--hair) solid var(--post-border-color);
 }
 
 .external-link-uri {
@@ -4166,6 +4160,16 @@ image-carousel {
   height: 18px;
 }
 
+.message-actions {
+  display: flex;
+  align-self: center;
+  flex-shrink: 0;
+}
+
+.message-sent .message-actions {
+  flex-direction: row-reverse;
+}
+
 .message-emoji-trigger,
 .message-more-trigger {
   background: transparent;
@@ -4173,8 +4177,6 @@ image-carousel {
   padding: 0;
   width: 32px;
   height: 32px;
-  align-self: center;
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -4189,11 +4191,6 @@ image-carousel {
 .message-emoji-trigger .emoji-icon {
   width: 20px;
   height: 20px;
-}
-
-.message-more-trigger {
-  position: relative;
-  left: -8px;
 }
 
 .message-more-trigger span {
@@ -4386,10 +4383,10 @@ chat-input .rich-text-input {
   outline: none;
   /* Cap auto-grow so a long multi-line message scrolls internally instead of
      pushing the whole input bar up off the top of the (short, mobile) viewport. */
-  max-height: min(120px, 30vh);
+  max-height: min(250px, 50vh);
   overflow-y: auto;
   line-height: 1.4;
-  scrollbar-width: none;
+  scrollbar-width: thin;
 }
 
 chat-input .rich-text-input[contenteditable="false"] {
@@ -4581,7 +4578,7 @@ chat-input .rich-text-input-placeholder {
 
 @media (min-width: 800px) {
   .reaction-palette-button:hover {
-    background-color: var(--context-menu-item-hover-color);
+    background-color: var(--secondary-button-color);
   }
 }
 
@@ -4619,8 +4616,11 @@ chat-input .rich-text-input-placeholder {
   padding: 2px 8px;
   margin-top: -8px;
   position: relative;
-  cursor: pointer;
   user-select: none;
+}
+
+.message-reactions:not(.message-reactions-static) {
+  cursor: pointer;
 }
 
 .message-reactions-own {
@@ -4629,11 +4629,11 @@ chat-input .rich-text-input-placeholder {
 }
 
 @media (min-width: 800px) {
-  .message-reactions:hover {
+  .message-reactions:not(.message-reactions-static):hover {
     background-color: var(--post-hover-color);
   }
 
-  .message-reactions-own:hover {
+  .message-reactions-own:not(.message-reactions-static):hover {
     background-color: var(--highlight-color-tint-hover);
   }
 }
@@ -4643,22 +4643,22 @@ chat-input .rich-text-input-placeholder {
   cursor: not-allowed;
 }
 
-.reaction-palette-button-active .reaction-palette-button-inner {
-  outline: 2px solid var(--highlight-color);
-  border-radius: 50%;
+.reaction-palette-button.reaction-palette-button-active {
+  background-color: var(--secondary-button-color);
+}
+
+@media (min-width: 800px) {
+  .reaction-palette-button.reaction-palette-button-active:hover {
+    background-color: var(--secondary-button-hover-color);
+  }
 }
 
 .reaction-bubble {
   display: inline-flex;
   align-items: center;
   gap: 2px;
-  background: transparent;
-  border: none;
   padding: 2px 0;
   font-size: 14px;
-  cursor: pointer;
-  user-select: none;
-  color: inherit;
 }
 
 .reaction-emoji {

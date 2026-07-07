@@ -100,10 +100,15 @@ class ReactionsDialog extends Component {
     ) {
       this._activeFilter = "all";
     }
-    const visibleReactions =
+    const visibleReactions = (
       this._activeFilter === "all"
         ? reactions
-        : reactions.filter((reaction) => reaction.value === this._activeFilter);
+        : reactions.filter((reaction) => reaction.value === this._activeFilter)
+    ).toSorted((reactionA, reactionB) => {
+      const selfA = reactionA.sender.did === this.currentUserDid ? 1 : 0;
+      const selfB = reactionB.sender.did === this.currentUserDid ? 1 : 0;
+      return selfB - selfA;
+    });
 
     render(
       html`

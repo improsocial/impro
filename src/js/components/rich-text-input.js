@@ -513,7 +513,7 @@ export class RichTextInput extends Component {
     const inputRect = input.getBoundingClientRect();
     if (this.typeaheadDirection === "up") {
       typeahead.classList.add("mention-typeahead-above");
-      typeahead.style.bottom = `${window.innerHeight - inputRect.top}px`;
+      typeahead.style.bottom = `${window.innerHeight - rect.top}px`;
     } else {
       typeahead.style.top = `${rect.bottom}px`;
     }

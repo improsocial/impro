@@ -187,6 +187,37 @@ t.describe("loadNextFeedPage", (it) => {
     assertEquals(dataStore.$posts.get("post3"), normalizedPosts[1]);
   });
 
+  it("should forward the reload flag to refreshFiltersForFeed", async () => {
+    const dataStore = new DataStore();
+    dataStore.$feeds.set(feedURI, {
+      feed: [{ post: { uri: "post1" } }],
+      cursor: "cursor1",
+    });
+
+    const mockApi = {
+      getFeed: async () => ({ feed: [], cursor: "end" }),
+    };
+    const capturedReloads = [];
+    const pluginService = {
+      $pluginFilteredFeedItems: new SignalMap(),
+      refreshFiltersForFeed: async (_uri, _feed, { reload = false } = {}) => {
+        capturedReloads.push(reload);
+      },
+    };
+    const requests = new Requests(
+      mockApi,
+      dataStore,
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+      pluginService,
+      { constellation: stubConstellation },
+    );
+
+    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage(feedURI, { reload: true });
+
+    assertEquals(capturedReloads, [false, true]);
+  });
+
   it("should handle empty feed", async () => {
     const emptyFeed = {
       feed: [],
