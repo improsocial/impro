@@ -14,11 +14,16 @@ import {
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
+import { inboxIconTemplate } from "/js/templates/icons/inboxIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 
 class ChatView extends View {
-  async render({ root, router, context: { dataLayer, mainLayout } }) {
+  async render({
+    root,
+    router,
+    context: { dataLayer, mainLayout, chatNotificationService },
+  }) {
     await auth.requireAuth();
 
     async function handleMenuClick() {
@@ -103,19 +108,19 @@ class ChatView extends View {
       `;
     }
 
-    function chatRequestsTemplate({ chatRequests }) {
-      const hasUnreadRequests = chatRequests.some(
-        (convo) => convo.unreadCount > 0,
-      );
+    function inboxButtonTemplate({ hasUnreadRequests }) {
       return html`
         <container-link
-          class="chat-requests-banner ${hasUnreadRequests ? "unread" : ""}"
+          class="inbox-button"
           href="/messages/inbox"
+          aria-label=${hasUnreadRequests ? "Requests (unread)" : "Requests"}
+          data-testid="inbox-button"
+          data-teststate=${hasUnreadRequests ? "unread" : "read"}
         >
-          <div class="chat-requests-content">
-            <div class="chat-requests-title">Chat requests</div>
-          </div>
-          <div class="chat-requests-arrow">→</div>
+          ${inboxIconTemplate()}
+          ${hasUnreadRequests
+            ? html`<div class="unread-dot" data-testid="unread-dot"></div>`
+            : ""}
         </container-link>
       `;
     }
@@ -164,6 +169,8 @@ class ChatView extends View {
         dataLayer.requests.statusStore.$statuses.get("loadConvoList");
       const cursor = dataLayer.derived.$convoListCursor.get();
       const hasMore = !!cursor;
+      const hasUnreadRequests =
+        (chatNotificationService?.$numUnreadRequestConvos.get() ?? 0) > 0;
 
       render(
         html`<div id="chat-view">
@@ -178,6 +185,8 @@ class ChatView extends View {
                 showLoadingSpinner: convosRequestStatus.loading && !!convos,
                 leftButton: "menu",
                 onClickMenuButton: () => handleMenuClick(),
+                rightItemTemplate: () =>
+                  inboxButtonTemplate({ hasUnreadRequests }),
               })}
               <main class="chat-main">
                 ${(() => {
@@ -186,24 +195,14 @@ class ChatView extends View {
                       error: convosRequestStatus.error,
                     });
                   } else if (convos && currentUser) {
-                    const chatRequests = convos.filter(
-                      (convo) => convo.status === "request",
-                    );
                     const acceptedConvos = convos.filter(
                       (convo) => convo.status === "accepted",
                     );
-                    return html`
-                      <div>
-                        ${chatRequests.length > 0
-                          ? chatRequestsTemplate({ chatRequests })
-                          : ""}
-                        ${convosTemplate({
-                          currentUser,
-                          convos: acceptedConvos,
-                          hasMore,
-                        })}
-                      </div>
-                    `;
+                    return convosTemplate({
+                      currentUser,
+                      convos: acceptedConvos,
+                      hasMore,
+                    });
                   } else {
                     return convoSkeletonTemplate();
                   }

@@ -1456,7 +1456,9 @@ class ChatDetailView extends View {
       const convo = dataLayer.derived.$convos.get(convoId);
       if (!convo?.unreadCount) return;
       dataLayer.mutations.markConvoAsRead(convoId);
-      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
+      chatNotificationService?.markNotificationsAsReadForConvo(convoId, {
+        isRequest: convo.status === "request",
+      });
     });
 
     root.addEventListener("click", handleRootClick);

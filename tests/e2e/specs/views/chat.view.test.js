@@ -134,46 +134,69 @@ test.describe("Chat view", () => {
     ).toContainText("Alice", { timeout: 10000 });
   });
 
-  test("should navigate to chat requests when clicking the banner", async ({
+  test("should navigate to chat requests when clicking the header inbox button", async ({
     page,
   }) => {
     const mockServer = new MockServer();
-    const requester = createProfile({
-      did: "did:plc:requester1",
-      handle: "requester.bsky.social",
-      displayName: "Requester",
-    });
-    const requestConvo = createConvo({
-      id: "convo-req-1",
-      otherMember: requester,
-      status: "request",
-      lastMessage: createMessage({
-        id: "msg-req-1",
-        text: "Hi there!",
-        senderDid: requester.did,
-      }),
-    });
-    mockServer.addConvos([requestConvo]);
     await mockServer.setup(page);
 
     await login(page);
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-      timeout: 10000,
-    });
+    const inboxButton = chatView.locator('[data-testid="inbox-button"]');
+    await expect(inboxButton).toBeVisible({ timeout: 10000 });
+    await expect(inboxButton).toHaveAttribute("data-teststate", "read");
+    await expect(inboxButton.locator('[data-testid="unread-dot"]')).toHaveCount(
+      0,
+    );
 
-    await chatView.locator(".chat-requests-banner").click();
+    await inboxButton.click();
 
     const requestsView = page.locator("#chat-requests-view");
     await expect(
       requestsView.locator('[data-testid="header-title"]'),
     ).toContainText("Chat requests", { timeout: 10000 });
-    await expect(requestsView.locator(".chat-request-item")).toHaveCount(1);
   });
 
-  test("should show chat requests banner when requests exist", async ({
+  test("should show an unread dot on the inbox button when unread requests exist", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const requester = createProfile({
+      did: "did:plc:requester1",
+      handle: "requester.bsky.social",
+      displayName: "Requester",
+    });
+    const requestConvo = createConvo({
+      id: "convo-req-1",
+      otherMember: requester,
+      status: "request",
+      unreadCount: 1,
+      lastMessage: createMessage({
+        id: "msg-req-1",
+        text: "Hi there!",
+        senderDid: requester.did,
+      }),
+    });
+    mockServer.addConvos([requestConvo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+
+    const chatView = page.locator("#chat-view");
+    const inboxButton = chatView.locator('[data-testid="inbox-button"]');
+    await expect(inboxButton).toBeVisible({ timeout: 10000 });
+    await expect(inboxButton).toHaveAttribute("data-teststate", "unread", {
+      timeout: 10000,
+    });
+    await expect(
+      inboxButton.locator('[data-testid="unread-dot"]'),
+    ).toBeVisible();
+  });
+
+  test("should keep request conversations out of the main list", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -199,12 +222,11 @@ test.describe("Chat view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-      timeout: 10000,
-    });
-    await expect(chatView.locator(".chat-requests-title")).toContainText(
-      "Chat requests",
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
     );
+    await expect(chatView.locator(".convo-item")).toHaveCount(0);
   });
 
   test.describe("Group conversations", () => {
@@ -384,9 +406,7 @@ test.describe("Chat view", () => {
       );
     });
 
-    test("should show the chat requests banner for group invites", async ({
-      page,
-    }) => {
+    test("should keep group invites out of the main list", async ({ page }) => {
       const mockServer = new MockServer();
       const groupInvite = createGroupConvo({
         id: "group-req-1",
@@ -405,13 +425,11 @@ test.describe("Chat view", () => {
       await login(page);
       await page.goto("/messages");
 
-      const chatView = page.locator("#chat-view");
-      await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-        timeout: 10000,
-      });
       // The invite is still a request, so the main list stays empty
+      const chatView = page.locator("#chat-view");
       await expect(chatView.locator(".feed-end-message")).toContainText(
         "No conversations yet!",
+        { timeout: 10000 },
       );
     });
   });

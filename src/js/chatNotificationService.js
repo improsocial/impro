@@ -7,6 +7,7 @@ export class ChatNotificationService {
   constructor(api) {
     this.api = api;
     this.$numNotifications = new Signal.State(0);
+    this.$numUnreadRequestConvos = new Signal.State(0);
     this._optimisticallyReadIds = new Set();
     this._lastServerTotal = 0;
   }
@@ -22,6 +23,7 @@ export class ChatNotificationService {
   async fetchNumNotifications() {
     const { unreadAcceptedConvos = 0, unreadRequestConvos = 0 } =
       await this.api.getChatUnreadCounts();
+    this.$numUnreadRequestConvos.set(unreadRequestConvos);
     const serverTotal = unreadAcceptedConvos + unreadRequestConvos;
     // The server total dropped by `delta` since the last poll — that many
     // optimistic reads have been confirmed, so stop subtracting them.
@@ -37,12 +39,18 @@ export class ChatNotificationService {
     this.$numNotifications.set(adjusted);
   }
 
-  markNotificationsAsReadForConvo(convoId) {
+  markNotificationsAsReadForConvo(convoId, { isRequest = false } = {}) {
     if (this._optimisticallyReadIds.has(convoId)) return;
     this._optimisticallyReadIds.add(convoId);
     const count = this.$numNotifications.get();
     if (count > 0) {
       this.$numNotifications.set(count - 1);
+    }
+    if (isRequest) {
+      const requestCount = this.$numUnreadRequestConvos.get();
+      if (requestCount > 0) {
+        this.$numUnreadRequestConvos.set(requestCount - 1);
+      }
     }
   }
 }

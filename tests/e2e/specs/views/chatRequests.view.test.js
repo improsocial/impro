@@ -398,10 +398,9 @@ test.describe("Chat requests view", () => {
     await page.goto("/messages");
 
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-      timeout: 10000,
-    });
-    await chatView.locator(".chat-requests-banner").click();
+    const inboxButton = chatView.locator('[data-testid="inbox-button"]');
+    await expect(inboxButton).toBeVisible({ timeout: 10000 });
+    await inboxButton.click();
 
     const requestsView = page.locator("#chat-requests-view");
     await expect(
