@@ -124,7 +124,21 @@ class HomeView extends View {
 
     const feedScrollState = new Map();
 
-    async function scrollAndReloadFeed() {
+    // TEMP feed-flash debugging - remove once the accidental reload trigger is found
+    function debugLogReloadTrigger(source) {
+      const event = window.event;
+      console.warn("[feed-debug] scrollAndReloadFeed", {
+        source,
+        eventType: event?.type ?? null,
+        isTrusted: event?.isTrusted ?? null,
+        targetTestId:
+          event?.target?.closest?.("[data-testid]")?.dataset?.testid,
+        scrollY: window.scrollY,
+      });
+    }
+
+    async function scrollAndReloadFeed(source = "unknown") {
+      debugLogReloadTrigger(source);
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
@@ -135,7 +149,7 @@ class HomeView extends View {
     async function handleTabClick(feedUri) {
       let currentFeedUri = state.$currentFeedUri.get();
       if (feedUri === currentFeedUri) {
-        scrollAndReloadFeed();
+        scrollAndReloadFeed("tab-reclick");
         return;
       }
       // Save scroll state
@@ -185,7 +199,7 @@ class HomeView extends View {
         html`<div id="home-view">
           ${mainLayout({
             onClickActiveNavItem: () => {
-              scrollAndReloadFeed();
+              scrollAndReloadFeed("active-nav-item");
             },
             activeNavItem: "home",
             showFloatingComposeButton: true,

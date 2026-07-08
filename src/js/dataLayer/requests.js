@@ -431,6 +431,13 @@ export class Requests {
     if (reload) {
       cursor = "";
     }
+    // TEMP feed-flash debugging - remove once the accidental reload trigger is found
+    if (reload && existingFeed) {
+      console.warn("[feed-debug] reloading existing feed", {
+        feedURI,
+        eventType: window.event?.type ?? null,
+      });
+    }
     const isListFeed = feedURI.includes("/app.bsky.graph.list/");
     const feed =
       feedURI === "following"

@@ -1,5 +1,30 @@
 import { html, render } from "/js/lib/lit-html.js";
 
+const LEVEL_STYLES = {
+  error: {
+    background: "rgba(255, 0, 0, 0.9)",
+    color: "white",
+  },
+  warn: {
+    background: "rgba(255, 200, 0, 0.9)",
+    color: "black",
+  },
+};
+
+function formatArg(arg) {
+  if (typeof arg === "string") {
+    return arg;
+  }
+  if (arg instanceof Error) {
+    return arg.stack ?? String(arg);
+  }
+  try {
+    return JSON.stringify(arg);
+  } catch {
+    return String(arg);
+  }
+}
+
 export function enableErrorLogs() {
   const errorLog = document.createElement("div");
   errorLog.id = "error-log";
@@ -10,8 +35,6 @@ export function enableErrorLogs() {
   right: 0;
   max-height: 200px;
   overflow-y: auto;
-  background: rgba(255, 0, 0, 0.9);
-  color: white;
   font-family: monospace;
   font-size: 12px;
   z-index: 9999999;
@@ -19,19 +42,22 @@ export function enableErrorLogs() {
 `;
   document.body.appendChild(errorLog);
 
-  const entryStyle = "padding:15px;";
-  const buttonStyle =
-    "color:white;float:right;margin-left:10px;border:none;background:none;cursor:pointer;";
-
-  function showMessage(message) {
+  function showMessage(message, level = "error") {
+    const { background, color } = LEVEL_STYLES[level];
     errorLog.style.display = "block";
     const entry = document.createElement("div");
+    entry.dataset.logLevel = level;
     errorLog.appendChild(entry);
     render(
       html`
-        <div style=${entryStyle}>
+        <div style="padding:15px;background:${background};color:${color};">
           ${message}
-          <button style=${buttonStyle} @click=${() => entry.remove()}>✕</button>
+          <button
+            style="color:${color};float:right;margin-left:10px;border:none;background:none;cursor:pointer;"
+            @click=${() => entry.remove()}
+          >
+            ✕
+          </button>
         </div>
       `,
       entry,
@@ -47,11 +73,17 @@ export function enableErrorLogs() {
 
   const consoleError = console.error;
   console.error = (...args) => {
-    showMessage(args.join(" "));
+    showMessage(args.map(formatArg).join(" "));
     consoleError(...args);
   };
 
+  const consoleWarn = console.warn;
+  console.warn = (...args) => {
+    showMessage(args.map(formatArg).join(" "), "warn");
+    consoleWarn(...args);
+  };
+
   window.logMessage = (...args) => {
-    showMessage(args.map((a) => JSON.stringify(a)).join(" "));
+    showMessage(args.map(formatArg).join(" "));
   };
 }
