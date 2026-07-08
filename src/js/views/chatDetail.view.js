@@ -527,7 +527,7 @@ class ChatDetailView extends View {
       clearMessageSelection();
     }
 
-    async function handleSendMessage(messageText) {
+    async function handleSendMessage(messageText, onSuccess) {
       state.$isSendingMessage.set(true);
       const stagedReply = state.$stagedReply.get();
       try {
@@ -567,6 +567,7 @@ class ChatDetailView extends View {
         state.$stagedReply.set(null);
         state.$stagedRecordEmbed.set(null);
         rejectedRecordLinks.clear();
+        onSuccess();
         await raf();
         await raf();
         scrollToBottom();
@@ -1340,7 +1341,11 @@ class ChatDetailView extends View {
                             })
                           : ""}
                         <chat-input
-                          @send=${(e) => handleSendMessage(e.detail.message)}
+                          @send=${(e) =>
+                            handleSendMessage(
+                              e.detail.message,
+                              e.detail.onSuccess,
+                            )}
                           @input-change=${(e) => handleComposerInput(e.detail)}
                           @height-change=${handleInputHeightChange}
                           ?has-embed=${!!stagedRecordEmbed}
