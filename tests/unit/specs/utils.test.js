@@ -21,6 +21,7 @@ import {
   wait,
   enableLongPress,
   TimeoutError,
+  debounce,
 } from "/js/utils.js";
 
 const t = new TestSuite("utils");
@@ -994,5 +995,46 @@ t.describe(
     });
   },
 );
+
+t.describe("debounce", (it, { beforeEach, afterEach }) => {
+  let originalSetTimeout;
+
+  beforeEach(() => {
+    originalSetTimeout = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
+  it("fires once with the latest arguments", async () => {
+    const calls = [];
+    const debounced = debounce((value) => calls.push(value));
+    debounced("first");
+    debounced("second");
+    await wait(10);
+    assertEquals(calls, ["second"]);
+  });
+
+  it("does not fire a pending invocation after cancel", async () => {
+    const calls = [];
+    const debounced = debounce((value) => calls.push(value));
+    debounced("pending");
+    debounced.cancel();
+    await wait(10);
+    assertEquals(calls, []);
+  });
+
+  it("fires again when invoked after cancel", async () => {
+    const calls = [];
+    const debounced = debounce((value) => calls.push(value));
+    debounced("cancelled");
+    debounced.cancel();
+    debounced("kept");
+    await wait(10);
+    assertEquals(calls, ["kept"]);
+  });
+});
 
 await t.run();

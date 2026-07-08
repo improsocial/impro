@@ -222,10 +222,14 @@ export function deepClone(value) {
 
 export function debounce(fn, delay = 250) {
   let timeoutId = null;
-  return (...args) => {
+  const debounced = (...args) => {
     clearTimeout(timeoutId);
     timeoutId = setTimeout(() => fn(...args), delay);
   };
+  debounced.cancel = () => {
+    clearTimeout(timeoutId);
+  };
+  return debounced;
 }
 
 export function throttle(fn, delay = 250) {

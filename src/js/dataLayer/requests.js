@@ -153,6 +153,7 @@ export class Requests {
       this.loadProfileSearch,
       (query) => "loadProfileSearch-" + query,
     );
+    this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
     this.enableStatus(
       this.loadPostSearch,
       (query, { sort = "top" } = {}) => `loadPostSearch-${query}-${sort}`,
@@ -531,6 +532,8 @@ export class Requests {
 
   async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestProfileSearchRequestTime.set(null);
       this.dataStore.$profileSearchResults.set(null);
       return;
     }
@@ -560,8 +563,33 @@ export class Requests {
     }
   }
 
+  async loadChatRecipientSearch(query, { limit = 12 } = {}) {
+    if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestChatRecipientSearchRequestTime.set(null);
+      this.dataStore.$chatRecipientSearchResults.set(null);
+      return;
+    }
+    const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    this.dataStore.$latestChatRecipientSearchRequestTime.set(requestTime);
+    const searchData = await this.api.searchProfilesTypeahead(query, {
+      limit,
+      labelers,
+    });
+    if (
+      requestTime !== this.dataStore.$latestChatRecipientSearchRequestTime.get()
+    ) {
+      return;
+    }
+    this.dataStore.setProfiles(searchData.actors);
+    this.dataStore.$chatRecipientSearchResults.set(searchData);
+  }
+
   async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestPostSearchRequestTime.set(null);
       this.dataStore.$postSearchResults.set(null);
       return;
     }
@@ -610,6 +638,8 @@ export class Requests {
 
   async loadFeedSearch(query, { limit = 15, cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestFeedSearchRequestTime.set(null);
       this.dataStore.$feedSearchResults.set(null);
       return;
     }
@@ -1076,10 +1106,10 @@ export class Requests {
         this.statusStore.setError(requestId, null);
         return result;
       } catch (error) {
-        // Only store ApiErrors
-        if (error instanceof ApiError) {
-          this.statusStore.setError(requestId, error);
-        } else {
+        // Record every failure so views can render error states, but only
+        // swallow ApiErrors
+        this.statusStore.setError(requestId, error);
+        if (!(error instanceof ApiError)) {
           throw error;
         }
       } finally {

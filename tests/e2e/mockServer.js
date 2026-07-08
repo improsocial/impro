@@ -23,6 +23,7 @@ export class MockServer {
     this.messageCounter = 0;
     this.sentMessageRequests = [];
     this.sendMessageFailure = null;
+    this.convoForMembersError = null;
     this.typeaheadProfiles = [];
     this.externalLinkCards = new Map();
     this.feedGenerators = [];
@@ -171,6 +172,10 @@ export class MockServer {
 
   addTypeaheadProfiles(profiles) {
     this.typeaheadProfiles.push(...profiles);
+  }
+
+  setConvoForMembersError(errorName) {
+    this.convoForMembersError = errorName;
   }
 
   setExternalLinkCard(url, meta) {
@@ -917,6 +922,16 @@ export class MockServer {
     );
 
     await page.route("**/xrpc/chat.bsky.convo.getConvoForMembers*", (route) => {
+      if (this.convoForMembersError) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: this.convoForMembersError,
+            message: this.convoForMembersError,
+          }),
+        });
+      }
       const url = new URL(route.request().url());
       const members = url.searchParams.getAll("members");
       const otherDid = members.find((m) => m !== userProfile.did);

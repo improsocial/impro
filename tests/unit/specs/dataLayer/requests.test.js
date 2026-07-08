@@ -1065,6 +1065,81 @@ t.describe("loadProfileSearch", (it) => {
     assertEquals(stored.actors.length, 2);
     assertEquals(stored.cursor, "c2");
   });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfiles: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }], cursor: "stale" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadProfileSearch("query");
+    await requests.loadProfileSearch("");
+    resolveSearch();
+    await inFlight;
+
+    assertEquals(dataStore.$profileSearchResults.get(), null);
+  });
+});
+
+t.describe("loadChatRecipientSearch", (it) => {
+  it("should store the search results", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadChatRecipientSearch("alice");
+
+    const stored = dataStore.$chatRecipientSearchResults.get();
+    assertEquals(stored.actors.length, 1);
+    assertEquals(stored.actors[0].did, "did:plc:a");
+  });
+
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore();
+    dataStore.$chatRecipientSearchResults.set({ actors: [{ did: "x" }] });
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({ actors: [] }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadChatRecipientSearch("");
+
+    assertEquals(dataStore.$chatRecipientSearchResults.get(), null);
+  });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfilesTypeahead: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadChatRecipientSearch("query");
+    await requests.loadChatRecipientSearch("");
+    resolveSearch();
+    await inFlight;
+
+    assertEquals(dataStore.$chatRecipientSearchResults.get(), null);
+  });
 });
 
 t.describe("loadFeedSearch", (it) => {
@@ -2413,8 +2488,8 @@ t.describe("enableStatus / getStatus", (it) => {
     );
   });
 
-  it("should rethrow non-ApiError and not record it on the status store", async () => {
-    const otherError = new Error("boom");
+  it("should record non-ApiErrors on the status store and rethrow them", async () => {
+    const otherError = new TypeError("Failed to fetch");
     const mockApi = {
       getMutes: async () => {
         throw otherError;
@@ -2432,7 +2507,31 @@ t.describe("enableStatus / getStatus", (it) => {
     assert(caught === otherError, "expected non-ApiError to propagate");
     const status = requests.getStatus("loadMutedProfiles");
     assertEquals(status.loading, false);
-    assertEquals(status.error, null);
+    assert(
+      status.error === otherError,
+      "expected status.error to be the network error",
+    );
+  });
+
+  it("should clear a recorded error once a later request succeeds", async () => {
+    let shouldFail = true;
+    const mockApi = {
+      getMutes: async () => {
+        if (shouldFail) {
+          throw new TypeError("Failed to fetch");
+        }
+        return { mutes: [], cursor: null };
+      },
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadMutedProfiles().catch(() => {});
+    assert(requests.getStatus("loadMutedProfiles").error !== null);
+
+    shouldFail = false;
+    await requests.loadMutedProfiles();
+    assertEquals(requests.getStatus("loadMutedProfiles").error, null);
   });
 
   it("should namespace status by request id derived from arguments", async () => {

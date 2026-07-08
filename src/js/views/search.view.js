@@ -112,6 +112,7 @@ class SearchView extends View {
     });
 
     function handleClearSearch() {
+      handleSearchInput.cancel();
       state.$searchQuery.set("");
       loadSearchResults();
     }

@@ -28,6 +28,18 @@ export class Declarative {
     return profile;
   }
 
+  async ensureProfileFollows(profileDid) {
+    let profileFollows = this.derived.$profileFollows.get(profileDid);
+    if (!profileFollows) {
+      await this.requests.loadProfileFollows(profileDid);
+      profileFollows = this.derived.$profileFollows.get(profileDid);
+    }
+    if (!profileFollows) {
+      throw new Error("Profile follows not found");
+    }
+    return profileFollows;
+  }
+
   async ensureDetailedProfiles(profileDids) {
     const getProfile = (did) => this.derived.$hydratedDetailedProfiles.get(did);
     const missing = profileDids.filter((did) => !getProfile(did));

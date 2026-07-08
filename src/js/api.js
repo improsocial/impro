@@ -531,6 +531,17 @@ export class Api {
     return res.data;
   }
 
+  async searchProfilesTypeahead(query, { limit = 12, labelers = [] } = {}) {
+    const res = await this.request(`app.bsky.actor.searchActorsTypeahead`, {
+      query: { q: query, limit },
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async searchPosts(
     query,
     { limit = 25, sort = "top", cursor = "", labelers = [] } = {},
