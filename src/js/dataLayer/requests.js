@@ -167,6 +167,7 @@ export class Requests {
       "loadMentionNotifications",
     );
     this.enableStatus(this.loadConvoList, "loadConvoList");
+    this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
     this.enableStatus(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
@@ -796,6 +797,37 @@ export class Requests {
       this.dataStore.$convoList.set(res.convos);
     }
     this.dataStore.$convoListCursor.set(res.cursor);
+  }
+
+  async loadConvoRequestList({ reload = false, limit = 30 } = {}) {
+    let cursor = this.dataStore.$convoRequestListCursor.get() ?? "";
+    if (reload) {
+      cursor = "";
+    }
+    const res = await this.api.listConvos({ cursor, limit, status: "request" });
+    const previousCursor = this.dataStore.$convoRequestListCursor.get();
+    // Store individual convos
+    for (const convo of res.convos) {
+      this.dataStore.$convos.set(convo.id, convo);
+    }
+    // If the req cursor matches the previous cursor, append
+    if (previousCursor && !reload) {
+      if (previousCursor === cursor) {
+        const existingConvos = this.dataStore.$convoRequestList.get() ?? [];
+        this.dataStore.$convoRequestList.set([
+          ...existingConvos,
+          ...res.convos,
+        ]);
+      } else {
+        console.warn(
+          "loadConvoRequestList: cursor mismatch, discarding response",
+          { previousCursor, cursor },
+        );
+      }
+    } else {
+      this.dataStore.$convoRequestList.set(res.convos);
+    }
+    this.dataStore.$convoRequestListCursor.set(res.cursor);
   }
 
   async loadConvo(convoId) {

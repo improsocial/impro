@@ -1084,13 +1084,23 @@ export class Mutations {
 
     this.dataStore.$convos.set(convo.id, updatedConvo);
 
-    // Update the convo in the convo list
+    // Update the convo in the convo list, adding it if not present
     const convoList = this.dataStore.$convoList.get();
     if (convoList) {
-      const updatedList = convoList.map((c) =>
-        c.id === convo.id ? updatedConvo : c,
+      const inList = convoList.some((c) => c.id === convo.id);
+      this.dataStore.$convoList.set(
+        inList
+          ? convoList.map((c) => (c.id === convo.id ? updatedConvo : c))
+          : [updatedConvo, ...convoList],
       );
-      this.dataStore.$convoList.set(updatedList);
+    }
+
+    // Remove from request list
+    const convoRequestList = this.dataStore.$convoRequestList.get();
+    if (convoRequestList) {
+      this.dataStore.$convoRequestList.set(
+        convoRequestList.filter((c) => c.id !== convo.id),
+      );
     }
 
     return updatedConvo;
@@ -1103,6 +1113,12 @@ export class Mutations {
     if (convoList) {
       const updatedList = convoList.filter((c) => c.id !== convo.id);
       this.dataStore.$convoList.set(updatedList);
+    }
+    const convoRequestList = this.dataStore.$convoRequestList.get();
+    if (convoRequestList) {
+      this.dataStore.$convoRequestList.set(
+        convoRequestList.filter((c) => c.id !== convo.id),
+      );
     }
   }
 

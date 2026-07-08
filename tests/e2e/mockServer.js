@@ -683,14 +683,32 @@ export class MockServer {
     await page.route("**/xrpc/chat.bsky.convo.listConvos*", (route) => {
       const url = new URL(route.request().url());
       const readState = url.searchParams.get("readState");
-      let convos = this.convos;
+      const status = url.searchParams.get("status");
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "0", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      let allConvos = this.convos;
       if (readState === "unread") {
-        convos = convos.filter((c) => c.unreadCount > 0);
+        allConvos = allConvos.filter((convo) => convo.unreadCount > 0);
       }
+      if (status) {
+        allConvos = allConvos.filter((convo) => convo.status === status);
+      }
+
+      let convos, nextCursor;
+      if (limit) {
+        convos = allConvos.slice(offset, offset + limit);
+        nextCursor =
+          offset + limit < allConvos.length ? String(offset + limit) : "";
+      } else {
+        convos = allConvos;
+        nextCursor = "";
+      }
+
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ convos }),
+        body: JSON.stringify({ convos, cursor: nextCursor }),
       });
     });
 

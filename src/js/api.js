@@ -669,13 +669,16 @@ export class Api {
     });
   }
 
-  async listConvos({ cursor, limit = 30, readState } = {}) {
+  async listConvos({ cursor, limit = 30, readState, status } = {}) {
     const query = { limit };
     if (cursor) {
       query.cursor = cursor;
     }
     if (readState) {
       query.readState = readState;
+    }
+    if (status) {
+      query.status = status;
     }
     const res = await this.request("chat.bsky.convo.listConvos", {
       query,

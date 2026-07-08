@@ -130,6 +130,18 @@ export class Declarative {
     return convoList;
   }
 
+  async ensureConvoRequestList() {
+    let convoRequestList = this.derived.$convoRequestList.get();
+    if (!convoRequestList) {
+      await this.requests.loadConvoRequestList();
+      convoRequestList = this.derived.$convoRequestList.get();
+    }
+    if (!convoRequestList) {
+      throw new Error("Conversation request list not found");
+    }
+    return convoRequestList;
+  }
+
   async ensureConvo(convoId) {
     let convo = this.derived.$convos.get(convoId);
     if (!convo) {

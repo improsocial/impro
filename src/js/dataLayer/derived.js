@@ -454,6 +454,21 @@ export class Derived extends ReactiveStore {
     this.$convoListCursor = new Signal.Computed(() =>
       this.dataStore.$convoListCursor.get(),
     );
+    this.$convoRequestList = new Signal.Computed(() => {
+      const convoRequestList = this.dataStore.$convoRequestList.get();
+      if (!convoRequestList) return null;
+      const hydrated = convoRequestList
+        .map((convo) => this.$convos.get(convo.id))
+        .filter(Boolean);
+      return sortBy(
+        hydrated,
+        (convo) => new Date(getLastInteractionTimestamp(convo)),
+        { direction: "desc" },
+      );
+    });
+    this.$convoRequestListCursor = new Signal.Computed(() =>
+      this.dataStore.$convoRequestListCursor.get(),
+    );
     // The convo's members plus the hydrated profiles its interactions
     // reference (group convo member lists are partial)
     this.$convoProfiles = new ComputedMap((convoId) => {

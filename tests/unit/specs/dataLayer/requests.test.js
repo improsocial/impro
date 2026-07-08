@@ -1496,6 +1496,75 @@ t.describe("loadConvoList", (it) => {
   });
 });
 
+t.describe("loadConvoRequestList", (it) => {
+  it("should request only request convos and cache them on first load", async () => {
+    const dataStore = new DataStore();
+    let capturedStatus;
+    const mockApi = {
+      listConvos: async ({ status }) => {
+        capturedStatus = status;
+        return {
+          convos: [
+            { id: "r1", status: "request", lastMessage: null },
+            { id: "r2", status: "request", lastMessage: null },
+          ],
+          cursor: "next",
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList();
+
+    assertEquals(capturedStatus, "request");
+    assertEquals(dataStore.$convoRequestList.get().length, 2);
+    assertEquals(dataStore.$convos.get("r1").id, "r1");
+    assertEquals(dataStore.$convos.get("r2").id, "r2");
+    assertEquals(dataStore.$convoRequestListCursor.get(), "next");
+  });
+
+  it("should append when previous cursor matches", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoRequestList.set([{ id: "r1" }]);
+    dataStore.$convoRequestListCursor.set("page2");
+
+    const mockApi = {
+      listConvos: async () => ({
+        convos: [{ id: "r2" }],
+        cursor: "page3",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList();
+
+    assertEquals(dataStore.$convoRequestList.get().length, 2);
+    assertEquals(dataStore.$convoRequestListCursor.get(), "page3");
+  });
+
+  it("should reset cursor and replace on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoRequestList.set([{ id: "r1" }]);
+    dataStore.$convoRequestListCursor.set("page2");
+
+    let capturedCursor;
+    const mockApi = {
+      listConvos: async ({ cursor }) => {
+        capturedCursor = cursor;
+        return { convos: [{ id: "r2" }], cursor: "fresh" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList({ reload: true });
+
+    assertEquals(capturedCursor, "");
+    const stored = dataStore.$convoRequestList.get();
+    assertEquals(stored.length, 1);
+    assertEquals(stored[0].id, "r2");
+  });
+});
+
 t.describe("loadConvoMessages", (it) => {
   const convoId = "convo1";
 

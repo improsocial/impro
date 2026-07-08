@@ -2469,7 +2469,7 @@ t.describe("createMessage", (it) => {
 t.describe("acceptConvo", (it) => {
   const convo = { id: "convo-1", status: "request" };
 
-  function setup({ convoList } = {}) {
+  function setup({ convoList, convoRequestList } = {}) {
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
@@ -2477,6 +2477,9 @@ t.describe("acceptConvo", (it) => {
     };
     if (convoList) {
       dataStore.$convoList.set(convoList);
+    }
+    if (convoRequestList) {
+      dataStore.$convoRequestList.set(convoRequestList);
     }
     let acceptCalledWith = null;
     const mutations = makeMutations(
@@ -2510,6 +2513,28 @@ t.describe("acceptConvo", (it) => {
     assertEquals(list.length, 2);
     assertEquals(list.find((c) => c.id === convo.id).status, "accepted");
     assertEquals(list.find((c) => c.id === otherConvo.id).status, "accepted");
+  });
+
+  it("should remove the convo from the request list", async () => {
+    const otherRequest = { id: "convo-3", status: "request" };
+    const { mutations, dataStore } = setup({
+      convoRequestList: [convo, otherRequest],
+    });
+    await mutations.acceptConvo(convo);
+    const requestList = dataStore.$convoRequestList.get();
+    assertEquals(requestList.length, 1);
+    assertEquals(requestList[0].id, otherRequest.id);
+  });
+
+  it("should add the convo to the convo list when not already present", async () => {
+    const otherConvo = { id: "convo-2", status: "accepted" };
+    const { mutations, dataStore } = setup({
+      convoList: [otherConvo],
+    });
+    await mutations.acceptConvo(convo);
+    const list = dataStore.$convoList.get();
+    assertEquals(list.length, 2);
+    assertEquals(list.find((c) => c.id === convo.id).status, "accepted");
   });
 });
 
@@ -2545,6 +2570,31 @@ t.describe("rejectConvo", (it) => {
     const list = dataStore.$convoList.get();
     assertEquals(list.length, 1);
     assertEquals(list[0].id, otherConvo.id);
+  });
+
+  it("should remove the convo from the request list", async () => {
+    const otherRequest = { id: "convo-3", status: "request" };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convo.id, convo);
+    dataStore.$convoRequestList.set([convo, otherRequest]);
+    const mutations = makeMutations(
+      {
+        leaveConvo: async () => {},
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.rejectConvo(convo);
+
+    const requestList = dataStore.$convoRequestList.get();
+    assertEquals(requestList.length, 1);
+    assertEquals(requestList[0].id, otherRequest.id);
   });
 });
 

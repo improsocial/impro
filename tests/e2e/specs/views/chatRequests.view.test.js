@@ -372,6 +372,93 @@ test.describe("Chat requests view", () => {
     );
   });
 
+  test("should show an old request buried past the first page of convos", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const requester = createRequester();
+    // 30 accepted convos with recent activity fill the first listConvos page,
+    // pushing the older request past it
+    const acceptedConvos = Array.from({ length: 30 }, (_, index) =>
+      createConvo({
+        id: `convo-accepted-${index}`,
+        otherMember: createProfile({
+          did: `did:plc:friend${index}`,
+          handle: `friend${index}.bsky.social`,
+          displayName: `Friend ${index}`,
+        }),
+        status: "accepted",
+        lastMessage: createMessage({
+          id: `msg-accepted-${index}`,
+          text: "Recent message",
+          senderDid: `did:plc:friend${index}`,
+          sentAt: "2025-01-15T12:00:00.000Z",
+        }),
+      }),
+    );
+    const oldRequest = createConvo({
+      id: "convo-req-old",
+      otherMember: requester,
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-old",
+        text: "Hello from a while ago",
+        senderDid: requester.did,
+        sentAt: "2024-06-01T12:00:00.000Z",
+      }),
+    });
+    mockServer.addConvos([...acceptedConvos, oldRequest]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const requestsView = page.locator("#chat-requests-view");
+    const directItem = requestsView.locator(
+      '[data-testid="request-item-direct"]',
+    );
+    await expect(directItem).toHaveCount(1, { timeout: 10000 });
+    await expect(directItem).toContainText("Hello from a while ago");
+  });
+
+  test("should load more requests when scrolling to the bottom", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    // More requests than one page (limit 30)
+    const requestConvos = Array.from({ length: 35 }, (_, index) =>
+      createConvo({
+        id: `convo-req-${index}`,
+        otherMember: createProfile({
+          did: `did:plc:requester${index}`,
+          handle: `requester${index}.bsky.social`,
+          displayName: `Requester ${index}`,
+        }),
+        status: "request",
+        lastMessage: createMessage({
+          id: `msg-req-${index}`,
+          text: `Request number ${index}`,
+          senderDid: `did:plc:requester${index}`,
+        }),
+      }),
+    );
+    mockServer.addConvos(requestConvos);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/inbox");
+
+    const requestsView = page.locator("#chat-requests-view");
+    const requestItems = requestsView.locator(
+      '[data-testid="request-item-direct"]',
+    );
+    await expect(requestItems).toHaveCount(30, { timeout: 10000 });
+
+    await requestItems.last().scrollIntoViewIfNeeded();
+
+    await expect(requestItems).toHaveCount(35, { timeout: 10000 });
+  });
+
   test("should navigate back to chat list when clicking back", async ({
     page,
   }) => {
