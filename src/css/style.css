@@ -2388,12 +2388,18 @@ animated-button {
   border: none;
 }
 
-.post-video streaming-video,
-.post-video > video {
+.post-video streaming-video {
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: contain;
+}
+
+.post-video video {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: translateZ(0); /* Prevents video jiggle on iPadOS scroll */
 }
 
 .youtube-embed {
