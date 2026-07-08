@@ -105,7 +105,7 @@
 
       // Dev tools
       if (
-        window.env.environment === "development" ||
+        (window.env.environment === "development" && !window.env.playwright) ||
         params.has("enable-debug")
       ) {
         enableErrorLogs();

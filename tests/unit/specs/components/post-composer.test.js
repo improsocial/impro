@@ -8,6 +8,12 @@ t.beforeEach(() => {
   document.body.innerHTML = "";
 });
 
+async function nextFrame() {
+  // The render effect flushes on requestAnimationFrame (setTimeout(0) in the
+  // test env), so one tick applies pending renders.
+  await new Promise((resolve) => setTimeout(resolve, 0));
+}
+
 function connectElement(element) {
   const container = document.createElement("div");
   container.className = "page-visible";
@@ -118,19 +124,19 @@ t.describe("PostComposer - initial state", (it) => {
   it("should start with empty post text", () => {
     const element = createPostComposer();
     connectElement(element);
-    assertEquals(element._postText, "");
+    assertEquals(element.state.$postText.get(), "");
   });
 
   it("should not be sending initially", () => {
     const element = createPostComposer();
     connectElement(element);
-    assertEquals(element._isSending, false);
+    assertEquals(element.state.$isSending.get(), false);
   });
 
   it("should have no selected images initially", () => {
     const element = createPostComposer();
     connectElement(element);
-    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element.state.$selectedImages.get().length, 0);
   });
 });
 
@@ -142,20 +148,20 @@ t.describe("PostComposer - character limit", (it) => {
     assertEquals(wordCount.textContent, "300");
   });
 
-  it("should add overflow class when over limit", () => {
+  it("should add overflow class when over limit", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "x".repeat(301);
-    element.render();
+    element.state.$postText.set("x".repeat(301));
+    await nextFrame();
     const wordCountContainer = element.querySelector(".word-count");
     assert(wordCountContainer.classList.contains("overflow"));
   });
 
-  it("should disable post button when over limit", () => {
+  it("should disable post button when over limit", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "x".repeat(301);
-    element.render();
+    element.state.$postText.set("x".repeat(301));
+    await nextFrame();
     const postButton = element.querySelector(".rounded-button-primary");
     assert(postButton.disabled);
   });
@@ -197,22 +203,22 @@ t.describe("PostComposer - close method", (it) => {
 });
 
 t.describe("PostComposer - send method", (it) => {
-  it("should set _isSending to true when send() is called", () => {
+  it("should set isSending to true when send() is called", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
+    element.state.$postText.set("Hello world");
 
     // Listen for the event but don't do anything
     element.addEventListener("send-post", () => {});
 
     element.send();
-    assertEquals(element._isSending, true);
+    assertEquals(element.state.$isSending.get(), true);
   });
 
   it("should dispatch send-post event with post data", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
+    element.state.$postText.set("Hello world");
 
     let receivedDetail = null;
     element.addEventListener("send-post", (e) => {
@@ -223,20 +229,20 @@ t.describe("PostComposer - send method", (it) => {
     assertEquals(receivedDetail.postText, "Hello world");
   });
 
-  it("should show loading spinner when sending", () => {
+  it("should show loading spinner when sending", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._isSending = true;
-    element.render();
+    element.state.$isSending.set(true);
+    await nextFrame();
     const spinner = element.querySelector(".loading-spinner");
     assert(spinner !== null);
   });
 
-  it("should disable post button when sending", () => {
+  it("should disable post button when sending", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._isSending = true;
-    element.render();
+    element.state.$isSending.set(true);
+    await nextFrame();
     const postButton = element.querySelector(".rounded-button-primary");
     assert(postButton.disabled);
   });
@@ -246,7 +252,7 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
   it("should send post on Cmd+Enter", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
+    element.state.$postText.set("Hello world");
 
     let receivedDetail = null;
     element.addEventListener("send-post", (e) => {
@@ -268,7 +274,7 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
   it("should send post on Ctrl+Enter", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
+    element.state.$postText.set("Hello world");
 
     let fired = false;
     element.addEventListener("send-post", () => {
@@ -309,8 +315,7 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
   it("should not send on Cmd+Enter when over character limit", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "x".repeat(301);
-    element.render();
+    element.state.$postText.set("x".repeat(301));
 
     let fired = false;
     element.addEventListener("send-post", () => {
@@ -331,9 +336,8 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
   it("should not send on Cmd+Enter when already sending", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
-    element._isSending = true;
-    element.render();
+    element.state.$postText.set("Hello world");
+    element.state.$isSending.set(true);
 
     let count = 0;
     element.addEventListener("send-post", () => {
@@ -354,7 +358,7 @@ t.describe("PostComposer - keyboard shortcuts", (it) => {
   it("should not send on plain Enter", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Hello world";
+    element.state.$postText.set("Hello world");
 
     let fired = false;
     element.addEventListener("send-post", () => {
@@ -379,16 +383,16 @@ t.describe("PostComposer - image selection", (it) => {
     assert(input.multiple);
   });
 
-  it("should disable image button when 4 images are selected", () => {
+  it("should disable image button when 4 images are selected", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._selectedImages = [
+    element.state.$selectedImages.set([
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
-    ];
-    element.render();
+    ]);
+    await nextFrame();
     const imageButton = element.querySelector(".image-picker-button");
     assert(imageButton.disabled);
   });
@@ -398,7 +402,7 @@ t.describe("PostComposer - confirmClose", (it) => {
   it("should return true when post text is empty", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "";
+    element.state.$postText.set("");
     const result = await element.confirmClose();
     assertEquals(result, true);
   });
@@ -408,11 +412,11 @@ t.describe("PostComposer - reinitialization protection", (it) => {
   it("should not reinitialize when connectedCallback is called multiple times", () => {
     const element = createPostComposer();
     connectElement(element);
-    element._postText = "Test content";
+    element.state.$postText.set("Test content");
 
     element.connectedCallback();
 
-    assertEquals(element._postText, "Test content");
+    assertEquals(element.state.$postText.get(), "Test content");
   });
 });
 
@@ -440,7 +444,7 @@ t.describe("PostComposer - initial text/cursor", (it) => {
     element.open();
     const richTextInput = element.querySelector("rich-text-input");
     assertEquals(richTextInput.text, "Hello from a plugin");
-    assertEquals(element._postText, "Hello from a plugin");
+    assertEquals(element.state.$postText.get(), "Hello from a plugin");
   });
 
   it("does not seed text when initialText is null", () => {
@@ -449,7 +453,7 @@ t.describe("PostComposer - initial text/cursor", (it) => {
     element.open();
     const richTextInput = element.querySelector("rich-text-input");
     assertEquals(richTextInput.text, "");
-    assertEquals(element._postText, "");
+    assertEquals(element.state.$postText.get(), "");
   });
 
   it("calls setCursor on the rich-text-input when initialCursor is set", () => {
@@ -532,19 +536,20 @@ t.describe("PostComposer - paste media", (it) => {
     const event = makePasteEvent([makeImageFile()]);
     element.handlePaste(event);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    assertEquals(element._selectedImages.length, 1);
-    assert(element._selectedImages[0].dataUrl.startsWith("data:image/png"));
+    const selectedImages = element.state.$selectedImages.get();
+    assertEquals(selectedImages.length, 1);
+    assert(selectedImages[0].dataUrl.startsWith("data:image/png"));
     assert(event.defaultPrevented);
   });
 
   it("adds multiple pasted images up to the 4-image cap", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._selectedImages = [
+    element.state.$selectedImages.set([
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
       { file: {}, dataUrl: "data:..." },
-    ];
+    ]);
     const event = makePasteEvent([
       makeImageFile("a.png"),
       makeImageFile("b.png"),
@@ -552,17 +557,17 @@ t.describe("PostComposer - paste media", (it) => {
     ]);
     element.handlePaste(event);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    assertEquals(element._selectedImages.length, 4);
+    assertEquals(element.state.$selectedImages.get().length, 4);
   });
 
   it("does not add pasted images when a video is already selected", async () => {
     const element = createPostComposer();
     connectElement(element);
-    element._selectedVideo = { file: {}, status: "done" };
+    element.state.$selectedVideo.set({ file: {}, status: "done" });
     const event = makePasteEvent([makeImageFile()]);
     element.handlePaste(event);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element.state.$selectedImages.get().length, 0);
     assert(event.defaultPrevented);
   });
 
@@ -573,7 +578,7 @@ t.describe("PostComposer - paste media", (it) => {
     const event = makePasteEvent([]);
     element.handlePaste(event);
     assert(!event.defaultPrevented);
-    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element.state.$selectedImages.get().length, 0);
   });
 });
 
@@ -601,7 +606,7 @@ t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
     await new Promise((resolve) => requestAnimationFrame(resolve));
     assertEquals(element._externalLinkUrl, "https://example.com/article");
     assertEquals(
-      element._externalLinkEmbedData.url,
+      element.state.$externalLinkEmbedData.get().url,
       "https://example.com/article",
     );
   });
@@ -614,7 +619,7 @@ t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
     element.handlePaste(makePasteEvent([]));
     await new Promise((resolve) => requestAnimationFrame(resolve));
     assertEquals(element._externalLinkUrl, null);
-    assertEquals(element._externalLinkEmbedData, null);
+    assertEquals(element.state.$externalLinkEmbedData.get(), null);
   });
 
   it("does not replace an existing external link embed", async () => {
@@ -730,7 +735,8 @@ t.describe(
       element.handleInput({
         detail: { text: `check ${url} `, facets: [facet] },
       });
-      return new Promise((resolve) => setTimeout(resolve, 0));
+      // one tick for the record load to resolve, one for the render effect
+      return new Promise((resolve) => setTimeout(resolve, 0)).then(nextFrame);
     }
 
     it("preserves quotedRecord set before connectedCallback and renders its preview", () => {
@@ -927,6 +933,7 @@ t.describe(
     it("clears the record embed when the preview is closed", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
       element.handleQuotedEmbedPreviewClose();
+      await nextFrame();
       assertEquals(element.quotedRecord, null);
       assertEquals(element._quotedRecordUrl, null);
       assertEquals(element.querySelector(".post-composer-embed-preview"), null);
@@ -934,7 +941,7 @@ t.describe(
 
     it("sends the record embed as quotedRecord", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
-      element._postText = "check this feed";
+      element.state.$postText.set("check this feed");
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
         receivedDetail = e.detail;
@@ -967,15 +974,15 @@ t.describe("PostComposer - addMediaFiles", (it) => {
     const element = createPostComposer();
     connectElement(element);
     await element.addMediaFiles([makeImageFile()]);
-    assertEquals(element._selectedImages.length, 1);
+    assertEquals(element.state.$selectedImages.get().length, 1);
   });
 
   it("rejects mixed image and video files", async () => {
     const element = createPostComposer();
     connectElement(element);
     await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
-    assertEquals(element._selectedImages.length, 0);
-    assertEquals(element._selectedVideo, null);
+    assertEquals(element.state.$selectedImages.get().length, 0);
+    assertEquals(element.state.$selectedVideo.get(), null);
   });
 
   it("rejects unsupported file types without adding anything", async () => {
@@ -985,15 +992,15 @@ t.describe("PostComposer - addMediaFiles", (it) => {
       makeImageFile(),
       { name: "note.txt", type: "text/plain" },
     ]);
-    assertEquals(element._selectedImages.length, 0);
+    assertEquals(element.state.$selectedImages.get().length, 0);
   });
 
   it("returns early on empty input", async () => {
     const element = createPostComposer();
     connectElement(element);
     await element.addMediaFiles([]);
-    assertEquals(element._selectedImages.length, 0);
-    assertEquals(element._selectedVideo, null);
+    assertEquals(element.state.$selectedImages.get().length, 0);
+    assertEquals(element.state.$selectedVideo.get(), null);
   });
 });
 

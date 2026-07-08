@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { Signal, effect } from "/js/signals.js";
+import { Signal, ReactiveStore, effect } from "/js/signals.js";
 
 class PluginPostsFeed extends Component {
   static get observedAttributes() {
@@ -14,29 +14,27 @@ class PluginPostsFeed extends Component {
     if (!this.postInteractionHandler) {
       throw new Error("postInteractionHandler is required");
     }
-    this.attribs = {
-      uris: new Signal.State(this.parseUris()),
-      emptyMessage: new Signal.State(this.getAttribute("empty-message")),
-    };
-    this.state = {
-      currentUser: this.dataLayer.derived.$currentUser,
-      loaded: new Signal.State(false),
-      posts: new Signal.Computed(() => {
-        if (!this.state.loaded.get()) return null;
-        const uris = this.attribs.uris.get();
-        if (!uris) return null;
-        return uris
-          .map((uri) => this.dataLayer.derived.$hydratedPosts.get(uri))
-          .filter(Boolean);
-      }),
-      error: new Signal.State(null),
-    };
+    this.state = new ReactiveStore("plugin-posts-feed");
+    this.state.$uris = new Signal.State(this.parseUris());
+    this.state.$emptyMessage = new Signal.State(
+      this.getAttribute("empty-message"),
+    );
+    this.state.$loaded = new Signal.State(false);
+    this.state.$posts = new Signal.Computed(() => {
+      if (!this.state.$loaded.get()) return null;
+      const uris = this.state.$uris.get();
+      if (!uris) return null;
+      return uris
+        .map((uri) => this.dataLayer.derived.$hydratedPosts.get(uri))
+        .filter(Boolean);
+    });
+    this.state.$error = new Signal.State(null);
     this._disposers = [
       effect(() => {
-        const error = this.state.error.get();
-        const posts = this.state.posts.get();
-        const currentUser = this.state.currentUser.get();
-        const emptyMessage = this.attribs.emptyMessage.get();
+        const error = this.state.$error.get();
+        const posts = this.state.$posts.get();
+        const currentUser = this.dataLayer.derived.$currentUser.get();
+        const emptyMessage = this.state.$emptyMessage.get();
         if (error) {
           render(html`<div class="posts-feed-error">${error}</div>`, this);
           return;
@@ -60,7 +58,7 @@ class PluginPostsFeed extends Component {
         );
       }),
       effect(() => {
-        this.attribs.uris.get();
+        this.state.$uris.get();
         this.load();
       }),
     ];
@@ -75,8 +73,8 @@ class PluginPostsFeed extends Component {
   attributeChangedCallback() {
     if (this.initialized) {
       // TODO - smarter updates?
-      this.attribs.uris.set(this.parseUris());
-      this.attribs.emptyMessage.set(this.getAttribute("empty-message"));
+      this.state.$uris.set(this.parseUris());
+      this.state.$emptyMessage.set(this.getAttribute("empty-message"));
     }
   }
 
@@ -92,14 +90,14 @@ class PluginPostsFeed extends Component {
     const uris = this.parseUris();
     const requestToken = Symbol();
     this._requestToken = requestToken;
-    this.state.error.set(null);
+    this.state.$error.set(null);
     try {
       await this.dataLayer.declarative.ensurePosts(uris);
       if (this._requestToken !== requestToken) return;
-      this.state.loaded.set(true);
+      this.state.$loaded.set(true);
     } catch (error) {
       if (this._requestToken !== requestToken) return;
-      this.state.error.set(error.message ?? String(error));
+      this.state.$error.set(error.message ?? String(error));
     }
   }
 }
