@@ -184,7 +184,6 @@ class NewChatDialog extends Component {
 
   _onClearSearch() {
     this._onSearchInput("");
-    this.querySelector(".new-chat-search-input")?.focus();
   }
 
   async _onSelect(profile) {
@@ -251,7 +250,6 @@ class NewChatDialog extends Component {
                 data-testid="new-chat-search-input"
                 placeholder="Search for people"
                 maxlength="50"
-                autofocus
                 autocomplete="off"
                 autocorrect="off"
                 autocapitalize="none"
@@ -303,7 +301,6 @@ class NewChatDialog extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".new-chat-dialog");
     dialog.showModal();
-    this.querySelector(".new-chat-search-input")?.focus();
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       scrollContainer: this.querySelector(".new-chat-results"),
