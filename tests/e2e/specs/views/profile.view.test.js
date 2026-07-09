@@ -238,10 +238,9 @@ test.describe("Profile view", () => {
     await page.goto(`/profile/${otherUser.did}`);
 
     const view = page.locator("#profile-view");
-    await expect(view.locator('[data-testid="follow-button"]')).toContainText(
-      "+ Follow",
-      { timeout: 10000 },
-    );
+    await expect(
+      view.locator('[data-testid="follow-button"][data-teststate="follow"]'),
+    ).toBeVisible({ timeout: 10000 });
   });
 
   test("should show 'Following' button for followed profiles", async ({

@@ -824,7 +824,7 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
       container
         .querySelector("[data-testid='follow-button']")
         .textContent.trim(),
-      "+ Follow",
+      "Follow",
     );
   });
 

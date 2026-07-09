@@ -10,6 +10,7 @@ import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSumma
 import { showToast } from "/js/toasts.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import {
   formatLargeNumber,
@@ -346,7 +347,9 @@ export function profileCardTemplate({
                 data-testid="subscribe-button"
                 data-teststate=${isSubscribed ? "subscribed" : "not-subscribed"}
               >
-                ${isSubscribed ? "Subscribed" : "+ Subscribe"}
+                ${isSubscribed
+                  ? "Subscribed"
+                  : html`${plusIconTemplate()} Subscribe`}
               </button>`;
             } else {
               return null;
@@ -372,8 +375,8 @@ export function profileCardTemplate({
             ${isFollowing
               ? "Following"
               : isFollowedBy
-                ? "+ Follow back"
-                : "+ Follow"}
+                ? html`${plusIconTemplate()} Follow back`
+                : html`${plusIconTemplate()} Follow`}
           </button>`;
         })()}
         <button

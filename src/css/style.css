@@ -401,6 +401,11 @@ main {
   cursor: default;
 }
 
+.rounded-button .plus-icon {
+  width: 14px;
+  height: 14px;
+}
+
 .rounded-button .loading-spinner {
   border-left-color: transparent;
   border-right-color: transparent;
@@ -570,6 +575,10 @@ main {
   align-items: flex-start;
   justify-content: center;
   width: 100%;
+}
+
+.rounded-button .icon {
+  display: flex;
 }
 
 .button-group {
@@ -2091,6 +2100,13 @@ container-link {
   margin-top: 4px;
 }
 
+.reply-to-author .icon {
+  display: inline-block;
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+}
+
 .icon {
   position: relative;
 }
@@ -2462,6 +2478,9 @@ animated-button {
 .alt-indicator {
   pointer-events: none;
   position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 3px;
   top: 8px;
   left: 8px;
   background: var(--overlay-color-medium);
@@ -2471,6 +2490,11 @@ animated-button {
   font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.5px;
+}
+
+.alt-indicator .icon {
+  width: 11px;
+  height: 11px;
 }
 
 .external-link {
@@ -3928,8 +3952,12 @@ image-carousel {
 }
 
 .message-reply-caption-arrow {
-  font-size: 14px;
-  line-height: 1;
+  display: flex;
+}
+
+.message-reply-caption-arrow .icon {
+  width: 13px;
+  height: 13px;
 }
 
 .message-reply-caption-sent {
@@ -7032,9 +7060,9 @@ img[data-lightbox] {
   cursor: default;
 }
 
-.button-plus-icon {
-  position: relative;
-  bottom: 1px;
+.settings-button .plus-icon {
+  width: 14px;
+  height: 14px;
 }
 
 .settings-button .loading-spinner {
@@ -7326,10 +7354,9 @@ img[data-lightbox] {
   flex-shrink: 0;
 }
 
-.settings-account-ellipsis span {
-  position: relative;
-  top: -4px;
-  font-weight: 600;
+.settings-account-ellipsis .icon {
+  width: 16px;
+  height: 16px;
 }
 
 .account-spinner {

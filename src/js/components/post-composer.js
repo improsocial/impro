@@ -17,6 +17,8 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import {
   validateVideoFile,
@@ -91,6 +93,10 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
   `;
 }
 
+function altIndicatorContentTemplate(hasAlt) {
+  return html`${hasAlt ? checkIconTemplate() : plusIconTemplate()} ALT`;
+}
+
 function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
   const isReady = video.status === "done";
   const isError = video.status === "error";
@@ -131,7 +137,7 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
             onEditAltText();
           }}
         >
-          ${video.alt ? "✓ ALT" : "+ ALT"}
+          ${altIndicatorContentTemplate(!!video.alt)}
         </button>
       </div>
     </div>
@@ -161,7 +167,7 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
               ${closeIconTemplate()}
             </button>
             <div class="alt-indicator ${img.alt ? "has-alt" : "no-alt"}">
-              ${img.alt ? "✓ ALT" : "+ ALT"}
+              ${altIndicatorContentTemplate(!!img.alt)}
             </div>
           </div>
         `,

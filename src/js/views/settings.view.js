@@ -7,6 +7,7 @@ import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.templat
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
 import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
+import { moreMenuIconTemplate } from "/js/templates/icons/moreMenuIcon.template.js";
 import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
@@ -140,7 +141,7 @@ class SettingsView extends View {
                                 );
                               }}
                             >
-                              <span>⋯</span>
+                              ${moreMenuIconTemplate()}
                             </button>
                             <context-menu>
                               <context-menu-item

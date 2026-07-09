@@ -36,6 +36,7 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -899,7 +900,9 @@ class ChatDetailView extends View {
           scrollToAndHighlightMessage(replyTo.id);
         }}
       >
-        <span class="message-reply-caption-arrow" aria-hidden="true">⤷</span>
+        <span class="message-reply-caption-arrow" aria-hidden="true"
+          >${cornerDownRightIconTemplate()}</span
+        >
         <span>${captionText}</span>
       </div>`;
     }

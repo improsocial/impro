@@ -322,7 +322,7 @@ t.describe("smallPostTemplate - reply-to label", (it) => {
     const label = container.querySelector(".reply-to-author");
     assert(label !== null);
     const text = label.textContent.replace(/\s+/g, " ").trim();
-    assertEquals(text, "⤷ Replied to user");
+    assertEquals(text, "Replied to user");
   });
 });
 

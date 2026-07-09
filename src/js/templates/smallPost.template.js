@@ -16,6 +16,7 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
+import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
@@ -140,7 +141,7 @@ export function smallPostTemplate({
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
-                ⤷ Replied to
+                ${cornerDownRightIconTemplate()} Replied to
                 ${replyToAuthor
                   ? replyToAuthor.did === currentUser?.did
                     ? " you"
