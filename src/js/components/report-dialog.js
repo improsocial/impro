@@ -4,6 +4,7 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss, resetScrollOnBlur } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
@@ -346,7 +347,9 @@ function selectedItemTemplate({ title, onClear }) {
   return html`
     <div class="report-selected-item">
       <span class="report-selected-title">${title}</span>
-      <button class="report-selected-clear" @click=${onClear}>&times;</button>
+      <button class="report-selected-clear" @click=${onClear}>
+        ${closeIconTemplate()}
+      </button>
     </div>
   `;
 }
@@ -647,7 +650,7 @@ class ReportDialog extends Component {
         >
           <div class="report-dialog-content">
             <button class="report-dialog-close" @click=${() => this.close()}>
-              &times;
+              ${closeIconTemplate()}
             </button>
             <div class="report-dialog-body">
               ${stepTemplate({

@@ -2,6 +2,7 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { auth } from "/js/auth.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { differenceInHours, differenceInDays } from "/js/utils.js";
@@ -215,7 +216,7 @@ class SettingsMutedWordsView extends View {
             >
               ${isRemoving
                 ? html`<div class="loading-spinner"></div>`
-                : html`<span>×</span>`}
+                : closeIconTemplate()}
             </button>
           </div>
         </div>

@@ -4,6 +4,7 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { isModerationList } from "/js/dataHelpers.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class AddToListsDialog extends Component {
@@ -114,7 +115,7 @@ class AddToListsDialog extends Component {
               aria-label="Close"
               @click=${() => this.close()}
             >
-              &times;
+              ${closeIconTemplate()}
             </button>
             <div class="add-to-lists-dialog-body">
               <div class="add-to-lists-dialog-header">

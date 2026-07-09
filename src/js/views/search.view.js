@@ -1,6 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { classnames, debounce } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -371,7 +372,7 @@ class SearchView extends View {
                             class="search-clear-button"
                             @click=${() => handleClearSearch()}
                           >
-                            <span>×</span>
+                            ${closeIconTemplate()}
                           </button>
                         `
                       : ""}

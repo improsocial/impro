@@ -6,6 +6,7 @@ import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { showToast } from "/js/toasts.js";
 
 const CREATE_CHAT_ERROR_TOASTS = {
@@ -239,7 +240,7 @@ class NewChatDialog extends Component {
                 data-testid="new-chat-dialog-close"
                 @click=${() => this.close()}
               >
-                &times;
+                ${closeIconTemplate()}
               </button>
             </div>
             <div class="new-chat-search-container">
@@ -265,7 +266,7 @@ class NewChatDialog extends Component {
                       aria-label="Clear search"
                       @click=${() => this._onClearSearch()}
                     >
-                      <span>×</span>
+                      ${closeIconTemplate()}
                     </button>
                   `
                 : ""}

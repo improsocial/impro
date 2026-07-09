@@ -35,6 +35,7 @@ import {
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -154,7 +155,7 @@ class ChatDetailView extends View {
           data-testid="message-embed-preview-remove"
           @click=${() => clearStagedRecordEmbed()}
         >
-          <span>×</span>
+          ${closeIconTemplate()}
         </button>
         ${body}
       </div>`;
@@ -193,7 +194,7 @@ class ChatDetailView extends View {
           data-testid="reply-preview-clear"
           @click=${() => clearReply()}
         >
-          ×
+          ${closeIconTemplate()}
         </button>
       </div>`;
     }

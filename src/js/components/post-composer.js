@@ -16,6 +16,7 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import {
   validateVideoFile,
@@ -75,7 +76,7 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
           onClose();
         }}
       >
-        <span>×</span>
+        ${closeIconTemplate()}
       </button>
       ${externalLinkTemplate({
         url: data.url,
@@ -114,7 +115,7 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
             onRemove();
           }}
         >
-          <span>×</span>
+          ${closeIconTemplate()}
         </button>
         ${!isReady
           ? html`<div class="video-preview-overlay">
@@ -157,7 +158,7 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
                 onRemove(index);
               }}
             >
-              <span>×</span>
+              ${closeIconTemplate()}
             </button>
             <div class="alt-indicator ${img.alt ? "has-alt" : "no-alt"}">
               ${img.alt ? "✓ ALT" : "+ ALT"}
@@ -342,7 +343,7 @@ class PostComposer extends Component {
                           this.handleQuotedEmbedPreviewClose();
                         }}
                       >
-                        <span>×</span>
+                        ${closeIconTemplate()}
                       </button>
                       <div inert>
                         ${recordEmbedTemplate({

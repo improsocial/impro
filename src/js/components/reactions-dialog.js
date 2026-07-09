@@ -5,6 +5,7 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class ReactionsDialog extends Component {
   connectedCallback() {
@@ -137,7 +138,7 @@ class ReactionsDialog extends Component {
                 aria-label="Close reactions"
                 @click=${() => this._close()}
               >
-                &times;
+                ${closeIconTemplate()}
               </button>
             </div>
             <div
