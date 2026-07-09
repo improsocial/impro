@@ -466,12 +466,14 @@ main {
 }
 
 .back-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
   border: none;
   background: none;
   cursor: pointer;
   color: var(--icon-button-color);
-  font-size: 18px;
   border-radius: var(--icon-button-border-radius);
   height: 30px;
   width: 30px;
@@ -480,6 +482,9 @@ main {
 
 .floating-back-button {
   position: absolute;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   border: none;
   cursor: pointer;
   background: var(--overlay-color);
@@ -489,8 +494,13 @@ main {
   left: 16px;
   height: 30px;
   width: 30px;
-  font-size: 18px;
   z-index: var(--floating-back-button-z-index);
+}
+
+.back-button .icon,
+.floating-back-button .icon {
+  width: 20px;
+  height: 20px;
 }
 
 @media (min-width: 800px) {

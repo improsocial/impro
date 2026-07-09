@@ -15,6 +15,7 @@ import { pageEffect } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
+import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { linkToList } from "/js/navigation.js";
@@ -550,7 +551,7 @@ class ProfileView extends View {
                   class="floating-back-button"
                   @click=${() => router.back()}
                 >
-                  ←
+                  ${arrowLeftIconTemplate()}
                 </button>
                 ${(() => {
                   if (profileRequestStatus.error) {
