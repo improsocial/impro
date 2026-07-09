@@ -8660,8 +8660,8 @@ toggle-switch {
   padding: 0;
   background-color: var(--primary-button-color);
   color: var(--primary-button-text-color);
-  height: 30px;
-  width: 30px;
+  height: 33px;
+  width: 33px;
   border-radius: 50%;
   transition: background-color 0.2s;
 }
@@ -8677,8 +8677,8 @@ toggle-switch {
 }
 
 .new-chat-button .icon {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
 }
 
 .new-chat-fab {
