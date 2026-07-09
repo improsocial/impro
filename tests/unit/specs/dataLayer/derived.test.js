@@ -114,7 +114,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     const { derived } = makeDerived(dataStore);
 
     const rawFeed = {
-      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      posts: [{ uri: "post1" }, { uri: "post2" }],
       cursor: "cursor123",
     };
     const post1 = { uri: "post1", content: "First post", likeCount: 5 };
@@ -148,7 +148,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
       },
     };
     const rawFeed = {
-      feed: [{ post: { uri: "post-reply" } }],
+      posts: [{ uri: "post-reply" }],
       cursor: "c",
     };
 
@@ -165,7 +165,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     const { derived, patchStore } = makeDerived(dataStore);
 
     const rawFeed = {
-      feed: [{ post: { uri: "post1" } }],
+      posts: [{ uri: "post1" }],
       cursor: "c",
     };
     const post1 = {
@@ -459,7 +459,7 @@ t.describe("$hydratedBookmarks", (it) => {
     dataStore.$posts.set("post1", post1);
     dataStore.$posts.set("post2", post2);
     dataStore.$bookmarks.set({
-      feed: [{ post: { uri: "post1" } }, { post: { uri: "post2" } }],
+      bookmarks: [{ item: { uri: "post1" } }, { item: { uri: "post2" } }],
       cursor: "c",
     });
     const result = derived.$hydratedBookmarks.get();
@@ -485,7 +485,7 @@ t.describe("$hydratedBookmarks", (it) => {
       },
     });
     dataStore.$bookmarks.set({
-      feed: [{ post: { uri: "post-reply" } }],
+      bookmarks: [{ item: { uri: "post-reply" } }],
       cursor: null,
     });
     const result = derived.$hydratedBookmarks.get();

@@ -14,15 +14,11 @@ export class DataStore extends ReactiveStore {
     this.$showLessInteractions = new Signal.State([]);
     this.$showMoreInteractions = new Signal.State([]);
     this.$notifications = new Signal.State(null);
-    this.$notificationCursor = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
-    this.$mentionNotificationCursor = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
     this.$bookmarks = new Signal.State(null);
     this.$convoList = new Signal.State(null);
-    this.$convoListCursor = new Signal.State(null);
     this.$convoRequestList = new Signal.State(null);
-    this.$convoRequestListCursor = new Signal.State(null);
     this.$blockedProfiles = new Signal.State(null);
     this.$mutedProfiles = new Signal.State(null);
     this.$latestProfileSearchRequestTime = new Signal.State(null);

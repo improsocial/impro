@@ -66,7 +66,7 @@ class PostRepostsView extends View {
                     });
                   }
                   return profileFeedTemplate({
-                    profiles: postReposts?.reposts ?? null,
+                    profiles: postReposts?.repostedBy ?? null,
                     hasMore,
                     onLoadMore: loadReposts,
                     emptyMessage: "No reposts yet.",

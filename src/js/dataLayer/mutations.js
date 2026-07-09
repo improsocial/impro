@@ -180,7 +180,7 @@ export class Mutations {
       const bookmarks = this.dataStore.$bookmarks.get();
       if (bookmarks) {
         this.dataStore.$bookmarks.set({
-          feed: [{ post: { ...post } }, ...bookmarks.feed],
+          bookmarks: [{ item: { ...post } }, ...bookmarks.bookmarks],
           cursor: bookmarks.cursor,
         });
       }
@@ -210,7 +210,9 @@ export class Mutations {
       const bookmarks = this.dataStore.$bookmarks.get();
       if (bookmarks) {
         this.dataStore.$bookmarks.set({
-          feed: bookmarks.feed.filter((item) => item.post?.uri !== post.uri),
+          bookmarks: bookmarks.bookmarks.filter(
+            (bookmark) => bookmark.item?.uri !== post.uri,
+          ),
           cursor: bookmarks.cursor,
         });
       }
@@ -260,11 +262,11 @@ export class Mutations {
     const cachedMembers = this.dataStore.$listMembers.get(list.uri);
     if (
       cachedMembers &&
-      !cachedMembers.members.some((member) => member.did === profile.did)
+      !cachedMembers.items.some((item) => item.subject.did === profile.did)
     ) {
       this.dataStore.$listMembers.set(list.uri, {
         ...cachedMembers,
-        members: [profile, ...cachedMembers.members],
+        items: [{ uri: result.uri, subject: profile }, ...cachedMembers.items],
       });
     }
   }
@@ -277,8 +279,8 @@ export class Mutations {
     if (cachedMembers) {
       this.dataStore.$listMembers.set(list.uri, {
         ...cachedMembers,
-        members: cachedMembers.members.filter(
-          (member) => member.did !== profile.did,
+        items: cachedMembers.items.filter(
+          (item) => item.subject.did !== profile.did,
         ),
       });
     }
@@ -289,7 +291,7 @@ export class Mutations {
     if (!existing) return;
     this.dataStore.$listsWithMembershipByActor.set(actorDid, {
       ...existing,
-      items: existing.items.map((entry) =>
+      listsWithMembership: existing.listsWithMembership.map((entry) =>
         entry.list.uri === listUri
           ? { ...entry, listItem: listItem || undefined }
           : entry,
@@ -1087,20 +1089,28 @@ export class Mutations {
     // Update the convo in the convo list, adding it if not present
     const convoList = this.dataStore.$convoList.get();
     if (convoList) {
-      const inList = convoList.some((c) => c.id === convo.id);
-      this.dataStore.$convoList.set(
-        inList
-          ? convoList.map((c) => (c.id === convo.id ? updatedConvo : c))
-          : [updatedConvo, ...convoList],
+      const inList = convoList.convos.some(
+        (listConvo) => listConvo.id === convo.id,
       );
+      this.dataStore.$convoList.set({
+        convos: inList
+          ? convoList.convos.map((listConvo) =>
+              listConvo.id === convo.id ? updatedConvo : listConvo,
+            )
+          : [updatedConvo, ...convoList.convos],
+        cursor: convoList.cursor,
+      });
     }
 
     // Remove from request list
     const convoRequestList = this.dataStore.$convoRequestList.get();
     if (convoRequestList) {
-      this.dataStore.$convoRequestList.set(
-        convoRequestList.filter((c) => c.id !== convo.id),
-      );
+      this.dataStore.$convoRequestList.set({
+        convos: convoRequestList.convos.filter(
+          (listConvo) => listConvo.id !== convo.id,
+        ),
+        cursor: convoRequestList.cursor,
+      });
     }
 
     return updatedConvo;
@@ -1111,14 +1121,21 @@ export class Mutations {
     this.dataStore.$convos.set(convo.id, null);
     const convoList = this.dataStore.$convoList.get();
     if (convoList) {
-      const updatedList = convoList.filter((c) => c.id !== convo.id);
-      this.dataStore.$convoList.set(updatedList);
+      this.dataStore.$convoList.set({
+        convos: convoList.convos.filter(
+          (listConvo) => listConvo.id !== convo.id,
+        ),
+        cursor: convoList.cursor,
+      });
     }
     const convoRequestList = this.dataStore.$convoRequestList.get();
     if (convoRequestList) {
-      this.dataStore.$convoRequestList.set(
-        convoRequestList.filter((c) => c.id !== convo.id),
-      );
+      this.dataStore.$convoRequestList.set({
+        convos: convoRequestList.convos.filter(
+          (listConvo) => listConvo.id !== convo.id,
+        ),
+        cursor: convoRequestList.cursor,
+      });
     }
   }
 

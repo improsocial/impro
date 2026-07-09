@@ -1605,17 +1605,17 @@ t.describe("addBookmark", (it) => {
   it("should prepend post to the cached bookmarks feed", async () => {
     const { mutations, dataStore } = setup();
     const existingItem = {
-      post: { uri: "at://did:test/app.bsky.feed.post/other" },
+      item: { uri: "at://did:test/app.bsky.feed.post/other" },
     };
-    dataStore.$bookmarks.set({ feed: [existingItem], cursor: "abc" });
+    dataStore.$bookmarks.set({ bookmarks: [existingItem], cursor: "abc" });
 
     await mutations.addBookmark(testPost);
 
-    const bookmarks = dataStore.$bookmarks.get();
-    assertEquals(bookmarks.feed.length, 2);
-    assertEquals(bookmarks.feed[0].post.uri, testPost.uri);
-    assertEquals(bookmarks.feed[1].post.uri, existingItem.post.uri);
-    assertEquals(bookmarks.cursor, "abc");
+    const stored = dataStore.$bookmarks.get();
+    assertEquals(stored.bookmarks.length, 2);
+    assertEquals(stored.bookmarks[0].item.uri, testPost.uri);
+    assertEquals(stored.bookmarks[1].item.uri, existingItem.item.uri);
+    assertEquals(stored.cursor, "abc");
   });
 
   it("should not initialize the bookmarks feed if it was not loaded", async () => {
@@ -1669,19 +1669,19 @@ t.describe("removeBookmark", (it) => {
   it("should remove post from the cached bookmarks feed", async () => {
     const { mutations, dataStore } = setup();
     const otherItem = {
-      post: { uri: "at://did:test/app.bsky.feed.post/other" },
+      item: { uri: "at://did:test/app.bsky.feed.post/other" },
     };
     dataStore.$bookmarks.set({
-      feed: [{ post: testPost }, otherItem],
+      bookmarks: [{ item: testPost }, otherItem],
       cursor: "abc",
     });
 
     await mutations.removeBookmark(testPost);
 
-    const bookmarks = dataStore.$bookmarks.get();
-    assertEquals(bookmarks.feed.length, 1);
-    assertEquals(bookmarks.feed[0].post.uri, otherItem.post.uri);
-    assertEquals(bookmarks.cursor, "abc");
+    const stored = dataStore.$bookmarks.get();
+    assertEquals(stored.bookmarks.length, 1);
+    assertEquals(stored.bookmarks[0].item.uri, otherItem.item.uri);
+    assertEquals(stored.cursor, "abc");
   });
 });
 
@@ -2476,10 +2476,13 @@ t.describe("acceptConvo", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     if (convoList) {
-      dataStore.$convoList.set(convoList);
+      dataStore.$convoList.set({ convos: convoList, cursor: "list-cursor" });
     }
     if (convoRequestList) {
-      dataStore.$convoRequestList.set(convoRequestList);
+      dataStore.$convoRequestList.set({
+        convos: convoRequestList,
+        cursor: "request-cursor",
+      });
     }
     let acceptCalledWith = null;
     const mutations = makeMutations(
@@ -2510,9 +2513,13 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const list = dataStore.$convoList.get();
-    assertEquals(list.length, 2);
-    assertEquals(list.find((c) => c.id === convo.id).status, "accepted");
-    assertEquals(list.find((c) => c.id === otherConvo.id).status, "accepted");
+    assertEquals(list.convos.length, 2);
+    assertEquals(list.convos.find((c) => c.id === convo.id).status, "accepted");
+    assertEquals(
+      list.convos.find((c) => c.id === otherConvo.id).status,
+      "accepted",
+    );
+    assertEquals(list.cursor, "list-cursor");
   });
 
   it("should remove the convo from the request list", async () => {
@@ -2522,8 +2529,9 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const requestList = dataStore.$convoRequestList.get();
-    assertEquals(requestList.length, 1);
-    assertEquals(requestList[0].id, otherRequest.id);
+    assertEquals(requestList.convos.length, 1);
+    assertEquals(requestList.convos[0].id, otherRequest.id);
+    assertEquals(requestList.cursor, "request-cursor");
   });
 
   it("should add the convo to the convo list when not already present", async () => {
@@ -2533,8 +2541,8 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const list = dataStore.$convoList.get();
-    assertEquals(list.length, 2);
-    assertEquals(list.find((c) => c.id === convo.id).status, "accepted");
+    assertEquals(list.convos.length, 2);
+    assertEquals(list.convos.find((c) => c.id === convo.id).status, "accepted");
   });
 });
 
@@ -2549,7 +2557,10 @@ t.describe("rejectConvo", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
-    dataStore.$convoList.set([convo, otherConvo]);
+    dataStore.$convoList.set({
+      convos: [convo, otherConvo],
+      cursor: "list-cursor",
+    });
     let leaveCalledWith = null;
     const mutations = makeMutations(
       {
@@ -2568,8 +2579,9 @@ t.describe("rejectConvo", (it) => {
     // Mutations sets the convo signal to null on reject (was `undefined` pre-refactor).
     assertEquals(dataStore.$convos.get(convo.id), null);
     const list = dataStore.$convoList.get();
-    assertEquals(list.length, 1);
-    assertEquals(list[0].id, otherConvo.id);
+    assertEquals(list.convos.length, 1);
+    assertEquals(list.convos[0].id, otherConvo.id);
+    assertEquals(list.cursor, "list-cursor");
   });
 
   it("should remove the convo from the request list", async () => {
@@ -2580,7 +2592,10 @@ t.describe("rejectConvo", (it) => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
-    dataStore.$convoRequestList.set([convo, otherRequest]);
+    dataStore.$convoRequestList.set({
+      convos: [convo, otherRequest],
+      cursor: "request-cursor",
+    });
     const mutations = makeMutations(
       {
         leaveConvo: async () => {},
@@ -2593,8 +2608,9 @@ t.describe("rejectConvo", (it) => {
     await mutations.rejectConvo(convo);
 
     const requestList = dataStore.$convoRequestList.get();
-    assertEquals(requestList.length, 1);
-    assertEquals(requestList[0].id, otherRequest.id);
+    assertEquals(requestList.convos.length, 1);
+    assertEquals(requestList.convos[0].id, otherRequest.id);
+    assertEquals(requestList.cursor, "request-cursor");
   });
 });
 
@@ -3105,16 +3121,22 @@ t.describe("addProfileToList", (it) => {
     );
 
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      items: [{ list: testList }],
+      listsWithMembership: [{ list: testList }],
       cursor: null,
     });
 
     await mutations.addProfileToList(testProfile, testList);
 
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.items.length, 1);
-    assertEquals(entry.items[0].listItem.uri, "listitem-real-uri");
-    assertEquals(entry.items[0].listItem.subject, testProfile.did);
+    assertEquals(entry.listsWithMembership.length, 1);
+    assertEquals(
+      entry.listsWithMembership[0].listItem.uri,
+      "listitem-real-uri",
+    );
+    assertEquals(
+      entry.listsWithMembership[0].listItem.subject,
+      testProfile.did,
+    );
   });
 
   it("should leave the membership map untouched when no entry is cached for the actor", async () => {
@@ -3147,7 +3169,12 @@ t.describe("addProfileToList", (it) => {
     };
     const dataStore = new DataStore();
     dataStore.$listMembers.set(testList.uri, {
-      members: [{ did: "did:test:other", handle: "other.user" }],
+      items: [
+        {
+          uri: "listitem-other-uri",
+          subject: { did: "did:test:other", handle: "other.user" },
+        },
+      ],
       cursor: null,
     });
     const patchStore = new PatchStore(dataStore);
@@ -3164,8 +3191,9 @@ t.describe("addProfileToList", (it) => {
     await mutations.addProfileToList(testProfile, testList);
 
     const cached = dataStore.$listMembers.get(testList.uri);
-    assertEquals(cached.members.length, 2);
-    assertEquals(cached.members[0].did, testProfile.did);
+    assertEquals(cached.items.length, 2);
+    assertEquals(cached.items[0].uri, "listitem-real-uri");
+    assertEquals(cached.items[0].subject.did, testProfile.did);
   });
 
   it("should not touch state when the API call fails", async () => {
@@ -3217,7 +3245,7 @@ t.describe("removeProfileFromList", (it) => {
     };
     const dataStore = new DataStore();
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      items: [
+      listsWithMembership: [
         {
           list: testList,
           listItem: { uri: membershipUri, subject: testProfile.did },
@@ -3239,7 +3267,7 @@ t.describe("removeProfileFromList", (it) => {
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.items[0].listItem ?? null, null);
+    assertEquals(entry.listsWithMembership[0].listItem ?? null, null);
   });
 
   it("should leave the membership map untouched when no entry is cached for the actor", async () => {
@@ -3272,7 +3300,7 @@ t.describe("removeProfileFromList", (it) => {
     };
     const dataStore = new DataStore();
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      items: [
+      listsWithMembership: [
         {
           list: testList,
           listItem: { uri: membershipUri, subject: testProfile.did },
@@ -3281,9 +3309,15 @@ t.describe("removeProfileFromList", (it) => {
       cursor: null,
     });
     dataStore.$listMembers.set(testList.uri, {
-      members: [
-        { did: testProfile.did, handle: testProfile.handle },
-        { did: "did:test:other", handle: "other.user" },
+      items: [
+        {
+          uri: membershipUri,
+          subject: { did: testProfile.did, handle: testProfile.handle },
+        },
+        {
+          uri: "listitem-other-uri",
+          subject: { did: "did:test:other", handle: "other.user" },
+        },
       ],
       cursor: null,
     });
@@ -3301,8 +3335,8 @@ t.describe("removeProfileFromList", (it) => {
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
     const cached = dataStore.$listMembers.get(testList.uri);
-    assertEquals(cached.members.length, 1);
-    assertEquals(cached.members[0].did, "did:test:other");
+    assertEquals(cached.items.length, 1);
+    assertEquals(cached.items[0].subject.did, "did:test:other");
   });
 
   it("should leave state unchanged when the API call fails", async () => {
@@ -3314,7 +3348,7 @@ t.describe("removeProfileFromList", (it) => {
     const dataStore = new DataStore();
     const initialListItem = { uri: membershipUri, subject: testProfile.did };
     dataStore.$listsWithMembershipByActor.set(testProfile.did, {
-      items: [{ list: testList, listItem: initialListItem }],
+      listsWithMembership: [{ list: testList, listItem: initialListItem }],
       cursor: null,
     });
     const patchStore = new PatchStore(dataStore);
@@ -3340,8 +3374,8 @@ t.describe("removeProfileFromList", (it) => {
     }
     assertEquals(caught.message, "boom");
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.items.length, 1);
-    assertEquals(entry.items[0].listItem.uri, membershipUri);
+    assertEquals(entry.listsWithMembership.length, 1);
+    assertEquals(entry.listsWithMembership[0].listItem.uri, membershipUri);
   });
 });
 

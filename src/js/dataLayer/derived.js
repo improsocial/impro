@@ -194,16 +194,16 @@ export class Derived extends ReactiveStore {
       return this.patchStore.applyPreferencePatches(preferences, patches);
     });
     this.$notifications = new Signal.Computed(() => {
-      const notifications = this.dataStore.$notifications.get();
-      if (!notifications) return null;
-      return notifications.map((notification) =>
+      const data = this.dataStore.$notifications.get();
+      if (!data) return null;
+      return data.notifications.map((notification) =>
         this.hydrateNotification(notification),
       );
     });
     this.$mentionNotifications = new Signal.Computed(() => {
-      const notifications = this.dataStore.$mentionNotifications.get();
-      if (!notifications) return null;
-      return notifications.map((notification) =>
+      const data = this.dataStore.$mentionNotifications.get();
+      if (!data) return null;
+      return data.notifications.map((notification) =>
         this.hydrateNotification(notification),
       );
     });
@@ -227,13 +227,13 @@ export class Derived extends ReactiveStore {
       return hydrated;
     });
     this.$hydratedHashtagFeeds = new ComputedMap((hashtagKey) => {
-      const feed = this.dataStore.$hashtagFeeds.get(hashtagKey);
-      if (!feed) {
+      const data = this.dataStore.$hashtagFeeds.get(hashtagKey);
+      if (!data) {
         return null;
       }
       const hydratedFeedItems = [];
-      for (const feedItem of feed.feed) {
-        const post = this.$hydratedPosts.get(feedItem.post.uri);
+      for (const searchPost of data.posts) {
+        const post = this.$hydratedPosts.get(searchPost.uri);
         if (!post) continue;
         hydratedFeedItems.push({
           post: this.attachParentAuthor(post),
@@ -241,7 +241,7 @@ export class Derived extends ReactiveStore {
       }
       return {
         feed: hydratedFeedItems,
-        cursor: feed.cursor,
+        cursor: data.cursor,
       };
     });
     this.$feedGenerators = new ComputedMap((feedUri) =>
@@ -257,10 +257,10 @@ export class Derived extends ReactiveStore {
       const data = this.dataStore.$listMembers.get(listUri);
       if (!data) return data;
       return {
-        ...data,
-        members: data.members.map((actor) =>
-          this.$hydratedProfiles.get(actor.did),
+        members: data.items.map((item) =>
+          this.$hydratedProfiles.get(item.subject.did),
         ),
+        cursor: data.cursor,
       };
     });
     this.$profileSearchResults = new Signal.Computed(() => {
@@ -424,18 +424,18 @@ export class Derived extends ReactiveStore {
       this.dataStore.$labelerInfo.get(did),
     );
     this.$hydratedBookmarks = new Signal.Computed(() => {
-      const bookmarks = this.dataStore.$bookmarks.get();
-      if (!bookmarks) {
+      const data = this.dataStore.$bookmarks.get();
+      if (!data) {
         return null;
       }
       const hydratedFeed = [];
-      for (const bookmark of bookmarks.feed) {
-        const post = this.$hydratedPosts.get(bookmark.post.uri);
+      for (const bookmark of data.bookmarks) {
+        const post = this.$hydratedPosts.get(bookmark.item.uri);
         hydratedFeed.push({ post: this.attachParentAuthor(post) });
       }
       return filterBookmarksFeed({
         feed: hydratedFeed,
-        cursor: bookmarks.cursor,
+        cursor: data.cursor,
       });
     });
     this.$labelerSettings = new ComputedMap((labelerDid) => {
@@ -447,22 +447,22 @@ export class Derived extends ReactiveStore {
       this.dataStore.$convos.get(convoId),
     );
     this.$convoList = new Signal.Computed(() => {
-      const convoList = this.dataStore.$convoList.get();
-      if (!convoList) return null;
-      const hydrated = convoList.map((convo) => this.$convos.get(convo.id));
+      const data = this.dataStore.$convoList.get();
+      if (!data) return null;
+      const hydrated = data.convos.map((convo) => this.$convos.get(convo.id));
       return sortBy(
         hydrated,
         (convo) => new Date(getLastInteractionTimestamp(convo)),
         { direction: "desc" },
       );
     });
-    this.$convoListCursor = new Signal.Computed(() =>
-      this.dataStore.$convoListCursor.get(),
+    this.$convoListCursor = new Signal.Computed(
+      () => this.dataStore.$convoList.get()?.cursor ?? null,
     );
     this.$convoRequestList = new Signal.Computed(() => {
-      const convoRequestList = this.dataStore.$convoRequestList.get();
-      if (!convoRequestList) return null;
-      const hydrated = convoRequestList
+      const data = this.dataStore.$convoRequestList.get();
+      if (!data) return null;
+      const hydrated = data.convos
         .map((convo) => this.$convos.get(convo.id))
         .filter(Boolean);
       return sortBy(
@@ -471,8 +471,8 @@ export class Derived extends ReactiveStore {
         { direction: "desc" },
       );
     });
-    this.$convoRequestListCursor = new Signal.Computed(() =>
-      this.dataStore.$convoRequestListCursor.get(),
+    this.$convoRequestListCursor = new Signal.Computed(
+      () => this.dataStore.$convoRequestList.get()?.cursor ?? null,
     );
     // The convo's members plus the hydrated profiles its interactions
     // reference (group convo member lists are partial)
@@ -550,7 +550,7 @@ export class Derived extends ReactiveStore {
       if (!data) return data;
       return {
         ...data,
-        reposts: data.reposts.map((actor) =>
+        repostedBy: data.repostedBy.map((actor) =>
           this.$hydratedProfiles.get(actor.did),
         ),
       };
@@ -591,11 +591,11 @@ export class Derived extends ReactiveStore {
     this.$blockedProfiles = new Signal.Computed(() =>
       this.dataStore.$blockedProfiles.get(),
     );
-    this.$notificationCursor = new Signal.Computed(() =>
-      this.dataStore.$notificationCursor.get(),
+    this.$notificationCursor = new Signal.Computed(
+      () => this.dataStore.$notifications.get()?.cursor ?? null,
     );
-    this.$mentionNotificationCursor = new Signal.Computed(() =>
-      this.dataStore.$mentionNotificationCursor.get(),
+    this.$mentionNotificationCursor = new Signal.Computed(
+      () => this.dataStore.$mentionNotifications.get()?.cursor ?? null,
     );
   }
 

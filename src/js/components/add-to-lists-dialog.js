@@ -90,7 +90,9 @@ class AddToListsDialog extends Component {
 
   render() {
     const listsWithMembership = this._getListsWithMembership();
-    const entries = listsWithMembership ? listsWithMembership.items : null;
+    const entries = listsWithMembership
+      ? listsWithMembership.listsWithMembership
+      : null;
     const hasMore = !!listsWithMembership?.cursor;
     const isLoading = entries === null;
     const loadError = this.state.$loadError.get();
