@@ -869,16 +869,12 @@ export class Requests {
       ? ""
       : readCollectionCursor(this.dataStore.$convoMessages, { key: convoId });
     const res = await this.api.getMessages(convoId, { cursor, limit });
-    // Hack - sometimes the first response comes back with a cursor, even though it shouldn't.
-    // So, let's just make another request to check if it's actually valid.
-    if (res.cursor) {
-      const res2 = await this.api.getMessages(convoId, {
+    if (res.messages.length === 0 && res.cursor) {
+      console.warn("getMessages returned an empty page with a cursor", {
+        convoId,
         cursor: res.cursor,
-        limit: 1,
       });
-      if (res2.messages.length === 0) {
-        res.cursor = null;
-      }
+      res.cursor = null;
     }
     // For group convos, convo.members is partial; relatedProfiles carries
     // the authors and system-message subjects for the returned page.
