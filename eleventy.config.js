@@ -17,6 +17,9 @@ async function transformFiles(filePaths, replacer) {
 
 const BUILD_DIR = process.env.BUILD_DIR || "build";
 
+// Bump to bust cache
+const CACHE_SALT = "1";
+
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy("src/css");
@@ -126,6 +129,7 @@ export default async function (eleventyConfig) {
     const hashedUrlPath = (filePath) => {
       const hash = crypto
         .createHash("sha256")
+        .update(CACHE_SALT)
         .update(fs.readFileSync(filePath))
         .digest("hex")
         .slice(0, 10);
