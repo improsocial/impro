@@ -375,24 +375,18 @@ export function enableDragToDismiss(
     isDragging: false,
     initialHeight: 0,
     canDismiss: true,
-    keyboardOpen: false,
   };
 
   // Detect keyboard open on mobile
   const KEYBOARD_THRESHOLD = 150;
   const viewport = window.visualViewport;
-  let handleViewportResize = null;
-  if (disableWhenKeyboardOpen && viewport) {
-    handleViewportResize = () => {
-      dragState.keyboardOpen =
-        window.innerHeight - viewport.height > KEYBOARD_THRESHOLD;
-    };
-    viewport.addEventListener("resize", handleViewportResize);
-    handleViewportResize();
-  }
+  const isKeyboardOpen = () =>
+    disableWhenKeyboardOpen &&
+    viewport &&
+    window.innerHeight - viewport.height > KEYBOARD_THRESHOLD;
 
   const handleTouchStart = (e) => {
-    if (dragState.keyboardOpen) return;
+    if (isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
 
     dragState.startY = e.touches[0].clientY;
@@ -460,9 +454,6 @@ export function enableDragToDismiss(
     eventSource.removeEventListener("touchstart", handleTouchStart);
     eventSource.removeEventListener("touchmove", handleTouchMove);
     eventSource.removeEventListener("touchend", handleTouchEnd);
-    if (handleViewportResize) {
-      viewport.removeEventListener("resize", handleViewportResize);
-    }
     target.style.transform = "";
     target.style.transition = "";
     target.style.height = "";

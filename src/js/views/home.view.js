@@ -73,6 +73,10 @@ class HomeView extends View {
       const interactableItems = pinnedItems.filter(
         (item) => item.acceptsInteractions || item.uri === DISCOVER_FEED_URI,
       );
+      for (const observer of postSeenObservers.values()) {
+        observer.disconnect();
+      }
+      postSeenObservers.clear();
       for (const item of interactableItems) {
         const proxyUrl = getProxyUrl(item);
         if (proxyUrl) {
@@ -305,6 +309,15 @@ class HomeView extends View {
     root.addEventListener("page-restore", (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
+      for (const observer of postSeenObservers.values()) {
+        observer.connect();
+      }
+    });
+
+    root.addEventListener("page-exit", () => {
+      for (const observer of postSeenObservers.values()) {
+        observer.disconnect();
+      }
     });
   }
 }
