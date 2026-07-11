@@ -376,7 +376,7 @@ main {
   color: var(--text-link-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .rich-text a:hover {
     text-decoration: underline;
   }
@@ -421,7 +421,7 @@ main {
   border-top-color: var(--primary-button-text-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .rounded-button:hover {
     background-color: var(--secondary-button-hover-color);
   }
@@ -508,7 +508,7 @@ main {
   height: 20px;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .back-button:hover {
     background-color: var(--back-button-hover-color);
   }
@@ -547,7 +547,7 @@ main {
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .inbox-button:hover {
     background-color: var(--back-button-hover-color);
   }
@@ -641,7 +641,7 @@ form button[type="submit"] .loading-spinner {
   border-bottom-color: transparent;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   form button[type="submit"]:hover {
     background: var(--primary-button-hover-color);
   }
@@ -651,7 +651,7 @@ form button:disabled {
   opacity: 0.5;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   form button:hover {
     background: var(--post-hover-color);
   }
@@ -1012,7 +1012,7 @@ tab-bar .tab-bar-button.active .tab-bar-button-label {
   border-bottom-color: var(--tab-bar-button-active-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   tab-bar .tab-bar-button:hover {
     background-color: var(--post-hover-color);
   }
@@ -1239,7 +1239,7 @@ tab-bar:not([full-width]) {
   border-radius: var(--sidebar-nav-item-border-radius);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .sidebar-nav-item:hover:not(.disabled) {
     background: var(--post-hover-color);
   }
@@ -1317,7 +1317,7 @@ plugin-icon svg {
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .sidebar-compose-button:hover {
     background-color: var(--primary-button-hover-color);
   }
@@ -1358,7 +1358,7 @@ button.sidebar-plugin-nav-item {
   margin-bottom: 8px;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .sidebar-footer-link:hover {
     text-decoration: underline;
   }
@@ -1385,11 +1385,13 @@ button.sidebar-plugin-nav-item {
   text-align: left;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .sidebar-about-link:hover {
     text-decoration: underline;
   }
+}
 
+@media (min-width: 800px) {
   .logged-out-sidebar .sidebar-header {
     align-items: center;
   }
@@ -1646,7 +1648,7 @@ container-link {
   cursor: pointer;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .post.clickable:hover {
     background-color: var(--post-hover-color);
   }
@@ -1717,7 +1719,7 @@ container-link {
   overflow: hidden;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .post-header-text a:hover {
     text-decoration: underline;
   }
@@ -1785,12 +1787,12 @@ container-link {
   width: 15px;
   height: 15px;
 }
-@media (min-width: 800px) {
+@media (hover: hover) {
   .who-can-reply-badge:hover {
     color: var(--text-color);
   }
 }
-@media (min-width: 800px) {
+@media (hover: hover) {
   .who-can-reply-badge:hover :not(.icon) {
     text-decoration: underline;
   }
@@ -1851,7 +1853,7 @@ container-link {
   background: light-dark(var(--lightest-gray), var(--gray));
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .large-post .label-badge:hover {
     background: light-dark(var(--lighter-gray), var(--light-gray));
   }
@@ -2009,7 +2011,7 @@ container-link {
   background: none;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .quoted-post .label-badge:hover {
     background: none;
   }
@@ -2067,9 +2069,15 @@ container-link {
     border-bottom: var(--hair) solid var(--post-border-color);
     z-index: 0;
   }
+}
+
+@media (hover: hover) {
   .post-thread-reply-prompt:hover {
     background-color: var(--post-hover-color);
   }
+}
+
+@media (min-width: 800px) {
   .post-thread-reply-prompt-inner {
     border-radius: 0;
     padding: 10px;
@@ -2458,8 +2466,10 @@ animated-button {
   transition: background 0.15s ease;
 }
 
-.youtube-embed .external-link a:hover .play-icon {
-  background: color-mix(in srgb, var(--white) 85%, transparent);
+@media (hover: hover) {
+  .youtube-embed .external-link a:hover .play-icon {
+    background: color-mix(in srgb, var(--white) 85%, transparent);
+  }
 }
 
 .external-link-image-wrapper .play-icon svg {
@@ -2589,7 +2599,7 @@ animated-button {
   cursor: pointer;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .quoted-post-link:hover .quoted-post {
     background-color: var(--post-hover-color);
   }
@@ -2838,7 +2848,7 @@ animated-button {
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .image-preview-remove-button:hover {
     background: var(--overlay-color-darker);
   }
@@ -3169,7 +3179,7 @@ image-carousel {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .hidden-replies-button:hover {
     background-color: var(--post-hover-color);
   }
@@ -3197,7 +3207,7 @@ image-carousel {
   display: none;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .muted-parent-toggle-button:hover {
     background-color: var(--post-hover-color);
   }
@@ -3227,7 +3237,7 @@ image-carousel {
   color: inherit;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .notification-item:hover {
     background-color: var(--post-hover-color);
     cursor: pointer;
@@ -3238,7 +3248,7 @@ image-carousel {
   background-color: var(--highlight-color-tint);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .notification-item.unread:hover {
     background-color: var(--highlight-color-tint-hover);
   }
@@ -3460,7 +3470,7 @@ image-carousel {
   position: relative;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .convo-item:hover {
     background-color: var(--post-hover-color);
   }
@@ -3470,7 +3480,7 @@ image-carousel {
   background-color: var(--highlight-color-tint);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .convo-item.unread:hover {
     background-color: var(--highlight-color-tint-hover);
   }
@@ -3669,7 +3679,7 @@ image-carousel {
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .chat-request-item:hover {
     background-color: var(--post-hover-color);
   }
@@ -3684,7 +3694,7 @@ image-carousel {
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .chat-request-header:hover {
     background-color: var(--post-hover-color);
   }
@@ -3717,7 +3727,7 @@ image-carousel {
   color: var(--primary-button-text-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .chat-request-button.accept:hover {
     opacity: 0.9;
   }
@@ -3727,7 +3737,7 @@ image-carousel {
   background-color: var(--text-input-background-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .chat-request-button.reject:hover {
     background-color: var(--generic-border-color);
   }
@@ -4479,7 +4489,7 @@ chat-input .rich-text-input-placeholder {
     color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .message-input-emoji-button:hover:not(:disabled) {
     background-color: var(--post-hover-color);
     color: var(--text-color);
@@ -4518,7 +4528,7 @@ chat-input .rich-text-input-placeholder {
   border-bottom-color: transparent;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .message-input-send-button:hover:not(:disabled) {
     opacity: 0.9;
   }
@@ -4610,7 +4620,7 @@ chat-input .rich-text-input-placeholder {
   bottom: 8px;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .reaction-palette-button:hover {
     background-color: var(--secondary-button-color);
   }
@@ -4662,7 +4672,7 @@ chat-input .rich-text-input-placeholder {
   border-color: var(--highlight-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .message-reactions:not(.message-reactions-static):hover {
     background-color: var(--post-hover-color);
   }
@@ -4681,7 +4691,7 @@ chat-input .rich-text-input-placeholder {
   background-color: var(--secondary-button-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .reaction-palette-button.reaction-palette-button-active:hover {
     background-color: var(--secondary-button-hover-color);
   }
@@ -4825,8 +4835,10 @@ chat-input .rich-text-input-placeholder {
   cursor: pointer;
 }
 
-.reaction-row-own:hover {
-  background-color: var(--post-hover-color);
+@media (hover: hover) {
+  .reaction-row-own:hover {
+    background-color: var(--post-hover-color);
+  }
 }
 
 .reaction-row-avatar {
@@ -5089,7 +5101,7 @@ emoji-picker-dialog emoji-picker,
   font-weight: 600;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   a.profile-stat:hover {
     cursor: pointer;
     text-decoration: underline;
@@ -5108,7 +5120,7 @@ emoji-picker-dialog emoji-picker,
   line-height: 1.3;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .known-followers-summary:hover .known-followers-text {
     text-decoration: underline;
   }
@@ -5169,7 +5181,7 @@ emoji-picker-dialog emoji-picker,
   color: var(--text-link-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .profile-description a:hover {
     text-decoration: underline;
   }
@@ -5233,7 +5245,7 @@ emoji-picker-dialog emoji-picker,
   gap: 12px;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .profile-list-item:hover {
     background: var(--post-hover-color);
   }
@@ -5260,7 +5272,7 @@ emoji-picker-dialog emoji-picker,
   text-decoration: none;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .profile-list-item-name:hover {
     text-decoration: underline;
   }
@@ -5337,7 +5349,7 @@ emoji-picker-dialog emoji-picker,
   transition: border-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .search-input:hover {
     background: var(--post-hover-color);
   }
@@ -5479,7 +5491,7 @@ emoji-picker-dialog emoji-picker,
   cursor: pointer;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .feeds-list-item.clickable:hover {
     background-color: var(--post-hover-color);
   }
@@ -5847,7 +5859,7 @@ emoji-picker-dialog emoji-picker,
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .post-composer-send-button:hover {
     background-color: var(--primary-button-hover-color);
   }
@@ -5986,7 +5998,7 @@ emoji-picker-dialog emoji-picker,
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .image-picker-button:hover {
     background-color: var(--background-color-secondary);
   }
@@ -5997,7 +6009,7 @@ emoji-picker-dialog emoji-picker,
   cursor: default;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .image-picker-button:disabled:hover {
     background-color: transparent;
   }
@@ -6033,7 +6045,7 @@ emoji-picker-dialog emoji-picker,
   transition: background-color 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .post-composer-emoji-button:hover {
     background-color: var(--background-color-secondary);
   }
@@ -6109,7 +6121,7 @@ emoji-picker-dialog emoji-picker,
     box-shadow 0.2s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .floating-compose-button:hover {
     transform: scale(1.05);
     box-shadow: var(--shadow-color-hover);
@@ -6197,7 +6209,7 @@ emoji-picker-dialog emoji-picker,
   background-color: var(--context-menu-item-hover-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .mention-suggestion:hover {
     background-color: var(--context-menu-item-hover-color);
   }
@@ -6389,7 +6401,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   text-align: left;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .context-menu-item a:hover {
     background-color: var(--context-menu-item-hover-color);
   }
@@ -6477,7 +6489,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   word-break: break-all;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .modal-dialog-message a:hover {
     text-decoration: underline;
   }
@@ -6500,7 +6512,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   background-color: light-dark(var(--lightest-gray), var(--light-gray));
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .modal-dialog-button.cancel-button:hover {
     background-color: light-dark(var(--lighter-gray), var(--light-gray));
   }
@@ -6516,7 +6528,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   color: var(--off-white);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .modal-dialog-button.primary-button:hover {
     background-color: var(--primary-button-hover-color);
   }
@@ -6858,7 +6870,7 @@ img[data-lightbox] {
   transition: background 0.2s ease;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .lightbox-nav:hover:not(:disabled) {
     background: var(--overlay-color-heavy);
   }
@@ -7251,7 +7263,7 @@ img[data-lightbox] {
   cursor: default;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .vertical-nav-item:hover:not(.disabled) {
     background: var(--post-hover-color);
   }
@@ -7446,7 +7458,7 @@ img[data-lightbox] {
   border-top: var(--hair) solid var(--post-border-color);
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .account-switcher-item:hover {
     background-color: var(--post-hover-color);
   }
@@ -7601,7 +7613,7 @@ moderation-warning .moderation-warning-label .icon {
   flex-shrink: 0;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   moderation-warning .top-bar:hover {
     background: light-dark(var(--lighter-gray), var(--mid-gray));
   }
@@ -7739,7 +7751,7 @@ moderation-warning .toggle-content {
   cursor: pointer;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .select-wrapper select:hover {
     border-color: var(--text-color-muted);
   }
@@ -8071,7 +8083,7 @@ moderation-warning .toggle-content {
   border-right: none;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .label-pref-button:hover:not(:disabled):not(.active) {
     background: var(--post-hover-color);
   }
@@ -8223,7 +8235,7 @@ moderation-warning .toggle-content {
   width: 100%;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .report-option-card:hover {
     background-color: light-dark(var(--lightest-gray), var(--dark-gray));
   }
@@ -8471,7 +8483,7 @@ toggle-switch {
   }
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .post-notifications-dialog-close:hover {
     opacity: 1;
   }
@@ -8577,7 +8589,7 @@ toggle-switch {
   }
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .add-to-lists-dialog-close:hover {
     opacity: 1;
   }
@@ -8691,7 +8703,9 @@ toggle-switch {
   .new-chat-button {
     display: flex;
   }
+}
 
+@media (hover: hover) {
   .new-chat-button:hover {
     background-color: var(--primary-button-hover-color);
   }
@@ -8804,7 +8818,9 @@ toggle-switch {
     display: flex;
     align-items: center;
   }
+}
 
+@media (hover: hover) {
   .new-chat-dialog-close:hover {
     opacity: 1;
   }
@@ -9261,7 +9277,7 @@ image-cropper {
   transition: background-color 0.15s;
 }
 
-@media (min-width: 800px) {
+@media (hover: hover) {
   .community-plugins-link:hover {
     background: color-mix(in srgb, var(--text-color) 10%, var(--callout-color));
   }
@@ -9531,8 +9547,10 @@ image-cropper {
   word-break: break-all;
 }
 
-.plugin-listing-meta a:hover {
-  text-decoration: underline;
+@media (hover: hover) {
+  .plugin-listing-meta a:hover {
+    text-decoration: underline;
+  }
 }
 
 .plugin-listing-description {
