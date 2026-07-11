@@ -1,17 +1,15 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("verificationBadgeTemplate");
-
-t.describe("verificationBadgeTemplate", (it) => {
+describe("verificationBadgeTemplate", () => {
   it("should render nothing for profile without verification", () => {
     const profile = { did: "did:plc:123", handle: "user.bsky.social" };
     const result = verificationBadgeTemplate({ profile });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".verification-badge"), null);
+    assert.deepEqual(container.querySelector(".verification-badge"), null);
   });
 
   it("should render nothing for profile with invalid verification", () => {
@@ -25,7 +23,7 @@ t.describe("verificationBadgeTemplate", (it) => {
     const result = verificationBadgeTemplate({ profile });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".verification-badge"), null);
+    assert.deepEqual(container.querySelector(".verification-badge"), null);
   });
 
   it("should render verified badge with correct title", () => {
@@ -38,7 +36,7 @@ t.describe("verificationBadgeTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Verified");
+    assert.deepEqual(badge.getAttribute("title"), "Verified");
   });
 
   it("should render verified badge with circle SVG", () => {
@@ -67,7 +65,7 @@ t.describe("verificationBadgeTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+    assert.deepEqual(badge.getAttribute("title"), "Trusted Verifier");
   });
 
   it("should render verifier badge with shield SVG (no circle)", () => {
@@ -83,7 +81,7 @@ t.describe("verificationBadgeTemplate", (it) => {
     render(result, container);
     const svg = container.querySelector(".verification-badge svg");
     assert(svg !== null);
-    assertEquals(svg.querySelector("circle"), null);
+    assert.deepEqual(svg.querySelector("circle"), null);
   });
 
   it("should render verifier badge when both statuses are valid", () => {
@@ -98,8 +96,6 @@ t.describe("verificationBadgeTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const badge = container.querySelector(".verification-badge");
-    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+    assert.deepEqual(badge.getAttribute("title"), "Trusted Verifier");
   });
 });
-
-await t.run();

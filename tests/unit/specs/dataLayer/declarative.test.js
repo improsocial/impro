@@ -1,8 +1,6 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Declarative } from "/js/dataLayer/declarative.js";
-
-const t = new TestSuite("Declarative");
 
 const sig = (getter) => ({ get: getter });
 // Stubs a ComputedMap: get(key) returns the derived value directly.
@@ -38,7 +36,7 @@ function createMockRequests(loadResults = {}) {
   };
 }
 
-t.describe("ensureCurrentUser", (it) => {
+describe("ensureCurrentUser", () => {
   it("should return existing current user without loading", async () => {
     const currentUser = { did: "did:test:user", handle: "test.user" };
     let loadCalled = false;
@@ -53,8 +51,8 @@ t.describe("ensureCurrentUser", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureCurrentUser();
 
-    assertEquals(result, currentUser);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, currentUser);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load current user when not in cache", async () => {
@@ -74,8 +72,8 @@ t.describe("ensureCurrentUser", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureCurrentUser();
 
-    assertEquals(result, currentUser);
-    assertEquals(callCount, 2);
+    assert.deepEqual(result, currentUser);
+    assert.deepEqual(callCount, 2);
   });
 
   it("should throw when user not found after loading", async () => {
@@ -92,11 +90,11 @@ t.describe("ensureCurrentUser", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Current user not found");
+    assert.deepEqual(error.message, "Current user not found");
   });
 });
 
-t.describe("ensureDetailedProfile", (it) => {
+describe("ensureDetailedProfile", () => {
   it("should return existing profile without loading", async () => {
     const profileDid = "did:test:profile";
     const profile = { did: profileDid, handle: "test.profile" };
@@ -112,8 +110,8 @@ t.describe("ensureDetailedProfile", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureDetailedProfile(profileDid);
 
-    assertEquals(result, profile);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, profile);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load profile when not in cache", async () => {
@@ -134,7 +132,7 @@ t.describe("ensureDetailedProfile", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureDetailedProfile(profileDid);
 
-    assertEquals(result, profile);
+    assert.deepEqual(result, profile);
   });
 
   it("should throw when profile not found after loading", async () => {
@@ -151,11 +149,11 @@ t.describe("ensureDetailedProfile", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Profile not found");
+    assert.deepEqual(error.message, "Profile not found");
   });
 });
 
-t.describe("ensureDetailedProfiles", (it) => {
+describe("ensureDetailedProfiles", () => {
   it("returns cached profiles in input order without loading", async () => {
     const profileA = { did: "did:test:a", handle: "a.test" };
     const profileB = { did: "did:test:b", handle: "b.test" };
@@ -176,8 +174,8 @@ t.describe("ensureDetailedProfiles", (it) => {
       profileA.did,
     ]);
 
-    assertEquals(result, [profileB, profileA]);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, [profileB, profileA]);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("loads only missing profiles", async () => {
@@ -202,8 +200,8 @@ t.describe("ensureDetailedProfiles", (it) => {
       profileB.did,
     ]);
 
-    assertEquals(loadedWith, [profileB.did]);
-    assertEquals(result, [profileA, profileB]);
+    assert.deepEqual(loadedWith, [profileB.did]);
+    assert.deepEqual(result, [profileA, profileB]);
   });
 
   it("returns null entries for profiles still missing after load", async () => {
@@ -215,11 +213,11 @@ t.describe("ensureDetailedProfiles", (it) => {
       "did:test:missing",
     ]);
 
-    assertEquals(result, [null]);
+    assert.deepEqual(result, [null]);
   });
 });
 
-t.describe("ensurePostThread", (it) => {
+describe("ensurePostThread", () => {
   it("should return existing post thread without loading", async () => {
     const postURI = "at://did:test/app.bsky.feed.post/123";
     const postThread = { post: { uri: postURI }, replies: [] };
@@ -237,8 +235,8 @@ t.describe("ensurePostThread", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePostThread(postURI);
 
-    assertEquals(result, postThread);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, postThread);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load post thread when not in cache", async () => {
@@ -259,7 +257,7 @@ t.describe("ensurePostThread", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePostThread(postURI);
 
-    assertEquals(result, postThread);
+    assert.deepEqual(result, postThread);
   });
 
   it("should pass labelers option to loadPostThread", async () => {
@@ -283,7 +281,7 @@ t.describe("ensurePostThread", (it) => {
     const declarative = new Declarative(derived, requests);
     await declarative.ensurePostThread(postURI, { labelers: ["labeler1"] });
 
-    assertEquals(passedLabelers, ["labeler1"]);
+    assert.deepEqual(passedLabelers, ["labeler1"]);
   });
 
   it("should throw when post thread not found after loading", async () => {
@@ -300,11 +298,11 @@ t.describe("ensurePostThread", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Post thread not found");
+    assert.deepEqual(error.message, "Post thread not found");
   });
 });
 
-t.describe("ensurePost", (it) => {
+describe("ensurePost", () => {
   it("should return existing post without loading", async () => {
     const postURI = "at://did:test/app.bsky.feed.post/123";
     const post = { uri: postURI, text: "Hello" };
@@ -320,8 +318,8 @@ t.describe("ensurePost", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePost(postURI);
 
-    assertEquals(result, post);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, post);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load post when not in cache", async () => {
@@ -342,7 +340,7 @@ t.describe("ensurePost", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePost(postURI);
 
-    assertEquals(result, post);
+    assert.deepEqual(result, post);
   });
 
   it("should throw when post not found after loading", async () => {
@@ -359,11 +357,11 @@ t.describe("ensurePost", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Post not found");
+    assert.deepEqual(error.message, "Post not found");
   });
 });
 
-t.describe("ensurePosts", (it) => {
+describe("ensurePosts", () => {
   it("returns cached posts in input order without loading", async () => {
     const postA = { uri: "at://a", text: "A" };
     const postB = { uri: "at://b", text: "B" };
@@ -381,8 +379,8 @@ t.describe("ensurePosts", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts([postB.uri, postA.uri]);
 
-    assertEquals(result, [postB, postA]);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, [postB, postA]);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("loads only missing posts", async () => {
@@ -404,8 +402,8 @@ t.describe("ensurePosts", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts([postA.uri, postB.uri]);
 
-    assertEquals(loadedWith, [postB.uri]);
-    assertEquals(result, [postA, postB]);
+    assert.deepEqual(loadedWith, [postB.uri]);
+    assert.deepEqual(result, [postA, postB]);
   });
 
   it("returns null entries for posts still missing after load", async () => {
@@ -417,11 +415,11 @@ t.describe("ensurePosts", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePosts(["at://missing"]);
 
-    assertEquals(result, [null]);
+    assert.deepEqual(result, [null]);
   });
 });
 
-t.describe("ensureFeedGenerator", (it) => {
+describe("ensureFeedGenerator", () => {
   it("should return existing feed generator without loading", async () => {
     const feedUri = "at://did:test/app.bsky.feed.generator/test";
     const feedGenerator = { uri: feedUri, displayName: "Test Feed" };
@@ -439,8 +437,8 @@ t.describe("ensureFeedGenerator", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureFeedGenerator(feedUri);
 
-    assertEquals(result, feedGenerator);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, feedGenerator);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load feed generator when not in cache", async () => {
@@ -461,7 +459,7 @@ t.describe("ensureFeedGenerator", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureFeedGenerator(feedUri);
 
-    assertEquals(result, feedGenerator);
+    assert.deepEqual(result, feedGenerator);
   });
 
   it("should throw when feed generator not found after loading", async () => {
@@ -478,11 +476,11 @@ t.describe("ensureFeedGenerator", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Feed generator not found");
+    assert.deepEqual(error.message, "Feed generator not found");
   });
 });
 
-t.describe("ensurePinnedItems", (it) => {
+describe("ensurePinnedItems", () => {
   it("should return existing pinned items without loading", async () => {
     const pinnedItems = [
       { type: "feed", data: { uri: "feed1" } },
@@ -500,8 +498,8 @@ t.describe("ensurePinnedItems", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePinnedItems();
 
-    assertEquals(result, pinnedItems);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, pinnedItems);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load pinned items when not in cache", async () => {
@@ -521,7 +519,7 @@ t.describe("ensurePinnedItems", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensurePinnedItems();
 
-    assertEquals(result, pinnedItems);
+    assert.deepEqual(result, pinnedItems);
   });
 
   it("should throw when pinned items not found after loading", async () => {
@@ -538,11 +536,11 @@ t.describe("ensurePinnedItems", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Pinned items not found");
+    assert.deepEqual(error.message, "Pinned items not found");
   });
 });
 
-t.describe("ensureConvoList", (it) => {
+describe("ensureConvoList", () => {
   it("should return existing convo list without loading", async () => {
     const convoList = [{ id: "convo1" }, { id: "convo2" }];
     let loadCalled = false;
@@ -557,8 +555,8 @@ t.describe("ensureConvoList", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoList();
 
-    assertEquals(result, convoList);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, convoList);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load convo list when not in cache", async () => {
@@ -578,7 +576,7 @@ t.describe("ensureConvoList", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoList();
 
-    assertEquals(result, convoList);
+    assert.deepEqual(result, convoList);
   });
 
   it("should throw when convo list not found after loading", async () => {
@@ -595,11 +593,11 @@ t.describe("ensureConvoList", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Conversation list not found");
+    assert.deepEqual(error.message, "Conversation list not found");
   });
 });
 
-t.describe("ensureConvo", (it) => {
+describe("ensureConvo", () => {
   it("should return existing convo without loading", async () => {
     const convoId = "convo123";
     const convo = { id: convoId, messages: [] };
@@ -615,8 +613,8 @@ t.describe("ensureConvo", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvo(convoId);
 
-    assertEquals(result, convo);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, convo);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load convo when not in cache", async () => {
@@ -637,7 +635,7 @@ t.describe("ensureConvo", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvo(convoId);
 
-    assertEquals(result, convo);
+    assert.deepEqual(result, convo);
   });
 
   it("should throw when convo not found after loading", async () => {
@@ -654,11 +652,11 @@ t.describe("ensureConvo", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Conversation not found");
+    assert.deepEqual(error.message, "Conversation not found");
   });
 });
 
-t.describe("ensureConvoForProfile", (it) => {
+describe("ensureConvoForProfile", () => {
   it("should return existing convo for profile without loading", async () => {
     const profileDid = "did:test:profile";
     const convo = { id: "convo123", members: [profileDid] };
@@ -676,8 +674,8 @@ t.describe("ensureConvoForProfile", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoForProfile(profileDid);
 
-    assertEquals(result, convo);
-    assertEquals(loadCalled, false);
+    assert.deepEqual(result, convo);
+    assert.deepEqual(loadCalled, false);
   });
 
   it("should load convo for profile when not in cache", async () => {
@@ -698,7 +696,7 @@ t.describe("ensureConvoForProfile", (it) => {
     const declarative = new Declarative(derived, requests);
     const result = await declarative.ensureConvoForProfile(profileDid);
 
-    assertEquals(result, convo);
+    assert.deepEqual(result, convo);
   });
 
   it("should throw when convo for profile not found after loading", async () => {
@@ -715,8 +713,6 @@ t.describe("ensureConvoForProfile", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Conversation not found");
+    assert.deepEqual(error.message, "Conversation not found");
   });
 });
-
-await t.run();

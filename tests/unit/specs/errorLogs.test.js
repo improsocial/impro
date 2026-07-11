@@ -1,10 +1,8 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { enableErrorLogs } from "/js/errorLogs.js";
 
-const t = new TestSuite("ErrorLogs");
-
-t.describe("enableErrorLogs", (it, { beforeEach, afterEach }) => {
+describe("enableErrorLogs", () => {
   let originalError;
   let originalWarn;
   let capturedError;
@@ -39,21 +37,21 @@ t.describe("enableErrorLogs", (it, { beforeEach, afterEach }) => {
     console.error("something broke");
 
     const entries = getEntries();
-    assertEquals(entries.length, 1);
-    assertEquals(entries[0].dataset.logLevel, "error");
+    assert.deepEqual(entries.length, 1);
+    assert.deepEqual(entries[0].dataset.logLevel, "error");
     assert(entries[0].textContent.includes("something broke"));
     assert(
       entries[0].querySelector("div").getAttribute("style").includes("255, 0"),
     );
-    assertEquals(capturedError, ["something broke"]);
+    assert.deepEqual(capturedError, ["something broke"]);
   });
 
   it("shows console.warn messages as warn entries with warn styling", () => {
     console.warn("heads up");
 
     const entries = getEntries();
-    assertEquals(entries.length, 1);
-    assertEquals(entries[0].dataset.logLevel, "warn");
+    assert.deepEqual(entries.length, 1);
+    assert.deepEqual(entries[0].dataset.logLevel, "warn");
     assert(entries[0].textContent.includes("heads up"));
     assert(
       entries[0]
@@ -61,7 +59,7 @@ t.describe("enableErrorLogs", (it, { beforeEach, afterEach }) => {
         .getAttribute("style")
         .includes("255, 200, 0"),
     );
-    assertEquals(capturedWarn, ["heads up"]);
+    assert.deepEqual(capturedWarn, ["heads up"]);
   });
 
   it("stringifies object arguments", () => {
@@ -76,15 +74,13 @@ t.describe("enableErrorLogs", (it, { beforeEach, afterEach }) => {
 
   it("makes the log visible on first message and supports dismissing entries", () => {
     const errorLog = document.getElementById("error-log");
-    assertEquals(errorLog.style.display, "none");
+    assert.deepEqual(errorLog.style.display, "none");
 
     console.warn("dismiss me");
-    assertEquals(errorLog.style.display, "block");
+    assert.deepEqual(errorLog.style.display, "block");
 
     const entry = getEntries()[0];
     entry.querySelector("button").click();
-    assertEquals(getEntries().length, 0);
+    assert.deepEqual(getEntries().length, 0);
   });
 });
-
-await t.run();

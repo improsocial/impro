@@ -1,10 +1,8 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import { alertModal } from "/js/modals/alert.modal.js";
 
-const t = new TestSuite("alertModal");
-
-t.describe("alertModal", (it, { beforeEach }) => {
+describe("alertModal", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -18,13 +16,13 @@ t.describe("alertModal", (it, { beforeEach }) => {
   it("should render the provided title", () => {
     alertModal("Some message", { title: "My Title" });
     const title = document.querySelector('[data-testid="modal-title"]');
-    assertEquals(title.textContent.trim(), "My Title");
+    assert.deepEqual(title.textContent.trim(), "My Title");
   });
 
   it("should render the provided message", () => {
     alertModal("Custom message", { title: "Title" });
     const message = document.querySelector('[data-testid="modal-message"]');
-    assertEquals(message.textContent.trim(), "Custom message");
+    assert.deepEqual(message.textContent.trim(), "Custom message");
   });
 
   it("should render a primary button by default", () => {
@@ -40,7 +38,7 @@ t.describe("alertModal", (it, { beforeEach }) => {
     const button = document.querySelector(
       '[data-testid="modal-primary-button"]',
     );
-    assertEquals(button.textContent.trim(), "Got it");
+    assert.deepEqual(button.textContent.trim(), "Got it");
   });
 
   it("should open the dialog", () => {
@@ -74,5 +72,3 @@ t.describe("alertModal", (it, { beforeEach }) => {
     assert(document.querySelector('[data-testid="alert-modal"]') === null);
   });
 });
-
-await t.run();

@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("sidebarTemplate");
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -14,7 +12,7 @@ const mockUser = {
   followsCount: 50,
 };
 
-t.describe("sidebarTemplate - logged out state", (it) => {
+describe("sidebarTemplate - logged out state", () => {
   it("should render logged out sidebar when not authenticated", () => {
     const result = sidebarTemplate({
       isAuthenticated: false,
@@ -91,7 +89,7 @@ t.describe("sidebarTemplate - logged out state", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - logged in state", (it) => {
+describe("sidebarTemplate - logged in state", () => {
   it("should render animated-sidebar when authenticated", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
@@ -171,7 +169,7 @@ t.describe("sidebarTemplate - logged in state", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - nav items", (it) => {
+describe("sidebarTemplate - nav items", () => {
   it("should render home nav item", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
@@ -271,7 +269,7 @@ t.describe("sidebarTemplate - nav items", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - notification badges", (it) => {
+describe("sidebarTemplate - notification badges", () => {
   it("should show notification badge when numNotifications > 0", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
@@ -306,11 +304,11 @@ t.describe("sidebarTemplate - notification badges", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='status-badge']");
-    assertEquals(badges.length, 0);
+    assert.deepEqual(badges.length, 0);
   });
 });
 
-t.describe("sidebarTemplate - compose button", (it) => {
+describe("sidebarTemplate - compose button", () => {
   it("should render compose button when onClickComposeButton is provided", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
@@ -332,7 +330,7 @@ t.describe("sidebarTemplate - compose button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='sidebar-compose-button']"),
       null,
     );
@@ -354,7 +352,7 @@ t.describe("sidebarTemplate - compose button", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - profile long-press", (it) => {
+describe("sidebarTemplate - profile long-press", () => {
   function renderSidebar({ onLongPressProfile = null } = {}) {
     const container = document.createElement("div");
     render(
@@ -374,7 +372,7 @@ t.describe("sidebarTemplate - profile long-press", (it) => {
     let fired = 0;
     const avatar = renderSidebar({ onLongPressProfile: () => fired++ });
     avatar.dispatchEvent(new CustomEvent("long-press"));
-    assertEquals(fired, 1);
+    assert.deepEqual(fired, 1);
   });
 
   it("does not throw when a long-press fires and no handler is provided", () => {
@@ -383,7 +381,7 @@ t.describe("sidebarTemplate - profile long-press", (it) => {
   });
 });
 
-t.describe("sidebarTemplate - plugin sidebar items", (it) => {
+describe("sidebarTemplate - plugin sidebar items", () => {
   it("should not render any plugin items when pluginSidebarItems is empty", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
@@ -392,7 +390,7 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll(".sidebar-plugin-nav-item").length,
       0,
     );
@@ -410,7 +408,7 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const pluginItems = container.querySelectorAll(".sidebar-plugin-nav-item");
-    assertEquals(pluginItems.length, 2);
+    assert.deepEqual(pluginItems.length, 2);
   });
 
   it("should render plugin item title as label and tooltip", () => {
@@ -425,7 +423,7 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     render(result, container);
     const pluginItem = container.querySelector(".sidebar-plugin-nav-item");
     assert(pluginItem !== null);
-    assertEquals(pluginItem.getAttribute("title"), "Plugin One");
+    assert.deepEqual(pluginItem.getAttribute("title"), "Plugin One");
     assert(pluginItem.textContent.includes("Plugin One"));
   });
 
@@ -464,9 +462,9 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     const icons = container.querySelectorAll(
       ".sidebar-plugin-nav-item plugin-icon",
     );
-    assertEquals(icons.length, 2);
-    assertEquals(icons[0].getAttribute("icon"), "lightning-bolt");
-    assertEquals(icons[1].getAttribute("icon"), "bell");
+    assert.deepEqual(icons.length, 2);
+    assert.deepEqual(icons[0].getAttribute("icon"), "lightning-bolt");
+    assert.deepEqual(icons[1].getAttribute("icon"), "bell");
   });
 
   it("should not render plugin sidebar items in logged out sidebar", () => {
@@ -479,11 +477,9 @@ t.describe("sidebarTemplate - plugin sidebar items", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll(".sidebar-plugin-nav-item").length,
       0,
     );
   });
 });
-
-await t.run();

@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("blockedPostTemplate");
-
-t.describe("blockedPostTemplate", (it) => {
+describe("blockedPostTemplate", () => {
   it("should display 'Blocked' text", () => {
     const result = blockedPostTemplate();
     const container = document.createElement("div");
@@ -23,5 +21,3 @@ t.describe("blockedPostTemplate", (it) => {
     assert(indicator.querySelector(".info-icon") !== null);
   });
 });
-
-await t.run();

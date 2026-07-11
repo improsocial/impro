@@ -1,47 +1,45 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Signal, SignalSet, SignalMap } from "/js/signals.js";
 
-const t = new TestSuite("signals");
-
-t.describe("SignalSet - Set behavior", (it) => {
+describe("SignalSet - Set behavior", () => {
   it("starts empty by default", () => {
     const set = new SignalSet();
-    assertEquals(set.size, 0);
-    assertEquals(set.has("a"), false);
+    assert.deepEqual(set.size, 0);
+    assert.deepEqual(set.has("a"), false);
   });
 
   it("seeds from an iterable passed to the constructor", () => {
     const set = new SignalSet(["a", "b"]);
-    assertEquals(set.size, 2);
+    assert.deepEqual(set.size, 2);
     assert(set.has("a"));
     assert(set.has("b"));
   });
 
   it("add/has/delete behave like a native Set", () => {
     const set = new SignalSet();
-    assertEquals(set.add("a"), set);
+    assert.deepEqual(set.add("a"), set);
     assert(set.has("a"));
-    assertEquals(set.size, 1);
-    assertEquals(set.delete("a"), true);
-    assertEquals(set.delete("a"), false);
-    assertEquals(set.has("a"), false);
-    assertEquals(set.size, 0);
+    assert.deepEqual(set.size, 1);
+    assert.deepEqual(set.delete("a"), true);
+    assert.deepEqual(set.delete("a"), false);
+    assert.deepEqual(set.has("a"), false);
+    assert.deepEqual(set.size, 0);
   });
 
   it("clear removes every value", () => {
     const set = new SignalSet(["a", "b"]);
     set.clear();
-    assertEquals(set.size, 0);
-    assertEquals(set.has("a"), false);
+    assert.deepEqual(set.size, 0);
+    assert.deepEqual(set.has("a"), false);
   });
 
   it("supports iteration helpers", () => {
     const set = new SignalSet(["a", "b"]);
-    assertEquals([...set], ["a", "b"]);
-    assertEquals([...set.values()], ["a", "b"]);
-    assertEquals([...set.keys()], ["a", "b"]);
-    assertEquals(
+    assert.deepEqual([...set], ["a", "b"]);
+    assert.deepEqual([...set.values()], ["a", "b"]);
+    assert.deepEqual([...set.keys()], ["a", "b"]);
+    assert.deepEqual(
       [...set.entries()],
       [
         ["a", "a"],
@@ -50,11 +48,11 @@ t.describe("SignalSet - Set behavior", (it) => {
     );
     const collected = [];
     set.forEach((value) => collected.push(value));
-    assertEquals(collected, ["a", "b"]);
+    assert.deepEqual(collected, ["a", "b"]);
   });
 });
 
-t.describe("SignalSet - reactivity", (it) => {
+describe("SignalSet - reactivity", () => {
   it("a has() reader recomputes when its value is added or removed", () => {
     const set = new SignalSet();
     let runs = 0;
@@ -63,16 +61,16 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.has("a");
     });
 
-    assertEquals($hasA.get(), false);
-    assertEquals(runs, 1);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual(runs, 1);
 
     set.add("a");
-    assertEquals($hasA.get(), true);
-    assertEquals(runs, 2);
+    assert.deepEqual($hasA.get(), true);
+    assert.deepEqual(runs, 2);
 
     set.delete("a");
-    assertEquals($hasA.get(), false);
-    assertEquals(runs, 3);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual(runs, 3);
   });
 
   it("a has() reader is not disturbed by changes to other values", () => {
@@ -83,14 +81,14 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.has("a");
     });
 
-    assertEquals($hasA.get(), false);
-    assertEquals(runs, 1);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual(runs, 1);
 
     // Mutating an unrelated value must not invalidate the has("a") reader.
     set.add("b");
     set.delete("b");
-    assertEquals($hasA.get(), false);
-    assertEquals(runs, 1);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual(runs, 1);
   });
 
   it("a size reader recomputes on membership changes", () => {
@@ -101,12 +99,12 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.size;
     });
 
-    assertEquals($size.get(), 0);
-    assertEquals(runs, 1);
+    assert.deepEqual($size.get(), 0);
+    assert.deepEqual(runs, 1);
 
     set.add("a");
-    assertEquals($size.get(), 1);
-    assertEquals(runs, 2);
+    assert.deepEqual($size.get(), 1);
+    assert.deepEqual(runs, 2);
   });
 
   it("re-adding an existing value still notifies readers (no dedup, signal-utils semantics)", () => {
@@ -117,13 +115,13 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.size;
     });
 
-    assertEquals($size.get(), 1);
-    assertEquals(runs, 1);
+    assert.deepEqual($size.get(), 1);
+    assert.deepEqual(runs, 1);
 
     // No dedup: re-adding an existing value still notifies the collection.
     set.add("a");
-    assertEquals($size.get(), 1);
-    assertEquals(runs, 2);
+    assert.deepEqual($size.get(), 1);
+    assert.deepEqual(runs, 2);
   });
 
   it("deleting an absent value still notifies readers (no dedup, signal-utils semantics)", () => {
@@ -134,13 +132,13 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.size;
     });
 
-    assertEquals($size.get(), 0);
-    assertEquals(runs, 1);
+    assert.deepEqual($size.get(), 0);
+    assert.deepEqual(runs, 1);
 
     // No dedup: deleting an absent value still notifies the collection.
-    assertEquals(set.delete("missing"), false);
-    assertEquals($size.get(), 0);
-    assertEquals(runs, 2);
+    assert.deepEqual(set.delete("missing"), false);
+    assert.deepEqual($size.get(), 0);
+    assert.deepEqual(runs, 2);
   });
 
   it("clear notifies both has() and size readers", () => {
@@ -156,23 +154,23 @@ t.describe("SignalSet - reactivity", (it) => {
       return set.size;
     });
 
-    assertEquals($hasA.get(), true);
-    assertEquals($size.get(), 1);
+    assert.deepEqual($hasA.get(), true);
+    assert.deepEqual($size.get(), 1);
 
     set.clear();
-    assertEquals($hasA.get(), false);
-    assertEquals($size.get(), 0);
-    assertEquals(hasRuns, 2);
-    assertEquals(sizeRuns, 2);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual($size.get(), 0);
+    assert.deepEqual(hasRuns, 2);
+    assert.deepEqual(sizeRuns, 2);
   });
 });
 
-t.describe("SignalMap - Map behavior", (it) => {
+describe("SignalMap - Map behavior", () => {
   it("returns null for an absent key", () => {
     const map = new SignalMap();
-    assertEquals(map.get("a"), null);
-    assertEquals(map.has("a"), false);
-    assertEquals(map.size, 0);
+    assert.deepEqual(map.get("a"), null);
+    assert.deepEqual(map.has("a"), false);
+    assert.deepEqual(map.size, 0);
   });
 
   it("seeds from entries passed to the constructor", () => {
@@ -180,20 +178,20 @@ t.describe("SignalMap - Map behavior", (it) => {
       ["a", 1],
       ["b", 2],
     ]);
-    assertEquals(map.size, 2);
-    assertEquals(map.get("a"), 1);
+    assert.deepEqual(map.size, 2);
+    assert.deepEqual(map.get("a"), 1);
     assert(map.has("b"));
   });
 
   it("set/get/has/delete behave like a native Map", () => {
     const map = new SignalMap();
     map.set("a", 1);
-    assertEquals(map.get("a"), 1);
+    assert.deepEqual(map.get("a"), 1);
     assert(map.has("a"));
-    assertEquals(map.size, 1);
-    assertEquals(map.delete("a"), true);
-    assertEquals(map.delete("a"), false);
-    assertEquals(map.get("a"), null);
+    assert.deepEqual(map.size, 1);
+    assert.deepEqual(map.delete("a"), true);
+    assert.deepEqual(map.delete("a"), false);
+    assert.deepEqual(map.get("a"), null);
   });
 
   it("clear removes every entry", () => {
@@ -202,8 +200,8 @@ t.describe("SignalMap - Map behavior", (it) => {
       ["b", 2],
     ]);
     map.clear();
-    assertEquals(map.size, 0);
-    assertEquals(map.get("a"), null);
+    assert.deepEqual(map.size, 0);
+    assert.deepEqual(map.get("a"), null);
   });
 
   it("supports iteration helpers", () => {
@@ -211,16 +209,16 @@ t.describe("SignalMap - Map behavior", (it) => {
       ["a", 1],
       ["b", 2],
     ]);
-    assertEquals([...map.keys()], ["a", "b"]);
-    assertEquals([...map.values()], [1, 2]);
-    assertEquals(
+    assert.deepEqual([...map.keys()], ["a", "b"]);
+    assert.deepEqual([...map.values()], [1, 2]);
+    assert.deepEqual(
       [...map.entries()],
       [
         ["a", 1],
         ["b", 2],
       ],
     );
-    assertEquals(
+    assert.deepEqual(
       [...map],
       [
         ["a", 1],
@@ -229,14 +227,14 @@ t.describe("SignalMap - Map behavior", (it) => {
     );
     const collected = [];
     map.forEach((value, key) => collected.push([key, value]));
-    assertEquals(collected, [
+    assert.deepEqual(collected, [
       ["a", 1],
       ["b", 2],
     ]);
   });
 });
 
-t.describe("SignalMap - reactivity", (it) => {
+describe("SignalMap - reactivity", () => {
   it("a get() reader recomputes when its key is written", () => {
     const map = new SignalMap();
     let runs = 0;
@@ -245,12 +243,12 @@ t.describe("SignalMap - reactivity", (it) => {
       return map.get("a");
     });
 
-    assertEquals($a.get(), null);
-    assertEquals(runs, 1);
+    assert.deepEqual($a.get(), null);
+    assert.deepEqual(runs, 1);
 
     map.set("a", 1);
-    assertEquals($a.get(), 1);
-    assertEquals(runs, 2);
+    assert.deepEqual($a.get(), 1);
+    assert.deepEqual(runs, 2);
   });
 
   it("a get() reader is not disturbed by writes to other keys", () => {
@@ -261,14 +259,14 @@ t.describe("SignalMap - reactivity", (it) => {
       return map.get("a");
     });
 
-    assertEquals($a.get(), null);
-    assertEquals(runs, 1);
+    assert.deepEqual($a.get(), null);
+    assert.deepEqual(runs, 1);
 
     // Writing an unrelated key must not invalidate the get("a") reader.
     map.set("b", 2);
     map.set("b", 3);
-    assertEquals($a.get(), null);
-    assertEquals(runs, 1);
+    assert.deepEqual($a.get(), null);
+    assert.deepEqual(runs, 1);
   });
 
   it("a size/keys reader recomputes on any write (signal-utils semantics)", () => {
@@ -279,17 +277,17 @@ t.describe("SignalMap - reactivity", (it) => {
       return [...map.keys()];
     });
 
-    assertEquals($keys.get(), []);
-    assertEquals(runs, 1);
+    assert.deepEqual($keys.get(), []);
+    assert.deepEqual(runs, 1);
 
     map.set("a", 1);
-    assertEquals($keys.get(), ["a"]);
-    assertEquals(runs, 2);
+    assert.deepEqual($keys.get(), ["a"]);
+    assert.deepEqual(runs, 2);
 
     // No value dedup: re-setting an existing key still notifies collection.
     map.set("a", 1);
-    assertEquals($keys.get(), ["a"]);
-    assertEquals(runs, 3);
+    assert.deepEqual($keys.get(), ["a"]);
+    assert.deepEqual(runs, 3);
   });
 
   it("a has() reader recomputes when its key is added or removed", () => {
@@ -300,13 +298,11 @@ t.describe("SignalMap - reactivity", (it) => {
       return map.has("a");
     });
 
-    assertEquals($hasA.get(), false);
+    assert.deepEqual($hasA.get(), false);
     map.set("a", 1);
-    assertEquals($hasA.get(), true);
+    assert.deepEqual($hasA.get(), true);
     map.delete("a");
-    assertEquals($hasA.get(), false);
-    assertEquals(runs, 3);
+    assert.deepEqual($hasA.get(), false);
+    assert.deepEqual(runs, 3);
   });
 });
-
-await t.run();

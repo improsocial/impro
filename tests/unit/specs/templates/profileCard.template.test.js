@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("profileCardTemplate");
 
 const mockProfile = {
   displayName: "Test User",
@@ -19,7 +17,7 @@ const mockProfile = {
   },
 };
 
-t.describe("profileCardTemplate", (it) => {
+describe("profileCardTemplate", () => {
   it("should render profile card", () => {
     const result = profileCardTemplate({
       profile: mockProfile,
@@ -27,7 +25,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='profile-name']")
         .textContent.trim(),
@@ -46,7 +44,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='follow-button']")
         .getAttribute("data-teststate"),
@@ -65,7 +63,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='follow-button']")
         .getAttribute("data-teststate"),
@@ -84,7 +82,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='follow-button']")
         .getAttribute("data-teststate"),
@@ -103,7 +101,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='follow-button']")
         .getAttribute("data-teststate"),
@@ -122,7 +120,7 @@ t.describe("profileCardTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='follows-you-badge']"),
       null,
     );
@@ -165,8 +163,8 @@ t.describe("profileCardTemplate", (it) => {
     );
     followButton.click();
     assert(followCallArgs !== null);
-    assertEquals(followCallArgs.profile, profile);
-    assertEquals(followCallArgs.shouldFollow, true);
+    assert.deepEqual(followCallArgs.profile, profile);
+    assert.deepEqual(followCallArgs.shouldFollow, true);
   });
 
   it("should call onClickFollow with false when unfollow button clicked", () => {
@@ -190,12 +188,12 @@ t.describe("profileCardTemplate", (it) => {
     );
     followButton.click();
     assert(followCallArgs !== null);
-    assertEquals(followCallArgs.profile, profile);
-    assertEquals(followCallArgs.shouldFollow, false);
+    assert.deepEqual(followCallArgs.profile, profile);
+    assert.deepEqual(followCallArgs.shouldFollow, false);
   });
 });
 
-t.describe("profileCardTemplate - post notifications button", (it) => {
+describe("profileCardTemplate - post notifications button", () => {
   it("should render post notifications button when following", () => {
     const profile = {
       ...mockProfile,
@@ -228,7 +226,7 @@ t.describe("profileCardTemplate - post notifications button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='post-notifications-button']"),
       null,
     );
@@ -247,7 +245,7 @@ t.describe("profileCardTemplate - post notifications button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='post-notifications-button']"),
       null,
     );
@@ -266,7 +264,7 @@ t.describe("profileCardTemplate - post notifications button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='post-notifications-button']"),
       null,
     );
@@ -285,7 +283,7 @@ t.describe("profileCardTemplate - post notifications button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='post-notifications-button']"),
       null,
     );
@@ -310,11 +308,11 @@ t.describe("profileCardTemplate - post notifications button", (it) => {
     container
       .querySelector("[data-testid='post-notifications-button']")
       .click();
-    assertEquals(notificationsCallArg, profile);
+    assert.deepEqual(notificationsCallArg, profile);
   });
 });
 
-t.describe("profileCardTemplate - verification badge", (it) => {
+describe("profileCardTemplate - verification badge", () => {
   it("should render verification badge for verified profile", () => {
     const profile = {
       ...mockProfile,
@@ -330,7 +328,7 @@ t.describe("profileCardTemplate - verification badge", (it) => {
       "[data-testid='profile-name'] .verification-badge",
     );
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Verified");
+    assert.deepEqual(badge.getAttribute("title"), "Verified");
   });
 
   it("should not render verification badge for non-verified profile", () => {
@@ -340,7 +338,7 @@ t.describe("profileCardTemplate - verification badge", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector(
         "[data-testid='profile-name'] .verification-badge",
       ),
@@ -366,11 +364,11 @@ t.describe("profileCardTemplate - verification badge", (it) => {
       "[data-testid='profile-name'] .verification-badge",
     );
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+    assert.deepEqual(badge.getAttribute("title"), "Trusted Verifier");
   });
 });
 
-t.describe("profileCardTemplate - labeler support", (it) => {
+describe("profileCardTemplate - labeler support", () => {
   it("should render subscribe button for labeler profile when not subscribed", () => {
     const profile = {
       ...mockProfile,
@@ -386,7 +384,7 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
@@ -409,7 +407,7 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
@@ -469,7 +467,7 @@ t.describe("profileCardTemplate - labeler support", (it) => {
       "[data-testid='menu-action-profile-follow']",
     );
     assert(item !== null);
-    assertEquals(item.getAttribute("data-teststate"), "following");
+    assert.deepEqual(item.getAttribute("data-teststate"), "following");
     document.body.querySelector(".profile-context-menu")?.remove();
     container.remove();
   });
@@ -498,12 +496,12 @@ t.describe("profileCardTemplate - labeler support", (it) => {
     );
     subscribeButton.click();
     assert(subscribeCallArgs !== null);
-    assertEquals(subscribeCallArgs.profile, profile);
-    assertEquals(subscribeCallArgs.shouldSubscribe, true);
+    assert.deepEqual(subscribeCallArgs.profile, profile);
+    assert.deepEqual(subscribeCallArgs.shouldSubscribe, true);
   });
 });
 
-t.describe("profileCardTemplate - blocked profile", (it) => {
+describe("profileCardTemplate - blocked profile", () => {
   it("should render unblock button for blocked profile", () => {
     const profile = {
       ...mockProfile,
@@ -534,7 +532,7 @@ t.describe("profileCardTemplate - blocked profile", (it) => {
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='blocked-badge']") !== null);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='profile-stats']"),
       null,
     );
@@ -553,14 +551,14 @@ t.describe("profileCardTemplate - blocked profile", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='follows-you-badge']"),
       null,
     );
   });
 });
 
-t.describe("profileCardTemplate - authentication states", (it) => {
+describe("profileCardTemplate - authentication states", () => {
   it("should not render chat button for unauthenticated user", () => {
     const profile = {
       ...mockProfile,
@@ -573,7 +571,10 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='chat-button']"),
+      null,
+    );
   });
 
   it("should not render interaction buttons for current user", () => {
@@ -588,8 +589,11 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
-    assertEquals(
+    assert.deepEqual(
+      container.querySelector("[data-testid='chat-button']"),
+      null,
+    );
+    assert.deepEqual(
       container.querySelector("[data-testid='follow-button']"),
       null,
     );
@@ -627,7 +631,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='edit-profile-button']"),
       null,
     );
@@ -672,7 +676,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     render(result, container);
     const button = container.querySelector("[data-testid='chat-button']");
     assert(button !== null);
-    assertEquals(button.disabled, false);
+    assert.deepEqual(button.disabled, false);
   });
 
   it("should render disabled chat button when following but chat status is not yet loaded", () => {
@@ -691,7 +695,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     render(result, container);
     const button = container.querySelector("[data-testid='chat-button']");
     assert(button !== null);
-    assertEquals(button.disabled, true);
+    assert.deepEqual(button.disabled, true);
   });
 
   it("should render disabled chat button when following but chat is not allowed", () => {
@@ -710,7 +714,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     render(result, container);
     const button = container.querySelector("[data-testid='chat-button']");
     assert(button !== null);
-    assertEquals(button.disabled, true);
+    assert.deepEqual(button.disabled, true);
   });
 
   it("should not render chat button when not following the profile", () => {
@@ -727,7 +731,10 @@ t.describe("profileCardTemplate - authentication states", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='chat-button']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='chat-button']"),
+      null,
+    );
   });
 
   it("should render stats for non-blocked profile", () => {
@@ -747,7 +754,7 @@ t.describe("profileCardTemplate - authentication states", (it) => {
   });
 });
 
-t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
+describe("profileCardTemplate - labelerInfo parameter", () => {
   const mockLabelerInfo = {
     uri: "at://did:plc:testlabeler/app.bsky.labeler.service/self",
     creator: { did: "did:plc:testlabeler", handle: "labeler.test" },
@@ -775,7 +782,7 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
@@ -799,7 +806,7 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
@@ -820,7 +827,7 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='follow-button']")
         .textContent.trim(),
@@ -848,7 +855,7 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='subscribe-button']")
         .getAttribute("data-teststate"),
@@ -856,5 +863,3 @@ t.describe("profileCardTemplate - labelerInfo parameter", (it) => {
     );
   });
 });
-
-await t.run();

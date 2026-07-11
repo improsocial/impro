@@ -1,12 +1,10 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("postHeaderTextTemplate");
-
-t.describe("postHeaderTextTemplate", (it) => {
+describe("postHeaderTextTemplate", () => {
   it("should render header with author name", () => {
     const result = postHeaderTextTemplate({
       author: post.author,
@@ -15,7 +13,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='post-author-name']")
         .textContent.trim(),
@@ -31,7 +29,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='post-author-handle']")
         .textContent.trim(),
@@ -58,7 +56,10 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='post-time']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='post-time']"),
+      null,
+    );
   });
 
   it("should render header without handle when includeHandle is false", () => {
@@ -69,7 +70,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='post-author-handle']"),
       null,
     );
@@ -83,7 +84,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='post-author-name']")
         .textContent.trim(),
@@ -102,7 +103,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     const nameElement = container.querySelector(
       "[data-testid='post-author-name']",
     );
-    assertEquals(nameElement.tagName.toLowerCase(), "a");
+    assert.deepEqual(nameElement.tagName.toLowerCase(), "a");
   });
 
   it("should render as span when enableProfileLink is false", () => {
@@ -116,7 +117,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     const nameElement = container.querySelector(
       "[data-testid='post-author-name']",
     );
-    assertEquals(nameElement.tagName.toLowerCase(), "span");
+    assert.deepEqual(nameElement.tagName.toLowerCase(), "span");
   });
 
   it("should render verification badge for verified author", () => {
@@ -132,7 +133,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Verified");
+    assert.deepEqual(badge.getAttribute("title"), "Verified");
   });
 
   it("should not render verification badge for non-verified author", () => {
@@ -142,7 +143,7 @@ t.describe("postHeaderTextTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".verification-badge"), null);
+    assert.deepEqual(container.querySelector(".verification-badge"), null);
   });
 
   it("should render verifier badge for trusted verifier author", () => {
@@ -161,8 +162,6 @@ t.describe("postHeaderTextTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+    assert.deepEqual(badge.getAttribute("title"), "Trusted Verifier");
   });
 });
-
-await t.run();

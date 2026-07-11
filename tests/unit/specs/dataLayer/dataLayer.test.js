@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
-
-const t = new TestSuite("DataLayer");
 
 function createMockApi(options = {}) {
   return {
@@ -21,7 +19,7 @@ function createDataLayer(api) {
   });
 }
 
-t.describe("constructor", (it) => {
+describe("constructor", () => {
   it("should initialize all components", () => {
     const mockApi = createMockApi();
     const dataLayer = createDataLayer(mockApi);
@@ -40,18 +38,18 @@ t.describe("constructor", (it) => {
     const mockApi = createMockApi({ isAuthenticated: true });
     const dataLayer = createDataLayer(mockApi);
 
-    assertEquals(dataLayer.isAuthenticated, true);
+    assert.deepEqual(dataLayer.isAuthenticated, true);
   });
 
   it("should initialize empty subscribers array", () => {
     const mockApi = createMockApi();
     const dataLayer = createDataLayer(mockApi);
 
-    assertEquals(dataLayer.subscribers, []);
+    assert.deepEqual(dataLayer.subscribers, []);
   });
 });
 
-t.describe("initializePreferences", (it) => {
+describe("initializePreferences", () => {
   it("should call preferencesProvider.fetchPreferences", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
@@ -76,18 +74,18 @@ t.describe("initializePreferences", (it) => {
     await dataLayer.initializePreferences();
 
     const preferences = dataLayer.preferencesProvider.requirePreferences();
-    assertEquals(preferences.obj, mockPreferences);
+    assert.deepEqual(preferences.obj, mockPreferences);
   });
 });
 
-t.describe("hasCachedFeed", (it) => {
+describe("hasCachedFeed", () => {
   it("should return false when feed not cached", () => {
     const mockApi = createMockApi();
     const dataLayer = createDataLayer(mockApi);
 
     const result = dataLayer.hasCachedFeed("at://feed/uri");
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should return true when feed is cached", () => {
@@ -99,18 +97,18 @@ t.describe("hasCachedFeed", (it) => {
 
     const result = dataLayer.hasCachedFeed(feedURI);
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 });
 
-t.describe("hasCachedAuthorFeed", (it) => {
+describe("hasCachedAuthorFeed", () => {
   it("should return false when author feed not cached", () => {
     const mockApi = createMockApi();
     const dataLayer = createDataLayer(mockApi);
 
     const result = dataLayer.hasCachedAuthorFeed("did:test:user", "posts");
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should return true when author feed is cached", () => {
@@ -126,7 +124,7 @@ t.describe("hasCachedAuthorFeed", (it) => {
 
     const result = dataLayer.hasCachedAuthorFeed(profileDid, feedType);
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should construct correct feed URI from profileDid and feedType", () => {
@@ -143,11 +141,11 @@ t.describe("hasCachedAuthorFeed", (it) => {
 
     const result = dataLayer.hasCachedAuthorFeed(profileDid, feedType);
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 });
 
-t.describe("component integration", (it) => {
+describe("component integration", () => {
   it("should pass dataStore to derived", async () => {
     const mockApi = createMockApi({ isAuthenticated: false });
     const dataLayer = createDataLayer(mockApi);
@@ -162,7 +160,7 @@ t.describe("component integration", (it) => {
 
     // Verify derived can access it
     const result = dataLayer.derived.$hydratedPosts.get(postURI);
-    assertEquals(result.uri, postURI);
+    assert.deepEqual(result.uri, postURI);
   });
 
   it("should pass patchStore to derived", async () => {
@@ -179,7 +177,7 @@ t.describe("component integration", (it) => {
 
     // Verify derived apply patches
     const result = dataLayer.derived.$hydratedPosts.get(postURI);
-    assertEquals(result.likeCount, 6);
+    assert.deepEqual(result.likeCount, 6);
   });
 
   it("should pass derived and requests to declarative", async () => {
@@ -200,5 +198,3 @@ t.describe("component integration", (it) => {
     assert(profile !== null);
   });
 });
-
-await t.run();

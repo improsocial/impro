@@ -1,8 +1,6 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
-
-const t = new TestSuite("PatchStore");
 
 // applyPostPatches now requires the patches array explicitly. This helper
 // fetches the current patches for a post URI and applies them.
@@ -11,7 +9,7 @@ function applyPostPatches(patchStore, post) {
   return patchStore.applyPostPatches(post, patches);
 }
 
-t.describe("Post Patches - Patch Management", (it) => {
+describe("Post Patches - Patch Management", () => {
   const postURI = "at://did:test/app.bsky.feed.post/test";
   const basePost = {
     uri: postURI,
@@ -22,7 +20,7 @@ t.describe("Post Patches - Patch Management", (it) => {
   it("should add a post patch and return a patch ID", () => {
     const patchStore = new PatchStore();
     const patchId = patchStore.addPostPatch(postURI, { type: "addLike" });
-    assertEquals(typeof patchId, "number");
+    assert.deepEqual(typeof patchId, "number");
     assert(patchId >= 0);
   });
 
@@ -39,14 +37,14 @@ t.describe("Post Patches - Patch Management", (it) => {
 
     // Verify patch exists
     const patchedPost = applyPostPatches(patchStore, basePost);
-    assertEquals(patchedPost.viewer.like, "fake like");
+    assert.deepEqual(patchedPost.viewer.like, "fake like");
 
     // Remove patch
     patchStore.removePostPatch(postURI, patchId);
 
     // Verify patch is removed
     const unpatchedPost = applyPostPatches(patchStore, basePost);
-    assertEquals(unpatchedPost.viewer.like, null);
+    assert.deepEqual(unpatchedPost.viewer.like, null);
   });
 
   it("should handle removing non-existent patch ID gracefully", () => {
@@ -58,11 +56,11 @@ t.describe("Post Patches - Patch Management", (it) => {
     } catch (e) {
       errorThrown = true;
     }
-    assertEquals(errorThrown, false);
+    assert.deepEqual(errorThrown, false);
   });
 });
 
-t.describe("Post Patches - Like Patches", (it) => {
+describe("Post Patches - Like Patches", () => {
   const postURI = "at://did:test/app.bsky.feed.post/test";
   const basePost = {
     uri: postURI,
@@ -75,9 +73,9 @@ t.describe("Post Patches - Like Patches", (it) => {
     patchStore.addPostPatch(postURI, { type: "addLike" });
     const result = applyPostPatches(patchStore, basePost);
 
-    assertEquals(result.viewer.like, "fake like");
-    assertEquals(result.likeCount, 6);
-    assertEquals(result.uri, postURI);
+    assert.deepEqual(result.viewer.like, "fake like");
+    assert.deepEqual(result.likeCount, 6);
+    assert.deepEqual(result.uri, postURI);
   });
 
   it("should apply removeLike patch correctly", () => {
@@ -91,8 +89,8 @@ t.describe("Post Patches - Like Patches", (it) => {
     patchStore.addPostPatch(postURI, { type: "removeLike" });
     const result = applyPostPatches(patchStore, likedPost);
 
-    assertEquals(result.viewer.like, null);
-    assertEquals(result.likeCount, 5);
+    assert.deepEqual(result.viewer.like, null);
+    assert.deepEqual(result.likeCount, 5);
   });
 
   it("should apply multiple patches in order", () => {
@@ -103,19 +101,19 @@ t.describe("Post Patches - Like Patches", (it) => {
 
     const result = applyPostPatches(patchStore, basePost);
 
-    assertEquals(result.viewer.like, null);
-    assertEquals(result.likeCount, 5); // +1 -1 = 0, so 5 + 0 = 5
+    assert.deepEqual(result.viewer.like, null);
+    assert.deepEqual(result.likeCount, 5); // +1 -1 = 0, so 5 + 0 = 5
   });
 
   it("should preserve original post when no patches exist", () => {
     const patchStore = new PatchStore();
     const result = applyPostPatches(patchStore, basePost);
-    assertEquals(result, basePost);
+    assert.deepEqual(result, basePost);
     assert(result !== basePost); // Should be a copy
   });
 });
 
-t.describe("Post Patches - Error Handling", (it) => {
+describe("Post Patches - Error Handling", () => {
   const postURI = "at://did:test/app.bsky.feed.post/test";
   const basePost = {
     uri: postURI,
@@ -135,12 +133,12 @@ t.describe("Post Patches - Error Handling", (it) => {
       errorThrown = true;
       errorMessage = e.message;
     }
-    assertEquals(errorThrown, true);
+    assert.deepEqual(errorThrown, true);
     assert(errorMessage.includes("Unknown patch type"));
   });
 });
 
-t.describe("Profile Patches - Patch Management", (it) => {
+describe("Profile Patches - Patch Management", () => {
   const profileDID = "did:test:profile";
   const baseProfile = {
     did: profileDID,
@@ -152,7 +150,7 @@ t.describe("Profile Patches - Patch Management", (it) => {
     const patchId = patchStore.addProfilePatch(profileDID, {
       type: "followProfile",
     });
-    assertEquals(typeof patchId, "number");
+    assert.deepEqual(typeof patchId, "number");
     assert(patchId >= 0);
   });
 
@@ -164,18 +162,18 @@ t.describe("Profile Patches - Patch Management", (it) => {
 
     // Verify patch exists
     const patchedProfile = patchStore.applyProfilePatches(baseProfile);
-    assertEquals(patchedProfile.viewer.following, "fake following");
+    assert.deepEqual(patchedProfile.viewer.following, "fake following");
 
     // Remove patch
     patchStore.removeProfilePatch(profileDID, patchId);
 
     // Verify patch is removed
     const unpatchedProfile = patchStore.applyProfilePatches(baseProfile);
-    assertEquals(unpatchedProfile.viewer.following, null);
+    assert.deepEqual(unpatchedProfile.viewer.following, null);
   });
 });
 
-t.describe("Profile Patches - Follow Patches", (it) => {
+describe("Profile Patches - Follow Patches", () => {
   const profileDID = "did:test:profile";
   const baseProfile = {
     did: profileDID,
@@ -187,8 +185,8 @@ t.describe("Profile Patches - Follow Patches", (it) => {
     patchStore.addProfilePatch(profileDID, { type: "followProfile" });
     const result = patchStore.applyProfilePatches(baseProfile);
 
-    assertEquals(result.viewer.following, "fake following");
-    assertEquals(result.did, profileDID);
+    assert.deepEqual(result.viewer.following, "fake following");
+    assert.deepEqual(result.did, profileDID);
   });
 
   it("should apply unfollowProfile patch correctly", () => {
@@ -201,7 +199,7 @@ t.describe("Profile Patches - Follow Patches", (it) => {
     patchStore.addProfilePatch(profileDID, { type: "unfollowProfile" });
     const result = patchStore.applyProfilePatches(followedProfile);
 
-    assertEquals(result.viewer.following, null);
+    assert.deepEqual(result.viewer.following, null);
   });
 
   it("should apply multiple profile patches in order", () => {
@@ -211,11 +209,11 @@ t.describe("Profile Patches - Follow Patches", (it) => {
     patchStore.addProfilePatch(profileDID, { type: "unfollowProfile" });
 
     const result = patchStore.applyProfilePatches(baseProfile);
-    assertEquals(result.viewer.following, null);
+    assert.deepEqual(result.viewer.following, null);
   });
 });
 
-t.describe("Profile Patches - Error Handling", (it) => {
+describe("Profile Patches - Error Handling", () => {
   const profileDID = "did:test:profile";
   const baseProfile = {
     did: profileDID,
@@ -234,12 +232,12 @@ t.describe("Profile Patches - Error Handling", (it) => {
       errorThrown = true;
       errorMessage = e.message;
     }
-    assertEquals(errorThrown, true);
+    assert.deepEqual(errorThrown, true);
     assert(errorMessage.includes("Unknown patch type"));
   });
 });
 
-t.describe("UUID Generation", (it) => {
+describe("UUID Generation", () => {
   it("should generate sequential IDs", () => {
     const patchStore = new PatchStore();
     const id1 = patchStore.addPostPatch("post1", { type: "addLike" });
@@ -248,12 +246,12 @@ t.describe("UUID Generation", (it) => {
       type: "followProfile",
     });
 
-    assertEquals(id2, id1 + 1);
-    assertEquals(id3, id2 + 1);
+    assert.deepEqual(id2, id1 + 1);
+    assert.deepEqual(id3, id2 + 1);
   });
 });
 
-t.describe("Patch Isolation", (it) => {
+describe("Patch Isolation", () => {
   it("should isolate patches between different posts", () => {
     const patchStore = new PatchStore();
     const post1URI = "post1";
@@ -266,8 +264,8 @@ t.describe("Patch Isolation", (it) => {
     const result1 = applyPostPatches(patchStore, basePost1);
     const result2 = applyPostPatches(patchStore, basePost2);
 
-    assertEquals(result1.likeCount, 6);
-    assertEquals(result2.likeCount, 10); // Unchanged
+    assert.deepEqual(result1.likeCount, 6);
+    assert.deepEqual(result2.likeCount, 10); // Unchanged
   });
 
   it("should isolate patches between different profiles", () => {
@@ -282,12 +280,12 @@ t.describe("Patch Isolation", (it) => {
     const result1 = patchStore.applyProfilePatches(baseProfile1);
     const result2 = patchStore.applyProfilePatches(baseProfile2);
 
-    assertEquals(result1.viewer.following, "fake following");
-    assertEquals(result2.viewer.following, null); // Unchanged
+    assert.deepEqual(result1.viewer.following, "fake following");
+    assert.deepEqual(result2.viewer.following, null); // Unchanged
   });
 });
 
-t.describe("Preference Patches - Labeler Patches", (it) => {
+describe("Preference Patches - Labeler Patches", () => {
   it("should apply subscribeLabeler patch correctly", () => {
     const patchStore = new PatchStore();
     const labelerDid = "did:plc:testlabeler";
@@ -313,8 +311,8 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
     });
     const result = patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(result._subscribedLabeler, labelerDid);
-    assertEquals(result._labelerInfo, labelerInfo);
+    assert.deepEqual(result._subscribedLabeler, labelerDid);
+    assert.deepEqual(result._labelerInfo, labelerInfo);
   });
 
   it("should apply unsubscribeLabeler patch correctly", () => {
@@ -336,7 +334,7 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
     });
     const result = patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(result._unsubscribedLabeler, labelerDid);
+    assert.deepEqual(result._unsubscribedLabeler, labelerDid);
   });
 
   it("should apply multiple labeler patches in order", () => {
@@ -383,16 +381,16 @@ t.describe("Preference Patches - Labeler Patches", (it) => {
 
     patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(calls.length, 3);
-    assertEquals(calls[0].type, "subscribe");
-    assertEquals(calls[0].did, labelerDid1);
-    assertEquals(calls[1].type, "subscribe");
-    assertEquals(calls[1].did, labelerDid2);
-    assertEquals(calls[2], { type: "unsubscribe", did: labelerDid1 });
+    assert.deepEqual(calls.length, 3);
+    assert.deepEqual(calls[0].type, "subscribe");
+    assert.deepEqual(calls[0].did, labelerDid1);
+    assert.deepEqual(calls[1].type, "subscribe");
+    assert.deepEqual(calls[1].did, labelerDid2);
+    assert.deepEqual(calls[2], { type: "unsubscribe", did: labelerDid1 });
   });
 });
 
-t.describe("Preference Patches - Pin Feed Patches", (it) => {
+describe("Preference Patches - Pin Feed Patches", () => {
   it("should forward entryType to preferences.pinFeed", () => {
     const patchStore = new PatchStore();
     const calls = [];
@@ -411,9 +409,9 @@ t.describe("Preference Patches - Pin Feed Patches", (it) => {
     });
     patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].feedUri, "at://did:test/app.bsky.graph.list/abc");
-    assertEquals(calls[0].type, "list");
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].feedUri, "at://did:test/app.bsky.graph.list/abc");
+    assert.deepEqual(calls[0].type, "list");
   });
 
   it("should pass entryType undefined when patch omits it (default 'feed' applies)", () => {
@@ -433,12 +431,12 @@ t.describe("Preference Patches - Pin Feed Patches", (it) => {
     });
     patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].type, undefined);
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].type, undefined);
   });
 });
 
-t.describe("Preference Patches - Patch Management", (it) => {
+describe("Preference Patches - Patch Management", () => {
   it("should add and remove preference patches", () => {
     const patchStore = new PatchStore();
 
@@ -451,17 +449,17 @@ t.describe("Preference Patches - Patch Management", (it) => {
       did: "did:test2",
     });
 
-    assertEquals(patchStore.$preferencePatches.get().length, 2);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 2);
 
     patchStore.removePreferencePatch(patchId1);
-    assertEquals(patchStore.$preferencePatches.get().length, 1);
-    assertEquals(
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 1);
+    assert.deepEqual(
       patchStore.$preferencePatches.get()[0].body.type,
       "unsubscribeLabeler",
     );
 
     patchStore.removePreferencePatch(patchId2);
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 
   it("should generate unique IDs for preference patches", () => {
@@ -480,7 +478,7 @@ t.describe("Preference Patches - Patch Management", (it) => {
   });
 });
 
-t.describe("Preference Patches - Content Label Patches", (it) => {
+describe("Preference Patches - Content Label Patches", () => {
   it("should apply setContentLabelPref patch correctly", () => {
     const patchStore = new PatchStore();
     const labelerDid = "did:plc:testlabeler";
@@ -504,9 +502,9 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
     });
     const result = patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(result._contentLabelPref.label, label);
-    assertEquals(result._contentLabelPref.visibility, visibility);
-    assertEquals(result._contentLabelPref.labelerDid, labelerDid);
+    assert.deepEqual(result._contentLabelPref.label, label);
+    assert.deepEqual(result._contentLabelPref.visibility, visibility);
+    assert.deepEqual(result._contentLabelPref.labelerDid, labelerDid);
   });
 
   it("should apply multiple content label patches in order", () => {
@@ -538,11 +536,11 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
 
     patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(calls.length, 2);
-    assertEquals(calls[0].label, "nsfw");
-    assertEquals(calls[0].visibility, "warn");
-    assertEquals(calls[1].label, "gore");
-    assertEquals(calls[1].visibility, "hide");
+    assert.deepEqual(calls.length, 2);
+    assert.deepEqual(calls[0].label, "nsfw");
+    assert.deepEqual(calls[0].visibility, "warn");
+    assert.deepEqual(calls[1].label, "gore");
+    assert.deepEqual(calls[1].visibility, "hide");
   });
 
   it("should mix content label patches with labeler patches", () => {
@@ -580,15 +578,15 @@ t.describe("Preference Patches - Content Label Patches", (it) => {
 
     patchStore.applyPreferencePatches(mockPreferences);
 
-    assertEquals(calls.length, 2);
-    assertEquals(calls[0].type, "subscribe");
-    assertEquals(calls[0].did, labelerDid);
-    assertEquals(calls[1].type, "setContentLabelPref");
-    assertEquals(calls[1].label, "nsfw");
+    assert.deepEqual(calls.length, 2);
+    assert.deepEqual(calls[0].type, "subscribe");
+    assert.deepEqual(calls[0].did, labelerDid);
+    assert.deepEqual(calls[1].type, "setContentLabelPref");
+    assert.deepEqual(calls[1].label, "nsfw");
   });
 });
 
-t.describe("Current User Patches", (it) => {
+describe("Current User Patches", () => {
   const baseUser = { did: "did:plc:me", handle: "me.test" };
 
   it("should overlay pinnedPost via setPinnedPost", () => {
@@ -598,7 +596,7 @@ t.describe("Current User Patches", (it) => {
       pinnedPost: { uri: "at://x/y/1", cid: "c1" },
     });
     const patched = patchStore.applyCurrentUserPatches(baseUser);
-    assertEquals(patched.pinnedPost.uri, "at://x/y/1");
+    assert.deepEqual(patched.pinnedPost.uri, "at://x/y/1");
   });
 
   it("should remove pinnedPost via clearPinnedPost", () => {
@@ -606,13 +604,13 @@ t.describe("Current User Patches", (it) => {
     patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
     const user = { ...baseUser, pinnedPost: { uri: "at://x/y/1", cid: "c1" } };
     const patched = patchStore.applyCurrentUserPatches(user);
-    assertEquals(patched.pinnedPost, undefined);
+    assert.deepEqual(patched.pinnedPost, undefined);
   });
 
   it("should return null user unchanged", () => {
     const patchStore = new PatchStore();
     patchStore.addCurrentUserPatch({ type: "clearPinnedPost" });
-    assertEquals(patchStore.applyCurrentUserPatches(null), null);
+    assert.deepEqual(patchStore.applyCurrentUserPatches(null), null);
   });
 
   it("should drop the patch after remove", () => {
@@ -623,11 +621,11 @@ t.describe("Current User Patches", (it) => {
     });
     patchStore.removeCurrentUserPatch(id);
     const patched = patchStore.applyCurrentUserPatches(baseUser);
-    assertEquals(patched.pinnedPost, undefined);
+    assert.deepEqual(patched.pinnedPost, undefined);
   });
 });
 
-t.describe("Author Feed Patches", (it) => {
+describe("Author Feed Patches", () => {
   const feedURI = "did:plc:me-posts";
   const targetPost = {
     uri: "at://did:plc:me/app.bsky.feed.post/p1",
@@ -645,10 +643,13 @@ t.describe("Author Feed Patches", (it) => {
       post: targetPost,
     });
     const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
-    assertEquals(patched.feed[0].post.uri, targetPost.uri);
-    assertEquals(patched.feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
-    assertEquals(patched.feed.length, 2);
-    assertEquals(patched.cursor, "x");
+    assert.deepEqual(patched.feed[0].post.uri, targetPost.uri);
+    assert.deepEqual(
+      patched.feed[0].reason.$type,
+      "app.bsky.feed.defs#reasonPin",
+    );
+    assert.deepEqual(patched.feed.length, 2);
+    assert.deepEqual(patched.cursor, "x");
   });
 
   it("should clear the pin reason on the item via unpinPost", () => {
@@ -667,9 +668,9 @@ t.describe("Author Feed Patches", (it) => {
       post: targetPost,
     });
     const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
-    assertEquals(patched.feed.length, 1);
-    assertEquals(patched.feed[0].post.uri, targetPost.uri);
-    assertEquals(patched.feed[0].reason, undefined);
+    assert.deepEqual(patched.feed.length, 1);
+    assert.deepEqual(patched.feed[0].post.uri, targetPost.uri);
+    assert.deepEqual(patched.feed[0].reason, undefined);
   });
 
   it("should return null feed unchanged", () => {
@@ -678,7 +679,7 @@ t.describe("Author Feed Patches", (it) => {
       type: "pinPost",
       post: targetPost,
     });
-    assertEquals(patchStore.applyAuthorFeedPatches(feedURI, null), null);
+    assert.deepEqual(patchStore.applyAuthorFeedPatches(feedURI, null), null);
   });
 
   it("should drop the patch after remove", () => {
@@ -690,8 +691,6 @@ t.describe("Author Feed Patches", (it) => {
     patchStore.removeAuthorFeedPatch(feedURI, id);
     const feed = { feed: [{ post: targetPost }], cursor: "" };
     const patched = patchStore.applyAuthorFeedPatches(feedURI, feed);
-    assertEquals(patched.feed[0].reason, undefined);
+    assert.deepEqual(patched.feed[0].reason, undefined);
   });
 });
-
-await t.run();

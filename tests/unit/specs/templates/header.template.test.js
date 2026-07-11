@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { render, html } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("headerTemplate");
-
-t.describe("headerTemplate", (it) => {
+describe("headerTemplate", () => {
   it("should render header element", () => {
     const result = headerTemplate({
       title: "Test Title",
@@ -23,11 +21,11 @@ t.describe("headerTemplate", (it) => {
     render(result, container);
     const title = container.querySelector("[data-testid='header-title']");
     assert(title !== null);
-    assertEquals(title.textContent, "Test Title");
+    assert.deepEqual(title.textContent, "Test Title");
   });
 });
 
-t.describe("headerTemplate - subtitle", (it) => {
+describe("headerTemplate - subtitle", () => {
   it("should render subtitle when provided", () => {
     const result = headerTemplate({
       title: "Test Title",
@@ -37,7 +35,7 @@ t.describe("headerTemplate - subtitle", (it) => {
     render(result, container);
     const subtitle = container.querySelector("[data-testid='header-subtitle']");
     assert(subtitle !== null);
-    assertEquals(subtitle.textContent, "Test Subtitle");
+    assert.deepEqual(subtitle.textContent, "Test Subtitle");
   });
 
   it("should not render subtitle when not provided", () => {
@@ -46,14 +44,14 @@ t.describe("headerTemplate - subtitle", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='header-subtitle']"),
       null,
     );
   });
 });
 
-t.describe("headerTemplate - avatar", (it) => {
+describe("headerTemplate - avatar", () => {
   it("should render avatar when avatarTemplate is provided", () => {
     const result = headerTemplate({
       title: "Test Title",
@@ -70,11 +68,11 @@ t.describe("headerTemplate - avatar", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".test-avatar"), null);
+    assert.deepEqual(container.querySelector(".test-avatar"), null);
   });
 });
 
-t.describe("headerTemplate - left button", (it) => {
+describe("headerTemplate - left button", () => {
   it("should render back button by default", () => {
     const result = headerTemplate({
       title: "Test Title",
@@ -92,7 +90,10 @@ t.describe("headerTemplate - left button", (it) => {
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='menu-button']") !== null);
-    assertEquals(container.querySelector("[data-testid='back-button']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='back-button']"),
+      null,
+    );
   });
 
   it("should call onClickMenuButton when menu button is clicked", () => {
@@ -111,14 +112,14 @@ t.describe("headerTemplate - left button", (it) => {
   });
 });
 
-t.describe("headerTemplate - loading spinner", (it) => {
+describe("headerTemplate - loading spinner", () => {
   it("should not render loading spinner by default", () => {
     const result = headerTemplate({
       title: "Test Title",
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='loading-spinner']"),
       null,
     );
@@ -135,7 +136,7 @@ t.describe("headerTemplate - loading spinner", (it) => {
   });
 });
 
-t.describe("headerTemplate - right item", (it) => {
+describe("headerTemplate - right item", () => {
   it("should render right item when rightItemTemplate is provided", () => {
     const result = headerTemplate({
       title: "Test Title",
@@ -146,7 +147,7 @@ t.describe("headerTemplate - right item", (it) => {
     render(result, container);
     const rightItem = container.querySelector(".right-action");
     assert(rightItem !== null);
-    assertEquals(rightItem.textContent, "Action");
+    assert.deepEqual(rightItem.textContent, "Action");
   });
 
   it("should not render right item by default", () => {
@@ -155,8 +156,6 @@ t.describe("headerTemplate - right item", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".right-action"), null);
+    assert.deepEqual(container.querySelector(".right-action"), null);
   });
 });
-
-await t.run();

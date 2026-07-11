@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("unavailablePostTemplate");
-
-t.describe("unavailablePostTemplate", (it) => {
+describe("unavailablePostTemplate", () => {
   it("should display 'Post unavailable' text", () => {
     const result = unavailablePostTemplate();
     const container = document.createElement("div");
@@ -23,5 +21,3 @@ t.describe("unavailablePostTemplate", (it) => {
     assert(indicator.querySelector(".info-icon") !== null);
   });
 });
-
-await t.run();

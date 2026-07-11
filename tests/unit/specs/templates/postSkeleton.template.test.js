@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("postSkeletonTemplate");
-
-t.describe("postSkeletonTemplate", (it) => {
+describe("postSkeletonTemplate", () => {
   it("should render skeleton", () => {
     const result = postSkeletonTemplate();
     const container = document.createElement("div");
@@ -36,5 +34,3 @@ t.describe("postSkeletonTemplate", (it) => {
     assert(actions.length === 3);
   });
 });
-
-await t.run();

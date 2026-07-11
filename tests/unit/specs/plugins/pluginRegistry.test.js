@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assertEquals } from "../../testHelpers.js";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   RemotePluginRegistry,
   LocalPluginRegistry,
@@ -53,9 +53,7 @@ function stubFetch(payloadsByUrl) {
   return { calls, restore };
 }
 
-const t = new TestSuite("pluginRegistry");
-
-t.describe("RemotePluginRegistry.getListings", (it, { afterEach }) => {
+describe("RemotePluginRegistry.getListings", () => {
   let stub;
   afterEach(() => stub?.restore());
 
@@ -63,7 +61,7 @@ t.describe("RemotePluginRegistry.getListings", (it, { afterEach }) => {
     stub = stubFetch({ [REGISTRY_URL]: SAMPLE });
     const registry = new RemotePluginRegistry(REGISTRY_URL);
     const listings = await registry.getListings();
-    assertEquals(listings, SAMPLE);
+    assert.deepEqual(listings, SAMPLE);
   });
 
   it("caches listings within TTL", async () => {
@@ -71,7 +69,7 @@ t.describe("RemotePluginRegistry.getListings", (it, { afterEach }) => {
     const registry = new RemotePluginRegistry(REGISTRY_URL);
     await registry.getListings();
     await registry.getListings();
-    assertEquals(stub.calls.length, 1);
+    assert.deepEqual(stub.calls.length, 1);
   });
 
   it("throws when the remote responds with an error status", async () => {
@@ -83,11 +81,11 @@ t.describe("RemotePluginRegistry.getListings", (it, { afterEach }) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught?.message, "registry HTTP 404");
+    assert.deepEqual(caught?.message, "registry HTTP 404");
   });
 });
 
-t.describe("RemotePluginRegistry.getListing", (it, { afterEach }) => {
+describe("RemotePluginRegistry.getListing", () => {
   let stub;
   afterEach(() => stub?.restore());
 
@@ -95,17 +93,17 @@ t.describe("RemotePluginRegistry.getListing", (it, { afterEach }) => {
     stub = stubFetch({ [REGISTRY_URL]: SAMPLE });
     const registry = new RemotePluginRegistry(REGISTRY_URL);
     const listing = await registry.getListing("beta");
-    assertEquals(listing.repo, "ow/beta");
+    assert.deepEqual(listing.repo, "ow/beta");
   });
 
   it("returns null when id is not in the registry", async () => {
     stub = stubFetch({ [REGISTRY_URL]: SAMPLE });
     const registry = new RemotePluginRegistry(REGISTRY_URL);
-    assertEquals(await registry.getListing("missing"), null);
+    assert.deepEqual(await registry.getListing("missing"), null);
   });
 });
 
-t.describe("LocalPluginRegistry", (it, { afterEach }) => {
+describe("LocalPluginRegistry", () => {
   let stub;
   afterEach(() => stub?.restore());
 
@@ -116,21 +114,21 @@ t.describe("LocalPluginRegistry", (it, { afterEach }) => {
   it("returns listings from the local index", async () => {
     stub = stubFetch({ [LOCAL_INDEX_URL]: LOCAL_SAMPLE });
     const registry = new LocalPluginRegistry();
-    assertEquals(await registry.getListings(), LOCAL_SAMPLE);
-    assertEquals(stub.calls, [LOCAL_INDEX_URL]);
+    assert.deepEqual(await registry.getListings(), LOCAL_SAMPLE);
+    assert.deepEqual(stub.calls, [LOCAL_INDEX_URL]);
   });
 
   it("getListing returns the matching listing", async () => {
     stub = stubFetch({ [LOCAL_INDEX_URL]: LOCAL_SAMPLE });
     const registry = new LocalPluginRegistry();
     const listing = await registry.getListing("gamma");
-    assertEquals(listing.name, "Gamma");
+    assert.deepEqual(listing.name, "Gamma");
   });
 
   it("getListing returns null when id is missing", async () => {
     stub = stubFetch({ [LOCAL_INDEX_URL]: LOCAL_SAMPLE });
     const registry = new LocalPluginRegistry();
-    assertEquals(await registry.getListing("missing"), null);
+    assert.deepEqual(await registry.getListing("missing"), null);
   });
 
   it("throws when the local index is not available", async () => {
@@ -142,8 +140,6 @@ t.describe("LocalPluginRegistry", (it, { afterEach }) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught?.message, "local registry HTTP 404");
+    assert.deepEqual(caught?.message, "local registry HTTP 404");
   });
 });
-
-await t.run();

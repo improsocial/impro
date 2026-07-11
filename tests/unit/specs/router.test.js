@@ -1,13 +1,11 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals, mock } from "../testHelpers.js";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
 import { Router } from "/js/router.js";
 
-const t = new TestSuite("Router");
-
-t.describe("constructor and initialization", (it) => {
+describe("constructor and initialization", () => {
   it("should initialize with empty routes", () => {
     const router = new Router();
-    assertEquals(Object.keys(router.routes).length, 0);
+    assert.deepEqual(Object.keys(router.routes).length, 0);
   });
 
   it("should initialize with default notFoundView", () => {
@@ -17,42 +15,42 @@ t.describe("constructor and initialization", (it) => {
 
   it("should initialize with null container", () => {
     const router = new Router();
-    assertEquals(router.container, null);
+    assert.deepEqual(router.container, null);
   });
 });
 
-t.describe("addRoute", (it) => {
+describe("addRoute", () => {
   it("should add a route with viewGetter", () => {
     const router = new Router();
     const viewGetter = () => "view";
     router.addRoute("/test", viewGetter);
     assert(router.routes["/test"]);
-    assertEquals(router.routes["/test"].viewGetter, viewGetter);
+    assert.deepEqual(router.routes["/test"].viewGetter, viewGetter);
   });
 
   it("should add multiple routes", () => {
     const router = new Router();
     router.addRoute("/path1", () => {});
     router.addRoute("/path2", () => {});
-    assertEquals(Object.keys(router.routes).length, 2);
+    assert.deepEqual(Object.keys(router.routes).length, 2);
   });
 });
 
-t.describe("setNotFoundView", (it) => {
+describe("setNotFoundView", () => {
   it("should set notFoundView function", () => {
     const router = new Router();
     const notFoundView = () => "404";
     router.setNotFoundView(notFoundView);
-    assertEquals(router.notFoundView, notFoundView);
+    assert.deepEqual(router.notFoundView, notFoundView);
   });
 });
 
-t.describe("mount", (it) => {
+describe("mount", () => {
   it("should set container", () => {
     const router = new Router();
     const container = document.createElement("div");
     router.mount(container);
-    assertEquals(router.container, container);
+    assert.deepEqual(router.container, container);
   });
 
   it("should clear pre-existing container contents", () => {
@@ -60,24 +58,24 @@ t.describe("mount", (it) => {
     const container = document.createElement("div");
     container.innerHTML = "<p>stale ssr/loading markup</p>";
     router.mount(container);
-    assertEquals(container.innerHTML, "");
+    assert.deepEqual(container.innerHTML, "");
   });
 });
 
-t.describe("matchPath (static method)", (it) => {
+describe("matchPath (static method)", () => {
   it("should match exact path", () => {
     const params = Router.matchPath("/test", "/test");
-    assertEquals(params, {});
+    assert.deepEqual(params, {});
   });
 
   it("should return null for non-matching paths", () => {
     const params = Router.matchPath("/test", "/other");
-    assertEquals(params, null);
+    assert.deepEqual(params, null);
   });
 
   it("should extract single parameter", () => {
     const params = Router.matchPath("/user/john", "/user/:name");
-    assertEquals(params, { name: "john" });
+    assert.deepEqual(params, { name: "john" });
   });
 
   it("should extract multiple parameters", () => {
@@ -85,27 +83,30 @@ t.describe("matchPath (static method)", (it) => {
       "/profile/gracekind.net/post/3lykznxiikc2k",
       "/profile/:handle/post/:rkey",
     );
-    assertEquals(params, { handle: "gracekind.net", rkey: "3lykznxiikc2k" });
+    assert.deepEqual(params, {
+      handle: "gracekind.net",
+      rkey: "3lykznxiikc2k",
+    });
   });
 
   it("should return null for different path lengths", () => {
     const params = Router.matchPath("/test/extra", "/test");
-    assertEquals(params, null);
+    assert.deepEqual(params, null);
   });
 
   it("should handle empty path segments", () => {
     const params = Router.matchPath("/", "/");
-    assertEquals(params, {});
+    assert.deepEqual(params, {});
   });
 
   it("should match path with parameter at start", () => {
     const params = Router.matchPath("/john/profile", "/:name/profile");
-    assertEquals(params, { name: "john" });
+    assert.deepEqual(params, { name: "john" });
   });
 
   it("should decode percent-encoded path parameters", () => {
     const params = Router.matchPath("/hashtag/hello%20world", "/hashtag/:tag");
-    assertEquals(params, { tag: "hello world" });
+    assert.deepEqual(params, { tag: "hello world" });
   });
 
   it("should decode encoded slashes in parameters", () => {
@@ -113,7 +114,7 @@ t.describe("matchPath (static method)", (it) => {
       "/profile/alice%2Fevil/post/abc123",
       "/profile/:handle/post/:rkey",
     );
-    assertEquals(params, { handle: "alice/evil", rkey: "abc123" });
+    assert.deepEqual(params, { handle: "alice/evil", rkey: "abc123" });
   });
 
   it("should preserve colons in DID parameters", () => {
@@ -121,19 +122,19 @@ t.describe("matchPath (static method)", (it) => {
       "/profile/did:plc:abc123/post/key456",
       "/profile/:handle/post/:rkey",
     );
-    assertEquals(params, { handle: "did:plc:abc123", rkey: "key456" });
+    assert.deepEqual(params, { handle: "did:plc:abc123", rkey: "key456" });
   });
 });
 
-t.describe("match", (it) => {
+describe("match", () => {
   it("should match existing route", () => {
     const router = new Router();
     const viewGetter = () => "view";
     router.addRoute("/test", viewGetter);
     const result = router.match("/test");
-    assertEquals(result.route, "/test");
-    assertEquals(result.viewGetter, viewGetter);
-    assertEquals(result.params, {});
+    assert.deepEqual(result.route, "/test");
+    assert.deepEqual(result.viewGetter, viewGetter);
+    assert.deepEqual(result.params, {});
   });
 
   it("should match route with parameters", () => {
@@ -141,8 +142,8 @@ t.describe("match", (it) => {
     const viewGetter = () => "view";
     router.addRoute("/user/:id", viewGetter);
     const result = router.match("/user/123");
-    assertEquals(result.route, "/user/:id");
-    assertEquals(result.params, { id: "123" });
+    assert.deepEqual(result.route, "/user/:id");
+    assert.deepEqual(result.params, { id: "123" });
   });
 
   it("should return notFoundView for non-matching path", () => {
@@ -150,9 +151,9 @@ t.describe("match", (it) => {
     const notFoundView = () => "404";
     router.setNotFoundView(notFoundView);
     const result = router.match("/nonexistent");
-    assertEquals(result.route, null);
-    assertEquals(result.viewGetter, notFoundView);
-    assertEquals(result.params, {});
+    assert.deepEqual(result.route, null);
+    assert.deepEqual(result.viewGetter, notFoundView);
+    assert.deepEqual(result.params, {});
   });
 
   it("should match first matching route", () => {
@@ -162,20 +163,20 @@ t.describe("match", (it) => {
     router.addRoute("/user/:id", view1);
     router.addRoute("/user/:name", view2);
     const result = router.match("/user/123");
-    assertEquals(result.viewGetter, view1);
+    assert.deepEqual(result.viewGetter, view1);
   });
 });
 
-t.describe("renderRoute", (it) => {
+describe("renderRoute", () => {
   it("should set renderFunc", () => {
     const router = new Router();
     const renderFunc = () => {};
     router.renderRoute(renderFunc);
-    assertEquals(router.renderFunc, renderFunc);
+    assert.deepEqual(router.renderFunc, renderFunc);
   });
 });
 
-t.describe("popstate", (it) => {
+describe("popstate", () => {
   // Capture the Router's popstate handler rather than dispatching a global
   // popstate event, since previously-created Router instances in other tests
   // also have popstate listeners on window and would fire here.
@@ -199,12 +200,12 @@ t.describe("popstate", (it) => {
     const container = document.createElement("div");
     router.mount(container);
 
-    const listener = mock();
+    const listener = mock.fn();
     router.on("navigate", listener);
 
     await popstateHandler(new Event("popstate"));
 
-    assertEquals(listener.calls.length, 1);
+    assert.deepEqual(listener.mock.callCount(), 1);
   });
 
   it("should emit navigate before loading the new page", async () => {
@@ -218,7 +219,7 @@ t.describe("popstate", (it) => {
 
     await popstateHandler(new Event("popstate"));
 
-    assertEquals(order[0], "navigate");
+    assert.deepEqual(order[0], "navigate");
   });
 
   it("restores a query-bearing page from cache on back navigation", async () => {
@@ -257,7 +258,7 @@ t.describe("popstate", (it) => {
   });
 });
 
-t.describe("load", (it) => {
+describe("load", () => {
   it("should load route and render view", async () => {
     const router = new Router();
     const container = document.createElement("div");
@@ -277,8 +278,8 @@ t.describe("load", (it) => {
     await router.load("/test");
 
     assert(renderCalled);
-    assertEquals(renderArgs.view, view);
-    assertEquals(renderArgs.params, {});
+    assert.deepEqual(renderArgs.view, view);
+    assert.deepEqual(renderArgs.params, {});
     assert(renderArgs.container);
     assert(container.contains(renderArgs.container));
   });
@@ -297,11 +298,11 @@ t.describe("load", (it) => {
 
     await router.load("/user/123");
 
-    assertEquals(receivedParams, { id: "123" });
+    assert.deepEqual(receivedParams, { id: "123" });
   });
 });
 
-t.describe("go", (it) => {
+describe("go", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
   const originalState = window.history.state;
@@ -322,8 +323,8 @@ t.describe("go", (it) => {
       window.history.replaceState(originalState, "", originalPath);
     }
 
-    assertEquals(order[0], "navigate");
-    assertEquals(order[1], "page-shown");
+    assert.deepEqual(order[0], "navigate");
+    assert.deepEqual(order[1], "page-shown");
   });
 
   it("should store the previous route in history state", async () => {
@@ -336,8 +337,8 @@ t.describe("go", (it) => {
 
     try {
       await router.go("/go-prev-test");
-      assertEquals(window.history.state?.previousRoute, "/starting-path");
-      assertEquals(window.location.pathname, "/go-prev-test");
+      assert.deepEqual(window.history.state?.previousRoute, "/starting-path");
+      assert.deepEqual(window.location.pathname, "/go-prev-test");
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
@@ -354,16 +355,16 @@ t.describe("go", (it) => {
 
     try {
       await router.go("/go-replace-test", { replace: true });
-      assertEquals(window.location.pathname, "/go-replace-test");
-      assertEquals(window.history.length, lengthBefore);
-      assertEquals(window.history.state?.previousRoute, undefined);
+      assert.deepEqual(window.location.pathname, "/go-replace-test");
+      assert.deepEqual(window.history.length, lengthBefore);
+      assert.deepEqual(window.history.state?.previousRoute, undefined);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
   });
 });
 
-t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
+describe("modifier-click navigation", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
   const originalState = window.history.state;
@@ -372,7 +373,7 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
   let button;
 
   beforeEach(() => {
-    openMock = mock();
+    openMock = mock.fn();
     window.open = openMock;
     button = document.createElement("button");
     document.body.appendChild(button);
@@ -401,10 +402,14 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ metaKey: true });
 
-    assertEquals(openMock.calls.length, 1);
-    assertEquals(openMock.calls[0], ["/meta-test", "_blank", "noopener"]);
-    assertEquals(navigated, false);
-    assertEquals(window.location.pathname, "/starting-path");
+    assert.deepEqual(openMock.mock.callCount(), 1);
+    assert.deepEqual(openMock.mock.calls[0].arguments, [
+      "/meta-test",
+      "_blank",
+      "noopener",
+    ]);
+    assert.deepEqual(navigated, false);
+    assert.deepEqual(window.location.pathname, "/starting-path");
   });
 
   it("should open in a new tab on ctrl+click", () => {
@@ -413,7 +418,10 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ ctrlKey: true });
 
-    assertEquals(openMock.calls, [["/ctrl-test", "_blank", "noopener"]]);
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/ctrl-test", "_blank", "noopener"]],
+    );
   });
 
   it("should navigate normally on unmodified click", () => {
@@ -425,8 +433,8 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click();
 
-    assertEquals(openMock.calls.length, 0);
-    assertEquals(window.location.pathname, "/plain-test");
+    assert.deepEqual(openMock.mock.callCount(), 0);
+    assert.deepEqual(window.location.pathname, "/plain-test");
   });
 
   it("should open in a new tab on cmd+Enter", () => {
@@ -437,7 +445,10 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
       new KeyboardEvent("keydown", { key: "Enter", metaKey: true }),
     );
 
-    assertEquals(openMock.calls, [["/enter-test", "_blank", "noopener"]]);
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/enter-test", "_blank", "noopener"]],
+    );
   });
 
   it("should navigate normally when metaKey is held on a non-Enter key", () => {
@@ -451,8 +462,8 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
       new KeyboardEvent("keydown", { key: "k", metaKey: true }),
     );
 
-    assertEquals(openMock.calls.length, 0);
-    assertEquals(window.location.pathname, "/keyboard-test");
+    assert.deepEqual(openMock.mock.callCount(), 0);
+    assert.deepEqual(window.location.pathname, "/keyboard-test");
   });
 
   it("should open the previous route in a new tab on cmd+click of back", () => {
@@ -462,8 +473,11 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ metaKey: true });
 
-    assertEquals(openMock.calls, [["/prior-path", "_blank", "noopener"]]);
-    assertEquals(window.location.pathname, "/here");
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/prior-path", "_blank", "noopener"]],
+    );
+    assert.deepEqual(window.location.pathname, "/here");
   });
 
   it("should open home in a new tab on cmd+click of back without history", () => {
@@ -473,11 +487,14 @@ t.describe("modifier-click navigation", (it, { beforeEach, afterEach }) => {
 
     click({ metaKey: true });
 
-    assertEquals(openMock.calls, [["/", "_blank", "noopener"]]);
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/", "_blank", "noopener"]],
+    );
   });
 });
 
-t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
+describe("middle-click navigation", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
   const originalState = window.history.state;
@@ -486,7 +503,7 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
   let button;
 
   beforeEach(() => {
-    openMock = mock();
+    openMock = mock.fn();
     window.open = openMock;
     button = document.createElement("button");
     document.body.appendChild(button);
@@ -517,9 +534,12 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
 
     middleClick(button);
 
-    assertEquals(openMock.calls, [["/middle-test", "_blank", "noopener"]]);
-    assertEquals(navigated, false);
-    assertEquals(window.location.pathname, "/starting-path");
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/middle-test", "_blank", "noopener"]],
+    );
+    assert.deepEqual(navigated, false);
+    assert.deepEqual(window.location.pathname, "/starting-path");
   });
 
   it("should open the previous route in a new tab on middle click of back", () => {
@@ -529,19 +549,22 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
 
     middleClick(button);
 
-    assertEquals(openMock.calls, [["/prior-path", "_blank", "noopener"]]);
-    assertEquals(window.location.pathname, "/here");
+    assert.deepEqual(
+      openMock.mock.calls.map((call) => call.arguments),
+      [["/prior-path", "_blank", "noopener"]],
+    );
+    assert.deepEqual(window.location.pathname, "/here");
   });
 
   it("should ignore auxclicks from non-middle buttons", () => {
     new Router();
-    const clickHandler = mock();
+    const clickHandler = mock.fn();
     button.addEventListener("click", clickHandler);
 
     middleClick(button, { button: 2 });
 
-    assertEquals(clickHandler.calls.length, 0);
-    assertEquals(openMock.calls.length, 0);
+    assert.deepEqual(clickHandler.mock.callCount(), 0);
+    assert.deepEqual(openMock.mock.callCount(), 0);
   });
 
   it("should leave middle clicks on anchors to native handling", () => {
@@ -549,29 +572,29 @@ t.describe("middle-click navigation", (it, { beforeEach, afterEach }) => {
     const anchor = document.createElement("a");
     anchor.href = "/native-link";
     button.appendChild(anchor);
-    const clickHandler = mock();
+    const clickHandler = mock.fn();
     button.addEventListener("click", clickHandler);
 
     middleClick(anchor);
 
-    assertEquals(clickHandler.calls.length, 0);
-    assertEquals(openMock.calls.length, 0);
+    assert.deepEqual(clickHandler.mock.callCount(), 0);
+    assert.deepEqual(openMock.mock.callCount(), 0);
   });
 
   it("should not re-dispatch when the auxclick default is prevented", () => {
     new Router();
     button.addEventListener("auxclick", (event) => event.preventDefault());
-    const clickHandler = mock();
+    const clickHandler = mock.fn();
     button.addEventListener("click", clickHandler);
 
     middleClick(button, { cancelable: true });
 
-    assertEquals(clickHandler.calls.length, 0);
-    assertEquals(openMock.calls.length, 0);
+    assert.deepEqual(clickHandler.mock.callCount(), 0);
+    assert.deepEqual(openMock.mock.callCount(), 0);
   });
 });
 
-t.describe("previousRoute", (it) => {
+describe("previousRoute", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
   const originalState = window.history.state;
@@ -580,7 +603,7 @@ t.describe("previousRoute", (it) => {
     const router = new Router();
     window.history.replaceState(null, "", originalPath);
     try {
-      assertEquals(router.previousRoute, null);
+      assert.deepEqual(router.previousRoute, null);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
@@ -594,7 +617,7 @@ t.describe("previousRoute", (it) => {
       originalPath,
     );
     try {
-      assertEquals(router.previousRoute, "/some/prior/path");
+      assert.deepEqual(router.previousRoute, "/some/prior/path");
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
@@ -610,14 +633,14 @@ t.describe("previousRoute", (it) => {
 
     try {
       await router.go("/prev-getter-test");
-      assertEquals(router.previousRoute, "/origin-path");
+      assert.deepEqual(router.previousRoute, "/origin-path");
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
   });
 });
 
-t.describe("back", (it) => {
+describe("back", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
   const originalState = window.history.state;
@@ -661,7 +684,7 @@ t.describe("back", (it) => {
     try {
       await router.back();
       assert(!backCalled);
-      assertEquals(window.location.pathname, "/");
+      assert.deepEqual(window.location.pathname, "/");
     } finally {
       window.history.back = originalBack;
       window.history.replaceState(originalState, "", originalPath);
@@ -678,7 +701,7 @@ t.describe("back", (it) => {
 
     try {
       await router.back({ fallbackRoute: "/messages" });
-      assertEquals(window.location.pathname, "/messages");
+      assert.deepEqual(window.location.pathname, "/messages");
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
@@ -701,7 +724,7 @@ t.describe("back", (it) => {
     try {
       await router.back({ fallbackRoute: "/messages" });
       assert(backCalled);
-      assertEquals(window.location.pathname, pathBefore);
+      assert.deepEqual(window.location.pathname, pathBefore);
     } finally {
       window.history.back = originalBack;
       window.history.replaceState(originalState, "", originalPath);
@@ -719,16 +742,16 @@ t.describe("back", (it) => {
 
     try {
       await router.back({ fallbackRoute: "/messages" });
-      assertEquals(window.location.pathname, "/messages");
-      assertEquals(window.history.length, lengthBefore);
-      assertEquals(router.previousRoute, null);
+      assert.deepEqual(window.location.pathname, "/messages");
+      assert.deepEqual(window.history.length, lengthBefore);
+      assert.deepEqual(router.previousRoute, null);
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
   });
 });
 
-t.describe("scroll position persistence", (it) => {
+describe("scroll position persistence", () => {
   // JSDOM's window.scrollY is a read-only getter, so temporarily override it to
   // simulate the page being scrolled before we navigate away.
   function withScrollY(value, callback) {
@@ -766,7 +789,7 @@ t.describe("scroll position persistence", (it) => {
 
     await withScrollY(250, () => router.load("/b"));
 
-    assertEquals(router.scrollStates.get("/a"), 250);
+    assert.deepEqual(router.scrollStates.get("/a"), 250);
   });
 
   it("does not record a scroll position on the very first load", async () => {
@@ -774,7 +797,7 @@ t.describe("scroll position persistence", (it) => {
 
     await withScrollY(250, () => router.load("/a"));
 
-    assertEquals(router.scrollStates.has("/a"), false);
+    assert.deepEqual(router.scrollStates.has("/a"), false);
   });
 
   it("restores the saved scroll position via the page-restore event", async () => {
@@ -792,8 +815,6 @@ t.describe("scroll position persistence", (it) => {
       await router.load("/a"); // returning to cached /a restores it
     });
 
-    assertEquals(restoredScrollY, 175);
+    assert.deepEqual(restoredScrollY, 175);
   });
 });
-
-await t.run();

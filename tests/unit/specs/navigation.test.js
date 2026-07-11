@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   linkToHashtag,
   linkToProfile,
@@ -19,83 +19,87 @@ import {
   linkToLogin,
 } from "/js/navigation.js";
 
-const t = new TestSuite("navigation");
-
-t.describe("linkToHashtag", (it) => {
+describe("linkToHashtag", () => {
   it("should return correct hashtag link", () => {
-    assertEquals(linkToHashtag("coding"), "/hashtag/coding");
+    assert.deepEqual(linkToHashtag("coding"), "/hashtag/coding");
   });
 
   it("should handle hashtag with numbers", () => {
-    assertEquals(linkToHashtag("test123"), "/hashtag/test123");
+    assert.deepEqual(linkToHashtag("test123"), "/hashtag/test123");
   });
 
   it("should handle hashtag with underscores", () => {
-    assertEquals(linkToHashtag("hello_world"), "/hashtag/hello_world");
+    assert.deepEqual(linkToHashtag("hello_world"), "/hashtag/hello_world");
   });
 });
 
-t.describe("linkToProfile", (it) => {
+describe("linkToProfile", () => {
   it("should return profile link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
-    assertEquals(linkToProfile(profile), "/profile/bob.bsky.social");
+    assert.deepEqual(linkToProfile(profile), "/profile/bob.bsky.social");
   });
 
   it("falls back to did when handle is handle.invalid", () => {
     const profile = { handle: "handle.invalid", did: "did:plc:bob" };
-    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+    assert.deepEqual(linkToProfile(profile), "/profile/did:plc:bob");
   });
 
   it("falls back to did when handle is missing.invalid", () => {
     const profile = { handle: "missing.invalid", did: "did:plc:bob" };
-    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+    assert.deepEqual(linkToProfile(profile), "/profile/did:plc:bob");
   });
 
   it("falls back to did when handle is absent", () => {
     const profile = { did: "did:plc:bob" };
-    assertEquals(linkToProfile(profile), "/profile/did:plc:bob");
+    assert.deepEqual(linkToProfile(profile), "/profile/did:plc:bob");
   });
 });
 
-t.describe("linkToProfileByDid", (it) => {
+describe("linkToProfileByDid", () => {
   it("returns a profile link for the given did", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfileByDid("did:plc:abc123"),
       "/profile/did:plc:abc123",
     );
   });
 
   it("preserves colons in the did", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfileByDid("did:web:example.com"),
       "/profile/did:web:example.com",
     );
   });
 });
 
-t.describe("linkToLabeler", (it) => {
+describe("linkToLabeler", () => {
   it("should return profile link for labeler creator", () => {
     const labeler = {
       creator: { handle: "labeler.bsky.social", did: "did:plc:labeler" },
     };
-    assertEquals(linkToLabeler(labeler), "/profile/labeler.bsky.social");
+    assert.deepEqual(linkToLabeler(labeler), "/profile/labeler.bsky.social");
   });
 
   it("should handle labeler with different handle", () => {
     const labeler = {
       creator: { handle: "moderation-service.test", did: "did:plc:mod" },
     };
-    assertEquals(linkToLabeler(labeler), "/profile/moderation-service.test");
+    assert.deepEqual(
+      linkToLabeler(labeler),
+      "/profile/moderation-service.test",
+    );
   });
 });
 
-t.describe("linkToPost", (it) => {
+describe("linkToPost", () => {
   it("should return correct post link", () => {
     const post = {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(linkToPost(post), "/profile/alice.bsky.social/post/abc123");
+    assert.deepEqual(
+      linkToPost(post),
+      "/profile/alice.bsky.social/post/abc123",
+    );
   });
 
   it("should handle different rkeys", () => {
@@ -103,7 +107,7 @@ t.describe("linkToPost", (it) => {
       uri: "at://did:plc:bob/app.bsky.feed.post/xyz789",
       author: { handle: "bob.test" },
     };
-    assertEquals(linkToPost(post), "/profile/bob.test/post/xyz789");
+    assert.deepEqual(linkToPost(post), "/profile/bob.test/post/xyz789");
   });
 
   it("falls back to author did when handle is invalid", () => {
@@ -111,14 +115,14 @@ t.describe("linkToPost", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "handle.invalid", did: "did:plc:alice" },
     };
-    assertEquals(linkToPost(post), "/profile/did:plc:alice/post/abc123");
+    assert.deepEqual(linkToPost(post), "/profile/did:plc:alice/post/abc123");
   });
 });
 
-t.describe("linkToPostFromUri", (it) => {
+describe("linkToPostFromUri", () => {
   it("should return correct post link from URI", () => {
     const uri = "at://did:plc:alice123/app.bsky.feed.post/postkey456";
-    assertEquals(
+    assert.deepEqual(
       linkToPostFromUri(uri),
       "/profile/did:plc:alice123/post/postkey456",
     );
@@ -126,56 +130,56 @@ t.describe("linkToPostFromUri", (it) => {
 
   it("should handle different DIDs", () => {
     const uri = "at://did:web:example.com/app.bsky.feed.post/key";
-    assertEquals(
+    assert.deepEqual(
       linkToPostFromUri(uri),
       "/profile/did:web:example.com/post/key",
     );
   });
 });
 
-t.describe("linkToPostLikes", (it) => {
+describe("linkToPostLikes", () => {
   it("should return correct likes link", () => {
     const post = {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       linkToPostLikes(post),
       "/profile/alice.bsky.social/post/abc123/likes",
     );
   });
 });
 
-t.describe("linkToPostQuotes", (it) => {
+describe("linkToPostQuotes", () => {
   it("should return correct quotes link", () => {
     const post = {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       linkToPostQuotes(post),
       "/profile/alice.bsky.social/post/abc123/quotes",
     );
   });
 });
 
-t.describe("linkToPostReposts", (it) => {
+describe("linkToPostReposts", () => {
   it("should return correct reposts link", () => {
     const post = {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       linkToPostReposts(post),
       "/profile/alice.bsky.social/post/abc123/reposts",
     );
   });
 });
 
-t.describe("linkToProfileFollowers", (it) => {
+describe("linkToProfileFollowers", () => {
   it("should return followers link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowers(profile),
       "/profile/bob.bsky.social/followers",
     );
@@ -183,17 +187,17 @@ t.describe("linkToProfileFollowers", (it) => {
 
   it("falls back to did when handle is invalid", () => {
     const profile = { handle: "handle.invalid", did: "did:plc:bob" };
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowers(profile),
       "/profile/did:plc:bob/followers",
     );
   });
 });
 
-t.describe("linkToProfileFollowing", (it) => {
+describe("linkToProfileFollowing", () => {
   it("should return following link from profile object", () => {
     const profile = { handle: "bob.bsky.social", did: "did:plc:bob" };
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowing(profile),
       "/profile/bob.bsky.social/following",
     );
@@ -201,20 +205,20 @@ t.describe("linkToProfileFollowing", (it) => {
 
   it("falls back to did when handle is invalid", () => {
     const profile = { handle: "handle.invalid", did: "did:plc:bob" };
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowing(profile),
       "/profile/did:plc:bob/following",
     );
   });
 });
 
-t.describe("linkToFeed", (it) => {
+describe("linkToFeed", () => {
   it("should return correct feed link", () => {
     const feedGenerator = {
       uri: "at://did:plc:feedcreator/app.bsky.feed.generator/myfeed",
       creator: { handle: "feedcreator.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       linkToFeed(feedGenerator),
       "/profile/feedcreator.bsky.social/feed/myfeed",
     );
@@ -225,24 +229,24 @@ t.describe("linkToFeed", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.generator/trending",
       creator: { handle: "alice.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       linkToFeed(feedGenerator),
       "/profile/alice.bsky.social/feed/trending",
     );
   });
 });
 
-t.describe("path segment encoding", (it) => {
+describe("path segment encoding", () => {
   it("should encode slashes in hashtags", () => {
-    assertEquals(linkToHashtag("test/tag"), "/hashtag/test%2Ftag");
+    assert.deepEqual(linkToHashtag("test/tag"), "/hashtag/test%2Ftag");
   });
 
   it("should encode spaces in hashtags", () => {
-    assertEquals(linkToHashtag("hello world"), "/hashtag/hello%20world");
+    assert.deepEqual(linkToHashtag("hello world"), "/hashtag/hello%20world");
   });
 
   it("should preserve colons in DIDs", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfileByDid("did:plc:abc123"),
       "/profile/did:plc:abc123",
     );
@@ -250,25 +254,25 @@ t.describe("path segment encoding", (it) => {
 
   it("should preserve colons in DID-based post URIs", () => {
     const uri = "at://did:plc:alice123/app.bsky.feed.post/key456";
-    assertEquals(
+    assert.deepEqual(
       linkToPostFromUri(uri),
       "/profile/did:plc:alice123/post/key456",
     );
   });
 
   it("should preserve at signs in handles", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfile({ handle: "@alice.bsky.social" }),
       "/profile/@alice.bsky.social",
     );
   });
 
   it("should encode question marks in path segments", () => {
-    assertEquals(linkToHashtag("test?q=1"), "/hashtag/test%3Fq%3D1");
+    assert.deepEqual(linkToHashtag("test?q=1"), "/hashtag/test%3Fq%3D1");
   });
 
   it("should encode hash characters in path segments", () => {
-    assertEquals(linkToHashtag("test#tag"), "/hashtag/test%23tag");
+    assert.deepEqual(linkToHashtag("test#tag"), "/hashtag/test%23tag");
   });
 
   it("should encode slashes in handles for post links", () => {
@@ -276,41 +280,41 @@ t.describe("path segment encoding", (it) => {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice/evil" },
     };
-    assertEquals(linkToPost(post), "/profile/alice%2Fevil/post/abc123");
+    assert.deepEqual(linkToPost(post), "/profile/alice%2Fevil/post/abc123");
   });
 
   it("should encode slashes in handles for followers links", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowers({ handle: "alice/evil" }),
       "/profile/alice%2Fevil/followers",
     );
   });
 
   it("should encode slashes in handles for following links", () => {
-    assertEquals(
+    assert.deepEqual(
       linkToProfileFollowing({ handle: "alice/evil" }),
       "/profile/alice%2Fevil/following",
     );
   });
 });
 
-t.describe("getPermalinkForPost", (it) => {
+describe("getPermalinkForPost", () => {
   it("should return bsky.app permalink for post", () => {
     const post = {
       uri: "at://did:plc:alice/app.bsky.feed.post/abc123",
       author: { handle: "alice.bsky.social" },
     };
-    assertEquals(
+    assert.deepEqual(
       getPermalinkForPost(post),
       "https://bsky.app/profile/alice.bsky.social/post/abc123",
     );
   });
 });
 
-t.describe("getPermalinkForProfile", (it) => {
+describe("getPermalinkForProfile", () => {
   it("should return bsky.app permalink for profile", () => {
     const profile = { handle: "alice.bsky.social", did: "did:plc:alice" };
-    assertEquals(
+    assert.deepEqual(
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/alice.bsky.social",
     );
@@ -318,55 +322,55 @@ t.describe("getPermalinkForProfile", (it) => {
 
   it("falls back to did when handle is invalid", () => {
     const profile = { handle: "handle.invalid", did: "did:plc:alice" };
-    assertEquals(
+    assert.deepEqual(
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/did:plc:alice",
     );
   });
 });
 
-t.describe("validateReturnToParam", (it) => {
+describe("validateReturnToParam", () => {
   it("accepts a simple path", () => {
-    assertEquals(validateReturnToParam("/bookmarks"), "/bookmarks");
+    assert.deepEqual(validateReturnToParam("/bookmarks"), "/bookmarks");
   });
 
   it("accepts a path with query string and hash", () => {
-    assertEquals(
+    assert.deepEqual(
       validateReturnToParam("/profile/alice.bsky.social?tab=posts#top"),
       "/profile/alice.bsky.social?tab=posts#top",
     );
   });
 
   it("rejects null and undefined", () => {
-    assertEquals(validateReturnToParam(null), null);
-    assertEquals(validateReturnToParam(undefined), null);
+    assert.deepEqual(validateReturnToParam(null), null);
+    assert.deepEqual(validateReturnToParam(undefined), null);
   });
 
   it("rejects empty string", () => {
-    assertEquals(validateReturnToParam(""), null);
+    assert.deepEqual(validateReturnToParam(""), null);
   });
 
   it("rejects non-strings", () => {
-    assertEquals(validateReturnToParam(42), null);
-    assertEquals(validateReturnToParam({}), null);
+    assert.deepEqual(validateReturnToParam(42), null);
+    assert.deepEqual(validateReturnToParam({}), null);
   });
 
   it("rejects paths that don't start with /", () => {
-    assertEquals(validateReturnToParam("bookmarks"), null);
-    assertEquals(validateReturnToParam("https://evil.com/phish"), null);
+    assert.deepEqual(validateReturnToParam("bookmarks"), null);
+    assert.deepEqual(validateReturnToParam("https://evil.com/phish"), null);
   });
 
   it("rejects protocol-relative URLs", () => {
-    assertEquals(validateReturnToParam("//evil.com"), null);
-    assertEquals(validateReturnToParam("//evil.com/path"), null);
+    assert.deepEqual(validateReturnToParam("//evil.com"), null);
+    assert.deepEqual(validateReturnToParam("//evil.com/path"), null);
   });
 
   it("rejects backslash tricks", () => {
-    assertEquals(validateReturnToParam("/\\evil.com"), null);
+    assert.deepEqual(validateReturnToParam("/\\evil.com"), null);
   });
 });
 
-t.describe("linkToLogin", (it) => {
+describe("linkToLogin", () => {
   const originalPath =
     window.location.pathname + window.location.search + window.location.hash;
 
@@ -381,30 +385,30 @@ t.describe("linkToLogin", (it) => {
 
   it("builds a /login url encoding the current location as returnTo", () => {
     withPath("/bookmarks", () => {
-      assertEquals(linkToLogin(), "/login?returnTo=%2Fbookmarks");
+      assert.deepEqual(linkToLogin(), "/login?returnTo=%2Fbookmarks");
     });
   });
 
   it("skips returnTo when the current path is /login", () => {
-    withPath("/login", () => assertEquals(linkToLogin(), "/login"));
-    withPath("/login?foo=bar", () => assertEquals(linkToLogin(), "/login"));
-    withPath("/login#hash", () => assertEquals(linkToLogin(), "/login"));
+    withPath("/login", () => assert.deepEqual(linkToLogin(), "/login"));
+    withPath("/login?foo=bar", () => assert.deepEqual(linkToLogin(), "/login"));
+    withPath("/login#hash", () => assert.deepEqual(linkToLogin(), "/login"));
   });
 
   it("skips returnTo when the current path is the home path", () => {
-    withPath("/", () => assertEquals(linkToLogin(), "/login"));
-    withPath("/?foo=bar", () => assertEquals(linkToLogin(), "/login"));
+    withPath("/", () => assert.deepEqual(linkToLogin(), "/login"));
+    withPath("/?foo=bar", () => assert.deepEqual(linkToLogin(), "/login"));
   });
 
   it("allows paths that start with /login but are a different route", () => {
     withPath("/login-help", () => {
-      assertEquals(linkToLogin(), "/login?returnTo=%2Flogin-help");
+      assert.deepEqual(linkToLogin(), "/login?returnTo=%2Flogin-help");
     });
   });
 
   it("encodes query string and hash in the path", () => {
     withPath("/profile/a?tab=posts#top", () => {
-      assertEquals(
+      assert.deepEqual(
         linkToLogin(),
         "/login?returnTo=%2Fprofile%2Fa%3Ftab%3Dposts%23top",
       );
@@ -413,7 +417,7 @@ t.describe("linkToLogin", (it) => {
 
   it("includes extra query params when provided", () => {
     withPath("/settings", () => {
-      assertEquals(
+      assert.deepEqual(
         linkToLogin({ query: { addAccount: 1 } }),
         "/login?addAccount=1&returnTo=%2Fsettings",
       );
@@ -422,12 +426,10 @@ t.describe("linkToLogin", (it) => {
 
   it("omits returnTo when called from /login", () => {
     withPath("/login", () => {
-      assertEquals(
+      assert.deepEqual(
         linkToLogin({ query: { addAccount: 1 } }),
         "/login?addAccount=1",
       );
     });
   });
 });
-
-await t.run();

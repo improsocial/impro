@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("externalLinkTemplate");
-
-t.describe("externalLinkTemplate", (it) => {
+describe("externalLinkTemplate", () => {
   it("should render link with correct href", () => {
     const result = externalLinkTemplate({
       url: "https://example.com/page",
@@ -27,7 +25,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-title']")
         .textContent.trim(),
@@ -57,7 +55,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-description']")
         .textContent.trim(),
@@ -73,7 +71,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='external-link-description']"),
       null,
     );
@@ -87,7 +85,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-domain']")
         .textContent.trim(),
@@ -106,7 +104,7 @@ t.describe("externalLinkTemplate", (it) => {
     render(result, container);
     const img = container.querySelector(".external-link-image");
     assert(img !== null);
-    assertEquals(img.getAttribute("src"), "https://example.com/image.jpg");
+    assert.deepEqual(img.getAttribute("src"), "https://example.com/image.jpg");
   });
 
   it("should not render image when not provided", () => {
@@ -117,7 +115,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".external-link-image"), null);
+    assert.deepEqual(container.querySelector(".external-link-image"), null);
   });
 
   it("should use lazy loading when lazyLoadImages is true", () => {
@@ -131,7 +129,7 @@ t.describe("externalLinkTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector(".external-link-image");
-    assertEquals(img.getAttribute("loading"), "lazy");
+    assert.deepEqual(img.getAttribute("loading"), "lazy");
   });
 
   it("should use eager loading when lazyLoadImages is false", () => {
@@ -145,7 +143,7 @@ t.describe("externalLinkTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector(".external-link-image");
-    assertEquals(img.getAttribute("loading"), "eager");
+    assert.deepEqual(img.getAttribute("loading"), "eager");
   });
 
   it("should open link in new tab", () => {
@@ -157,7 +155,7 @@ t.describe("externalLinkTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const link = container.querySelector("a");
-    assertEquals(link.getAttribute("target"), "_blank");
+    assert.deepEqual(link.getAttribute("target"), "_blank");
   });
 
   it("should not prevent navigation by default", () => {
@@ -171,7 +169,7 @@ t.describe("externalLinkTemplate", (it) => {
     const link = container.querySelector("a");
     const event = new Event("click", { cancelable: true, bubbles: true });
     link.dispatchEvent(event);
-    assertEquals(event.defaultPrevented, false);
+    assert.deepEqual(event.defaultPrevented, false);
   });
 
   it("should render a play icon for a video link with an image", () => {
@@ -195,7 +193,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".play-icon"), null);
+    assert.deepEqual(container.querySelector(".play-icon"), null);
   });
 
   it("should render a play icon placeholder for a video link without an image", () => {
@@ -211,7 +209,7 @@ t.describe("externalLinkTemplate", (it) => {
     );
     assert(placeholder !== null);
     assert(placeholder.querySelector(".play-icon") !== null);
-    assertEquals(container.querySelector(".external-link-image"), null);
+    assert.deepEqual(container.querySelector(".external-link-image"), null);
   });
 
   it("should not render the video placeholder for a non-video link without an image", () => {
@@ -222,7 +220,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector(".external-link-video-placeholder"),
       null,
     );
@@ -246,8 +244,8 @@ t.describe("externalLinkTemplate", (it) => {
       bubbles: true,
     });
     link.dispatchEvent(event);
-    assertEquals(clicked, true);
-    assertEquals(event.defaultPrevented, true);
+    assert.deepEqual(clicked, true);
+    assert.deepEqual(event.defaultPrevented, true);
   });
 
   it("should not call onClick on a modified click so the link opens normally", () => {
@@ -271,7 +269,7 @@ t.describe("externalLinkTemplate", (it) => {
       });
       link.dispatchEvent(event);
       assert(clicked === false, `onClick fired on a ${modifier} click`);
-      assertEquals(event.defaultPrevented, false);
+      assert.deepEqual(event.defaultPrevented, false);
     }
   });
 
@@ -284,7 +282,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("a").getAttribute("aria-label"),
       "Play Example",
     );
@@ -298,7 +296,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("a").getAttribute("aria-label"),
       "Example",
     );
@@ -312,7 +310,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("a").getAttribute("aria-label"),
       "https://example.com",
     );
@@ -326,7 +324,7 @@ t.describe("externalLinkTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-domain']")
         .textContent.trim(),
@@ -346,8 +344,6 @@ t.describe("externalLinkTemplate", (it) => {
     const link = container.querySelector("a");
     const event = new Event("click", { cancelable: true, bubbles: true });
     link.dispatchEvent(event);
-    assertEquals(event.defaultPrevented, true);
+    assert.deepEqual(event.defaultPrevented, true);
   });
 });
-
-await t.run();

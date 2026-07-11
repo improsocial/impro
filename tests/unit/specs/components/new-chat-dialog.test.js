@@ -1,667 +1,670 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals, mock } from "../../testHelpers.js";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
 import { Signal, SignalMap, ComputedMap } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
 import "/js/components/new-chat-dialog.js";
 
-const t = new TestSuite("NewChatDialog");
-
-const originalSetTimeout = globalThis.setTimeout;
-let originalRouter;
-
-t.beforeEach(() => {
-  document.body.innerHTML = "";
-  globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
-  originalRouter = window.router;
-  window.router = { go: mock() };
-});
-
-t.afterEach(() => {
-  globalThis.setTimeout = originalSetTimeout;
-  window.router = originalRouter;
-});
-
-async function nextFrame() {
-  // The render effect flushes on requestAnimationFrame (setTimeout(0) in the
-  // test env), so one tick applies pending renders.
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-async function flushMicrotasks() {
-  for (let i = 0; i < 5; i++) {
-    await Promise.resolve();
-  }
-}
-
-function createFakeDataLayer({
-  ensureConvoForProfile,
-  searchFailure = null,
-  followsFailure = null,
-} = {}) {
-  const $results = new Signal.State(null);
-  const $currentUser = new Signal.State({
-    did: "did:plc:me",
-    handle: "me.test",
-  });
-  const $profileFollows = new SignalMap();
-  const $loading = new SignalMap();
-  const $errors = new SignalMap();
-  const searchCalls = [];
-  const followsCalls = [];
-  const ensureCalls = [];
-  const failures = { search: searchFailure, follows: followsFailure };
-  const dataLayer = {
-    derived: {
-      $chatRecipientSearchResults: $results,
-      $currentUser,
-      $profileFollows,
-    },
-    requests: {
-      statusStore: {
-        $statuses: new ComputedMap((requestId) => ({
-          loading: $loading.get(requestId) ?? false,
-          error: $errors.get(requestId) ?? null,
-        })),
-      },
-      // Mirrors enableStatus: record every failure in the status store,
-      // clear it on success, swallow ApiErrors, re-throw everything else
-      loadChatRecipientSearch: async (query, options) => {
-        searchCalls.push({ query, options });
-        if (failures.search) {
-          $errors.set("loadChatRecipientSearch", failures.search);
-          if (!(failures.search instanceof ApiError)) {
-            throw failures.search;
-          }
-          return;
-        }
-        $errors.set("loadChatRecipientSearch", null);
-      },
-      loadProfileFollows: async (did, options) => {
-        followsCalls.push({ did, options });
-        if (failures.follows) {
-          $errors.set(`loadProfileFollows-${did}`, failures.follows);
-          if (!(failures.follows instanceof ApiError)) {
-            throw failures.follows;
-          }
-          return;
-        }
-        $errors.set(`loadProfileFollows-${did}`, null);
-      },
-    },
-    declarative: {
-      ensureCurrentUser: async () => $currentUser.get(),
-      ensureProfileFollows: async (did) => {
-        let follows = $profileFollows.get(did);
-        if (!follows) {
-          await dataLayer.requests.loadProfileFollows(did);
-          follows = $profileFollows.get(did);
-        }
-        if (!follows) {
-          throw new Error("Profile follows not found");
-        }
-        return follows;
-      },
-      ensureConvoForProfile: async (did) => {
-        ensureCalls.push(did);
-        if (ensureConvoForProfile) {
-          return ensureConvoForProfile(did);
-        }
-        return { id: "convo-1" };
-      },
-    },
-  };
-  return {
-    dataLayer,
-    $results,
-    $profileFollows,
-    $loading,
-    $errors,
-    failures,
-    searchCalls,
-    followsCalls,
-    ensureCalls,
-  };
-}
-
-function createDialog(dataLayer) {
-  const element = document.createElement("new-chat-dialog");
-  element.dataLayer = dataLayer;
-  document.body.appendChild(element);
-  return element;
-}
-
-function createApiError(errorName = "InternalError") {
-  return new ApiError({
-    status: 500,
-    statusText: "Internal Server Error",
-    data: { error: errorName },
-    headers: {},
-    url: "",
-  });
-}
-
-function createProfile({
-  did,
-  handle,
-  displayName,
-  allowIncoming,
-  followedBy,
-} = {}) {
-  return {
-    did,
-    handle,
-    displayName: displayName ?? handle,
-    avatar: "",
-    labels: [],
-    viewer: followedBy ? { followedBy: "at://follow" } : {},
-    ...(allowIncoming !== undefined
-      ? { associated: { chat: { allowIncoming } } }
-      : {}),
-  };
-}
-
-async function typeQuery(element, value) {
-  const input = element.querySelector('[data-testid="new-chat-search-input"]');
-  input.value = value;
-  input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
-  // One tick for the debounce, one for the re-render.
-  await nextFrame();
-  await nextFrame();
-}
-
-t.describe("NewChatDialog - rendering", (it) => {
-  it("should preserve pre-seeded props through connectedCallback", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    assertEquals(element.dataLayer, dataLayer);
-  });
-
-  it("should render a bottom-sheet dialog with search input and close button", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    const dialog = element.querySelector("dialog.new-chat-dialog");
-    assert(dialog !== null);
-    assert(dialog.classList.contains("bottom-sheet"));
-    assert(
-      element.querySelector('[data-testid="new-chat-search-input"]') !== null,
-    );
-    assert(
-      element.querySelector('[data-testid="new-chat-dialog-close"]') !== null,
-    );
-  });
-
-  it("should show the empty prompt when the query is empty and there are no suggestions", () => {
-    const { dataLayer, $profileFollows } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", { follows: [] });
-    const element = createDialog(dataLayer);
-    assert(
-      element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
-    );
-    assertEquals(
-      element.querySelector('[data-testid="new-chat-result"]'),
-      null,
-    );
-  });
-});
-
-t.describe("NewChatDialog - suggestions", (it) => {
-  it("should load the current user's follows on connect when not cached", async () => {
-    const { dataLayer, followsCalls } = createFakeDataLayer();
-    createDialog(dataLayer);
-    await flushMicrotasks();
-    assertEquals(followsCalls.length, 1);
-    assertEquals(followsCalls[0].did, "did:plc:me");
-  });
-
-  it("should not reload follows that are already cached", async () => {
-    const { dataLayer, $profileFollows, followsCalls } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", { follows: [] });
-    createDialog(dataLayer);
-    await flushMicrotasks();
-    assertEquals(followsCalls.length, 0);
-  });
-
-  it("should show skeletons while follows load", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    assert(
-      element.querySelectorAll('[data-testid="new-chat-skeleton"]').length > 0,
-    );
-  });
-
-  it("should show only messageable follows under a header", async () => {
-    const { dataLayer, $profileFollows } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", {
-      follows: [
-        createProfile({
-          did: "did:plc:carol",
-          handle: "carol.test",
-          allowIncoming: "none",
-        }),
-        createProfile({
-          did: "did:plc:alice",
-          handle: "alice.test",
-          allowIncoming: "all",
-        }),
-      ],
-    });
-    const element = createDialog(dataLayer);
-    assert(
-      element.querySelector('[data-testid="new-chat-suggested-header"]') !==
-        null,
-    );
-    const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-    assertEquals(rows.length, 1);
-    assertEquals(rows[0].dataset.teststate, "messageable");
-    assert(rows[0].textContent.includes("@alice.test"));
-  });
-
-  it("should fall back to the prompt when no follows are messageable", () => {
-    const { dataLayer, $profileFollows } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", {
-      follows: [
-        createProfile({
-          did: "did:plc:carol",
-          handle: "carol.test",
-          allowIncoming: "none",
-        }),
-      ],
-    });
-    const element = createDialog(dataLayer);
-    assert(
-      element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
-    );
-    assertEquals(
-      element.querySelector('[data-testid="new-chat-result"]'),
-      null,
-    );
-  });
-
-  it("should fall back to the prompt when follows fail to load", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      followsFailure: createApiError(),
-    });
-    const element = createDialog(dataLayer);
-    await flushMicrotasks();
-    await nextFrame();
-    assert(
-      element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
-    );
-  });
-
-  it("should fall back to the prompt when the follows request fails at the network level", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      followsFailure: new TypeError("Failed to fetch"),
-    });
-    const element = createDialog(dataLayer);
-    await flushMicrotasks();
-    await nextFrame();
-    assert(
-      element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
-    );
-    assertEquals(
-      element.querySelectorAll('[data-testid="new-chat-skeleton"]').length,
-      0,
-    );
-  });
-
-  it("should hide the suggestions once a query is typed", async () => {
-    const { dataLayer, $profileFollows, $results } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", {
-      follows: [
-        createProfile({
-          did: "did:plc:alice",
-          handle: "alice.test",
-          allowIncoming: "all",
-        }),
-      ],
-    });
-    $results.set([
-      createProfile({
-        did: "did:plc:dan",
-        handle: "dan.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "dan");
-    assertEquals(
-      element.querySelector('[data-testid="new-chat-suggested-header"]'),
-      null,
-    );
-    const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-    assertEquals(rows.length, 1);
-    assert(rows[0].textContent.includes("@dan.test"));
-  });
-});
-
-t.describe("NewChatDialog - search input", (it) => {
-  it("should render the search icon", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    assert(
-      element.querySelector(".new-chat-search-container .search-icon") !== null,
-    );
-  });
-
-  it("should only show the clear button while there is a query", async () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    assertEquals(
-      element.querySelector('[data-testid="new-chat-search-clear"]'),
-      null,
-    );
-    await typeQuery(element, "alice");
-    assert(
-      element.querySelector('[data-testid="new-chat-search-clear"]') !== null,
-    );
-  });
-
-  it("should clear the query and restore the idle state on clear", async () => {
-    const { dataLayer, $profileFollows, searchCalls } = createFakeDataLayer();
-    $profileFollows.set("did:plc:me", { follows: [] });
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "alice");
-    element.querySelector('[data-testid="new-chat-search-clear"]').click();
-    await nextFrame();
-    const input = element.querySelector(
-      '[data-testid="new-chat-search-input"]',
-    );
-    assertEquals(input.value, "");
-    assertEquals(searchCalls[searchCalls.length - 1].query, "");
-    assert(
-      element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
-    );
-    assertEquals(
-      element.querySelector('[data-testid="new-chat-search-clear"]'),
-      null,
-    );
-  });
-});
-
-t.describe("NewChatDialog - searching", (it, { beforeEach, afterEach }) => {
-  // The dialog's debounced search is fire-and-forget, so an injected
-  // non-ApiError failure surfaces as an unhandled rejection — expected here
-  let onUnhandledRejection;
+describe("new-chat-dialog", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  let originalRouter;
 
   beforeEach(() => {
-    onUnhandledRejection = () => {};
-    process.on("unhandledRejection", onUnhandledRejection);
+    document.body.innerHTML = "";
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+    originalRouter = window.router;
+    window.router = { go: mock.fn() };
   });
 
   afterEach(() => {
-    process.off("unhandledRejection", onUnhandledRejection);
+    globalThis.setTimeout = originalSetTimeout;
+    window.router = originalRouter;
   });
 
-  it("should call the debounced loader with the trimmed query", async () => {
-    const { dataLayer, searchCalls } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "  alice ");
-    assertEquals(searchCalls.length, 1);
-    assertEquals(searchCalls[0].query, "alice");
-    assertEquals(searchCalls[0].options.limit, 12);
-  });
+  async function nextFrame() {
+    // The render effect flushes on requestAnimationFrame (setTimeout(0) in the
+    // test env), so one tick applies pending renders.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 
-  it("should clear results immediately when the query is emptied", async () => {
-    const { dataLayer, searchCalls } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "");
-    assertEquals(searchCalls.length, 1);
-    assertEquals(searchCalls[0].query, "");
-  });
+  async function flushMicrotasks() {
+    for (let i = 0; i < 5; i++) {
+      await Promise.resolve();
+    }
+  }
 
-  it("should show skeletons while loading with no results yet", async () => {
-    const { dataLayer, $loading } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    $loading.set("loadChatRecipientSearch", true);
-    await typeQuery(element, "alice");
-    assert(
-      element.querySelectorAll('[data-testid="new-chat-skeleton"]').length > 0,
-    );
-  });
-
-  it("should show the empty state when a settled search has no results", async () => {
-    const { dataLayer, $results } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    $results.set([]);
-    await typeQuery(element, "alice");
-    assert(element.querySelector('[data-testid="empty-state"]') !== null);
-  });
-
-  it("should show an error row when the search fails with an ApiError", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      searchFailure: createApiError(),
+  function createFakeDataLayer({
+    ensureConvoForProfile,
+    searchFailure = null,
+    followsFailure = null,
+  } = {}) {
+    const $results = new Signal.State(null);
+    const $currentUser = new Signal.State({
+      did: "did:plc:me",
+      handle: "me.test",
     });
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "alice");
-    assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
-  });
+    const $profileFollows = new SignalMap();
+    const $loading = new SignalMap();
+    const $errors = new SignalMap();
+    const searchCalls = [];
+    const followsCalls = [];
+    const ensureCalls = [];
+    const failures = { search: searchFailure, follows: followsFailure };
+    const dataLayer = {
+      derived: {
+        $chatRecipientSearchResults: $results,
+        $currentUser,
+        $profileFollows,
+      },
+      requests: {
+        statusStore: {
+          $statuses: new ComputedMap((requestId) => ({
+            loading: $loading.get(requestId) ?? false,
+            error: $errors.get(requestId) ?? null,
+          })),
+        },
+        // Mirrors enableStatus: record every failure in the status store,
+        // clear it on success, swallow ApiErrors, reject with everything else.
+        // The dialog's debounced search is fire-and-forget, so the rejection is
+        // pre-handled here — node:test fails the running test on any unhandled
+        // rejection, even when a process-level listener is attached.
+        loadChatRecipientSearch: (query, options) => {
+          searchCalls.push({ query, options });
+          if (failures.search) {
+            $errors.set("loadChatRecipientSearch", failures.search);
+            if (!(failures.search instanceof ApiError)) {
+              const rejection = Promise.reject(failures.search);
+              rejection.catch(() => {});
+              return rejection;
+            }
+            return Promise.resolve();
+          }
+          $errors.set("loadChatRecipientSearch", null);
+          return Promise.resolve();
+        },
+        loadProfileFollows: async (did, options) => {
+          followsCalls.push({ did, options });
+          if (failures.follows) {
+            $errors.set(`loadProfileFollows-${did}`, failures.follows);
+            if (!(failures.follows instanceof ApiError)) {
+              throw failures.follows;
+            }
+            return;
+          }
+          $errors.set(`loadProfileFollows-${did}`, null);
+        },
+      },
+      declarative: {
+        ensureCurrentUser: async () => $currentUser.get(),
+        ensureProfileFollows: async (did) => {
+          let follows = $profileFollows.get(did);
+          if (!follows) {
+            await dataLayer.requests.loadProfileFollows(did);
+            follows = $profileFollows.get(did);
+          }
+          if (!follows) {
+            throw new Error("Profile follows not found");
+          }
+          return follows;
+        },
+        ensureConvoForProfile: async (did) => {
+          ensureCalls.push(did);
+          if (ensureConvoForProfile) {
+            return ensureConvoForProfile(did);
+          }
+          return { id: "convo-1" };
+        },
+      },
+    };
+    return {
+      dataLayer,
+      $results,
+      $profileFollows,
+      $loading,
+      $errors,
+      failures,
+      searchCalls,
+      followsCalls,
+      ensureCalls,
+    };
+  }
 
-  it("should show an error row when the search fails at the network level", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      searchFailure: new TypeError("Failed to fetch"),
+  function createDialog(dataLayer) {
+    const element = document.createElement("new-chat-dialog");
+    element.dataLayer = dataLayer;
+    document.body.appendChild(element);
+    return element;
+  }
+
+  function createApiError(errorName = "InternalError") {
+    return new ApiError({
+      status: 500,
+      statusText: "Internal Server Error",
+      data: { error: errorName },
+      headers: {},
+      url: "",
     });
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "alice");
-    await nextFrame();
-    assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
-  });
+  }
 
-  it("should clear the network error once a retried search succeeds", async () => {
-    const { dataLayer, failures } = createFakeDataLayer({
-      searchFailure: new TypeError("Failed to fetch"),
-    });
-    const element = createDialog(dataLayer);
-    await typeQuery(element, "alice");
-    await nextFrame();
-    assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
-    failures.search = null;
-    await typeQuery(element, "alicia");
-    await nextFrame();
-    assertEquals(element.querySelector('[data-testid="new-chat-error"]'), null);
-  });
+  function createProfile({
+    did,
+    handle,
+    displayName,
+    allowIncoming,
+    followedBy,
+  } = {}) {
+    return {
+      did,
+      handle,
+      displayName: displayName ?? handle,
+      avatar: "",
+      labels: [],
+      viewer: followedBy ? { followedBy: "at://follow" } : {},
+      ...(allowIncoming !== undefined
+        ? { associated: { chat: { allowIncoming } } }
+        : {}),
+    };
+  }
 
-  it("should not fire a pending search after the query is cleared", async () => {
-    const { dataLayer, searchCalls } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
+  async function typeQuery(element, value) {
     const input = element.querySelector(
       '[data-testid="new-chat-search-input"]',
     );
-    input.value = "al";
+    input.value = value;
     input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
-    input.value = "";
-    input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+    // One tick for the debounce, one for the re-render.
     await nextFrame();
     await nextFrame();
-    assertEquals(searchCalls.length, 1);
-    assertEquals(searchCalls[0].query, "");
+  }
+
+  describe("NewChatDialog - rendering", () => {
+    it("should preserve pre-seeded props through connectedCallback", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      assert.deepEqual(element.dataLayer, dataLayer);
+    });
+
+    it("should render a bottom-sheet dialog with search input and close button", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      const dialog = element.querySelector("dialog.new-chat-dialog");
+      assert(dialog !== null);
+      assert(dialog.classList.contains("bottom-sheet"));
+      assert(
+        element.querySelector('[data-testid="new-chat-search-input"]') !== null,
+      );
+      assert(
+        element.querySelector('[data-testid="new-chat-dialog-close"]') !== null,
+      );
+    });
+
+    it("should show the empty prompt when the query is empty and there are no suggestions", () => {
+      const { dataLayer, $profileFollows } = createFakeDataLayer();
+      $profileFollows.set("did:plc:me", { follows: [] });
+      const element = createDialog(dataLayer);
+      assert(
+        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-result"]'),
+        null,
+      );
+    });
+  });
+
+  describe("NewChatDialog - suggestions", () => {
+    it("should load the current user's follows on connect when not cached", async () => {
+      const { dataLayer, followsCalls } = createFakeDataLayer();
+      createDialog(dataLayer);
+      await flushMicrotasks();
+      assert.deepEqual(followsCalls.length, 1);
+      assert.deepEqual(followsCalls[0].did, "did:plc:me");
+    });
+
+    it("should not reload follows that are already cached", async () => {
+      const { dataLayer, $profileFollows, followsCalls } =
+        createFakeDataLayer();
+      $profileFollows.set("did:plc:me", { follows: [] });
+      createDialog(dataLayer);
+      await flushMicrotasks();
+      assert.deepEqual(followsCalls.length, 0);
+    });
+
+    it("should show skeletons while follows load", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      assert(
+        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length >
+          0,
+      );
+    });
+
+    it("should show only messageable follows under a header", async () => {
+      const { dataLayer, $profileFollows } = createFakeDataLayer();
+      $profileFollows.set("did:plc:me", {
+        follows: [
+          createProfile({
+            did: "did:plc:carol",
+            handle: "carol.test",
+            allowIncoming: "none",
+          }),
+          createProfile({
+            did: "did:plc:alice",
+            handle: "alice.test",
+            allowIncoming: "all",
+          }),
+        ],
+      });
+      const element = createDialog(dataLayer);
+      assert(
+        element.querySelector('[data-testid="new-chat-suggested-header"]') !==
+          null,
+      );
+      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      assert.deepEqual(rows.length, 1);
+      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      assert(rows[0].textContent.includes("@alice.test"));
+    });
+
+    it("should fall back to the prompt when no follows are messageable", () => {
+      const { dataLayer, $profileFollows } = createFakeDataLayer();
+      $profileFollows.set("did:plc:me", {
+        follows: [
+          createProfile({
+            did: "did:plc:carol",
+            handle: "carol.test",
+            allowIncoming: "none",
+          }),
+        ],
+      });
+      const element = createDialog(dataLayer);
+      assert(
+        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-result"]'),
+        null,
+      );
+    });
+
+    it("should fall back to the prompt when follows fail to load", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        followsFailure: createApiError(),
+      });
+      const element = createDialog(dataLayer);
+      await flushMicrotasks();
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+      );
+    });
+
+    it("should fall back to the prompt when the follows request fails at the network level", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        followsFailure: new TypeError("Failed to fetch"),
+      });
+      const element = createDialog(dataLayer);
+      await flushMicrotasks();
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+      );
+      assert.deepEqual(
+        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length,
+        0,
+      );
+    });
+
+    it("should hide the suggestions once a query is typed", async () => {
+      const { dataLayer, $profileFollows, $results } = createFakeDataLayer();
+      $profileFollows.set("did:plc:me", {
+        follows: [
+          createProfile({
+            did: "did:plc:alice",
+            handle: "alice.test",
+            allowIncoming: "all",
+          }),
+        ],
+      });
+      $results.set([
+        createProfile({
+          did: "did:plc:dan",
+          handle: "dan.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "dan");
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-suggested-header"]'),
+        null,
+      );
+      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      assert.deepEqual(rows.length, 1);
+      assert(rows[0].textContent.includes("@dan.test"));
+    });
+  });
+
+  describe("NewChatDialog - search input", () => {
+    it("should render the search icon", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      assert(
+        element.querySelector(".new-chat-search-container .search-icon") !==
+          null,
+      );
+    });
+
+    it("should only show the clear button while there is a query", async () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-search-clear"]'),
+        null,
+      );
+      await typeQuery(element, "alice");
+      assert(
+        element.querySelector('[data-testid="new-chat-search-clear"]') !== null,
+      );
+    });
+
+    it("should clear the query and restore the idle state on clear", async () => {
+      const { dataLayer, $profileFollows, searchCalls } = createFakeDataLayer();
+      $profileFollows.set("did:plc:me", { follows: [] });
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "alice");
+      element.querySelector('[data-testid="new-chat-search-clear"]').click();
+      await nextFrame();
+      const input = element.querySelector(
+        '[data-testid="new-chat-search-input"]',
+      );
+      assert.deepEqual(input.value, "");
+      assert.deepEqual(searchCalls[searchCalls.length - 1].query, "");
+      assert(
+        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+      );
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-search-clear"]'),
+        null,
+      );
+    });
+  });
+
+  describe("NewChatDialog - searching", () => {
+    it("should call the debounced loader with the trimmed query", async () => {
+      const { dataLayer, searchCalls } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "  alice ");
+      assert.deepEqual(searchCalls.length, 1);
+      assert.deepEqual(searchCalls[0].query, "alice");
+      assert.deepEqual(searchCalls[0].options.limit, 12);
+    });
+
+    it("should clear results immediately when the query is emptied", async () => {
+      const { dataLayer, searchCalls } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "");
+      assert.deepEqual(searchCalls.length, 1);
+      assert.deepEqual(searchCalls[0].query, "");
+    });
+
+    it("should show skeletons while loading with no results yet", async () => {
+      const { dataLayer, $loading } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      $loading.set("loadChatRecipientSearch", true);
+      await typeQuery(element, "alice");
+      assert(
+        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length >
+          0,
+      );
+    });
+
+    it("should show the empty state when a settled search has no results", async () => {
+      const { dataLayer, $results } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      $results.set([]);
+      await typeQuery(element, "alice");
+      assert(element.querySelector('[data-testid="empty-state"]') !== null);
+    });
+
+    it("should show an error row when the search fails with an ApiError", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        searchFailure: createApiError(),
+      });
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "alice");
+      assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
+    });
+
+    it("should show an error row when the search fails at the network level", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        searchFailure: new TypeError("Failed to fetch"),
+      });
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "alice");
+      await nextFrame();
+      assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
+    });
+
+    it("should clear the network error once a retried search succeeds", async () => {
+      const { dataLayer, failures } = createFakeDataLayer({
+        searchFailure: new TypeError("Failed to fetch"),
+      });
+      const element = createDialog(dataLayer);
+      await typeQuery(element, "alice");
+      await nextFrame();
+      assert(element.querySelector('[data-testid="new-chat-error"]') !== null);
+      failures.search = null;
+      await typeQuery(element, "alicia");
+      await nextFrame();
+      assert.deepEqual(
+        element.querySelector('[data-testid="new-chat-error"]'),
+        null,
+      );
+    });
+
+    it("should not fire a pending search after the query is cleared", async () => {
+      const { dataLayer, searchCalls } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      const input = element.querySelector(
+        '[data-testid="new-chat-search-input"]',
+      );
+      input.value = "al";
+      input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+      input.value = "";
+      input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
+      await nextFrame();
+      await nextFrame();
+      assert.deepEqual(searchCalls.length, 1);
+      assert.deepEqual(searchCalls[0].query, "");
+    });
+  });
+
+  describe("NewChatDialog - results", () => {
+    it("should render results, excluding self and deduping by did", async () => {
+      const { dataLayer, $results } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      const alice = createProfile({
+        did: "did:plc:alice",
+        handle: "alice.test",
+        allowIncoming: "all",
+      });
+      $results.set([
+        alice,
+        alice,
+        createProfile({ did: "did:plc:me", handle: "me.test" }),
+      ]);
+      await typeQuery(element, "test");
+      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      assert.deepEqual(rows.length, 1);
+      assert(rows[0].textContent.includes("@alice.test"));
+    });
+
+    it("should sort messageable profiles first and disable the rest", async () => {
+      const { dataLayer, $results } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      $results.set([
+        createProfile({
+          did: "did:plc:carol",
+          handle: "carol.test",
+          allowIncoming: "none",
+        }),
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      await typeQuery(element, "test");
+      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      assert.deepEqual(rows.length, 2);
+      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      assert.deepEqual(rows[0].disabled, false);
+      assert.deepEqual(rows[1].dataset.teststate, "not-messageable");
+      assert.deepEqual(rows[1].disabled, true);
+      assert(rows[1].textContent.includes("@carol.test can't be messaged"));
+    });
+
+    it("should treat a missing allowIncoming declaration as following-only", async () => {
+      const { dataLayer, $results } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      $results.set([
+        createProfile({
+          did: "did:plc:follower",
+          handle: "follower.test",
+          followedBy: true,
+        }),
+        createProfile({ did: "did:plc:stranger", handle: "stranger.test" }),
+      ]);
+      await typeQuery(element, "test");
+      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      assert(rows[0].textContent.includes("@follower.test"));
+      assert.deepEqual(rows[1].dataset.teststate, "not-messageable");
+    });
+  });
+
+  describe("NewChatDialog - selection", () => {
+    it("should close, ensure the convo, and navigate on selecting a user", async () => {
+      const { dataLayer, ensureCalls } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      let closed = false;
+      element.addEventListener("dialog-closed", () => {
+        closed = true;
+      });
+      dataLayer.derived.$chatRecipientSearchResults.set([
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      await typeQuery(element, "alice");
+      element.querySelector('[data-testid="new-chat-result"]').click();
+      assert(closed, "dialog-closed should fire before the convo loads");
+      await flushMicrotasks();
+      assert.deepEqual(ensureCalls, ["did:plc:alice"]);
+      assert.deepEqual(
+        window.router.go.mock.calls.map((call) => call.arguments),
+        [["/messages/convo-1"]],
+      );
+    });
+
+    it("should show a typed error toast and stay put when convo creation fails", async () => {
+      const blockedError = new Error("400 Bad Request");
+      blockedError.data = { error: "BlockedActor" };
+      const { dataLayer } = createFakeDataLayer({
+        ensureConvoForProfile: () => Promise.reject(blockedError),
+      });
+      const element = createDialog(dataLayer);
+      dataLayer.derived.$chatRecipientSearchResults.set([
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      await typeQuery(element, "alice");
+      element.querySelector('[data-testid="new-chat-result"]').click();
+      await flushMicrotasks();
+      const toast = document.body.querySelector('[data-testid="toast"]');
+      assert(toast !== null, "toast should be shown");
+      assert(
+        toast.textContent.includes(
+          "This user has blocked you and cannot be messaged.",
+        ),
+      );
+      assert.deepEqual(window.router.go.mock.callCount(), 0);
+    });
+
+    it("should show a network error toast when the request fails to send", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        ensureConvoForProfile: () =>
+          Promise.reject(new TypeError("Failed to fetch")),
+      });
+      const element = createDialog(dataLayer);
+      dataLayer.derived.$chatRecipientSearchResults.set([
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      await typeQuery(element, "alice");
+      element.querySelector('[data-testid="new-chat-result"]').click();
+      await flushMicrotasks();
+      const toast = document.body.querySelector('[data-testid="toast"]');
+      assert(toast !== null, "toast should be shown");
+      assert(toast.textContent.includes("A network error occurred"));
+    });
+
+    it("should show the generic toast for unrecognized errors", async () => {
+      const { dataLayer } = createFakeDataLayer({
+        ensureConvoForProfile: () =>
+          Promise.reject(new Error("Conversation not found")),
+      });
+      const element = createDialog(dataLayer);
+      dataLayer.derived.$chatRecipientSearchResults.set([
+        createProfile({
+          did: "did:plc:alice",
+          handle: "alice.test",
+          allowIncoming: "all",
+        }),
+      ]);
+      await typeQuery(element, "alice");
+      element.querySelector('[data-testid="new-chat-result"]').click();
+      await flushMicrotasks();
+      const toast = document.body.querySelector('[data-testid="toast"]');
+      assert(toast !== null, "toast should be shown");
+      assert(
+        toast.textContent.includes(
+          "An issue occurred starting the chat, please try again.",
+        ),
+      );
+    });
+  });
+
+  describe("NewChatDialog - dismissal", () => {
+    it("should close on the close button", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      let closed = false;
+      element.addEventListener("dialog-closed", () => {
+        closed = true;
+      });
+      element.querySelector('[data-testid="new-chat-dialog-close"]').click();
+      assert(closed);
+    });
+
+    it("should close on cancel (Escape)", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      let closed = false;
+      element.addEventListener("dialog-closed", () => {
+        closed = true;
+      });
+      const dialog = element.querySelector("dialog.new-chat-dialog");
+      dialog.dispatchEvent(new window.Event("cancel", { bubbles: false }));
+      assert(closed);
+    });
   });
 });
-
-t.describe("NewChatDialog - results", (it) => {
-  it("should render results, excluding self and deduping by did", async () => {
-    const { dataLayer, $results } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    const alice = createProfile({
-      did: "did:plc:alice",
-      handle: "alice.test",
-      allowIncoming: "all",
-    });
-    $results.set([
-      alice,
-      alice,
-      createProfile({ did: "did:plc:me", handle: "me.test" }),
-    ]);
-    await typeQuery(element, "test");
-    const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-    assertEquals(rows.length, 1);
-    assert(rows[0].textContent.includes("@alice.test"));
-  });
-
-  it("should sort messageable profiles first and disable the rest", async () => {
-    const { dataLayer, $results } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    $results.set([
-      createProfile({
-        did: "did:plc:carol",
-        handle: "carol.test",
-        allowIncoming: "none",
-      }),
-      createProfile({
-        did: "did:plc:alice",
-        handle: "alice.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    await typeQuery(element, "test");
-    const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-    assertEquals(rows.length, 2);
-    assertEquals(rows[0].dataset.teststate, "messageable");
-    assertEquals(rows[0].disabled, false);
-    assertEquals(rows[1].dataset.teststate, "not-messageable");
-    assertEquals(rows[1].disabled, true);
-    assert(rows[1].textContent.includes("@carol.test can't be messaged"));
-  });
-
-  it("should treat a missing allowIncoming declaration as following-only", async () => {
-    const { dataLayer, $results } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    $results.set([
-      createProfile({
-        did: "did:plc:follower",
-        handle: "follower.test",
-        followedBy: true,
-      }),
-      createProfile({ did: "did:plc:stranger", handle: "stranger.test" }),
-    ]);
-    await typeQuery(element, "test");
-    const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-    assertEquals(rows[0].dataset.teststate, "messageable");
-    assert(rows[0].textContent.includes("@follower.test"));
-    assertEquals(rows[1].dataset.teststate, "not-messageable");
-  });
-});
-
-t.describe("NewChatDialog - selection", (it) => {
-  it("should close, ensure the convo, and navigate on selecting a user", async () => {
-    const { dataLayer, ensureCalls } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    let closed = false;
-    element.addEventListener("dialog-closed", () => {
-      closed = true;
-    });
-    dataLayer.derived.$chatRecipientSearchResults.set([
-      createProfile({
-        did: "did:plc:alice",
-        handle: "alice.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    await typeQuery(element, "alice");
-    element.querySelector('[data-testid="new-chat-result"]').click();
-    assert(closed, "dialog-closed should fire before the convo loads");
-    await flushMicrotasks();
-    assertEquals(ensureCalls, ["did:plc:alice"]);
-    assertEquals(window.router.go.calls, [["/messages/convo-1"]]);
-  });
-
-  it("should show a typed error toast and stay put when convo creation fails", async () => {
-    const blockedError = new Error("400 Bad Request");
-    blockedError.data = { error: "BlockedActor" };
-    const { dataLayer } = createFakeDataLayer({
-      ensureConvoForProfile: () => Promise.reject(blockedError),
-    });
-    const element = createDialog(dataLayer);
-    dataLayer.derived.$chatRecipientSearchResults.set([
-      createProfile({
-        did: "did:plc:alice",
-        handle: "alice.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    await typeQuery(element, "alice");
-    element.querySelector('[data-testid="new-chat-result"]').click();
-    await flushMicrotasks();
-    const toast = document.body.querySelector('[data-testid="toast"]');
-    assert(toast !== null, "toast should be shown");
-    assert(
-      toast.textContent.includes(
-        "This user has blocked you and cannot be messaged.",
-      ),
-    );
-    assertEquals(window.router.go.calls.length, 0);
-  });
-
-  it("should show a network error toast when the request fails to send", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      ensureConvoForProfile: () =>
-        Promise.reject(new TypeError("Failed to fetch")),
-    });
-    const element = createDialog(dataLayer);
-    dataLayer.derived.$chatRecipientSearchResults.set([
-      createProfile({
-        did: "did:plc:alice",
-        handle: "alice.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    await typeQuery(element, "alice");
-    element.querySelector('[data-testid="new-chat-result"]').click();
-    await flushMicrotasks();
-    const toast = document.body.querySelector('[data-testid="toast"]');
-    assert(toast !== null, "toast should be shown");
-    assert(toast.textContent.includes("A network error occurred"));
-  });
-
-  it("should show the generic toast for unrecognized errors", async () => {
-    const { dataLayer } = createFakeDataLayer({
-      ensureConvoForProfile: () =>
-        Promise.reject(new Error("Conversation not found")),
-    });
-    const element = createDialog(dataLayer);
-    dataLayer.derived.$chatRecipientSearchResults.set([
-      createProfile({
-        did: "did:plc:alice",
-        handle: "alice.test",
-        allowIncoming: "all",
-      }),
-    ]);
-    await typeQuery(element, "alice");
-    element.querySelector('[data-testid="new-chat-result"]').click();
-    await flushMicrotasks();
-    const toast = document.body.querySelector('[data-testid="toast"]');
-    assert(toast !== null, "toast should be shown");
-    assert(
-      toast.textContent.includes(
-        "An issue occurred starting the chat, please try again.",
-      ),
-    );
-  });
-});
-
-t.describe("NewChatDialog - dismissal", (it) => {
-  it("should close on the close button", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    let closed = false;
-    element.addEventListener("dialog-closed", () => {
-      closed = true;
-    });
-    element.querySelector('[data-testid="new-chat-dialog-close"]').click();
-    assert(closed);
-  });
-
-  it("should close on cancel (Escape)", () => {
-    const { dataLayer } = createFakeDataLayer();
-    const element = createDialog(dataLayer);
-    let closed = false;
-    element.addEventListener("dialog-closed", () => {
-      closed = true;
-    });
-    const dialog = element.querySelector("dialog.new-chat-dialog");
-    dialog.dispatchEvent(new window.Event("cancel", { bubbles: false }));
-    assert(closed);
-  });
-});
-
-await t.run();

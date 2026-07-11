@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   unique,
   groupBy,
@@ -24,30 +24,28 @@ import {
   debounce,
 } from "/js/utils.js";
 
-const t = new TestSuite("utils");
-
-t.describe("unique", (it) => {
+describe("unique", () => {
   it("should remove duplicates from simple array", () => {
     const input = [1, 2, 2, 3, 1, 4];
     const result = unique(input);
-    assertEquals(result, [1, 2, 3, 4]);
+    assert.deepEqual(result, [1, 2, 3, 4]);
   });
 
   it("should preserve order of first occurrence", () => {
     const input = ["b", "a", "c", "a", "b"];
     const result = unique(input);
-    assertEquals(result, ["b", "a", "c"]);
+    assert.deepEqual(result, ["b", "a", "c"]);
   });
 
   it("should handle empty array", () => {
     const result = unique([]);
-    assertEquals(result, []);
+    assert.deepEqual(result, []);
   });
 
   it("should handle array with no duplicates", () => {
     const input = [1, 2, 3, 4];
     const result = unique(input);
-    assertEquals(result, [1, 2, 3, 4]);
+    assert.deepEqual(result, [1, 2, 3, 4]);
   });
 
   it("should work with objects using key property", () => {
@@ -58,7 +56,7 @@ t.describe("unique", (it) => {
       { id: 3, name: "Bob" },
     ];
     const result = unique(input, { by: "id" });
-    assertEquals(result, [
+    assert.deepEqual(result, [
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Bob" },
@@ -73,7 +71,7 @@ t.describe("unique", (it) => {
       { id: 3, name: "Bob" },
     ];
     const result = unique(input, { by: (item) => item.id });
-    assertEquals(result, [
+    assert.deepEqual(result, [
       { id: 1, name: "John" },
       { id: 2, name: "Jane" },
       { id: 3, name: "Bob" },
@@ -88,7 +86,7 @@ t.describe("unique", (it) => {
       { name: "Bob", age: 35 },
     ];
     const result = unique(input, { by: (item) => `${item.name}-${item.age}` });
-    assertEquals(result, [
+    assert.deepEqual(result, [
       { name: "John", age: 30 },
       { name: "Jane", age: 25 },
       { name: "Bob", age: 35 },
@@ -96,7 +94,7 @@ t.describe("unique", (it) => {
   });
 });
 
-t.describe("groupBy", (it) => {
+describe("groupBy", () => {
   it("should group items by key string", () => {
     const input = [
       { pluginId: "a", title: "1" },
@@ -104,7 +102,7 @@ t.describe("groupBy", (it) => {
       { pluginId: "a", title: "3" },
     ];
     const result = groupBy(input, "pluginId");
-    assertEquals(
+    assert.deepEqual(
       [...result.entries()],
       [
         [
@@ -122,7 +120,7 @@ t.describe("groupBy", (it) => {
   it("should group items by function", () => {
     const input = [1, 2, 3, 4, 5];
     const result = groupBy(input, (n) => (n % 2 === 0 ? "even" : "odd"));
-    assertEquals(
+    assert.deepEqual(
       [...result.entries()],
       [
         ["odd", [1, 3, 5]],
@@ -140,83 +138,83 @@ t.describe("groupBy", (it) => {
       { id: "a" },
     ];
     const result = groupBy(input, "id");
-    assertEquals([...result.keys()], ["b", "a", "c"]);
+    assert.deepEqual([...result.keys()], ["b", "a", "c"]);
   });
 
   it("should return empty Map for empty array", () => {
     const result = groupBy([], "id");
-    assertEquals([...result.entries()], []);
+    assert.deepEqual([...result.entries()], []);
   });
 });
 
-t.describe("noop", (it) => {
+describe("noop", () => {
   it("should do nothing and return undefined", () => {
     const result = noop();
-    assertEquals(result, undefined);
+    assert.deepEqual(result, undefined);
   });
 });
 
-t.describe("sliceByByte", (it) => {
+describe("sliceByByte", () => {
   it("should slice ASCII string by byte indices", () => {
     const text = "Hello World";
     const result = sliceByByte(text, 0, 5);
-    assertEquals(result, "Hello");
+    assert.deepEqual(result, "Hello");
   });
 
   it("should handle multibyte UTF-8 characters", () => {
     const text = "Hello 世界";
     const result = sliceByByte(text, 0, 6);
-    assertEquals(result, "Hello ");
+    assert.deepEqual(result, "Hello ");
   });
 
   it("should slice emoji correctly", () => {
     const text = "Hello 👋 World";
     const result = sliceByByte(text, 0, 6);
-    assertEquals(result, "Hello ");
+    assert.deepEqual(result, "Hello ");
   });
 
   it("should handle end parameter", () => {
     const text = "Hello World";
     const result = sliceByByte(text, 6, 11);
-    assertEquals(result, "World");
+    assert.deepEqual(result, "World");
   });
 });
 
-t.describe("formatLargeNumber", (it) => {
+describe("formatLargeNumber", () => {
   it("should format numbers >= 1000 with K suffix", () => {
-    assertEquals(formatLargeNumber(1500), "1.5K");
-    assertEquals(formatLargeNumber(2342), "2.3K");
+    assert.deepEqual(formatLargeNumber(1500), "1.5K");
+    assert.deepEqual(formatLargeNumber(2342), "2.3K");
   });
 
   it("should truncate decimal instead of rounding", () => {
-    assertEquals(formatLargeNumber(1599), "1.5K");
-    assertEquals(formatLargeNumber(1950), "1.9K");
-    assertEquals(formatLargeNumber(2999), "2.9K");
+    assert.deepEqual(formatLargeNumber(1599), "1.5K");
+    assert.deepEqual(formatLargeNumber(1950), "1.9K");
+    assert.deepEqual(formatLargeNumber(2999), "2.9K");
   });
 
   it("should drop the decimal if it is 0", () => {
-    assertEquals(formatLargeNumber(1000), "1K");
-    assertEquals(formatLargeNumber(1001), "1K");
-    assertEquals(formatLargeNumber(1099), "1K");
-    assertEquals(formatLargeNumber(1100), "1.1K");
+    assert.deepEqual(formatLargeNumber(1000), "1K");
+    assert.deepEqual(formatLargeNumber(1001), "1K");
+    assert.deepEqual(formatLargeNumber(1099), "1K");
+    assert.deepEqual(formatLargeNumber(1100), "1.1K");
   });
 
   it("should return number as-is if < 1000", () => {
-    assertEquals(formatLargeNumber(0), 0);
-    assertEquals(formatLargeNumber(50), 50);
-    assertEquals(formatLargeNumber(999), 999);
+    assert.deepEqual(formatLargeNumber(0), 0);
+    assert.deepEqual(formatLargeNumber(50), 50);
+    assert.deepEqual(formatLargeNumber(999), 999);
   });
 
   it("should format numbers >= 1,000,000 with M suffix", () => {
-    assertEquals(formatLargeNumber(1_000_000), "1M");
-    assertEquals(formatLargeNumber(1_500_000), "1.5M");
-    assertEquals(formatLargeNumber(2_990_000), "2.9M");
-    assertEquals(formatLargeNumber(12_345_678), "12.3M");
-    assertEquals(formatLargeNumber(1_099_000), "1M");
+    assert.deepEqual(formatLargeNumber(1_000_000), "1M");
+    assert.deepEqual(formatLargeNumber(1_500_000), "1.5M");
+    assert.deepEqual(formatLargeNumber(2_990_000), "2.9M");
+    assert.deepEqual(formatLargeNumber(12_345_678), "12.3M");
+    assert.deepEqual(formatLargeNumber(1_099_000), "1M");
   });
 });
 
-t.describe("formatFullTimestamp", (it) => {
+describe("formatFullTimestamp", () => {
   it("should format timestamp correctly", () => {
     const timestamp = "2025-09-29T15:44:00.000Z";
     const result = formatFullTimestamp(timestamp);
@@ -226,15 +224,15 @@ t.describe("formatFullTimestamp", (it) => {
   });
 });
 
-t.describe("classnames", (it) => {
+describe("classnames", () => {
   it("should combine string classnames", () => {
     const result = classnames("foo", "bar", "baz");
-    assertEquals(result, "foo bar baz");
+    assert.deepEqual(result, "foo bar baz");
   });
 
   it("should handle object with truthy values", () => {
     const result = classnames({ foo: true, bar: false, baz: true });
-    assertEquals(result, "foo baz");
+    assert.deepEqual(result, "foo baz");
   });
 
   it("should combine strings and objects", () => {
@@ -243,12 +241,12 @@ t.describe("classnames", (it) => {
       { active: true, disabled: false },
       "extra",
     );
-    assertEquals(result, "base active extra");
+    assert.deepEqual(result, "base active extra");
   });
 
   it("should handle empty input", () => {
     const result = classnames();
-    assertEquals(result, "");
+    assert.deepEqual(result, "");
   });
 
   it("should throw error for invalid input", () => {
@@ -257,32 +255,32 @@ t.describe("classnames", (it) => {
       classnames(123);
     } catch (e) {
       errorThrown = true;
-      assertEquals(e.message, "Invalid classname definition");
+      assert.deepEqual(e.message, "Invalid classname definition");
     }
     assert(errorThrown);
   });
 });
 
-t.describe("deepClone", (it) => {
+describe("deepClone", () => {
   it("should clone primitive values", () => {
-    assertEquals(deepClone(42), 42);
-    assertEquals(deepClone("hello"), "hello");
-    assertEquals(deepClone(true), true);
-    assertEquals(deepClone(null), null);
-    assertEquals(deepClone(undefined), undefined);
+    assert.deepEqual(deepClone(42), 42);
+    assert.deepEqual(deepClone("hello"), "hello");
+    assert.deepEqual(deepClone(true), true);
+    assert.deepEqual(deepClone(null), null);
+    assert.deepEqual(deepClone(undefined), undefined);
   });
 
   it("should clone simple arrays", () => {
     const input = [1, 2, 3];
     const result = deepClone(input);
-    assertEquals(result, [1, 2, 3]);
+    assert.deepEqual(result, [1, 2, 3]);
     assert(result !== input, "Should create new array");
   });
 
   it("should clone simple objects", () => {
     const input = { a: 1, b: 2, c: 3 };
     const result = deepClone(input);
-    assertEquals(result, { a: 1, b: 2, c: 3 });
+    assert.deepEqual(result, { a: 1, b: 2, c: 3 });
     assert(result !== input, "Should create new object");
   });
 
@@ -299,7 +297,7 @@ t.describe("deepClone", (it) => {
       },
     };
     const result = deepClone(input);
-    assertEquals(result, input);
+    assert.deepEqual(result, input);
     assert(result !== input, "Should create new object");
     assert(result.address !== input.address, "Should clone nested object");
     assert(
@@ -315,7 +313,7 @@ t.describe("deepClone", (it) => {
       [5, [6, 7]],
     ];
     const result = deepClone(input);
-    assertEquals(result, input);
+    assert.deepEqual(result, input);
     assert(result !== input, "Should create new array");
     assert(result[0] !== input[0], "Should clone nested arrays");
     assert(result[2][1] !== input[2][1], "Should clone deeply nested arrays");
@@ -333,7 +331,7 @@ t.describe("deepClone", (it) => {
       },
     };
     const result = deepClone(input);
-    assertEquals(result, input);
+    assert.deepEqual(result, input);
     assert(result !== input, "Should create new object");
     assert(result.users !== input.users, "Should clone array");
     assert(result.users[0] !== input.users[0], "Should clone objects in array");
@@ -354,7 +352,7 @@ t.describe("deepClone", (it) => {
       nested: { key: "value" },
     };
     const result = deepClone(input);
-    assertEquals(result, input);
+    assert.deepEqual(result, input);
     assert(result !== input, "Should create new object");
     assert(result.array !== input.array, "Should clone array property");
     assert(result.nested !== input.nested, "Should clone nested object");
@@ -365,33 +363,33 @@ t.describe("deepClone", (it) => {
     const result = deepClone(input);
     result.a = 999;
     result.b.c = 999;
-    assertEquals(input.a, 1, "Original should not be modified");
-    assertEquals(input.b.c, 2, "Nested original should not be modified");
-    assertEquals(result.a, 999);
-    assertEquals(result.b.c, 999);
+    assert.deepEqual(input.a, 1, "Original should not be modified");
+    assert.deepEqual(input.b.c, 2, "Nested original should not be modified");
+    assert.deepEqual(result.a, 999);
+    assert.deepEqual(result.b.c, 999);
   });
 
   it("should handle empty arrays and objects", () => {
-    assertEquals(deepClone([]), []);
-    assertEquals(deepClone({}), {});
+    assert.deepEqual(deepClone([]), []);
+    assert.deepEqual(deepClone({}), {});
   });
 });
 
-t.describe("differenceInMinutes", (it) => {
+describe("differenceInMinutes", () => {
   it("should return the difference in minutes between two dates", () => {
     const a = new Date("2025-01-01T12:00:00Z");
     const b = new Date("2025-01-01T12:30:00Z");
-    assertEquals(differenceInMinutes(a, b), 30);
+    assert.deepEqual(differenceInMinutes(a, b), 30);
   });
 
   it("should return absolute difference regardless of order", () => {
     const a = new Date("2025-01-01T12:30:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInMinutes(a, b), 30);
+    assert.deepEqual(differenceInMinutes(a, b), 30);
   });
 
   it("should accept string arguments", () => {
-    assertEquals(
+    assert.deepEqual(
       differenceInMinutes("2025-01-01T12:00:00Z", "2025-01-01T13:00:00Z"),
       60,
     );
@@ -400,102 +398,102 @@ t.describe("differenceInMinutes", (it) => {
   it("should floor partial minutes", () => {
     const a = new Date("2025-01-01T12:00:00Z");
     const b = new Date("2025-01-01T12:05:45Z");
-    assertEquals(differenceInMinutes(a, b), 5);
+    assert.deepEqual(differenceInMinutes(a, b), 5);
   });
 
   it("should return 0 for identical dates", () => {
     const date = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInMinutes(date, date), 0);
+    assert.deepEqual(differenceInMinutes(date, date), 0);
   });
 });
 
-t.describe("differenceInHours", (it) => {
+describe("differenceInHours", () => {
   it("should return the difference in hours between two dates", () => {
     const a = new Date("2025-01-01T15:00:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInHours(a, b), 3);
+    assert.deepEqual(differenceInHours(a, b), 3);
   });
 
   it("should ceil partial hours", () => {
     const a = new Date("2025-01-01T12:30:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInHours(a, b), 1);
+    assert.deepEqual(differenceInHours(a, b), 1);
   });
 
   it("should return negative when first date is earlier", () => {
     const a = new Date("2025-01-01T10:00:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInHours(a, b), -2);
+    assert.deepEqual(differenceInHours(a, b), -2);
   });
 
   it("should return 0 for identical dates", () => {
     const date = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInHours(date, date), 0);
+    assert.deepEqual(differenceInHours(date, date), 0);
   });
 });
 
-t.describe("differenceInDays", (it) => {
+describe("differenceInDays", () => {
   it("should return the difference in days between two dates", () => {
     const a = new Date("2025-01-05T12:00:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInDays(a, b), 4);
+    assert.deepEqual(differenceInDays(a, b), 4);
   });
 
   it("should ceil partial days", () => {
     const a = new Date("2025-01-02T06:00:00Z");
     const b = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInDays(a, b), 1);
+    assert.deepEqual(differenceInDays(a, b), 1);
   });
 
   it("should return negative when first date is earlier", () => {
     const a = new Date("2025-01-01T12:00:00Z");
     const b = new Date("2025-01-05T12:00:00Z");
-    assertEquals(differenceInDays(a, b), -4);
+    assert.deepEqual(differenceInDays(a, b), -4);
   });
 
   it("should return 0 for identical dates", () => {
     const date = new Date("2025-01-01T12:00:00Z");
-    assertEquals(differenceInDays(date, date), 0);
+    assert.deepEqual(differenceInDays(date, date), 0);
   });
 });
 
-t.describe("buildQueryString", (it) => {
+describe("buildQueryString", () => {
   it("should build a query string from simple key-value pairs", () => {
     const result = buildQueryString({ foo: "bar", baz: "qux" });
-    assertEquals(result, "foo=bar&baz=qux");
+    assert.deepEqual(result, "foo=bar&baz=qux");
   });
 
   it("should url-encode keys and values", () => {
     const result = buildQueryString({ "a key": "a value", other: "a&b" });
-    assertEquals(result, "a+key=a+value&other=a%26b");
+    assert.deepEqual(result, "a+key=a+value&other=a%26b");
   });
 
   it("should repeat the key for array values", () => {
     const result = buildQueryString({ tag: ["a", "b", "c"] });
-    assertEquals(result, "tag=a&tag=b&tag=c");
+    assert.deepEqual(result, "tag=a&tag=b&tag=c");
   });
 
   it("should handle a mix of scalar and array values", () => {
     const result = buildQueryString({ q: "hello", tag: ["a", "b"] });
-    assertEquals(result, "q=hello&tag=a&tag=b");
+    assert.deepEqual(result, "q=hello&tag=a&tag=b");
   });
 
   it("should stringify non-string scalar values", () => {
     const result = buildQueryString({ limit: 25, active: true });
-    assertEquals(result, "limit=25&active=true");
+    assert.deepEqual(result, "limit=25&active=true");
   });
 
   it("should return an empty string for an empty object", () => {
-    assertEquals(buildQueryString({}), "");
+    assert.deepEqual(buildQueryString({}), "");
   });
 
   it("should omit the key entirely for an empty array", () => {
     const result = buildQueryString({ tag: [] });
-    assertEquals(result, "");
+    assert.deepEqual(result, "");
   });
 });
 
-t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
+describe("ImageLoader", () => {
   const originalImage = window.Image;
 
   class MockImage {
@@ -538,7 +536,7 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     const promiseA = loader.load("a.jpg");
     const promiseB = loader.load("a.jpg");
 
-    assertEquals(MockImage.instances.length, 1);
+    assert.deepEqual(MockImage.instances.length, 1);
     assert(promiseA === promiseB);
 
     MockImage.instances[0].onload();
@@ -553,17 +551,17 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     await first;
 
     await loader.load("b.jpg");
-    assertEquals(MockImage.instances.length, 1);
+    assert.deepEqual(MockImage.instances.length, 1);
   });
 
   it("isLoaded returns false until the load completes", async () => {
     const loader = new ImageLoader();
     const promise = loader.load("c.jpg");
-    assertEquals(loader.isLoaded("c.jpg"), false);
+    assert.deepEqual(loader.isLoaded("c.jpg"), false);
 
     MockImage.instances[0].onload();
     await promise;
-    assertEquals(loader.isLoaded("c.jpg"), true);
+    assert.deepEqual(loader.isLoaded("c.jpg"), true);
   });
 
   it("abort rejects in-flight loads and clears their handlers", async () => {
@@ -572,9 +570,9 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     loader.abort();
 
     await assertRejects(promise);
-    assertEquals(MockImage.instances[0].onload, null);
-    assertEquals(MockImage.instances[0].onerror, null);
-    assertEquals(loader.isLoaded("d.jpg"), false);
+    assert.deepEqual(MockImage.instances[0].onload, null);
+    assert.deepEqual(MockImage.instances[0].onerror, null);
+    assert.deepEqual(loader.isLoaded("d.jpg"), false);
   });
 
   it("abort allows a subsequent load to refetch", async () => {
@@ -584,7 +582,7 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     await assertRejects(aborted);
     loader.load("e.jpg");
 
-    assertEquals(MockImage.instances.length, 2);
+    assert.deepEqual(MockImage.instances.length, 2);
   });
 
   it("resolves on success and rejects on error", async () => {
@@ -604,50 +602,50 @@ t.describe("ImageLoader", (it, { beforeEach, afterEach }) => {
     MockImage.instances[0].onerror();
     await assertRejects(promise);
 
-    assertEquals(loader.isLoaded("f.jpg"), false);
-    assertEquals(loader.hasFailed("f.jpg"), true);
+    assert.deepEqual(loader.isLoaded("f.jpg"), false);
+    assert.deepEqual(loader.hasFailed("f.jpg"), true);
     await assertRejects(loader.load("f.jpg"));
-    assertEquals(MockImage.instances.length, 1);
+    assert.deepEqual(MockImage.instances.length, 1);
   });
 });
 
-t.describe("compareVersions", (it) => {
+describe("compareVersions", () => {
   it("returns 0 for equal versions", () => {
-    assertEquals(compareVersions("1.2.3", "1.2.3"), 0);
-    assertEquals(compareVersions("0.0.0", "0.0.0"), 0);
+    assert.deepEqual(compareVersions("1.2.3", "1.2.3"), 0);
+    assert.deepEqual(compareVersions("0.0.0", "0.0.0"), 0);
   });
 
   it("returns 1 when first is greater", () => {
-    assertEquals(compareVersions("1.2.4", "1.2.3"), 1);
-    assertEquals(compareVersions("1.3.0", "1.2.99"), 1);
-    assertEquals(compareVersions("2.0.0", "1.99.99"), 1);
+    assert.deepEqual(compareVersions("1.2.4", "1.2.3"), 1);
+    assert.deepEqual(compareVersions("1.3.0", "1.2.99"), 1);
+    assert.deepEqual(compareVersions("2.0.0", "1.99.99"), 1);
   });
 
   it("returns -1 when first is less", () => {
-    assertEquals(compareVersions("1.2.3", "1.2.4"), -1);
-    assertEquals(compareVersions("0.0.0", "0.0.1"), -1);
+    assert.deepEqual(compareVersions("1.2.3", "1.2.4"), -1);
+    assert.deepEqual(compareVersions("0.0.0", "0.0.1"), -1);
   });
 
   it("pads missing parts with 0", () => {
-    assertEquals(compareVersions("1", "1.0.0"), 0);
-    assertEquals(compareVersions("1.2", "1.2.0"), 0);
-    assertEquals(compareVersions("1.2.0", "1.2.1"), -1);
+    assert.deepEqual(compareVersions("1", "1.0.0"), 0);
+    assert.deepEqual(compareVersions("1.2", "1.2.0"), 0);
+    assert.deepEqual(compareVersions("1.2.0", "1.2.1"), -1);
   });
 
   it("ignores prerelease tags", () => {
-    assertEquals(compareVersions("1.2.3-beta", "1.2.3"), 0);
-    assertEquals(compareVersions("1.2.3-rc.1", "1.2.4-alpha"), -1);
+    assert.deepEqual(compareVersions("1.2.3-beta", "1.2.3"), 0);
+    assert.deepEqual(compareVersions("1.2.3-rc.1", "1.2.4-alpha"), -1);
   });
 
   it("coerces malformed parts to 0", () => {
-    assertEquals(compareVersions("abc", "0.0.0"), 0);
-    assertEquals(compareVersions("1.x.3", "1.0.3"), 0);
-    assertEquals(compareVersions(undefined, "0.0.1"), -1);
-    assertEquals(compareVersions(null, null), 0);
+    assert.deepEqual(compareVersions("abc", "0.0.0"), 0);
+    assert.deepEqual(compareVersions("1.x.3", "1.0.3"), 0);
+    assert.deepEqual(compareVersions(undefined, "0.0.1"), -1);
+    assert.deepEqual(compareVersions(null, null), 0);
   });
 });
 
-t.describe("getPostLangs", (it, { beforeEach, afterEach }) => {
+describe("getPostLangs", () => {
   let originalLanguages;
   let originalLanguage;
 
@@ -678,31 +676,31 @@ t.describe("getPostLangs", (it, { beforeEach, afterEach }) => {
 
   it("returns base language codes from navigator.languages", () => {
     setLanguages(["en-US", "fr-FR"], "en-US");
-    assertEquals(getPostLangs(), ["en", "fr"]);
+    assert.deepEqual(getPostLangs(), ["en", "fr"]);
   });
 
   it("dedupes language codes", () => {
     setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
-    assertEquals(getPostLangs(), ["en", "fr"]);
+    assert.deepEqual(getPostLangs(), ["en", "fr"]);
   });
 
   it("limits to top 3 codes", () => {
     setLanguages(["en", "fr", "de", "es", "ja"], "en");
-    assertEquals(getPostLangs(), ["en", "fr", "de"]);
+    assert.deepEqual(getPostLangs(), ["en", "fr", "de"]);
   });
 
   it("falls back to navigator.language when languages is empty", () => {
     setLanguages([], "es-MX");
-    assertEquals(getPostLangs(), ["es"]);
+    assert.deepEqual(getPostLangs(), ["es"]);
   });
 
   it("falls back to ['en'] when no locale info is available", () => {
     setLanguages([], "");
-    assertEquals(getPostLangs(), ["en"]);
+    assert.deepEqual(getPostLangs(), ["en"]);
   });
 });
 
-t.describe("getBrowserLanguageCodes", (it, { beforeEach, afterEach }) => {
+describe("getBrowserLanguageCodes", () => {
   let originalLanguages;
   let originalLanguage;
 
@@ -733,29 +731,29 @@ t.describe("getBrowserLanguageCodes", (it, { beforeEach, afterEach }) => {
 
   it("returns deduped base language codes from navigator.languages", () => {
     setLanguages(["en-US", "en-GB", "fr-FR"], "en-US");
-    assertEquals(getBrowserLanguageCodes(), ["en", "fr"]);
+    assert.deepEqual(getBrowserLanguageCodes(), ["en", "fr"]);
   });
 
   it("does not limit the number of codes", () => {
     setLanguages(["en", "fr", "de", "es", "ja"], "en");
-    assertEquals(getBrowserLanguageCodes(), ["en", "fr", "de", "es", "ja"]);
+    assert.deepEqual(getBrowserLanguageCodes(), ["en", "fr", "de", "es", "ja"]);
   });
 
   it("falls back to navigator.language when languages is empty", () => {
     setLanguages([], "es-MX");
-    assertEquals(getBrowserLanguageCodes(), ["es"]);
+    assert.deepEqual(getBrowserLanguageCodes(), ["es"]);
   });
 
   it("returns an empty array when no locale info is available", () => {
     setLanguages([], "");
-    assertEquals(getBrowserLanguageCodes(), []);
+    assert.deepEqual(getBrowserLanguageCodes(), []);
   });
 });
 
-t.describe("withTimeout", (it) => {
+describe("withTimeout", () => {
   it("resolves with the value when fn completes before the timeout", async () => {
     const result = await withTimeout(async () => "ok", 50);
-    assertEquals(result, "ok");
+    assert.deepEqual(result, "ok");
   });
 
   it("rejects with TimeoutError when fn exceeds the timeout", async () => {
@@ -769,8 +767,8 @@ t.describe("withTimeout", (it) => {
       caught = error;
     }
     assert(caught instanceof TimeoutError, "expected a TimeoutError");
-    assertEquals(caught.name, "TimeoutError");
-    assertEquals(caught.message, "Timed out");
+    assert.deepEqual(caught.name, "TimeoutError");
+    assert.deepEqual(caught.message, "Timed out");
   });
 
   it("passes an AbortSignal to fn", async () => {
@@ -782,7 +780,7 @@ t.describe("withTimeout", (it) => {
       receivedSignal instanceof AbortSignal,
       "expected fn to receive an AbortSignal",
     );
-    assertEquals(receivedSignal.aborted, false);
+    assert.deepEqual(receivedSignal.aborted, false);
   });
 
   it("aborts the signal when the timeout fires", async () => {
@@ -799,7 +797,7 @@ t.describe("withTimeout", (it) => {
     } catch {
       // expected
     }
-    assertEquals(receivedSignal.aborted, true);
+    assert.deepEqual(receivedSignal.aborted, true);
   });
 
   it("does not abort the signal when fn resolves first", async () => {
@@ -809,7 +807,7 @@ t.describe("withTimeout", (it) => {
     }, 50);
     // Wait past the timeout to confirm the timer was cleared.
     await new Promise((resolve) => setTimeout(resolve, 75));
-    assertEquals(receivedSignal.aborted, false);
+    assert.deepEqual(receivedSignal.aborted, false);
   });
 
   it("propagates errors thrown by fn", async () => {
@@ -822,7 +820,7 @@ t.describe("withTimeout", (it) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught, boom);
+    assert.deepEqual(caught, boom);
   });
 });
 
@@ -841,7 +839,7 @@ function pressEvent(
   return event;
 }
 
-t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
+describe("enableLongPress", () => {
   let el;
   let longPressCount;
   let originalSetTimeout;
@@ -867,7 +865,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     enableLongPress(el, 30);
     el.dispatchEvent(pressEvent("mousedown"));
     await wait(60);
-    assertEquals(longPressCount, 1);
+    assert.deepEqual(longPressCount, 1);
   });
 
   it("does not dispatch when released before the timeout", async () => {
@@ -875,7 +873,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     el.dispatchEvent(pressEvent("mousedown"));
     el.dispatchEvent(pressEvent("mouseup"));
     await wait(60);
-    assertEquals(longPressCount, 0);
+    assert.deepEqual(longPressCount, 0);
   });
 
   it("cancels when a touch moves beyond the threshold", async () => {
@@ -883,7 +881,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     el.dispatchEvent(pressEvent("touchstart", { touch: true }));
     el.dispatchEvent(pressEvent("touchmove", { touch: true, clientX: 50 }));
     await wait(60);
-    assertEquals(longPressCount, 0);
+    assert.deepEqual(longPressCount, 0);
   });
 
   it("does not cancel for small touch movements", async () => {
@@ -893,7 +891,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
       pressEvent("touchmove", { touch: true, clientX: 3, clientY: 3 }),
     );
     await wait(60);
-    assertEquals(longPressCount, 1);
+    assert.deepEqual(longPressCount, 1);
   });
 
   it("guards against double-binding", async () => {
@@ -901,14 +899,14 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     enableLongPress(el, 30);
     el.dispatchEvent(pressEvent("mousedown"));
     await wait(60);
-    assertEquals(longPressCount, 1);
+    assert.deepEqual(longPressCount, 1);
   });
 
   it("ignores presses from non-primary mouse buttons", async () => {
     enableLongPress(el, 30);
     el.dispatchEvent(pressEvent("mousedown", { button: 2 }));
     await wait(60);
-    assertEquals(longPressCount, 0);
+    assert.deepEqual(longPressCount, 0);
   });
 
   it("suppresses the click that follows a long-press", async () => {
@@ -920,7 +918,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     const click = pressEvent("click");
     el.dispatchEvent(click);
     assert(click.defaultPrevented);
-    assertEquals(laterClickCount, 0);
+    assert.deepEqual(laterClickCount, 0);
   });
 
   it("suppresses the trailing click even when it lands on another element", async () => {
@@ -936,7 +934,7 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     const click = pressEvent("click");
     overlay.dispatchEvent(click);
     assert(click.defaultPrevented);
-    assertEquals(overlayClickCount, 0);
+    assert.deepEqual(overlayClickCount, 0);
     overlay.remove();
   });
 
@@ -957,46 +955,43 @@ t.describe("enableLongPress", (it, { beforeEach, afterEach }) => {
     const click = pressEvent("click");
     el.dispatchEvent(click);
     assert(!click.defaultPrevented);
-    assertEquals(laterClickCount, 1);
+    assert.deepEqual(laterClickCount, 1);
   });
 });
 
-t.describe(
-  "enableLongPress - context menu",
-  (it, { beforeEach, afterEach }) => {
-    let el;
+describe("enableLongPress - context menu", () => {
+  let el;
 
-    function setMaxTouchPoints(value) {
-      Object.defineProperty(window.navigator, "maxTouchPoints", {
-        value,
-        configurable: true,
-      });
-    }
-
-    beforeEach(() => {
-      el = document.createElement("div");
-      document.body.appendChild(el);
-      enableLongPress(el, 30);
-      setMaxTouchPoints(5);
+  function setMaxTouchPoints(value) {
+    Object.defineProperty(window.navigator, "maxTouchPoints", {
+      value,
+      configurable: true,
     });
-    afterEach(() => setMaxTouchPoints(0));
+  }
 
-    it("suppresses the context menu on touch devices", () => {
-      const contextmenu = pressEvent("contextmenu");
-      el.dispatchEvent(contextmenu);
-      assert(contextmenu.defaultPrevented);
-    });
+  beforeEach(() => {
+    el = document.createElement("div");
+    document.body.appendChild(el);
+    enableLongPress(el, 30);
+    setMaxTouchPoints(5);
+  });
+  afterEach(() => setMaxTouchPoints(0));
 
-    it("leaves the context menu alone on non-touch devices", () => {
-      setMaxTouchPoints(0);
-      const contextmenu = pressEvent("contextmenu");
-      el.dispatchEvent(contextmenu);
-      assert(!contextmenu.defaultPrevented);
-    });
-  },
-);
+  it("suppresses the context menu on touch devices", () => {
+    const contextmenu = pressEvent("contextmenu");
+    el.dispatchEvent(contextmenu);
+    assert(contextmenu.defaultPrevented);
+  });
 
-t.describe("debounce", (it, { beforeEach, afterEach }) => {
+  it("leaves the context menu alone on non-touch devices", () => {
+    setMaxTouchPoints(0);
+    const contextmenu = pressEvent("contextmenu");
+    el.dispatchEvent(contextmenu);
+    assert(!contextmenu.defaultPrevented);
+  });
+});
+
+describe("debounce", () => {
   let originalSetTimeout;
 
   beforeEach(() => {
@@ -1014,7 +1009,7 @@ t.describe("debounce", (it, { beforeEach, afterEach }) => {
     debounced("first");
     debounced("second");
     await wait(10);
-    assertEquals(calls, ["second"]);
+    assert.deepEqual(calls, ["second"]);
   });
 
   it("does not fire a pending invocation after cancel", async () => {
@@ -1023,7 +1018,7 @@ t.describe("debounce", (it, { beforeEach, afterEach }) => {
     debounced("pending");
     debounced.cancel();
     await wait(10);
-    assertEquals(calls, []);
+    assert.deepEqual(calls, []);
   });
 
   it("fires again when invoked after cancel", async () => {
@@ -1033,8 +1028,6 @@ t.describe("debounce", (it, { beforeEach, afterEach }) => {
     debounced.cancel();
     debounced("kept");
     await wait(10);
-    assertEquals(calls, ["kept"]);
+    assert.deepEqual(calls, ["kept"]);
   });
 });
-
-await t.run();

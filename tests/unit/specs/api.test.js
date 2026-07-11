@@ -1,8 +1,6 @@
-import { TestSuite } from "../testSuite.js";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
 import {
-  assert,
-  assertEquals,
-  mock,
   MockFetch,
   mockWindowLocation,
   restoreWindow,
@@ -10,8 +8,6 @@ import {
 import { Api, ApiError } from "/js/api.js";
 import { auth } from "/js/auth.js";
 import { TokenRefreshError } from "/js/oauth.js";
-
-const t = new TestSuite("Api");
 
 function createMockSession(mockResponse = {}) {
   let lastFetchOptions = null;
@@ -29,7 +25,7 @@ function createMockSession(mockResponse = {}) {
   };
 }
 
-t.describe("request", (it) => {
+describe("request", () => {
   it("should construct URL with path", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -37,7 +33,7 @@ t.describe("request", (it) => {
     await api.request("com.example.method");
 
     const { url } = session.getLastFetchOptions();
-    assertEquals(url, "https://test.example.com/xrpc/com.example.method");
+    assert.deepEqual(url, "https://test.example.com/xrpc/com.example.method");
   });
 
   it("should append query string to URL", async () => {
@@ -49,7 +45,7 @@ t.describe("request", (it) => {
     });
 
     const { url } = session.getLastFetchOptions();
-    assertEquals(
+    assert.deepEqual(
       url,
       "https://test.example.com/xrpc/com.example.method?foo=bar&baz=qux",
     );
@@ -62,7 +58,7 @@ t.describe("request", (it) => {
     await api.request("com.example.method");
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.method, "GET");
+    assert.deepEqual(options.method, "GET");
   });
 
   it("should use specified method", async () => {
@@ -72,7 +68,7 @@ t.describe("request", (it) => {
     await api.request("com.example.method", { method: "POST" });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
   });
 
   it("should include Content-Type header by default", async () => {
@@ -82,7 +78,7 @@ t.describe("request", (it) => {
     await api.request("com.example.method");
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(options.headers["Content-Type"], "application/json");
   });
 
   it("should merge custom headers", async () => {
@@ -94,8 +90,8 @@ t.describe("request", (it) => {
     });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.headers["Content-Type"], "application/json");
-    assertEquals(options.headers["X-Custom-Header"], "custom-value");
+    assert.deepEqual(options.headers["Content-Type"], "application/json");
+    assert.deepEqual(options.headers["X-Custom-Header"], "custom-value");
   });
 
   it("should stringify body by default", async () => {
@@ -108,7 +104,7 @@ t.describe("request", (it) => {
     });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.body, '{"key":"value"}');
+    assert.deepEqual(options.body, '{"key":"value"}');
   });
 
   it("should not stringify body when stringifyBody is false", async () => {
@@ -123,7 +119,7 @@ t.describe("request", (it) => {
     });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.body, rawBody);
+    assert.deepEqual(options.body, rawBody);
   });
 
   it("should parse JSON response by default", async () => {
@@ -132,7 +128,7 @@ t.describe("request", (it) => {
 
     const res = await api.request("com.example.method");
 
-    assertEquals(res.data, { result: "success" });
+    assert.deepEqual(res.data, { result: "success" });
   });
 
   it("should not parse JSON when parseJson is false", async () => {
@@ -141,7 +137,7 @@ t.describe("request", (it) => {
 
     const res = await api.request("com.example.method", { parseJson: false });
 
-    assertEquals(res.data, null);
+    assert.deepEqual(res.data, null);
   });
 
   it("should throw ApiError when response is not ok", async () => {
@@ -165,7 +161,7 @@ t.describe("request", (it) => {
     }
 
     assert(thrownError instanceof ApiError);
-    assertEquals(thrownError.status, 400);
+    assert.deepEqual(thrownError.status, 400);
   });
 
   it("should expose error data and status text on ApiError for non-200", async () => {
@@ -189,9 +185,9 @@ t.describe("request", (it) => {
     }
 
     assert(thrownError instanceof ApiError);
-    assertEquals(thrownError.status, 500);
-    assertEquals(thrownError.statusText, "Internal Server Error");
-    assertEquals(thrownError.data.error, "InternalServerError");
+    assert.deepEqual(thrownError.status, 500);
+    assert.deepEqual(thrownError.statusText, "Internal Server Error");
+    assert.deepEqual(thrownError.data.error, "InternalServerError");
   });
 
   it("should re-throw non-refresh errors raised during fetch", async () => {
@@ -212,7 +208,7 @@ t.describe("request", (it) => {
     }
 
     assert(thrownError !== null);
-    assertEquals(thrownError.message, "network down");
+    assert.deepEqual(thrownError.message, "network down");
   });
 
   it("should inject atproto-proxy header on AppView-routed requests", async () => {
@@ -225,7 +221,7 @@ t.describe("request", (it) => {
     await api.getProfile("did:plc:test");
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:web:api.bsky.app#bsky_appview",
     );
@@ -248,15 +244,15 @@ t.describe("request", (it) => {
 
     const res = await api.request("com.example.method");
 
-    assertEquals(res.data, cachedData);
+    assert.deepEqual(res.data, cachedData);
   });
 });
 
-t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
+describe("token refresh failure", () => {
   const originalLogout = auth.logout;
 
   beforeEach(() => {
-    auth.logout = mock(() => Promise.resolve());
+    auth.logout = mock.fn(() => Promise.resolve());
   });
 
   afterEach(() => {
@@ -282,13 +278,16 @@ t.describe("token refresh failure", (it, { beforeEach, afterEach }) => {
       await Promise.resolve();
     }
 
-    assertEquals(auth.logout.calls.length, 1);
-    assertEquals(auth.logout.calls[0][0], "did:plc:testuser");
-    assertEquals(capturedHrefs.at(-1), "/login");
+    assert.deepEqual(auth.logout.mock.callCount(), 1);
+    assert.deepEqual(
+      auth.logout.mock.calls[0].arguments[0],
+      "did:plc:testuser",
+    );
+    assert.deepEqual(capturedHrefs.at(-1), "/login");
   });
 });
 
-t.describe("service DID in requests", (it) => {
+describe("service DID in requests", () => {
   it("should use custom bskyAppViewServiceDid in atproto-proxy header", async () => {
     const session = createMockSession({
       did: "did:plc:test",
@@ -300,7 +299,7 @@ t.describe("service DID in requests", (it) => {
     await api.getProfile("did:plc:test");
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.headers["atproto-proxy"], customDid);
+    assert.deepEqual(options.headers["atproto-proxy"], customDid);
   });
 
   it("should use custom chatAppViewServiceDid in atproto-proxy header", async () => {
@@ -311,11 +310,11 @@ t.describe("service DID in requests", (it) => {
     await api.listConvos();
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(options.headers["atproto-proxy"], customDid);
+    assert.deepEqual(options.headers["atproto-proxy"], customDid);
   });
 });
 
-t.describe("createLikeRecord", (it) => {
+describe("createLikeRecord", () => {
   it("should create a like record with correct body", async () => {
     const session = createMockSession({
       uri: "at://did:plc:testuser/app.bsky.feed.like/abc123",
@@ -331,16 +330,16 @@ t.describe("createLikeRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.createRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.feed.like");
-    assertEquals(body.record.subject.uri, post.uri);
-    assertEquals(body.record.subject.cid, post.cid);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.feed.like");
+    assert.deepEqual(body.record.subject.uri, post.uri);
+    assert.deepEqual(body.record.subject.cid, post.cid);
   });
 });
 
-t.describe("deleteLikeRecord", (it) => {
+describe("deleteLikeRecord", () => {
   it("should delete a like record with correct rkey", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -352,15 +351,15 @@ t.describe("deleteLikeRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.deleteRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.feed.like");
-    assertEquals(body.rkey, "likerkey123");
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.feed.like");
+    assert.deepEqual(body.rkey, "likerkey123");
   });
 });
 
-t.describe("createRepostRecord", (it) => {
+describe("createRepostRecord", () => {
   it("should create a repost record with correct body", async () => {
     const session = createMockSession({
       uri: "at://did:plc:testuser/app.bsky.feed.repost/abc123",
@@ -376,16 +375,16 @@ t.describe("createRepostRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.createRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.feed.repost");
-    assertEquals(body.record.subject.uri, post.uri);
-    assertEquals(body.record.subject.cid, post.cid);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.feed.repost");
+    assert.deepEqual(body.record.subject.uri, post.uri);
+    assert.deepEqual(body.record.subject.cid, post.cid);
   });
 });
 
-t.describe("deleteRepostRecord", (it) => {
+describe("deleteRepostRecord", () => {
   it("should delete a repost record with correct rkey", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -399,15 +398,15 @@ t.describe("deleteRepostRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.deleteRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.feed.repost");
-    assertEquals(body.rkey, "repostrkey123");
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.feed.repost");
+    assert.deepEqual(body.rkey, "repostrkey123");
   });
 });
 
-t.describe("createBookmark", (it) => {
+describe("createBookmark", () => {
   it("should create a bookmark with correct body", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -420,14 +419,14 @@ t.describe("createBookmark", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.bookmark.createBookmark"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.uri, post.uri);
-    assertEquals(body.cid, post.cid);
+    assert.deepEqual(body.uri, post.uri);
+    assert.deepEqual(body.cid, post.cid);
   });
 });
 
-t.describe("deleteBookmark", (it) => {
+describe("deleteBookmark", () => {
   it("should delete a bookmark with correct body", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -437,13 +436,13 @@ t.describe("deleteBookmark", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.bookmark.deleteBookmark"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.uri, post.uri);
+    assert.deepEqual(body.uri, post.uri);
   });
 });
 
-t.describe("createFollowRecord", (it) => {
+describe("createFollowRecord", () => {
   it("should create a follow record with correct body", async () => {
     const session = createMockSession({
       uri: "at://did:plc:testuser/app.bsky.graph.follow/abc123",
@@ -456,15 +455,15 @@ t.describe("createFollowRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.createRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.graph.follow");
-    assertEquals(body.record.subject, "did:plc:targetuser");
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.follow");
+    assert.deepEqual(body.record.subject, "did:plc:targetuser");
   });
 });
 
-t.describe("deleteFollowRecord", (it) => {
+describe("deleteFollowRecord", () => {
   it("should delete a follow record with correct rkey", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -478,15 +477,15 @@ t.describe("deleteFollowRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.deleteRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.graph.follow");
-    assertEquals(body.rkey, "followrkey123");
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.graph.follow");
+    assert.deepEqual(body.rkey, "followrkey123");
   });
 });
 
-t.describe("getPostThread", (it) => {
+describe("getPostThread", () => {
   it("should fetch post thread with correct query params", async () => {
     const session = createMockSession({ thread: { post: {} } });
     const api = new Api(session);
@@ -511,14 +510,14 @@ t.describe("getPostThread", (it) => {
     });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(
+    assert.deepEqual(
       options.headers["atproto-accept-labelers"],
       "did:plc:labeler1,did:plc:labeler2",
     );
   });
 });
 
-t.describe("getPostThreadOther", (it) => {
+describe("getPostThreadOther", () => {
   it("should fetch post thread other with correct query params", async () => {
     const session = createMockSession({ thread: [] });
     const api = new Api(session);
@@ -543,14 +542,14 @@ t.describe("getPostThreadOther", (it) => {
     });
 
     const { options } = session.getLastFetchOptions();
-    assertEquals(
+    assert.deepEqual(
       options.headers["atproto-accept-labelers"],
       "did:plc:labeler1,did:plc:labeler2",
     );
   });
 });
 
-t.describe("getFeed", (it) => {
+describe("getFeed", () => {
   it("should fetch feed with correct query params", async () => {
     const session = createMockSession({ feed: [], cursor: "nextcursor" });
     const api = new Api(session);
@@ -566,7 +565,7 @@ t.describe("getFeed", (it) => {
         "feed=at%3A%2F%2Fdid%3Aplc%3Afeed%2Fapp.bsky.feed.generator%2Fmyfeed",
       ),
     );
-    assertEquals(result.cursor, "nextcursor");
+    assert.deepEqual(result.cursor, "nextcursor");
   });
 
   it("should use custom limit and cursor", async () => {
@@ -584,7 +583,7 @@ t.describe("getFeed", (it) => {
   });
 });
 
-t.describe("getFeedGenerator", (it) => {
+describe("getFeedGenerator", () => {
   it("should fetch feed generator and return view", async () => {
     const session = createMockSession({
       view: { uri: "feeduri", displayName: "My Feed" },
@@ -597,11 +596,11 @@ t.describe("getFeedGenerator", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getFeedGenerator"));
-    assertEquals(result.displayName, "My Feed");
+    assert.deepEqual(result.displayName, "My Feed");
   });
 });
 
-t.describe("getFeedGenerators", (it) => {
+describe("getFeedGenerators", () => {
   it("should fetch multiple feed generators", async () => {
     const session = createMockSession({
       feeds: [{ uri: "feed1" }, { uri: "feed2" }],
@@ -612,11 +611,11 @@ t.describe("getFeedGenerators", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getFeedGenerators"));
-    assertEquals(result.length, 2);
+    assert.deepEqual(result.length, 2);
   });
 });
 
-t.describe("getFollowingFeed", (it) => {
+describe("getFollowingFeed", () => {
   it("should fetch timeline", async () => {
     const session = createMockSession({ feed: [], cursor: "nextcursor" });
     const api = new Api(session);
@@ -625,11 +624,11 @@ t.describe("getFollowingFeed", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getTimeline"));
-    assertEquals(result.cursor, "nextcursor");
+    assert.deepEqual(result.cursor, "nextcursor");
   });
 });
 
-t.describe("getPosts", (it) => {
+describe("getPosts", () => {
   it("should fetch posts by URIs", async () => {
     const session = createMockSession({
       posts: [{ uri: "post1" }, { uri: "post2" }],
@@ -643,11 +642,11 @@ t.describe("getPosts", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getPosts"));
-    assertEquals(result.length, 2);
+    assert.deepEqual(result.length, 2);
   });
 });
 
-t.describe("getPost", (it) => {
+describe("getPost", () => {
   it("should fetch single post", async () => {
     const session = createMockSession({
       posts: [{ uri: "at://did:plc:a/app.bsky.feed.post/1", text: "hello" }],
@@ -656,7 +655,7 @@ t.describe("getPost", (it) => {
 
     const result = await api.getPost("at://did:plc:a/app.bsky.feed.post/1");
 
-    assertEquals(result.text, "hello");
+    assert.deepEqual(result.text, "hello");
   });
 
   it("should throw error when post not found", async () => {
@@ -675,7 +674,7 @@ t.describe("getPost", (it) => {
   });
 });
 
-t.describe("getRepost", (it) => {
+describe("getRepost", () => {
   it("should fetch repost record", async () => {
     const session = createMockSession({
       uri: "at://did:plc:a/app.bsky.feed.repost/1",
@@ -687,11 +686,11 @@ t.describe("getRepost", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.getRecord"));
-    assertEquals(result.uri, "at://did:plc:a/app.bsky.feed.repost/1");
+    assert.deepEqual(result.uri, "at://did:plc:a/app.bsky.feed.repost/1");
   });
 });
 
-t.describe("getProfile", (it) => {
+describe("getProfile", () => {
   it("should fetch profile by DID", async () => {
     const session = createMockSession({
       did: "did:plc:test",
@@ -704,11 +703,11 @@ t.describe("getProfile", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.actor.getProfile"));
     assert(url.includes("actor=did%3Aplc%3Atest"));
-    assertEquals(result.handle, "test.bsky.social");
+    assert.deepEqual(result.handle, "test.bsky.social");
   });
 });
 
-t.describe("searchProfiles", (it) => {
+describe("searchProfiles", () => {
   it("should search profiles with query", async () => {
     const session = createMockSession({
       actors: [{ did: "did:plc:a" }, { did: "did:plc:b" }],
@@ -720,11 +719,11 @@ t.describe("searchProfiles", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.actor.searchActors"));
     assert(url.includes("q=test"));
-    assertEquals(result.actors.length, 2);
+    assert.deepEqual(result.actors.length, 2);
   });
 });
 
-t.describe("searchPosts", (it) => {
+describe("searchPosts", () => {
   it("should search posts with query", async () => {
     const session = createMockSession({
       posts: [{ uri: "post1" }],
@@ -737,7 +736,7 @@ t.describe("searchPosts", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.searchPosts"));
     assert(url.includes("q=hello"));
-    assertEquals(result.cursor, "next");
+    assert.deepEqual(result.cursor, "next");
   });
 
   it("should include sort parameter", async () => {
@@ -751,7 +750,7 @@ t.describe("searchPosts", (it) => {
   });
 });
 
-t.describe("sendInteractions", (it) => {
+describe("sendInteractions", () => {
   it("should send interactions to feed proxy", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -764,15 +763,15 @@ t.describe("sendInteractions", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.sendInteractions"));
-    assertEquals(options.method, "POST");
-    assertEquals(
+    assert.deepEqual(options.method, "POST");
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:web:feed.example.com#feed_proxy",
     );
   });
 });
 
-t.describe("getAuthorFeed", (it) => {
+describe("getAuthorFeed", () => {
   it("should fetch author feed with filters", async () => {
     const session = createMockSession({ feed: [], cursor: "next" });
     const api = new Api(session);
@@ -786,7 +785,7 @@ t.describe("getAuthorFeed", (it) => {
   });
 });
 
-t.describe("getActorLikes", (it) => {
+describe("getActorLikes", () => {
   it("should fetch actor likes", async () => {
     const session = createMockSession({ feed: [], cursor: "next" });
     const api = new Api(session);
@@ -799,7 +798,7 @@ t.describe("getActorLikes", (it) => {
   });
 });
 
-t.describe("getPreferences", (it) => {
+describe("getPreferences", () => {
   it("should fetch preferences", async () => {
     const session = createMockSession({
       preferences: [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2" }],
@@ -810,11 +809,11 @@ t.describe("getPreferences", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.actor.getPreferences"));
-    assertEquals(result.length, 1);
+    assert.deepEqual(result.length, 1);
   });
 });
 
-t.describe("updatePreferences", (it) => {
+describe("updatePreferences", () => {
   it("should update preferences", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -826,13 +825,13 @@ t.describe("updatePreferences", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.actor.putPreferences"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.preferences, prefs);
+    assert.deepEqual(body.preferences, prefs);
   });
 });
 
-t.describe("getLabelers", (it) => {
+describe("getLabelers", () => {
   it("should fetch labelers by DIDs", async () => {
     const session = createMockSession({
       views: [{ creator: { did: "did:plc:labeler1" } }],
@@ -844,11 +843,11 @@ t.describe("getLabelers", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.labeler.getServices"));
     assert(url.includes("detailed=true"));
-    assertEquals(result.length, 1);
+    assert.deepEqual(result.length, 1);
   });
 });
 
-t.describe("getLabeler", (it) => {
+describe("getLabeler", () => {
   it("should fetch single labeler", async () => {
     const session = createMockSession({
       views: [{ creator: { did: "did:plc:labeler1" } }],
@@ -857,11 +856,11 @@ t.describe("getLabeler", (it) => {
 
     const result = await api.getLabeler("did:plc:labeler1");
 
-    assertEquals(result.creator.did, "did:plc:labeler1");
+    assert.deepEqual(result.creator.did, "did:plc:labeler1");
   });
 });
 
-t.describe("getSession", (it) => {
+describe("getSession", () => {
   it("should fetch session info", async () => {
     const session = createMockSession({
       did: "did:plc:testuser",
@@ -873,11 +872,11 @@ t.describe("getSession", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.server.getSession"));
-    assertEquals(result.did, "did:plc:testuser");
+    assert.deepEqual(result.did, "did:plc:testuser");
   });
 });
 
-t.describe("getNumNotifications", (it) => {
+describe("getNumNotifications", () => {
   it("should fetch unread notification count", async () => {
     const session = createMockSession({ count: 5 });
     const api = new Api(session);
@@ -886,11 +885,11 @@ t.describe("getNumNotifications", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.notification.getUnreadCount"));
-    assertEquals(result, 5);
+    assert.deepEqual(result, 5);
   });
 });
 
-t.describe("getChatUnreadCounts", (it) => {
+describe("getChatUnreadCounts", () => {
   it("should fetch chat unread counts via the chat proxy", async () => {
     const session = createMockSession({
       unreadAcceptedConvos: 4,
@@ -903,13 +902,16 @@ t.describe("getChatUnreadCounts", (it) => {
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getUnreadCounts"));
     assert(url.includes("includeGroupChats=true"));
-    assertEquals(options.headers["atproto-proxy"], api.chatAppViewServiceDid);
-    assertEquals(result.unreadAcceptedConvos, 4);
-    assertEquals(result.unreadRequestConvos, 1);
+    assert.deepEqual(
+      options.headers["atproto-proxy"],
+      api.chatAppViewServiceDid,
+    );
+    assert.deepEqual(result.unreadAcceptedConvos, 4);
+    assert.deepEqual(result.unreadRequestConvos, 1);
   });
 });
 
-t.describe("getNotifications", (it) => {
+describe("getNotifications", () => {
   it("should fetch notifications", async () => {
     const session = createMockSession({
       notifications: [{ uri: "notif1" }],
@@ -921,11 +923,11 @@ t.describe("getNotifications", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.notification.listNotifications"));
-    assertEquals(result.notifications.length, 1);
+    assert.deepEqual(result.notifications.length, 1);
   });
 });
 
-t.describe("markNotificationsAsRead", (it) => {
+describe("markNotificationsAsRead", () => {
   it("should mark notifications as seen", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -934,13 +936,13 @@ t.describe("markNotificationsAsRead", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.notification.updateSeen"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
     assert(body.seenAt !== undefined);
   });
 });
 
-t.describe("listConvos", (it) => {
+describe("listConvos", () => {
   it("should list conversations", async () => {
     const session = createMockSession({
       convos: [{ id: "convo1" }],
@@ -952,11 +954,11 @@ t.describe("listConvos", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.listConvos"));
-    assertEquals(
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:web:api.bsky.chat#bsky_chat",
     );
-    assertEquals(result.convos.length, 1);
+    assert.deepEqual(result.convos.length, 1);
   });
 
   it("should include readState filter when provided", async () => {
@@ -970,7 +972,7 @@ t.describe("listConvos", (it) => {
   });
 });
 
-t.describe("getConvo", (it) => {
+describe("getConvo", () => {
   it("should fetch conversation by ID", async () => {
     const session = createMockSession({ convo: { id: "convo1", members: [] } });
     const api = new Api(session);
@@ -980,11 +982,11 @@ t.describe("getConvo", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getConvo"));
     assert(url.includes("convoId=convo1"));
-    assertEquals(result.convo.id, "convo1");
+    assert.deepEqual(result.convo.id, "convo1");
   });
 });
 
-t.describe("getMessages", (it) => {
+describe("getMessages", () => {
   it("should fetch messages for conversation", async () => {
     const session = createMockSession({
       messages: [{ id: "msg1" }],
@@ -997,11 +999,11 @@ t.describe("getMessages", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getMessages"));
     assert(url.includes("convoId=convo1"));
-    assertEquals(result.messages.length, 1);
+    assert.deepEqual(result.messages.length, 1);
   });
 });
 
-t.describe("sendMessage", (it) => {
+describe("sendMessage", () => {
   it("should send message to conversation", async () => {
     const session = createMockSession({ id: "msg1", text: "hello" });
     const api = new Api(session);
@@ -1010,11 +1012,11 @@ t.describe("sendMessage", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.sendMessage"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
-    assertEquals(body.message.text, "hello");
-    assertEquals(body.message.embed, undefined);
+    assert.deepEqual(body.convoId, "convo1");
+    assert.deepEqual(body.message.text, "hello");
+    assert.deepEqual(body.message.embed, undefined);
   });
 
   it("should include embed when provided", async () => {
@@ -1029,7 +1031,7 @@ t.describe("sendMessage", (it) => {
 
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
-    assertEquals(body.message.embed, embed);
+    assert.deepEqual(body.message.embed, embed);
   });
 
   it("should omit embed when null", async () => {
@@ -1040,11 +1042,11 @@ t.describe("sendMessage", (it) => {
 
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
-    assertEquals(body.message.embed, undefined);
+    assert.deepEqual(body.message.embed, undefined);
   });
 });
 
-t.describe("acceptConvo", (it) => {
+describe("acceptConvo", () => {
   it("should accept conversation", async () => {
     const session = createMockSession({ convo: { id: "convo1" } });
     const api = new Api(session);
@@ -1053,13 +1055,13 @@ t.describe("acceptConvo", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.acceptConvo"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
+    assert.deepEqual(body.convoId, "convo1");
   });
 });
 
-t.describe("leaveConvo", (it) => {
+describe("leaveConvo", () => {
   it("should leave conversation", async () => {
     const session = createMockSession({ convo: { id: "convo1" } });
     const api = new Api(session);
@@ -1068,13 +1070,13 @@ t.describe("leaveConvo", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.leaveConvo"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
+    assert.deepEqual(body.convoId, "convo1");
   });
 });
 
-t.describe("getConvoAvailability", (it) => {
+describe("getConvoAvailability", () => {
   it("should check conversation availability", async () => {
     const session = createMockSession({ canChat: true });
     const api = new Api(session);
@@ -1083,11 +1085,11 @@ t.describe("getConvoAvailability", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getConvoAvailability"));
-    assertEquals(result.canChat, true);
+    assert.deepEqual(result.canChat, true);
   });
 });
 
-t.describe("getConvoForMembers", (it) => {
+describe("getConvoForMembers", () => {
   it("should get or create conversation for members", async () => {
     const session = createMockSession({ convo: { id: "convo1" } });
     const api = new Api(session);
@@ -1099,11 +1101,11 @@ t.describe("getConvoForMembers", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getConvoForMembers"));
-    assertEquals(result.convo.id, "convo1");
+    assert.deepEqual(result.convo.id, "convo1");
   });
 });
 
-t.describe("getChatLogs", (it) => {
+describe("getChatLogs", () => {
   it("should fetch chat logs", async () => {
     const session = createMockSession({ logs: [], cursor: "next" });
     const api = new Api(session);
@@ -1113,11 +1115,11 @@ t.describe("getChatLogs", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.getLog"));
     assert(url.includes("cursor=somecursor"));
-    assertEquals(result.cursor, "next");
+    assert.deepEqual(result.cursor, "next");
   });
 });
 
-t.describe("markConvoAsRead", (it) => {
+describe("markConvoAsRead", () => {
   it("should mark conversation as read", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -1126,13 +1128,13 @@ t.describe("markConvoAsRead", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.updateRead"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
+    assert.deepEqual(body.convoId, "convo1");
   });
 });
 
-t.describe("addMessageReaction", (it) => {
+describe("addMessageReaction", () => {
   it("should add reaction to message", async () => {
     const session = createMockSession({
       message: { id: "msg1", reactions: [] },
@@ -1143,15 +1145,15 @@ t.describe("addMessageReaction", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.addReaction"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
-    assertEquals(body.messageId, "msg1");
-    assertEquals(body.value, "👍");
+    assert.deepEqual(body.convoId, "convo1");
+    assert.deepEqual(body.messageId, "msg1");
+    assert.deepEqual(body.value, "👍");
   });
 });
 
-t.describe("removeMessageReaction", (it) => {
+describe("removeMessageReaction", () => {
   it("should remove reaction from message", async () => {
     const session = createMockSession({
       message: { id: "msg1", reactions: [] },
@@ -1162,15 +1164,15 @@ t.describe("removeMessageReaction", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("chat.bsky.convo.removeReaction"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.convoId, "convo1");
-    assertEquals(body.messageId, "msg1");
-    assertEquals(body.value, "👍");
+    assert.deepEqual(body.convoId, "convo1");
+    assert.deepEqual(body.messageId, "msg1");
+    assert.deepEqual(body.value, "👍");
   });
 });
 
-t.describe("getLikes", (it) => {
+describe("getLikes", () => {
   it("should fetch likes for a post", async () => {
     const session = createMockSession({
       likes: [{ actor: { did: "did:plc:a" } }],
@@ -1184,11 +1186,11 @@ t.describe("getLikes", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getLikes"));
-    assertEquals(result.likes.length, 1);
+    assert.deepEqual(result.likes.length, 1);
   });
 });
 
-t.describe("getQuotes", (it) => {
+describe("getQuotes", () => {
   it("should fetch quotes for a post", async () => {
     const session = createMockSession({
       posts: [{ uri: "quote1" }],
@@ -1202,11 +1204,11 @@ t.describe("getQuotes", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getQuotes"));
-    assertEquals(result.posts.length, 1);
+    assert.deepEqual(result.posts.length, 1);
   });
 });
 
-t.describe("getRepostedBy", (it) => {
+describe("getRepostedBy", () => {
   it("should fetch users who reposted", async () => {
     const session = createMockSession({
       repostedBy: [{ did: "did:plc:a" }],
@@ -1220,11 +1222,11 @@ t.describe("getRepostedBy", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.feed.getRepostedBy"));
-    assertEquals(result.repostedBy.length, 1);
+    assert.deepEqual(result.repostedBy.length, 1);
   });
 });
 
-t.describe("getBookmarks", (it) => {
+describe("getBookmarks", () => {
   it("should fetch bookmarks", async () => {
     const session = createMockSession({
       bookmarks: [{ uri: "post1" }],
@@ -1236,11 +1238,11 @@ t.describe("getBookmarks", (it) => {
 
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.bookmark.getBookmarks"));
-    assertEquals(result.bookmarks.length, 1);
+    assert.deepEqual(result.bookmarks.length, 1);
   });
 });
 
-t.describe("getFollowers", (it) => {
+describe("getFollowers", () => {
   it("should fetch followers for actor", async () => {
     const session = createMockSession({
       followers: [{ did: "did:plc:a" }],
@@ -1253,11 +1255,11 @@ t.describe("getFollowers", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.getFollowers"));
     assert(url.includes("actor=did%3Aplc%3Auser"));
-    assertEquals(result.followers.length, 1);
+    assert.deepEqual(result.followers.length, 1);
   });
 });
 
-t.describe("getFollows", (it) => {
+describe("getFollows", () => {
   it("should fetch follows for actor", async () => {
     const session = createMockSession({
       follows: [{ did: "did:plc:a" }],
@@ -1270,11 +1272,11 @@ t.describe("getFollows", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.getFollows"));
     assert(url.includes("actor=did%3Aplc%3Auser"));
-    assertEquals(result.follows.length, 1);
+    assert.deepEqual(result.follows.length, 1);
   });
 });
 
-t.describe("getMutes", (it) => {
+describe("getMutes", () => {
   it("should fetch muted accounts", async () => {
     const session = createMockSession({
       mutes: [{ did: "did:plc:a" }],
@@ -1287,8 +1289,8 @@ t.describe("getMutes", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.getMutes"));
     assert(url.includes("limit=50"));
-    assertEquals(result.mutes.length, 1);
-    assertEquals(result.cursor, "next");
+    assert.deepEqual(result.mutes.length, 1);
+    assert.deepEqual(result.cursor, "next");
   });
 
   it("should pass cursor when provided", async () => {
@@ -1302,7 +1304,7 @@ t.describe("getMutes", (it) => {
   });
 });
 
-t.describe("muteActor", (it) => {
+describe("muteActor", () => {
   it("should mute actor", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -1311,13 +1313,13 @@ t.describe("muteActor", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.muteActor"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.actor, "did:plc:target");
+    assert.deepEqual(body.actor, "did:plc:target");
   });
 });
 
-t.describe("unmuteActor", (it) => {
+describe("unmuteActor", () => {
   it("should unmute actor", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -1326,13 +1328,13 @@ t.describe("unmuteActor", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.unmuteActor"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.actor, "did:plc:target");
+    assert.deepEqual(body.actor, "did:plc:target");
   });
 });
 
-t.describe("blockActor", (it) => {
+describe("blockActor", () => {
   it("should create block record", async () => {
     const session = createMockSession({
       uri: "at://did:plc:testuser/app.bsky.graph.block/abc",
@@ -1344,14 +1346,14 @@ t.describe("blockActor", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.createRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.collection, "app.bsky.graph.block");
-    assertEquals(body.record.subject, "did:plc:target");
+    assert.deepEqual(body.collection, "app.bsky.graph.block");
+    assert.deepEqual(body.record.subject, "did:plc:target");
   });
 });
 
-t.describe("unblockActor", (it) => {
+describe("unblockActor", () => {
   it("should delete block record", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -1365,14 +1367,14 @@ t.describe("unblockActor", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.deleteRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.collection, "app.bsky.graph.block");
-    assertEquals(body.rkey, "blockrkey123");
+    assert.deepEqual(body.collection, "app.bsky.graph.block");
+    assert.deepEqual(body.rkey, "blockrkey123");
   });
 });
 
-t.describe("createPost", (it) => {
+describe("createPost", () => {
   it("should create post with text", async () => {
     const session = createMockSession({
       uri: "at://did:plc:testuser/app.bsky.feed.post/abc",
@@ -1384,10 +1386,10 @@ t.describe("createPost", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.createRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.collection, "app.bsky.feed.post");
-    assertEquals(body.record.text, "Hello world");
+    assert.deepEqual(body.collection, "app.bsky.feed.post");
+    assert.deepEqual(body.record.text, "Hello world");
   });
 
   it("should include embed when provided", async () => {
@@ -1402,7 +1404,7 @@ t.describe("createPost", (it) => {
 
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
-    assertEquals(body.record.embed, embed);
+    assert.deepEqual(body.record.embed, embed);
   });
 
   it("should include reply when provided", async () => {
@@ -1420,11 +1422,11 @@ t.describe("createPost", (it) => {
 
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
-    assertEquals(body.record.reply, reply);
+    assert.deepEqual(body.record.reply, reply);
   });
 });
 
-t.describe("deletePost", (it) => {
+describe("deletePost", () => {
   it("should delete post by URI", async () => {
     const session = createMockSession({});
     const api = new Api(session);
@@ -1436,14 +1438,14 @@ t.describe("deletePost", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.deleteRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.collection, "app.bsky.feed.post");
-    assertEquals(body.rkey, "postrkey123");
+    assert.deepEqual(body.collection, "app.bsky.feed.post");
+    assert.deepEqual(body.rkey, "postrkey123");
   });
 });
 
-t.describe("uploadBlob", (it) => {
+describe("uploadBlob", () => {
   it("should upload blob with correct content type", async () => {
     const session = createMockSession({
       blob: { ref: { $link: "blobref123" }, mimeType: "image/png" },
@@ -1455,13 +1457,13 @@ t.describe("uploadBlob", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.uploadBlob"));
-    assertEquals(options.method, "POST");
-    assertEquals(options.headers["Content-Type"], "image/png");
-    assertEquals(result.ref.$link, "blobref123");
+    assert.deepEqual(options.method, "POST");
+    assert.deepEqual(options.headers["Content-Type"], "image/png");
+    assert.deepEqual(result.ref.$link, "blobref123");
   });
 });
 
-t.describe("createModerationReport", (it) => {
+describe("createModerationReport", () => {
   it("should create moderation report", async () => {
     const session = createMockSession({
       id: 123,
@@ -1483,15 +1485,15 @@ t.describe("createModerationReport", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.moderation.createReport"));
-    assertEquals(options.method, "POST");
-    assertEquals(
+    assert.deepEqual(options.method, "POST");
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:plc:labeler#atproto_labeler",
     );
     const body = JSON.parse(options.body);
-    assertEquals(body.reasonType, "com.atproto.moderation.defs#reasonSpam");
-    assertEquals(body.reason, "This is spam");
-    assertEquals(body.subject, subject);
+    assert.deepEqual(body.reasonType, "com.atproto.moderation.defs#reasonSpam");
+    assert.deepEqual(body.reason, "This is spam");
+    assert.deepEqual(body.subject, subject);
   });
 
   it("should not include reason when not provided", async () => {
@@ -1515,7 +1517,7 @@ t.describe("createModerationReport", (it) => {
   });
 });
 
-t.describe("getBlocks", (it) => {
+describe("getBlocks", () => {
   it("should fetch blocked accounts", async () => {
     const session = createMockSession({
       blocks: [{ did: "did:plc:a" }],
@@ -1528,8 +1530,8 @@ t.describe("getBlocks", (it) => {
     const { url } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.graph.getBlocks"));
     assert(url.includes("limit=50"));
-    assertEquals(result.blocks.length, 1);
-    assertEquals(result.cursor, "next");
+    assert.deepEqual(result.blocks.length, 1);
+    assert.deepEqual(result.cursor, "next");
   });
 
   it("should pass cursor when provided", async () => {
@@ -1543,7 +1545,7 @@ t.describe("getBlocks", (it) => {
   });
 });
 
-t.describe("searchFeedGenerators", (it) => {
+describe("searchFeedGenerators", () => {
   it("should search popular feed generators", async () => {
     const session = createMockSession({
       feeds: [{ uri: "feed1" }],
@@ -1557,11 +1559,11 @@ t.describe("searchFeedGenerators", (it) => {
     assert(url.includes("app.bsky.unspecced.getPopularFeedGenerators"));
     assert(url.includes("query=news"));
     assert(url.includes("limit=15"));
-    assertEquals(
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:web:api.bsky.app#bsky_appview",
     );
-    assertEquals(result.feeds.length, 1);
+    assert.deepEqual(result.feeds.length, 1);
   });
 
   it("should pass cursor when provided", async () => {
@@ -1575,7 +1577,7 @@ t.describe("searchFeedGenerators", (it) => {
   });
 });
 
-t.describe("getActorFeeds", (it) => {
+describe("getActorFeeds", () => {
   it("should fetch feeds created by an actor", async () => {
     const session = createMockSession({
       feeds: [{ uri: "feed1" }],
@@ -1589,7 +1591,7 @@ t.describe("getActorFeeds", (it) => {
     assert(url.includes("app.bsky.feed.getActorFeeds"));
     assert(url.includes("actor=did%3Aplc%3Auser"));
     assert(url.includes("limit=50"));
-    assertEquals(result.feeds.length, 1);
+    assert.deepEqual(result.feeds.length, 1);
   });
 
   it("should pass cursor when provided", async () => {
@@ -1603,7 +1605,7 @@ t.describe("getActorFeeds", (it) => {
   });
 });
 
-t.describe("getReposts", (it) => {
+describe("getReposts", () => {
   it("should fetch repost records and skip failures", async () => {
     let callCount = 0;
     const session = {
@@ -1636,11 +1638,11 @@ t.describe("getReposts", (it) => {
       "at://did:plc:c/app.bsky.feed.repost/3",
     ]);
 
-    assertEquals(reposts.length, 2);
+    assert.deepEqual(reposts.length, 2);
   });
 });
 
-t.describe("putProfileRecord", (it) => {
+describe("putProfileRecord", () => {
   it("should put profile record with $type and null swapRecord by default", async () => {
     const session = createMockSession({ uri: "rec", cid: "cid" });
     const api = new Api(session);
@@ -1649,14 +1651,14 @@ t.describe("putProfileRecord", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("com.atproto.repo.putRecord"));
-    assertEquals(options.method, "POST");
+    assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assertEquals(body.repo, "did:plc:testuser");
-    assertEquals(body.collection, "app.bsky.actor.profile");
-    assertEquals(body.rkey, "self");
-    assertEquals(body.record.$type, "app.bsky.actor.profile");
-    assertEquals(body.record.displayName, "Alice");
-    assertEquals(body.swapRecord, null);
+    assert.deepEqual(body.repo, "did:plc:testuser");
+    assert.deepEqual(body.collection, "app.bsky.actor.profile");
+    assert.deepEqual(body.rkey, "self");
+    assert.deepEqual(body.record.$type, "app.bsky.actor.profile");
+    assert.deepEqual(body.record.displayName, "Alice");
+    assert.deepEqual(body.swapRecord, null);
   });
 
   it("should include swapRecord cid for conditional write", async () => {
@@ -1667,11 +1669,11 @@ t.describe("putProfileRecord", (it) => {
 
     const { options } = session.getLastFetchOptions();
     const body = JSON.parse(options.body);
-    assertEquals(body.swapRecord, "previouscid");
+    assert.deepEqual(body.swapRecord, "previouscid");
   });
 });
 
-t.describe("putActivitySubscription", (it) => {
+describe("putActivitySubscription", () => {
   it("should put activity subscription with subject and subscription", async () => {
     const session = createMockSession({ subject: "did:plc:target" });
     const api = new Api(session);
@@ -1681,18 +1683,18 @@ t.describe("putActivitySubscription", (it) => {
 
     const { url, options } = session.getLastFetchOptions();
     assert(url.includes("app.bsky.notification.putActivitySubscription"));
-    assertEquals(options.method, "POST");
-    assertEquals(
+    assert.deepEqual(options.method, "POST");
+    assert.deepEqual(
       options.headers["atproto-proxy"],
       "did:web:api.bsky.app#bsky_appview",
     );
     const body = JSON.parse(options.body);
-    assertEquals(body.subject, "did:plc:target");
-    assertEquals(body.activitySubscription, activitySubscription);
+    assert.deepEqual(body.subject, "did:plc:target");
+    assert.deepEqual(body.activitySubscription, activitySubscription);
   });
 });
 
-t.describe("getServiceAuthToken", (it) => {
+describe("getServiceAuthToken", () => {
   it("should fetch service auth token with aud and lxm", async () => {
     const session = createMockSession({ token: "service-token-123" });
     const api = new Api(session);
@@ -1707,7 +1709,7 @@ t.describe("getServiceAuthToken", (it) => {
     assert(url.includes("aud=did%3Aweb%3Avideo.bsky.app"));
     assert(url.includes("lxm=app.bsky.video.getUploadLimits"));
     assert(url.includes("exp="));
-    assertEquals(token, "service-token-123");
+    assert.deepEqual(token, "service-token-123");
   });
 
   it("should use provided exp value", async () => {
@@ -1725,12 +1727,12 @@ t.describe("getServiceAuthToken", (it) => {
   });
 });
 
-t.describe("serviceRequest", (it, hooks) => {
+describe("serviceRequest", () => {
   let originalFetch = null;
-  hooks.beforeEach(() => {
+  beforeEach(() => {
     originalFetch = globalThis.fetch;
   });
-  hooks.afterEach(() => {
+  afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
@@ -1746,12 +1748,15 @@ t.describe("serviceRequest", (it, hooks) => {
     });
 
     const lastCall = mockFetch.calls[0];
-    assertEquals(
+    assert.deepEqual(
       lastCall.url,
       "https://video.example.com/xrpc/some.method?foo=bar",
     );
-    assertEquals(lastCall.options.headers.Authorization, "Bearer abc-token");
-    assertEquals(lastCall.options.method, "GET");
+    assert.deepEqual(
+      lastCall.options.headers.Authorization,
+      "Bearer abc-token",
+    );
+    assert.deepEqual(lastCall.options.method, "GET");
   });
 
   it("should omit Authorization when no token is provided", async () => {
@@ -1787,16 +1792,16 @@ t.describe("serviceRequest", (it, hooks) => {
     }
 
     assert(thrownError instanceof ApiError);
-    assertEquals(thrownError.status, 400);
+    assert.deepEqual(thrownError.status, 400);
   });
 });
 
-t.describe("getVideoUploadLimits", (it, hooks) => {
+describe("getVideoUploadLimits", () => {
   let originalFetch = null;
-  hooks.beforeEach(() => {
+  beforeEach(() => {
     originalFetch = globalThis.fetch;
   });
-  hooks.afterEach(() => {
+  afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
@@ -1814,18 +1819,21 @@ t.describe("getVideoUploadLimits", (it, hooks) => {
 
     const videoCall = mockFetch.calls[0];
     assert(videoCall.url.includes("app.bsky.video.getUploadLimits"));
-    assertEquals(videoCall.options.headers.Authorization, "Bearer video-token");
-    assertEquals(result.canUpload, true);
-    assertEquals(result.remainingDailyVideos, 5);
+    assert.deepEqual(
+      videoCall.options.headers.Authorization,
+      "Bearer video-token",
+    );
+    assert.deepEqual(result.canUpload, true);
+    assert.deepEqual(result.remainingDailyVideos, 5);
   });
 });
 
-t.describe("getVideoJobStatus", (it, hooks) => {
+describe("getVideoJobStatus", () => {
   let originalFetch = null;
-  hooks.beforeEach(() => {
+  beforeEach(() => {
     originalFetch = globalThis.fetch;
   });
-  hooks.afterEach(() => {
+  afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
@@ -1842,17 +1850,17 @@ t.describe("getVideoJobStatus", (it, hooks) => {
     const videoCall = mockFetch.calls[0];
     assert(videoCall.url.includes("app.bsky.video.getJobStatus"));
     assert(videoCall.url.includes("jobId=job1"));
-    assertEquals(result.jobId, "job1");
-    assertEquals(result.state, "JOB_STATE_COMPLETED");
+    assert.deepEqual(result.jobId, "job1");
+    assert.deepEqual(result.state, "JOB_STATE_COMPLETED");
   });
 });
 
-t.describe("uploadVideoBlob", (it, hooks) => {
+describe("uploadVideoBlob", () => {
   let originalFetch = null;
-  hooks.beforeEach(() => {
+  beforeEach(() => {
     originalFetch = globalThis.fetch;
   });
-  hooks.afterEach(() => {
+  afterEach(() => {
     globalThis.fetch = originalFetch;
   });
 
@@ -1874,14 +1882,14 @@ t.describe("uploadVideoBlob", (it, hooks) => {
     assert(videoCall.url.includes("app.bsky.video.uploadVideo"));
     assert(videoCall.url.includes("did=did%3Aplc%3Atestuser"));
     assert(videoCall.url.includes("name=clip.mp4"));
-    assertEquals(videoCall.options.method, "POST");
-    assertEquals(
+    assert.deepEqual(videoCall.options.method, "POST");
+    assert.deepEqual(
       videoCall.options.headers.Authorization,
       "Bearer upload-token",
     );
-    assertEquals(videoCall.options.headers["Content-Type"], "video/mp4");
-    assertEquals(videoCall.options.body, file);
-    assertEquals(result.jobId, "job1");
+    assert.deepEqual(videoCall.options.headers["Content-Type"], "video/mp4");
+    assert.deepEqual(videoCall.options.body, file);
+    assert.deepEqual(result.jobId, "job1");
   });
 
   it("should treat already_exists 409 as success and return existing job", async () => {
@@ -1900,8 +1908,8 @@ t.describe("uploadVideoBlob", (it, hooks) => {
 
     const result = await api.uploadVideoBlob(file);
 
-    assertEquals(result.error, "already_exists");
-    assertEquals(result.jobId, "existing-job");
+    assert.deepEqual(result.error, "already_exists");
+    assert.deepEqual(result.jobId, "existing-job");
   });
 
   it("should re-throw non-409 errors", async () => {
@@ -1926,8 +1934,6 @@ t.describe("uploadVideoBlob", (it, hooks) => {
     }
 
     assert(thrownError instanceof ApiError);
-    assertEquals(thrownError.status, 500);
+    assert.deepEqual(thrownError.status, 500);
   });
 });
-
-await t.run();

@@ -1,8 +1,6 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { PostCreator } from "/js/postCreator.js";
-
-const t = new TestSuite("postCreator");
 
 const mockIdentityResolver = {
   resolveHandle: async () => null,
@@ -63,18 +61,18 @@ function videoFixture() {
   };
 }
 
-t.describe("video embed preparation", (it) => {
+describe("video embed preparation", () => {
   it("produces no embed when video is missing", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi" });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
 
     await pc.createPost({ postText: "hi", video: null });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
 
     await pc.createPost({ postText: "hi", video: {} });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
   });
 
   it("builds an embed.video record with alt and aspectRatio", async () => {
@@ -82,14 +80,14 @@ t.describe("video embed preparation", (it) => {
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", video: videoFixture() });
     const embed = api.lastEmbed;
-    assertEquals(embed.$type, "app.bsky.embed.video");
-    assertEquals(embed.alt, "a clip");
-    assertEquals(embed.video.$type, "blob");
-    assertEquals(embed.video.ref.$link, "bafyvideo");
-    assertEquals(embed.video.mimeType, "video/mp4");
-    assertEquals(embed.video.size, 12345);
-    assertEquals(embed.aspectRatio.width, 16);
-    assertEquals(embed.aspectRatio.height, 9);
+    assert.deepEqual(embed.$type, "app.bsky.embed.video");
+    assert.deepEqual(embed.alt, "a clip");
+    assert.deepEqual(embed.video.$type, "blob");
+    assert.deepEqual(embed.video.ref.$link, "bafyvideo");
+    assert.deepEqual(embed.video.mimeType, "video/mp4");
+    assert.deepEqual(embed.video.size, 12345);
+    assert.deepEqual(embed.aspectRatio.width, 16);
+    assert.deepEqual(embed.aspectRatio.height, 9);
   });
 
   it("omits aspectRatio when missing", async () => {
@@ -125,8 +123,8 @@ t.describe("video embed preparation", (it) => {
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 1080, height: 100 } },
     });
-    assertEquals(api.lastEmbed.aspectRatio.width, 1080);
-    assertEquals(api.lastEmbed.aspectRatio.height, 100);
+    assert.deepEqual(api.lastEmbed.aspectRatio.width, 1080);
+    assert.deepEqual(api.lastEmbed.aspectRatio.height, 100);
   });
 
   it("omits alt when empty", async () => {
@@ -148,12 +146,12 @@ t.describe("video embed preparation", (it) => {
   });
 });
 
-t.describe("createPost embed selection", (it) => {
+describe("createPost embed selection", () => {
   it("uses video embed when video is provided", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", video: videoFixture() });
-    assertEquals(api.lastEmbed.$type, "app.bsky.embed.video");
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.video");
   });
 
   it("video takes precedence over images", async () => {
@@ -168,7 +166,7 @@ t.describe("createPost embed selection", (it) => {
       video: videoFixture(),
       images: [{ dataUrl: "data:image/jpeg;base64,AAAA", alt: "" }],
     });
-    assertEquals(api.lastEmbed.$type, "app.bsky.embed.video");
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.video");
   });
 
   it("builds a bare record embed from any quoted record's uri and cid", async () => {
@@ -181,12 +179,12 @@ t.describe("createPost embed selection", (it) => {
         cid: "feedcid",
       },
     });
-    assertEquals(api.lastEmbed.$type, "app.bsky.embed.record");
-    assertEquals(
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.record");
+    assert.deepEqual(
       api.lastEmbed.record.uri,
       "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
     );
-    assertEquals(api.lastEmbed.record.cid, "feedcid");
+    assert.deepEqual(api.lastEmbed.record.cid, "feedcid");
   });
 
   it("wraps video in recordWithMedia when there is a quoted record", async () => {
@@ -197,21 +195,21 @@ t.describe("createPost embed selection", (it) => {
       video: videoFixture(),
       quotedRecord: { uri: "at://x", cid: "c" },
     });
-    assertEquals(api.lastEmbed.$type, "app.bsky.embed.recordWithMedia");
-    assertEquals(api.lastEmbed.media.$type, "app.bsky.embed.video");
-    assertEquals(api.lastEmbed.record.$type, "app.bsky.embed.record");
+    assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.recordWithMedia");
+    assert.deepEqual(api.lastEmbed.media.$type, "app.bsky.embed.video");
+    assert.deepEqual(api.lastEmbed.record.$type, "app.bsky.embed.record");
   });
 });
 
-t.describe("images embed preparation", (it) => {
+describe("images embed preparation", () => {
   it("produces no embed when images is missing or empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi", images: [] });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
 
     await pc.createPost({ postText: "hi", images: null });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
   });
 
   it("uploads each image and builds an embed.images record", async () => {
@@ -234,26 +232,26 @@ t.describe("images embed preparation", (it) => {
         { dataUrl: "data:image/jpeg;base64,BBBB", alt: "" },
       ],
     });
-    assertEquals(imageCompressor.compressed.length, 2);
-    assertEquals(uploaded.length, 2);
+    assert.deepEqual(imageCompressor.compressed.length, 2);
+    assert.deepEqual(uploaded.length, 2);
     const embed = api.lastEmbed;
-    assertEquals(embed.$type, "app.bsky.embed.images");
-    assertEquals(embed.images.length, 2);
-    assertEquals(embed.images[0].alt, "first");
-    assertEquals(embed.images[0].image.ref.$link, "bafyimg1");
-    assertEquals(embed.images[0].aspectRatio.width, 10);
-    assertEquals(embed.images[0].aspectRatio.height, 10);
-    assertEquals(embed.images[1].alt, "");
-    assertEquals(embed.images[1].image.ref.$link, "bafyimg2");
+    assert.deepEqual(embed.$type, "app.bsky.embed.images");
+    assert.deepEqual(embed.images.length, 2);
+    assert.deepEqual(embed.images[0].alt, "first");
+    assert.deepEqual(embed.images[0].image.ref.$link, "bafyimg1");
+    assert.deepEqual(embed.images[0].aspectRatio.width, 10);
+    assert.deepEqual(embed.images[0].aspectRatio.height, 10);
+    assert.deepEqual(embed.images[1].alt, "");
+    assert.deepEqual(embed.images[1].image.ref.$link, "bafyimg2");
   });
 });
 
-t.describe("external embed preparation", (it) => {
+describe("external embed preparation", () => {
   it("produces no embed when external is missing", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     await pc.createPost({ postText: "hi" });
-    assertEquals(api.lastEmbed, null);
+    assert.deepEqual(api.lastEmbed, null);
   });
 
   it("builds an embed.external record and renames url to uri", async () => {
@@ -268,10 +266,10 @@ t.describe("external embed preparation", (it) => {
       },
     });
     const embed = api.lastEmbed;
-    assertEquals(embed.$type, "app.bsky.embed.external");
-    assertEquals(embed.external.title, "Example");
-    assertEquals(embed.external.description, "An example link");
-    assertEquals(embed.external.uri, "https://example.com");
+    assert.deepEqual(embed.$type, "app.bsky.embed.external");
+    assert.deepEqual(embed.external.title, "Example");
+    assert.deepEqual(embed.external.description, "An example link");
+    assert.deepEqual(embed.external.uri, "https://example.com");
     assert(!("thumb" in embed.external));
   });
 
@@ -302,10 +300,10 @@ t.describe("external embed preparation", (it) => {
         },
       });
       const thumb = api.lastEmbed.external.thumb;
-      assertEquals(thumb.$type, "blob");
-      assertEquals(thumb.ref.$link, "bafythumb");
-      assertEquals(thumb.mimeType, "image/jpeg");
-      assertEquals(thumb.size, 42);
+      assert.deepEqual(thumb.$type, "blob");
+      assert.deepEqual(thumb.ref.$link, "bafythumb");
+      assert.deepEqual(thumb.mimeType, "image/jpeg");
+      assert.deepEqual(thumb.size, 42);
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -338,10 +336,10 @@ t.describe("external embed preparation", (it) => {
           image: "https://example.com/preview.png",
         },
       });
-      assertEquals(imageCompressor.compressed.length, 1);
+      assert.deepEqual(imageCompressor.compressed.length, 1);
       assert(imageCompressor.compressed[0].startsWith("data:image/png"));
-      assertEquals(uploadedBlobs.length, 1);
-      assertEquals(uploadedBlobs[0].type, "image/jpeg");
+      assert.deepEqual(uploadedBlobs.length, 1);
+      assert.deepEqual(uploadedBlobs[0].type, "image/jpeg");
     } finally {
       globalThis.fetch = originalFetch;
     }
@@ -366,7 +364,7 @@ t.describe("external embed preparation", (it) => {
           image: "https://example.com/preview.png",
         },
       });
-      assertEquals(api.lastEmbed.$type, "app.bsky.embed.external");
+      assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.external");
       assert(!("thumb" in api.lastEmbed.external));
     } finally {
       globalThis.fetch = originalFetch;
@@ -375,7 +373,7 @@ t.describe("external embed preparation", (it) => {
   });
 });
 
-t.describe("post text trimming", (it) => {
+describe("post text trimming", () => {
   function makeCapturingApi() {
     const api = makeApi();
     api.sent = null;
@@ -391,12 +389,12 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "hello world",
     });
-    assertEquals(api.sent.text, "hello world");
+    assert.deepEqual(api.sent.text, "hello world");
 
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "line one\n\nline two",
     });
-    assertEquals(api.sent.text, "line one\n\nline two");
+    assert.deepEqual(api.sent.text, "line one\n\nline two");
   });
 
   it("strips leading whitespace-only lines", async () => {
@@ -404,7 +402,7 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "\n\n  \nhello",
     });
-    assertEquals(api.sent.text, "hello");
+    assert.deepEqual(api.sent.text, "hello");
   });
 
   it("preserves leading spaces on the first content line (ASCII art)", async () => {
@@ -412,7 +410,7 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "   /\\_/\\\n  ( o.o )",
     });
-    assertEquals(api.sent.text, "   /\\_/\\\n  ( o.o )");
+    assert.deepEqual(api.sent.text, "   /\\_/\\\n  ( o.o )");
   });
 
   it("trims trailing whitespace", async () => {
@@ -420,7 +418,7 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "hello   \n\n  ",
     });
-    assertEquals(api.sent.text, "hello");
+    assert.deepEqual(api.sent.text, "hello");
   });
 
   it("collapses runs of 3+ newlines to 2", async () => {
@@ -428,17 +426,17 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "a\n\n\nb",
     });
-    assertEquals(api.sent.text, "a\n\nb");
+    assert.deepEqual(api.sent.text, "a\n\nb");
 
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "a\n\n\n\n\nb",
     });
-    assertEquals(api.sent.text, "a\n\nb");
+    assert.deepEqual(api.sent.text, "a\n\nb");
 
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "a\n \n \nb",
     });
-    assertEquals(api.sent.text, "a\n\nb");
+    assert.deepEqual(api.sent.text, "a\n\nb");
   });
 
   it("handles empty text", async () => {
@@ -446,19 +444,19 @@ t.describe("post text trimming", (it) => {
     await new PostCreator(api, mockIdentityResolver).createPost({
       postText: "",
     });
-    assertEquals(api.sent.text, "");
+    assert.deepEqual(api.sent.text, "");
   });
 });
 
-t.describe("app view hydration", (it) => {
+describe("app view hydration", () => {
   it("returns uri, cid, and the hydrated post on success", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
     const result = await pc.createPost({ postText: "hi" });
-    assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
-    assertEquals(result.cid, "cid1");
-    assertEquals(result.post.cid, "cid1");
-    assertEquals(api.getPostCalls, 1);
+    assert.deepEqual(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+    assert.deepEqual(result.cid, "cid1");
+    assert.deepEqual(result.post.cid, "cid1");
+    assert.deepEqual(api.getPostCalls, 1);
   });
 
   it("returns post: null when app view never returns the post", async () => {
@@ -471,9 +469,9 @@ t.describe("app view hydration", (it) => {
       };
       const pc = new PostCreator(api, mockIdentityResolver);
       const result = await pc.createPost({ postText: "hi" });
-      assertEquals(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
-      assertEquals(result.cid, "cid1");
-      assertEquals(result.post, null);
+      assert.deepEqual(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+      assert.deepEqual(result.cid, "cid1");
+      assert.deepEqual(result.post, null);
     } finally {
       globalThis.setTimeout = originalWait;
     }
@@ -491,11 +489,9 @@ t.describe("app view hydration", (it) => {
       };
       const pc = new PostCreator(api, mockIdentityResolver);
       await pc.createPost({ postText: "hi" });
-      assertEquals(calls, 5);
+      assert.deepEqual(calls, 5);
     } finally {
       globalThis.setTimeout = originalWait;
     }
   });
 });
-
-await t.run();

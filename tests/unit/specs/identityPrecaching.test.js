@@ -1,9 +1,7 @@
-import { TestSuite } from "../testSuite.js";
-import { assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { setUpIdentityPrecaching } from "/js/identityPrecaching.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
-
-const t = new TestSuite("identityPrecaching");
 
 function setup() {
   const dataStore = new DataStore();
@@ -20,7 +18,7 @@ function setup() {
 
 const flushEffects = () => new Promise((resolve) => setTimeout(resolve, 0));
 
-t.describe("notifications precaching", (it) => {
+describe("notifications precaching", () => {
   it("should cache author identities from stored notifications", async () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
     dataStore.$notifications.set({
@@ -33,8 +31,8 @@ t.describe("notifications precaching", (it) => {
 
     setUpIdentityPrecaching(dataLayer, identityResolver);
 
-    assertEquals(resolvedHandles.get("alice.test"), "did:plc:alice");
-    assertEquals(resolvedHandles.get("bob.test"), "did:plc:bob");
+    assert.deepEqual(resolvedHandles.get("alice.test"), "did:plc:alice");
+    assert.deepEqual(resolvedHandles.get("bob.test"), "did:plc:bob");
   });
 
   it("should cache identities when notifications load after setup", async () => {
@@ -49,8 +47,6 @@ t.describe("notifications precaching", (it) => {
     });
     await flushEffects();
 
-    assertEquals(resolvedHandles.get("carol.test"), "did:plc:carol");
+    assert.deepEqual(resolvedHandles.get("carol.test"), "did:plc:carol");
   });
 });
-
-await t.run();

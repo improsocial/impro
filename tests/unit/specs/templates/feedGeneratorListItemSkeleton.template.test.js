@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("feedGeneratorListItemSkeletonTemplate");
-
-t.describe("feedGeneratorListItemSkeletonTemplate", (it) => {
+describe("feedGeneratorListItemSkeletonTemplate", () => {
   it("should render the skeleton element", () => {
     const container = document.createElement("div");
     render(feedGeneratorListItemSkeletonTemplate(), container);
@@ -38,5 +36,3 @@ t.describe("feedGeneratorListItemSkeletonTemplate", (it) => {
     );
   });
 });
-
-await t.run();

@@ -1,13 +1,11 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   filterFollowingFeed,
   filterAlgorithmicFeed,
   filterAuthorFeed,
   filterBookmarksFeed,
 } from "/js/feedFilters.js";
-
-const t = new TestSuite("feedFilters");
 
 // Helper to create mock posts
 function createPost(options = {}) {
@@ -53,7 +51,7 @@ function createCurrentUser(did = "did:plc:currentuser") {
   };
 }
 
-t.describe("filterFollowingFeed", (it) => {
+describe("filterFollowingFeed", () => {
   it("should return all non-reply posts", () => {
     const items = [
       createFeedItem({
@@ -69,8 +67,8 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 2);
-    assertEquals(result.cursor, "test-cursor");
+    assert.deepEqual(result.feed.length, 2);
+    assert.deepEqual(result.cursor, "test-cursor");
   });
 
   it("should filter out reposts when hideReposts is true", () => {
@@ -89,7 +87,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should keep reposts when hideReposts is false", () => {
@@ -108,7 +106,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should filter out replies when hideReplies is true", () => {
@@ -130,7 +128,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should deduplicate posts by root URI", () => {
@@ -148,7 +146,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should deduplicate reposts with the same root URI", () => {
@@ -166,7 +164,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should keep reposts with unique root URIs", () => {
@@ -185,7 +183,7 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should return unfiltered feed when no currentUser", () => {
@@ -199,11 +197,11 @@ t.describe("filterFollowingFeed", (it) => {
 
     const result = filterFollowingFeed(feed, null, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAlgorithmicFeed", (it) => {
+describe("filterAlgorithmicFeed", () => {
   it("should deduplicate posts", () => {
     const rootUri = "at://did:plc:root/app.bsky.feed.post/123";
     const items = [
@@ -214,7 +212,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should deduplicate reposts with the same root URI", () => {
@@ -230,7 +228,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should preserve cursor", () => {
@@ -238,7 +236,7 @@ t.describe("filterAlgorithmicFeed", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.cursor, "my-cursor");
+    assert.deepEqual(result.cursor, "my-cursor");
   });
 
   it("should handle empty feed", () => {
@@ -246,11 +244,11 @@ t.describe("filterAlgorithmicFeed", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 0);
+    assert.deepEqual(result.feed.length, 0);
   });
 });
 
-t.describe("filterAlgorithmicFeed - blocked quote filtering", (it) => {
+describe("filterAlgorithmicFeed - blocked quote filtering", () => {
   function createBlockedQuoteItem(viewerState) {
     return createFeedItem({
       post: {
@@ -270,7 +268,7 @@ t.describe("filterAlgorithmicFeed - blocked quote filtering", (it) => {
   it("should filter out posts quoting an author who blocks the viewer", () => {
     const feed = createFeed([createBlockedQuoteItem({ blockedBy: true })]);
     const result = filterAlgorithmicFeed(feed, true, {});
-    assertEquals(result.feed.length, 0);
+    assert.deepEqual(result.feed.length, 0);
   });
 
   it("should filter out posts quoting an author the viewer blocks", () => {
@@ -280,23 +278,23 @@ t.describe("filterAlgorithmicFeed - blocked quote filtering", (it) => {
       }),
     ]);
     const result = filterAlgorithmicFeed(feed, true, {});
-    assertEquals(result.feed.length, 0);
+    assert.deepEqual(result.feed.length, 0);
   });
 
   it("should keep posts with third-party-blocked quotes", () => {
     const feed = createFeed([createBlockedQuoteItem({})]);
     const result = filterAlgorithmicFeed(feed, true, {});
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAuthorFeed", (it) => {
+describe("filterAuthorFeed", () => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "author-cursor");
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.cursor, "author-cursor");
+    assert.deepEqual(result.cursor, "author-cursor");
   });
 
   it("should handle empty feed", () => {
@@ -304,7 +302,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 0);
+    assert.deepEqual(result.feed.length, 0);
   });
 
   it("should pass through regular posts unmodified", () => {
@@ -320,7 +318,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should deduplicate posts by root URI", () => {
@@ -336,7 +334,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should not deduplicate reposts with the same root URI", () => {
@@ -352,7 +350,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should filter out blocked posts", () => {
@@ -371,8 +369,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -394,8 +392,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -417,8 +415,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -444,8 +442,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -471,8 +469,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -494,8 +492,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -523,8 +521,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -543,7 +541,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should filter out posts with content label hide on quoted post", () => {
@@ -568,8 +566,8 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -588,7 +586,7 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should apply all filters together", () => {
@@ -629,15 +627,15 @@ t.describe("filterAuthorFeed", (it) => {
 
     const result = filterAuthorFeed(feed, false);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/ok",
     );
   });
 });
 
-t.describe("filterFollowingFeed - content label filtering", (it) => {
+describe("filterFollowingFeed - content label filtering", () => {
   it("should filter posts with content label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -656,8 +654,8 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -681,7 +679,7 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should filter posts with quoted post content label visibility hide", () => {
@@ -708,8 +706,8 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -736,11 +734,11 @@ t.describe("filterFollowingFeed - content label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAlgorithmicFeed - content label filtering", (it) => {
+describe("filterAlgorithmicFeed - content label filtering", () => {
   it("should filter posts with content label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -757,11 +755,11 @@ t.describe("filterAlgorithmicFeed - content label filtering", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAuthorFeed - content label filtering", (it) => {
+describe("filterAuthorFeed - content label filtering", () => {
   it("should filter posts with content label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -778,11 +776,11 @@ t.describe("filterAuthorFeed - content label filtering", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterFollowingFeed - badge label filtering", (it) => {
+describe("filterFollowingFeed - badge label filtering", () => {
   it("should filter posts with badge label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -801,8 +799,8 @@ t.describe("filterFollowingFeed - badge label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -823,7 +821,7 @@ t.describe("filterFollowingFeed - badge label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should filter posts with quoted post badge label visibility hide", () => {
@@ -850,8 +848,8 @@ t.describe("filterFollowingFeed - badge label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -878,7 +876,7 @@ t.describe("filterFollowingFeed - badge label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should filter if any badge label has hide visibility", () => {
@@ -896,11 +894,11 @@ t.describe("filterFollowingFeed - badge label filtering", (it) => {
 
     const result = filterFollowingFeed(feed, currentUser, preferences, {});
 
-    assertEquals(result.feed.length, 0);
+    assert.deepEqual(result.feed.length, 0);
   });
 });
 
-t.describe("filterAlgorithmicFeed - badge label filtering", (it) => {
+describe("filterAlgorithmicFeed - badge label filtering", () => {
   it("should filter posts with badge label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -917,11 +915,11 @@ t.describe("filterAlgorithmicFeed - badge label filtering", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAuthorFeed - badge label filtering", (it) => {
+describe("filterAuthorFeed - badge label filtering", () => {
   it("should filter posts with badge label visibility hide", () => {
     const items = [
       createFeedItem({
@@ -938,7 +936,7 @@ t.describe("filterAuthorFeed - badge label filtering", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should filter posts with badge label hide on quoted post", () => {
@@ -963,8 +961,8 @@ t.describe("filterAuthorFeed - badge label filtering", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -983,11 +981,11 @@ t.describe("filterAuthorFeed - badge label filtering", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAlgorithmicFeed - unauthorized filtering", (it) => {
+describe("filterAlgorithmicFeed - unauthorized filtering", () => {
   it("should filter posts from no-unauthenticated authors when not authenticated", () => {
     const items = [
       createFeedItem({
@@ -1008,8 +1006,8 @@ t.describe("filterAlgorithmicFeed - unauthorized filtering", (it) => {
 
     const result = filterAlgorithmicFeed(feed, false, {});
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -1032,11 +1030,11 @@ t.describe("filterAlgorithmicFeed - unauthorized filtering", (it) => {
 
     const result = filterAlgorithmicFeed(feed, true, {});
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 });
 
-t.describe("filterAuthorFeed - unauthorized filtering", (it) => {
+describe("filterAuthorFeed - unauthorized filtering", () => {
   it("should filter posts from no-unauthenticated authors when not authenticated", () => {
     const items = [
       createFeedItem({
@@ -1057,8 +1055,8 @@ t.describe("filterAuthorFeed - unauthorized filtering", (it) => {
 
     const result = filterAuthorFeed(feed, false);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -1081,7 +1079,7 @@ t.describe("filterAuthorFeed - unauthorized filtering", (it) => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assertEquals(result.feed.length, 1);
+    assert.deepEqual(result.feed.length, 1);
   });
 
   it("should filter posts quoting a no-unauthenticated author when not authenticated", () => {
@@ -1110,21 +1108,21 @@ t.describe("filterAuthorFeed - unauthorized filtering", (it) => {
 
     const result = filterAuthorFeed(feed, false);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
   });
 });
 
-t.describe("filterBookmarksFeed", (it) => {
+describe("filterBookmarksFeed", () => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "bookmarks-cursor");
 
     const result = filterBookmarksFeed(feed);
 
-    assertEquals(result.cursor, "bookmarks-cursor");
+    assert.deepEqual(result.cursor, "bookmarks-cursor");
   });
 
   it("should pass through regular posts unmodified", () => {
@@ -1140,7 +1138,7 @@ t.describe("filterBookmarksFeed", (it) => {
 
     const result = filterBookmarksFeed(feed);
 
-    assertEquals(result.feed.length, 2);
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should filter out blocked posts", () => {
@@ -1159,8 +1157,8 @@ t.describe("filterBookmarksFeed", (it) => {
 
     const result = filterBookmarksFeed(feed);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/2",
     );
@@ -1188,12 +1186,10 @@ t.describe("filterBookmarksFeed", (it) => {
 
     const result = filterBookmarksFeed(feed);
 
-    assertEquals(result.feed.length, 1);
-    assertEquals(
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(
       result.feed[0].post.uri,
       "at://did:plc:test/app.bsky.feed.post/3",
     );
   });
 });
-
-await t.run();
