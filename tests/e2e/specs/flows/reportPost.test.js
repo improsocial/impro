@@ -74,4 +74,46 @@ test.describe("Report post flow", () => {
       cid: post.cid,
     });
   });
+
+  test("should keep page scroll locked while the report dialog is open", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const post = createPost({
+      uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+      text: "Post to report",
+      authorHandle: "author1.bsky.social",
+      authorDisplayName: "Author One",
+    });
+    mockServer.addTimelinePosts([post]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/");
+
+    const homeView = page.locator("#home-view");
+    const feedItem = homeView.locator('[data-testid="feed-item"]');
+    await expect(feedItem).toHaveCount(1, { timeout: 10000 });
+
+    await feedItem.locator(".text-button").click();
+    await page.locator('[data-testid="menu-action-post-report"]').click();
+
+    const reportDialog = page.locator("report-dialog");
+    await expect(reportDialog.locator(".report-dialog")).toBeVisible({
+      timeout: 5000,
+    });
+
+    // The report dialog opens from the menu item's click handler before the
+    // context menu itself closes, so the menu's scroll lock must hand off to
+    // the dialog instead of unlocking the page underneath it.
+    await expect
+      .poll(() => page.evaluate(() => document.body.style.position))
+      .toBe("fixed");
+
+    await reportDialog.locator(".report-dialog-close").click();
+    await expect(reportDialog).toHaveCount(0, { timeout: 5000 });
+    await expect
+      .poll(() => page.evaluate(() => document.body.style.position))
+      .toBe("");
+  });
 });

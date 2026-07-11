@@ -88,7 +88,10 @@ function findScrollableAncestor(element) {
   return null;
 }
 
-let __activeScrollLock = null;
+// Locks are tracked as a stack of holders: the first holder locks the
+// page and only the last holder to unlock restores it.
+let __scrollLockHolders = [];
+let __lockedContainer = null;
 
 export class ScrollLock {
   constructor(target) {
@@ -100,10 +103,6 @@ export class ScrollLock {
   }
 
   lock() {
-    if (__activeScrollLock) {
-      // If scroll is already locked by another element, don't lock it again
-      return;
-    }
     if (this.locked) {
       return;
     }
@@ -113,7 +112,11 @@ export class ScrollLock {
       );
       return;
     }
-    lockScroll(this.container);
+    if (__scrollLockHolders.length === 0) {
+      lockScroll(this.container);
+      __lockedContainer = this.container;
+    }
+    __scrollLockHolders.push(this);
     // If target is passed, lock the nearest scrollable ancestor of that target in addition to the outer page
     const ancestor = this.target ? findScrollableAncestor(this.target) : null;
     if (ancestor) {
@@ -122,7 +125,6 @@ export class ScrollLock {
       ancestor.style.overflow = "hidden";
     }
     this.locked = true;
-    __activeScrollLock = this;
   }
 
   unlock() {
@@ -134,8 +136,13 @@ export class ScrollLock {
       this._lockedAncestor = null;
       this._previousAncestorOverflow = "";
     }
-    unlockScroll(this.container);
+    __scrollLockHolders = __scrollLockHolders.filter(
+      (holder) => holder !== this,
+    );
+    if (__scrollLockHolders.length === 0) {
+      unlockScroll(__lockedContainer);
+      __lockedContainer = null;
+    }
     this.locked = false;
-    __activeScrollLock = null;
   }
 }

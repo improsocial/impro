@@ -466,11 +466,16 @@ export function enableDragToDismiss(
 
 // iOS Safari: dismissing the keyboard via the "Done" button leaves the
 // dialog's inner scroll area offset, which makes buttons unclickable
-// until the dialog is swiped or re-tapped. Reset scroll on blur.
+// until the dialog is swiped or re-tapped. Reset scroll on text input blur.
 export function resetScrollOnBlur(dialog, scrollArea) {
   dialog.addEventListener(
     "blur",
-    () => {
+    (event) => {
+      if (
+        !event.target.matches?.('input, textarea, [contenteditable="true"]')
+      ) {
+        return;
+      }
       if (scrollArea) scrollArea.scrollTop = 0;
       window.scrollTo(0, 0);
     },

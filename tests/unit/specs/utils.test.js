@@ -22,6 +22,7 @@ import {
   enableLongPress,
   TimeoutError,
   debounce,
+  resetScrollOnBlur,
 } from "/js/utils.js";
 
 describe("unique", () => {
@@ -1029,5 +1030,56 @@ describe("debounce", () => {
     debounced("kept");
     await wait(10);
     assert.deepEqual(calls, ["kept"]);
+  });
+});
+
+describe("resetScrollOnBlur", () => {
+  let dialog;
+  let scrollArea;
+
+  const blurFrom = (element) => {
+    element.dispatchEvent(new window.FocusEvent("blur"));
+  };
+
+  beforeEach(() => {
+    dialog = document.createElement("dialog");
+    scrollArea = document.createElement("div");
+    dialog.appendChild(scrollArea);
+    document.body.appendChild(dialog);
+    resetScrollOnBlur(dialog, scrollArea);
+    scrollArea.scrollTop = 42;
+  });
+
+  afterEach(() => {
+    dialog.remove();
+  });
+
+  it("resets the scroll area when a textarea blurs", () => {
+    const textarea = document.createElement("textarea");
+    scrollArea.appendChild(textarea);
+    blurFrom(textarea);
+    assert.deepEqual(scrollArea.scrollTop, 0);
+  });
+
+  it("resets the scroll area when an input blurs", () => {
+    const input = document.createElement("input");
+    scrollArea.appendChild(input);
+    blurFrom(input);
+    assert.deepEqual(scrollArea.scrollTop, 0);
+  });
+
+  it("resets the scroll area when a contenteditable element blurs", () => {
+    const editable = document.createElement("div");
+    editable.setAttribute("contenteditable", "true");
+    scrollArea.appendChild(editable);
+    blurFrom(editable);
+    assert.deepEqual(scrollArea.scrollTop, 0);
+  });
+
+  it("does not reset scroll when a button blurs", () => {
+    const button = document.createElement("button");
+    scrollArea.appendChild(button);
+    blurFrom(button);
+    assert.deepEqual(scrollArea.scrollTop, 42);
   });
 });
