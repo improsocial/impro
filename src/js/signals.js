@@ -1,214 +1,64 @@
 import { EventEmitter } from "/js/eventEmitter.js";
-
-let trackedReads = null;
-
-function track(signal) {
-  if (trackedReads) trackedReads.add(signal);
-}
-
-function withTracking(set, fn) {
-  const previous = trackedReads;
-  trackedReads = set;
-  try {
-    return fn();
-  } finally {
-    trackedReads = previous;
-  }
-}
+import { Signal as PolyfillSignal } from "/js/lib/signal-polyfill.js";
 
 export function untrack(fn) {
-  return withTracking(null, fn);
+  return PolyfillSignal.subtle.untrack(fn);
 }
 
 let globalTick = 0;
 
-class State {
+// Thin subclasses over the TC39 signal-polyfill to add debugging helpers
+class State extends PolyfillSignal.State {
   __debugName = "<State>";
   __lastChangedTick = 0;
-  __version = 0;
-  #value;
-  #watchers = new Set();
-  #dependents = new Set();
-  #equals;
+  #equalsFn;
 
   constructor(initialValue, { equals = Object.is } = {}) {
-    this.#value = initialValue;
-    this.#equals = equals;
-  }
-
-  get() {
-    track(this);
-    return this.#value;
+    super(initialValue, { equals });
+    this.#equalsFn = equals;
   }
 
   set(newValue) {
-    if (this.#equals(newValue, this.#value)) return;
-    this.#value = newValue;
-    this.__lastChangedTick = ++globalTick;
-    this.__version++;
-
-    for (const dependent of [...this.#dependents]) dependent._markDirty(this);
-    for (const watcher of [...this.#watchers]) watcher._notify(this);
-  }
-
-  _addDependent(computed) {
-    this.#dependents.add(computed);
-  }
-  _removeDependent(computed) {
-    this.#dependents.delete(computed);
-  }
-  _addWatcher(watcher) {
-    this.#watchers.add(watcher);
-  }
-  _removeWatcher(watcher) {
-    this.#watchers.delete(watcher);
+    const changed = !this.#equalsFn(
+      newValue,
+      PolyfillSignal.subtle.untrack(() => super.get()),
+    );
+    super.set(newValue);
+    if (changed) {
+      this.__lastChangedTick = ++globalTick;
+    }
   }
 }
 
-class Computed {
+class Computed extends PolyfillSignal.Computed {
   __debugName = "<Computed>";
   __quiet = false;
-  __version = 0;
-  #cb;
-  #value;
-  #hasValue = false;
-  #equals;
-
-  #dirty = true;
-  #deps = new Set();
-  #depVersions = null;
-  #dependents = new Set();
-  #watchers = new Set();
-  #dirtyFrom = new Set();
-
-  constructor(cb, { equals = Object.is } = {}) {
-    this.#cb = cb;
-    this.#equals = equals;
-  }
-
-  get() {
-    track(this);
-    if (this.#dirty) this.#recompute();
-    return this.#value;
-  }
-
-  #recompute() {
-    if (this.#hasValue && this.#depVersions) {
-      let anyChanged = false;
-      for (const dep of this.#deps) {
-        dep.get();
-        if (dep.__version !== this.#depVersions.get(dep)) {
-          anyChanged = true;
-          break;
-        }
-      }
-      if (!anyChanged) {
-        this.#dirty = false;
-        this.#dirtyFrom = new Set();
-        return;
-      }
-    }
-
-    for (const dep of this.#deps) dep._removeDependent(this);
-    const tracked = new Set();
-    const newValue = withTracking(tracked, () => this.#cb.call(this));
-    this.#deps = tracked;
-    for (const dep of this.#deps) dep._addDependent(this);
-
-    this.#depVersions = new Map();
-    for (const dep of this.#deps) this.#depVersions.set(dep, dep.__version);
-
-    if (!this.#hasValue || !this.#equals(newValue, this.#value)) {
-      this.#value = newValue;
-      this.__version++;
-    }
-    this.#hasValue = true;
-    this.#dirty = false;
-    this.#dirtyFrom = new Set();
-  }
-
-  _markDirty(marker) {
-    this.#dirtyFrom.add(marker);
-    const wasDirty = this.#dirty;
-    this.#dirty = true;
-    if (wasDirty) return;
-    for (const dependent of [...this.#dependents]) dependent._markDirty(this);
-    for (const watcher of [...this.#watchers]) watcher._notify(this);
-  }
-
-  _getDirtyFrom() {
-    return this.#dirtyFrom;
-  }
-
-  dispose() {
-    for (const dep of this.#deps) dep._removeDependent(this);
-    this.#deps = new Set();
-    this.#dirty = true;
-  }
-
-  _addDependent(computed) {
-    this.#dependents.add(computed);
-  }
-  _removeDependent(computed) {
-    this.#dependents.delete(computed);
-  }
-  _addWatcher(watcher) {
-    this.#watchers.add(watcher);
-  }
-  _removeWatcher(watcher) {
-    this.#watchers.delete(watcher);
-  }
 }
 
-class Watcher {
-  #notify;
-  #watched = new Set();
-  #pending = new Set();
-  #notified = false;
+export const Signal = {
+  State,
+  Computed,
+  subtle: PolyfillSignal.subtle,
+};
 
-  constructor(notify) {
-    this.#notify = notify;
-  }
-
-  watch(...signals) {
-    this.#notified = false;
-    for (const sig of signals) {
-      this.#watched.add(sig);
-      sig._addWatcher(this);
+// Reconstructs the "caused by" tree for a firing effect by walking the
+// effect's source graph and pruning to branches that contain a changed state
+function logEffectTrigger(effectComputed, debugName, debugDepth, lastRunTick) {
+  const isState = (node) => node instanceof PolyfillSignal.State;
+  const relevanceCache = new Map();
+  const isRelevant = (node) => {
+    if (relevanceCache.has(node)) return relevanceCache.get(node);
+    relevanceCache.set(node, false); // cycle guard
+    let relevant;
+    if (isState(node)) {
+      relevant = node.__lastChangedTick > lastRunTick;
+    } else {
+      relevant = PolyfillSignal.subtle.introspectSources(node).some(isRelevant);
     }
-  }
+    relevanceCache.set(node, relevant);
+    return relevant;
+  };
 
-  unwatch(...signals) {
-    for (const sig of signals) {
-      this.#watched.delete(sig);
-      this.#pending.delete(sig);
-      sig._removeWatcher(this);
-    }
-  }
-
-  getPending() {
-    const result = [...this.#pending];
-    this.#pending.clear();
-    return result;
-  }
-
-  _notify(signal) {
-    this.#pending.add(signal);
-    if (this.#notified) return;
-    this.#notified = true;
-    this.#notify();
-  }
-}
-
-export const Signal = { State, Computed, subtle: { Watcher } };
-
-function logEffectTrigger(
-  effectComputed,
-  debugName,
-  debugDepth,
-  lastRunTick,
-  dirtyFromOverride,
-) {
   const lines = [`[T${globalTick}] effect(${debugName}) firing, caused by:`];
   const seen = new Set();
   // ancestorBars: for each ancestor level, true if that level still has siblings below
@@ -222,27 +72,28 @@ function logEffectTrigger(
       return;
     }
     seen.add(node);
-    const isState = node instanceof State;
     const quiet = node.__quiet;
     if (!quiet) {
-      const kind = isState ? "state" : "computed";
+      const kind = isState(node) ? "state" : "computed";
       const tickInfo =
-        isState && node.__lastChangedTick > lastRunTick
+        isState(node) && node.__lastChangedTick > lastRunTick
           ? ` @T${node.__lastChangedTick}`
           : "";
       lines.push(`${prefix}${kind} ${node.__debugName ?? "?"}${tickInfo}`);
     }
-    if (!isState) {
-      const children = [...node._getDirtyFrom()];
+    if (!isState(node)) {
+      const children = PolyfillSignal.subtle
+        .introspectSources(node)
+        .filter(isRelevant);
       const childBars = quiet ? ancestorBars : [...ancestorBars, !isLast];
       children.forEach((child, i) => {
         walk(child, childBars, i === children.length - 1);
       });
     }
   };
-  const rootMarkers = [
-    ...(dirtyFromOverride ?? effectComputed._getDirtyFrom()),
-  ];
+  const rootMarkers = PolyfillSignal.subtle
+    .introspectSources(effectComputed)
+    .filter(isRelevant);
   rootMarkers.forEach((marker, i) => {
     walk(marker, [], i === rootMarkers.length - 1);
   });
@@ -263,20 +114,12 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
 
   let pendingFlush = false;
   const run = () => {
-    const dirtyFromSnapshot =
-      hasRun && debugName ? new Set(computed._getDirtyFrom()) : null;
     const prevRunTick = lastRunTick;
     ranThisFlush = false;
     computed.get();
     if (ranThisFlush) {
       if (hasRun && debugName) {
-        logEffectTrigger(
-          computed,
-          debugName,
-          debugDepth,
-          prevRunTick,
-          dirtyFromSnapshot,
-        );
+        logEffectTrigger(computed, debugName, debugDepth, prevRunTick);
       }
       lastRunTick = globalTick;
       hasRun = true;
@@ -284,7 +127,7 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
     watcher.watch(); // re-arm
   };
 
-  const watcher = new Watcher(() => {
+  const watcher = new PolyfillSignal.subtle.Watcher(() => {
     if (pendingFlush) return;
     pendingFlush = true;
     requestAnimationFrame(() => {
@@ -298,7 +141,6 @@ export const effect = (cb, { debugName, debugDepth } = {}) => {
   return () => {
     if (typeof cleanup === "function") cleanup();
     watcher.unwatch(computed);
-    computed.dispose();
   };
 };
 
