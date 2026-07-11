@@ -16,6 +16,7 @@ import {
   isPostView,
   getInteractionProfileDids,
   getLastInteractionTimestamp,
+  isBlockedByViewer,
   isGroupConvo,
   markBlockedQuoteNotFound,
   replaceBlockedQuote,
@@ -611,7 +612,13 @@ export class Derived extends ReactiveStore {
 
   resolveBlockedQuote(post) {
     const blockedQuote = getBlockedQuote(post);
-    if (!blockedQuote || isBlockingUser(blockedQuote)) return post;
+    if (!blockedQuote) return post;
+    if (this.dataStore.$unavailablePosts.get(blockedQuote.uri)) {
+      return markBlockedQuoteNotFound(post, blockedQuote.uri);
+    }
+    if (isBlockingUser(blockedQuote) || isBlockedByViewer(blockedQuote)) {
+      return post;
+    }
     const fullBlockedPost = this.$hydratedPosts.get(blockedQuote.uri);
     if (fullBlockedPost) {
       const blockedQuoteEmbed = isEmptyPost(fullBlockedPost)
@@ -619,7 +626,7 @@ export class Derived extends ReactiveStore {
         : createEmbedFromPost(fullBlockedPost);
       return replaceBlockedQuote(post, blockedQuoteEmbed);
     }
-    return markBlockedQuoteNotFound(post, blockedQuote.uri);
+    return post;
   }
 
   // Attach parentAuthor to a post's reply record when its parent is loaded.

@@ -2697,4 +2697,66 @@ t.describe("enableStatus / getStatus", (it) => {
   });
 });
 
+t.describe("_loadBlockedPosts", (it) => {
+  const existingUri = "at://did:plc:blocked/app.bsky.feed.post/exists";
+  const deletedUri = "at://did:plc:blocked/app.bsky.feed.post/gone";
+
+  function setup({ getPosts = async () => [], getRecord }) {
+    const mockApi = { getPosts, getRecord };
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+    return { requests, dataStore };
+  }
+
+  it("should mark a post unavailable when its record is confirmed deleted", async () => {
+    const { requests, dataStore } = setup({
+      getRecord: async (uri) => {
+        if (uri === deletedUri) {
+          throw new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "RecordNotFound" },
+            headers: {},
+            url: "",
+          });
+        }
+        return { uri, value: {} };
+      },
+    });
+    await requests._loadBlockedPosts([existingUri, deletedUri]);
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
+    assert(dataStore.$unavailablePosts.get(deletedUri) !== null);
+    assertEquals(dataStore.$unavailablePosts.get(deletedUri).uri, deletedUri);
+  });
+
+  it("should not mark a post unavailable when the record probe fails for other reasons", async () => {
+    const { requests, dataStore } = setup({
+      getRecord: async () => {
+        throw new TypeError("network down");
+      },
+    });
+    await requests._loadBlockedPosts([existingUri]);
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
+  });
+
+  it("should not probe records for posts that getPosts returned", async () => {
+    const { requests, dataStore } = setup({
+      getPosts: async () => [{ uri: existingUri, record: { text: "hi" } }],
+      getRecord: async () => {
+        throw new Error("getRecord should not be called");
+      },
+    });
+    await requests._loadBlockedPosts([existingUri]);
+    assertEquals(dataStore.$posts.get(existingUri).record.text, "hi");
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
+  });
+});
+
 await t.run();

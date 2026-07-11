@@ -615,7 +615,6 @@ export function recordEmbedTemplate({
         isAuthenticated,
         condensed,
       });
-    // This only happens if the author is blocking the viewer
     case "app.bsky.embed.record#viewBlocked":
       return blockedQuoteTemplate();
     case "app.bsky.embed.record#viewDetached":

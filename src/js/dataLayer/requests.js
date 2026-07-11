@@ -4,6 +4,7 @@ import {
   getQuotedPost,
   getBlockedQuote,
   isBlockingUser,
+  isBlockedByViewer,
   createUnavailablePost,
   getPostUrisFromNotifications,
   buildUri,
@@ -74,25 +75,23 @@ function writePageToCollection(
   return true;
 }
 
-// Get URIs of blocked quotes from posts where the author has not blocked the viewer
+// Get URIs of blocked posts and blocked quotes referenced by the given posts
 function getBlockedPostUris(posts) {
   // Blocked "top-level" posts
-  const blockedPosts = posts
-    .filter((post) => post.$type === "app.bsky.feed.defs#blockedPost")
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+  const blockedPosts = posts.filter(
+    (post) => post.$type === "app.bsky.feed.defs#blockedPost",
+  );
   // Blocked quoted posts
   const blockedQuotes = posts
     .map((post) => getBlockedQuote(post))
-    .filter(Boolean)
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+    .filter(Boolean);
   // Blocked nested quotes
   // Note - this won't load blocked quotes of blocked quotes (edge case)
   const blockedNestedQuotes = posts
     .map((post) => getQuotedPost(post))
     .filter(Boolean)
     .map((quotedPost) => getBlockedQuote(quotedPost))
-    .filter(Boolean)
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+    .filter(Boolean);
 
   return unique([...blockedPosts, ...blockedQuotes, ...blockedNestedQuotes], {
     by: "uri",
@@ -311,7 +310,11 @@ export class Requests {
   }
 
   async _loadParentChain(blockedParent, { labelers = [], rootUri } = {}) {
-    if (!rootUri || isBlockingUser(blockedParent)) {
+    if (
+      !rootUri ||
+      isBlockingUser(blockedParent) ||
+      isBlockedByViewer(blockedParent)
+    ) {
       return await this.loadPostThread(blockedParent.uri, {
         depth: 0,
         labelers,
@@ -337,7 +340,8 @@ export class Requests {
 
     while (
       currentBlocked?.$type === "app.bsky.feed.defs#blockedPost" &&
-      !isBlockingUser(currentBlocked)
+      !isBlockingUser(currentBlocked) &&
+      !isBlockedByViewer(currentBlocked)
     ) {
       const authorDid = currentBlocked.author?.did;
       if (!authorDid || loadedAuthorDids.has(authorDid)) break;
@@ -527,15 +531,24 @@ export class Requests {
       labelers,
     });
     this.dataStore.setPosts(fetchedBlockedPosts);
-    // If any blocked posts are not found, create an unavailable post for them
-    const notFoundPostUris = blockedPostUris.filter(
+    // The appview omits posts from getPosts when a block exists in either
+    // direction, so a missing post may still exist. Probe the raw record
+    // (which block filtering doesn't apply to) and only mark posts as
+    // unavailable when the record is confirmed gone.
+    const missingPostUris = blockedPostUris.filter(
       (uri) => !fetchedBlockedPosts.some((post) => post.uri === uri),
     );
-    if (notFoundPostUris.length > 0) {
-      for (const uri of notFoundPostUris) {
+    const results = await Promise.allSettled(
+      missingPostUris.map((uri) => this.api.getRecord(uri)),
+    );
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") return;
+      const error = result.reason;
+      if (error instanceof ApiError && error.data?.error === "RecordNotFound") {
+        const uri = missingPostUris[index];
         this.dataStore.$unavailablePosts.set(uri, createUnavailablePost(uri));
       }
-    }
+    });
   }
 
   async loadDetailedProfile(did) {

@@ -620,6 +620,138 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     assertEquals(result.badgeLabels, ["b"]);
   });
 
+  function makeBlockedQuotePost(viewerState) {
+    return {
+      uri: postURI,
+      record: { text: "quoting post" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "at://did:blocked/app.bsky.feed.post/q",
+          blocked: true,
+          author: { did: "did:blocked", viewer: viewerState },
+        },
+      },
+    };
+  }
+
+  it("should keep a viewer-blocked quote as blocked when the quoted post is not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(
+      postURI,
+      makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
+    );
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewBlocked",
+    );
+  });
+
+  it("should mark a viewer-blocked quote as deleted when the post is confirmed unavailable", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
+    dataStore.$unavailablePosts.set(quotedUri, {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: quotedUri,
+    });
+    dataStore.$posts.set(
+      postURI,
+      makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
+    );
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewNotFound",
+    );
+  });
+
+  it("should mark a blocked-by quote as deleted when the post is confirmed unavailable", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
+    dataStore.$unavailablePosts.set(quotedUri, {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: quotedUri,
+    });
+    dataStore.$posts.set(postURI, makeBlockedQuotePost({ blockedBy: true }));
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewNotFound",
+    );
+  });
+
+  it("should keep a viewer-blocked quote blocked even when the quoted post is loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
+    dataStore.$posts.set(quotedUri, {
+      uri: quotedUri,
+      cid: "cid-q",
+      author: { did: "did:blocked" },
+      record: { text: "the quoted text" },
+    });
+    dataStore.$posts.set(
+      postURI,
+      makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
+    );
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewBlocked",
+    );
+  });
+
+  it("should resolve a third-party-blocked quote when the quoted post is loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
+    dataStore.$posts.set(quotedUri, {
+      uri: quotedUri,
+      cid: "cid-q",
+      author: { did: "did:blocked" },
+      record: { text: "the quoted text" },
+    });
+    dataStore.$posts.set(postURI, makeBlockedQuotePost({}));
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(result.embed.record.$type, "app.bsky.embed.record#viewRecord");
+    assertEquals(result.embed.record.uri, quotedUri);
+  });
+
+  it("should keep the quote blocked when the quoted author blocks the viewer", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
+    dataStore.$posts.set(quotedUri, {
+      uri: quotedUri,
+      cid: "cid-q",
+      author: { did: "did:blocked" },
+      record: { text: "the quoted text" },
+    });
+    dataStore.$posts.set(postURI, makeBlockedQuotePost({ blockedBy: true }));
+    const result = derived.$hydratedPosts.get(postURI);
+    assertEquals(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewBlocked",
+    );
+  });
+
   it("should return the post unchanged when there is no blocked quote to resolve", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore, {

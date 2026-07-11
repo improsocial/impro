@@ -461,8 +461,8 @@ export class Api {
     return posts[0];
   }
 
-  async getRepost(repostUri) {
-    const { repo, rkey, collection } = parseUri(repostUri);
+  async getRecord(uri) {
+    const { repo, rkey, collection } = parseUri(uri);
     const res = await this.request(`com.atproto.repo.getRecord`, {
       query: {
         repo,
@@ -471,6 +471,10 @@ export class Api {
       },
     });
     return res.data;
+  }
+
+  async getRepost(repostUri) {
+    return this.getRecord(repostUri);
   }
 
   async getReposts(repostUris) {
