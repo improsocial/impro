@@ -565,7 +565,7 @@ test.describe("Blocked posts in post thread", () => {
             blocked: true,
             author: {
               did: blockedGrandparent.uri.split("/")[2],
-              viewer: { blocking: true },
+              viewer: {},
             },
           },
           replies: [],
@@ -655,7 +655,7 @@ test.describe("Blocked posts in post thread", () => {
             blocked: true,
             author: {
               did: blockedGrandparent.uri.split("/")[2],
-              viewer: { blocking: true },
+              viewer: {},
             },
           },
           replies: [],
@@ -745,7 +745,7 @@ test.describe("Blocked posts in post thread", () => {
           blocked: true,
           author: {
             did: post.uri.split("/")[2],
-            viewer: { blocking: true },
+            viewer: {},
           },
         };
       }
