@@ -22,9 +22,11 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/css");
   eleventyConfig.addPassthroughCopy("src/img");
   eleventyConfig.addPassthroughCopy("src/manifest.json");
+  eleventyConfig.addPassthroughCopy("src/_headers");
+  eleventyConfig.addPassthroughCopy("src/plugins");
 
   // Prevent sandbox from being treated as a template
-  eleventyConfig.ignores.add("src/js/plugins/sandbox.html");
+  eleventyConfig.ignores.add("src/plugins/sandbox.html");
 
   const isDev = process.env.NODE_ENV !== "production";
 
@@ -141,7 +143,6 @@ export default async function (eleventyConfig) {
       // linkHtml crawls the un-hashed files on disk, so it must run before renaming
       const linked = await linkHtml(content, {
         baseUrl: buildBaseUrl,
-        exclude: ["/lib/hls.js"],
         urlMap: imports,
       });
       return linked

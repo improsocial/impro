@@ -1,0 +1,12 @@
+# Pages auto-generates Link headers from <link rel="modulepreload"> elements,
+# which makes Firefox start module preloads before parsing the HTML and then
+# reject the import map, so suppress them for now
+/*
+  ! Link
+
+# Hashed filenames can be cached forever
+/js/*
+  Cache-Control: public, max-age=31536000, immutable
+
+/css/*
+  Cache-Control: public, max-age=31536000, immutable
