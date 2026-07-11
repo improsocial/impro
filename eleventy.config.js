@@ -5,9 +5,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-async function transformGlob(pattern, replacer) {
+async function transformFiles(filePaths, replacer) {
   await Promise.all(
-    fs.globSync(pattern).map(async (filePath) => {
+    filePaths.map(async (filePath) => {
       const content = await fs.promises.readFile(filePath, "utf-8");
       const updated = await replacer(content);
       if (content !== updated) await fs.promises.writeFile(filePath, updated);
@@ -23,10 +23,10 @@ export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/img");
   eleventyConfig.addPassthroughCopy("src/manifest.json");
   eleventyConfig.addPassthroughCopy("src/_headers");
-  eleventyConfig.addPassthroughCopy("src/plugins");
+  eleventyConfig.addPassthroughCopy("src/plugin-sandbox.html");
 
   // Prevent sandbox from being treated as a template
-  eleventyConfig.ignores.add("src/plugins/sandbox.html");
+  eleventyConfig.ignores.add("src/plugin-sandbox.html");
 
   const isDev = process.env.NODE_ENV !== "production";
 
@@ -113,8 +113,12 @@ export default async function (eleventyConfig) {
   });
 
   // Cache busting via content-hashed filenames
-  eleventyConfig.on("eleventy.after", async ({ dir }) => {
+  eleventyConfig.on("eleventy.after", async ({ dir, results }) => {
     if (isDev) return;
+
+    const htmlFiles = results
+      .map((result) => result.outputPath)
+      .filter((outputPath) => outputPath.endsWith(".html"));
 
     const buildBaseUrl = pathToFileURL(path.resolve(dir.output) + path.sep);
 
@@ -139,7 +143,7 @@ export default async function (eleventyConfig) {
     );
 
     const importMapTag = `<script type="importmap">${JSON.stringify({ imports })}</script>`;
-    await transformGlob(`${dir.output}/*.html`, async (content) => {
+    await transformFiles(htmlFiles, async (content) => {
       // linkHtml crawls the un-hashed files on disk, so it must run before renaming
       const linked = await linkHtml(content, {
         baseUrl: buildBaseUrl,
