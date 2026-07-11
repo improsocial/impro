@@ -211,8 +211,6 @@ describe("footerTemplate - profile long-press", () => {
     assert(!profileLink.classList.contains("long-press-enabled"));
   });
 
-  // Press timing and click suppression are enableLongPress behavior, covered
-  // in utils.test.js; here we only verify the footer wires the handler up.
   it("invokes the handler when a long-press fires on the profile item", () => {
     let fired = 0;
     const profileLink = renderFooter({ onLongPressProfile: () => fired++ });

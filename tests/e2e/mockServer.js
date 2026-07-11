@@ -296,7 +296,15 @@ export class MockServer {
     });
   }
 
-  async setup(page) {
+  async setup(page, { welcomeModalSeen = true } = {}) {
+    // Mark the welcome modal as already seen so it doesn't open over
+    // logged-out tests; pass welcomeModalSeen: false to test the modal itself.
+    if (welcomeModalSeen) {
+      await page.addInitScript(() => {
+        sessionStorage.setItem("welcome-modal-seen", "true");
+      });
+    }
+
     // Stub gif proxy fetches (gif embeds stream from these CDNs).
     await page.route(
       /https:\/\/(t\.gifs\.bsky\.app|.*\.klipy\.com)\/.*/,

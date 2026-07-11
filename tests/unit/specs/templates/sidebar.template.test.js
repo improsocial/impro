@@ -1,4 +1,4 @@
-import { describe, it } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { render } from "/js/lib/lit-html.js";
@@ -86,6 +86,25 @@ describe("sidebarTemplate - logged out state", () => {
       "[data-testid='sidebar-about-link']",
     );
     assert(aboutLink !== null);
+  });
+});
+
+describe("sidebarTemplate - welcome modal", () => {
+  beforeEach(() => {
+    document.body.innerHTML = "";
+  });
+
+  it("should open the welcome modal when the about link is clicked", () => {
+    const container = document.createElement("div");
+    render(
+      sidebarTemplate({ isAuthenticated: false, currentUser: null }),
+      container,
+    );
+    document.body.appendChild(container);
+    container.querySelector("[data-testid='sidebar-about-link']").click();
+    const dialog = document.querySelector('[data-testid="welcome-modal"]');
+    assert(dialog !== null);
+    assert(dialog.hasAttribute("open"));
   });
 });
 
@@ -366,8 +385,6 @@ describe("sidebarTemplate - profile long-press", () => {
     return container.querySelector(".sidebar-profile-avatar");
   }
 
-  // Press timing and click suppression are enableLongPress behavior, covered
-  // in utils.test.js; here we only verify the sidebar wires the handler up.
   it("invokes the handler when a long-press fires on the profile avatar", () => {
     let fired = 0;
     const avatar = renderSidebar({ onLongPressProfile: () => fired++ });

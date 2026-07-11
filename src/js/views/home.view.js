@@ -9,6 +9,7 @@ import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
+import { WelcomeModal } from "/js/modals/welcome.modal.js";
 
 class HomeView extends View {
   async render({
@@ -24,6 +25,7 @@ class HomeView extends View {
     },
   }) {
     const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
+    const WELCOME_MODAL_SEEN_STORAGE_KEY = "welcome-modal-seen";
 
     const storedFeedUri = isAuthenticated
       ? localStorage.getItem(CURRENT_FEED_URI_STORAGE_KEY)
@@ -42,6 +44,14 @@ class HomeView extends View {
 
     if (!state.$currentFeedUri.get()) {
       resetToDefaultFeed();
+    }
+
+    if (
+      !isAuthenticated &&
+      !sessionStorage.getItem(WELCOME_MODAL_SEEN_STORAGE_KEY)
+    ) {
+      sessionStorage.setItem(WELCOME_MODAL_SEEN_STORAGE_KEY, "true");
+      WelcomeModal.open();
     }
 
     if (isAuthenticated) {
