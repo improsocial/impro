@@ -1817,17 +1817,10 @@ t.describe("loadConvoMessages", (it) => {
     assertEquals(stored.messages[1].id, "m2");
   });
 
-  it("should null out cursor when validation second-page is empty", async () => {
+  it("should null out cursor when a page comes back empty with a cursor", async () => {
     const dataStore = new DataStore();
-    let calls = 0;
     const mockApi = {
-      getMessages: async () => {
-        calls += 1;
-        if (calls === 1) {
-          return { messages: [{ id: "m1" }], cursor: "fakecursor" };
-        }
-        return { messages: [], cursor: null };
-      },
+      getMessages: async () => ({ messages: [], cursor: "fakecursor" }),
     };
     const requests = makeRequests(mockApi, dataStore);
 
