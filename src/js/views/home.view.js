@@ -5,7 +5,7 @@ import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
-import { FEED_PAGE_SIZE, DISCOVER_FEED_URI } from "/js/config.js";
+import { FEED_PAGE_SIZE, LOGGED_OUT_FEED_URI } from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -38,7 +38,7 @@ class HomeView extends View {
 
     function resetToDefaultFeed() {
       state.$currentFeedUri.set(
-        isAuthenticated ? "following" : DISCOVER_FEED_URI,
+        isAuthenticated ? "following" : LOGGED_OUT_FEED_URI,
       );
     }
 
@@ -81,7 +81,7 @@ class HomeView extends View {
         return;
       }
       const interactableItems = pinnedItems.filter(
-        (item) => item.acceptsInteractions || item.uri === DISCOVER_FEED_URI,
+        (item) => item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI,
       );
       for (const observer of postSeenObservers.values()) {
         observer.disconnect();
@@ -220,7 +220,8 @@ class HomeView extends View {
               <main>
                 ${pinnedItems.map((item) => {
                   const acceptsInteractions =
-                    item.acceptsInteractions || item.uri === DISCOVER_FEED_URI;
+                    item.acceptsInteractions ||
+                    item.uri === LOGGED_OUT_FEED_URI;
                   const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
                   const feedRequestStatus =
                     dataLayer.requests.statusStore.$statuses.get(

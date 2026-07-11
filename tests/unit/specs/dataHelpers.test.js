@@ -4,6 +4,7 @@ import {
   avatarThumbnailUrl,
   getRKey,
   getIsLiked,
+  isListFeed,
   getQuotedPost,
   getBlockedQuote,
   createEmbedFromPost,
@@ -79,6 +80,26 @@ describe("getRKey", () => {
   it("should handle URI with single path segment", () => {
     const post = { uri: "single-segment" };
     assert.deepEqual(getRKey(post), "single-segment");
+  });
+});
+
+describe("isListFeed", () => {
+  it("should return true for a list URI", () => {
+    assert.deepEqual(
+      isListFeed("at://did:plc:123/app.bsky.graph.list/3ltcvl4ver723"),
+      true,
+    );
+  });
+
+  it("should return false for a feed generator URI", () => {
+    assert.deepEqual(
+      isListFeed("at://did:plc:123/app.bsky.feed.generator/whats-hot"),
+      false,
+    );
+  });
+
+  it("should return false for the following feed", () => {
+    assert.deepEqual(isListFeed("following"), false);
   });
 });
 

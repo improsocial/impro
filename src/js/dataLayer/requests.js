@@ -9,6 +9,7 @@ import {
   getPostUrisFromNotifications,
   buildUri,
   parseUri,
+  isListFeed,
   isGroupConvo,
   getGroupConvoDetails,
   getJoinLinkCodesFromPosts,
@@ -473,11 +474,10 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$feeds, { key: feedURI });
-    const isListFeed = feedURI.includes("/app.bsky.graph.list/");
     const feed =
       feedURI === "following"
         ? await this.api.getFollowingFeed({ limit, cursor, labelers })
-        : isListFeed
+        : isListFeed(feedURI)
           ? await this.api.getListFeed(feedURI, { limit, cursor, labelers })
           : await this.api.getFeed(feedURI, { limit, cursor, labelers });
     // Save posts
