@@ -461,8 +461,8 @@ export class Api {
     return posts[0];
   }
 
-  async getRepost(repostUri) {
-    const { repo, rkey, collection } = parseUri(repostUri);
+  async getRecord(uri) {
+    const { repo, rkey, collection } = parseUri(uri);
     const res = await this.request(`com.atproto.repo.getRecord`, {
       query: {
         repo,
@@ -471,6 +471,10 @@ export class Api {
       },
     });
     return res.data;
+  }
+
+  async getRepost(repostUri) {
+    return this.getRecord(repostUri);
   }
 
   async getReposts(repostUris) {
@@ -523,6 +527,17 @@ export class Api {
     }
     const res = await this.request(`app.bsky.actor.searchActors`, {
       query: queryParams,
+      headers: {
+        "atproto-accept-labelers": labelers.join(","),
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async searchProfilesTypeahead(query, { limit = 12, labelers = [] } = {}) {
+    const res = await this.request(`app.bsky.actor.searchActorsTypeahead`, {
+      query: { q: query, limit },
       headers: {
         "atproto-accept-labelers": labelers.join(","),
         "atproto-proxy": this.bskyAppViewServiceDid,
@@ -669,13 +684,16 @@ export class Api {
     });
   }
 
-  async listConvos({ cursor, limit = 30, readState } = {}) {
+  async listConvos({ cursor, limit = 30, readState, status } = {}) {
     const query = { limit };
     if (cursor) {
       query.cursor = cursor;
     }
     if (readState) {
       query.readState = readState;
+    }
+    if (status) {
+      query.status = status;
     }
     const res = await this.request("chat.bsky.convo.listConvos", {
       query,

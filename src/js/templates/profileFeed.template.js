@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
@@ -80,8 +81,8 @@ export function profileListItemTemplate({
             ${isFollowing
               ? "Following"
               : isFollowedBy
-                ? "+ Follow back"
-                : "+ Follow"}
+                ? html`${plusIconTemplate()} Follow back`
+                : html`${plusIconTemplate()} Follow`}
           </button>`
         : ""}
     </div>

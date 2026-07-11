@@ -19,9 +19,20 @@ const streamingVideoObserver = new IntersectionObserver(
 );
 
 class StreamingVideo extends Component {
+  // Pause on navigate
+  handlePageTransition = () => {
+    const video = this.querySelector("video");
+    if (!video) {
+      return;
+    }
+    video.muted = true;
+    video.pause();
+  };
+
   connectedCallback() {
     // We always want to observe / unobserve the video to ensure it's streaming when it should be
     streamingVideoObserver.observe(this);
+    window.addEventListener("page-transition", this.handlePageTransition);
     if (this.initialized) {
       return;
     }
@@ -39,6 +50,7 @@ class StreamingVideo extends Component {
 
   disconnectedCallback() {
     streamingVideoObserver.unobserve(this);
+    window.removeEventListener("page-transition", this.handlePageTransition);
   }
 
   render() {
@@ -57,10 +69,6 @@ class StreamingVideo extends Component {
     if (this.muted) {
       video.muted = true;
     }
-    window.addEventListener("page-transition", () => {
-      video.muted = true;
-      video.pause();
-    });
   }
 
   resumeAutoplay() {

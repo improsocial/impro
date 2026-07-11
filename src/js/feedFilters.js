@@ -1,5 +1,6 @@
 import {
   isBlockingUser,
+  isBlockedByViewer,
   getQuotedPost,
   getBlockedQuote,
   getReplyAuthors,
@@ -168,7 +169,10 @@ class FilterBlockedQuotes extends FeedFilter {
   filterFeedItems(feedItems) {
     return feedItems.filter((item) => {
       const blockedQuote = getBlockedQuote(item.post);
-      if (blockedQuote && isBlockingUser(blockedQuote)) {
+      if (
+        blockedQuote &&
+        (isBlockingUser(blockedQuote) || isBlockedByViewer(blockedQuote))
+      ) {
         return false;
       }
       return true;

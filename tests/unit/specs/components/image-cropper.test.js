@@ -291,7 +291,7 @@ t.describe("ImageCropper - pointer events", (it) => {
     connectElement(element);
     mockElementSize(element, 200, 200);
 
-    injectTestImage(element, 1000, 1000);
+    injectTestImage(element, 100, 100);
 
     // Zoom in first so there's room to pan
     element._scale = 3;

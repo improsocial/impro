@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
+import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
 import { classnames } from "/js/utils.js";
 
 export function headerTemplate({
@@ -35,7 +36,7 @@ export function headerTemplate({
               ? () => onClickBackButton()
               : () => router.back({ fallbackRoute: backButtonFallbackRoute })}
           >
-            ←
+            ${arrowLeftIconTemplate()}
           </button>`}
       ${avatarTemplate
         ? html`<div class="header-avatar">${avatarTemplate()}</div>`

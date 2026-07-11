@@ -52,11 +52,60 @@
       import { enableErrorLogs } from "/js/errorLogs.js";
       import "/js/perf.js";
 
+      // Reload when a newer version is deployed
+      const RELOAD_GUARD_KEY = "version-check-last-reload";
+      const RELOAD_GUARD_MS = 60 * 1000;
+
+      async function fetchDeployedVersion() {
+        try {
+          const response = await fetch("/version.json", { cache: "no-store" });
+          if (!response.ok) {
+            return null;
+          }
+          const data = await response.json();
+          return data.version ?? null;
+        } catch {
+          return null;
+        }
+      }
+
+      async function reloadIfOutdated() {
+        const deployedVersion = await fetchDeployedVersion();
+        if (
+          deployedVersion === null ||
+          deployedVersion === window.env.version
+        ) {
+          return;
+        }
+        // Guard against a reload loop if the server keeps returning stale HTML
+        const lastReload = Number(sessionStorage.getItem(RELOAD_GUARD_KEY));
+        if (lastReload && Date.now() - lastReload < RELOAD_GUARD_MS) {
+          console.warn(
+            `Deployed version ${deployedVersion} differs from running version ${window.env.version}, but a reload was already attempted recently - skipping`,
+          );
+          return;
+        }
+        sessionStorage.setItem(RELOAD_GUARD_KEY, String(Date.now()));
+        window.location.reload();
+      }
+
+      reloadIfOutdated();
+      window.addEventListener("visibilitychange", () => {
+        if (document.visibilityState === "visible") {
+          reloadIfOutdated();
+        }
+      });
+      window.addEventListener("pageshow", (event) => {
+        if (event.persisted) {
+          reloadIfOutdated();
+        }
+      });
+
       const params = new URLSearchParams(window.location.search);
 
       // Dev tools
       if (
-        window.env.environment === "development" ||
+        (window.env.environment === "development" && !window.env.playwright) ||
         params.has("enable-debug")
       ) {
         enableErrorLogs();

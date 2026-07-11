@@ -161,15 +161,30 @@ t.describe("ChatInput - send event", (it) => {
     assertEquals(receivedMessage, "Hello world");
   });
 
-  it("should clear the input after sending", () => {
+  it("should clear the input when the send handler reports success", () => {
     const element = createChatInput();
     getRichTextInput(element).setText("Hello world");
+
+    element.addEventListener("send", (e) => {
+      e.detail.onSuccess();
+    });
 
     const button = element.querySelector(".message-input-send-button");
     button.click();
 
     assertEquals(getRichTextInput(element).text, "");
     assertEquals(element.messageText, "");
+  });
+
+  it("should keep the input text when the send handler does not report success", () => {
+    const element = createChatInput();
+    getRichTextInput(element).setText("Hello world");
+
+    const button = element.querySelector(".message-input-send-button");
+    button.click();
+
+    assertEquals(getRichTextInput(element).text, "Hello world");
+    assertEquals(element.messageText, "Hello world");
   });
 
   it("should not dispatch send event when message is empty", () => {
@@ -189,6 +204,22 @@ t.describe("ChatInput - send event", (it) => {
   it("should not dispatch send event when message is only whitespace", () => {
     const element = createChatInput();
     getRichTextInput(element).setText("   ");
+
+    let eventFired = false;
+    element.addEventListener("send", () => {
+      eventFired = true;
+    });
+
+    const button = element.querySelector(".message-input-send-button");
+    button.click();
+
+    assertEquals(eventFired, false);
+  });
+
+  it("should not dispatch send event when loading", () => {
+    const element = createChatInput();
+    getRichTextInput(element).setText("Hello world");
+    element.setAttribute("loading", "");
 
     let eventFired = false;
     element.addEventListener("send", () => {

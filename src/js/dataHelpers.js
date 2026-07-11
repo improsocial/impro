@@ -62,6 +62,10 @@ export function isBlockingUser(blockedQuote) {
   return blockedQuote.author.viewer?.blockedBy;
 }
 
+export function isBlockedByViewer(blockedPost) {
+  return !!blockedPost.author?.viewer?.blocking;
+}
+
 export function getBlockedQuote(post) {
   const quotedPost = getQuotedPost(post);
   if (!quotedPost) {

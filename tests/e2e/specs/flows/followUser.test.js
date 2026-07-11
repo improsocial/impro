@@ -27,8 +27,10 @@ test.describe("Follow/Unfollow flow", () => {
 
     const profileView = page.locator("#profile-view");
     await expect(
-      profileView.locator('[data-testid="follow-button"]'),
-    ).toContainText("+ Follow", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="follow-button"][data-teststate="follow"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
     await expect(
       profileView.locator('[data-testid="profile-stats"]'),
     ).toContainText("120 followers");
@@ -106,10 +108,12 @@ test.describe("Follow/Unfollow flow", () => {
     // Click the follow button to unfollow
     await profileView.locator('[data-testid="follow-button"]').click();
 
-    // Verify the button changes to "+ Follow"
+    // Verify the button changes back to the follow state
     await expect(
-      profileView.locator('[data-testid="follow-button"]'),
-    ).toContainText("+ Follow", { timeout: 10000 });
+      profileView.locator(
+        '[data-testid="follow-button"][data-teststate="follow"]',
+      ),
+    ).toBeVisible({ timeout: 10000 });
 
     // Verify the success toast is shown
     await expect(page.locator('[data-testid="toast"]')).toContainText(

@@ -250,6 +250,46 @@ t.describe("filterAlgorithmicFeed", (it) => {
   });
 });
 
+t.describe("filterAlgorithmicFeed - blocked quote filtering", (it) => {
+  function createBlockedQuoteItem(viewerState) {
+    return createFeedItem({
+      post: {
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewBlocked",
+            uri: "at://did:plc:quoted/app.bsky.feed.post/q",
+            blocked: true,
+            author: { did: "did:plc:quoted", viewer: viewerState },
+          },
+        },
+      },
+    });
+  }
+
+  it("should filter out posts quoting an author who blocks the viewer", () => {
+    const feed = createFeed([createBlockedQuoteItem({ blockedBy: true })]);
+    const result = filterAlgorithmicFeed(feed, true, {});
+    assertEquals(result.feed.length, 0);
+  });
+
+  it("should filter out posts quoting an author the viewer blocks", () => {
+    const feed = createFeed([
+      createBlockedQuoteItem({
+        blocking: "at://did:plc:me/app.bsky.graph.block/1",
+      }),
+    ]);
+    const result = filterAlgorithmicFeed(feed, true, {});
+    assertEquals(result.feed.length, 0);
+  });
+
+  it("should keep posts with third-party-blocked quotes", () => {
+    const feed = createFeed([createBlockedQuoteItem({})]);
+    const result = filterAlgorithmicFeed(feed, true, {});
+    assertEquals(result.feed.length, 1);
+  });
+});
+
 t.describe("filterAuthorFeed", (it) => {
   it("should preserve cursor", () => {
     const feed = createFeed([], "author-cursor");

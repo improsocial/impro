@@ -11,6 +11,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class AccountSwitcherDialog extends Component {
   connectedCallback() {
@@ -113,7 +114,7 @@ class AccountSwitcherDialog extends Component {
                 ?disabled=${pendingAction !== null}
                 @click=${() => this.close()}
               >
-                &times;
+                ${closeIconTemplate()}
               </button>
             </div>
             <div

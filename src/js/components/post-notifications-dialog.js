@@ -3,6 +3,7 @@ import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import "/js/components/toggle-switch.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class PostNotificationsDialog extends Component {
   connectedCallback() {
@@ -47,7 +48,7 @@ class PostNotificationsDialog extends Component {
               class="post-notifications-dialog-close"
               @click=${() => this.close()}
             >
-              &times;
+              ${closeIconTemplate()}
             </button>
             <div class="post-notifications-dialog-body">
               <div class="post-notifications-dialog-header">

@@ -8,6 +8,7 @@ import {
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
@@ -368,7 +369,7 @@ function openAltTextDialog(altText) {
         @click=${() => dialog.close()}
         aria-label="Close"
       >
-        ×
+        ${closeIconTemplate()}
       </button>
       <p class="alt-text-dialog-text">${altText}</p>`,
     dialog,
@@ -614,7 +615,6 @@ export function recordEmbedTemplate({
         isAuthenticated,
         condensed,
       });
-    // This only happens if the author is blocking the viewer
     case "app.bsky.embed.record#viewBlocked":
       return blockedQuoteTemplate();
     case "app.bsky.embed.record#viewDetached":

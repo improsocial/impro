@@ -83,17 +83,18 @@ class ChatInput extends Component {
   }
 
   handleSend() {
-    if (this.disabled || this.isOverLimit()) return;
+    if (this.disabled || this.loading || this.isOverLimit()) return;
     const message = this.messageText.trim();
     const hasEmbed = this.getAttribute("has-embed") !== null;
     if (!message && !hasEmbed) return;
     this.dispatchEvent(
       new CustomEvent("send", {
-        detail: { message },
+        detail: {
+          message,
+          onSuccess: () => this.querySelector("rich-text-input")?.setText(""),
+        },
       }),
     );
-    // Clear input after sending
-    this.querySelector("rich-text-input")?.setText("");
   }
 
   handleEmojiButtonClick(event) {

@@ -84,9 +84,9 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   });
 
   effect(() => {
-    const notifications = dataLayer.dataStore.$notifications.get();
-    if (!notifications) return;
-    for (const notification of notifications) {
+    const data = dataLayer.dataStore.$notifications.get();
+    if (!data) return;
+    for (const notification of data.notifications) {
       try {
         setDid(notification.author);
       } catch (error) {

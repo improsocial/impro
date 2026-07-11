@@ -74,13 +74,27 @@ export class PostSeenObserver {
     this.observedElements = []; // { postUri, el, feedContext }
     this.seenPosts = new Set();
     this.interactionsDispatch = new InteractionsDispatch(api, feedProxyUrl);
+    this.throttledHandleScroll = throttle(() => {
+      this.handleScroll();
+    }, 100);
+    this.connected = false;
+    this.connect();
+  }
 
-    window.addEventListener(
-      "scroll",
-      throttle(() => {
-        this.handleScroll();
-      }, 100),
-    );
+  connect() {
+    if (this.connected) {
+      return;
+    }
+    window.addEventListener("scroll", this.throttledHandleScroll);
+    this.connected = true;
+  }
+
+  disconnect() {
+    if (!this.connected) {
+      return;
+    }
+    window.removeEventListener("scroll", this.throttledHandleScroll);
+    this.connected = false;
   }
 
   async checkIntersection(el, postUri, feedContext) {

@@ -16,6 +16,7 @@ import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { knownFollowersSummaryTemplate } from "/js/templates/knownFollowersSummary.template.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/container-link.js";
+import "/js/components/infinite-scroll-container.js";
 
 class ChatRequestsView extends View {
   async render({ root, router, context: { dataLayer, mainLayout } }) {
@@ -185,9 +186,21 @@ class ChatRequestsView extends View {
         </div>`;
       }
 
-      return html`<div class="chat-requests-list">
-        ${requests.map((convo) => requestItemTemplate({ convo }))}
-      </div>`;
+      return html`
+        <infinite-scroll-container
+          @load-more=${async (e) => {
+            if (hasMore) {
+              await dataLayer.requests.loadConvoRequestList();
+              e.detail.resume();
+            }
+          }}
+        >
+          <div class="chat-requests-list">
+            ${requests.map((convo) => requestItemTemplate({ convo }))}
+            ${hasMore ? requestSkeletonTemplate() : ""}
+          </div>
+        </infinite-scroll-container>
+      `;
     }
 
     function requestsErrorTemplate({ error }) {
@@ -199,15 +212,12 @@ class ChatRequestsView extends View {
     }
 
     pageEffect(root, () => {
-      const convos = dataLayer.derived.$convoList.get();
-      const convosRequestStatus =
-        dataLayer.requests.statusStore.$statuses.get("loadConvoList");
-      const cursor = dataLayer.derived.$convoListCursor.get();
+      const chatRequests = dataLayer.derived.$convoRequestList.get();
+      const requestsStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadConvoRequestList",
+      );
+      const cursor = dataLayer.derived.$convoRequestListCursor.get();
       const hasMore = !!cursor;
-
-      // Filter to only show chat requests
-      const chatRequests =
-        convos?.filter((convo) => convo.status === "request") || [];
 
       render(
         html`<div id="chat-requests-view">
@@ -219,16 +229,16 @@ class ChatRequestsView extends View {
             children: html`
               ${headerTemplate({
                 title: "Chat requests",
-                showLoadingSpinner: convosRequestStatus.loading && !!convos,
+                showLoadingSpinner: requestsStatus.loading && !!chatRequests,
                 backButtonFallbackRoute: "/messages",
               })}
               <main class="chat-requests-main">
                 ${(() => {
-                  if (convosRequestStatus.error) {
+                  if (requestsStatus.error) {
                     return requestsErrorTemplate({
-                      error: convosRequestStatus.error,
+                      error: requestsStatus.error,
                     });
-                  } else if (convos) {
+                  } else if (chatRequests) {
                     return requestsTemplate({
                       requests: chatRequests,
                       hasMore,
@@ -247,7 +257,7 @@ class ChatRequestsView extends View {
 
     root.addEventListener("page-enter", async () => {
       dataLayer.declarative.ensureCurrentUser();
-      await dataLayer.declarative.ensureConvoList();
+      await dataLayer.declarative.ensureConvoRequestList();
     });
 
     root.addEventListener("page-restore", async (e) => {
@@ -257,7 +267,7 @@ class ChatRequestsView extends View {
         window.scrollTo(0, scrollY);
       } else {
         window.scrollTo(0, 0);
-        await dataLayer.requests.loadConvoList({ reload: true });
+        await dataLayer.requests.loadConvoRequestList({ reload: true });
       }
     });
   }

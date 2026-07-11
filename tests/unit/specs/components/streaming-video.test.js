@@ -286,6 +286,39 @@ t.describe("StreamingVideo - page transition handling", (it) => {
     window.dispatchEvent(new Event("page-transition"));
     assert(video.muted);
   });
+
+  it("should stop listening for page-transition after disconnect", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    document.body.appendChild(element);
+
+    const video = element.querySelector("video");
+    let pauseCalled = false;
+    video.pause = () => {
+      pauseCalled = true;
+    };
+
+    element.remove();
+    window.dispatchEvent(new Event("page-transition"));
+    assert(!pauseCalled);
+  });
+
+  it("should listen for page-transition again after reconnect", () => {
+    const element = document.createElement("streaming-video");
+    element.setAttribute("src", "test.m3u8");
+    document.body.appendChild(element);
+    element.remove();
+    document.body.appendChild(element);
+
+    const video = element.querySelector("video");
+    let pauseCalled = false;
+    video.pause = () => {
+      pauseCalled = true;
+    };
+
+    window.dispatchEvent(new Event("page-transition"));
+    assert(pauseCalled);
+  });
 });
 
 t.describe("StreamingVideo - reinitialization protection", (it) => {

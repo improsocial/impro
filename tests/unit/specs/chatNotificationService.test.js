@@ -21,6 +21,7 @@ t.describe("constructor", (it) => {
     const api = createMockApi();
     const service = new ChatNotificationService(api);
     assertEquals(service.$numNotifications.get(), 0);
+    assertEquals(service.$numUnreadRequestConvos.get(), 0);
   });
 });
 
@@ -64,6 +65,36 @@ t.describe("fetchNumNotifications", (it) => {
     await service.fetchNumNotifications();
 
     assertEquals(service.$numNotifications.get(), 0);
+  });
+
+  it("should publish the unread request count from the server", async () => {
+    const api = createMockApi({
+      unreadAcceptedConvos: 2,
+      unreadRequestConvos: 3,
+    });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+
+    assertEquals(service.$numUnreadRequestConvos.get(), 3);
+  });
+
+  it("should overwrite the unread request count on each poll", async () => {
+    let unreadRequestConvos = 3;
+    const api = {
+      getChatUnreadCounts: async () => ({
+        unreadAcceptedConvos: 0,
+        unreadRequestConvos,
+      }),
+    };
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+    assertEquals(service.$numUnreadRequestConvos.get(), 3);
+
+    unreadRequestConvos = 1;
+    await service.fetchNumNotifications();
+    assertEquals(service.$numUnreadRequestConvos.get(), 1);
   });
 });
 
@@ -158,6 +189,52 @@ t.describe("markNotificationsAsReadForConvo", (it) => {
     // Reading "a" again should decrement, since the dedup set was cleared.
     service.markNotificationsAsReadForConvo("a");
     assertEquals(service.$numNotifications.get(), 2);
+  });
+
+  it("should decrement the request count for request convos", async () => {
+    const api = createMockApi({ unreadRequestConvos: 3 });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+    assertEquals(service.$numUnreadRequestConvos.get(), 3);
+
+    service.markNotificationsAsReadForConvo("a", { isRequest: true });
+    assertEquals(service.$numUnreadRequestConvos.get(), 2);
+    assertEquals(service.$numNotifications.get(), 2);
+  });
+
+  it("should not decrement the request count for accepted convos", async () => {
+    const api = createMockApi({
+      unreadAcceptedConvos: 2,
+      unreadRequestConvos: 3,
+    });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+
+    service.markNotificationsAsReadForConvo("a");
+    assertEquals(service.$numUnreadRequestConvos.get(), 3);
+  });
+
+  it("should not decrement the request count twice for the same convo id", async () => {
+    const api = createMockApi({ unreadRequestConvos: 3 });
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+
+    service.markNotificationsAsReadForConvo("a", { isRequest: true });
+    service.markNotificationsAsReadForConvo("a", { isRequest: true });
+    assertEquals(service.$numUnreadRequestConvos.get(), 2);
+  });
+
+  it("should not decrement the request count below zero", async () => {
+    const api = createMockApi();
+    const service = new ChatNotificationService(api);
+
+    await service.fetchNumNotifications();
+
+    service.markNotificationsAsReadForConvo("a", { isRequest: true });
+    assertEquals(service.$numUnreadRequestConvos.get(), 0);
   });
 });
 

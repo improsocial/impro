@@ -46,17 +46,16 @@ test.describe("Leave conversation flow", () => {
 
     await login(page);
 
-    // Navigate to chat list — should see Alice's convo and the requests banner
+    // Navigate to chat list — should see only Alice's convo in the main list
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
     await expect(chatView.locator(".convo-item")).toHaveCount(1, {
       timeout: 10000,
     });
     await expect(chatView.locator(".convo-name")).toContainText("Alice");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible();
 
-    // Navigate to chat requests
-    await chatView.locator(".chat-requests-banner").click();
+    // Navigate to chat requests via the header inbox button
+    await chatView.locator('[data-testid="inbox-button"]').click();
 
     const requestsView = page.locator("#chat-requests-view");
     await expect(requestsView.locator(".chat-request-item")).toHaveCount(1, {
@@ -74,11 +73,10 @@ test.describe("Leave conversation flow", () => {
     // Navigate back to chat list
     await page.goto("/messages");
 
-    // Verify only Alice's accepted convo remains — no requests banner
+    // Verify only Alice's accepted convo remains
     await expect(chatView.locator(".convo-item")).toHaveCount(1, {
       timeout: 10000,
     });
     await expect(chatView.locator(".convo-name")).toContainText("Alice");
-    await expect(chatView.locator(".chat-requests-banner")).toHaveCount(0);
   });
 });

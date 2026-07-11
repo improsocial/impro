@@ -255,13 +255,7 @@ export function postActionBarTemplate({
   const canQuotePost = !post.viewer?.embeddingDisabled;
   const canReply = canReplyToPost(post);
   return html`
-    <div
-      class="post-actions"
-      @click=${(e) => {
-        // don't propagate, so misclicks don't trigger the post click handler
-        e.stopPropagation();
-      }}
-    >
+    <div class="post-actions">
       <div class="post-actions-primary">
         <div class="post-action">
           <button

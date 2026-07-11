@@ -35,6 +35,8 @@ import {
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/chat-input.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -154,7 +156,7 @@ class ChatDetailView extends View {
           data-testid="message-embed-preview-remove"
           @click=${() => clearStagedRecordEmbed()}
         >
-          <span>×</span>
+          ${closeIconTemplate()}
         </button>
         ${body}
       </div>`;
@@ -193,7 +195,7 @@ class ChatDetailView extends View {
           data-testid="reply-preview-clear"
           @click=${() => clearReply()}
         >
-          ×
+          ${closeIconTemplate()}
         </button>
       </div>`;
     }
@@ -527,7 +529,7 @@ class ChatDetailView extends View {
       clearMessageSelection();
     }
 
-    async function handleSendMessage(messageText) {
+    async function handleSendMessage(messageText, onSuccess) {
       state.$isSendingMessage.set(true);
       const stagedReply = state.$stagedReply.get();
       try {
@@ -567,6 +569,7 @@ class ChatDetailView extends View {
         state.$stagedReply.set(null);
         state.$stagedRecordEmbed.set(null);
         rejectedRecordLinks.clear();
+        onSuccess();
         await raf();
         await raf();
         scrollToBottom();
@@ -897,7 +900,9 @@ class ChatDetailView extends View {
           scrollToAndHighlightMessage(replyTo.id);
         }}
       >
-        <span class="message-reply-caption-arrow" aria-hidden="true">⤷</span>
+        <span class="message-reply-caption-arrow" aria-hidden="true"
+          >${cornerDownRightIconTemplate()}</span
+        >
         <span>${captionText}</span>
       </div>`;
     }
@@ -1340,7 +1345,11 @@ class ChatDetailView extends View {
                             })
                           : ""}
                         <chat-input
-                          @send=${(e) => handleSendMessage(e.detail.message)}
+                          @send=${(e) =>
+                            handleSendMessage(
+                              e.detail.message,
+                              e.detail.onSuccess,
+                            )}
                           @input-change=${(e) => handleComposerInput(e.detail)}
                           @height-change=${handleInputHeightChange}
                           ?has-embed=${!!stagedRecordEmbed}
@@ -1456,7 +1465,9 @@ class ChatDetailView extends View {
       const convo = dataLayer.derived.$convos.get(convoId);
       if (!convo?.unreadCount) return;
       dataLayer.mutations.markConvoAsRead(convoId);
-      chatNotificationService?.markNotificationsAsReadForConvo(convoId);
+      chatNotificationService?.markNotificationsAsReadForConvo(convoId, {
+        isRequest: convo.status === "request",
+      });
     });
 
     root.addEventListener("click", handleRootClick);

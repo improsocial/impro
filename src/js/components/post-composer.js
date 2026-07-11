@@ -16,6 +16,9 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { showToast } from "/js/toasts.js";
 import {
   validateVideoFile,
@@ -26,6 +29,7 @@ import {
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { recordEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
+import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
@@ -74,7 +78,7 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
           onClose();
         }}
       >
-        <span>×</span>
+        ${closeIconTemplate()}
       </button>
       ${externalLinkTemplate({
         url: data.url,
@@ -87,6 +91,10 @@ function externalLinkEmbedPreviewTemplate({ data, onClose }) {
       })}
     </div>
   `;
+}
+
+function altIndicatorContentTemplate(hasAlt) {
+  return html`${hasAlt ? checkIconTemplate() : plusIconTemplate()} ALT`;
 }
 
 function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
@@ -113,7 +121,7 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
             onRemove();
           }}
         >
-          <span>×</span>
+          ${closeIconTemplate()}
         </button>
         ${!isReady
           ? html`<div class="video-preview-overlay">
@@ -129,7 +137,7 @@ function videoPreviewTemplate({ video, onRemove, onEditAltText }) {
             onEditAltText();
           }}
         >
-          ${video.alt ? "✓ ALT" : "+ ALT"}
+          ${altIndicatorContentTemplate(!!video.alt)}
         </button>
       </div>
     </div>
@@ -156,10 +164,10 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
                 onRemove(index);
               }}
             >
-              <span>×</span>
+              ${closeIconTemplate()}
             </button>
             <div class="alt-indicator ${img.alt ? "has-alt" : "no-alt"}">
-              ${img.alt ? "✓ ALT" : "+ ALT"}
+              ${altIndicatorContentTemplate(!!img.alt)}
             </div>
           </div>
         `,
@@ -176,35 +184,68 @@ class PostComposer extends Component {
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this.innerHTML = "";
-    this._postText = "";
     this.initialText = this.initialText ?? null;
     this.initialCursor = this.initialCursor ?? null;
-    this._isSending = false;
     this._unresolvedFacets = [];
     this._quotedRecordUrl = null;
-    this.quotedRecord = this.quotedRecord ?? null;
     this._externalLinkUrl = null;
-    this._externalLinkEmbedData = null;
     this._rejectedLinkEmbeds = new Set();
-    this._selectedImages = [];
-    this._selectedVideo = null;
-    this.render();
+    this._videoToken = null;
+    this.state = new ReactiveStore("postComposer");
+    this.state.$postText = new Signal.State("");
+    this.state.$isSending = new Signal.State(false);
+    this.state.$externalLinkEmbedData = new Signal.State(null);
+    this.state.$selectedImages = new Signal.State([]);
+    this.state.$selectedVideo = new Signal.State(null);
+    this.state.$quotedRecord = new Signal.State(
+      this._pendingQuotedRecord ?? null,
+    );
+    this._pendingQuotedRecord = null;
+    this._disposers = [
+      effect(() => {
+        this.render();
+      }),
+    ];
     this.initialized = true;
+  }
+
+  disconnectedCallback() {
+    if (!this.initialized) return;
+    this._disposers?.forEach((dispose) => dispose());
+    this._disposers = null;
+  }
+
+  get quotedRecord() {
+    if (!this.state) return this._pendingQuotedRecord ?? null;
+    return untrack(() => this.state.$quotedRecord.get());
+  }
+
+  set quotedRecord(value) {
+    if (!this.state) {
+      this._pendingQuotedRecord = value;
+      return;
+    }
+    this.state.$quotedRecord.set(value);
   }
 
   render() {
     const promptText = this.replyTo ? "Write your reply" : "What's up?";
-    const currentCharCount = graphemeCount(this._postText);
+    const isSending = this.state.$isSending.get();
+    const externalLinkEmbedData = this.state.$externalLinkEmbedData.get();
+    const selectedImages = this.state.$selectedImages.get();
+    const selectedVideo = this.state.$selectedVideo.get();
+    const quotedRecord = this.state.$quotedRecord.get();
+    const currentCharCount = graphemeCount(this.state.$postText.get());
     const charCountPercentage = Math.min(
       Math.round((currentCharCount / 300) * 100),
       100,
     );
     const isAboveCharLimit = currentCharCount > 300;
     const isVideoUploading =
-      this._selectedVideo &&
-      (this._selectedVideo.status === "uploading" ||
-        this._selectedVideo.status === "processing");
-    const hasVideo = !!this._selectedVideo;
+      selectedVideo &&
+      (selectedVideo.status === "uploading" ||
+        selectedVideo.status === "processing");
+    const hasVideo = !!selectedVideo;
     render(
       html`
         <dialog
@@ -224,12 +265,8 @@ class PostComposer extends Component {
           @keydown=${(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
-              if (
-                !this._isSending &&
-                !isAboveCharLimit &&
-                !isVideoUploading &&
-                this._postText.length > 0
-              ) {
+              const postText = untrack(() => this.state.$postText.get());
+              if (postText.length > 0) {
                 this.send();
               }
             }
@@ -252,11 +289,9 @@ class PostComposer extends Component {
                 data-testid="composer-submit-button"
                 data-teststate=${this.replyTo ? "reply" : "post"}
                 @click=${() => this.send()}
-                .disabled=${this._isSending ||
-                isAboveCharLimit ||
-                isVideoUploading}
+                .disabled=${isSending || isAboveCharLimit || isVideoUploading}
               >
-                ${this._isSending
+                ${isSending
                   ? html`Sending... <span>&nbsp;&nbsp;</span>
                       <div class="loading-spinner"></div>`
                   : html`<span>${this.replyTo ? "Reply" : "Post"}</span>`}
@@ -284,29 +319,29 @@ class PostComposer extends Component {
                     ></rich-text-input>
                   </div>
                 </div>
-                ${this._externalLinkEmbedData
+                ${externalLinkEmbedData
                   ? externalLinkEmbedPreviewTemplate({
-                      data: this._externalLinkEmbedData,
+                      data: externalLinkEmbedData,
                       onClose: () => {
                         this.handleExternalLinkEmbedPreviewClose();
                       },
                     })
                   : ""}
-                ${this._selectedImages.length > 0
+                ${selectedImages.length > 0
                   ? imagePreviewTemplate({
-                      images: this._selectedImages,
+                      images: selectedImages,
                       onRemove: (index) => this.handleRemoveImage(index),
                       onEditAltText: (index) => this.handleEditAltText(index),
                     })
                   : ""}
-                ${this._selectedVideo
+                ${selectedVideo
                   ? videoPreviewTemplate({
-                      video: this._selectedVideo,
+                      video: selectedVideo,
                       onRemove: () => this.handleRemoveVideo(),
                       onEditAltText: () => this.handleEditVideoAltText(),
                     })
                   : ""}
-                ${this.quotedRecord
+                ${quotedRecord
                   ? html`<div class="post-composer-embed-preview">
                       <button
                         class="embed-preview-close-button"
@@ -314,11 +349,11 @@ class PostComposer extends Component {
                           this.handleQuotedEmbedPreviewClose();
                         }}
                       >
-                        <span>×</span>
+                        ${closeIconTemplate()}
                       </button>
                       <div inert>
                         ${recordEmbedTemplate({
-                          record: this.quotedRecord,
+                          record: quotedRecord,
                           isAuthenticated: true,
                         })}
                       </div>
@@ -341,7 +376,7 @@ class PostComposer extends Component {
                   <button
                     class="image-picker-button"
                     @click=${() => this.handleMediaButtonClick()}
-                    .disabled=${hasVideo || this._selectedImages.length >= 4}
+                    .disabled=${hasVideo || selectedImages.length >= 4}
                   >
                     ${imageIconTemplate()}
                   </button>
@@ -384,6 +419,17 @@ class PostComposer extends Component {
     );
   }
 
+  isSendBlocked() {
+    const isSending = untrack(() => this.state.$isSending.get());
+    const postText = untrack(() => this.state.$postText.get());
+    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
+    const isVideoUploading =
+      !!selectedVideo &&
+      (selectedVideo.status === "uploading" ||
+        selectedVideo.status === "processing");
+    return isSending || graphemeCount(postText) > 300 || isVideoUploading;
+  }
+
   handleEmojiButtonClick(event) {
     const dialog = this.querySelector("emoji-picker-dialog");
     if (!dialog) return;
@@ -422,14 +468,12 @@ class PostComposer extends Component {
   handleExternalLinkEmbedPreviewClose() {
     this._rejectedLinkEmbeds.add(this._externalLinkUrl);
     this._externalLinkUrl = null;
-    this._externalLinkEmbedData = null;
-    this.render();
+    this.state.$externalLinkEmbedData.set(null);
   }
 
   handleQuotedEmbedPreviewClose() {
     this._quotedRecordUrl = null;
-    this.quotedRecord = null;
-    this.render();
+    this.state.$quotedRecord.set(null);
   }
 
   async loadQuotedRecordFromLink() {
@@ -441,8 +485,7 @@ class PostComposer extends Component {
       });
       // the embed may have been closed or replaced while the record was loading
       if (this._quotedRecordUrl !== url) return;
-      this.quotedRecord = record;
-      this.render();
+      this.state.$quotedRecord.set(record);
     } catch (error) {
       console.error("Error loading record embed from link: ", error);
       this._rejectedLinkEmbeds.add(url);
@@ -484,7 +527,8 @@ class PostComposer extends Component {
     }
 
     if (videoFiles.length > 0) {
-      if (this._selectedImages.length > 0) {
+      const selectedImages = untrack(() => this.state.$selectedImages.get());
+      if (selectedImages.length > 0) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
@@ -500,7 +544,8 @@ class PostComposer extends Component {
     }
 
     if (imageFiles.length > 0) {
-      if (this._selectedVideo) {
+      const selectedVideo = untrack(() => this.state.$selectedVideo.get());
+      if (selectedVideo) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
@@ -512,45 +557,57 @@ class PostComposer extends Component {
 
   async addImageFiles(files) {
     const maxImages = 4;
-    const remainingSlots = maxImages - this._selectedImages.length;
+    const currentImages = untrack(() => this.state.$selectedImages.get());
+    const remainingSlots = maxImages - currentImages.length;
 
     if (files.length > remainingSlots) {
       showToast("You can select up to 4 images in total", { style: "warning" });
     }
 
+    const newImages = [];
     for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
       const file = files[i];
       const dataUrl = await readFileAsDataUrl(file);
-      this._selectedImages.push({
+      newImages.push({
         file,
         dataUrl,
       });
     }
+    const latestImages = untrack(() => this.state.$selectedImages.get());
+    const selectedImages = [...latestImages, ...newImages];
+    this.state.$selectedImages.set(selectedImages);
 
     // Reject external link embed if images are added
-    if (this._selectedImages.length > 0 && this._externalLinkUrl) {
+    if (selectedImages.length > 0 && this._externalLinkUrl) {
       this._rejectedLinkEmbeds.add(this._externalLinkUrl);
       this._externalLinkUrl = null;
-      this._externalLinkEmbedData = null;
+      this.state.$externalLinkEmbedData.set(null);
     }
-
-    this.render();
   }
 
   handleRemoveImage(index) {
-    this._selectedImages.splice(index, 1);
-    this.render();
+    const selectedImages = untrack(() => this.state.$selectedImages.get());
+    this.state.$selectedImages.set(
+      selectedImages.filter((image, imageIndex) => imageIndex !== index),
+    );
   }
 
   handleEditAltText(index) {
-    const image = this._selectedImages[index];
+    const selectedImages = untrack(() => this.state.$selectedImages.get());
+    const image = selectedImages[index];
     const dialog = document.createElement("image-alt-text-dialog");
     dialog.imageUrl = image.dataUrl;
     dialog.value = image.alt || "";
 
     dialog.addEventListener("alt-text-saved", (e) => {
-      this._selectedImages[index].alt = e.detail.altText;
-      this.render();
+      const latestImages = untrack(() => this.state.$selectedImages.get());
+      this.state.$selectedImages.set(
+        latestImages.map((selectedImage, imageIndex) =>
+          imageIndex === index
+            ? { ...selectedImage, alt: e.detail.altText }
+            : selectedImage,
+        ),
+      );
       dialog.remove();
     });
 
@@ -584,7 +641,9 @@ class PostComposer extends Component {
       showToast(msg, { style: "warning" });
       return;
     }
-    this._selectedVideo = {
+    const token = Symbol();
+    this._videoToken = token;
+    this.state.$selectedVideo.set({
       file,
       previewUrl: URL.createObjectURL(file),
       alt: "",
@@ -594,62 +653,67 @@ class PostComposer extends Component {
       jobId: null,
       blob: null,
       error: null,
-    };
-    this.render();
-    this.uploadSelectedVideo();
+    });
+    this.uploadSelectedVideo(token);
   }
 
-  async uploadSelectedVideo() {
-    const video = this._selectedVideo;
+  // Applies a partial update to the selected video, unless it has been removed
+  // or replaced since `token` was issued.
+  patchSelectedVideo(token, patch) {
+    if (this._videoToken !== token) return null;
+    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
+    const video = { ...selectedVideo, ...patch };
+    this.state.$selectedVideo.set(video);
+    return video;
+  }
+
+  async uploadSelectedVideo(token) {
+    const video = untrack(() => this.state.$selectedVideo.get());
     if (!video) return;
     try {
       const uploader = new VideoUploader(this.dataLayer.api);
       const blob = await uploader.upload(video.file, {
         onJobStart: (job) => {
-          if (this._selectedVideo !== video) return;
-          this._selectedVideo.jobId = job.jobId;
-          this._selectedVideo.status = "processing";
-          this.render();
+          this.patchSelectedVideo(token, {
+            jobId: job.jobId,
+            status: "processing",
+          });
         },
         onProgress: (_state, progress) => {
-          if (this._selectedVideo !== video) return;
-          this._selectedVideo.progress = progress;
-          this.render();
+          this.patchSelectedVideo(token, { progress });
         },
       });
-      if (this._selectedVideo !== video) return;
-      this._selectedVideo.blob = blob;
-      this._selectedVideo.status = "done";
-      this.render();
+      this.patchSelectedVideo(token, { blob, status: "done" });
     } catch (error) {
       console.error("Video upload error: ", error);
-      if (this._selectedVideo !== video) return;
-      this._selectedVideo.status = "error";
-      this._selectedVideo.error = error.message || "Upload failed";
-      this.render();
-      showToast(this._selectedVideo.error, { style: "error" });
+      const failedVideo = this.patchSelectedVideo(token, {
+        status: "error",
+        error: error.message || "Upload failed",
+      });
+      if (failedVideo) {
+        showToast(failedVideo.error, { style: "error" });
+      }
     }
   }
 
   handleRemoveVideo() {
-    if (this._selectedVideo?.previewUrl) {
-      URL.revokeObjectURL(this._selectedVideo.previewUrl);
+    const video = untrack(() => this.state.$selectedVideo.get());
+    if (video?.previewUrl) {
+      URL.revokeObjectURL(video.previewUrl);
     }
-    this._selectedVideo = null;
-    this.render();
+    this._videoToken = null;
+    this.state.$selectedVideo.set(null);
   }
 
   handleEditVideoAltText() {
-    const video = this._selectedVideo;
+    const video = untrack(() => this.state.$selectedVideo.get());
     if (!video) return;
+    const token = this._videoToken;
     const dialog = document.createElement("image-alt-text-dialog");
     dialog.value = video.alt || "";
 
     dialog.addEventListener("alt-text-saved", (e) => {
-      if (this._selectedVideo === video) {
-        this._selectedVideo.alt = e.detail.altText;
-        this.render();
-      }
+      this.patchSelectedVideo(token, { alt: e.detail.altText });
       dialog.remove();
     });
 
@@ -663,7 +727,7 @@ class PostComposer extends Component {
 
   handleInput(e) {
     const previousFacets = this._unresolvedFacets;
-    this._postText = e.detail.text;
+    this.state.$postText.set(e.detail.text);
     this._unresolvedFacets = e.detail.facets;
     // If the facets *haven't* changed, and the latest change was a space or newline, check for possible link embeds
     if (
@@ -709,7 +773,6 @@ class PostComposer extends Component {
         }
       }
     }
-    this.render();
   }
 
   handlePaste(e) {
@@ -744,13 +807,12 @@ class PostComposer extends Component {
   async loadExternalLinkEmbedPreview() {
     const url = this._externalLinkUrl;
     // preliminary data
-    this._externalLinkEmbedData = {
+    this.state.$externalLinkEmbedData.set({
       url,
       title: url,
       description: "",
       image: "",
-    };
-    this.render();
+    });
     let res = null;
     try {
       res = await fetch(`${LINK_CARD_SERVICE_URL}/v1/extract?url=${url}`);
@@ -760,25 +822,30 @@ class PostComposer extends Component {
     }
     if (res && res.ok) {
       const data = await res.json();
-      // preview may have been closed while metadata was loading
-      if (!this._externalLinkEmbedData) return;
+      // preview may have been closed or replaced while metadata was loading
+      const current = this.state.$externalLinkEmbedData.get();
+      if (!current || current.url !== url) return;
+      const updated = { ...current };
       if (data.title) {
-        this._externalLinkEmbedData.title = data.title;
+        updated.title = data.title;
       }
       if (data.description) {
-        this._externalLinkEmbedData.description = data.description;
+        updated.description = data.description;
       }
-      this.render();
+      this.state.$externalLinkEmbedData.set(updated);
       if (data.image) {
         // only show image if it can be loaded
         let imageRes = null;
         try {
           imageRes = await fetch(sanitizeUri(data.image));
         } catch (error) {}
-        // preview may have been closed while the image was loading
-        if (imageRes && imageRes.ok && this._externalLinkEmbedData) {
-          this._externalLinkEmbedData.image = data.image;
-          this.render();
+        // preview may have been closed or replaced while the image was loading
+        const latest = this.state.$externalLinkEmbedData.get();
+        if (imageRes && imageRes.ok && latest && latest.url === url) {
+          this.state.$externalLinkEmbedData.set({
+            ...latest,
+            image: data.image,
+          });
         }
       }
     }
@@ -829,26 +896,30 @@ class PostComposer extends Component {
   }
 
   send() {
-    this._isSending = true;
-    this.render();
+    if (this.isSendBlocked()) return;
+    this.state.$isSending.set(true);
     const successCallback = () => {
       this.close();
     };
     const errorCallback = () => {
-      this._isSending = false;
+      this.state.$isSending.set(false);
       // todo: show error message
-      this.render();
     };
+    const postText = untrack(() => this.state.$postText.get());
+    const external = untrack(() => this.state.$externalLinkEmbedData.get());
+    const quotedRecord = untrack(() => this.state.$quotedRecord.get());
+    const images = untrack(() => this.state.$selectedImages.get());
+    const video = untrack(() => this.state.$selectedVideo.get());
     this.dispatchEvent(
       new CustomEvent("send-post", {
         detail: {
-          postText: this._postText,
-          external: this._externalLinkEmbedData,
+          postText,
+          external,
           replyTo: this.replyTo,
           replyRoot: this.replyRoot,
-          quotedRecord: this.quotedRecord,
-          images: this._selectedImages,
-          video: this._selectedVideo,
+          quotedRecord,
+          images,
+          video,
           successCallback,
           errorCallback,
         },
@@ -858,10 +929,13 @@ class PostComposer extends Component {
 
   confirmClose() {
     // Todo - check for other unsaved changes
+    const postText = untrack(() => this.state.$postText.get());
+    const selectedImages = untrack(() => this.state.$selectedImages.get());
+    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
     if (
-      this._postText.length === 0 &&
-      this._selectedImages.length === 0 &&
-      !this._selectedVideo
+      postText.length === 0 &&
+      selectedImages.length === 0 &&
+      !selectedVideo
     ) {
       return true;
     }

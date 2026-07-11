@@ -187,6 +187,39 @@ t.describe("loadNextFeedPage", (it) => {
     assertEquals(dataStore.$posts.get("post3"), normalizedPosts[1]);
   });
 
+  it("should discard a stale page when a reload lands mid-flight", async () => {
+    const dataStore = new DataStore();
+    dataStore.$feeds.set(feedURI, {
+      feed: [{ post: { uri: "post1" } }],
+      cursor: "cursor1",
+    });
+
+    const reloadedFeed = {
+      feed: [{ post: { uri: "post9" } }],
+      cursor: "cursor9",
+    };
+    const mockApi = {
+      getFeed: async () => {
+        // Simulate a reload finishing while this page request is in flight
+        dataStore.$feeds.set(feedURI, reloadedFeed);
+        return { feed: [{ post: { uri: "post2" } }], cursor: "cursor2" };
+      },
+    };
+
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+
+    await requests.loadNextFeedPage(feedURI);
+
+    assertEquals(dataStore.$feeds.get(feedURI), reloadedFeed);
+  });
+
   it("should forward the reload flag to refreshFiltersForFeed", async () => {
     const dataStore = new DataStore();
     dataStore.$feeds.set(feedURI, {
@@ -695,6 +728,34 @@ t.describe("loadMutedProfiles", (it) => {
     await requests.loadMutedProfiles({ cursor: "abc" });
     assertEquals(capturedCursor, "abc");
   });
+
+  it("should discard the response when the cursor no longer matches", async () => {
+    const dataStore = new DataStore();
+    const existing = {
+      mutes: [{ did: "did:plc:a" }],
+      cursor: "page3",
+    };
+    dataStore.$mutedProfiles.set(existing);
+
+    const mockApi = {
+      getMutes: async () => ({
+        mutes: [{ did: "did:plc:b" }],
+        cursor: "page4",
+      }),
+    };
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+
+    await requests.loadMutedProfiles({ cursor: "page2" });
+
+    assertEquals(dataStore.$mutedProfiles.get(), existing);
+  });
 });
 
 function makeRequests(api, dataStore = new DataStore(), preferences) {
@@ -1065,6 +1126,81 @@ t.describe("loadProfileSearch", (it) => {
     assertEquals(stored.actors.length, 2);
     assertEquals(stored.cursor, "c2");
   });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfiles: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }], cursor: "stale" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadProfileSearch("query");
+    await requests.loadProfileSearch("");
+    resolveSearch();
+    await inFlight;
+
+    assertEquals(dataStore.$profileSearchResults.get(), null);
+  });
+});
+
+t.describe("loadChatRecipientSearch", (it) => {
+  it("should store the search results", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadChatRecipientSearch("alice");
+
+    const stored = dataStore.$chatRecipientSearchResults.get();
+    assertEquals(stored.actors.length, 1);
+    assertEquals(stored.actors[0].did, "did:plc:a");
+  });
+
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore();
+    dataStore.$chatRecipientSearchResults.set({ actors: [{ did: "x" }] });
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({ actors: [] }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadChatRecipientSearch("");
+
+    assertEquals(dataStore.$chatRecipientSearchResults.get(), null);
+  });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfilesTypeahead: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadChatRecipientSearch("query");
+    await requests.loadChatRecipientSearch("");
+    resolveSearch();
+    await inFlight;
+
+    assertEquals(dataStore.$chatRecipientSearchResults.get(), null);
+  });
 });
 
 t.describe("loadFeedSearch", (it) => {
@@ -1163,14 +1299,16 @@ t.describe("loadNotifications", (it) => {
 
     await requests.loadNotifications();
 
-    assertEquals(dataStore.$notifications.get().length, 1);
-    assertEquals(dataStore.$notificationCursor.get(), "next");
+    assertEquals(dataStore.$notifications.get().notifications.length, 1);
+    assertEquals(dataStore.$notifications.get().cursor, "next");
   });
 
   it("should append when cursor matches previous", async () => {
     const dataStore = new DataStore();
-    dataStore.$notifications.set([{ reason: "like", uri: "n1" }]);
-    dataStore.$notificationCursor.set("page2");
+    dataStore.$notifications.set({
+      notifications: [{ reason: "like", uri: "n1" }],
+      cursor: "page2",
+    });
 
     let capturedCursor;
     const mockApi = {
@@ -1188,14 +1326,16 @@ t.describe("loadNotifications", (it) => {
     await requests.loadNotifications();
 
     assertEquals(capturedCursor, "page2");
-    assertEquals(dataStore.$notifications.get().length, 2);
-    assertEquals(dataStore.$notificationCursor.get(), "page3");
+    assertEquals(dataStore.$notifications.get().notifications.length, 2);
+    assertEquals(dataStore.$notifications.get().cursor, "page3");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.$notifications.set([{ reason: "like", uri: "n1" }]);
-    dataStore.$notificationCursor.set("page2");
+    dataStore.$notifications.set({
+      notifications: [{ reason: "like", uri: "n1" }],
+      cursor: "page2",
+    });
 
     let capturedCursor;
     const mockApi = {
@@ -1214,9 +1354,68 @@ t.describe("loadNotifications", (it) => {
 
     assertEquals(capturedCursor, "");
     const stored = dataStore.$notifications.get();
-    assertEquals(stored.length, 1);
-    assertEquals(stored[0].uri, "n2");
-    assertEquals(dataStore.$notificationCursor.get(), "fresh");
+    assertEquals(stored.notifications.length, 1);
+    assertEquals(stored.notifications[0].uri, "n2");
+    assertEquals(stored.cursor, "fresh");
+  });
+
+  it("should discard a stale response when a reload lands mid-flight", async () => {
+    const dataStore = new DataStore();
+    dataStore.$notifications.set({
+      notifications: [{ uri: "n1", reason: "follow" }],
+      cursor: "c1",
+    });
+
+    const reloadedNotifications = {
+      notifications: [{ uri: "n9", reason: "follow" }],
+      cursor: "c9",
+    };
+    const mockApi = {
+      getNotifications: async () => {
+        // Simulate a reload finishing while this page request is in flight
+        dataStore.$notifications.set(reloadedNotifications);
+        return {
+          notifications: [{ uri: "n2", reason: "follow" }],
+          cursor: "c2",
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications();
+
+    assertEquals(dataStore.$notifications.get(), reloadedNotifications);
+  });
+
+  it("should discard a stale page when the list reaches its end mid-flight", async () => {
+    const dataStore = new DataStore();
+    dataStore.$notifications.set({
+      notifications: [{ uri: "n1", reason: "follow" }],
+      cursor: "c1",
+    });
+
+    const fullyLoadedNotifications = {
+      notifications: [
+        { uri: "n1", reason: "follow" },
+        { uri: "n2", reason: "follow" },
+      ],
+      cursor: null,
+    };
+    const mockApi = {
+      getNotifications: async () => {
+        // Simulate a duplicate page request landing first and exhausting the list
+        dataStore.$notifications.set(fullyLoadedNotifications);
+        return {
+          notifications: [{ uri: "n2", reason: "follow" }],
+          cursor: null,
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications();
+
+    assertEquals(dataStore.$notifications.get(), fullyLoadedNotifications);
   });
 });
 
@@ -1239,14 +1438,16 @@ t.describe("loadMentionNotifications", (it) => {
     await requests.loadMentionNotifications();
 
     assertEquals(capturedReasons, ["mention", "reply", "quote"]);
-    assertEquals(dataStore.$mentionNotifications.get().length, 1);
-    assertEquals(dataStore.$mentionNotificationCursor.get(), "next");
+    assertEquals(dataStore.$mentionNotifications.get().notifications.length, 1);
+    assertEquals(dataStore.$mentionNotifications.get().cursor, "next");
   });
 
   it("should append when cursor matches previous", async () => {
     const dataStore = new DataStore();
-    dataStore.$mentionNotifications.set([{ reason: "mention", uri: "n1" }]);
-    dataStore.$mentionNotificationCursor.set("page2");
+    dataStore.$mentionNotifications.set({
+      notifications: [{ reason: "mention", uri: "n1" }],
+      cursor: "page2",
+    });
 
     const mockApi = {
       getNotifications: async () => ({
@@ -1259,14 +1460,16 @@ t.describe("loadMentionNotifications", (it) => {
 
     await requests.loadMentionNotifications();
 
-    assertEquals(dataStore.$mentionNotifications.get().length, 2);
-    assertEquals(dataStore.$mentionNotificationCursor.get(), "page3");
+    assertEquals(dataStore.$mentionNotifications.get().notifications.length, 2);
+    assertEquals(dataStore.$mentionNotifications.get().cursor, "page3");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.$mentionNotifications.set([{ reason: "mention", uri: "n1" }]);
-    dataStore.$mentionNotificationCursor.set("page2");
+    dataStore.$mentionNotifications.set({
+      notifications: [{ reason: "mention", uri: "n1" }],
+      cursor: "page2",
+    });
 
     const mockApi = {
       getNotifications: async () => ({
@@ -1280,8 +1483,8 @@ t.describe("loadMentionNotifications", (it) => {
     await requests.loadMentionNotifications({ reload: true });
 
     const stored = dataStore.$mentionNotifications.get();
-    assertEquals(stored.length, 1);
-    assertEquals(stored[0].uri, "n2");
+    assertEquals(stored.notifications.length, 1);
+    assertEquals(stored.notifications[0].uri, "n2");
   });
 });
 
@@ -1300,15 +1503,15 @@ t.describe("loadBookmarks", (it) => {
     await requests.loadBookmarks();
 
     const stored = dataStore.$bookmarks.get();
-    assertEquals(stored.feed.length, 1);
-    assertEquals(stored.feed[0].post.uri, "post1");
+    assertEquals(stored.bookmarks.length, 1);
+    assertEquals(stored.bookmarks[0].item.uri, "post1");
     assertEquals(stored.cursor, "next");
   });
 
   it("should append on subsequent loads", async () => {
     const dataStore = new DataStore();
     dataStore.$bookmarks.set({
-      feed: [{ post: { uri: "post1" } }],
+      bookmarks: [{ item: { uri: "post1" } }],
       cursor: "c1",
     });
     const mockApi = {
@@ -1323,15 +1526,15 @@ t.describe("loadBookmarks", (it) => {
     await requests.loadBookmarks();
 
     const stored = dataStore.$bookmarks.get();
-    assertEquals(stored.feed.length, 2);
-    assertEquals(stored.feed[1].post.uri, "post2");
+    assertEquals(stored.bookmarks.length, 2);
+    assertEquals(stored.bookmarks[1].item.uri, "post2");
     assertEquals(stored.cursor, "c2");
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$bookmarks.set({
-      feed: [{ post: { uri: "post1" } }],
+      bookmarks: [{ item: { uri: "post1" } }],
       cursor: "c1",
     });
 
@@ -1352,8 +1555,8 @@ t.describe("loadBookmarks", (it) => {
 
     assertEquals(capturedCursor, "");
     const stored = dataStore.$bookmarks.get();
-    assertEquals(stored.feed.length, 1);
-    assertEquals(stored.feed[0].post.uri, "post2");
+    assertEquals(stored.bookmarks.length, 1);
+    assertEquals(stored.bookmarks[0].item.uri, "post2");
   });
 });
 
@@ -1448,16 +1651,15 @@ t.describe("loadConvoList", (it) => {
 
     await requests.loadConvoList();
 
-    assertEquals(dataStore.$convoList.get().length, 2);
+    assertEquals(dataStore.$convoList.get().convos.length, 2);
     assertEquals(dataStore.$convos.get("c1").id, "c1");
     assertEquals(dataStore.$convos.get("c2").id, "c2");
-    assertEquals(dataStore.$convoListCursor.get(), "next");
+    assertEquals(dataStore.$convoList.get().cursor, "next");
   });
 
   it("should append when previous cursor matches", async () => {
     const dataStore = new DataStore();
-    dataStore.$convoList.set([{ id: "c1" }]);
-    dataStore.$convoListCursor.set("page2");
+    dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
 
     const mockApi = {
       listConvos: async () => ({
@@ -1469,14 +1671,13 @@ t.describe("loadConvoList", (it) => {
 
     await requests.loadConvoList();
 
-    assertEquals(dataStore.$convoList.get().length, 2);
-    assertEquals(dataStore.$convoListCursor.get(), "page3");
+    assertEquals(dataStore.$convoList.get().convos.length, 2);
+    assertEquals(dataStore.$convoList.get().cursor, "page3");
   });
 
   it("should reset cursor and replace on reload", async () => {
     const dataStore = new DataStore();
-    dataStore.$convoList.set([{ id: "c1" }]);
-    dataStore.$convoListCursor.set("page2");
+    dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
 
     let capturedCursor;
     const mockApi = {
@@ -1491,8 +1692,81 @@ t.describe("loadConvoList", (it) => {
 
     assertEquals(capturedCursor, "");
     const stored = dataStore.$convoList.get();
-    assertEquals(stored.length, 1);
-    assertEquals(stored[0].id, "c2");
+    assertEquals(stored.convos.length, 1);
+    assertEquals(stored.convos[0].id, "c2");
+  });
+});
+
+t.describe("loadConvoRequestList", (it) => {
+  it("should request only request convos and cache them on first load", async () => {
+    const dataStore = new DataStore();
+    let capturedStatus;
+    const mockApi = {
+      listConvos: async ({ status }) => {
+        capturedStatus = status;
+        return {
+          convos: [
+            { id: "r1", status: "request", lastMessage: null },
+            { id: "r2", status: "request", lastMessage: null },
+          ],
+          cursor: "next",
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList();
+
+    assertEquals(capturedStatus, "request");
+    assertEquals(dataStore.$convoRequestList.get().convos.length, 2);
+    assertEquals(dataStore.$convos.get("r1").id, "r1");
+    assertEquals(dataStore.$convos.get("r2").id, "r2");
+    assertEquals(dataStore.$convoRequestList.get().cursor, "next");
+  });
+
+  it("should append when previous cursor matches", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoRequestList.set({
+      convos: [{ id: "r1" }],
+      cursor: "page2",
+    });
+
+    const mockApi = {
+      listConvos: async () => ({
+        convos: [{ id: "r2" }],
+        cursor: "page3",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList();
+
+    assertEquals(dataStore.$convoRequestList.get().convos.length, 2);
+    assertEquals(dataStore.$convoRequestList.get().cursor, "page3");
+  });
+
+  it("should reset cursor and replace on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoRequestList.set({
+      convos: [{ id: "r1" }],
+      cursor: "page2",
+    });
+
+    let capturedCursor;
+    const mockApi = {
+      listConvos: async ({ cursor }) => {
+        capturedCursor = cursor;
+        return { convos: [{ id: "r2" }], cursor: "fresh" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList({ reload: true });
+
+    assertEquals(capturedCursor, "");
+    const stored = dataStore.$convoRequestList.get();
+    assertEquals(stored.convos.length, 1);
+    assertEquals(stored.convos[0].id, "r2");
   });
 });
 
@@ -1543,17 +1817,10 @@ t.describe("loadConvoMessages", (it) => {
     assertEquals(stored.messages[1].id, "m2");
   });
 
-  it("should null out cursor when validation second-page is empty", async () => {
+  it("should null out cursor when a page comes back empty with a cursor", async () => {
     const dataStore = new DataStore();
-    let calls = 0;
     const mockApi = {
-      getMessages: async () => {
-        calls += 1;
-        if (calls === 1) {
-          return { messages: [{ id: "m1" }], cursor: "fakecursor" };
-        }
-        return { messages: [], cursor: null };
-      },
+      getMessages: async () => ({ messages: [], cursor: "fakecursor" }),
     };
     const requests = makeRequests(mockApi, dataStore);
 
@@ -1947,14 +2214,14 @@ t.describe("loadPostReposts", (it) => {
     await requests.loadPostReposts(postUri);
 
     const stored = dataStore.$postReposts.get(postUri);
-    assertEquals(stored.reposts.length, 1);
+    assertEquals(stored.repostedBy.length, 1);
     assertEquals(stored.cursor, "next");
   });
 
   it("should append reposts when cursor is provided", async () => {
     const dataStore = new DataStore();
     dataStore.$postReposts.set(postUri, {
-      reposts: [{ did: "did:plc:a" }],
+      repostedBy: [{ did: "did:plc:a" }],
       cursor: "c1",
     });
     const mockApi = {
@@ -1968,7 +2235,7 @@ t.describe("loadPostReposts", (it) => {
     await requests.loadPostReposts(postUri, { cursor: "c1" });
 
     const stored = dataStore.$postReposts.get(postUri);
-    assertEquals(stored.reposts.length, 2);
+    assertEquals(stored.repostedBy.length, 2);
     assertEquals(stored.cursor, "c2");
   });
 });
@@ -2081,15 +2348,15 @@ t.describe("loadListsWithMembershipForActor", (it) => {
     await requests.loadListsWithMembershipForActor(actorDid);
 
     const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
-    assertEquals(stored.items.length, 2);
+    assertEquals(stored.listsWithMembership.length, 2);
     assertEquals(stored.cursor, "next");
-    assertEquals(stored.items[0].listItem.uri, "li1");
+    assertEquals(stored.listsWithMembership[0].listItem.uri, "li1");
   });
 
   it("should append the next page when called again with a cached cursor", async () => {
     const dataStore = new DataStore();
     dataStore.$listsWithMembershipByActor.set(actorDid, {
-      items: [{ list: list1 }],
+      listsWithMembership: [{ list: list1 }],
       cursor: "c1",
     });
     let capturedCursor;
@@ -2108,14 +2375,14 @@ t.describe("loadListsWithMembershipForActor", (it) => {
 
     assertEquals(capturedCursor, "c1");
     const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
-    assertEquals(stored.items.length, 2);
+    assertEquals(stored.listsWithMembership.length, 2);
     assertEquals(stored.cursor, null);
   });
 
   it("should short-circuit when fully loaded", async () => {
     const dataStore = new DataStore();
     dataStore.$listsWithMembershipByActor.set(actorDid, {
-      items: [{ list: list1 }],
+      listsWithMembership: [{ list: list1 }],
       cursor: null,
     });
     let called = false;
@@ -2135,7 +2402,7 @@ t.describe("loadListsWithMembershipForActor", (it) => {
   it("should refetch from scratch on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$listsWithMembershipByActor.set(actorDid, {
-      items: [{ list: list1 }],
+      listsWithMembership: [{ list: list1 }],
       cursor: "c1",
     });
     let capturedCursor;
@@ -2154,8 +2421,8 @@ t.describe("loadListsWithMembershipForActor", (it) => {
 
     assertEquals(capturedCursor, "");
     const stored = dataStore.$listsWithMembershipByActor.get(actorDid);
-    assertEquals(stored.items.length, 1);
-    assertEquals(stored.items[0].list.uri, list2.uri);
+    assertEquals(stored.listsWithMembership.length, 1);
+    assertEquals(stored.listsWithMembership[0].list.uri, list2.uri);
   });
 });
 
@@ -2174,15 +2441,15 @@ t.describe("loadHashtagFeed", (it) => {
     await requests.loadHashtagFeed("foo", "top");
 
     const stored = dataStore.$hashtagFeeds.get("foo-top");
-    assertEquals(stored.feed.length, 1);
-    assertEquals(stored.feed[0].post.uri, "p1");
+    assertEquals(stored.posts.length, 1);
+    assertEquals(stored.posts[0].uri, "p1");
     assertEquals(stored.cursor, "next");
   });
 
   it("should append on subsequent loads", async () => {
     const dataStore = new DataStore();
     dataStore.$hashtagFeeds.set("foo-top", {
-      feed: [{ post: { uri: "p1" } }],
+      posts: [{ uri: "p1" }],
       cursor: "c1",
     });
     const mockApi = {
@@ -2197,14 +2464,29 @@ t.describe("loadHashtagFeed", (it) => {
     await requests.loadHashtagFeed("foo", "top");
 
     const stored = dataStore.$hashtagFeeds.get("foo-top");
-    assertEquals(stored.feed.length, 2);
-    assertEquals(stored.feed[1].post.uri, "p2");
+    assertEquals(stored.posts.length, 2);
+    assertEquals(stored.posts[1].uri, "p2");
+  });
+
+  it("should store an empty page when the response has no posts array", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchPosts: async () => ({ cursor: null }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadHashtagFeed("foo", "top");
+
+    const stored = dataStore.$hashtagFeeds.get("foo-top");
+    assertEquals(stored.posts, []);
+    assertEquals(stored.cursor, null);
   });
 
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$hashtagFeeds.set("foo-top", {
-      feed: [{ post: { uri: "p1" } }],
+      posts: [{ uri: "p1" }],
       cursor: "c1",
     });
 
@@ -2222,8 +2504,8 @@ t.describe("loadHashtagFeed", (it) => {
 
     assertEquals(capturedCursor, "");
     const stored = dataStore.$hashtagFeeds.get("foo-top");
-    assertEquals(stored.feed.length, 1);
-    assertEquals(stored.feed[0].post.uri, "p2");
+    assertEquals(stored.posts.length, 1);
+    assertEquals(stored.posts[0].uri, "p2");
   });
 });
 
@@ -2344,8 +2626,8 @@ t.describe("enableStatus / getStatus", (it) => {
     );
   });
 
-  it("should rethrow non-ApiError and not record it on the status store", async () => {
-    const otherError = new Error("boom");
+  it("should record non-ApiErrors on the status store and rethrow them", async () => {
+    const otherError = new TypeError("Failed to fetch");
     const mockApi = {
       getMutes: async () => {
         throw otherError;
@@ -2363,7 +2645,31 @@ t.describe("enableStatus / getStatus", (it) => {
     assert(caught === otherError, "expected non-ApiError to propagate");
     const status = requests.getStatus("loadMutedProfiles");
     assertEquals(status.loading, false);
-    assertEquals(status.error, null);
+    assert(
+      status.error === otherError,
+      "expected status.error to be the network error",
+    );
+  });
+
+  it("should clear a recorded error once a later request succeeds", async () => {
+    let shouldFail = true;
+    const mockApi = {
+      getMutes: async () => {
+        if (shouldFail) {
+          throw new TypeError("Failed to fetch");
+        }
+        return { mutes: [], cursor: null };
+      },
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadMutedProfiles().catch(() => {});
+    assert(requests.getStatus("loadMutedProfiles").error !== null);
+
+    shouldFail = false;
+    await requests.loadMutedProfiles();
+    assertEquals(requests.getStatus("loadMutedProfiles").error, null);
   });
 
   it("should namespace status by request id derived from arguments", async () => {
@@ -2388,6 +2694,68 @@ t.describe("enableStatus / getStatus", (it) => {
       requests.getStatus("loadDetailedProfile-did:plc:b").loading,
       false,
     );
+  });
+});
+
+t.describe("_loadBlockedPosts", (it) => {
+  const existingUri = "at://did:plc:blocked/app.bsky.feed.post/exists";
+  const deletedUri = "at://did:plc:blocked/app.bsky.feed.post/gone";
+
+  function setup({ getPosts = async () => [], getRecord }) {
+    const mockApi = { getPosts, getRecord };
+    const dataStore = new DataStore();
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const requests = createRequests(
+      mockApi,
+      dataStore,
+      mockPreferencesProvider,
+    );
+    return { requests, dataStore };
+  }
+
+  it("should mark a post unavailable when its record is confirmed deleted", async () => {
+    const { requests, dataStore } = setup({
+      getRecord: async (uri) => {
+        if (uri === deletedUri) {
+          throw new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "RecordNotFound" },
+            headers: {},
+            url: "",
+          });
+        }
+        return { uri, value: {} };
+      },
+    });
+    await requests._loadBlockedPosts([existingUri, deletedUri]);
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
+    assert(dataStore.$unavailablePosts.get(deletedUri) !== null);
+    assertEquals(dataStore.$unavailablePosts.get(deletedUri).uri, deletedUri);
+  });
+
+  it("should not mark a post unavailable when the record probe fails for other reasons", async () => {
+    const { requests, dataStore } = setup({
+      getRecord: async () => {
+        throw new TypeError("network down");
+      },
+    });
+    await requests._loadBlockedPosts([existingUri]);
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
+  });
+
+  it("should not probe records for posts that getPosts returned", async () => {
+    const { requests, dataStore } = setup({
+      getPosts: async () => [{ uri: existingUri, record: { text: "hi" } }],
+      getRecord: async () => {
+        throw new Error("getRecord should not be called");
+      },
+    });
+    await requests._loadBlockedPosts([existingUri]);
+    assertEquals(dataStore.$posts.get(existingUri).record.text, "hi");
+    assertEquals(dataStore.$unavailablePosts.get(existingUri), null);
   });
 });
 

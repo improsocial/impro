@@ -35,18 +35,18 @@ test.describe("Chat request accept flow", () => {
 
     await login(page);
 
-    // Navigate to chat list first and verify the request banner is shown
+    // Navigate to chat list first and verify no accepted conversations
+    // appear in the main list
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-      timeout: 10000,
-    });
-
-    // Verify no accepted conversations in the main list
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
+    );
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
-    // Navigate to chat requests
-    await chatView.locator(".chat-requests-banner").click();
+    // Navigate to chat requests via the header inbox button
+    await chatView.locator('[data-testid="inbox-button"]').click();
 
     const requestsView = page.locator("#chat-requests-view");
     await expect(requestsView.locator(".chat-request-item")).toHaveCount(1, {
@@ -105,15 +105,16 @@ test.describe("Chat request accept flow", () => {
 
     await login(page);
 
-    // The invite surfaces in the requests banner, not the main list
+    // The invite surfaces in the requests inbox, not the main list
     await page.goto("/messages");
     const chatView = page.locator("#chat-view");
-    await expect(chatView.locator(".chat-requests-banner")).toBeVisible({
-      timeout: 10000,
-    });
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
+    );
     await expect(chatView.locator(".convo-item")).toHaveCount(0);
 
-    await chatView.locator(".chat-requests-banner").click();
+    await chatView.locator('[data-testid="inbox-button"]').click();
 
     const requestsView = page.locator("#chat-requests-view");
     const groupItem = requestsView.locator(
@@ -139,6 +140,5 @@ test.describe("Chat request accept flow", () => {
       chatView.locator('[data-testid="convo-item-group"]'),
     ).toHaveCount(1, { timeout: 10000 });
     await expect(chatView.locator(".convo-name")).toContainText("Book Club");
-    await expect(chatView.locator(".chat-requests-banner")).toHaveCount(0);
   });
 });

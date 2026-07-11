@@ -4,6 +4,7 @@ import {
   getQuotedPost,
   getBlockedQuote,
   isBlockingUser,
+  isBlockedByViewer,
   createUnavailablePost,
   getPostUrisFromNotifications,
   buildUri,
@@ -35,25 +36,62 @@ const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logDisableJoinLink",
 ]);
 
-// Get URIs of blocked quotes from posts where the author has not blocked the viewer
+function readCollectionCursor(signal, { key } = {}) {
+  const current = key === undefined ? signal.get() : signal.get(key);
+  return current?.cursor ?? "";
+}
+
+// Write a page response to a stored collection — an object shaped { [itemsKey]: [...], cursor }
+// Re-reads the collection and compares its cursor to the request cursor;
+// a mismatch means a reload or competing page load landed mid-flight.
+function writePageToCollection(
+  signal,
+  itemsKey,
+  page,
+  { key, requestCursor, overwrite = false },
+) {
+  const current = key === undefined ? signal.get() : signal.get(key);
+  const currentCursor = current?.cursor ?? "";
+  if (!overwrite && currentCursor !== (requestCursor ?? "")) {
+    console.warn("Cursor mismatch, discarding page", {
+      itemsKey,
+      key,
+      requestCursor,
+      currentCursor,
+    });
+    return false;
+  }
+  const append = !overwrite && Boolean(currentCursor);
+  const items = page[itemsKey] ?? [];
+  const next = {
+    [itemsKey]: append ? [...current[itemsKey], ...items] : items,
+    cursor: page.cursor || null,
+  };
+  if (key === undefined) {
+    signal.set(next);
+  } else {
+    signal.set(key, next);
+  }
+  return true;
+}
+
+// Get URIs of blocked posts and blocked quotes referenced by the given posts
 function getBlockedPostUris(posts) {
   // Blocked "top-level" posts
-  const blockedPosts = posts
-    .filter((post) => post.$type === "app.bsky.feed.defs#blockedPost")
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+  const blockedPosts = posts.filter(
+    (post) => post.$type === "app.bsky.feed.defs#blockedPost",
+  );
   // Blocked quoted posts
   const blockedQuotes = posts
     .map((post) => getBlockedQuote(post))
-    .filter(Boolean)
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+    .filter(Boolean);
   // Blocked nested quotes
   // Note - this won't load blocked quotes of blocked quotes (edge case)
   const blockedNestedQuotes = posts
     .map((post) => getQuotedPost(post))
     .filter(Boolean)
     .map((quotedPost) => getBlockedQuote(quotedPost))
-    .filter(Boolean)
-    .filter((blockedPost) => !isBlockingUser(blockedPost));
+    .filter(Boolean);
 
   return unique([...blockedPosts, ...blockedQuotes, ...blockedNestedQuotes], {
     by: "uri",
@@ -153,6 +191,7 @@ export class Requests {
       this.loadProfileSearch,
       (query) => "loadProfileSearch-" + query,
     );
+    this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
     this.enableStatus(
       this.loadPostSearch,
       (query, { sort = "top" } = {}) => `loadPostSearch-${query}-${sort}`,
@@ -167,6 +206,7 @@ export class Requests {
       "loadMentionNotifications",
     );
     this.enableStatus(this.loadConvoList, "loadConvoList");
+    this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
     this.enableStatus(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
@@ -270,7 +310,11 @@ export class Requests {
   }
 
   async _loadParentChain(blockedParent, { labelers = [], rootUri } = {}) {
-    if (!rootUri || isBlockingUser(blockedParent)) {
+    if (
+      !rootUri ||
+      isBlockingUser(blockedParent) ||
+      isBlockedByViewer(blockedParent)
+    ) {
       return await this.loadPostThread(blockedParent.uri, {
         depth: 0,
         labelers,
@@ -296,7 +340,8 @@ export class Requests {
 
     while (
       currentBlocked?.$type === "app.bsky.feed.defs#blockedPost" &&
-      !isBlockingUser(currentBlocked)
+      !isBlockingUser(currentBlocked) &&
+      !isBlockedByViewer(currentBlocked)
     ) {
       const authorDid = currentBlocked.author?.did;
       if (!authorDid || loadedAuthorDids.has(authorDid)) break;
@@ -425,11 +470,9 @@ export class Requests {
 
   async loadNextFeedPage(feedURI, { reload = false, limit = 31 } = {}) {
     const labelers = this.requireLabelers();
-    const existingFeed = this.dataStore.$feeds.get(feedURI);
-    let cursor = existingFeed ? existingFeed.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$feeds, { key: feedURI });
     const isListFeed = feedURI.includes("/app.bsky.graph.list/");
     const feed =
       feedURI === "following"
@@ -443,16 +486,11 @@ export class Requests {
     this.dataStore.setPosts(postsToSave);
     // Filter posts with plugins
     await this.pluginService.refreshFiltersForFeed(feedURI, feed, { reload });
-    if (existingFeed && !reload) {
-      // Append to existing feed
-      this.dataStore.$feeds.set(feedURI, {
-        feed: [...existingFeed.feed, ...feed.feed],
-        cursor: feed.cursor,
-      });
-    } else {
-      // Set new feed
-      this.dataStore.$feeds.set(feedURI, feed);
-    }
+    writePageToCollection(this.dataStore.$feeds, "feed", feed, {
+      key: feedURI,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadPluginFilteredFeedItems(feedURI, { reload = false } = {}) {
@@ -493,15 +531,24 @@ export class Requests {
       labelers,
     });
     this.dataStore.setPosts(fetchedBlockedPosts);
-    // If any blocked posts are not found, create an unavailable post for them
-    const notFoundPostUris = blockedPostUris.filter(
+    // The appview omits posts from getPosts when a block exists in either
+    // direction, so a missing post may still exist. Probe the raw record
+    // (which block filtering doesn't apply to) and only mark posts as
+    // unavailable when the record is confirmed gone.
+    const missingPostUris = blockedPostUris.filter(
       (uri) => !fetchedBlockedPosts.some((post) => post.uri === uri),
     );
-    if (notFoundPostUris.length > 0) {
-      for (const uri of notFoundPostUris) {
+    const results = await Promise.allSettled(
+      missingPostUris.map((uri) => this.api.getRecord(uri)),
+    );
+    results.forEach((result, index) => {
+      if (result.status === "fulfilled") return;
+      const error = result.reason;
+      if (error instanceof ApiError && error.data?.error === "RecordNotFound") {
+        const uri = missingPostUris[index];
         this.dataStore.$unavailablePosts.set(uri, createUnavailablePost(uri));
       }
-    }
+    });
   }
 
   async loadDetailedProfile(did) {
@@ -523,6 +570,8 @@ export class Requests {
 
   async loadProfileSearch(query, { limit = 10, cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestProfileSearchRequestTime.set(null);
       this.dataStore.$profileSearchResults.set(null);
       return;
     }
@@ -552,8 +601,33 @@ export class Requests {
     }
   }
 
+  async loadChatRecipientSearch(query, { limit = 12 } = {}) {
+    if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestChatRecipientSearchRequestTime.set(null);
+      this.dataStore.$chatRecipientSearchResults.set(null);
+      return;
+    }
+    const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    this.dataStore.$latestChatRecipientSearchRequestTime.set(requestTime);
+    const searchData = await this.api.searchProfilesTypeahead(query, {
+      limit,
+      labelers,
+    });
+    if (
+      requestTime !== this.dataStore.$latestChatRecipientSearchRequestTime.get()
+    ) {
+      return;
+    }
+    this.dataStore.setProfiles(searchData.actors);
+    this.dataStore.$chatRecipientSearchResults.set(searchData);
+  }
+
   async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestPostSearchRequestTime.set(null);
       this.dataStore.$postSearchResults.set(null);
       return;
     }
@@ -602,6 +676,8 @@ export class Requests {
 
   async loadFeedSearch(query, { limit = 15, cursor = "" } = {}) {
     if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestFeedSearchRequestTime.set(null);
       this.dataStore.$feedSearchResults.set(null);
       return;
     }
@@ -641,11 +717,9 @@ export class Requests {
     { reload = false, limit = 31 } = {},
   ) {
     const feedURI = `${did}-${feedType}`;
-    const existingFeed = this.dataStore.$authorFeeds.get(feedURI);
-    let cursor = existingFeed ? existingFeed.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$authorFeeds, { key: feedURI });
     const labelers = this.requireLabelers();
     const params = { limit, cursor, labelers };
 
@@ -680,23 +754,17 @@ export class Requests {
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
     // Save feed
-    if (existingFeed && !reload) {
-      // Append to existing feed
-      this.dataStore.$authorFeeds.set(feedURI, {
-        feed: [...existingFeed.feed, ...feed.feed],
-        cursor: feed.cursor,
-      });
-    } else {
-      // Set new feed
-      this.dataStore.$authorFeeds.set(feedURI, feed);
-    }
+    writePageToCollection(this.dataStore.$authorFeeds, "feed", feed, {
+      key: feedURI,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadNotifications({ reload = false, limit = 31 } = {}) {
-    let cursor = this.dataStore.$notificationCursor.get() ?? "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$notifications);
     const labelers = this.requireLabelers();
     const res = await this.api.getNotifications({ cursor, limit, labelers });
     // Get associated posts
@@ -706,36 +774,17 @@ export class Requests {
       await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
-    const previousCursor = this.dataStore.$notificationCursor.get();
-    // If the req cursor matches the previous cursor, append
-    if (previousCursor && !reload) {
-      if (previousCursor === cursor) {
-        const existingNotifications = this.dataStore.$notifications.get() ?? [];
-        this.dataStore.$notifications.set([
-          ...existingNotifications,
-          ...res.notifications,
-        ]);
-      } else {
-        console.warn(
-          "loadNotifications: cursor mismatch, discarding response",
-          {
-            previousCursor,
-            cursor,
-          },
-        );
-      }
-    } else {
-      this.dataStore.$notifications.set(res.notifications);
-    }
-    this.dataStore.$notificationCursor.set(res.cursor);
+    writePageToCollection(this.dataStore.$notifications, "notifications", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadMentionNotifications({ reload = false, limit = 31 } = {}) {
     const MENTION_REASONS = ["mention", "reply", "quote"];
-    let cursor = this.dataStore.$mentionNotificationCursor.get() ?? "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$mentionNotifications);
     const labelers = this.requireLabelers();
     const res = await this.api.getNotifications({
       cursor,
@@ -749,53 +798,45 @@ export class Requests {
       await this._loadPostDependencies(fetchedPosts);
       this.dataStore.setPosts(fetchedPosts);
     }
-    const previousCursor = this.dataStore.$mentionNotificationCursor.get();
-    if (previousCursor && !reload) {
-      if (previousCursor === cursor) {
-        const existingNotifications =
-          this.dataStore.$mentionNotifications.get() ?? [];
-        this.dataStore.$mentionNotifications.set([
-          ...existingNotifications,
-          ...res.notifications,
-        ]);
-      } else {
-        console.warn(
-          "loadMentionNotifications: cursor mismatch, discarding response",
-          { previousCursor, cursor },
-        );
-      }
-    } else {
-      this.dataStore.$mentionNotifications.set(res.notifications);
-    }
-    this.dataStore.$mentionNotificationCursor.set(res.cursor);
+    writePageToCollection(
+      this.dataStore.$mentionNotifications,
+      "notifications",
+      res,
+      {
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
   }
 
   async loadConvoList({ reload = false, limit = 30 } = {}) {
-    let cursor = this.dataStore.$convoListCursor.get() ?? "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$convoList);
     const res = await this.api.listConvos({ cursor, limit });
-    const previousCursor = this.dataStore.$convoListCursor.get();
     // Store individual convos
     for (const convo of res.convos) {
       this.dataStore.$convos.set(convo.id, convo);
     }
-    // If the req cursor matches the previous cursor, append
-    if (previousCursor && !reload) {
-      if (previousCursor === cursor) {
-        const existingConvos = this.dataStore.$convoList.get() ?? [];
-        this.dataStore.$convoList.set([...existingConvos, ...res.convos]);
-      } else {
-        console.warn("loadConvoList: cursor mismatch, discarding response", {
-          previousCursor,
-          cursor,
-        });
-      }
-    } else {
-      this.dataStore.$convoList.set(res.convos);
+    writePageToCollection(this.dataStore.$convoList, "convos", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
+  }
+
+  async loadConvoRequestList({ reload = false, limit = 30 } = {}) {
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$convoRequestList);
+    const res = await this.api.listConvos({ cursor, limit, status: "request" });
+    // Store individual convos
+    for (const convo of res.convos) {
+      this.dataStore.$convos.set(convo.id, convo);
     }
-    this.dataStore.$convoListCursor.set(res.cursor);
+    writePageToCollection(this.dataStore.$convoRequestList, "convos", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadConvo(convoId) {
@@ -837,22 +878,16 @@ export class Requests {
   }
 
   async loadConvoMessages(convoId, { reload = false, limit = 50 } = {}) {
-    const existingMessages = this.dataStore.$convoMessages.get(convoId);
-    let cursor = existingMessages ? existingMessages.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$convoMessages, { key: convoId });
     const res = await this.api.getMessages(convoId, { cursor, limit });
-    // Hack - sometimes the first response comes back with a cursor, even though it shouldn't.
-    // So, let's just make another request to check if it's actually valid.
-    if (res.cursor) {
-      const res2 = await this.api.getMessages(convoId, {
+    if (res.messages.length === 0 && res.cursor) {
+      console.warn("getMessages returned an empty page with a cursor", {
+        convoId,
         cursor: res.cursor,
-        limit: 1,
       });
-      if (res2.messages.length === 0) {
-        res.cursor = null;
-      }
+      res.cursor = null;
     }
     // For group convos, convo.members is partial; relatedProfiles carries
     // the authors and system-message subjects for the returned page.
@@ -866,14 +901,11 @@ export class Requests {
     for (const message of res.messages) {
       this.dataStore.$messages.set(message.id, message);
     }
-    if (existingMessages && !reload) {
-      this.dataStore.$convoMessages.set(convoId, {
-        messages: [...existingMessages.messages, ...res.messages],
-        cursor: res.cursor,
-      });
-    } else {
-      this.dataStore.$convoMessages.set(convoId, res);
-    }
+    writePageToCollection(this.dataStore.$convoMessages, "messages", res, {
+      key: convoId,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
@@ -957,25 +989,18 @@ export class Requests {
 
   async loadPostLikes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingLikes = this.dataStore.$postLikes.get(postUri);
     const res = await this.api.getLikes(postUri, { cursor, labelers });
     this.dataStore.setProfiles(res.likes.map((like) => like.actor));
 
-    if (existingLikes && cursor) {
-      // Append to existing likes
-      this.dataStore.$postLikes.set(postUri, {
-        likes: [...existingLikes.likes, ...res.likes],
-        cursor: res.cursor,
-      });
-    } else {
-      // Set new likes
-      this.dataStore.$postLikes.set(postUri, res);
-    }
+    writePageToCollection(this.dataStore.$postLikes, "likes", res, {
+      key: postUri,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadPostQuotes(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingQuotes = this.dataStore.$postQuotes.get(postUri);
     const res = await this.api.getQuotes(postUri, { cursor, labelers });
 
     // if there are posts that are replies, load the parents
@@ -990,37 +1015,23 @@ export class Requests {
     // Save posts and parents
     await this._loadPostDependencies(res.posts);
     this.dataStore.setPosts([...res.posts, ...parentPosts]);
-    if (existingQuotes && cursor) {
-      // Append to existing quotes
-      this.dataStore.$postQuotes.set(postUri, {
-        posts: [...existingQuotes.posts, ...res.posts],
-        cursor: res.cursor,
-      });
-    } else {
-      // Set new quotes
-      this.dataStore.$postQuotes.set(postUri, res);
-    }
+    writePageToCollection(this.dataStore.$postQuotes, "posts", res, {
+      key: postUri,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadPostReposts(postUri, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingReposts = this.dataStore.$postReposts.get(postUri);
     const res = await this.api.getRepostedBy(postUri, { cursor, labelers });
     this.dataStore.setProfiles(res.repostedBy);
 
-    if (existingReposts && cursor) {
-      // Append to existing reposts
-      this.dataStore.$postReposts.set(postUri, {
-        reposts: [...existingReposts.reposts, ...res.repostedBy],
-        cursor: res.cursor,
-      });
-    } else {
-      // Set new reposts
-      this.dataStore.$postReposts.set(postUri, {
-        reposts: res.repostedBy,
-        cursor: res.cursor,
-      });
-    }
+    writePageToCollection(this.dataStore.$postReposts, "repostedBy", res, {
+      key: postUri,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   // Decorate a request method with status tracking
@@ -1037,10 +1048,10 @@ export class Requests {
         this.statusStore.setError(requestId, null);
         return result;
       } catch (error) {
-        // Only store ApiErrors
-        if (error instanceof ApiError) {
-          this.statusStore.setError(requestId, error);
-        } else {
+        // Record every failure so views can render error states, but only
+        // swallow ApiErrors
+        this.statusStore.setError(requestId, error);
+        if (!(error instanceof ApiError)) {
           throw error;
         }
       } finally {
@@ -1073,27 +1084,19 @@ export class Requests {
 
   async loadListMembers(listUri, { reload = false, limit = 50 } = {}) {
     const existing = this.dataStore.$listMembers.get(listUri);
-    let cursor = existing ? existing.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
     if (existing && !existing.cursor && !reload) {
       return;
     }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$listMembers, { key: listUri });
     const data = await this.api.getList(listUri, { limit, cursor });
-    const newMembers = (data.items ?? []).map((item) => item.subject);
-    this.dataStore.setProfiles(newMembers);
-    if (reload || !existing) {
-      this.dataStore.$listMembers.set(listUri, {
-        members: newMembers,
-        cursor: data.cursor || null,
-      });
-    } else {
-      this.dataStore.$listMembers.set(listUri, {
-        members: [...existing.members, ...newMembers],
-        cursor: data.cursor || null,
-      });
-    }
+    this.dataStore.setProfiles((data.items ?? []).map((item) => item.subject));
+    writePageToCollection(this.dataStore.$listMembers, "items", data, {
+      key: listUri,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadPinnedItems() {
@@ -1147,54 +1150,40 @@ export class Requests {
 
   async loadActorFeeds(did, { reload = false, limit = 50 } = {}) {
     const existing = this.dataStore.$actorFeeds.get(did);
-    let cursor = existing ? existing.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
     if (existing && !existing.cursor && !reload) {
       return;
     }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$actorFeeds, { key: did });
     const data = await this.api.getActorFeeds(did, { limit, cursor });
     for (const feed of data.feeds) {
       this.dataStore.$feedGenerators.set(feed.uri, feed);
     }
-    if (reload || !existing) {
-      this.dataStore.$actorFeeds.set(did, {
-        feeds: data.feeds,
-        cursor: data.cursor || null,
-      });
-    } else {
-      this.dataStore.$actorFeeds.set(did, {
-        feeds: [...existing.feeds, ...data.feeds],
-        cursor: data.cursor || null,
-      });
-    }
+    writePageToCollection(this.dataStore.$actorFeeds, "feeds", data, {
+      key: did,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadActorLists(did, { reload = false, limit = 50 } = {}) {
     const existing = this.dataStore.$actorLists.get(did);
-    let cursor = existing ? existing.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
     if (existing && !existing.cursor && !reload) {
       return;
     }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$actorLists, { key: did });
     const data = await this.api.getActorLists(did, { limit, cursor });
     for (const list of data.lists) {
       this.dataStore.$lists.set(list.uri, list);
     }
-    if (reload || !existing) {
-      this.dataStore.$actorLists.set(did, {
-        lists: data.lists,
-        cursor: data.cursor || null,
-      });
-    } else {
-      this.dataStore.$actorLists.set(did, {
-        lists: [...existing.lists, ...data.lists],
-        cursor: data.cursor || null,
-      });
-    }
+    writePageToCollection(this.dataStore.$actorLists, "lists", data, {
+      key: did,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadCurrentUserLists({ reload = false } = {}) {
@@ -1211,27 +1200,34 @@ export class Requests {
     if (existing && !reload && !existing.cursor) {
       return;
     }
-    const cursor = reload ? "" : existing?.cursor || "";
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$listsWithMembershipByActor, {
+          key: actorDid,
+        });
     const data = await this.api.getListsWithMembership(actorDid, {
       limit,
       cursor,
     });
-    const prevItems = reload || !existing ? [] : existing.items;
-    this.dataStore.$listsWithMembershipByActor.set(actorDid, {
-      items: [...prevItems, ...data.listsWithMembership],
-      cursor: data.cursor || null,
-    });
+    writePageToCollection(
+      this.dataStore.$listsWithMembershipByActor,
+      "listsWithMembership",
+      data,
+      {
+        key: actorDid,
+        requestCursor: cursor,
+        overwrite: reload,
+      },
+    );
   }
 
   async loadHashtagFeed(hashtag, sort, { reload = false, limit = 25 } = {}) {
     const hashtagKey = `${hashtag}-${sort}`;
     const labelers = this.requireLabelers();
 
-    const existingFeed = this.dataStore.$hashtagFeeds.get(hashtagKey);
-    let cursor = existingFeed ? existingFeed.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$hashtagFeeds, { key: hashtagKey });
 
     // Search posts with the hashtag
     const query = `#${hashtag}`;
@@ -1257,32 +1253,17 @@ export class Requests {
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
     }
 
-    // Convert posts to feed format
-    const feed = {
-      feed: searchResults.map((post) => ({
-        post: { uri: post.uri },
-      })),
-      cursor: searchData.cursor || "",
-    };
-
-    if (existingFeed && !reload) {
-      // Append to existing feed
-      this.dataStore.$hashtagFeeds.set(hashtagKey, {
-        feed: [...existingFeed.feed, ...feed.feed],
-        cursor: feed.cursor,
-      });
-    } else {
-      // Set new feed
-      this.dataStore.$hashtagFeeds.set(hashtagKey, feed);
-    }
+    writePageToCollection(this.dataStore.$hashtagFeeds, "posts", searchData, {
+      key: hashtagKey,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadBookmarks({ reload = false, limit = 31 } = {}) {
-    const existingBookmarks = this.dataStore.$bookmarks.get();
-    let cursor = existingBookmarks ? existingBookmarks.cursor : "";
-    if (reload) {
-      cursor = "";
-    }
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$bookmarks);
 
     const labelers = this.requireLabelers();
     const res = await this.api.getBookmarks({ limit, cursor, labelers });
@@ -1305,109 +1286,69 @@ export class Requests {
       this.dataStore.setPosts([...posts, ...parentPosts]);
     }
 
-    // Convert to feed format
-    const bookmarksFeed = {
-      feed: res.bookmarks.map((bookmark) => ({
-        post: { uri: bookmark.item.uri },
-      })),
-      cursor: res.cursor || "",
-    };
-
-    if (existingBookmarks && !reload) {
-      // Append to existing bookmarks
-      this.dataStore.$bookmarks.set({
-        feed: [...existingBookmarks.feed, ...bookmarksFeed.feed],
-        cursor: bookmarksFeed.cursor,
-      });
-    } else {
-      // Set new bookmarks
-      this.dataStore.$bookmarks.set(bookmarksFeed);
-    }
+    writePageToCollection(this.dataStore.$bookmarks, "bookmarks", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollowers = this.dataStore.$profileFollowers.get(profileDid);
     const res = await this.api.getFollowers(profileDid, { cursor, labelers });
     this.dataStore.setProfiles(res.followers);
 
-    if (existingFollowers && cursor) {
-      // Append to existing followers
-      this.dataStore.$profileFollowers.set(profileDid, {
-        followers: [...existingFollowers.followers, ...res.followers],
-        cursor: res.cursor,
-      });
-    } else {
-      // Set new followers
-      this.dataStore.$profileFollowers.set(profileDid, res);
-    }
+    writePageToCollection(this.dataStore.$profileFollowers, "followers", res, {
+      key: profileDid,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadKnownFollowers(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existing = this.dataStore.$knownFollowers.get(profileDid);
     const res = await this.api.getKnownFollowers(profileDid, {
       cursor,
       labelers,
     });
     this.dataStore.setProfiles(res.followers);
 
-    if (existing && cursor) {
-      this.dataStore.$knownFollowers.set(profileDid, {
-        followers: [...existing.followers, ...res.followers],
-        cursor: res.cursor,
-      });
-    } else {
-      this.dataStore.$knownFollowers.set(profileDid, res);
-    }
+    writePageToCollection(this.dataStore.$knownFollowers, "followers", res, {
+      key: profileDid,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadProfileFollows(profileDid, { cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existingFollows = this.dataStore.$profileFollows.get(profileDid);
     const res = await this.api.getFollows(profileDid, { cursor, labelers });
     this.dataStore.setProfiles(res.follows);
 
-    if (existingFollows && cursor) {
-      // Append to existing follows
-      this.dataStore.$profileFollows.set(profileDid, {
-        follows: [...existingFollows.follows, ...res.follows],
-        cursor: res.cursor,
-      });
-    } else {
-      // Set new follows
-      this.dataStore.$profileFollows.set(profileDid, res);
-    }
+    writePageToCollection(this.dataStore.$profileFollows, "follows", res, {
+      key: profileDid,
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadBlockedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existing = this.dataStore.$blockedProfiles.get();
     const res = await this.api.getBlocks({ cursor, labelers });
 
-    if (existing && cursor) {
-      this.dataStore.$blockedProfiles.set({
-        blocks: [...existing.blocks, ...res.blocks],
-        cursor: res.cursor,
-      });
-    } else {
-      this.dataStore.$blockedProfiles.set(res);
-    }
+    writePageToCollection(this.dataStore.$blockedProfiles, "blocks", res, {
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadMutedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
-    const existing = this.dataStore.$mutedProfiles.get();
     const res = await this.api.getMutes({ cursor, labelers });
 
-    if (existing && cursor) {
-      this.dataStore.$mutedProfiles.set({
-        mutes: [...existing.mutes, ...res.mutes],
-        cursor: res.cursor,
-      });
-    } else {
-      this.dataStore.$mutedProfiles.set(res);
-    }
+    writePageToCollection(this.dataStore.$mutedProfiles, "mutes", res, {
+      requestCursor: cursor ?? "",
+      overwrite: !cursor,
+    });
   }
 
   async loadProfileChatStatus(profileDid) {
