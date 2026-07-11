@@ -1,14 +1,15 @@
 import { linkHtml } from "./modulepreload.js";
-import pkg from "./package.json" with { type: "json" };
 import { MIME } from "./scripts/serve-static.js";
+import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 async function transformGlob(pattern, replacer) {
   await Promise.all(
     fs.globSync(pattern).map(async (filePath) => {
       const content = await fs.promises.readFile(filePath, "utf-8");
-      const updated = replacer(content);
+      const updated = await replacer(content);
       if (content !== updated) await fs.promises.writeFile(filePath, updated);
     }),
   );
@@ -109,45 +110,54 @@ export default async function (eleventyConfig) {
     },
   });
 
-  // Auto-generate modulepreload tags
-  eleventyConfig.addTransform(
-    "modulepreload",
-    async function (content, outputPath) {
-      if (outputPath.endsWith(".html")) {
-        const baseUrl = new URL("src", import.meta.url);
-        return await linkHtml(content, { baseUrl, exclude: ["/lib/hls.js"] });
-      }
-      return content;
-    },
-  );
-
-  // Cache busting query params
+  // Cache busting via content-hashed filenames
   eleventyConfig.on("eleventy.after", async ({ dir }) => {
-    const bust = `?v=${pkg.version}`;
-    const addBust = (_, before, ref, after) => `${before}${ref}${bust}${after}`;
+    if (isDev) return;
 
-    // JS module refs: `import ... from "x.js"`, `export ... from "x.js"`,
-    // bare `import "x.js"`, and dynamic `import("x.js")`.
-    const jsModuleRefs =
-      /(\b(?:import|export)\b[^'"`;]*?from\s+['"]|\bimport\s*\(\s*['"]|\bimport\s+['"])(?!https?:\/\/|\/\/)([^'"`\n]+?\.m?js)(['"])/g;
-    // CSS `@import "x.css"`
-    const cssImports =
-      /(@import\s+['"])(?!https?:\/\/|\/\/)([^'"\n]+?\.css)(['"])/g;
-    // HTML attribute refs: <script src>, <link href>, etc.
-    const htmlAttrRefs =
-      /((?:src|href)\s*=\s*["'])(?!https?:\/\/|\/\/)([^"']+?\.(?:m?js|css))(["'])/g;
+    const buildBaseUrl = pathToFileURL(path.resolve(dir.output) + path.sep);
 
-    await Promise.all([
-      transformGlob(`${dir.output}/**/*.js`, (content) =>
-        content.replace(jsModuleRefs, addBust),
-      ),
-      transformGlob(`${dir.output}/**/*.css`, (content) =>
-        content.replace(cssImports, addBust),
-      ),
-      transformGlob(`${dir.output}/**/*.html`, (content) =>
-        content.replace(htmlAttrRefs, addBust).replace(jsModuleRefs, addBust),
-      ),
-    ]);
+    const hashedUrlPath = (filePath) => {
+      const hash = crypto
+        .createHash("sha256")
+        .update(fs.readFileSync(filePath))
+        .digest("hex")
+        .slice(0, 10);
+      const urlPath =
+        "/" + path.relative(dir.output, filePath).split(path.sep).join("/");
+      return [urlPath, urlPath.replace(/(\.[^.]+)$/, `.${hash}$1`)];
+    };
+
+    const imports = {};
+    for (const filePath of fs.globSync(`${dir.output}/js/**/*.js`)) {
+      const [urlPath, hashed] = hashedUrlPath(filePath);
+      imports[urlPath] = hashed;
+    }
+    const [cssUrlPath, hashedCssUrlPath] = hashedUrlPath(
+      path.join(dir.output, "css", "style.css"),
+    );
+
+    const importMapTag = `<script type="importmap">${JSON.stringify({ imports })}</script>`;
+    await transformGlob(`${dir.output}/*.html`, async (content) => {
+      // linkHtml crawls the un-hashed files on disk, so it must run before renaming
+      const linked = await linkHtml(content, {
+        baseUrl: buildBaseUrl,
+        exclude: ["/lib/hls.js"],
+        urlMap: imports,
+      });
+      return linked
+        .replace("<head>", `<head>${importMapTag}`)
+        .replace(`href="${cssUrlPath}"`, `href="${hashedCssUrlPath}"`);
+    });
+
+    for (const [urlPath, hashed] of [
+      ...Object.entries(imports),
+      [cssUrlPath, hashedCssUrlPath],
+    ]) {
+      fs.renameSync(
+        path.join(dir.output, "." + urlPath),
+        path.join(dir.output, "." + hashed),
+      );
+    }
   });
 
   return {
