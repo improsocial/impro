@@ -105,7 +105,7 @@ t.describe("YoutubeEmbed - playing state", (it) => {
     assert(iframe !== null);
     assertEquals(
       iframe.getAttribute("src"),
-      "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&start=32&rel=0&playsinline=1",
+      `https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ?autoplay=1&start=32&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`,
     );
     assertEquals(element.dataset.teststate, "playing");
     assert(element.classList.contains("is-playing"));
@@ -153,6 +153,45 @@ t.describe("YoutubeEmbed - playing state", (it) => {
       "[data-testid='youtube-embed-iframe']",
     );
     assert(iframe.getAttribute("src").includes("start=0"));
+  });
+});
+
+t.describe("YoutubeEmbed - page transitions", (it) => {
+  function capturePostedMessages(element) {
+    const messages = [];
+    const iframe = element.querySelector("iframe");
+    iframe.contentWindow.postMessage = (message, targetOrigin) => {
+      messages.push({ message, targetOrigin });
+    };
+    return messages;
+  }
+
+  it("sends a pauseVideo command to the player on page-transition", () => {
+    const element = createEmbed();
+    getCardLink(element).click();
+    const messages = capturePostedMessages(element);
+    window.dispatchEvent(new window.CustomEvent("page-transition"));
+    assertEquals(messages.length, 1);
+    assertEquals(
+      messages[0].message,
+      JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+    );
+    assertEquals(messages[0].targetOrigin, "https://www.youtube-nocookie.com");
+  });
+
+  it("does nothing on page-transition while in the preview state", () => {
+    const element = createEmbed();
+    window.dispatchEvent(new window.CustomEvent("page-transition"));
+    assertEquals(element.dataset.teststate, "preview");
+  });
+
+  it("stops listening for page-transition after being removed", () => {
+    const element = createEmbed();
+    getCardLink(element).click();
+    const messages = capturePostedMessages(element);
+    element.remove();
+    window.dispatchEvent(new window.CustomEvent("page-transition"));
+    assertEquals(messages.length, 0);
   });
 });
 

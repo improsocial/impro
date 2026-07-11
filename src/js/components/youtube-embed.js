@@ -6,7 +6,19 @@ const YOUTUBE_EMBED_BASE_URL = "https://www.youtube-nocookie.com/embed";
 const DEFAULT_ASPECT_RATIO = String(16 / 9);
 
 class YoutubeEmbed extends Component {
+  // Pause on navigate
+  handlePageTransition = () => {
+    if (!this.playing) {
+      return;
+    }
+    this.querySelector("iframe")?.contentWindow?.postMessage(
+      JSON.stringify({ event: "command", func: "pauseVideo", args: [] }),
+      "https://www.youtube-nocookie.com",
+    );
+  };
+
   connectedCallback() {
+    window.addEventListener("page-transition", this.handlePageTransition);
     if (this._initialized) {
       return;
     }
@@ -23,11 +35,15 @@ class YoutubeEmbed extends Component {
     this._initialized = true;
   }
 
+  disconnectedCallback() {
+    window.removeEventListener("page-transition", this.handlePageTransition);
+  }
+
   getPlayerSrc() {
     const startSeconds = /^\d+$/.test(this.start ?? "") ? this.start : "0";
     return `${YOUTUBE_EMBED_BASE_URL}/${encodeURIComponent(
       this.videoId,
-    )}?autoplay=1&start=${startSeconds}&rel=0&playsinline=1`;
+    )}?autoplay=1&start=${startSeconds}&rel=0&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(window.location.origin)}`;
   }
 
   play() {

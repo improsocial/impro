@@ -19,6 +19,7 @@ const streamingVideoObserver = new IntersectionObserver(
 );
 
 class StreamingVideo extends Component {
+  // Pause on navigate
   handlePageTransition = () => {
     const video = this.querySelector("video");
     if (!video) {
