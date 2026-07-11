@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../factories.js";
+import { createProfile } from "../../../shared/factories.js";
 
 test.describe("Edit profile flow", () => {
   test("should open edit dialog, update display name and description, and save", async ({

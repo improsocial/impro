@@ -4,7 +4,7 @@ import {
   postEmbedTemplate,
   recordEmbedTemplate,
 } from "/js/templates/postEmbed.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
 const t = new TestSuite("postEmbedTemplate");

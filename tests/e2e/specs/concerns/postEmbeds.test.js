@@ -5,7 +5,7 @@ import {
   createPost,
   createFeedGenerator,
   createList,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 const postUri = "at://did:plc:author1/app.bsky.feed.post/embed1";
 const postPath = "/profile/author1.bsky.social/post/embed1";

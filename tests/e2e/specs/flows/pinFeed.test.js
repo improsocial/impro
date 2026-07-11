@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator } from "../../factories.js";
+import { createFeedGenerator } from "../../../shared/factories.js";
 
 test.describe("Pin feed flow", () => {
   test("should show feed in feeds index after pinning from feed detail", async ({

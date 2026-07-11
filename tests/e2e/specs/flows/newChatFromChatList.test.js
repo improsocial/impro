@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../factories.js";
-import { userProfile } from "../../fixtures.js";
+import { createProfile } from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("New chat from chat list flow", () => {
   function createMessageableProfile() {

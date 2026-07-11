@@ -1,12 +1,12 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createNotification,
   createPost,
   createProfile,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Delete post flow", () => {
   test("should remove post from home feed after deleting from profile", async ({

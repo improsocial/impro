@@ -1,7 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
 const noop = () => {};

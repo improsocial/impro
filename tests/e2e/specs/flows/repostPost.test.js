@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import { createPost } from "../../../shared/factories.js";
 
 test.describe("Repost flow", () => {
   test("should show reposted post on profile after reposting on home", async ({

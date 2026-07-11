@@ -5,7 +5,7 @@ import {
   createPost,
   createProfile,
   createFeedGenerator,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Search view", () => {
   test("should display search placeholder when no query is entered", async ({

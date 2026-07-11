@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator, createList } from "../../factories.js";
+import { createFeedGenerator, createList } from "../../../shared/factories.js";
 
 test.describe("Feeds view", () => {
   test("should display header and pinned feeds", async ({ page }) => {

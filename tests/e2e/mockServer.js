@@ -1,5 +1,5 @@
-import { createPost } from "./factories.js";
-import { bskyLabeler, userProfile } from "./fixtures.js";
+import { createPost } from "../shared/factories.js";
+import { bskyLabeler, userProfile } from "./testData.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_MANIFEST,

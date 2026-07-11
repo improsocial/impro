@@ -1,5 +1,5 @@
 import { OAUTH_SCOPES } from "../../src/oauthScopes.js";
-import { userProfile } from "./fixtures.js";
+import { userProfile } from "./testData.js";
 
 // Hold the pointer down on an element long enough to trigger a long-press
 // (the app uses a 500ms threshold).

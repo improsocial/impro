@@ -7,7 +7,7 @@ import {
   createMessage,
   createProfile,
   createSystemMessage,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Chat request accept flow", () => {
   test("should accept a request and verify conversation moves from requests to main chat list", async ({

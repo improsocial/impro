@@ -7,7 +7,7 @@ import {
   createMessage,
   createProfile,
   createSystemMessage,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Chat view", () => {
   test("should display Chats header and conversation list", async ({

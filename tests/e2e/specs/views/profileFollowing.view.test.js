@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../factories.js";
+import { createProfile } from "../../../shared/factories.js";
 
 const profileUser = createProfile({
   did: "did:plc:profileuser1",

@@ -5,8 +5,8 @@ import {
   createFeedGenerator,
   createList,
   createPost,
-} from "../../factories.js";
-import { userProfile } from "../../fixtures.js";
+} from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("Home view", () => {
   test("should display Following tab and feed posts", async ({ page }) => {

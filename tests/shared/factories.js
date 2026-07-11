@@ -305,6 +305,7 @@ export function createPost({
   text,
   authorHandle,
   authorDisplayName,
+  authorAvatar,
   replyCount = 0,
   repostCount = 0,
   likeCount = 5,
@@ -325,7 +326,7 @@ export function createPost({
       did,
       handle: authorHandle,
       displayName: authorDisplayName,
-      avatar: "",
+      avatar: authorAvatar || "",
       ...(loggedOut ? {} : { viewer: { muted: false, blockedBy: false } }),
       labels: [],
       createdAt: "2025-01-01T00:00:00.000Z",
@@ -347,5 +348,19 @@ export function createPost({
     ...(loggedOut ? {} : { viewer: { ...viewer } }),
     labels: labels || [],
     ...(threadgate ? { threadgate } : {}),
+  };
+}
+
+export function createFeedItem({
+  post,
+  feedContext = "test-context",
+  reply,
+  reason,
+}) {
+  return {
+    post,
+    ...(reply ? { reply } : {}),
+    ...(reason ? { reason } : {}),
+    feedContext,
   };
 }

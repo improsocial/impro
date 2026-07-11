@@ -6,7 +6,7 @@ import {
   createMessage,
   createPost,
   createProfile,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 const BLACKSKY_APPVIEW_DID = "did:web:api.blacksky.community#bsky_appview";
 const BLACKSKY_CHAT_DID = "did:web:api.blacksky.community#bsky_chat";

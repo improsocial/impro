@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createMessage,
+  createProfile,
+} from "../../../shared/factories.js";
 
 test.describe("Chat request reject flow", () => {
   test("should reject a request and verify it is removed from requests list", async ({

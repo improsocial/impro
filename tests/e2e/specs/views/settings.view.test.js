@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login, loginWithAccounts } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { userProfile } from "../../fixtures.js";
-import { createProfile } from "../../factories.js";
+import { userProfile } from "../../testData.js";
+import { createProfile } from "../../../shared/factories.js";
 
 test.describe("Settings view", () => {
   test("should display header and Appearance menu item", async ({ page }) => {

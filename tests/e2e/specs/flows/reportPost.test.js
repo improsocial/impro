@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import { createPost } from "../../../shared/factories.js";
 
 test.describe("Report post flow", () => {
   test("should submit a report for a post through the report dialog", async ({

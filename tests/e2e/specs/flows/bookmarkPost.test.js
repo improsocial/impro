@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import { createPost } from "../../../shared/factories.js";
 
 test.describe("Bookmark post flow", () => {
   test("should show bookmarked post in bookmarks view after bookmarking on home", async ({

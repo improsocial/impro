@@ -1,4 +1,4 @@
-import { createLabelerView } from "./factories.js";
+import { createLabelerView } from "../shared/factories.js";
 
 export const userProfile = {
   did: "did:plc:testuser123",

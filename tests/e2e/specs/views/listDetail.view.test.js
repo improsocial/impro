@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createList, createPost, createProfile } from "../../factories.js";
+import {
+  createList,
+  createPost,
+  createProfile,
+} from "../../../shared/factories.js";
 
 const LIST_URI = "at://did:plc:creator1/app.bsky.graph.list/mylist";
 

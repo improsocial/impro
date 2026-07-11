@@ -8,7 +8,7 @@ import {
   createProfile,
   createSystemMessage,
   createSystemMessageLog,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Group chat participation flow", () => {
   test("should open a group from the inbox, send a message, and receive polled updates", async ({

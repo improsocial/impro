@@ -1,7 +1,7 @@
 import { TestSuite } from "../../testSuite.js";
 import { assert, assertEquals } from "../../testHelpers.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { post, feed } from "../../fixtures.js";
+import { post, feed } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 import { noop } from "/js/utils.js";
 

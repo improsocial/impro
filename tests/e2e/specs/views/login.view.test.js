@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { MockServer } from "../../mockServer.js";
 import { login, loginWithAccounts } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
-import { createProfile } from "../../factories.js";
+import { userProfile } from "../../testData.js";
+import { createProfile } from "../../../shared/factories.js";
 
 test.describe("Login view", () => {
   test("should display the login form", async ({ page }) => {
