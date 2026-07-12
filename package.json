@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.17.138",
+  "version": "0.17.139",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
@@ -44,6 +44,6 @@
     "@capacitor/haptics": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
-    "lit-html": "^3.3.1"
+    "lit-html": "3.3.3"
   }
 }
