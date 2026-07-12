@@ -9831,7 +9831,10 @@ p.setting-item-desc {
 }
 
 .bottom-sheet.text-modal .modal-dialog-content {
-  padding: 32px 24px 24px;
+  padding-top: 32px;
+  padding-right: 24px;
+  padding-bottom: 16px;
+  padding-left: 24px;
 }
 
 @media (min-width: 800px) {
@@ -9843,7 +9846,10 @@ p.setting-item-desc {
     max-width: 320px;
   }
   .bottom-sheet.text-modal .modal-dialog-content {
-    padding: 24px;
+    padding-top: 24px;
+    padding-right: 24px;
+    padding-bottom: 16px;
+    padding-left: 24px;
   }
 }
 
