@@ -372,8 +372,16 @@ main {
   word-wrap: break-word;
 }
 
+plugin-rich-text {
+  display: contents;
+}
+
 .rich-text a {
   color: var(--text-link-color);
+}
+
+.rich-text-block {
+  white-space: normal;
 }
 
 @media (hover: hover) {

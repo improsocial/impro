@@ -310,6 +310,30 @@ export class Plugin {
     });
   }
 
+  // callback(tokens, context) receives the rich-text token stream for one
+  // post and returns a new token array (or the input unchanged). The host
+  // batches all posts of a render into one call per plugin.
+  registerRichTextTransform(callback = (tokens) => tokens) {
+    const handlerId = uuid.create();
+    callHandlers.set(handlerId, async (batch) => {
+      const results = [];
+      for (const { tokens, context } of batch) {
+        try {
+          const value = await callback(tokens, context);
+          results.push({ value: serializeTransformTokens(value) });
+        } catch (error) {
+          results.push({ error: error?.message ?? String(error) });
+        }
+      }
+      return results;
+    });
+    self.postMessage({
+      type: "register",
+      target: "richTextTransform",
+      handlerId,
+    });
+  }
+
   registerSlot(name, callback = () => null) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, async (context) => {
@@ -352,6 +376,69 @@ export class Plugin {
           }),
       );
   }
+}
+
+function serializeTransformTokens(tokens) {
+  if (!Array.isArray(tokens)) return tokens;
+  return tokens.map((token) => {
+    if (
+      (token?.type === "inline" || token?.type === "block") &&
+      token.node instanceof VirtualEl
+    ) {
+      return { ...token, node: token.node._serialize() };
+    }
+    return token;
+  });
+}
+
+// Concatenates the renderable text of a token stream into a string with a position map,
+// so a transform can pattern-match across token boundaries and map matches back to tokens.
+export class FlattenedTokens {
+  constructor(tokens) {
+    this._segments = [];
+    let text = "";
+    for (const token of tokens) {
+      let value = null;
+      if (token.type === "text") value = token.value;
+      else if (token.type === "facet") value = token.text;
+      const start = text.length;
+      if (value != null) text += value;
+      this._segments.push({ token, start, end: text.length });
+    }
+    this.text = text;
+  }
+
+  // emit an inert range (no facets)
+  textFor(start, end) {
+    return this.text.slice(start, end);
+  }
+
+  // emit a live range, demoting partial facet tokens to text tokens
+  tokensFor(start, end) {
+    const out = [];
+    for (const segment of this._segments) {
+      if (segment.start === segment.end) {
+        if (segment.start >= start && segment.start < end) {
+          out.push(segment.token);
+        }
+        continue;
+      }
+      if (segment.end <= start || segment.start >= end) continue;
+      const from = Math.max(start, segment.start);
+      const to = Math.min(end, segment.end);
+      const isWholeToken = from === segment.start && to === segment.end;
+      if (isWholeToken) {
+        out.push(segment.token);
+      } else {
+        out.push({ type: "text", value: this.text.slice(from, to) });
+      }
+    }
+    return out;
+  }
+}
+
+export function flattenForScan(tokens) {
+  return new FlattenedTokens(tokens);
 }
 
 const openModals = new Map();

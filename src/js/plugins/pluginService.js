@@ -22,6 +22,10 @@ import {
   isEmptyPermissions,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, isDev, sortBy } from "/js/utils.js";
+import {
+  validateRichTextTokens,
+  hydrateRichTextFacets,
+} from "/js/richTextHelpers.js";
 import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
@@ -57,6 +61,25 @@ export function parseGithubRepoUrl(input) {
   return `${owner}/${repo}`;
 }
 
+// Stamps node tokens (inline/block) with the pluginId that created them, so
+// renderRichTextNodeToken can route each to the correct plugin's renderer.
+function stampRichTextNodeTokens(tokens, previousTokens, pluginId) {
+  const stampedIds = new Set();
+  // Only pass through previously stamped tokens to prevent cross-plugin forgery
+  for (const token of previousTokens) {
+    if (token.type === "inline" || token.type === "block") {
+      stampedIds.add(token.pluginId);
+    }
+  }
+  return tokens.map((token) => {
+    if (token.type !== "inline" && token.type !== "block") return token;
+    return {
+      ...token,
+      pluginId: stampedIds.has(token.pluginId) ? token.pluginId : pluginId,
+    };
+  });
+}
+
 export class PermissionsDeclinedError extends Error {
   constructor(message = "User declined permissions") {
     super(message);
@@ -71,6 +94,7 @@ export class PluginService extends ReactiveStore {
       sidebarItems: new Set(),
       eventListeners: new Map(),
       feedFilters: new Set(),
+      richTextTransforms: new Set(),
     };
     this.$availableUpdates = new Signal.State(null);
     this.$rawRegistryListings = new Signal.State(null);
@@ -103,6 +127,13 @@ export class PluginService extends ReactiveStore {
       }));
     });
     this.$pluginFilteredFeedItems = new SignalMap();
+    // Bumped whenever a transform registers/unregisters
+    this.$richTextTransformsVersion = new Signal.State(0);
+    this._richTextTokensCache = new Map();
+    this._pendingRichTextRuns = new Map();
+    this._richTextQueue = [];
+    this._richTextFlushScheduled = false;
+    this._richTextElements = new WeakMap();
     this.$settingTabs = new SignalMap();
     this.$slots = new SignalMap();
     this.localPluginsEnabled = isDev();
@@ -193,6 +224,21 @@ export class PluginService extends ReactiveStore {
       this.registries.feedFilters.add(entry);
       return () => this.registries.feedFilters.delete(entry);
     });
+    this.pluginBridge.addRegistrationTarget(
+      "richTextTransform",
+      (plugin, message) => {
+        const entry = {
+          pluginId: plugin.pluginId,
+          invoke: (batch) => plugin.call(message.handlerId, batch),
+        };
+        this.registries.richTextTransforms.add(entry);
+        this._invalidateRichTextTransforms();
+        return () => {
+          this.registries.richTextTransforms.delete(entry);
+          this._invalidateRichTextTransforms();
+        };
+      },
+    );
     this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
       const entry = {
         pluginId: plugin.pluginId,
@@ -767,5 +813,131 @@ export class PluginService extends ReactiveStore {
       ? {}
       : (this.$pluginFilteredFeedItems.get(feedURI) ?? {});
     this.$pluginFilteredFeedItems.set(feedURI, { ...existing, ...filtered });
+  }
+
+  // Rich-text transform pipeline
+
+  _invalidateRichTextTransforms() {
+    this._pendingRichTextRuns.clear();
+    this._richTextTokensCache.clear();
+    this.$richTextTransformsVersion.set(
+      this.$richTextTransformsVersion.get() + 1,
+    );
+  }
+
+  // Results are cached by (uri, surface); requests are batched per render flush
+  async transformRichTextTokens(tokens, context) {
+    if (this.registries.richTextTransforms.size === 0) return null;
+    const key = `${context.uri}|${context.surface}`;
+    const cached = this._richTextTokensCache.get(key);
+    if (cached && cached.text === context.source.text) {
+      return cached.tokens;
+    }
+    const pending = this._pendingRichTextRuns.get(key);
+    if (pending) return pending;
+    const item = { key, baseTokens: tokens, tokens, context };
+    const promise = new Promise((resolve) => {
+      item.resolve = resolve;
+    });
+    this._pendingRichTextRuns.set(key, promise);
+    this._richTextQueue.push(item);
+    if (!this._richTextFlushScheduled) {
+      this._richTextFlushScheduled = true;
+      queueMicrotask(() => {
+        this._richTextFlushScheduled = false;
+        const items = this._richTextQueue.splice(0);
+        this._runRichTextTransforms(
+          items,
+          this.$richTextTransformsVersion.get(),
+        );
+      });
+    }
+    return promise;
+  }
+
+  async _runRichTextTransforms(items, version) {
+    for (const transform of this.registries.richTextTransforms) {
+      const batch = items.map((item) => ({
+        tokens: item.tokens,
+        context: item.context,
+      }));
+      let results = null;
+      try {
+        results = await transform.invoke(batch);
+      } catch (e) {
+        console.error(
+          `Plugin ${transform.pluginId} rich text transform raised an exception`,
+          e,
+        );
+      }
+      if (!Array.isArray(results)) continue;
+      items.forEach((item, index) => {
+        const result = results[index];
+        if (!result || result.error != null) {
+          if (result?.error != null) {
+            console.error(
+              `Plugin ${transform.pluginId} rich text transform failed: ${result.error}`,
+            );
+          }
+          return;
+        }
+        if (!validateRichTextTokens(result.value)) {
+          console.error(
+            `Plugin ${transform.pluginId} rich text transform returned malformed tokens`,
+          );
+          return;
+        }
+        try {
+          const hydrated = hydrateRichTextFacets(result.value, item.baseTokens);
+          item.tokens = stampRichTextNodeTokens(
+            hydrated,
+            item.tokens,
+            transform.pluginId,
+          );
+        } catch (error) {
+          console.error(
+            `Plugin ${transform.pluginId} rich text transform returned an unrecognized facet`,
+            error,
+          );
+        }
+      });
+    }
+    // Discard if transforms changed mid-run
+    const isStale = version !== this.$richTextTransformsVersion.get();
+    for (const item of items) {
+      if (isStale) {
+        item.resolve(null);
+        continue;
+      }
+      this._pendingRichTextRuns.delete(item.key);
+      this._richTextTokensCache.set(item.key, {
+        text: item.context.source.text,
+        tokens: item.tokens,
+      });
+      item.resolve(item.tokens);
+    }
+  }
+
+  // Mounts a node token's VirtualEl via the owning plugin's renderer.
+  // Elements are cached by host / token
+  renderRichTextNodeToken(token, host) {
+    if (!token.pluginId || !token.node || !host) return null;
+    let byToken = this._richTextElements.get(host);
+    if (!byToken) {
+      byToken = new WeakMap();
+      this._richTextElements.set(host, byToken);
+    }
+    let cached = byToken.get(token);
+    if (!cached) {
+      let renderer = null;
+      try {
+        renderer = this.getRenderer(token.pluginId);
+      } catch {
+        return null;
+      }
+      cached = { root: renderer.createRoot() };
+      byToken.set(token, cached);
+    }
+    return cached.root.render(token.node);
   }
 }

@@ -28,6 +28,11 @@ describe("post-composer", () => {
       displayName: "Test User",
       avatar: null,
     };
+    element.pluginService = {
+      $richTextTransformsVersion: { get: () => 0 },
+      transformRichTextTokens: async () => null,
+      renderRichTextNodeToken: () => null,
+    };
     return element;
   }
 

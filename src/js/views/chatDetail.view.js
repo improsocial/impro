@@ -52,6 +52,7 @@ class ChatDetailView extends View {
       chatNotificationService,
       identityResolver,
       mainLayout,
+      pluginService,
     },
   }) {
     await auth.requireAuth();
@@ -141,6 +142,7 @@ class ChatDetailView extends View {
             record,
             isAuthenticated: true,
             condensed: true,
+            pluginService,
           })}
         </div>`;
       }
@@ -951,6 +953,7 @@ class ChatDetailView extends View {
                       embed: message.embed,
                       isAuthenticated: true,
                       currentConvoId: convoId,
+                      pluginService,
                     })}
                   </div>`
                 : null}
