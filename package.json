@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.17.130",
+  "version": "0.17.140",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
@@ -11,7 +11,8 @@
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "format": "pretty-quick --staged",
     "test": "npm run test:unit",
-    "test:unit": "node tests/unit/runTests.js",
+    "test:unit": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --test 'tests/unit/specs/**/*.test.js'",
+    "test:unit:coverage": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --experimental-test-coverage --test-coverage-include='src/js/**' --test 'tests/unit/specs/**/*.test.js'",
     "test:e2e": "npx playwright test",
     "serve:static": "node scripts/serve-static.js",
     "prepare": "husky"
@@ -43,6 +44,6 @@
     "@capacitor/haptics": "^7.0.0",
     "@capacitor/ios": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
-    "lit-html": "^3.3.1"
+    "lit-html": "3.3.3"
   }
 }

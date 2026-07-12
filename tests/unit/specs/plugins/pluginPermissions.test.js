@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   parsePermissions,
   diffPermissions,
@@ -7,26 +7,24 @@ import {
   isFetchAllowed,
 } from "/js/plugins/pluginPermissions.js";
 
-const t = new TestSuite("pluginPermissions");
-
-t.describe("parsePermissions", (it) => {
+describe("parsePermissions", () => {
   it("returns an empty object when fetch is missing", () => {
-    assertEquals(parsePermissions({}), {});
+    assert.deepEqual(parsePermissions({}), {});
   });
 
   it("omits the fetch key when no valid patterns remain", () => {
-    assertEquals(parsePermissions({ fetch: [] }), {});
-    assertEquals(parsePermissions({ fetch: [42, null] }), {});
+    assert.deepEqual(parsePermissions({ fetch: [] }), {});
+    assert.deepEqual(parsePermissions({ fetch: [42, null] }), {});
   });
 
   it("wraps a string fetch value into an array", () => {
-    assertEquals(parsePermissions({ fetch: "https://x.com/*" }), {
+    assert.deepEqual(parsePermissions({ fetch: "https://x.com/*" }), {
       fetch: ["https://x.com/*"],
     });
   });
 
   it("filters non-string entries from fetch", () => {
-    assertEquals(
+    assert.deepEqual(
       parsePermissions({
         fetch: ["https://a.com/*", 42, null, "https://b.com/*"],
       }),
@@ -35,7 +33,7 @@ t.describe("parsePermissions", (it) => {
   });
 
   it("dedupes fetch entries", () => {
-    assertEquals(
+    assert.deepEqual(
       parsePermissions({
         fetch: ["https://a.com/*", "https://b.com/*", "https://a.com/*"],
       }),
@@ -44,9 +42,9 @@ t.describe("parsePermissions", (it) => {
   });
 });
 
-t.describe("diffPermissions", (it) => {
+describe("diffPermissions", () => {
   it("returns null when there are no new permissions", () => {
-    assertEquals(
+    assert.deepEqual(
       diffPermissions(
         { fetch: ["https://a.com/*"] },
         { fetch: ["https://a.com/*"] },
@@ -56,7 +54,7 @@ t.describe("diffPermissions", (it) => {
   });
 
   it("returns null when incoming is a subset of stored", () => {
-    assertEquals(
+    assert.deepEqual(
       diffPermissions(
         { fetch: ["https://a.com/*", "https://b.com/*"] },
         { fetch: ["https://a.com/*"] },
@@ -66,7 +64,7 @@ t.describe("diffPermissions", (it) => {
   });
 
   it("returns only the newly-added fetch patterns", () => {
-    assertEquals(
+    assert.deepEqual(
       diffPermissions(
         { fetch: ["https://a.com/*"] },
         {
@@ -78,24 +76,24 @@ t.describe("diffPermissions", (it) => {
   });
 
   it("treats an empty stored set as 'everything new'", () => {
-    assertEquals(
+    assert.deepEqual(
       diffPermissions({ fetch: [] }, { fetch: ["https://a.com/*"] }),
       { fetch: ["https://a.com/*"] },
     );
   });
 
   it("treats a missing stored key the same as an empty array", () => {
-    assertEquals(diffPermissions({}, { fetch: ["https://a.com/*"] }), {
+    assert.deepEqual(diffPermissions({}, { fetch: ["https://a.com/*"] }), {
       fetch: ["https://a.com/*"],
     });
   });
 
   it("returns null when next has no keys", () => {
-    assertEquals(diffPermissions({ fetch: ["https://a.com/*"] }, {}), null);
+    assert.deepEqual(diffPermissions({ fetch: ["https://a.com/*"] }, {}), null);
   });
 
   it("omits keys from the diff when no additions for that key", () => {
-    assertEquals(
+    assert.deepEqual(
       diffPermissions(
         { fetch: ["https://a.com/*"] },
         { fetch: ["https://a.com/*"] },
@@ -105,13 +103,13 @@ t.describe("diffPermissions", (it) => {
   });
 });
 
-t.describe("isEmptyPermissions (missing-key shape)", (it) => {
+describe("isEmptyPermissions (missing-key shape)", () => {
   it("returns true for an empty object", () => {
     assert(isEmptyPermissions({}));
   });
 });
 
-t.describe("isEmptyPermissions", (it) => {
+describe("isEmptyPermissions", () => {
   it("returns true for an all-empty object", () => {
     assert(isEmptyPermissions({ fetch: [] }));
   });
@@ -121,7 +119,7 @@ t.describe("isEmptyPermissions", (it) => {
   });
 });
 
-t.describe("isFetchAllowed", (it) => {
+describe("isFetchAllowed", () => {
   it("matches any path when the pattern has no path component", () => {
     const permissions = { fetch: ["https://example.com"] };
     assert(isFetchAllowed("https://example.com/", permissions));
@@ -160,5 +158,3 @@ t.describe("isFetchAllowed", (it) => {
     assert(!isFetchAllowed("https://example.com/", {}));
   });
 });
-
-await t.run();

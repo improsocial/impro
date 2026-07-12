@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   getUnresolvedFacetsFromText,
   resolveFacets,
@@ -9,8 +9,6 @@ import {
   stripLeadingOrTrailingLink,
   richTextToString,
 } from "/js/facetHelpers.js";
-
-const t = new TestSuite("facetHelpers");
 
 // Mock identity resolver
 function createMockIdentityResolver(handleToDidMap = {}) {
@@ -24,44 +22,47 @@ function createMockIdentityResolver(handleToDidMap = {}) {
   };
 }
 
-t.describe("getUnresolvedFacetsFromText", (it) => {
+describe("getUnresolvedFacetsFromText", () => {
   it("should return empty array for null/undefined text", () => {
-    assertEquals(getUnresolvedFacetsFromText(null), []);
-    assertEquals(getUnresolvedFacetsFromText(undefined), []);
-    assertEquals(getUnresolvedFacetsFromText(""), []);
+    assert.deepEqual(getUnresolvedFacetsFromText(null), []);
+    assert.deepEqual(getUnresolvedFacetsFromText(undefined), []);
+    assert.deepEqual(getUnresolvedFacetsFromText(""), []);
   });
 
   it("should detect links with valid TLDs", () => {
     const text = "Check out example.com for more info";
     const facets = getUnresolvedFacetsFromText(text);
 
-    assertEquals(facets.length, 1);
-    assertEquals(facets[0].features[0].$type, "app.bsky.richtext.facet#link");
-    assertEquals(facets[0].features[0].uri, "https://example.com");
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(
+      facets[0].features[0].$type,
+      "app.bsky.richtext.facet#link",
+    );
+    assert.deepEqual(facets[0].features[0].uri, "https://example.com");
   });
 
   it("should detect links with https protocol", () => {
     const text = "Visit https://example.com today";
     const facets = getUnresolvedFacetsFromText(text);
 
-    assertEquals(facets.length, 1);
-    assertEquals(facets[0].features[0].uri, "https://example.com");
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(facets[0].features[0].uri, "https://example.com");
   });
 
   it("should detect links with http protocol", () => {
     const text = "Visit http://example.com today";
     const facets = getUnresolvedFacetsFromText(text);
 
-    assertEquals(facets.length, 1);
-    assertEquals(facets[0].features[0].uri, "http://example.com");
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(facets[0].features[0].uri, "http://example.com");
   });
 
   it("should strip trailing punctuation from links", () => {
     const text = "Check out example.com.";
     const facets = getUnresolvedFacetsFromText(text);
 
-    assertEquals(facets.length, 1);
-    assertEquals(facets[0].features[0].uri, "https://example.com");
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(facets[0].features[0].uri, "https://example.com");
   });
 
   it("should not strip closing paren when URI contains a matching paren", () => {
@@ -71,8 +72,8 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const links = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
     );
-    assertEquals(links.length, 1);
-    assertEquals(
+    assert.deepEqual(links.length, 1);
+    assert.deepEqual(
       links[0].features[0].uri,
       "https://en.wikipedia.org/wiki/Foo_(bar)",
     );
@@ -85,8 +86,8 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const links = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
     );
-    assertEquals(links.length, 1);
-    assertEquals(links[0].features[0].uri, "https://example.com");
+    assert.deepEqual(links.length, 1);
+    assert.deepEqual(links[0].features[0].uri, "https://example.com");
   });
 
   it("should not detect bare domains with invalid TLDs as links", () => {
@@ -96,7 +97,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const links = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
     );
-    assertEquals(links.length, 0);
+    assert.deepEqual(links.length, 0);
   });
 
   it("should not detect a domain inside an email address", () => {
@@ -106,7 +107,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const links = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#link",
     );
-    assertEquals(links.length, 0);
+    assert.deepEqual(links.length, 0);
   });
 
   it("should detect hashtags", () => {
@@ -116,9 +117,9 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const hashtags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(hashtags.length, 2);
-    assertEquals(hashtags[0].features[0].tag, "world");
-    assertEquals(hashtags[1].features[0].tag, "coding");
+    assert.deepEqual(hashtags.length, 2);
+    assert.deepEqual(hashtags[0].features[0].tag, "world");
+    assert.deepEqual(hashtags[1].features[0].tag, "coding");
   });
 
   it("should detect cashtags", () => {
@@ -128,9 +129,9 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 2);
-    assertEquals(tags[0].features[0].tag, "$AAPL");
-    assertEquals(tags[1].features[0].tag, "$TSLA");
+    assert.deepEqual(tags.length, 2);
+    assert.deepEqual(tags[0].features[0].tag, "$AAPL");
+    assert.deepEqual(tags[1].features[0].tag, "$TSLA");
   });
 
   it("should not detect cashtags mid-word", () => {
@@ -140,7 +141,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 0);
+    assert.deepEqual(tags.length, 0);
   });
 
   it("should compute correct byte indices for cashtags", () => {
@@ -150,9 +151,9 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 1);
-    assertEquals(tags[0].index.byteStart, 4);
-    assertEquals(tags[0].index.byteEnd, 9);
+    assert.deepEqual(tags.length, 1);
+    assert.deepEqual(tags[0].index.byteStart, 4);
+    assert.deepEqual(tags[0].index.byteEnd, 9);
   });
 
   it("should detect mentions", () => {
@@ -162,9 +163,9 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const mentions = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
-    assertEquals(mentions.length, 2);
-    assertEquals(mentions[0].features[0].handle, "alice.bsky.social");
-    assertEquals(mentions[1].features[0].handle, "bob.bsky.social");
+    assert.deepEqual(mentions.length, 2);
+    assert.deepEqual(mentions[0].features[0].handle, "alice.bsky.social");
+    assert.deepEqual(mentions[1].features[0].handle, "bob.bsky.social");
   });
 
   it("should detect mixed content", () => {
@@ -181,18 +182,18 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
 
-    assertEquals(links.length, 1);
-    assertEquals(hashtags.length, 1);
-    assertEquals(mentions.length, 1);
+    assert.deepEqual(links.length, 1);
+    assert.deepEqual(hashtags.length, 1);
+    assert.deepEqual(mentions.length, 1);
   });
 
   it("should have correct byte indices", () => {
     const text = "Hi @bob.com";
     const facets = getUnresolvedFacetsFromText(text);
 
-    assertEquals(facets.length, 1);
-    assertEquals(facets[0].index.byteStart, 3);
-    assertEquals(facets[0].index.byteEnd, 11);
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(facets[0].index.byteStart, 3);
+    assert.deepEqual(facets[0].index.byteEnd, 11);
   });
 
   it("should not detect mentions without valid TLD", () => {
@@ -202,7 +203,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const mentions = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
-    assertEquals(mentions.length, 0);
+    assert.deepEqual(mentions.length, 0);
   });
 
   it("should detect mentions preceded by an open paren", () => {
@@ -212,8 +213,8 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const mentions = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
-    assertEquals(mentions.length, 1);
-    assertEquals(mentions[0].features[0].handle, "alice.bsky.social");
+    assert.deepEqual(mentions.length, 1);
+    assert.deepEqual(mentions[0].features[0].handle, "alice.bsky.social");
   });
 
   it("should detect hashtags only when preceded by start or whitespace", () => {
@@ -223,8 +224,8 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 1);
-    assertEquals(tags[0].features[0].tag, "yes");
+    assert.deepEqual(tags.length, 1);
+    assert.deepEqual(tags[0].features[0].tag, "yes");
   });
 
   it("should not detect hashtags consisting only of digits", () => {
@@ -234,7 +235,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 0);
+    assert.deepEqual(tags.length, 0);
   });
 
   it("should strip trailing punctuation from hashtags", () => {
@@ -244,8 +245,8 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const tags = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#tag",
     );
-    assertEquals(tags.length, 1);
-    assertEquals(tags[0].features[0].tag, "world");
+    assert.deepEqual(tags.length, 1);
+    assert.deepEqual(tags[0].features[0].tag, "world");
   });
 
   it("should not parse email addresses as mentions", () => {
@@ -255,7 +256,7 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const mentions = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
-    assertEquals(mentions.length, 0);
+    assert.deepEqual(mentions.length, 0);
   });
 
   it("should handle multibyte characters in byte indices", () => {
@@ -265,13 +266,13 @@ t.describe("getUnresolvedFacetsFromText", (it) => {
     const mentions = facets.filter(
       (f) => f.features[0].$type === "app.bsky.richtext.facet#mention",
     );
-    assertEquals(mentions.length, 1);
+    assert.deepEqual(mentions.length, 1);
     // 'Hello ' = 6 bytes, '世界' = 6 bytes (3 each), ' ' = 1 byte = 13 bytes before @
-    assertEquals(mentions[0].index.byteStart, 13);
+    assert.deepEqual(mentions[0].index.byteStart, 13);
   });
 });
 
-t.describe("resolveFacets", (it) => {
+describe("resolveFacets", () => {
   it("should pass through non-mention facets unchanged", async () => {
     const facets = [
       {
@@ -289,9 +290,9 @@ t.describe("resolveFacets", (it) => {
     const resolver = createMockIdentityResolver();
     const resolved = await resolveFacets(facets, resolver);
 
-    assertEquals(resolved.length, 2);
-    assertEquals(resolved[0].features[0].uri, "https://example.com");
-    assertEquals(resolved[1].features[0].tag, "test");
+    assert.deepEqual(resolved.length, 2);
+    assert.deepEqual(resolved[0].features[0].uri, "https://example.com");
+    assert.deepEqual(resolved[1].features[0].tag, "test");
   });
 
   it("should resolve mention handles to DIDs", async () => {
@@ -312,12 +313,12 @@ t.describe("resolveFacets", (it) => {
     });
     const resolved = await resolveFacets(facets, resolver);
 
-    assertEquals(resolved.length, 1);
-    assertEquals(
+    assert.deepEqual(resolved.length, 1);
+    assert.deepEqual(
       resolved[0].features[0].$type,
       "app.bsky.richtext.facet#mention",
     );
-    assertEquals(resolved[0].features[0].did, "did:plc:alice123");
+    assert.deepEqual(resolved[0].features[0].did, "did:plc:alice123");
   });
 
   it("should skip mentions that already have DIDs", async () => {
@@ -333,8 +334,8 @@ t.describe("resolveFacets", (it) => {
     const resolver = createMockIdentityResolver();
     const resolved = await resolveFacets(facets, resolver);
 
-    assertEquals(resolved.length, 1);
-    assertEquals(resolved[0].features[0].did, "did:plc:existing");
+    assert.deepEqual(resolved.length, 1);
+    assert.deepEqual(resolved[0].features[0].did, "did:plc:existing");
   });
 
   it("should exclude mentions that cannot be resolved", async () => {
@@ -350,7 +351,7 @@ t.describe("resolveFacets", (it) => {
     const resolver = createMockIdentityResolver({});
     const resolved = await resolveFacets(facets, resolver);
 
-    assertEquals(resolved.length, 0);
+    assert.deepEqual(resolved.length, 0);
   });
 
   it("should handle mixed resolved and unresolved mentions", async () => {
@@ -381,13 +382,13 @@ t.describe("resolveFacets", (it) => {
     });
     const resolved = await resolveFacets(facets, resolver);
 
-    assertEquals(resolved.length, 2);
-    assertEquals(resolved[0].features[0].tag, "test");
-    assertEquals(resolved[1].features[0].did, "did:plc:alice123");
+    assert.deepEqual(resolved.length, 2);
+    assert.deepEqual(resolved[0].features[0].tag, "test");
+    assert.deepEqual(resolved[1].features[0].did, "did:plc:alice123");
   });
 });
 
-t.describe("getFacetsFromText", (it) => {
+describe("getFacetsFromText", () => {
   it("should extract and resolve facets from text", async () => {
     const text = "Hello @alice.bsky.social";
     const resolver = createMockIdentityResolver({
@@ -396,12 +397,12 @@ t.describe("getFacetsFromText", (it) => {
 
     const facets = await getFacetsFromText(text, resolver);
 
-    assertEquals(facets.length, 1);
-    assertEquals(
+    assert.deepEqual(facets.length, 1);
+    assert.deepEqual(
       facets[0].features[0].$type,
       "app.bsky.richtext.facet#mention",
     );
-    assertEquals(facets[0].features[0].did, "did:plc:alice123");
+    assert.deepEqual(facets[0].features[0].did, "did:plc:alice123");
   });
 
   it("should handle text with no facets", async () => {
@@ -410,7 +411,7 @@ t.describe("getFacetsFromText", (it) => {
 
     const facets = await getFacetsFromText(text, resolver);
 
-    assertEquals(facets.length, 0);
+    assert.deepEqual(facets.length, 0);
   });
 
   it("should handle text with only hashtags and links", async () => {
@@ -419,11 +420,11 @@ t.describe("getFacetsFromText", (it) => {
 
     const facets = await getFacetsFromText(text, resolver);
 
-    assertEquals(facets.length, 2);
+    assert.deepEqual(facets.length, 2);
   });
 });
 
-t.describe("getTagsFromFacets", (it) => {
+describe("getTagsFromFacets", () => {
   it("should return only tag facets", () => {
     const facets = [
       {
@@ -444,9 +445,9 @@ t.describe("getTagsFromFacets", (it) => {
 
     const tags = getTagsFromFacets(facets);
 
-    assertEquals(tags.length, 2);
-    assertEquals(tags[0].features[0].tag, "hello");
-    assertEquals(tags[1].features[0].tag, "world");
+    assert.deepEqual(tags.length, 2);
+    assert.deepEqual(tags[0].features[0].tag, "hello");
+    assert.deepEqual(tags[1].features[0].tag, "world");
   });
 
   it("should return empty array when no tags present", () => {
@@ -467,13 +468,13 @@ t.describe("getTagsFromFacets", (it) => {
 
     const tags = getTagsFromFacets(facets);
 
-    assertEquals(tags.length, 0);
+    assert.deepEqual(tags.length, 0);
   });
 
   it("should return empty array for empty facets array", () => {
     const tags = getTagsFromFacets([]);
 
-    assertEquals(tags.length, 0);
+    assert.deepEqual(tags.length, 0);
   });
 
   it("should filter out mentions", () => {
@@ -492,22 +493,22 @@ t.describe("getTagsFromFacets", (it) => {
 
     const tags = getTagsFromFacets(facets);
 
-    assertEquals(tags.length, 1);
-    assertEquals(tags[0].features[0].$type, "app.bsky.richtext.facet#tag");
+    assert.deepEqual(tags.length, 1);
+    assert.deepEqual(tags[0].features[0].$type, "app.bsky.richtext.facet#tag");
   });
 });
 
-t.describe("richTextToString", (it) => {
+describe("richTextToString", () => {
   it("should return empty string for null/undefined text", () => {
-    assertEquals(richTextToString(null, []), "");
-    assertEquals(richTextToString(undefined, []), "");
-    assertEquals(richTextToString("", []), "");
+    assert.deepEqual(richTextToString(null, []), "");
+    assert.deepEqual(richTextToString(undefined, []), "");
+    assert.deepEqual(richTextToString("", []), "");
   });
 
   it("should return text unchanged when no facets are provided", () => {
-    assertEquals(richTextToString("hello world", []), "hello world");
-    assertEquals(richTextToString("hello world", null), "hello world");
-    assertEquals(richTextToString("hello world", undefined), "hello world");
+    assert.deepEqual(richTextToString("hello world", []), "hello world");
+    assert.deepEqual(richTextToString("hello world", null), "hello world");
+    assert.deepEqual(richTextToString("hello world", undefined), "hello world");
   });
 
   it("should replace a shortened link with its full URI", () => {
@@ -523,7 +524,7 @@ t.describe("richTextToString", (it) => {
         ],
       },
     ];
-    assertEquals(
+    assert.deepEqual(
       richTextToString(text, facets),
       "check this out: https://example.com/foo/bar/baz",
     );
@@ -546,7 +547,7 @@ t.describe("richTextToString", (it) => {
         features: [{ $type: "app.bsky.richtext.facet#tag", tag: "hello" }],
       },
     ];
-    assertEquals(richTextToString(text, facets), "hi @alice.test #hello");
+    assert.deepEqual(richTextToString(text, facets), "hi @alice.test #hello");
   });
 
   it("should handle multiple link facets in order", () => {
@@ -571,7 +572,7 @@ t.describe("richTextToString", (it) => {
         ],
       },
     ];
-    assertEquals(
+    assert.deepEqual(
       richTextToString(text, facets),
       "see https://a.co/x/full and https://b.co/y/full end",
     );
@@ -591,63 +592,63 @@ t.describe("richTextToString", (it) => {
         ],
       },
     ];
-    assertEquals(
+    assert.deepEqual(
       richTextToString(text, facets),
       "héllo https://example.com/x/full",
     );
   });
 });
 
-t.describe("getLinkUrlsFromText", (it) => {
+describe("getLinkUrlsFromText", () => {
   it("returns urls for links in the text", () => {
-    assertEquals(
+    assert.deepEqual(
       getLinkUrlsFromText("check this https://bsky.app/profile/alice.test"),
       ["https://bsky.app/profile/alice.test"],
     );
   });
 
   it("normalizes scheme-less links to https", () => {
-    assertEquals(
+    assert.deepEqual(
       getLinkUrlsFromText("check bsky.app/profile/alice.test/post/3abc out"),
       ["https://bsky.app/profile/alice.test/post/3abc"],
     );
   });
 
   it("returns an empty array when there are no links", () => {
-    assertEquals(getLinkUrlsFromText("just some plain text"), []);
-    assertEquals(getLinkUrlsFromText(""), []);
+    assert.deepEqual(getLinkUrlsFromText("just some plain text"), []);
+    assert.deepEqual(getLinkUrlsFromText(""), []);
   });
 });
 
-t.describe("stripLeadingOrTrailingLink", (it) => {
+describe("stripLeadingOrTrailingLink", () => {
   const url = "https://bsky.app/profile/alice.test/post/3abc";
 
   it("strips a leading link", () => {
-    assertEquals(
+    assert.deepEqual(
       stripLeadingOrTrailingLink(`${url} check this out`, url),
       "check this out",
     );
   });
 
   it("strips a trailing link", () => {
-    assertEquals(
+    assert.deepEqual(
       stripLeadingOrTrailingLink(`check this out ${url}`, url),
       "check this out",
     );
   });
 
   it("returns an empty string for link-only text", () => {
-    assertEquals(stripLeadingOrTrailingLink(url, url), "");
-    assertEquals(stripLeadingOrTrailingLink(`  ${url} `, url), "");
+    assert.deepEqual(stripLeadingOrTrailingLink(url, url), "");
+    assert.deepEqual(stripLeadingOrTrailingLink(`  ${url} `, url), "");
   });
 
   it("leaves a mid-text link in place", () => {
     const text = `look at ${url} right there`;
-    assertEquals(stripLeadingOrTrailingLink(text, url), text);
+    assert.deepEqual(stripLeadingOrTrailingLink(text, url), text);
   });
 
   it("strips a scheme-less link matching the normalized url", () => {
-    assertEquals(
+    assert.deepEqual(
       stripLeadingOrTrailingLink(
         "bsky.app/profile/alice.test/post/3abc so cool",
         url,
@@ -658,11 +659,9 @@ t.describe("stripLeadingOrTrailingLink", (it) => {
 
   it("leaves text unchanged when the url does not match any link", () => {
     const text = `check this out ${url}`;
-    assertEquals(
+    assert.deepEqual(
       stripLeadingOrTrailingLink(text, "https://bsky.app/profile/other"),
       text,
     );
   });
 });
-
-await t.run();

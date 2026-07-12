@@ -1,6 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createPost,
@@ -8,7 +8,7 @@ import {
   createFeedGenerator,
   createList,
   createStarterPack,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 test.describe("Create post flow", () => {
   test("should show created post on profile after composing from home", async ({

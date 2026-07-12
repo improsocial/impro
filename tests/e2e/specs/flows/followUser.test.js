@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
-import { createProfile } from "../../factories.js";
+import { createProfile } from "../../../shared/factories.js";
 
 test.describe("Follow/Unfollow flow", () => {
   test("should increment follower count and show user in Following list after following", async ({

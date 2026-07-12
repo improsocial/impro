@@ -1,10 +1,8 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert } from "../../testHelpers.js";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import { SignInModal } from "/js/modals/signIn.modal.js";
 
-const t = new TestSuite("SignInModal");
-
-t.describe("SignInModal", (it, { beforeEach }) => {
+describe("SignInModal", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -39,5 +37,3 @@ t.describe("SignInModal", (it, { beforeEach }) => {
     assert(document.querySelector('[data-testid="sign-in-modal"]') === null);
   });
 });
-
-await t.run();

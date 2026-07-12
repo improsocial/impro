@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createFeedGenerator, createPost } from "../../factories.js";
+import { createFeedGenerator, createPost } from "../../../shared/factories.js";
 
 test.describe("Feed Detail view", () => {
   test("should display feed name, creator, and posts", async ({ page }) => {

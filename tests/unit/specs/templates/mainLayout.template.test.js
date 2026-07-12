@@ -1,12 +1,10 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   mainLayoutTemplate,
   createMainLayout,
 } from "/js/templates/mainLayout.template.js";
 import { render, html } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("mainLayoutTemplate");
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -21,7 +19,7 @@ const mockPluginService = {
   getSidebarItems: () => [],
 };
 
-t.describe("mainLayoutTemplate", (it) => {
+describe("mainLayoutTemplate", () => {
   it("should render children in center column", () => {
     const result = mainLayoutTemplate({
       pluginService: mockPluginService,
@@ -38,7 +36,7 @@ t.describe("mainLayoutTemplate", (it) => {
   });
 });
 
-t.describe("mainLayoutTemplate - footer", (it) => {
+describe("mainLayoutTemplate - footer", () => {
   it("should render footer", () => {
     const result = mainLayoutTemplate({
       pluginService: mockPluginService,
@@ -66,7 +64,7 @@ t.describe("mainLayoutTemplate - footer", (it) => {
   });
 });
 
-t.describe("mainLayoutTemplate - floating compose button", (it) => {
+describe("mainLayoutTemplate - floating compose button", () => {
   it("should not render floating compose button by default", () => {
     const result = mainLayoutTemplate({
       pluginService: mockPluginService,
@@ -76,7 +74,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='floating-compose-button']"),
       null,
     );
@@ -108,7 +106,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='floating-compose-button']"),
       null,
     );
@@ -133,7 +131,7 @@ t.describe("mainLayoutTemplate - floating compose button", (it) => {
   });
 });
 
-t.describe("mainLayoutTemplate - sidebar", (it) => {
+describe("mainLayoutTemplate - sidebar", () => {
   it("should render sidebar when showSidebarOverlay is true", () => {
     const result = mainLayoutTemplate({
       pluginService: mockPluginService,
@@ -148,7 +146,7 @@ t.describe("mainLayoutTemplate - sidebar", (it) => {
   });
 });
 
-t.describe("mainLayoutTemplate - notifications", (it) => {
+describe("mainLayoutTemplate - notifications", () => {
   it("should pass notification counts to footer", () => {
     const result = mainLayoutTemplate({
       pluginService: mockPluginService,
@@ -166,7 +164,7 @@ t.describe("mainLayoutTemplate - notifications", (it) => {
   });
 });
 
-t.describe("createMainLayout", (it, { beforeEach }) => {
+describe("createMainLayout", () => {
   let state;
   let mainLayout;
   let container;
@@ -209,7 +207,7 @@ t.describe("createMainLayout", (it, { beforeEach }) => {
 
   it("should read signals at invoke time, not at creation time", () => {
     render(mainLayout({ children: html`<div>Content</div>` }), container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll("[data-testid='status-badge']").length,
       0,
     );
@@ -229,8 +227,8 @@ t.describe("createMainLayout", (it, { beforeEach }) => {
       container,
     );
     container.querySelector("[data-testid='floating-compose-button']").click();
-    assertEquals(state.composeCalls.length, 1);
-    assertEquals(state.composeCalls[0].currentUser, mockUser);
+    assert.deepEqual(state.composeCalls.length, 1);
+    assert.deepEqual(state.composeCalls[0].currentUser, mockUser);
   });
 
   it("should let explicit options override bound defaults", () => {
@@ -247,8 +245,6 @@ t.describe("createMainLayout", (it, { beforeEach }) => {
     );
     container.querySelector("[data-testid='floating-compose-button']").click();
     assert(clicked);
-    assertEquals(state.composeCalls.length, 0);
+    assert.deepEqual(state.composeCalls.length, 0);
   });
 });
-
-await t.run();

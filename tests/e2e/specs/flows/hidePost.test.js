@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createProfile } from "../../factories.js";
+import { createPost, createProfile } from "../../../shared/factories.js";
 
 test.describe("Hide post flow", () => {
   test("should hide a post from the feed and persist after refresh", async ({

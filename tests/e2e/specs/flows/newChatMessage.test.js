@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createMessage,
+  createProfile,
+} from "../../../shared/factories.js";
 
 test.describe("New chat message flow", () => {
   test("should reorder conversations when a new message is sent", async ({

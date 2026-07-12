@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   validateVideoFile,
   VideoUploader,
@@ -7,13 +7,11 @@ import {
   VIDEO_MAX_BYTES,
 } from "/js/videoUtils.js";
 
-const t = new TestSuite("videoUtils");
-
 function fakeFile({ type = "video/mp4", size = 1024 } = {}) {
   return { type, size, name: "clip.mp4" };
 }
 
-t.describe("validateVideoFile", (it) => {
+describe("validateVideoFile", () => {
   it("accepts a supported mp4 under the size limit", () => {
     validateVideoFile(fakeFile());
   });
@@ -26,7 +24,7 @@ t.describe("validateVideoFile", (it) => {
       err = e;
     }
     assert(err instanceof VideoValidationError);
-    assertEquals(err.code, "UNSUPPORTED_TYPE");
+    assert.deepEqual(err.code, "UNSUPPORTED_TYPE");
   });
 
   it("rejects files larger than the cap", () => {
@@ -37,11 +35,11 @@ t.describe("validateVideoFile", (it) => {
       err = e;
     }
     assert(err instanceof VideoValidationError);
-    assertEquals(err.code, "TOO_LARGE");
+    assert.deepEqual(err.code, "TOO_LARGE");
   });
 });
 
-t.describe("VideoUploader.pollJob", (it) => {
+describe("VideoUploader.pollJob", () => {
   it("resolves with blob when job completes", async () => {
     const blob = { ref: { $link: "bafy" }, mimeType: "video/mp4", size: 1 };
     const states = [
@@ -58,9 +56,9 @@ t.describe("VideoUploader.pollJob", (it) => {
       intervalMs: 0,
       onProgress: (state, progress) => progressCalls.push([state, progress]),
     });
-    assertEquals(result, blob);
-    assertEquals(progressCalls.length, 3);
-    assertEquals(progressCalls[0][0], "JOB_STATE_PROCESSING");
+    assert.deepEqual(result, blob);
+    assert.deepEqual(progressCalls.length, 3);
+    assert.deepEqual(progressCalls[0][0], "JOB_STATE_PROCESSING");
   });
 
   it("rejects when job fails", async () => {
@@ -78,7 +76,7 @@ t.describe("VideoUploader.pollJob", (it) => {
       err = e;
     }
     assert(err);
-    assertEquals(err.message, "bad video");
+    assert.deepEqual(err.message, "bad video");
   });
 
   it("respects abort signal", async () => {
@@ -101,7 +99,7 @@ t.describe("VideoUploader.pollJob", (it) => {
   });
 });
 
-t.describe("VideoUploader.upload", (it) => {
+describe("VideoUploader.upload", () => {
   it("checks limits, uploads, and polls to completion", async () => {
     const blob = { ref: { $link: "bafy" }, mimeType: "video/mp4", size: 1 };
     const calls = [];
@@ -130,9 +128,9 @@ t.describe("VideoUploader.upload", (it) => {
         },
       },
     );
-    assertEquals(result, blob);
-    assertEquals(calls, ["limits", "upload", "poll"]);
-    assertEquals(observedJob.jobId, "job-1");
+    assert.deepEqual(result, blob);
+    assert.deepEqual(calls, ["limits", "upload", "poll"]);
+    assert.deepEqual(observedJob.jobId, "job-1");
   });
 
   it("throws when limits service rejects upload", async () => {
@@ -156,8 +154,6 @@ t.describe("VideoUploader.upload", (it) => {
       err = e;
     }
     assert(err);
-    assertEquals(err.message, "Daily limit reached");
+    assert.deepEqual(err.message, "Daily limit reached");
   });
 });
-
-await t.run();

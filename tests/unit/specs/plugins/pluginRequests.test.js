@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { makePluginRequest } from "/js/plugins/pluginRequests.js";
 
 function makePlugin(patterns) {
@@ -38,9 +38,7 @@ async function expectRejection(fn, includes) {
   assert(threw, "expected promise to reject");
 }
 
-const t = new TestSuite("makePluginRequest");
-
-t.describe("allowlist - scheme", (it) => {
+describe("allowlist - scheme", () => {
   it("rejects http URLs even if pattern matches host", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await expectRejection(() =>
@@ -51,7 +49,7 @@ t.describe("allowlist - scheme", (it) => {
         fakeFetch,
       ),
     );
-    assertEquals(calls.length, 0);
+    assert.deepEqual(calls.length, 0);
   });
 
   it("rejects http patterns even with https URL", async () => {
@@ -67,7 +65,7 @@ t.describe("allowlist - scheme", (it) => {
   });
 });
 
-t.describe("allowlist - host matching", (it) => {
+describe("allowlist - host matching", () => {
   it("allows exact host + path match", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await makePluginRequest(
@@ -76,7 +74,7 @@ t.describe("allowlist - host matching", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls.length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("rejects a different host", async () => {
@@ -111,7 +109,7 @@ t.describe("allowlist - host matching", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls.length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("matches *.host on the bare domain", async () => {
@@ -122,7 +120,7 @@ t.describe("allowlist - host matching", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls.length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("matches *.host on a subdomain", async () => {
@@ -133,7 +131,7 @@ t.describe("allowlist - host matching", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls.length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("does not match an unrelated suffix that happens to end in the domain", async () => {
@@ -161,7 +159,7 @@ t.describe("allowlist - host matching", (it) => {
   });
 });
 
-t.describe("allowlist - path matching", (it) => {
+describe("allowlist - path matching", () => {
   it("matches by prefix when path ends with *", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await makePluginRequest(
@@ -170,7 +168,7 @@ t.describe("allowlist - path matching", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls.length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("requires exact path when no trailing *", async () => {
@@ -195,11 +193,11 @@ t.describe("allowlist - path matching", (it) => {
         fakeFetch,
       ),
     );
-    assertEquals(calls.length, 0);
+    assert.deepEqual(calls.length, 0);
   });
 });
 
-t.describe("safe fetch options", (it) => {
+describe("safe fetch options", () => {
   it("forces credentials=omit and redirect=error", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await makePluginRequest(
@@ -208,9 +206,9 @@ t.describe("safe fetch options", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls[0].init.credentials, "omit");
-    assertEquals(calls[0].init.redirect, "error");
-    assertEquals(calls[0].init.referrerPolicy, "no-referrer");
+    assert.deepEqual(calls[0].init.credentials, "omit");
+    assert.deepEqual(calls[0].init.redirect, "error");
+    assert.deepEqual(calls[0].init.referrerPolicy, "no-referrer");
   });
 
   it("defaults method to GET", async () => {
@@ -221,7 +219,7 @@ t.describe("safe fetch options", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(calls[0].init.method, "GET");
+    assert.deepEqual(calls[0].init.method, "GET");
   });
 
   it("passes through allowed methods uppercased", async () => {
@@ -232,7 +230,7 @@ t.describe("safe fetch options", (it) => {
       { method: "post" },
       fakeFetch,
     );
-    assertEquals(calls[0].init.method, "POST");
+    assert.deepEqual(calls[0].init.method, "POST");
   });
 
   it("rejects disallowed methods", async () => {
@@ -247,11 +245,11 @@ t.describe("safe fetch options", (it) => {
         ),
       "method",
     );
-    assertEquals(calls.length, 0);
+    assert.deepEqual(calls.length, 0);
   });
 });
 
-t.describe("header handling", (it) => {
+describe("header handling", () => {
   it("forwards allowed headers", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await makePluginRequest(
@@ -260,7 +258,7 @@ t.describe("header handling", (it) => {
       { headers: { "X-Custom": "v" } },
       fakeFetch,
     );
-    assertEquals(calls[0].init.headers["X-Custom"], "v");
+    assert.deepEqual(calls[0].init.headers["X-Custom"], "v");
   });
 
   it("rejects forbidden headers (any casing)", async () => {
@@ -275,11 +273,11 @@ t.describe("header handling", (it) => {
         ),
       "header",
     );
-    assertEquals(calls.length, 0);
+    assert.deepEqual(calls.length, 0);
   });
 });
 
-t.describe("body handling", (it) => {
+describe("body handling", () => {
   it("forwards a string body", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await makePluginRequest(
@@ -288,7 +286,7 @@ t.describe("body handling", (it) => {
       { method: "POST", body: '{"a":1}' },
       fakeFetch,
     );
-    assertEquals(calls[0].init.body, '{"a":1}');
+    assert.deepEqual(calls[0].init.body, '{"a":1}');
   });
 
   it("rejects non-string body", async () => {
@@ -304,7 +302,7 @@ t.describe("body handling", (it) => {
   });
 });
 
-t.describe("response shape", (it) => {
+describe("response shape", () => {
   it("returns picked headers only", async () => {
     const { fakeFetch } = makeFakeFetch({
       headers: { "content-type": "application/json", "set-cookie": "x=1" },
@@ -316,7 +314,7 @@ t.describe("response shape", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(result.headers["content-type"], "application/json");
+    assert.deepEqual(result.headers["content-type"], "application/json");
     assert(result.headers["set-cookie"] === undefined);
   });
 
@@ -328,10 +326,8 @@ t.describe("response shape", (it) => {
       {},
       fakeFetch,
     );
-    assertEquals(result.status, 404);
-    assertEquals(result.ok, false);
-    assertEquals(result.body, "nope");
+    assert.deepEqual(result.status, 404);
+    assert.deepEqual(result.ok, false);
+    assert.deepEqual(result.body, "nope");
   });
 });
-
-await t.run();

@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createConvo, createProfile } from "../../factories.js";
+import {
+  createPost,
+  createConvo,
+  createProfile,
+} from "../../../shared/factories.js";
 
 const postUri = "at://did:plc:author1/app.bsky.feed.post/joinLink1";
 const postPath = "/profile/author1.bsky.social/post/joinLink1";

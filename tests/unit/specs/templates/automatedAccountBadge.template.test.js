@@ -1,17 +1,15 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("automatedAccountBadgeTemplate");
-
-t.describe("automatedAccountBadgeTemplate", (it) => {
+describe("automatedAccountBadgeTemplate", () => {
   it("should render nothing for non-bot profile", () => {
     const profile = { did: "did:plc:123", handle: "user.bsky.social" };
     const result = automatedAccountBadgeTemplate({ profile });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".automated-account-badge"), null);
+    assert.deepEqual(container.querySelector(".automated-account-badge"), null);
   });
 
   it("should render a button badge for bot profile", () => {
@@ -24,7 +22,7 @@ t.describe("automatedAccountBadgeTemplate", (it) => {
     render(result, container);
     const badge = container.querySelector("button.automated-account-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Automated Account");
+    assert.deepEqual(badge.getAttribute("title"), "Automated Account");
   });
 
   it("should render an SVG icon inside the badge", () => {
@@ -61,5 +59,3 @@ t.describe("automatedAccountBadgeTemplate", (it) => {
     dialog.remove();
   });
 });
-
-await t.run();

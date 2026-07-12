@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { PluginCache } from "/js/plugins/pluginCache.js";
 
 class FakeCache {
@@ -85,9 +85,7 @@ function stubCaches() {
   };
 }
 
-const t = new TestSuite("pluginCache");
-
-t.describe("PluginCache.fetch", (it, { beforeEach, afterEach }) => {
+describe("PluginCache.fetch", () => {
   let fetchStub;
   let cachesStub;
   beforeEach(() => {
@@ -102,8 +100,8 @@ t.describe("PluginCache.fetch", (it, { beforeEach, afterEach }) => {
     fetchStub = stubFetch(async () => makeResponse("hello"));
     const cache = new PluginCache();
     const response = await cache.fetch("https://example.test/a.js");
-    assertEquals(await response.text(), "hello");
-    assertEquals(fetchStub.calls.length, 1);
+    assert.deepEqual(await response.text(), "hello");
+    assert.deepEqual(fetchStub.calls.length, 1);
     const bucket = await cachesStub.caches.open("plugins-v1");
     assert(await bucket.match("https://example.test/a.js"));
   });
@@ -113,7 +111,7 @@ t.describe("PluginCache.fetch", (it, { beforeEach, afterEach }) => {
     const cache = new PluginCache();
     await cache.fetch("https://example.test/a.js");
     await cache.fetch("https://example.test/a.js");
-    assertEquals(fetchStub.calls.length, 1);
+    assert.deepEqual(fetchStub.calls.length, 1);
   });
 
   it("throws on non-OK responses and does not cache them", async () => {
@@ -130,11 +128,11 @@ t.describe("PluginCache.fetch", (it, { beforeEach, afterEach }) => {
     }
     assert(threw);
     const bucket = await cachesStub.caches.open("plugins-v1");
-    assertEquals((await bucket.keys()).length, 0);
+    assert.deepEqual((await bucket.keys()).length, 0);
   });
 });
 
-t.describe("PluginCache.reconcile", (it, { beforeEach, afterEach }) => {
+describe("PluginCache.reconcile", () => {
   let cachesStub;
   beforeEach(() => {
     cachesStub = stubCaches();
@@ -148,7 +146,7 @@ t.describe("PluginCache.reconcile", (it, { beforeEach, afterEach }) => {
     const cache = new PluginCache();
     await cache.reconcile(["https://x.test/keep.js"]);
     const remaining = (await bucket.keys()).map((request) => request.url);
-    assertEquals(remaining, ["https://x.test/keep.js"]);
+    assert.deepEqual(remaining, ["https://x.test/keep.js"]);
   });
 
   it("keeps wanted entries even if not all are present", async () => {
@@ -160,8 +158,6 @@ t.describe("PluginCache.reconcile", (it, { beforeEach, afterEach }) => {
       "https://x.test/not-yet-fetched.js",
     ]);
     const remaining = (await bucket.keys()).map((request) => request.url);
-    assertEquals(remaining, ["https://x.test/keep.js"]);
+    assert.deepEqual(remaining, ["https://x.test/keep.js"]);
   });
 });
-
-await t.run();

@@ -1,680 +1,692 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import "/js/components/post-composer.js";
 
-const t = new TestSuite("PostComposer");
-
-t.beforeEach(() => {
-  document.body.innerHTML = "";
-});
-
-async function nextFrame() {
-  // The render effect flushes on requestAnimationFrame (setTimeout(0) in the
-  // test env), so one tick applies pending renders.
-  await new Promise((resolve) => setTimeout(resolve, 0));
-}
-
-function connectElement(element) {
-  const container = document.createElement("div");
-  container.className = "page-visible";
-  container.appendChild(element);
-  document.body.appendChild(container);
-}
-
-function createPostComposer() {
-  const element = document.createElement("post-composer");
-  element.currentUser = {
-    did: "did:plc:test",
-    handle: "test.bsky.social",
-    displayName: "Test User",
-    avatar: null,
-  };
-  return element;
-}
-
-t.describe("PostComposer - rendering", (it) => {
-  it("should render dialog element", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const dialog = element.querySelector(".post-composer");
-    assert(dialog !== null);
-    assertEquals(dialog.tagName, "DIALOG");
-  });
-
-  it("should render cancel button", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const cancelButton = element.querySelector(".post-composer-cancel-button");
-    assert(cancelButton !== null);
-  });
-
-  it("should render post button", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const postButton = element.querySelector(".rounded-button-primary");
-    assert(postButton !== null);
-  });
-
-  it("should render rich-text-input", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const richTextInput = element.querySelector("rich-text-input");
-    assert(richTextInput !== null);
-  });
-
-  it("should render image picker button", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const imageButton = element.querySelector(".image-picker-button");
-    assert(imageButton !== null);
-  });
-
-  it("should render character count", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const wordCount = element.querySelector(".word-count-text");
-    assert(wordCount !== null);
-    assertEquals(wordCount.textContent, "300");
-  });
-});
-
-t.describe("PostComposer - placeholder text", (it) => {
-  it("should show 'What's up?' for new posts", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const richTextInput = element.querySelector("rich-text-input");
-    assertEquals(richTextInput.getAttribute("placeholder"), "What's up?");
-  });
-
-  it("should show 'Write your reply' for replies", () => {
-    const element = createPostComposer();
-    element.replyTo = {
-      author: { handle: "user.bsky.social", displayName: "User" },
-      record: { text: "Original post", createdAt: new Date().toISOString() },
-      indexedAt: new Date().toISOString(),
-    };
-    connectElement(element);
-    const richTextInput = element.querySelector("rich-text-input");
-    assertEquals(richTextInput.getAttribute("placeholder"), "Write your reply");
-  });
-});
-
-t.describe("PostComposer - button text", (it) => {
-  it("should show 'Post' for new posts", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const postButton = element.querySelector(".rounded-button-primary");
-    assert(postButton.textContent.includes("Post"));
-  });
-
-  it("should show 'Reply' for replies", () => {
-    const element = createPostComposer();
-    element.replyTo = {
-      author: { handle: "user.bsky.social", displayName: "User" },
-      record: { text: "Original post", createdAt: new Date().toISOString() },
-      indexedAt: new Date().toISOString(),
-    };
-    connectElement(element);
-    const postButton = element.querySelector(".rounded-button-primary");
-    assert(postButton.textContent.includes("Reply"));
-  });
-});
-
-t.describe("PostComposer - initial state", (it) => {
-  it("should start with empty post text", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    assertEquals(element.state.$postText.get(), "");
-  });
-
-  it("should not be sending initially", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    assertEquals(element.state.$isSending.get(), false);
-  });
-
-  it("should have no selected images initially", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    assertEquals(element.state.$selectedImages.get().length, 0);
-  });
-});
-
-t.describe("PostComposer - character limit", (it) => {
-  it("should show 300 remaining characters initially", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const wordCount = element.querySelector(".word-count-text");
-    assertEquals(wordCount.textContent, "300");
-  });
-
-  it("should add overflow class when over limit", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("x".repeat(301));
-    await nextFrame();
-    const wordCountContainer = element.querySelector(".word-count");
-    assert(wordCountContainer.classList.contains("overflow"));
-  });
-
-  it("should disable post button when over limit", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("x".repeat(301));
-    await nextFrame();
-    const postButton = element.querySelector(".rounded-button-primary");
-    assert(postButton.disabled);
-  });
-});
-
-t.describe("PostComposer - open method", (it) => {
-  it("should show the dialog when open() is called", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.open();
-    const dialog = element.querySelector(".post-composer");
-    assert(dialog.open);
-  });
-});
-
-t.describe("PostComposer - close method", (it) => {
-  it("should close the dialog when close() is called", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.open();
-    element.close();
-    const dialog = element.querySelector(".post-composer");
-    assert(!dialog.open);
-  });
-
-  it("should dispatch post-composer-closed event when close() is called", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.open();
-
-    let eventFired = false;
-    element.addEventListener("post-composer-closed", () => {
-      eventFired = true;
-    });
-
-    element.close();
-    assert(eventFired);
-  });
-});
-
-t.describe("PostComposer - send method", (it) => {
-  it("should set isSending to true when send() is called", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-
-    // Listen for the event but don't do anything
-    element.addEventListener("send-post", () => {});
-
-    element.send();
-    assertEquals(element.state.$isSending.get(), true);
-  });
-
-  it("should dispatch send-post event with post data", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-
-    let receivedDetail = null;
-    element.addEventListener("send-post", (e) => {
-      receivedDetail = e.detail;
-    });
-
-    element.send();
-    assertEquals(receivedDetail.postText, "Hello world");
-  });
-
-  it("should show loading spinner when sending", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$isSending.set(true);
-    await nextFrame();
-    const spinner = element.querySelector(".loading-spinner");
-    assert(spinner !== null);
-  });
-
-  it("should disable post button when sending", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$isSending.set(true);
-    await nextFrame();
-    const postButton = element.querySelector(".rounded-button-primary");
-    assert(postButton.disabled);
-  });
-});
-
-t.describe("PostComposer - keyboard shortcuts", (it) => {
-  it("should send post on Cmd+Enter", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-
-    let receivedDetail = null;
-    element.addEventListener("send-post", (e) => {
-      receivedDetail = e.detail;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        metaKey: true,
-        bubbles: true,
-      }),
-    );
-    assert(receivedDetail !== null);
-    assertEquals(receivedDetail.postText, "Hello world");
-  });
-
-  it("should send post on Ctrl+Enter", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-
-    let fired = false;
-    element.addEventListener("send-post", () => {
-      fired = true;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        ctrlKey: true,
-        bubbles: true,
-      }),
-    );
-    assert(fired);
-  });
-
-  it("should not send on Cmd+Enter when post text is empty", () => {
-    const element = createPostComposer();
-    connectElement(element);
-
-    let fired = false;
-    element.addEventListener("send-post", () => {
-      fired = true;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        metaKey: true,
-        bubbles: true,
-      }),
-    );
-    assert(!fired);
-  });
-
-  it("should not send on Cmd+Enter when over character limit", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("x".repeat(301));
-
-    let fired = false;
-    element.addEventListener("send-post", () => {
-      fired = true;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        metaKey: true,
-        bubbles: true,
-      }),
-    );
-    assert(!fired);
-  });
-
-  it("should not send on Cmd+Enter when already sending", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-    element.state.$isSending.set(true);
-
-    let count = 0;
-    element.addEventListener("send-post", () => {
-      count++;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", {
-        key: "Enter",
-        metaKey: true,
-        bubbles: true,
-      }),
-    );
-    assertEquals(count, 0);
-  });
-
-  it("should not send on plain Enter", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Hello world");
-
-    let fired = false;
-    element.addEventListener("send-post", () => {
-      fired = true;
-    });
-
-    const dialog = element.querySelector(".post-composer");
-    dialog.dispatchEvent(
-      new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
-    );
-    assert(!fired);
-  });
-});
-
-t.describe("PostComposer - image selection", (it) => {
-  it("should have file input for images and videos", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const input = element.querySelector('input[type="file"]');
-    assert(input !== null);
-    assertEquals(input.accept, "image/*,video/*");
-    assert(input.multiple);
-  });
-
-  it("should disable image button when 4 images are selected", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$selectedImages.set([
-      { file: {}, dataUrl: "data:..." },
-      { file: {}, dataUrl: "data:..." },
-      { file: {}, dataUrl: "data:..." },
-      { file: {}, dataUrl: "data:..." },
-    ]);
-    await nextFrame();
-    const imageButton = element.querySelector(".image-picker-button");
-    assert(imageButton.disabled);
-  });
-});
-
-t.describe("PostComposer - confirmClose", (it) => {
-  it("should return true when post text is empty", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("");
-    const result = await element.confirmClose();
-    assertEquals(result, true);
-  });
-});
-
-t.describe("PostComposer - reinitialization protection", (it) => {
-  it("should not reinitialize when connectedCallback is called multiple times", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$postText.set("Test content");
-
-    element.connectedCallback();
-
-    assertEquals(element.state.$postText.get(), "Test content");
-  });
-});
-
-t.describe("PostComposer - initial text/cursor", (it) => {
-  it("defaults initialText and initialCursor to null when not set", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    assertEquals(element.initialText, null);
-    assertEquals(element.initialCursor, null);
-  });
-
-  it("preserves initialText set before connectedCallback", () => {
-    const element = createPostComposer();
-    element.initialText = "Pre-seeded";
-    element.initialCursor = 0;
-    connectElement(element);
-    assertEquals(element.initialText, "Pre-seeded");
-    assertEquals(element.initialCursor, 0);
-  });
-
-  it("seeds the rich-text-input on open when initialText is set", () => {
-    const element = createPostComposer();
-    element.initialText = "Hello from a plugin";
-    connectElement(element);
-    element.open();
-    const richTextInput = element.querySelector("rich-text-input");
-    assertEquals(richTextInput.text, "Hello from a plugin");
-    assertEquals(element.state.$postText.get(), "Hello from a plugin");
-  });
-
-  it("does not seed text when initialText is null", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.open();
-    const richTextInput = element.querySelector("rich-text-input");
-    assertEquals(richTextInput.text, "");
-    assertEquals(element.state.$postText.get(), "");
-  });
-
-  it("calls setCursor on the rich-text-input when initialCursor is set", () => {
-    const element = createPostComposer();
-    element.initialText = "abcdef";
-    element.initialCursor = 3;
-    connectElement(element);
-
-    const richTextInput = element.querySelector("rich-text-input");
-    const calls = [];
-    const originalSetCursor = richTextInput.setCursor.bind(richTextInput);
-    richTextInput.setCursor = (cursor) => {
-      calls.push(cursor);
-      originalSetCursor(cursor);
-    };
-
-    element.open();
-    assertEquals(calls, [3]);
-  });
-
-  it("does not call setCursor when initialCursor is null", () => {
-    const element = createPostComposer();
-    element.initialText = "abcdef";
-    connectElement(element);
-
-    const richTextInput = element.querySelector("rich-text-input");
-    let cursorCalled = false;
-    richTextInput.setCursor = () => {
-      cursorCalled = true;
-    };
-
-    element.open();
-    assert(!cursorCalled);
-  });
-
-  it("allows setting only initialCursor without initialText", () => {
-    const element = createPostComposer();
-    element.initialCursor = 0;
-    connectElement(element);
-
-    const richTextInput = element.querySelector("rich-text-input");
-    const calls = [];
-    richTextInput.setCursor = (cursor) => calls.push(cursor);
-    let setTextCalled = false;
-    richTextInput.setText = () => {
-      setTextCalled = true;
-    };
-
-    element.open();
-    assert(!setTextCalled);
-    assertEquals(calls, [0]);
-  });
-});
-
-function makeImageFile(name = "pasted.png") {
-  return new globalThis.window.File(["png-bytes"], name, { type: "image/png" });
-}
-
-function makeVideoFile(name = "clip.mp4") {
-  return new globalThis.window.File(["mp4-bytes"], name, { type: "video/mp4" });
-}
-
-function makePasteEvent(files) {
-  let prevented = false;
-  return {
-    clipboardData: { files, items: [] },
-    preventDefault: () => {
-      prevented = true;
-    },
-    get defaultPrevented() {
-      return prevented;
-    },
-  };
-}
-
-t.describe("PostComposer - paste media", (it) => {
-  it("adds pasted image files to selected images", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    const event = makePasteEvent([makeImageFile()]);
-    element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    const selectedImages = element.state.$selectedImages.get();
-    assertEquals(selectedImages.length, 1);
-    assert(selectedImages[0].dataUrl.startsWith("data:image/png"));
-    assert(event.defaultPrevented);
-  });
-
-  it("adds multiple pasted images up to the 4-image cap", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$selectedImages.set([
-      { file: {}, dataUrl: "data:..." },
-      { file: {}, dataUrl: "data:..." },
-      { file: {}, dataUrl: "data:..." },
-    ]);
-    const event = makePasteEvent([
-      makeImageFile("a.png"),
-      makeImageFile("b.png"),
-      makeImageFile("c.png"),
-    ]);
-    element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    assertEquals(element.state.$selectedImages.get().length, 4);
-  });
-
-  it("does not add pasted images when a video is already selected", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element.state.$selectedVideo.set({ file: {}, status: "done" });
-    const event = makePasteEvent([makeImageFile()]);
-    element.handlePaste(event);
-    await new Promise((resolve) => setTimeout(resolve, 10));
-    assertEquals(element.state.$selectedImages.get().length, 0);
-    assert(event.defaultPrevented);
-  });
-
-  it("ignores pastes with no files (and does not preventDefault)", () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element._unresolvedFacets = [];
-    const event = makePasteEvent([]);
-    element.handlePaste(event);
-    assert(!event.defaultPrevented);
-    assertEquals(element.state.$selectedImages.get().length, 0);
-  });
-});
-
-function makeLinkFacet(url) {
-  return {
-    index: { byteStart: 0, byteEnd: url.length },
-    features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
-  };
-}
-
-t.describe("PostComposer - paste links", (it, { beforeEach, afterEach }) => {
+describe("post-composer", () => {
   beforeEach(() => {
-    globalThis.fetch = () => Promise.resolve({ ok: false });
+    document.body.innerHTML = "";
   });
 
-  afterEach(() => {
-    delete globalThis.fetch;
-  });
+  async function nextFrame() {
+    // The render effect flushes on requestAnimationFrame (setTimeout(0) in the
+    // test env), so one tick applies pending renders.
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
 
-  it("attaches an external link embed immediately when a link is pasted", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
-    element.handlePaste(makePasteEvent([]));
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    assertEquals(element._externalLinkUrl, "https://example.com/article");
-    assertEquals(
-      element.state.$externalLinkEmbedData.get().url,
-      "https://example.com/article",
-    );
-  });
+  function connectElement(element) {
+    const container = document.createElement("div");
+    container.className = "page-visible";
+    container.appendChild(element);
+    document.body.appendChild(container);
+  }
 
-  it("does not attach an external link embed for a rejected URL", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element._rejectedLinkEmbeds.add("https://example.com/article");
-    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
-    element.handlePaste(makePasteEvent([]));
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    assertEquals(element._externalLinkUrl, null);
-    assertEquals(element.state.$externalLinkEmbedData.get(), null);
-  });
-
-  it("does not replace an existing external link embed", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    element._externalLinkUrl = "https://existing.com/page";
-    element._unresolvedFacets = [makeLinkFacet("https://example.com/article")];
-    element.handlePaste(makePasteEvent([]));
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    assertEquals(element._externalLinkUrl, "https://existing.com/page");
-  });
-
-  it("attaches a quote post instead of an external link embed for post links", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    let loadedQuoteUrl = null;
-    element.loadQuotedRecordFromLink = () => {
-      loadedQuoteUrl = element._quotedRecordUrl;
+  function createPostComposer() {
+    const element = document.createElement("post-composer");
+    element.currentUser = {
+      did: "did:plc:test",
+      handle: "test.bsky.social",
+      displayName: "Test User",
+      avatar: null,
     };
-    element._unresolvedFacets = [
-      makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-    ];
-    element.handlePaste(makePasteEvent([]));
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    assertEquals(
-      loadedQuoteUrl,
-      "https://bsky.app/profile/alice.test/post/3abc",
-    );
-    assertEquals(element._externalLinkUrl, null);
+    return element;
+  }
+
+  describe("PostComposer - rendering", () => {
+    it("should render dialog element", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const dialog = element.querySelector(".post-composer");
+      assert(dialog !== null);
+      assert.deepEqual(dialog.tagName, "DIALOG");
+    });
+
+    it("should render cancel button", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const cancelButton = element.querySelector(
+        ".post-composer-cancel-button",
+      );
+      assert(cancelButton !== null);
+    });
+
+    it("should render post button", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton !== null);
+    });
+
+    it("should render rich-text-input", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const richTextInput = element.querySelector("rich-text-input");
+      assert(richTextInput !== null);
+    });
+
+    it("should render image picker button", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const imageButton = element.querySelector(".image-picker-button");
+      assert(imageButton !== null);
+    });
+
+    it("should render character count", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const wordCount = element.querySelector(".word-count-text");
+      assert(wordCount !== null);
+      assert.deepEqual(wordCount.textContent, "300");
+    });
   });
 
-  it("does not attach a second quote post when one is already attached", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    let loadCalled = false;
-    element.loadQuotedRecordFromLink = () => {
-      loadCalled = true;
+  describe("PostComposer - placeholder text", () => {
+    it("should show 'What's up?' for new posts", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const richTextInput = element.querySelector("rich-text-input");
+      assert.deepEqual(richTextInput.getAttribute("placeholder"), "What's up?");
+    });
+
+    it("should show 'Write your reply' for replies", () => {
+      const element = createPostComposer();
+      element.replyTo = {
+        author: { handle: "user.bsky.social", displayName: "User" },
+        record: { text: "Original post", createdAt: new Date().toISOString() },
+        indexedAt: new Date().toISOString(),
+      };
+      connectElement(element);
+      const richTextInput = element.querySelector("rich-text-input");
+      assert.deepEqual(
+        richTextInput.getAttribute("placeholder"),
+        "Write your reply",
+      );
+    });
+  });
+
+  describe("PostComposer - button text", () => {
+    it("should show 'Post' for new posts", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton.textContent.includes("Post"));
+    });
+
+    it("should show 'Reply' for replies", () => {
+      const element = createPostComposer();
+      element.replyTo = {
+        author: { handle: "user.bsky.social", displayName: "User" },
+        record: { text: "Original post", createdAt: new Date().toISOString() },
+        indexedAt: new Date().toISOString(),
+      };
+      connectElement(element);
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton.textContent.includes("Reply"));
+    });
+  });
+
+  describe("PostComposer - initial state", () => {
+    it("should start with empty post text", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.state.$postText.get(), "");
+    });
+
+    it("should not be sending initially", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.state.$isSending.get(), false);
+    });
+
+    it("should have no selected images initially", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+    });
+  });
+
+  describe("PostComposer - character limit", () => {
+    it("should show 300 remaining characters initially", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const wordCount = element.querySelector(".word-count-text");
+      assert.deepEqual(wordCount.textContent, "300");
+    });
+
+    it("should add overflow class when over limit", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("x".repeat(301));
+      await nextFrame();
+      const wordCountContainer = element.querySelector(".word-count");
+      assert(wordCountContainer.classList.contains("overflow"));
+    });
+
+    it("should disable post button when over limit", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("x".repeat(301));
+      await nextFrame();
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton.disabled);
+    });
+  });
+
+  describe("PostComposer - open method", () => {
+    it("should show the dialog when open() is called", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const dialog = element.querySelector(".post-composer");
+      assert(dialog.open);
+    });
+  });
+
+  describe("PostComposer - close method", () => {
+    it("should close the dialog when close() is called", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      element.close();
+      const dialog = element.querySelector(".post-composer");
+      assert(!dialog.open);
+    });
+
+    it("should dispatch post-composer-closed event when close() is called", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+
+      let eventFired = false;
+      element.addEventListener("post-composer-closed", () => {
+        eventFired = true;
+      });
+
+      element.close();
+      assert(eventFired);
+    });
+  });
+
+  describe("PostComposer - send method", () => {
+    it("should set isSending to true when send() is called", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+
+      // Listen for the event but don't do anything
+      element.addEventListener("send-post", () => {});
+
+      element.send();
+      assert.deepEqual(element.state.$isSending.get(), true);
+    });
+
+    it("should dispatch send-post event with post data", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+
+      element.send();
+      assert.deepEqual(receivedDetail.postText, "Hello world");
+    });
+
+    it("should show loading spinner when sending", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$isSending.set(true);
+      await nextFrame();
+      const spinner = element.querySelector(".loading-spinner");
+      assert(spinner !== null);
+    });
+
+    it("should disable post button when sending", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$isSending.set(true);
+      await nextFrame();
+      const postButton = element.querySelector(".rounded-button-primary");
+      assert(postButton.disabled);
+    });
+  });
+
+  describe("PostComposer - keyboard shortcuts", () => {
+    it("should send post on Cmd+Enter", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+      assert(receivedDetail !== null);
+      assert.deepEqual(receivedDetail.postText, "Hello world");
+    });
+
+    it("should send post on Ctrl+Enter", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+
+      let fired = false;
+      element.addEventListener("send-post", () => {
+        fired = true;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          ctrlKey: true,
+          bubbles: true,
+        }),
+      );
+      assert(fired);
+    });
+
+    it("should not send on Cmd+Enter when post text is empty", () => {
+      const element = createPostComposer();
+      connectElement(element);
+
+      let fired = false;
+      element.addEventListener("send-post", () => {
+        fired = true;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+      assert(!fired);
+    });
+
+    it("should not send on Cmd+Enter when over character limit", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("x".repeat(301));
+
+      let fired = false;
+      element.addEventListener("send-post", () => {
+        fired = true;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+      assert(!fired);
+    });
+
+    it("should not send on Cmd+Enter when already sending", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+      element.state.$isSending.set(true);
+
+      let count = 0;
+      element.addEventListener("send-post", () => {
+        count++;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", {
+          key: "Enter",
+          metaKey: true,
+          bubbles: true,
+        }),
+      );
+      assert.deepEqual(count, 0);
+    });
+
+    it("should not send on plain Enter", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+
+      let fired = false;
+      element.addEventListener("send-post", () => {
+        fired = true;
+      });
+
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
+      );
+      assert(!fired);
+    });
+  });
+
+  describe("PostComposer - image selection", () => {
+    it("should have file input for images and videos", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const input = element.querySelector('input[type="file"]');
+      assert(input !== null);
+      assert.deepEqual(input.accept, "image/*,video/*");
+      assert(input.multiple);
+    });
+
+    it("should disable image button when 4 images are selected", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$selectedImages.set([
+        { file: {}, dataUrl: "data:..." },
+        { file: {}, dataUrl: "data:..." },
+        { file: {}, dataUrl: "data:..." },
+        { file: {}, dataUrl: "data:..." },
+      ]);
+      await nextFrame();
+      const imageButton = element.querySelector(".image-picker-button");
+      assert(imageButton.disabled);
+    });
+  });
+
+  describe("PostComposer - confirmClose", () => {
+    it("should return true when post text is empty", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("");
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+    });
+  });
+
+  describe("PostComposer - reinitialization protection", () => {
+    it("should not reinitialize when connectedCallback is called multiple times", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Test content");
+
+      element.connectedCallback();
+
+      assert.deepEqual(element.state.$postText.get(), "Test content");
+    });
+  });
+
+  describe("PostComposer - initial text/cursor", () => {
+    it("defaults initialText and initialCursor to null when not set", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element.initialText, null);
+      assert.deepEqual(element.initialCursor, null);
+    });
+
+    it("preserves initialText set before connectedCallback", () => {
+      const element = createPostComposer();
+      element.initialText = "Pre-seeded";
+      element.initialCursor = 0;
+      connectElement(element);
+      assert.deepEqual(element.initialText, "Pre-seeded");
+      assert.deepEqual(element.initialCursor, 0);
+    });
+
+    it("seeds the rich-text-input on open when initialText is set", () => {
+      const element = createPostComposer();
+      element.initialText = "Hello from a plugin";
+      connectElement(element);
+      element.open();
+      const richTextInput = element.querySelector("rich-text-input");
+      assert.deepEqual(richTextInput.text, "Hello from a plugin");
+      assert.deepEqual(element.state.$postText.get(), "Hello from a plugin");
+    });
+
+    it("does not seed text when initialText is null", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const richTextInput = element.querySelector("rich-text-input");
+      assert.deepEqual(richTextInput.text, "");
+      assert.deepEqual(element.state.$postText.get(), "");
+    });
+
+    it("calls setCursor on the rich-text-input when initialCursor is set", () => {
+      const element = createPostComposer();
+      element.initialText = "abcdef";
+      element.initialCursor = 3;
+      connectElement(element);
+
+      const richTextInput = element.querySelector("rich-text-input");
+      const calls = [];
+      const originalSetCursor = richTextInput.setCursor.bind(richTextInput);
+      richTextInput.setCursor = (cursor) => {
+        calls.push(cursor);
+        originalSetCursor(cursor);
+      };
+
+      element.open();
+      assert.deepEqual(calls, [3]);
+    });
+
+    it("does not call setCursor when initialCursor is null", () => {
+      const element = createPostComposer();
+      element.initialText = "abcdef";
+      connectElement(element);
+
+      const richTextInput = element.querySelector("rich-text-input");
+      let cursorCalled = false;
+      richTextInput.setCursor = () => {
+        cursorCalled = true;
+      };
+
+      element.open();
+      assert(!cursorCalled);
+    });
+
+    it("allows setting only initialCursor without initialText", () => {
+      const element = createPostComposer();
+      element.initialCursor = 0;
+      connectElement(element);
+
+      const richTextInput = element.querySelector("rich-text-input");
+      const calls = [];
+      richTextInput.setCursor = (cursor) => calls.push(cursor);
+      let setTextCalled = false;
+      richTextInput.setText = () => {
+        setTextCalled = true;
+      };
+
+      element.open();
+      assert(!setTextCalled);
+      assert.deepEqual(calls, [0]);
+    });
+  });
+
+  function makeImageFile(name = "pasted.png") {
+    return new globalThis.window.File(["png-bytes"], name, {
+      type: "image/png",
+    });
+  }
+
+  function makeVideoFile(name = "clip.mp4") {
+    return new globalThis.window.File(["mp4-bytes"], name, {
+      type: "video/mp4",
+    });
+  }
+
+  function makePasteEvent(files) {
+    let prevented = false;
+    return {
+      clipboardData: { files, items: [] },
+      preventDefault: () => {
+        prevented = true;
+      },
+      get defaultPrevented() {
+        return prevented;
+      },
     };
-    element._quotedRecordUrl = "https://bsky.app/profile/bob.test/post/3xyz";
-    element._unresolvedFacets = [
-      makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-    ];
-    element.handlePaste(makePasteEvent([]));
-    await new Promise((resolve) => requestAnimationFrame(resolve));
-    assert(!loadCalled);
-    assertEquals(
-      element._quotedRecordUrl,
-      "https://bsky.app/profile/bob.test/post/3xyz",
-    );
-  });
-});
+  }
 
-t.describe(
-  "PostComposer - record link embeds",
-  (it, { beforeEach, afterEach }) => {
+  describe("PostComposer - paste media", () => {
+    it("adds pasted image files to selected images", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const event = makePasteEvent([makeImageFile()]);
+      element.handlePaste(event);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      const selectedImages = element.state.$selectedImages.get();
+      assert.deepEqual(selectedImages.length, 1);
+      assert(selectedImages[0].dataUrl.startsWith("data:image/png"));
+      assert(event.defaultPrevented);
+    });
+
+    it("adds multiple pasted images up to the 4-image cap", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$selectedImages.set([
+        { file: {}, dataUrl: "data:..." },
+        { file: {}, dataUrl: "data:..." },
+        { file: {}, dataUrl: "data:..." },
+      ]);
+      const event = makePasteEvent([
+        makeImageFile("a.png"),
+        makeImageFile("b.png"),
+        makeImageFile("c.png"),
+      ]);
+      element.handlePaste(event);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      assert.deepEqual(element.state.$selectedImages.get().length, 4);
+    });
+
+    it("does not add pasted images when a video is already selected", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$selectedVideo.set({ file: {}, status: "done" });
+      const event = makePasteEvent([makeImageFile()]);
+      element.handlePaste(event);
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert(event.defaultPrevented);
+    });
+
+    it("ignores pastes with no files (and does not preventDefault)", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element._unresolvedFacets = [];
+      const event = makePasteEvent([]);
+      element.handlePaste(event);
+      assert(!event.defaultPrevented);
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+    });
+  });
+
+  function makeLinkFacet(url) {
+    return {
+      index: { byteStart: 0, byteEnd: url.length },
+      features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+    };
+  }
+
+  describe("PostComposer - paste links", () => {
+    beforeEach(() => {
+      globalThis.fetch = () => Promise.resolve({ ok: false });
+    });
+
+    afterEach(() => {
+      delete globalThis.fetch;
+    });
+
+    it("attaches an external link embed immediately when a link is pasted", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element._unresolvedFacets = [
+        makeLinkFacet("https://example.com/article"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(element._externalLinkUrl, "https://example.com/article");
+      assert.deepEqual(
+        element.state.$externalLinkEmbedData.get().url,
+        "https://example.com/article",
+      );
+    });
+
+    it("does not attach an external link embed for a rejected URL", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element._rejectedLinkEmbeds.add("https://example.com/article");
+      element._unresolvedFacets = [
+        makeLinkFacet("https://example.com/article"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(element._externalLinkUrl, null);
+      assert.deepEqual(element.state.$externalLinkEmbedData.get(), null);
+    });
+
+    it("does not replace an existing external link embed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element._externalLinkUrl = "https://existing.com/page";
+      element._unresolvedFacets = [
+        makeLinkFacet("https://example.com/article"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(element._externalLinkUrl, "https://existing.com/page");
+    });
+
+    it("attaches a quote post instead of an external link embed for post links", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      let loadedQuoteUrl = null;
+      element.loadQuotedRecordFromLink = () => {
+        loadedQuoteUrl = element._quotedRecordUrl;
+      };
+      element._unresolvedFacets = [
+        makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert.deepEqual(
+        loadedQuoteUrl,
+        "https://bsky.app/profile/alice.test/post/3abc",
+      );
+      assert.deepEqual(element._externalLinkUrl, null);
+    });
+
+    it("does not attach a second quote post when one is already attached", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      let loadCalled = false;
+      element.loadQuotedRecordFromLink = () => {
+        loadCalled = true;
+      };
+      element._quotedRecordUrl = "https://bsky.app/profile/bob.test/post/3xyz";
+      element._unresolvedFacets = [
+        makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+      ];
+      element.handlePaste(makePasteEvent([]));
+      await new Promise((resolve) => requestAnimationFrame(resolve));
+      assert(!loadCalled);
+      assert.deepEqual(
+        element._quotedRecordUrl,
+        "https://bsky.app/profile/bob.test/post/3xyz",
+      );
+    });
+  });
+
+  describe("PostComposer - record link embeds", () => {
     let element;
 
     beforeEach(() => {
@@ -750,7 +762,7 @@ t.describe(
         creator: { did: "did:plc:creator1", handle: "creator1.test" },
       };
       connectElement(preSeeded);
-      assertEquals(
+      assert.deepEqual(
         preSeeded.quotedRecord.$type,
         "app.bsky.feed.defs#generatorView",
       );
@@ -763,11 +775,11 @@ t.describe(
 
     it("attaches a quoted post embed from a pasted post URL", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/post/3abc");
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.$type,
         "app.bsky.embed.record#viewRecord",
       );
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.uri,
         "at://did:plc:creator1/app.bsky.feed.post/3abc",
       );
@@ -786,7 +798,7 @@ t.describe(
       await inputLink(
         "https://bsky.app/profile/did:plc:creator1/feed/cool-feed",
       );
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.uri,
         "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
       );
@@ -794,11 +806,11 @@ t.describe(
 
     it("attaches a feed generator embed from a pasted feed URL", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.$type,
         "app.bsky.feed.defs#generatorView",
       );
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.uri,
         "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
       );
@@ -807,13 +819,16 @@ t.describe(
           ".post-composer-embed-preview .feed-generator-embed",
         ) !== null,
       );
-      assertEquals(element._externalLinkUrl, null);
+      assert.deepEqual(element._externalLinkUrl, null);
     });
 
     it("attaches a list embed from a pasted list URL", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
-      assertEquals(element.quotedRecord.$type, "app.bsky.graph.defs#listView");
-      assertEquals(
+      assert.deepEqual(
+        element.quotedRecord.$type,
+        "app.bsky.graph.defs#listView",
+      );
+      assert.deepEqual(
         element.quotedRecord.uri,
         "at://did:plc:creator1/app.bsky.graph.list/cool-list",
       );
@@ -825,11 +840,11 @@ t.describe(
 
     it("attaches a starter pack embed from a bsky.app starter-pack URL", async () => {
       await inputLink("https://bsky.app/starter-pack/creator1.test/cool-pack");
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.$type,
         "app.bsky.graph.defs#starterPackViewBasic",
       );
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.uri,
         "at://did:plc:creator1/app.bsky.graph.starterpack/cool-pack",
       );
@@ -844,7 +859,7 @@ t.describe(
       await inputLink(
         "https://bsky.app/profile/creator1.test/starter-pack/cool-pack",
       );
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.$type,
         "app.bsky.graph.defs#starterPackViewBasic",
       );
@@ -852,8 +867,8 @@ t.describe(
 
     it("treats unrecognized in-app URLs as external links", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/follows");
-      assertEquals(element.quotedRecord, null);
-      assertEquals(
+      assert.deepEqual(element.quotedRecord, null);
+      assert.deepEqual(
         element._externalLinkUrl,
         "https://bsky.app/profile/creator1.test/follows",
       );
@@ -862,11 +877,11 @@ t.describe(
     it("does not attach a second record embed when one is attached", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
       await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
-      assertEquals(
+      assert.deepEqual(
         element.quotedRecord.$type,
         "app.bsky.feed.defs#generatorView",
       );
-      assertEquals(
+      assert.deepEqual(
         element._quotedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
@@ -885,13 +900,13 @@ t.describe(
       };
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
       await inputLink("https://bsky.app/profile/creator1.test/lists/cool-list");
-      assertEquals(feedLoadCount, 1);
-      assertEquals(listLoadCount, 0);
-      assertEquals(
+      assert.deepEqual(feedLoadCount, 1);
+      assert.deepEqual(listLoadCount, 0);
+      assert.deepEqual(
         element._quotedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
-      assertEquals(element.quotedRecord, null);
+      assert.deepEqual(element.quotedRecord, null);
     });
 
     it("ignores a record load that resolves after the embed was cleared", async () => {
@@ -909,8 +924,11 @@ t.describe(
         creator: { did: "did:plc:creator1", handle: "creator1.test" },
       });
       await new Promise((resolve) => setTimeout(resolve, 0));
-      assertEquals(element.quotedRecord, null);
-      assertEquals(element.querySelector(".post-composer-embed-preview"), null);
+      assert.deepEqual(element.quotedRecord, null);
+      assert.deepEqual(
+        element.querySelector(".post-composer-embed-preview"),
+        null,
+      );
     });
 
     it("rejects the URL when the record fails to load", async () => {
@@ -922,8 +940,8 @@ t.describe(
         };
         const url = "https://bsky.app/profile/creator1.test/feed/cool-feed";
         await inputLink(url);
-        assertEquals(element.quotedRecord, null);
-        assertEquals(element._quotedRecordUrl, null);
+        assert.deepEqual(element.quotedRecord, null);
+        assert.deepEqual(element._quotedRecordUrl, null);
         assert(element._rejectedLinkEmbeds.has(url));
       } finally {
         console.error = originalError;
@@ -934,9 +952,12 @@ t.describe(
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
       element.handleQuotedEmbedPreviewClose();
       await nextFrame();
-      assertEquals(element.quotedRecord, null);
-      assertEquals(element._quotedRecordUrl, null);
-      assertEquals(element.querySelector(".post-composer-embed-preview"), null);
+      assert.deepEqual(element.quotedRecord, null);
+      assert.deepEqual(element._quotedRecordUrl, null);
+      assert.deepEqual(
+        element.querySelector(".post-composer-embed-preview"),
+        null,
+      );
     });
 
     it("sends the record embed as quotedRecord", async () => {
@@ -947,7 +968,7 @@ t.describe(
         receivedDetail = e.detail;
       });
       element.send();
-      assertEquals(receivedDetail.quotedRecord, element.quotedRecord);
+      assert.deepEqual(receivedDetail.quotedRecord, element.quotedRecord);
     });
 
     it("attaches a record embed instead of an external link when pasted", async () => {
@@ -960,48 +981,46 @@ t.describe(
       ];
       element.handlePaste(makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      assertEquals(
+      assert.deepEqual(
         loadedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
-      assertEquals(element._externalLinkUrl, null);
+      assert.deepEqual(element._externalLinkUrl, null);
     });
-  },
-);
-
-t.describe("PostComposer - addMediaFiles", (it) => {
-  it("routes image files to addImageFiles", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    await element.addMediaFiles([makeImageFile()]);
-    assertEquals(element.state.$selectedImages.get().length, 1);
   });
 
-  it("rejects mixed image and video files", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
-    assertEquals(element.state.$selectedImages.get().length, 0);
-    assertEquals(element.state.$selectedVideo.get(), null);
-  });
+  describe("PostComposer - addMediaFiles", () => {
+    it("routes image files to addImageFiles", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles([makeImageFile()]);
+      assert.deepEqual(element.state.$selectedImages.get().length, 1);
+    });
 
-  it("rejects unsupported file types without adding anything", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    await element.addMediaFiles([
-      makeImageFile(),
-      { name: "note.txt", type: "text/plain" },
-    ]);
-    assertEquals(element.state.$selectedImages.get().length, 0);
-  });
+    it("rejects mixed image and video files", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(element.state.$selectedVideo.get(), null);
+    });
 
-  it("returns early on empty input", async () => {
-    const element = createPostComposer();
-    connectElement(element);
-    await element.addMediaFiles([]);
-    assertEquals(element.state.$selectedImages.get().length, 0);
-    assertEquals(element.state.$selectedVideo.get(), null);
+    it("rejects unsupported file types without adding anything", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles([
+        makeImageFile(),
+        { name: "note.txt", type: "text/plain" },
+      ]);
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+    });
+
+    it("returns early on empty input", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles([]);
+      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(element.state.$selectedVideo.get(), null);
+    });
   });
 });
-
-await t.run();

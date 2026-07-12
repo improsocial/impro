@@ -1,15 +1,13 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { showToast, showPluginToast, hidePluginToast } from "/js/toasts.js";
 import { html } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("Toasts");
 
 function clearDOM() {
   document.body.innerHTML = "";
 }
 
-t.describe("showToast", (it) => {
+describe("showToast", () => {
   it("should append a toast element with the toast class", async () => {
     clearDOM();
     await showToast("Hello", { timeout: 0 });
@@ -152,7 +150,7 @@ function uniqueIds() {
   return { pluginId: `test-plugin-${id}`, toastId: id };
 }
 
-t.describe("showPluginToast", (it) => {
+describe("showPluginToast", () => {
   it("should render the element via the pluginRenderer and mount it", () => {
     clearDOM();
     const { pluginId, toastId } = uniqueIds();
@@ -167,8 +165,8 @@ t.describe("showPluginToast", (it) => {
     const toast = document.querySelector(".toast");
     assert(toast !== null);
     assert(toast.textContent.includes("Hi"));
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].pluginId, pluginId);
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].pluginId, pluginId);
   });
 
   it("should set the popover attribute on the toast element", () => {
@@ -183,7 +181,7 @@ t.describe("showPluginToast", (it) => {
       timeout: 0,
     });
     const toast = document.querySelector(".toast");
-    assertEquals(toast.getAttribute("popover"), "manual");
+    assert.deepEqual(toast.getAttribute("popover"), "manual");
   });
 
   it("should preserve plugin-supplied classes on the toast", () => {
@@ -215,8 +213,8 @@ t.describe("showPluginToast", (it) => {
     };
     showPluginToast(args);
     showPluginToast({ ...args, element: noticeElNode({ message: "Second" }) });
-    assertEquals(document.querySelectorAll(".toast").length, 1);
-    assertEquals(calls.length, 1);
+    assert.deepEqual(document.querySelectorAll(".toast").length, 1);
+    assert.deepEqual(calls.length, 1);
   });
 
   it("should keep separate entries for different plugin ids using the same toast id", () => {
@@ -239,11 +237,11 @@ t.describe("showPluginToast", (it) => {
       element: noticeElNode({ message: "From B" }),
       timeout: 0,
     });
-    assertEquals(document.querySelectorAll(".toast").length, 2);
+    assert.deepEqual(document.querySelectorAll(".toast").length, 2);
   });
 });
 
-t.describe("hidePluginToast", (it) => {
+describe("hidePluginToast", () => {
   it("should dismiss the matching toast", () => {
     clearDOM();
     const { pluginId, toastId } = uniqueIds();
@@ -323,5 +321,3 @@ t.describe("hidePluginToast", (it) => {
     assert(second !== undefined);
   });
 });
-
-await t.run();

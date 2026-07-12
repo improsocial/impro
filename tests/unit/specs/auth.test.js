@@ -1,11 +1,6 @@
-import { TestSuite } from "../testSuite.js";
-import {
-  assert,
-  assertEquals,
-  mock,
-  MockFetch,
-  mockWindowLocation,
-} from "../testHelpers.js";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
+import assert from "node:assert/strict";
+import { MockFetch, mockWindowLocation } from "../testHelpers.js";
 import {
   Auth,
   BasicAuthProvider,
@@ -14,8 +9,6 @@ import {
   getMissingScopes,
 } from "/js/auth.js";
 import { TimeoutError } from "/js/utils.js";
-
-const t = new TestSuite("auth");
 
 const originalWindow = globalThis.window;
 const originalPath =
@@ -47,12 +40,12 @@ function writeBasicAuthSession({
 
 function makeMockProvider({ logoutFn } = {}) {
   return {
-    logout: mock(logoutFn ?? (() => Promise.resolve())),
-    getSession: mock(() => Promise.resolve(null)),
+    logout: mock.fn(logoutFn ?? (() => Promise.resolve())),
+    getSession: mock.fn(() => Promise.resolve(null)),
   };
 }
 
-t.describe("Auth constructor", (it) => {
+describe("Auth constructor", () => {
   it("throws when no provider is given", () => {
     let threw = null;
     try {
@@ -65,7 +58,7 @@ t.describe("Auth constructor", (it) => {
   });
 });
 
-t.describe("Auth.handleForceLogoutParam", (it, { afterEach }) => {
+describe("Auth.handleForceLogoutParam", () => {
   afterEach(() => {
     globalThis.window = originalWindow;
     window.history.replaceState(null, "", originalPath);
@@ -75,7 +68,7 @@ t.describe("Auth.handleForceLogoutParam", (it, { afterEach }) => {
     const provider = makeMockProvider();
     const manager = new Auth(provider);
     await manager.handleForceLogoutParam();
-    assertEquals(provider.logout.calls.length, 0);
+    assert.deepEqual(provider.logout.mock.callCount(), 0);
   });
 
   it("calls provider.logout when force-logout param is present", async () => {
@@ -86,7 +79,7 @@ t.describe("Auth.handleForceLogoutParam", (it, { afterEach }) => {
     manager.handleForceLogoutParam();
     await Promise.resolve();
     await Promise.resolve();
-    assertEquals(provider.logout.calls.length, 1);
+    assert.deepEqual(provider.logout.mock.callCount(), 1);
   });
 
   it("redirects to the login page after logout", async () => {
@@ -178,7 +171,7 @@ t.describe("Auth.handleForceLogoutParam", (it, { afterEach }) => {
   });
 });
 
-t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
+describe("BasicAuthSession", () => {
   beforeEach(() => {
     globalThis.fetch = new MockFetch();
   });
@@ -189,12 +182,12 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
   });
 
   it("fromLocalStorage returns null when no tokens are stored", () => {
-    assertEquals(BasicAuthSession.fromLocalStorage(), null);
+    assert.deepEqual(BasicAuthSession.fromLocalStorage(), null);
   });
 
   it("fromLocalStorage returns null when only one token is stored", () => {
     localStorage.setItem("accessJwt", makeJwt({ sub: "did:plc:test" }));
-    assertEquals(BasicAuthSession.fromLocalStorage(), null);
+    assert.deepEqual(BasicAuthSession.fromLocalStorage(), null);
   });
 
   it("save and fromLocalStorage round-trip the tokens", () => {
@@ -207,16 +200,16 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
     session.save();
     const loaded = BasicAuthSession.fromLocalStorage();
     assert(loaded !== null);
-    assertEquals(loaded.accessJwt, accessJwt);
-    assertEquals(loaded.refreshJwt, refreshJwt);
+    assert.deepEqual(loaded.accessJwt, accessJwt);
+    assert.deepEqual(loaded.refreshJwt, refreshJwt);
   });
 
   it("delete removes both tokens from localStorage", async () => {
     const { accessJwt, refreshJwt } = writeBasicAuthSession();
     const session = new BasicAuthSession(accessJwt, refreshJwt);
     await session.delete();
-    assertEquals(localStorage.getItem("accessJwt"), null);
-    assertEquals(localStorage.getItem("refreshJwt"), null);
+    assert.deepEqual(localStorage.getItem("accessJwt"), null);
+    assert.deepEqual(localStorage.getItem("refreshJwt"), null);
   });
 
   it("serviceEndpoint decodes aud from JWT and converts did:web: to https://", () => {
@@ -224,7 +217,7 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
       makeJwt({ aud: "did:web:pds.example.com", sub: "did:plc:test" }),
       makeJwt({}),
     );
-    assertEquals(session.serviceEndpoint, "https://pds.example.com");
+    assert.deepEqual(session.serviceEndpoint, "https://pds.example.com");
   });
 
   it("did decodes sub from JWT", () => {
@@ -232,7 +225,7 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
       makeJwt({ aud: "did:web:pds.example.com", sub: "did:plc:alice" }),
       makeJwt({}),
     );
-    assertEquals(session.did, "did:plc:alice");
+    assert.deepEqual(session.did, "did:plc:alice");
   });
 
   it("fetch passes the Bearer token and returns the response", async () => {
@@ -246,7 +239,7 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
     });
     assert(res.ok);
     const authHeader = globalThis.fetch.calls[0].options.headers.Authorization;
-    assertEquals(authHeader, `Bearer ${accessJwt}`);
+    assert.deepEqual(authHeader, `Bearer ${accessJwt}`);
   });
 
   it("fetch refreshes the token on 400 ExpiredToken and retries the original request", async () => {
@@ -290,10 +283,10 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
       headers: {},
     });
     const body = await res.json();
-    assertEquals(body.result, "ok");
-    assertEquals(session.accessJwt, newAccessJwt);
-    assertEquals(session.refreshJwt, newRefreshJwt);
-    assertEquals(localStorage.getItem("accessJwt"), newAccessJwt);
+    assert.deepEqual(body.result, "ok");
+    assert.deepEqual(session.accessJwt, newAccessJwt);
+    assert.deepEqual(session.refreshJwt, newRefreshJwt);
+    assert.deepEqual(localStorage.getItem("accessJwt"), newAccessJwt);
   });
 
   it("fetch does not refresh on a 400 that is not ExpiredToken", async () => {
@@ -311,20 +304,20 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
       headers: {},
     });
     assert(!res.ok);
-    assertEquals(globalThis.fetch.calls.length, 1);
+    assert.deepEqual(globalThis.fetch.calls.length, 1);
   });
 
   it("BasicAuthProvider.logout is a no-op when no session is stored", async () => {
     const provider = new BasicAuthProvider();
     await provider.logout();
-    assertEquals(await provider.getSession(), null);
+    assert.deepEqual(await provider.getSession(), null);
   });
 
   it("BasicAuthProvider does not read localStorage until getSession is called", () => {
     writeBasicAuthSession();
     const provider = new BasicAuthProvider();
-    assertEquals(provider._loaded, false);
-    assertEquals(provider.session, null);
+    assert.deepEqual(provider._loaded, false);
+    assert.deepEqual(provider.session, null);
   });
 
   it("BasicAuthProvider.getSession lazily loads the session from localStorage", async () => {
@@ -332,7 +325,7 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
     const provider = new BasicAuthProvider();
     const session = await provider.getSession();
     assert(session instanceof BasicAuthSession);
-    assertEquals(session.did, "did:plc:lazy");
+    assert.deepEqual(session.did, "did:plc:lazy");
   });
 
   it("fetch throws RefreshTokenError when the refresh request fails", async () => {
@@ -364,7 +357,7 @@ t.describe("BasicAuthSession", (it, { beforeEach, afterEach }) => {
   });
 });
 
-t.describe("Auth.requireAuth", (it, { beforeEach, afterEach }) => {
+describe("Auth.requireAuth", () => {
   let manager;
   beforeEach(() => {
     manager = new Auth(new BasicAuthProvider());
@@ -381,7 +374,7 @@ t.describe("Auth.requireAuth", (it, { beforeEach, afterEach }) => {
     manager = new Auth(new BasicAuthProvider());
     const session = await manager.requireAuth();
     assert(session instanceof BasicAuthSession);
-    assertEquals(session.did, "did:plc:alice");
+    assert.deepEqual(session.did, "did:plc:alice");
   });
 
   it("redirects to login and never resolves when no session exists", async () => {
@@ -394,7 +387,7 @@ t.describe("Auth.requireAuth", (it, { beforeEach, afterEach }) => {
   });
 });
 
-t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
+describe("Auth.requireNoAuth", () => {
   let manager;
   beforeEach(() => {
     manager = new Auth(new BasicAuthProvider());
@@ -408,7 +401,7 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
 
   it("returns null when no session exists", async () => {
     const result = await manager.requireNoAuth();
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("redirects to / when a session exists and no returnTo is set", async () => {
@@ -419,7 +412,7 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
     await Promise.resolve();
     await Promise.resolve();
     assert(capturedHrefs.length > 0, "expected a redirect");
-    assertEquals(capturedHrefs[0], "/");
+    assert.deepEqual(capturedHrefs[0], "/");
   });
 
   it("redirects to returnTo when a session exists and returnTo is a valid path", async () => {
@@ -429,7 +422,7 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
     manager.requireNoAuth();
     await Promise.resolve();
     await Promise.resolve();
-    assertEquals(capturedHrefs[0], "/feed");
+    assert.deepEqual(capturedHrefs[0], "/feed");
   });
 
   it("does not redirect when addAccount=1 is set, even if a session exists", async () => {
@@ -439,8 +432,8 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
       "?addAccount=1&returnTo=%2Fsettings",
     );
     const result = await manager.requireNoAuth();
-    assertEquals(result, null);
-    assertEquals(capturedHrefs.length, 0);
+    assert.deepEqual(result, null);
+    assert.deepEqual(capturedHrefs.length, 0);
   });
 
   it("falls back to / when returnTo is an external URL", async () => {
@@ -452,11 +445,11 @@ t.describe("Auth.requireNoAuth", (it, { beforeEach, afterEach }) => {
     manager.requireNoAuth();
     await Promise.resolve();
     await Promise.resolve();
-    assertEquals(capturedHrefs[0], "/");
+    assert.deepEqual(capturedHrefs[0], "/");
   });
 });
 
-t.describe("Auth account management", (it, { afterEach }) => {
+describe("Auth account management", () => {
   afterEach(() => {
     globalThis.window = originalWindow;
     window.history.replaceState(null, "", originalPath);
@@ -469,20 +462,20 @@ t.describe("Auth account management", (it, { afterEach }) => {
   function makeMultiAccountProvider({ accounts, currentDid }) {
     return {
       supportsMultipleAccounts: () => true,
-      listAccounts: mock(() => Promise.resolve(accounts)),
-      getSession: mock(() =>
+      listAccounts: mock.fn(() => Promise.resolve(accounts)),
+      getSession: mock.fn(() =>
         Promise.resolve(currentDid ? { did: currentDid } : null),
       ),
-      switchToAccount: mock((did) => {
+      switchToAccount: mock.fn((did) => {
         currentDid = did;
         return Promise.resolve();
       }),
-      removeAccount: mock((did) => {
+      removeAccount: mock.fn((did) => {
         accounts = accounts.filter((account) => account.did !== did);
         if (currentDid === did) currentDid = accounts[0]?.did ?? null;
         return Promise.resolve();
       }),
-      logout: mock(() => Promise.resolve()),
+      logout: mock.fn(() => Promise.resolve()),
     };
   }
 
@@ -496,8 +489,8 @@ t.describe("Auth account management", (it, { afterEach }) => {
     });
     const manager = new Auth(provider);
     const accounts = await manager.listAccounts();
-    assertEquals(accounts.length, 2);
-    assertEquals(provider.listAccounts.calls.length, 1);
+    assert.deepEqual(accounts.length, 2);
+    assert.deepEqual(provider.listAccounts.mock.callCount(), 1);
   });
 
   it("listAccounts flips needsReauth on accounts whose stored scope is stale", async () => {
@@ -533,9 +526,9 @@ t.describe("Auth account management", (it, { afterEach }) => {
     const byDid = Object.fromEntries(
       accounts.map((entry) => [entry.did, entry]),
     );
-    assertEquals(byDid["did:plc:alice"].needsReauth, true);
-    assertEquals(byDid["did:plc:bob"].needsReauth, false);
-    assertEquals(byDid["did:plc:carol"].needsReauth, true);
+    assert.deepEqual(byDid["did:plc:alice"].needsReauth, true);
+    assert.deepEqual(byDid["did:plc:bob"].needsReauth, false);
+    assert.deepEqual(byDid["did:plc:carol"].needsReauth, true);
   });
 
   it("listAccounts leaves needsReauth alone for providers that don't expose scope", async () => {
@@ -547,14 +540,14 @@ t.describe("Auth account management", (it, { afterEach }) => {
     });
     const manager = new Auth(provider);
     const accounts = await manager.listAccounts();
-    assertEquals(accounts[0].needsReauth, false);
+    assert.deepEqual(accounts[0].needsReauth, false);
   });
 
   it("supportsMultipleAccounts reflects the provider capability", () => {
     const multi = new Auth(makeMultiAccountProvider({ accounts: [] }));
-    assertEquals(multi.supportsMultipleAccounts(), true);
+    assert.deepEqual(multi.supportsMultipleAccounts(), true);
     const basic = new Auth(new BasicAuthProvider());
-    assertEquals(basic.supportsMultipleAccounts(), false);
+    assert.deepEqual(basic.supportsMultipleAccounts(), false);
   });
 
   it("switchAccount flips the provider and redirects to /", async () => {
@@ -569,9 +562,12 @@ t.describe("Auth account management", (it, { afterEach }) => {
     const manager = new Auth(provider);
     manager.switchAccount("did:plc:bob"); // never resolves
     await flushMicrotasks();
-    assertEquals(provider.switchToAccount.calls.length, 1);
-    assertEquals(provider.switchToAccount.calls[0][0], "did:plc:bob");
-    assertEquals(capturedHrefs.at(-1), "reload");
+    assert.deepEqual(provider.switchToAccount.mock.callCount(), 1);
+    assert.deepEqual(
+      provider.switchToAccount.mock.calls[0].arguments[0],
+      "did:plc:bob",
+    );
+    assert.deepEqual(capturedHrefs.at(-1), "reload");
   });
 
   it("switchAccount throws when the provider does not support it", async () => {
@@ -595,9 +591,12 @@ t.describe("Auth account management", (it, { afterEach }) => {
     });
     const manager = new Auth(provider);
     await manager.removeAccount("did:plc:bob");
-    assertEquals(provider.removeAccount.calls.length, 1);
-    assertEquals(provider.removeAccount.calls[0][0], "did:plc:bob");
-    assertEquals(provider.switchToAccount.calls.length, 0);
+    assert.deepEqual(provider.removeAccount.mock.callCount(), 1);
+    assert.deepEqual(
+      provider.removeAccount.mock.calls[0].arguments[0],
+      "did:plc:bob",
+    );
+    assert.deepEqual(provider.switchToAccount.mock.callCount(), 0);
   });
 
   it("removeAccount switches to another account first when removing the current one", async () => {
@@ -612,11 +611,17 @@ t.describe("Auth account management", (it, { afterEach }) => {
     const manager = new Auth(provider);
     manager.removeAccount("did:plc:alice"); // never resolves
     await flushMicrotasks();
-    assertEquals(provider.switchToAccount.calls.length, 1);
-    assertEquals(provider.switchToAccount.calls[0][0], "did:plc:bob");
-    assertEquals(provider.removeAccount.calls.length, 1);
-    assertEquals(provider.removeAccount.calls[0][0], "did:plc:alice");
-    assertEquals(capturedHrefs.at(-1), "reload");
+    assert.deepEqual(provider.switchToAccount.mock.callCount(), 1);
+    assert.deepEqual(
+      provider.switchToAccount.mock.calls[0].arguments[0],
+      "did:plc:bob",
+    );
+    assert.deepEqual(provider.removeAccount.mock.callCount(), 1);
+    assert.deepEqual(
+      provider.removeAccount.mock.calls[0].arguments[0],
+      "did:plc:alice",
+    );
+    assert.deepEqual(capturedHrefs.at(-1), "reload");
   });
 
   it("removeAccount redirects to login when removing the only account", async () => {
@@ -628,13 +633,13 @@ t.describe("Auth account management", (it, { afterEach }) => {
     const manager = new Auth(provider);
     manager.removeAccount("did:plc:alice"); // never resolves
     await flushMicrotasks();
-    assertEquals(provider.switchToAccount.calls.length, 0);
-    assertEquals(provider.removeAccount.calls.length, 1);
+    assert.deepEqual(provider.switchToAccount.mock.callCount(), 0);
+    assert.deepEqual(provider.removeAccount.mock.callCount(), 1);
     assert(capturedHrefs.at(-1).includes("/login"));
   });
 });
 
-t.describe("Auth.login", (it, { beforeEach, afterEach }) => {
+describe("Auth.login", () => {
   const originalSetTimeout = globalThis.setTimeout;
   beforeEach(() => {
     globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
@@ -645,19 +650,19 @@ t.describe("Auth.login", (it, { beforeEach, afterEach }) => {
 
   it("delegates to provider.login with the args object intact", async () => {
     const provider = {
-      login: mock(() => Promise.resolve("session")),
+      login: mock.fn(() => Promise.resolve("session")),
     };
     const manager = new Auth(provider);
     const args = { handle: "alice.test", returnTo: "/feed" };
     const result = await manager.login(args);
-    assertEquals(result, "session");
-    assertEquals(provider.login.calls.length, 1);
-    assertEquals(provider.login.calls[0][0], args);
+    assert.deepEqual(result, "session");
+    assert.deepEqual(provider.login.mock.callCount(), 1);
+    assert.deepEqual(provider.login.mock.calls[0].arguments[0], args);
   });
 
   it("throws TimeoutError when provider.login hangs past the timeout", async () => {
     const provider = {
-      login: mock(() => new Promise(() => {})),
+      login: mock.fn(() => new Promise(() => {})),
     };
     const manager = new Auth(provider);
     let threw = null;
@@ -670,56 +675,59 @@ t.describe("Auth.login", (it, { beforeEach, afterEach }) => {
   });
 });
 
-t.describe("Auth.logout", (it) => {
+describe("Auth.logout", () => {
   it("delegates to provider.logout with the did", async () => {
     const provider = makeMockProvider();
     const manager = new Auth(provider);
     await manager.logout("did:plc:alice");
-    assertEquals(provider.logout.calls.length, 1);
-    assertEquals(provider.logout.calls[0][0], "did:plc:alice");
+    assert.deepEqual(provider.logout.mock.callCount(), 1);
+    assert.deepEqual(
+      provider.logout.mock.calls[0].arguments[0],
+      "did:plc:alice",
+    );
   });
 
   it("delegates to provider.logout with no did when called without args", async () => {
     const provider = makeMockProvider();
     const manager = new Auth(provider);
     await manager.logout();
-    assertEquals(provider.logout.calls.length, 1);
-    assertEquals(provider.logout.calls[0][0], null);
+    assert.deepEqual(provider.logout.mock.callCount(), 1);
+    assert.deepEqual(provider.logout.mock.calls[0].arguments[0], null);
   });
 });
 
-t.describe("getMissingScopes", (it) => {
+describe("getMissingScopes", () => {
   it("returns an empty array when granted matches required", () => {
     const result = getMissingScopes(
       "atproto rpc:a rpc:b",
       "atproto rpc:a rpc:b",
     );
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("returns scopes present in required but missing from granted", () => {
     const result = getMissingScopes("atproto rpc:a", "atproto rpc:a rpc:b");
-    assertEquals(result, ["rpc:b"]);
+    assert.deepEqual(result, ["rpc:b"]);
   });
 
   it("ignores extra scopes in granted that are not required", () => {
     const result = getMissingScopes("atproto rpc:a rpc:extra", "atproto rpc:a");
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("tolerates extra whitespace and empty tokens", () => {
     const result = getMissingScopes("  atproto   rpc:a  ", "atproto rpc:a");
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("treats scopes with different query params as distinct", () => {
     // Exact-string match: ?aud=* and ?aud=did:web:foo are not equivalent.
     const result = getMissingScopes("rpc:a?aud=did:web:foo", "rpc:a?aud=*");
-    assertEquals(result, ["rpc:a?aud=*"]);
+    assert.deepEqual(result, ["rpc:a?aud=*"]);
   });
 });
 
-t.describe("Auth.ensureCurrentScopes", (it, { afterEach }) => {
+describe("Auth.ensureCurrentScopes", () => {
   const originalEnv = globalThis.window.env;
 
   afterEach(() => {
@@ -733,46 +741,46 @@ t.describe("Auth.ensureCurrentScopes", (it, { afterEach }) => {
     const provider = makeMockProvider();
     const manager = new Auth(provider);
     await manager.ensureCurrentScopes();
-    assertEquals(capturedHrefs.length, 0);
-    assertEquals(provider.logout.calls.length, 0);
+    assert.deepEqual(capturedHrefs.length, 0);
+    assert.deepEqual(provider.logout.mock.callCount(), 0);
   });
 
   it("does nothing when the session has no scope (BasicAuth)", async () => {
     const capturedHrefs = mockWindowLocation();
     globalThis.window.env = { oauthScopes: "atproto rpc:a" };
     const provider = makeMockProvider();
-    provider.getSession = mock(() => Promise.resolve({ scope: undefined }));
+    provider.getSession = mock.fn(() => Promise.resolve({ scope: undefined }));
     const manager = new Auth(provider);
     await manager.ensureCurrentScopes();
-    assertEquals(capturedHrefs.length, 0);
-    assertEquals(provider.logout.calls.length, 0);
+    assert.deepEqual(capturedHrefs.length, 0);
+    assert.deepEqual(provider.logout.mock.callCount(), 0);
   });
 
   it("does nothing when granted scopes match required", async () => {
     const capturedHrefs = mockWindowLocation();
     globalThis.window.env = { oauthScopes: "atproto rpc:a rpc:b" };
     const provider = makeMockProvider();
-    provider.getSession = mock(() =>
+    provider.getSession = mock.fn(() =>
       Promise.resolve({ scope: "atproto rpc:a rpc:b" }),
     );
     const manager = new Auth(provider);
     await manager.ensureCurrentScopes();
-    assertEquals(capturedHrefs.length, 0);
-    assertEquals(provider.logout.calls.length, 0);
+    assert.deepEqual(capturedHrefs.length, 0);
+    assert.deepEqual(provider.logout.mock.callCount(), 0);
   });
 
   it("logs out and redirects to login when a required scope is missing", async () => {
     const capturedHrefs = mockWindowLocation();
     globalThis.window.env = { oauthScopes: "atproto rpc:a rpc:b" };
     const provider = makeMockProvider();
-    provider.getSession = mock(() =>
+    provider.getSession = mock.fn(() =>
       Promise.resolve({ scope: "atproto rpc:a" }),
     );
     const manager = new Auth(provider);
     manager.ensureCurrentScopes();
     await Promise.resolve();
     await Promise.resolve();
-    assertEquals(provider.logout.calls.length, 1);
+    assert.deepEqual(provider.logout.mock.callCount(), 1);
     assert(capturedHrefs.length > 0, "expected a redirect");
     assert(capturedHrefs[0].includes("/login"));
   });
@@ -783,7 +791,7 @@ t.describe("Auth.ensureCurrentScopes", (it, { afterEach }) => {
     const provider = makeMockProvider({
       logoutFn: () => Promise.reject(new Error("logout failed")),
     });
-    provider.getSession = mock(() =>
+    provider.getSession = mock.fn(() =>
       Promise.resolve({ scope: "atproto rpc:a" }),
     );
     const manager = new Auth(provider);
@@ -798,5 +806,3 @@ t.describe("Auth.ensureCurrentScopes", (it, { afterEach }) => {
     assert(capturedHrefs[0].includes("/login"));
   });
 });
-
-await t.run();

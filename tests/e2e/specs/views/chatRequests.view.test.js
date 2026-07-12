@@ -7,7 +7,7 @@ import {
   createMessage,
   createProfile,
   createSystemMessage,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 function createRequester() {
   return createProfile({

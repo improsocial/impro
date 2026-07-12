@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createProfile } from "../../factories.js";
+import { createPost, createProfile } from "../../../shared/factories.js";
 
 test.describe("Block user flow", () => {
   test("should hide posts from home feed and show blocked state on profile after blocking", async ({

@@ -6,7 +6,7 @@ import {
   createPost,
   createProfile,
   createTid,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 const alice = createProfile({
   did: "did:plc:alice1",

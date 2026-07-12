@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assertEquals, assert } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { render } from "/js/lib/lit-html.js";
 import { chatJoinLinkEmbedTemplate } from "/js/templates/chatJoinLinkEmbed.template.js";
-
-const t = new TestSuite("chatJoinLinkEmbedTemplate");
 
 function makeJoinLinkPreview(overrides = {}) {
   return {
@@ -48,7 +46,7 @@ function getActionState(container) {
   };
 }
 
-t.describe("chatJoinLinkEmbedTemplate", (it) => {
+describe("chatJoinLinkEmbedTemplate", () => {
   it("renders the unavailable card when preview is not available", () => {
     const container = renderEmbed({
       preview: { $type: "chat.bsky.group.defs#disabledJoinLinkPreviewView" },
@@ -57,7 +55,7 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       container.querySelector("[data-testid='join-link-embed-unavailable']") !==
         null,
     );
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='join-link-embed']").dataset
         .teststate,
       "unavailable",
@@ -70,9 +68,9 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       currentConvoId: "convo123",
     });
     const { teststate, label, disabled } = getActionState(container);
-    assertEquals(teststate, "copy");
-    assertEquals(label, "Copy link");
-    assertEquals(disabled, false);
+    assert.deepEqual(teststate, "copy");
+    assert.deepEqual(label, "Copy link");
+    assert.deepEqual(disabled, false);
   });
 
   it("renders the open action when viewer is a member of a different chat", () => {
@@ -81,16 +79,16 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       currentConvoId: "other",
     });
     const { teststate, label } = getActionState(container);
-    assertEquals(teststate, "open");
-    assertEquals(label, "Open chat");
+    assert.deepEqual(teststate, "open");
+    assert.deepEqual(label, "Open chat");
   });
 
   it("renders the join action when not a member and no approval", () => {
     const container = renderEmbed({ preview: makeJoinLinkPreview() });
     const { teststate, label, disabled } = getActionState(container);
-    assertEquals(teststate, "join");
-    assertEquals(label, "Join");
-    assertEquals(disabled, false);
+    assert.deepEqual(teststate, "join");
+    assert.deepEqual(label, "Join");
+    assert.deepEqual(disabled, false);
   });
 
   it("renders the request action when requireApproval is true", () => {
@@ -98,8 +96,8 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       preview: makeJoinLinkPreview({ requireApproval: true }),
     });
     const { teststate, label } = getActionState(container);
-    assertEquals(teststate, "request");
-    assertEquals(label, "Request to join");
+    assert.deepEqual(teststate, "request");
+    assert.deepEqual(label, "Request to join");
   });
 
   it("renders a disabled action when the chat is full", () => {
@@ -107,8 +105,8 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       preview: makeJoinLinkPreview({ memberCount: 50, memberLimit: 50 }),
     });
     const { teststate, disabled } = getActionState(container);
-    assertEquals(teststate, "full");
-    assertEquals(disabled, true);
+    assert.deepEqual(teststate, "full");
+    assert.deepEqual(disabled, true);
   });
 
   it("renders a disabled follow-required action when joinRule is followedByOwner and not followed", () => {
@@ -116,8 +114,8 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       preview: makeJoinLinkPreview({ joinRule: "followedByOwner" }),
     });
     const { teststate, disabled } = getActionState(container);
-    assertEquals(teststate, "follow-required");
-    assertEquals(disabled, true);
+    assert.deepEqual(teststate, "follow-required");
+    assert.deepEqual(disabled, true);
   });
 
   it("renders the join action when followedByOwner but viewer is followed", () => {
@@ -132,8 +130,8 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       }),
     });
     const { teststate, disabled } = getActionState(container);
-    assertEquals(teststate, "join");
-    assertEquals(disabled, false);
+    assert.deepEqual(teststate, "join");
+    assert.deepEqual(disabled, false);
   });
 
   it("renders the requested action when viewer.requestedAt is set and no convoId", () => {
@@ -143,8 +141,8 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       }),
     });
     const { teststate, label } = getActionState(container);
-    assertEquals(teststate, "requested");
-    assertEquals(label, "Requested");
+    assert.deepEqual(teststate, "requested");
+    assert.deepEqual(label, "Requested");
   });
 
   it("dispatches a bubbling chat-join-link:click event when the button is clicked", () => {
@@ -155,7 +153,7 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       received.push(event.detail),
     );
     container.querySelector("[data-testid='join-link-embed-action']").click();
-    assertEquals(received, [{ actionType: "join", preview }]);
+    assert.deepEqual(received, [{ actionType: "join", preview }]);
   });
 
   it("does not dispatch an event when the action is disabled", () => {
@@ -167,8 +165,6 @@ t.describe("chatJoinLinkEmbedTemplate", (it) => {
       received.push(event.detail),
     );
     container.querySelector("[data-testid='join-link-embed-action']").click();
-    assertEquals(received, []);
+    assert.deepEqual(received, []);
   });
 });
-
-await t.run();

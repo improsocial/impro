@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { PluginRenderer } from "/js/plugins/pluginRendering.js";
 
 function makeBridge() {
@@ -12,9 +12,7 @@ function makeBridge() {
   return { bridge, calls };
 }
 
-const t = new TestSuite("pluginRendering");
-
-t.describe("PluginRenderer:render with fresh roots", (it) => {
+describe("PluginRenderer:render with fresh roots", () => {
   it("creates a fresh element when given a fresh root each call", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
@@ -22,15 +20,15 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
     const first = renderer.createRoot().render(node);
     const second = renderer.createRoot().render(node);
     assert(first !== second);
-    assertEquals(first.textContent, "hi");
-    assertEquals(first.getAttribute("class"), "x");
+    assert.deepEqual(first.textContent, "hi");
+    assert.deepEqual(first.getAttribute("class"), "x");
   });
 
   it("renders <toggle-switch> directly", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer.createRoot().render({ tag: "toggle-switch" });
-    assertEquals(element.tagName.toLowerCase(), "toggle-switch");
+    assert.deepEqual(element.tagName.toLowerCase(), "toggle-switch");
   });
 
   it("renders <input type=checkbox> as a real checkbox", () => {
@@ -39,8 +37,8 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
     const element = renderer
       .createRoot()
       .render({ tag: "input", attrs: { type: "checkbox" } });
-    assertEquals(element.tagName.toLowerCase(), "input");
-    assertEquals(element.getAttribute("type"), "checkbox");
+    assert.deepEqual(element.tagName.toLowerCase(), "input");
+    assert.deepEqual(element.getAttribute("type"), "checkbox");
   });
 
   it("renders <plugin-profiles-list> and passes dataLayer", () => {
@@ -53,8 +51,8 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
       tag: "plugin-profiles-list",
       attrs: { dids: "did:test:a,did:test:b" },
     });
-    assertEquals(element.tagName.toLowerCase(), "plugin-profiles-list");
-    assertEquals(element.getAttribute("dids"), "did:test:a,did:test:b");
+    assert.deepEqual(element.tagName.toLowerCase(), "plugin-profiles-list");
+    assert.deepEqual(element.getAttribute("dids"), "did:test:a,did:test:b");
     assert(element.dataLayer === dataLayer);
   });
 
@@ -85,7 +83,7 @@ t.describe("PluginRenderer:render with fresh roots", (it) => {
   });
 });
 
-t.describe("PluginRenderer:root reconciliation", (it) => {
+describe("PluginRenderer:root reconciliation", () => {
   it("returns the same element across renders when the tag matches", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
@@ -93,7 +91,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     const first = root.render({ tag: "div", text: "a" });
     const second = root.render({ tag: "div", text: "b" });
     assert(first === second);
-    assertEquals(second.textContent, "b");
+    assert.deepEqual(second.textContent, "b");
   });
 
   it("replaces the element when the tag changes", () => {
@@ -103,7 +101,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     const first = root.render({ tag: "div" });
     const second = root.render({ tag: "span" });
     assert(first !== second);
-    assertEquals(second.tagName.toLowerCase(), "span");
+    assert.deepEqual(second.tagName.toLowerCase(), "span");
   });
 
   it("patches attributes in place", () => {
@@ -118,7 +116,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       tag: "input",
       attrs: { type: "text", value: "two" },
     });
-    assertEquals(element.getAttribute("value"), "two");
+    assert.deepEqual(element.getAttribute("value"), "two");
     assert(!element.hasAttribute("placeholder"));
   });
 
@@ -138,7 +136,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       tag: "input",
       attrs: { type: "text", value: "stale-from-worker" },
     });
-    assertEquals(input.value, "user-typed");
+    assert.deepEqual(input.value, "user-typed");
     assert(document.activeElement === input);
   });
 
@@ -156,7 +154,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       tag: "input",
       attrs: { type: "text", value: "default" },
     });
-    assertEquals(input.value, "user-edited");
+    assert.deepEqual(input.value, "user-edited");
   });
 
   it("rebuilds a fresh element after reset(), discarding dirty state", () => {
@@ -174,7 +172,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       attrs: { type: "text", value: "default" },
     });
     assert(rebuilt !== input);
-    assertEquals(rebuilt.value, "default");
+    assert.deepEqual(rebuilt.value, "default");
   });
 
   it("reuses matching children and patches their text in place", () => {
@@ -199,7 +197,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     });
     assert(element.children[0] === firstChild);
     assert(element.children[1] === secondChild);
-    assertEquals(firstChild.textContent, "ONE");
+    assert.deepEqual(firstChild.textContent, "ONE");
   });
 
   it("appends new children and removes dropped ones", () => {
@@ -217,9 +215,9 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
         { tag: "span", text: "b" },
       ],
     });
-    assertEquals(element.children.length, 2);
+    assert.deepEqual(element.children.length, 2);
     root.render({ tag: "div", children: [] });
-    assertEquals(element.children.length, 0);
+    assert.deepEqual(element.children.length, 0);
   });
 
   it("dispatches the updated handlerId after a re-render without leaking listeners", () => {
@@ -232,8 +230,8 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     });
     root.render({ tag: "button", events: { click: "h2" } });
     button.dispatchEvent(new Event("click"));
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].handlerId, "h2");
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].handlerId, "h2");
   });
 
   it("stops dispatching when an event handler is removed", () => {
@@ -246,7 +244,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     });
     root.render({ tag: "button" });
     button.dispatchEvent(new Event("click"));
-    assertEquals(calls.length, 0);
+    assert.deepEqual(calls.length, 0);
   });
 
   it("clears stale text when the new node has neither text nor children", () => {
@@ -255,7 +253,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     const root = renderer.createRoot();
     const element = root.render({ tag: "div", text: "hi" });
     root.render({ tag: "div" });
-    assertEquals(element.textContent, "");
+    assert.deepEqual(element.textContent, "");
   });
 
   it("renders both text and children with text as a leading text node", () => {
@@ -267,12 +265,15 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       text: "Applying",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    assertEquals(element.childNodes.length, 2);
-    assertEquals(element.firstChild.nodeType, 3);
-    assertEquals(element.firstChild.textContent, "Applying");
-    assertEquals(element.children.length, 1);
-    assertEquals(element.children[0].tagName.toLowerCase(), "div");
-    assertEquals(element.children[0].getAttribute("class"), "loading-spinner");
+    assert.deepEqual(element.childNodes.length, 2);
+    assert.deepEqual(element.firstChild.nodeType, 3);
+    assert.deepEqual(element.firstChild.textContent, "Applying");
+    assert.deepEqual(element.children.length, 1);
+    assert.deepEqual(element.children[0].tagName.toLowerCase(), "div");
+    assert.deepEqual(
+      element.children[0].getAttribute("class"),
+      "loading-spinner",
+    );
   });
 
   it("patches from text-only to text-plus-children, preserving spinner child", () => {
@@ -280,16 +281,19 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
     const renderer = new PluginRenderer(bridge, "demo");
     const root = renderer.createRoot();
     const element = root.render({ tag: "button", text: "Apply" });
-    assertEquals(element.textContent, "Apply");
+    assert.deepEqual(element.textContent, "Apply");
     root.render({
       tag: "button",
       text: "Applying",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    assertEquals(element.children.length, 1);
-    assertEquals(element.firstChild.nodeType, 3);
-    assertEquals(element.firstChild.textContent, "Applying");
-    assertEquals(element.children[0].getAttribute("class"), "loading-spinner");
+    assert.deepEqual(element.children.length, 1);
+    assert.deepEqual(element.firstChild.nodeType, 3);
+    assert.deepEqual(element.firstChild.textContent, "Applying");
+    assert.deepEqual(
+      element.children[0].getAttribute("class"),
+      "loading-spinner",
+    );
   });
 
   it("patches from text-plus-children back to text-only, removing the child", () => {
@@ -302,8 +306,8 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
     root.render({ tag: "button", text: "Apply" });
-    assertEquals(element.children.length, 0);
-    assertEquals(element.textContent, "Apply");
+    assert.deepEqual(element.children.length, 0);
+    assert.deepEqual(element.textContent, "Apply");
   });
 
   it("updates the leading text node in place when children stay stable", () => {
@@ -321,7 +325,7 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       text: "Working",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    assertEquals(element.firstChild.textContent, "Working");
+    assert.deepEqual(element.firstChild.textContent, "Working");
     assert(element.children[0] === originalSpinner);
   });
 
@@ -339,8 +343,8 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       tag: "button",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    assertEquals(element.childNodes.length, 1);
-    assertEquals(element.children.length, 1);
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.children.length, 1);
     assert(element.children[0] === originalSpinner);
   });
 
@@ -358,11 +362,11 @@ t.describe("PluginRenderer:root reconciliation", (it) => {
       children: [{ tag: "button", text: "x" }],
     });
     assert(element.children[0] !== oldChild);
-    assertEquals(element.children[0].tagName.toLowerCase(), "button");
+    assert.deepEqual(element.children[0].tagName.toLowerCase(), "button");
   });
 });
 
-t.describe("PluginRenderer:plugin-icon", (it) => {
+describe("PluginRenderer:plugin-icon", () => {
   it("renders <plugin-icon> with the icon attribute passed through", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
@@ -370,8 +374,8 @@ t.describe("PluginRenderer:plugin-icon", (it) => {
       tag: "plugin-icon",
       attrs: { icon: "bell" },
     });
-    assertEquals(element.tagName.toLowerCase(), "plugin-icon");
-    assertEquals(element.getAttribute("icon"), "bell");
+    assert.deepEqual(element.tagName.toLowerCase(), "plugin-icon");
+    assert.deepEqual(element.getAttribute("icon"), "bell");
   });
 
   it("drops disallowed attributes from <plugin-icon>", () => {
@@ -382,11 +386,11 @@ t.describe("PluginRenderer:plugin-icon", (it) => {
       attrs: { icon: "bell", onclick: "alert(1)" },
     });
     assert(!element.hasAttribute("onclick"));
-    assertEquals(element.getAttribute("icon"), "bell");
+    assert.deepEqual(element.getAttribute("icon"), "bell");
   });
 });
 
-t.describe("PluginRenderer:custom element observedAttributes", (it) => {
+describe("PluginRenderer:custom element observedAttributes", () => {
   it("passes through attrs declared in a custom element's observedAttributes", () => {
     // plugin-icon declares observedAttributes = ["icon"] — verifies the
     // observedAttributes lookup is what allows `icon` through now that it
@@ -397,7 +401,7 @@ t.describe("PluginRenderer:custom element observedAttributes", (it) => {
       tag: "plugin-icon",
       attrs: { icon: "bell" },
     });
-    assertEquals(element.getAttribute("icon"), "bell");
+    assert.deepEqual(element.getAttribute("icon"), "bell");
   });
 
   it("drops custom attrs that aren't in observedAttributes", () => {
@@ -407,7 +411,7 @@ t.describe("PluginRenderer:custom element observedAttributes", (it) => {
       tag: "plugin-icon",
       attrs: { icon: "bell", "secret-mode": "on" },
     });
-    assertEquals(element.getAttribute("icon"), "bell");
+    assert.deepEqual(element.getAttribute("icon"), "bell");
     assert(!element.hasAttribute("secret-mode"));
   });
 
@@ -436,7 +440,7 @@ t.describe("PluginRenderer:custom element observedAttributes", (it) => {
   });
 });
 
-t.describe("PluginRenderer:custom element refresh", (it) => {
+describe("PluginRenderer:custom element refresh", () => {
   it("calls refresh() on custom elements during patch", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
@@ -447,9 +451,9 @@ t.describe("PluginRenderer:custom element refresh", (it) => {
       calls++;
     };
     root.render({ tag: "plugin-icon" });
-    assertEquals(calls, 1);
+    assert.deepEqual(calls, 1);
     root.render({ tag: "plugin-icon" });
-    assertEquals(calls, 2);
+    assert.deepEqual(calls, 2);
   });
 
   it("does not call refresh on built-in tags", () => {
@@ -463,11 +467,11 @@ t.describe("PluginRenderer:custom element refresh", (it) => {
       called = true;
     };
     root.render({ tag: "div" });
-    assertEquals(called, false);
+    assert.deepEqual(called, false);
   });
 });
 
-t.describe("PluginRenderer:anchor tags", (it) => {
+describe("PluginRenderer:anchor tags", () => {
   it("renders <a> with safe https href and forces target/rel", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
@@ -476,10 +480,10 @@ t.describe("PluginRenderer:anchor tags", (it) => {
       attrs: { href: "https://example.com/page" },
       text: "click",
     });
-    assertEquals(element.tagName.toLowerCase(), "a");
-    assertEquals(element.getAttribute("href"), "https://example.com/page");
-    assertEquals(element.getAttribute("target"), "_blank");
-    assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+    assert.deepEqual(element.tagName.toLowerCase(), "a");
+    assert.deepEqual(element.getAttribute("href"), "https://example.com/page");
+    assert.deepEqual(element.getAttribute("target"), "_blank");
+    assert.deepEqual(element.getAttribute("rel"), "noopener noreferrer");
   });
 
   it("strips non-https href schemes on create", () => {
@@ -499,8 +503,8 @@ t.describe("PluginRenderer:anchor tags", (it) => {
         .createRoot()
         .render({ tag: "a", attrs: { href }, text: "x" });
       assert(!element.hasAttribute("href"), `should reject href: ${href}`);
-      assertEquals(element.getAttribute("target"), "_blank");
-      assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+      assert.deepEqual(element.getAttribute("target"), "_blank");
+      assert.deepEqual(element.getAttribute("rel"), "noopener noreferrer");
     }
   });
 
@@ -515,8 +519,8 @@ t.describe("PluginRenderer:anchor tags", (it) => {
         rel: "opener",
       },
     });
-    assertEquals(element.getAttribute("target"), "_blank");
-    assertEquals(element.getAttribute("rel"), "noopener noreferrer");
+    assert.deepEqual(element.getAttribute("target"), "_blank");
+    assert.deepEqual(element.getAttribute("rel"), "noopener noreferrer");
   });
 
   it("shows the external link warning modal when an external <a> is clicked", () => {
@@ -552,5 +556,3 @@ t.describe("PluginRenderer:anchor tags", (it) => {
     assert(!element.hasAttribute("href"));
   });
 });
-
-await t.run();

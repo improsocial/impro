@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("labelerSettingsTemplate");
 
 const mockLabelerInfo = {
   uri: "at://did:plc:testlabeler/app.bsky.labeler.service/self",
@@ -28,7 +26,7 @@ const mockLabelerInfo = {
   },
 };
 
-t.describe("labelerSettingsTemplate", (it) => {
+describe("labelerSettingsTemplate", () => {
   it("should render header with description", () => {
     const result = labelerSettingsTemplate({
       labelerInfo: mockLabelerInfo,
@@ -68,7 +66,7 @@ t.describe("labelerSettingsTemplate", (it) => {
     const rows = container.querySelectorAll(
       "[data-testid='label-preference-row']",
     );
-    assertEquals(rows.length, 2);
+    assert.deepEqual(rows.length, 2);
   });
 
   it("should render label names", () => {
@@ -87,7 +85,7 @@ t.describe("labelerSettingsTemplate", (it) => {
   });
 });
 
-t.describe("labelerSettingsTemplate - no configurable labels", (it) => {
+describe("labelerSettingsTemplate - no configurable labels", () => {
   it("should show message when labeler has no configurable labels", () => {
     const emptyLabelerInfo = {
       ...mockLabelerInfo,
@@ -115,7 +113,7 @@ t.describe("labelerSettingsTemplate - no configurable labels", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='label-preference-list']"),
       null,
     );
@@ -151,11 +149,11 @@ t.describe("labelerSettingsTemplate - no configurable labels", (it) => {
     const rows = container.querySelectorAll(
       "[data-testid='label-preference-row']",
     );
-    assertEquals(rows.length, 1);
+    assert.deepEqual(rows.length, 1);
   });
 });
 
-t.describe("labelerSettingsTemplate - subscription state", (it) => {
+describe("labelerSettingsTemplate - subscription state", () => {
   it("should render preference buttons when subscribed", () => {
     const result = labelerSettingsTemplate({
       labelerInfo: mockLabelerInfo,
@@ -178,7 +176,7 @@ t.describe("labelerSettingsTemplate - subscription state", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='label-preference-buttons']"),
       null,
     );
@@ -202,7 +200,7 @@ t.describe("labelerSettingsTemplate - subscription state", (it) => {
   });
 });
 
-t.describe("labelerSettingsTemplate - current settings", (it) => {
+describe("labelerSettingsTemplate - current settings", () => {
   it("should mark active button based on current setting", () => {
     const result = labelerSettingsTemplate({
       labelerInfo: mockLabelerInfo,
@@ -236,9 +234,7 @@ t.describe("labelerSettingsTemplate - current settings", (it) => {
       container.querySelectorAll("[data-testid='label-pref-button']"),
     ).filter((b) => b.textContent.trim() === "Hide");
     hideButtons[0].click();
-    assertEquals(clickedLabel, "nsfw");
-    assertEquals(clickedValue, "hide");
+    assert.deepEqual(clickedLabel, "nsfw");
+    assert.deepEqual(clickedValue, "hide");
   });
 });
-
-await t.run();

@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("postLabelsTemplate");
 
 const mockLabeler = {
   uri: "at://did:plc:testlabeler/app.bsky.labeler.service/self",
@@ -31,13 +29,13 @@ const mockBadgeLabels = [
   },
 ];
 
-t.describe("postLabelsTemplate", (it) => {
+describe("postLabelsTemplate", () => {
   it("should render label badge for each label", () => {
     const result = postLabelsTemplate({ badgeLabels: mockBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='label-badge']");
-    assertEquals(badges.length, 1);
+    assert.deepEqual(badges.length, 1);
   });
 
   it("should render label badge as link to labeler profile", () => {
@@ -55,7 +53,7 @@ t.describe("postLabelsTemplate", (it) => {
     render(result, container);
     const img = container.querySelector("[data-testid='label-badge-image']");
     assert(img !== null);
-    assertEquals(img.getAttribute("src"), mockLabeler.creator.avatar);
+    assert.deepEqual(img.getAttribute("src"), mockLabeler.creator.avatar);
   });
 
   it("should render label name text", () => {
@@ -68,7 +66,7 @@ t.describe("postLabelsTemplate", (it) => {
   });
 });
 
-t.describe("postLabelsTemplate - multiple labels", (it) => {
+describe("postLabelsTemplate - multiple labels", () => {
   it("should render multiple label badges", () => {
     const secondLabelDefinition = {
       identifier: "educational",
@@ -92,11 +90,11 @@ t.describe("postLabelsTemplate - multiple labels", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='label-badge']");
-    assertEquals(badges.length, 2);
+    assert.deepEqual(badges.length, 2);
   });
 });
 
-t.describe("postLabelsTemplate - fallback avatar", (it) => {
+describe("postLabelsTemplate - fallback avatar", () => {
   it("should use fallback avatar when labeler has no avatar", () => {
     const labelerWithoutAvatar = {
       ...mockLabeler,
@@ -119,17 +117,15 @@ t.describe("postLabelsTemplate - fallback avatar", (it) => {
   });
 });
 
-t.describe("postLabelsTemplate - empty labels", (it) => {
+describe("postLabelsTemplate - empty labels", () => {
   it("should render empty container when no badge labels", () => {
     const result = postLabelsTemplate({ badgeLabels: [] });
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='post-labels']") !== null);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll("[data-testid='label-badge']").length,
       0,
     );
   });
 });
-
-await t.run();

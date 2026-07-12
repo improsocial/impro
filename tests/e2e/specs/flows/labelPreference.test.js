@@ -5,7 +5,7 @@ import {
   createProfile,
   createPost,
   createLabelerView,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 const LABELER_DID = "did:plc:testlabeler1";
 

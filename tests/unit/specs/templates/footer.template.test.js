@@ -1,9 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("footerTemplate");
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -12,7 +10,7 @@ const mockUser = {
   avatar: "https://example.com/avatar.jpg",
 };
 
-t.describe("footerTemplate - logged out state", (it) => {
+describe("footerTemplate - logged out state", () => {
   it("should render logged out footer when not authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: false,
@@ -48,7 +46,7 @@ t.describe("footerTemplate - logged out state", (it) => {
   });
 });
 
-t.describe("footerTemplate - logged in state", (it) => {
+describe("footerTemplate - logged in state", () => {
   it("should render footer nav when authenticated", () => {
     const result = footerTemplate({
       isAuthenticated: true,
@@ -57,7 +55,7 @@ t.describe("footerTemplate - logged in state", (it) => {
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector("[data-testid='footer-nav']") !== null);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='logged-out-footer']"),
       null,
     );
@@ -146,11 +144,11 @@ t.describe("footerTemplate - logged in state", (it) => {
       "[data-testid='footer-nav-home'].active",
     );
     assert(activeItem !== null);
-    assertEquals(activeItem.getAttribute("href"), "/");
+    assert.deepEqual(activeItem.getAttribute("href"), "/");
   });
 });
 
-t.describe("footerTemplate - notification badges", (it) => {
+describe("footerTemplate - notification badges", () => {
   it("should show notification badge when numNotifications > 0", () => {
     const result = footerTemplate({
       isAuthenticated: true,
@@ -185,11 +183,11 @@ t.describe("footerTemplate - notification badges", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='status-badge']");
-    assertEquals(badges.length, 0);
+    assert.deepEqual(badges.length, 0);
   });
 });
 
-t.describe("footerTemplate - profile long-press", (it) => {
+describe("footerTemplate - profile long-press", () => {
   function renderFooter({ onLongPressProfile = null } = {}) {
     const container = document.createElement("div");
     render(
@@ -213,17 +211,15 @@ t.describe("footerTemplate - profile long-press", (it) => {
     assert(!profileLink.classList.contains("long-press-enabled"));
   });
 
-  // Press timing and click suppression are enableLongPress behavior, covered
-  // in utils.test.js; here we only verify the footer wires the handler up.
   it("invokes the handler when a long-press fires on the profile item", () => {
     let fired = 0;
     const profileLink = renderFooter({ onLongPressProfile: () => fired++ });
     profileLink.dispatchEvent(new CustomEvent("long-press"));
-    assertEquals(fired, 1);
+    assert.deepEqual(fired, 1);
   });
 });
 
-t.describe("footerTemplate - safe area", (it) => {
+describe("footerTemplate - safe area", () => {
   it("should render footer safe area div", () => {
     const result = footerTemplate({
       isAuthenticated: true,
@@ -236,5 +232,3 @@ t.describe("footerTemplate - safe area", (it) => {
     );
   });
 });
-
-await t.run();

@@ -21,6 +21,7 @@ class ImportCollector {
     noFetch,
     exclude,
     includeDynamic,
+    urlMap,
   }) {
     this.imports = imports;
     this.baseUrl = baseUrl;
@@ -29,6 +30,7 @@ class ImportCollector {
     this.exclude = exclude;
     this.includeDynamic = includeDynamic;
     this.importMap = importMap;
+    this.urlMap = urlMap;
   }
   async visit(specifier, parent) {
     const doExclude = this.exclude.some((e) => specifier.includes(e));
@@ -83,9 +85,10 @@ class ImportCollector {
   async collect() {
     const parent = new URL("./index.js", this.baseUrl);
     await Promise.all(this.imports.map((entry) => this.visit(entry, parent)));
-    return [...this.dependencies].map((dep) =>
-      dep.replace(this.baseUrl.href, "/"),
-    );
+    return [...this.dependencies].sort().map((dep) => {
+      const urlPath = dep.replace(this.baseUrl.href, "/");
+      return this.urlMap[urlPath] ?? urlPath;
+    });
   }
 }
 
@@ -132,7 +135,7 @@ async function parseHtml(contents, { includeDynamic = false } = {}) {
 export async function getDependencies(
   contents,
   baseUrl,
-  { noFetch, exclude = [], includeDynamic = false } = {},
+  { noFetch, exclude = [], includeDynamic = false, urlMap = {} } = {},
 ) {
   if (!baseUrl) {
     throw new Error("baseUrl is required");
@@ -151,6 +154,7 @@ export async function getDependencies(
     noFetch,
     exclude,
     includeDynamic,
+    urlMap,
   });
   return collector.collect();
 }
@@ -190,6 +194,7 @@ export async function linkHtml(
     exclude,
     includeComments,
     includeDynamic,
+    urlMap,
   } = {},
 ) {
   let html = htmlContentsOrUrl;
@@ -202,6 +207,7 @@ export async function linkHtml(
     exclude,
     noFetch,
     includeDynamic,
+    urlMap,
   });
   return injectPreloads(html, dependencies, { includeComments });
 }

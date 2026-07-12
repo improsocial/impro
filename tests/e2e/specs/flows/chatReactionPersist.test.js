@@ -1,8 +1,12 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
-import { userProfile } from "../../fixtures.js";
+import {
+  createConvo,
+  createMessage,
+  createProfile,
+} from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("Chat reaction persistence flow", () => {
   test("should add a reaction in chat detail, navigate away, return, and verify it persists", async ({

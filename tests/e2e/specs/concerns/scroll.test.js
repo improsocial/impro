@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import { createPost } from "../../../shared/factories.js";
 
 test.describe("Scroll position restoration", () => {
   test("should restore scroll position after navigating back from post thread", async ({

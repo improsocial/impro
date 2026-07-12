@@ -1,12 +1,10 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("postActionBarTemplate");
-
-t.describe("postActionBarTemplate", (it) => {
+describe("postActionBarTemplate", () => {
   it("should render action bar with reply button", () => {
     const result = postActionBarTemplate({
       post,
@@ -60,7 +58,7 @@ t.describe("postActionBarTemplate", (it) => {
     render(result, container);
     const replyCount = container.querySelector("[data-testid='reply-count']");
     assert(replyCount !== null);
-    assertEquals(replyCount.textContent.trim(), "5");
+    assert.deepEqual(replyCount.textContent.trim(), "5");
   });
 
   it("should not show reply count when post has no replies", () => {
@@ -76,7 +74,10 @@ t.describe("postActionBarTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='reply-count']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='reply-count']"),
+      null,
+    );
   });
 
   it("should show repost count when post has reposts", () => {
@@ -94,7 +95,7 @@ t.describe("postActionBarTemplate", (it) => {
     render(result, container);
     const repostCount = container.querySelector("[data-testid='repost-count']");
     assert(repostCount !== null);
-    assertEquals(repostCount.textContent.trim(), "10");
+    assert.deepEqual(repostCount.textContent.trim(), "10");
   });
 
   it("should include quote posts in repost count", () => {
@@ -113,7 +114,7 @@ t.describe("postActionBarTemplate", (it) => {
     render(result, container);
     const repostCount = container.querySelector("[data-testid='repost-count']");
     assert(repostCount !== null);
-    assertEquals(repostCount.textContent.trim(), "8");
+    assert.deepEqual(repostCount.textContent.trim(), "8");
   });
 
   it("should not show repost count when post has no reposts", () => {
@@ -129,7 +130,10 @@ t.describe("postActionBarTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("[data-testid='repost-count']"), null);
+    assert.deepEqual(
+      container.querySelector("[data-testid='repost-count']"),
+      null,
+    );
   });
 
   it("should add reposted class when post is reposted", () => {
@@ -183,7 +187,7 @@ t.describe("postActionBarTemplate", (it) => {
       container.querySelectorAll("context-menu-item"),
     ).find((item) => item.textContent.trim().startsWith("Quote"));
     assert(quoteItem !== undefined);
-    assertEquals(quoteItem.textContent.trim(), "Quote post");
+    assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
     assert(quoteItem.hasAttribute("disabled"));
   });
 
@@ -204,7 +208,7 @@ t.describe("postActionBarTemplate", (it) => {
       container.querySelectorAll("context-menu-item"),
     ).find((item) => item.textContent.trim().startsWith("Quote"));
     assert(quoteItem !== undefined);
-    assertEquals(quoteItem.textContent.trim(), "Quote posts disabled");
+    assert.deepEqual(quoteItem.textContent.trim(), "Quote posts disabled");
     assert(quoteItem.hasAttribute("disabled"));
   });
 
@@ -221,7 +225,7 @@ t.describe("postActionBarTemplate", (it) => {
       container.querySelectorAll("context-menu-item"),
     ).find((item) => item.textContent.trim().startsWith("Quote"));
     assert(quoteItem !== undefined);
-    assertEquals(quoteItem.textContent.trim(), "Quote post");
+    assert.deepEqual(quoteItem.textContent.trim(), "Quote post");
     assert(!quoteItem.hasAttribute("disabled"));
   });
 
@@ -315,7 +319,7 @@ t.describe("postActionBarTemplate", (it) => {
   });
 });
 
-t.describe("postActionBarTemplate - callbacks", (it) => {
+describe("postActionBarTemplate - callbacks", () => {
   it("should call onClickBookmark when bookmark button clicked", () => {
     let callArgs = null;
     const testPost = {
@@ -339,7 +343,7 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     );
     bookmarkButton.click();
     assert(callArgs !== null);
-    assertEquals(callArgs.doBookmark, true);
+    assert.deepEqual(callArgs.doBookmark, true);
     container.remove();
   });
 
@@ -366,179 +370,172 @@ t.describe("postActionBarTemplate - callbacks", (it) => {
     );
     bookmarkButton.click();
     assert(callArgs !== null);
-    assertEquals(callArgs.doBookmark, false);
+    assert.deepEqual(callArgs.doBookmark, false);
     container.remove();
   });
 });
 
-t.describe(
-  "postActionBarTemplate - plugin context menu items",
-  (it, { afterEach }) => {
-    afterEach(() => {
-      document.body
-        .querySelectorAll("context-menu")
-        .forEach((menu) => menu.remove());
-    });
+describe("postActionBarTemplate - plugin context menu items", () => {
+  afterEach(() => {
+    document.body
+      .querySelectorAll("context-menu")
+      .forEach((menu) => menu.remove());
+  });
 
-    function makePluginService(items) {
-      return { getPostContextMenuItems: async () => items };
+  function makePluginService(items) {
+    return { getPostContextMenuItems: async () => items };
+  }
+
+  async function flushMicrotasks() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  function ensurePageVisible() {
+    if (!document.querySelector(".page-visible")) {
+      const pageVisible = document.createElement("div");
+      pageVisible.classList.add("page-visible");
+      document.body.appendChild(pageVisible);
     }
+  }
 
-    async function flushMicrotasks() {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
+  async function openPostContextMenu(container) {
+    ensurePageVisible();
+    const moreButton = Array.from(
+      container.querySelectorAll(".post-action-button.text-button"),
+    ).find((button) => button.textContent.trim() === "...");
+    moreButton.click();
+    await flushMicrotasks();
+    return document.body.querySelector("context-menu.post-context-menu");
+  }
 
-    function ensurePageVisible() {
-      if (!document.querySelector(".page-visible")) {
-        const pageVisible = document.createElement("div");
-        pageVisible.classList.add("page-visible");
-        document.body.appendChild(pageVisible);
-      }
-    }
-
-    async function openPostContextMenu(container) {
-      ensurePageVisible();
-      const moreButton = Array.from(
-        container.querySelectorAll(".post-action-button.text-button"),
-      ).find((button) => button.textContent.trim() === "...");
-      moreButton.click();
-      await flushMicrotasks();
-      return document.body.querySelector("context-menu.post-context-menu");
-    }
-
-    it("should render one context-menu-item-group per plugin", async () => {
-      const pluginService = makePluginService([
-        { pluginId: "plugin-a", title: "A1", invoke: () => {} },
-        { pluginId: "plugin-a", title: "A2", invoke: () => {} },
-        { pluginId: "plugin-b", title: "B1", invoke: () => {} },
-      ]);
-      const result = postActionBarTemplate({
-        post,
-        isAuthenticated: true,
-        currentUser: { did: "did:plc:test" },
-        pluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const groups = postContextMenu.querySelectorAll(
-        "context-menu-item-group",
-      );
-      const pluginGroups = Array.from(groups).filter((group) =>
-        Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
-          ["A1", "A2", "B1"].includes(item.textContent.trim()),
-        ),
-      );
-      assertEquals(pluginGroups.length, 2);
-      assertEquals(
-        Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
-          (item) => item.textContent.trim(),
-        ),
-        ["A1", "A2"],
-      );
-      assertEquals(
-        Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
-          (item) => item.textContent.trim(),
-        ),
-        ["B1"],
-      );
-      container.remove();
+  it("should render one context-menu-item-group per plugin", async () => {
+    const pluginService = makePluginService([
+      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
     });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const groups = postContextMenu.querySelectorAll("context-menu-item-group");
+    const pluginGroups = Array.from(groups).filter((group) =>
+      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+    assert.deepEqual(pluginGroups.length, 2);
+    assert.deepEqual(
+      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["A1", "A2"],
+    );
+    assert.deepEqual(
+      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["B1"],
+    );
+    container.remove();
+  });
 
-    it("should group non-contiguous items from the same plugin together", async () => {
-      const pluginService = makePluginService([
-        { pluginId: "plugin-a", title: "A1", invoke: () => {} },
-        { pluginId: "plugin-b", title: "B1", invoke: () => {} },
-        { pluginId: "plugin-a", title: "A2", invoke: () => {} },
-      ]);
-      const result = postActionBarTemplate({
-        post,
-        isAuthenticated: true,
-        currentUser: { did: "did:plc:test" },
-        pluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const pluginGroups = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item-group"),
-      ).filter((group) =>
-        Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
-          ["A1", "A2", "B1"].includes(item.textContent.trim()),
-        ),
-      );
-      assertEquals(pluginGroups.length, 2);
-      assertEquals(
-        Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
-          (item) => item.textContent.trim(),
-        ),
-        ["A1", "A2"],
-      );
-      assertEquals(
-        Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
-          (item) => item.textContent.trim(),
-        ),
-        ["B1"],
-      );
-      container.remove();
+  it("should group non-contiguous items from the same plugin together", async () => {
+    const pluginService = makePluginService([
+      { pluginId: "plugin-a", title: "A1", invoke: () => {} },
+      { pluginId: "plugin-b", title: "B1", invoke: () => {} },
+      { pluginId: "plugin-a", title: "A2", invoke: () => {} },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
     });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const pluginGroups = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item-group"),
+    ).filter((group) =>
+      Array.from(group.querySelectorAll("context-menu-item")).some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+    assert.deepEqual(pluginGroups.length, 2);
+    assert.deepEqual(
+      Array.from(pluginGroups[0].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["A1", "A2"],
+    );
+    assert.deepEqual(
+      Array.from(pluginGroups[1].querySelectorAll("context-menu-item")).map(
+        (item) => item.textContent.trim(),
+      ),
+      ["B1"],
+    );
+    container.remove();
+  });
 
-    it("should not render any plugin group when no plugin items", async () => {
-      const pluginService = makePluginService([]);
-      const result = postActionBarTemplate({
-        post,
-        isAuthenticated: true,
-        currentUser: { did: "did:plc:test" },
-        pluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const allItems = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item"),
-      );
-      assert(
-        !allItems.some((item) =>
-          ["A1", "A2", "B1"].includes(item.textContent.trim()),
-        ),
-      );
-      container.remove();
+  it("should not render any plugin group when no plugin items", async () => {
+    const pluginService = makePluginService([]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
     });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const allItems = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    );
+    assert(
+      !allItems.some((item) =>
+        ["A1", "A2", "B1"].includes(item.textContent.trim()),
+      ),
+    );
+    container.remove();
+  });
 
-    it("should invoke plugin handler when clicked", async () => {
-      let invoked = false;
-      const pluginService = makePluginService([
-        {
-          pluginId: "plugin-a",
-          title: "Do thing",
-          invoke: () => {
-            invoked = true;
-          },
+  it("should invoke plugin handler when clicked", async () => {
+    let invoked = false;
+    const pluginService = makePluginService([
+      {
+        pluginId: "plugin-a",
+        title: "Do thing",
+        invoke: () => {
+          invoked = true;
         },
-      ]);
-      const result = postActionBarTemplate({
-        post,
-        isAuthenticated: true,
-        currentUser: { did: "did:plc:test" },
-        pluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const item = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item"),
-      ).find((node) => node.textContent.trim() === "Do thing");
-      assert(item !== undefined);
-      item.click();
-      assertEquals(invoked, true);
-      container.remove();
+      },
+    ]);
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
     });
-  },
-);
-
-await t.run();
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const item = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    ).find((node) => node.textContent.trim() === "Do thing");
+    assert(item !== undefined);
+    item.click();
+    assert.deepEqual(invoked, true);
+    container.remove();
+  });
+});

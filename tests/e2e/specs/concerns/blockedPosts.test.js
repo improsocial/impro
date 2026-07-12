@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer, MockConstellation } from "../../mockServer.js";
-import { createPost } from "../../factories.js";
+import { createPost } from "../../../shared/factories.js";
 
 const postUri = "at://did:plc:author1/app.bsky.feed.post/abc123";
 const AUTHOR_A = {

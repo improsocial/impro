@@ -1,7 +1,7 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import { largePostTemplate } from "/js/templates/largePost.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
 const noop = () => {};
@@ -29,9 +29,7 @@ const baseProps = {
   pluginService,
 };
 
-const t = new TestSuite("largePostTemplate");
-
-t.describe("largePostTemplate", (it) => {
+describe("largePostTemplate", () => {
   it("should render the post container", () => {
     const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
@@ -106,11 +104,11 @@ t.describe("largePostTemplate", (it) => {
     const result = largePostTemplate({ post, ...baseProps });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".reply-context-line-in"), null);
+    assert.deepEqual(container.querySelector(".reply-context-line-in"), null);
   });
 });
 
-t.describe("largePostTemplate - rich text", (it) => {
+describe("largePostTemplate - rich text", () => {
   it("should truncate long URLs in post text", () => {
     const url = "https://example.com/very/long/path/to/some/page";
     const text = "See " + url;
@@ -140,7 +138,7 @@ t.describe("largePostTemplate - rich text", (it) => {
   });
 });
 
-t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
+describe("largePostTemplate - blocked/unavailable posts", () => {
   it("should render blocked post template for blocked post", () => {
     const blockedPost = {
       $type: "app.bsky.feed.defs#blockedPost",
@@ -172,7 +170,7 @@ t.describe("largePostTemplate - blocked/unavailable posts", (it) => {
   });
 });
 
-t.describe("largePostTemplate - moderation", (it) => {
+describe("largePostTemplate - moderation", () => {
   it("should show moderation warning for post with muted word", () => {
     const mutedPost = {
       ...post,
@@ -186,7 +184,7 @@ t.describe("largePostTemplate - moderation", (it) => {
     render(result, container);
     const warning = container.querySelector("moderation-warning");
     assert(warning !== null);
-    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+    assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should show moderation warning for hidden post", () => {
@@ -202,7 +200,7 @@ t.describe("largePostTemplate - moderation", (it) => {
     render(result, container);
     const warning = container.querySelector("moderation-warning");
     assert(warning !== null);
-    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+    assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should not show moderation warning for normal post", () => {
@@ -216,123 +214,118 @@ t.describe("largePostTemplate - moderation", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("moderation-warning"), null);
+    assert.deepEqual(container.querySelector("moderation-warning"), null);
   });
 });
 
-t.describe(
-  "largePostTemplate - plugin context menu items",
-  (it, { afterEach }) => {
-    afterEach(() => {
-      document.body
-        .querySelectorAll("context-menu")
-        .forEach((menu) => menu.remove());
+describe("largePostTemplate - plugin context menu items", () => {
+  afterEach(() => {
+    document.body
+      .querySelectorAll("context-menu")
+      .forEach((menu) => menu.remove());
+  });
+
+  async function flushMicrotasks() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  function ensurePageVisible() {
+    if (!document.querySelector(".page-visible")) {
+      const pageVisible = document.createElement("div");
+      pageVisible.classList.add("page-visible");
+      document.body.appendChild(pageVisible);
+    }
+  }
+
+  async function openPostContextMenu(container) {
+    ensurePageVisible();
+    const moreButton = Array.from(
+      container.querySelectorAll(".post-action-button.text-button"),
+    ).find((button) => button.textContent.trim() === "...");
+    moreButton.click();
+    await flushMicrotasks();
+    return document.body.querySelector("context-menu.post-context-menu");
+  }
+
+  it("should render plugin-provided context menu items in the action bar", async () => {
+    const customPluginService = {
+      getPostContextMenuItems: async () => [
+        { title: "Custom plugin item", invoke: () => {} },
+        { title: "Save to Notion", invoke: () => {} },
+      ],
+    };
+    const result = largePostTemplate({
+      post,
+      ...baseProps,
+      pluginService: customPluginService,
     });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const items = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    );
+    const itemTexts = items.map((el) => el.textContent.trim());
+    assert(
+      itemTexts.includes("Custom plugin item"),
+      `expected "Custom plugin item" in ${JSON.stringify(itemTexts)}`,
+    );
+    assert(
+      itemTexts.includes("Save to Notion"),
+      `expected "Save to Notion" in ${JSON.stringify(itemTexts)}`,
+    );
+    container.remove();
+  });
 
-    async function flushMicrotasks() {
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      await new Promise((resolve) => setTimeout(resolve, 0));
-    }
-
-    function ensurePageVisible() {
-      if (!document.querySelector(".page-visible")) {
-        const pageVisible = document.createElement("div");
-        pageVisible.classList.add("page-visible");
-        document.body.appendChild(pageVisible);
-      }
-    }
-
-    async function openPostContextMenu(container) {
-      ensurePageVisible();
-      const moreButton = Array.from(
-        container.querySelectorAll(".post-action-button.text-button"),
-      ).find((button) => button.textContent.trim() === "...");
-      moreButton.click();
-      await flushMicrotasks();
-      return document.body.querySelector("context-menu.post-context-menu");
-    }
-
-    it("should render plugin-provided context menu items in the action bar", async () => {
-      const customPluginService = {
-        getPostContextMenuItems: async () => [
-          { title: "Custom plugin item", invoke: () => {} },
-          { title: "Save to Notion", invoke: () => {} },
-        ],
-      };
-      const result = largePostTemplate({
-        post,
-        ...baseProps,
-        pluginService: customPluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const items = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item"),
-      );
-      const itemTexts = items.map((el) => el.textContent.trim());
-      assert(
-        itemTexts.includes("Custom plugin item"),
-        `expected "Custom plugin item" in ${JSON.stringify(itemTexts)}`,
-      );
-      assert(
-        itemTexts.includes("Save to Notion"),
-        `expected "Save to Notion" in ${JSON.stringify(itemTexts)}`,
-      );
-      container.remove();
-    });
-
-    it("should invoke the plugin item callback when clicked", async () => {
-      let invoked = false;
-      const customPluginService = {
-        getPostContextMenuItems: async () => [
-          {
-            title: "Custom plugin item",
-            invoke: () => {
-              invoked = true;
-            },
+  it("should invoke the plugin item callback when clicked", async () => {
+    let invoked = false;
+    const customPluginService = {
+      getPostContextMenuItems: async () => [
+        {
+          title: "Custom plugin item",
+          invoke: () => {
+            invoked = true;
           },
-        ],
-      };
-      const result = largePostTemplate({
-        post,
-        ...baseProps,
-        pluginService: customPluginService,
-      });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const items = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item"),
-      );
-      const target = items.find(
-        (el) => el.textContent.trim() === "Custom plugin item",
-      );
-      assert(target !== null && target !== undefined);
-      target.click();
-      assertEquals(invoked, true);
-      container.remove();
+        },
+      ],
+    };
+    const result = largePostTemplate({
+      post,
+      ...baseProps,
+      pluginService: customPluginService,
     });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const items = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    );
+    const target = items.find(
+      (el) => el.textContent.trim() === "Custom plugin item",
+    );
+    assert(target !== null && target !== undefined);
+    target.click();
+    assert.deepEqual(invoked, true);
+    container.remove();
+  });
 
-    it("should not render any plugin items when the registry is empty", async () => {
-      const result = largePostTemplate({ post, ...baseProps });
-      const container = document.createElement("div");
-      document.body.appendChild(container);
-      render(result, container);
-      const postContextMenu = await openPostContextMenu(container);
-      const items = Array.from(
-        postContextMenu.querySelectorAll("context-menu-item"),
-      );
-      const itemTexts = items.map((el) => el.textContent.trim());
-      assert(
-        !itemTexts.includes("Custom plugin item"),
-        "plugin item should not render",
-      );
-      container.remove();
-    });
-  },
-);
-
-await t.run();
+  it("should not render any plugin items when the registry is empty", async () => {
+    const result = largePostTemplate({ post, ...baseProps });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    const postContextMenu = await openPostContextMenu(container);
+    const items = Array.from(
+      postContextMenu.querySelectorAll("context-menu-item"),
+    );
+    const itemTexts = items.map((el) => el.textContent.trim());
+    assert(
+      !itemTexts.includes("Custom plugin item"),
+      "plugin item should not render",
+    );
+    container.remove();
+  });
+});

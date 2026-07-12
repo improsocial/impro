@@ -1,12 +1,10 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   getKnownFollowersText,
   knownFollowersSummaryTemplate,
 } from "/js/templates/knownFollowersSummary.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("knownFollowersSummaryTemplate");
 
 const alice = {
   did: "did:plc:alice",
@@ -19,38 +17,38 @@ const bob = {
   displayName: "Bob",
 };
 
-t.describe("getKnownFollowersText", (it) => {
+describe("getKnownFollowersText", () => {
   it("should name a single known follower", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({ count: 1, followers: [alice] }),
       "Followed by Alice",
     );
   });
 
   it("should count unnamed others beyond a single named follower", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({ count: 2, followers: [alice] }),
       "Followed by Alice and 1 other",
     );
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({ count: 3, followers: [alice] }),
       "Followed by Alice and 2 others",
     );
   });
 
   it("should name two known followers", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({ count: 2, followers: [alice, bob] }),
       "Followed by Alice and Bob",
     );
   });
 
   it("should count others beyond two named followers", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({ count: 3, followers: [alice, bob] }),
       "Followed by Alice, Bob, and 1 other",
     );
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({
         count: 5,
         followers: [alice, bob, { did: "did:plc:c", handle: "c.bsky.social" }],
@@ -60,7 +58,7 @@ t.describe("getKnownFollowersText", (it) => {
   });
 
   it("should fall back to the array length when count is missing", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({
         followers: [alice, bob, { did: "did:plc:c", handle: "c.bsky.social" }],
       }),
@@ -69,7 +67,7 @@ t.describe("getKnownFollowersText", (it) => {
   });
 
   it("should fall back to handles for followers without display names", () => {
-    assertEquals(
+    assert.deepEqual(
       getKnownFollowersText({
         count: 1,
         followers: [{ did: "did:plc:c", handle: "c.bsky.social" }],
@@ -79,7 +77,7 @@ t.describe("getKnownFollowersText", (it) => {
   });
 });
 
-t.describe("knownFollowersSummaryTemplate", (it) => {
+describe("knownFollowersSummaryTemplate", () => {
   function renderTemplate(props) {
     const container = document.createElement("div");
     render(knownFollowersSummaryTemplate(props), container);
@@ -98,7 +96,7 @@ t.describe("knownFollowersSummaryTemplate", (it) => {
     const container = renderTemplate({
       profile: { did: "did:plc:requester", viewer: {} },
     });
-    assertEquals(container.textContent.trim(), "");
+    assert.deepEqual(container.textContent.trim(), "");
   });
 
   it("should render the placeholder when showPlaceholder is set", () => {
@@ -106,11 +104,11 @@ t.describe("knownFollowersSummaryTemplate", (it) => {
       profile: { did: "did:plc:requester", viewer: {} },
       showPlaceholder: true,
     });
-    assertEquals(
+    assert.deepEqual(
       container.querySelector(".known-followers-text").textContent.trim(),
       "Not followed by anyone you're following",
     );
-    assertEquals(
+    assert.deepEqual(
       container.querySelector('[data-testid="known-followers-summary"]'),
       null,
     );
@@ -122,7 +120,7 @@ t.describe("knownFollowersSummaryTemplate", (it) => {
       profile: profileWithKnownFollowers({ count: 2, followers: [] }),
       showPlaceholder: true,
     });
-    assertEquals(
+    assert.deepEqual(
       container.querySelector(".known-followers-text").textContent.trim(),
       "Not followed by anyone you're following",
     );
@@ -137,8 +135,11 @@ t.describe("knownFollowersSummaryTemplate", (it) => {
     );
     assert(summary !== null);
     assert(summary.getAttribute("href").includes("known-followers"));
-    assertEquals(summary.querySelectorAll(".known-followers-avatar").length, 2);
-    assertEquals(
+    assert.deepEqual(
+      summary.querySelectorAll(".known-followers-avatar").length,
+      2,
+    );
+    assert.deepEqual(
       summary.querySelector(".known-followers-text").textContent.trim(),
       "Followed by Alice, Bob, and 1 other",
     );
@@ -154,11 +155,9 @@ t.describe("knownFollowersSummaryTemplate", (it) => {
     const container = renderTemplate({
       profile: profileWithKnownFollowers({ count: 4, followers }),
     });
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll(".known-followers-avatar").length,
       3,
     );
   });
 });
-
-await t.run();

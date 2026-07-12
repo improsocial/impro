@@ -5,8 +5,8 @@ import {
   createFeedGenerator,
   createList,
   createPost,
-} from "../../factories.js";
-import { userProfile } from "../../fixtures.js";
+} from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("Home view", () => {
   test("should display Following tab and feed posts", async ({ page }) => {
@@ -468,6 +468,57 @@ test.describe("Home view", () => {
         timeout: 10000,
       });
     });
+
+    // Welcome modal popup temporarily disabled
+    // test("should show the welcome modal on first visit only", async ({
+    //   page,
+    // }) => {
+    //   const mockServer = new MockServer();
+    //   const discoverFeed = createFeedGenerator({
+    //     uri: discoverFeedUri,
+    //     displayName: "Discover",
+    //     creatorHandle: "bsky.app",
+    //   });
+    //   mockServer.addFeedGenerators([discoverFeed]);
+    //   await mockServer.setup(page, { welcomeModalSeen: false });
+
+    //   await page.goto("/");
+
+    //   const modal = page.locator('[data-testid="welcome-modal"]');
+    //   await expect(modal).toBeVisible({ timeout: 10000 });
+    //   await modal.locator('[data-testid="modal-secondary-button"]').click();
+    //   await expect(modal).not.toBeVisible();
+
+    //   await page.goto("/");
+    //   const view = page.locator("#home-view");
+    //   await expect(view.locator(".tab-bar-button")).toHaveCount(1, {
+    //     timeout: 10000,
+    //   });
+    //   await expect(modal).not.toBeVisible();
+    // });
+
+    // test("should not show the welcome modal when already seen", async ({
+    //   page,
+    // }) => {
+    //   const mockServer = new MockServer();
+    //   const discoverFeed = createFeedGenerator({
+    //     uri: discoverFeedUri,
+    //     displayName: "Discover",
+    //     creatorHandle: "bsky.app",
+    //   });
+    //   mockServer.addFeedGenerators([discoverFeed]);
+    //   await mockServer.setup(page);
+
+    //   await page.goto("/");
+
+    //   const view = page.locator("#home-view");
+    //   await expect(view.locator(".tab-bar-button")).toHaveCount(1, {
+    //     timeout: 10000,
+    //   });
+    //   await expect(
+    //     page.locator('[data-testid="welcome-modal"]'),
+    //   ).not.toBeVisible();
+    // });
 
     test("should hide logged-in-only UI (compose button, feed switcher)", async ({
       page,

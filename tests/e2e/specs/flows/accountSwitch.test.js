@@ -1,8 +1,8 @@
 import { test, expect } from "../../base.js";
 import { loginWithAccounts, longPress } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { userProfile } from "../../fixtures.js";
-import { createProfile } from "../../factories.js";
+import { userProfile } from "../../testData.js";
+import { createProfile } from "../../../shared/factories.js";
 
 // The footer (the long-press trigger) only renders on small viewports.
 test.use({ viewport: { width: 375, height: 667 } });

@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
@@ -62,9 +62,7 @@ function makeDerived(
   );
 }
 
-const t = new TestSuite("Mutations");
-
-t.describe("addLike", (it) => {
+describe("addLike", () => {
   const testPost = {
     uri: "at://did:test/app.bsky.feed.post/test",
     likeCount: 5,
@@ -90,8 +88,8 @@ t.describe("addLike", (it) => {
     mutations.addLike(testPost);
 
     const patchedPost = applyPostPatches(patchStore, testPost);
-    assertEquals(patchedPost.viewer.like, "fake like");
-    assertEquals(patchedPost.likeCount, 6);
+    assert.deepEqual(patchedPost.viewer.like, "fake like");
+    assert.deepEqual(patchedPost.likeCount, 6);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -114,11 +112,11 @@ t.describe("addLike", (it) => {
     await mutations.addLike(testPost);
 
     const storedPost = dataStore.$posts.get(testPost.uri);
-    assertEquals(storedPost.viewer.like, "like-123");
-    assertEquals(storedPost.likeCount, 6);
+    assert.deepEqual(storedPost.viewer.like, "like-123");
+    assert.deepEqual(storedPost.likeCount, 6);
 
     const patchedPost = applyPostPatches(patchStore, storedPost);
-    assertEquals(patchedPost, storedPost);
+    assert.deepEqual(patchedPost, storedPost);
   });
 
   it("should handle concurrent like operations", async () => {
@@ -144,13 +142,13 @@ t.describe("addLike", (it) => {
     const promise2 = mutations.addLike(testPost);
 
     const patchedPost = applyPostPatches(patchStore, testPost);
-    assertEquals(patchedPost.likeCount, 7);
+    assert.deepEqual(patchedPost.likeCount, 7);
 
     await Promise.all([promise1, promise2]);
   });
 });
 
-t.describe("removeLike", (it) => {
+describe("removeLike", () => {
   const testPost = {
     uri: "at://did:test/app.bsky.feed.post/test",
     likeCount: 6,
@@ -179,8 +177,8 @@ t.describe("removeLike", (it) => {
     mutations.removeLike(testPost);
 
     const patchedPost = applyPostPatches(patchStore, testPost);
-    assertEquals(patchedPost.viewer.like, null);
-    assertEquals(patchedPost.likeCount, 5);
+    assert.deepEqual(patchedPost.viewer.like, null);
+    assert.deepEqual(patchedPost.likeCount, 5);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -202,15 +200,15 @@ t.describe("removeLike", (it) => {
     await mutations.removeLike(testPost);
 
     const storedPost = dataStore.$posts.get(testPost.uri);
-    assertEquals(storedPost.viewer.like, null);
-    assertEquals(storedPost.likeCount, 5);
+    assert.deepEqual(storedPost.viewer.like, null);
+    assert.deepEqual(storedPost.likeCount, 5);
 
     const patchedPost = applyPostPatches(patchStore, storedPost);
-    assertEquals(patchedPost, storedPost);
+    assert.deepEqual(patchedPost, storedPost);
   });
 });
 
-t.describe("followProfile", (it) => {
+describe("followProfile", () => {
   const testProfile = {
     uri: "did:test:profile",
     did: "did:test:profile",
@@ -241,8 +239,8 @@ t.describe("followProfile", (it) => {
     mutations.followProfile(testProfile);
 
     const patchedProfile = patchStore.applyProfilePatches(testProfile);
-    assertEquals(patchedProfile.viewer.following, "fake following");
-    assertEquals(patchedProfile.followersCount, 11);
+    assert.deepEqual(patchedProfile.viewer.following, "fake following");
+    assert.deepEqual(patchedProfile.followersCount, 11);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -266,18 +264,18 @@ t.describe("followProfile", (it) => {
     await mutations.followProfile(testProfile);
 
     const storedProfile = dataStore.$profiles.get(testProfile.did);
-    assertEquals(storedProfile.viewer.following, "follow-123");
+    assert.deepEqual(storedProfile.viewer.following, "follow-123");
 
     const storedDetailed = dataStore.$detailedProfiles.get(testProfile.did);
-    assertEquals(storedDetailed.viewer.following, "follow-123");
-    assertEquals(storedDetailed.followersCount, 11);
+    assert.deepEqual(storedDetailed.viewer.following, "follow-123");
+    assert.deepEqual(storedDetailed.followersCount, 11);
 
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
-    assertEquals(patchedProfile, storedProfile);
+    assert.deepEqual(patchedProfile, storedProfile);
   });
 });
 
-t.describe("unfollowProfile", (it) => {
+describe("unfollowProfile", () => {
   const testProfile = {
     uri: "did:test:profile",
     did: "did:test:profile",
@@ -308,8 +306,8 @@ t.describe("unfollowProfile", (it) => {
     mutations.unfollowProfile(testProfile);
 
     const patchedProfile = patchStore.applyProfilePatches(testProfile);
-    assertEquals(patchedProfile.viewer.following, null);
-    assertEquals(patchedProfile.followersCount, 9);
+    assert.deepEqual(patchedProfile.viewer.following, null);
+    assert.deepEqual(patchedProfile.followersCount, 9);
   });
 
   it("should update dataStore and remove patch on success", async () => {
@@ -332,18 +330,18 @@ t.describe("unfollowProfile", (it) => {
     await mutations.unfollowProfile(testProfile);
 
     const storedProfile = dataStore.$profiles.get(testProfile.did);
-    assertEquals(storedProfile.viewer.following, null);
+    assert.deepEqual(storedProfile.viewer.following, null);
 
     const storedDetailed = dataStore.$detailedProfiles.get(testProfile.did);
-    assertEquals(storedDetailed.viewer.following, null);
-    assertEquals(storedDetailed.followersCount, 9);
+    assert.deepEqual(storedDetailed.viewer.following, null);
+    assert.deepEqual(storedDetailed.followersCount, 9);
 
     const patchedProfile = patchStore.applyProfilePatches(storedProfile);
-    assertEquals(patchedProfile, storedProfile);
+    assert.deepEqual(patchedProfile, storedProfile);
   });
 });
 
-t.describe("subscribeLabeler", (it) => {
+describe("subscribeLabeler", () => {
   const testProfile = {
     did: "did:test:labeler",
     handle: "labeler.test",
@@ -374,9 +372,9 @@ t.describe("subscribeLabeler", (it) => {
     mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "subscribeLabeler");
-    assertEquals(patches[0].body.did, testProfile.did);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "subscribeLabeler");
+    assert.deepEqual(patches[0].body.did, testProfile.did);
   });
 
   it("should remove patch after successful update", async () => {
@@ -398,7 +396,7 @@ t.describe("subscribeLabeler", (it) => {
     await mutations.subscribeLabeler(testProfile, testLabelerInfo);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 
   it("should remove patch even on error", async () => {
@@ -426,13 +424,13 @@ t.describe("subscribeLabeler", (it) => {
       errorThrown = true;
     }
 
-    assertEquals(errorThrown, true);
+    assert.deepEqual(errorThrown, true);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 });
 
-t.describe("unsubscribeLabeler", (it) => {
+describe("unsubscribeLabeler", () => {
   const testProfile = {
     did: "did:test:labeler",
     handle: "labeler.test",
@@ -459,9 +457,9 @@ t.describe("unsubscribeLabeler", (it) => {
     mutations.unsubscribeLabeler(testProfile);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "unsubscribeLabeler");
-    assertEquals(patches[0].body.did, testProfile.did);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "unsubscribeLabeler");
+    assert.deepEqual(patches[0].body.did, testProfile.did);
   });
 
   it("should remove patch after successful update", async () => {
@@ -483,7 +481,7 @@ t.describe("unsubscribeLabeler", (it) => {
     await mutations.unsubscribeLabeler(testProfile);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 
   it("should remove patch even on error", async () => {
@@ -511,13 +509,13 @@ t.describe("unsubscribeLabeler", (it) => {
       errorThrown = true;
     }
 
-    assertEquals(errorThrown, true);
+    assert.deepEqual(errorThrown, true);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 });
 
-t.describe("updateLabelerSetting", (it) => {
+describe("updateLabelerSetting", () => {
   const labelerDid = "did:test:labeler";
   const label = "nsfw";
   const visibility = "warn";
@@ -543,11 +541,11 @@ t.describe("updateLabelerSetting", (it) => {
     mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "setContentLabelPref");
-    assertEquals(patches[0].body.label, label);
-    assertEquals(patches[0].body.visibility, visibility);
-    assertEquals(patches[0].body.labelerDid, labelerDid);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "setContentLabelPref");
+    assert.deepEqual(patches[0].body.label, label);
+    assert.deepEqual(patches[0].body.visibility, visibility);
+    assert.deepEqual(patches[0].body.labelerDid, labelerDid);
   });
 
   it("should remove patch after successful update", async () => {
@@ -569,7 +567,7 @@ t.describe("updateLabelerSetting", (it) => {
     await mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 
   it("should remove patch even on error", async () => {
@@ -597,9 +595,9 @@ t.describe("updateLabelerSetting", (it) => {
       errorThrown = true;
     }
 
-    assertEquals(errorThrown, true);
+    assert.deepEqual(errorThrown, true);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 0);
+    assert.deepEqual(patches.length, 0);
   });
 
   it("should call setContentLabelPref with correct parameters", async () => {
@@ -624,13 +622,13 @@ t.describe("updateLabelerSetting", (it) => {
 
     await mutations.updateLabelerSetting({ labelerDid, label, visibility });
 
-    assertEquals(setContentLabelPrefCalledWith.labelerDid, labelerDid);
-    assertEquals(setContentLabelPrefCalledWith.label, label);
-    assertEquals(setContentLabelPrefCalledWith.visibility, visibility);
+    assert.deepEqual(setContentLabelPrefCalledWith.labelerDid, labelerDid);
+    assert.deepEqual(setContentLabelPrefCalledWith.label, label);
+    assert.deepEqual(setContentLabelPrefCalledWith.visibility, visibility);
   });
 });
 
-t.describe("Error Handling and Edge Cases", (it) => {
+describe("Error Handling and Edge Cases", () => {
   it("should handle multiple mutations on same resource", async () => {
     const post = {
       uri: "post1",
@@ -668,7 +666,7 @@ t.describe("Error Handling and Edge Cases", (it) => {
     });
 
     const patchedPost = applyPostPatches(patchStore, post);
-    assertEquals(patchedPost.likeCount, 5);
+    assert.deepEqual(patchedPost.likeCount, 5);
 
     await Promise.all([likePromise, unlikePromise]);
   });
@@ -694,11 +692,11 @@ t.describe("Error Handling and Edge Cases", (it) => {
     await mutations.removeLike(post);
 
     const storedPost = dataStore.$posts.get(post.uri);
-    assertEquals(storedPost.viewer.like, null);
+    assert.deepEqual(storedPost.viewer.like, null);
   });
 });
 
-t.describe("addMutedWord", (it) => {
+describe("addMutedWord", () => {
   it("should call updatePreferences with new muted word", async () => {
     let updatedPreferences = null;
     const mockPreferencesProvider = {
@@ -723,10 +721,10 @@ t.describe("addMutedWord", (it) => {
     });
 
     const words = updatedPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].value, "testword");
-    assertEquals(words[0].targets.length, 2);
-    assertEquals(words[0].actorTarget, "all");
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].value, "testword");
+    assert.deepEqual(words[0].targets.length, 2);
+    assert.deepEqual(words[0].actorTarget, "all");
   });
 
   it("should pass expiresAt through to preferences", async () => {
@@ -755,12 +753,12 @@ t.describe("addMutedWord", (it) => {
     });
 
     const words = updatedPreferences.getMutedWords();
-    assertEquals(words[0].expiresAt, expiresAt);
-    assertEquals(words[0].actorTarget, "exclude-following");
+    assert.deepEqual(words[0].expiresAt, expiresAt);
+    assert.deepEqual(words[0].actorTarget, "exclude-following");
   });
 });
 
-t.describe("removeMutedWord", (it) => {
+describe("removeMutedWord", () => {
   it("should call updatePreferences with word removed", async () => {
     let updatedPreferences = null;
     const existingPrefs = new Preferences(
@@ -803,12 +801,12 @@ t.describe("removeMutedWord", (it) => {
     await mutations.removeMutedWord("word-1");
 
     const words = updatedPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].value, "keep-me");
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].value, "keep-me");
   });
 });
 
-t.describe("updateProfile", (it) => {
+describe("updateProfile", () => {
   const testProfile = {
     did: "did:plc:test123",
     displayName: "Old Name",
@@ -882,11 +880,11 @@ t.describe("updateProfile", (it) => {
       description: "New bio",
     });
 
-    assertEquals(getRecordCalled, true);
-    assertEquals(putRecordCalled, true);
-    assertEquals(putRecordArgs.record.displayName, "New Name");
-    assertEquals(putRecordArgs.record.description, "New bio");
-    assertEquals(putRecordArgs.swapRecord, "cid123");
+    assert.deepEqual(getRecordCalled, true);
+    assert.deepEqual(putRecordCalled, true);
+    assert.deepEqual(putRecordArgs.record.displayName, "New Name");
+    assert.deepEqual(putRecordArgs.record.description, "New bio");
+    assert.deepEqual(putRecordArgs.swapRecord, "cid123");
   });
 
   it("should upload avatar blob when provided", async () => {
@@ -910,7 +908,7 @@ t.describe("updateProfile", (it) => {
       avatarBlob: fakeBlob,
     });
 
-    assertEquals(uploadBlobCalled, true);
+    assert.deepEqual(uploadBlobCalled, true);
   });
 
   it("should upload banner blob when provided", async () => {
@@ -934,7 +932,7 @@ t.describe("updateProfile", (it) => {
       bannerBlob: fakeBlob,
     });
 
-    assertEquals(uploadBlobCallCount, 1);
+    assert.deepEqual(uploadBlobCallCount, 1);
   });
 
   it("should update dataStore with the fetched profile on success", async () => {
@@ -955,9 +953,12 @@ t.describe("updateProfile", (it) => {
     });
 
     const updatedProfile = dataStore.$profiles.get(testProfile.did);
-    assertEquals(updatedProfile.displayName, "Updated Name");
-    assertEquals(updatedProfile.description, "Updated bio");
-    assertEquals(updatedProfile.avatar, "https://example.com/new-avatar.jpg");
+    assert.deepEqual(updatedProfile.displayName, "Updated Name");
+    assert.deepEqual(updatedProfile.description, "Updated bio");
+    assert.deepEqual(
+      updatedProfile.avatar,
+      "https://example.com/new-avatar.jpg",
+    );
   });
 
   it("should fetch profile with labelers after updating", async () => {
@@ -980,8 +981,8 @@ t.describe("updateProfile", (it) => {
       description: "New bio",
     });
 
-    assertEquals(getProfileArgs.did, testProfile.did);
-    assertEquals(Array.isArray(getProfileArgs.options.labelers), true);
+    assert.deepEqual(getProfileArgs.did, testProfile.did);
+    assert.deepEqual(Array.isArray(getProfileArgs.options.labelers), true);
   });
 
   it("should rethrow non-400 errors from getProfileRecord", async () => {
@@ -999,7 +1000,7 @@ t.describe("updateProfile", (it) => {
       });
       throw new Error("Expected updateProfile to throw");
     } catch (error) {
-      assertEquals(error.status, 500);
+      assert.deepEqual(error.status, 500);
     }
   });
 
@@ -1020,11 +1021,11 @@ t.describe("updateProfile", (it) => {
     });
 
     const currentUser = dataStore.$currentUser.get();
-    assertEquals(currentUser.displayName, "Updated User");
+    assert.deepEqual(currentUser.displayName, "Updated User");
   });
 });
 
-t.describe("pinPost", (it) => {
+describe("pinPost", () => {
   const testUser = {
     did: "did:plc:user",
     handle: "user.test",
@@ -1077,12 +1078,12 @@ t.describe("pinPost", (it) => {
 
     await mutations.pinPost(testPost);
 
-    assertEquals(dataStore.$currentUser.get().pinnedPost.uri, testPost.uri);
-    assertEquals(dataStore.$currentUser.get().pinnedPost.cid, testPost.cid);
-    assertEquals(putRecordArgs.record.pinnedPost.uri, testPost.uri);
-    assertEquals(putRecordArgs.record.pinnedPost.cid, testPost.cid);
-    assertEquals(putRecordArgs.record.displayName, "Me");
-    assertEquals(putRecordArgs.swapRecord, "cid-profile");
+    assert.deepEqual(dataStore.$currentUser.get().pinnedPost.uri, testPost.uri);
+    assert.deepEqual(dataStore.$currentUser.get().pinnedPost.cid, testPost.cid);
+    assert.deepEqual(putRecordArgs.record.pinnedPost.uri, testPost.uri);
+    assert.deepEqual(putRecordArgs.record.pinnedPost.cid, testPost.cid);
+    assert.deepEqual(putRecordArgs.record.displayName, "Me");
+    assert.deepEqual(putRecordArgs.swapRecord, "cid-profile");
   });
 
   it("should pin in the author feed after server success", async () => {
@@ -1101,9 +1102,9 @@ t.describe("pinPost", (it) => {
     await mutations.pinPost(testPost);
 
     const feed = dataStore.$authorFeeds.get(`${testUser.did}-posts`).feed;
-    assertEquals(feed[0].post.uri, testPost.uri);
-    assertEquals(feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
-    assertEquals(feed.length, 2);
+    assert.deepEqual(feed[0].post.uri, testPost.uri);
+    assert.deepEqual(feed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
+    assert.deepEqual(feed.length, 2);
   });
 
   it("should optimistically patch currentUser and author feed while in flight", async () => {
@@ -1133,18 +1134,21 @@ t.describe("pinPost", (it) => {
     // Yield so the patches apply before we inspect them.
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    assertEquals(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
+    assert.deepEqual(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
     const inFlightFeed = derived.$hydratedAuthorFeeds.get(
       `${testUser.did}-posts`,
     ).feed;
-    assertEquals(inFlightFeed[0].post.uri, testPost.uri);
-    assertEquals(inFlightFeed[0].reason.$type, "app.bsky.feed.defs#reasonPin");
+    assert.deepEqual(inFlightFeed[0].post.uri, testPost.uri);
+    assert.deepEqual(
+      inFlightFeed[0].reason.$type,
+      "app.bsky.feed.defs#reasonPin",
+    );
 
     putResolve({});
     await promise;
 
     // After success, dataStore matches the previously-patched view.
-    assertEquals(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
+    assert.deepEqual(derived.$currentUser.get().pinnedPost.uri, testPost.uri);
   });
 
   it("should revert to original state on failure", async () => {
@@ -1179,20 +1183,23 @@ t.describe("pinPost", (it) => {
     } catch (e) {
       threw = true;
     }
-    assertEquals(threw, true);
+    assert.deepEqual(threw, true);
     // Patches removed; derived reflect original dataStore.
-    assertEquals(derived.$currentUser.get().pinnedPost.uri, previousPinned.uri);
+    assert.deepEqual(
+      derived.$currentUser.get().pinnedPost.uri,
+      previousPinned.uri,
+    );
     const feed = derived.$hydratedAuthorFeeds.get(`${testUser.did}-posts`).feed;
-    assertEquals(feed[0].post.uri, otherItem.post.uri);
+    assert.deepEqual(feed[0].post.uri, otherItem.post.uri);
     // dataStore unchanged.
-    assertEquals(
+    assert.deepEqual(
       dataStore.$currentUser.get().pinnedPost.uri,
       previousPinned.uri,
     );
   });
 });
 
-t.describe("unpinPost", (it) => {
+describe("unpinPost", () => {
   const testUser = {
     did: "did:plc:user",
     handle: "user.test",
@@ -1247,9 +1254,9 @@ t.describe("unpinPost", (it) => {
 
     await mutations.unpinPost(testPost);
 
-    assertEquals(dataStore.$currentUser.get().pinnedPost, undefined);
-    assertEquals("pinnedPost" in putRecordArgs.record, false);
-    assertEquals(putRecordArgs.record.displayName, "Me");
+    assert.deepEqual(dataStore.$currentUser.get().pinnedPost, undefined);
+    assert.deepEqual("pinnedPost" in putRecordArgs.record, false);
+    assert.deepEqual(putRecordArgs.record.displayName, "Me");
   });
 
   it("should be a no-op when a different post is pinned", async () => {
@@ -1271,12 +1278,15 @@ t.describe("unpinPost", (it) => {
 
     await mutations.unpinPost(testPost);
 
-    assertEquals(putCalled, false);
-    assertEquals(dataStore.$currentUser.get().pinnedPost.uri, otherPinned.uri);
+    assert.deepEqual(putCalled, false);
+    assert.deepEqual(
+      dataStore.$currentUser.get().pinnedPost.uri,
+      otherPinned.uri,
+    );
   });
 });
 
-t.describe("muteProfile", (it) => {
+describe("muteProfile", () => {
   const profile = {
     did: "did:plc:target",
     handle: "target.bsky.social",
@@ -1301,7 +1311,7 @@ t.describe("muteProfile", (it) => {
   it("should set viewer.muted on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.muteProfile(profile);
-    assertEquals(dataStore.$profiles.get(profile.did).viewer.muted, true);
+    assert.deepEqual(dataStore.$profiles.get(profile.did).viewer.muted, true);
   });
 
   it("should prepend muted profile to the cached list", async () => {
@@ -1312,11 +1322,11 @@ t.describe("muteProfile", (it) => {
     await mutations.muteProfile(profile);
 
     const stored = dataStore.$mutedProfiles.get();
-    assertEquals(stored.mutes.length, 2);
-    assertEquals(stored.mutes[0].did, profile.did);
-    assertEquals(stored.mutes[0].viewer.muted, true);
-    assertEquals(stored.mutes[1].did, existing.did);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.mutes.length, 2);
+    assert.deepEqual(stored.mutes[0].did, profile.did);
+    assert.deepEqual(stored.mutes[0].viewer.muted, true);
+    assert.deepEqual(stored.mutes[1].did, existing.did);
+    assert.deepEqual(stored.cursor, "abc");
   });
 
   it("should not duplicate when already present in the cached list", async () => {
@@ -1328,17 +1338,17 @@ t.describe("muteProfile", (it) => {
 
     await mutations.muteProfile(profile);
 
-    assertEquals(dataStore.$mutedProfiles.get().mutes.length, 1);
+    assert.deepEqual(dataStore.$mutedProfiles.get().mutes.length, 1);
   });
 
   it("should not initialize the cached list if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.muteProfile(profile);
-    assertEquals(dataStore.$mutedProfiles.get(), null);
+    assert.deepEqual(dataStore.$mutedProfiles.get(), null);
   });
 });
 
-t.describe("unmuteProfile", (it) => {
+describe("unmuteProfile", () => {
   const profile = {
     did: "did:plc:target",
     handle: "target.bsky.social",
@@ -1363,7 +1373,7 @@ t.describe("unmuteProfile", (it) => {
   it("should clear viewer.muted on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.unmuteProfile(profile);
-    assertEquals(dataStore.$profiles.get(profile.did).viewer.muted, false);
+    assert.deepEqual(dataStore.$profiles.get(profile.did).viewer.muted, false);
   });
 
   it("should remove profile from the cached list", async () => {
@@ -1377,9 +1387,9 @@ t.describe("unmuteProfile", (it) => {
     await mutations.unmuteProfile(profile);
 
     const stored = dataStore.$mutedProfiles.get();
-    assertEquals(stored.mutes.length, 1);
-    assertEquals(stored.mutes[0].did, other.did);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.mutes.length, 1);
+    assert.deepEqual(stored.mutes[0].did, other.did);
+    assert.deepEqual(stored.cursor, "abc");
   });
 
   it("should be a no-op on the cached list when not present", async () => {
@@ -1389,11 +1399,11 @@ t.describe("unmuteProfile", (it) => {
 
     await mutations.unmuteProfile(profile);
 
-    assertEquals(dataStore.$mutedProfiles.get().mutes.length, 1);
+    assert.deepEqual(dataStore.$mutedProfiles.get().mutes.length, 1);
   });
 });
 
-t.describe("blockProfile", (it) => {
+describe("blockProfile", () => {
   const profile = {
     did: "did:plc:target",
     handle: "target.bsky.social",
@@ -1419,7 +1429,7 @@ t.describe("blockProfile", (it) => {
   it("should set viewer.blocking on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.blockProfile(profile);
-    assertEquals(
+    assert.deepEqual(
       dataStore.$profiles.get(profile.did).viewer.blocking,
       blockUri,
     );
@@ -1436,11 +1446,11 @@ t.describe("blockProfile", (it) => {
     await mutations.blockProfile(profile);
 
     const stored = dataStore.$blockedProfiles.get();
-    assertEquals(stored.blocks.length, 2);
-    assertEquals(stored.blocks[0].did, profile.did);
-    assertEquals(stored.blocks[0].viewer.blocking, blockUri);
-    assertEquals(stored.blocks[1].did, existing.did);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.blocks.length, 2);
+    assert.deepEqual(stored.blocks[0].did, profile.did);
+    assert.deepEqual(stored.blocks[0].viewer.blocking, blockUri);
+    assert.deepEqual(stored.blocks[1].did, existing.did);
+    assert.deepEqual(stored.cursor, "abc");
   });
 
   it("should not duplicate when already present in the cached list", async () => {
@@ -1452,13 +1462,13 @@ t.describe("blockProfile", (it) => {
 
     await mutations.blockProfile(profile);
 
-    assertEquals(dataStore.$blockedProfiles.get().blocks.length, 1);
+    assert.deepEqual(dataStore.$blockedProfiles.get().blocks.length, 1);
   });
 
   it("should not initialize the cached list if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.blockProfile(profile);
-    assertEquals(dataStore.$blockedProfiles.get(), null);
+    assert.deepEqual(dataStore.$blockedProfiles.get(), null);
   });
 
   it("should update author viewer.blocking on cached posts by that author", async () => {
@@ -1476,18 +1486,18 @@ t.describe("blockProfile", (it) => {
 
     await mutations.blockProfile(profile);
 
-    assertEquals(
+    assert.deepEqual(
       dataStore.$posts.get(post.uri).author.viewer.blocking,
       blockUri,
     );
-    assertEquals(
+    assert.deepEqual(
       dataStore.$posts.get(otherPost.uri).author.viewer.blocking,
       undefined,
     );
   });
 });
 
-t.describe("unblockProfile", (it) => {
+describe("unblockProfile", () => {
   const profile = {
     did: "did:plc:target",
     handle: "target.bsky.social",
@@ -1512,7 +1522,10 @@ t.describe("unblockProfile", (it) => {
   it("should clear viewer.blocking on the profile", async () => {
     const { mutations, dataStore } = setup();
     await mutations.unblockProfile(profile);
-    assertEquals(dataStore.$profiles.get(profile.did).viewer.blocking, null);
+    assert.deepEqual(
+      dataStore.$profiles.get(profile.did).viewer.blocking,
+      null,
+    );
   });
 
   it("should remove profile from the cached list", async () => {
@@ -1529,9 +1542,9 @@ t.describe("unblockProfile", (it) => {
     await mutations.unblockProfile(profile);
 
     const stored = dataStore.$blockedProfiles.get();
-    assertEquals(stored.blocks.length, 1);
-    assertEquals(stored.blocks[0].did, other.did);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.blocks.length, 1);
+    assert.deepEqual(stored.blocks[0].did, other.did);
+    assert.deepEqual(stored.cursor, "abc");
   });
 
   it("should be a no-op on the cached list when not present", async () => {
@@ -1544,7 +1557,7 @@ t.describe("unblockProfile", (it) => {
 
     await mutations.unblockProfile(profile);
 
-    assertEquals(dataStore.$blockedProfiles.get().blocks.length, 1);
+    assert.deepEqual(dataStore.$blockedProfiles.get().blocks.length, 1);
   });
 
   it("should clear author viewer.blocking on cached posts by that author", async () => {
@@ -1557,11 +1570,14 @@ t.describe("unblockProfile", (it) => {
 
     await mutations.unblockProfile(profile);
 
-    assertEquals(dataStore.$posts.get(post.uri).author.viewer.blocking, null);
+    assert.deepEqual(
+      dataStore.$posts.get(post.uri).author.viewer.blocking,
+      null,
+    );
   });
 });
 
-t.describe("addBookmark", (it) => {
+describe("addBookmark", () => {
   const testPost = {
     uri: "at://did:test/app.bsky.feed.post/test",
     bookmarkCount: 2,
@@ -1589,17 +1605,17 @@ t.describe("addBookmark", (it) => {
     });
     mutations.addBookmark(testPost);
     const patched = applyPostPatches(patchStore, testPost);
-    assertEquals(patched.viewer.bookmarked, true);
-    assertEquals(patched.bookmarkCount, 3);
+    assert.deepEqual(patched.viewer.bookmarked, true);
+    assert.deepEqual(patched.bookmarkCount, 3);
   });
 
   it("should update dataStore and remove patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
     await mutations.addBookmark(testPost);
     const stored = dataStore.$posts.get(testPost.uri);
-    assertEquals(stored.viewer.bookmarked, true);
-    assertEquals(stored.bookmarkCount, 3);
-    assertEquals(applyPostPatches(patchStore, stored), stored);
+    assert.deepEqual(stored.viewer.bookmarked, true);
+    assert.deepEqual(stored.bookmarkCount, 3);
+    assert.deepEqual(applyPostPatches(patchStore, stored), stored);
   });
 
   it("should prepend post to the cached bookmarks feed", async () => {
@@ -1612,20 +1628,20 @@ t.describe("addBookmark", (it) => {
     await mutations.addBookmark(testPost);
 
     const stored = dataStore.$bookmarks.get();
-    assertEquals(stored.bookmarks.length, 2);
-    assertEquals(stored.bookmarks[0].item.uri, testPost.uri);
-    assertEquals(stored.bookmarks[1].item.uri, existingItem.item.uri);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.bookmarks.length, 2);
+    assert.deepEqual(stored.bookmarks[0].item.uri, testPost.uri);
+    assert.deepEqual(stored.bookmarks[1].item.uri, existingItem.item.uri);
+    assert.deepEqual(stored.cursor, "abc");
   });
 
   it("should not initialize the bookmarks feed if it was not loaded", async () => {
     const { mutations, dataStore } = setup();
     await mutations.addBookmark(testPost);
-    assertEquals(dataStore.$bookmarks.get(), null);
+    assert.deepEqual(dataStore.$bookmarks.get(), null);
   });
 });
 
-t.describe("removeBookmark", (it) => {
+describe("removeBookmark", () => {
   const testPost = {
     uri: "at://did:test/app.bsky.feed.post/test",
     bookmarkCount: 3,
@@ -1653,17 +1669,17 @@ t.describe("removeBookmark", (it) => {
     });
     mutations.removeBookmark(testPost);
     const patched = applyPostPatches(patchStore, testPost);
-    assertEquals(patched.viewer.bookmarked, false);
-    assertEquals(patched.bookmarkCount, 2);
+    assert.deepEqual(patched.viewer.bookmarked, false);
+    assert.deepEqual(patched.bookmarkCount, 2);
   });
 
   it("should update dataStore and remove patch on success", async () => {
     const { mutations, dataStore, patchStore } = setup();
     await mutations.removeBookmark(testPost);
     const stored = dataStore.$posts.get(testPost.uri);
-    assertEquals(stored.viewer.bookmarked, false);
-    assertEquals(stored.bookmarkCount, 2);
-    assertEquals(applyPostPatches(patchStore, stored), stored);
+    assert.deepEqual(stored.viewer.bookmarked, false);
+    assert.deepEqual(stored.bookmarkCount, 2);
+    assert.deepEqual(applyPostPatches(patchStore, stored), stored);
   });
 
   it("should remove post from the cached bookmarks feed", async () => {
@@ -1679,13 +1695,13 @@ t.describe("removeBookmark", (it) => {
     await mutations.removeBookmark(testPost);
 
     const stored = dataStore.$bookmarks.get();
-    assertEquals(stored.bookmarks.length, 1);
-    assertEquals(stored.bookmarks[0].item.uri, otherItem.item.uri);
-    assertEquals(stored.cursor, "abc");
+    assert.deepEqual(stored.bookmarks.length, 1);
+    assert.deepEqual(stored.bookmarks[0].item.uri, otherItem.item.uri);
+    assert.deepEqual(stored.cursor, "abc");
   });
 });
 
-t.describe("createRepost", (it) => {
+describe("createRepost", () => {
   const currentUser = {
     did: "did:plc:me",
     handle: "me.test",
@@ -1733,19 +1749,19 @@ t.describe("createRepost", (it) => {
     });
     mutations.createRepost(testPost);
     const patched = applyPostPatches(patchStore, testPost);
-    assertEquals(patched.repostCount, 5);
-    assertEquals(patched.viewer.repost, "fake repost");
+    assert.deepEqual(patched.repostCount, 5);
+    assert.deepEqual(patched.viewer.repost, "fake repost");
   });
 
   it("should update dataStore with repost uri and incremented count", async () => {
     const { mutations, dataStore } = setup();
     await mutations.createRepost(testPost);
     const stored = dataStore.$posts.get(testPost.uri);
-    assertEquals(
+    assert.deepEqual(
       stored.viewer.repost,
       "at://did:plc:me/app.bsky.feed.repost/abc",
     );
-    assertEquals(stored.repostCount, 5);
+    assert.deepEqual(stored.repostCount, 5);
   });
 
   it("should add a reasonRepost feed item to the current user's author feed", async () => {
@@ -1755,19 +1771,22 @@ t.describe("createRepost", (it) => {
     );
     await mutations.createRepost(testPost);
     const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assertEquals(feed.feed.length, 1);
-    assertEquals(feed.feed[0].post.uri, testPost.uri);
-    assertEquals(feed.feed[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
-    assertEquals(feed.feed[0].reason.by.did, currentUser.did);
-    assertEquals(
+    assert.deepEqual(feed.feed.length, 1);
+    assert.deepEqual(feed.feed[0].post.uri, testPost.uri);
+    assert.deepEqual(
+      feed.feed[0].reason.$type,
+      "app.bsky.feed.defs#reasonRepost",
+    );
+    assert.deepEqual(feed.feed[0].reason.by.did, currentUser.did);
+    assert.deepEqual(
       feed.feed[0].reason.uri,
       "at://did:plc:me/app.bsky.feed.repost/abc",
     );
-    assertEquals(feed.cursor, "c1");
+    assert.deepEqual(feed.cursor, "c1");
   });
 });
 
-t.describe("deleteRepost", (it) => {
+describe("deleteRepost", () => {
   const currentUser = {
     did: "did:plc:me",
     handle: "me.test",
@@ -1808,16 +1827,16 @@ t.describe("deleteRepost", (it) => {
     });
     mutations.deleteRepost(testPost);
     const patched = applyPostPatches(patchStore, testPost);
-    assertEquals(patched.repostCount, 4);
-    assertEquals(patched.viewer.repost, null);
+    assert.deepEqual(patched.repostCount, 4);
+    assert.deepEqual(patched.viewer.repost, null);
   });
 
   it("should update dataStore clearing repost uri and decrementing count", async () => {
     const { mutations, dataStore } = setup();
     await mutations.deleteRepost(testPost);
     const stored = dataStore.$posts.get(testPost.uri);
-    assertEquals(stored.viewer.repost, null);
-    assertEquals(stored.repostCount, 4);
+    assert.deepEqual(stored.viewer.repost, null);
+    assert.deepEqual(stored.repostCount, 4);
   });
 
   it("should remove the matching repost feed item from the author feed", async () => {
@@ -1841,13 +1860,13 @@ t.describe("deleteRepost", (it) => {
     await mutations.deleteRepost(testPost);
 
     const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
-    assertEquals(feed.feed.length, 1);
-    assertEquals(feed.feed[0].post.uri, otherItem.post.uri);
-    assertEquals(feed.cursor, "c1");
+    assert.deepEqual(feed.feed.length, 1);
+    assert.deepEqual(feed.feed[0].post.uri, otherItem.post.uri);
+    assert.deepEqual(feed.cursor, "c1");
   });
 });
 
-t.describe("pinFeed", (it) => {
+describe("pinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 
   function setupWithPreferences(preferencesObj) {
@@ -1883,9 +1902,9 @@ t.describe("pinFeed", (it) => {
     ]);
     await mutations.pinFeed(feedUri);
     const pinned = getUpdatedPreferences().getPinnedFeeds();
-    assertEquals(pinned.length, 1);
-    assertEquals(pinned[0].value, feedUri);
-    assertEquals(pinned[0].pinned, true);
+    assert.deepEqual(pinned.length, 1);
+    assert.deepEqual(pinned[0].value, feedUri);
+    assert.deepEqual(pinned[0].pinned, true);
   });
 
   it("should pin an existing saved-feed entry without duplicating it", async () => {
@@ -1906,8 +1925,8 @@ t.describe("pinFeed", (it) => {
     await mutations.pinFeed(feedUri);
     const updated = getUpdatedPreferences();
     const allItems = updated.obj[0].items;
-    assertEquals(allItems.length, 2);
-    assertEquals(updated.isFeedPinned(feedUri), true);
+    assert.deepEqual(allItems.length, 2);
+    assert.deepEqual(updated.isFeedPinned(feedUri), true);
   });
 
   it("should add an optimistic patch and remove it on success", async () => {
@@ -1934,17 +1953,17 @@ t.describe("pinFeed", (it) => {
 
     const promise = mutations.pinFeed(feedUri);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "pinFeed");
-    assertEquals(patches[0].body.feedUri, feedUri);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "pinFeed");
+    assert.deepEqual(patches[0].body.feedUri, feedUri);
 
     updateResolve();
     await promise;
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
-t.describe("unpinFeed", (it) => {
+describe("unpinFeed", () => {
   const feedUri = "at://did:plc:feed/app.bsky.feed.generator/cool";
 
   it("should clear the pinned flag on the saved-feed entry", async () => {
@@ -1974,8 +1993,8 @@ t.describe("unpinFeed", (it) => {
     );
 
     await mutations.unpinFeed(feedUri);
-    assertEquals(updatedPreferences.isFeedPinned(feedUri), false);
-    assertEquals(updatedPreferences.obj[0].items.length, 1);
+    assert.deepEqual(updatedPreferences.isFeedPinned(feedUri), false);
+    assert.deepEqual(updatedPreferences.obj[0].items.length, 1);
   });
 
   it("should add an optimistic patch and remove it on success", async () => {
@@ -2007,17 +2026,17 @@ t.describe("unpinFeed", (it) => {
 
     const promise = mutations.unpinFeed(feedUri);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "unpinFeed");
-    assertEquals(patches[0].body.feedUri, feedUri);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "unpinFeed");
+    assert.deepEqual(patches[0].body.feedUri, feedUri);
 
     updateResolve();
     await promise;
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
-t.describe("hidePost", (it) => {
+describe("hidePost", () => {
   const testPost = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
 
   it("should write a preference adding the post to the hidden list", async () => {
@@ -2040,7 +2059,7 @@ t.describe("hidePost", (it) => {
 
     await mutations.hidePost(testPost);
 
-    assertEquals(updatedPreferences.isPostHidden(testPost.uri), true);
+    assert.deepEqual(updatedPreferences.isPostHidden(testPost.uri), true);
   });
 
   it("should add an optimistic post patch and remove it on success", async () => {
@@ -2064,16 +2083,19 @@ t.describe("hidePost", (it) => {
 
     const promise = mutations.hidePost(testPost);
     const patches = patchStore.$postPatches.get(testPost.uri) || [];
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "hidePost");
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "hidePost");
 
     updateResolve();
     await promise;
-    assertEquals((patchStore.$postPatches.get(testPost.uri) || []).length, 0);
+    assert.deepEqual(
+      (patchStore.$postPatches.get(testPost.uri) || []).length,
+      0,
+    );
   });
 });
 
-t.describe("updateMutedWord", (it) => {
+describe("updateMutedWord", () => {
   it("should call updatePreferences with the word updated", async () => {
     let updatedPreferences = null;
     const existingPrefs = new Preferences(
@@ -2113,14 +2135,14 @@ t.describe("updateMutedWord", (it) => {
     });
 
     const words = updatedPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].value, "new-value");
-    assertEquals(words[0].targets[0], "tag");
-    assertEquals(words[0].actorTarget, "all");
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].value, "new-value");
+    assert.deepEqual(words[0].targets[0], "tag");
+    assert.deepEqual(words[0].actorTarget, "all");
   });
 });
 
-t.describe("updatePostNotificationSubscription", (it) => {
+describe("updatePostNotificationSubscription", () => {
   const profile = {
     did: "did:plc:target",
     handle: "target.bsky.social",
@@ -2148,9 +2170,9 @@ t.describe("updatePostNotificationSubscription", (it) => {
 
     await mutations.updatePostNotificationSubscription(profile, subscription);
 
-    assertEquals(calledWith.did, profile.did);
-    assertEquals(calledWith.sub, subscription);
-    assertEquals(
+    assert.deepEqual(calledWith.did, profile.did);
+    assert.deepEqual(calledWith.sub, subscription);
+    assert.deepEqual(
       dataStore.$profiles.get(profile.did).viewer.activitySubscription,
       subscription,
     );
@@ -2181,12 +2203,12 @@ t.describe("updatePostNotificationSubscription", (it) => {
     } catch (e) {
       threw = true;
     }
-    assertEquals(threw, true);
-    assertEquals(patchStore._getProfilePatches(profile.did).length, 0);
+    assert.deepEqual(threw, true);
+    assert.deepEqual(patchStore._getProfilePatches(profile.did).length, 0);
   });
 });
 
-t.describe("createPost", (it) => {
+describe("createPost", () => {
   const currentUserDid = "did:plc:me";
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
 
@@ -2231,10 +2253,10 @@ t.describe("createPost", (it) => {
   it("should store the new post and mark priorityReply", async () => {
     const { mutations, dataStore } = setup();
     const result = await mutations.createPost({ postText: "hello" });
-    assertEquals(result.uri, newPostUri);
+    assert.deepEqual(result.uri, newPostUri);
     const stored = dataStore.$posts.get(newPostUri);
-    assertEquals(stored.uri, newPostUri);
-    assertEquals(stored.viewer.priorityReply, true);
+    assert.deepEqual(stored.uri, newPostUri);
+    assert.deepEqual(stored.viewer.priorityReply, true);
   });
 
   it("should add the new post to the author posts feed when loaded", async () => {
@@ -2243,9 +2265,9 @@ t.describe("createPost", (it) => {
     });
     await mutations.createPost({ postText: "hello" });
     const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
-    assertEquals(feed.feed.length, 1);
-    assertEquals(feed.feed[0].post.uri, newPostUri);
-    assertEquals(feed.cursor, "c1");
+    assert.deepEqual(feed.feed.length, 1);
+    assert.deepEqual(feed.feed[0].post.uri, newPostUri);
+    assert.deepEqual(feed.cursor, "c1");
   });
 
   it("should prepend the reply to the parent's post thread when present", async () => {
@@ -2272,11 +2294,11 @@ t.describe("createPost", (it) => {
     await mutations.createPost({ postText: "hi", replyTo, replyRoot });
 
     const updatedThread = dataStore.$postThreads.get(replyTo.uri);
-    assertEquals(updatedThread.replies.length, 2);
-    assertEquals(updatedThread.replies[0].post.uri, newPostUri);
+    assert.deepEqual(updatedThread.replies.length, 2);
+    assert.deepEqual(updatedThread.replies[0].post.uri, newPostUri);
     const repliesFeed = dataStore.$authorFeeds.get(`${currentUserDid}-replies`);
-    assertEquals(repliesFeed.feed.length, 1);
-    assertEquals(repliesFeed.feed[0].post.uri, newPostUri);
+    assert.deepEqual(repliesFeed.feed.length, 1);
+    assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
   });
 
   it("still resolves with uri/cid when the app view fetch fails, without mutating stores", async () => {
@@ -2289,16 +2311,16 @@ t.describe("createPost", (it) => {
 
     const result = await mutations.createPost({ postText: "hello" });
 
-    assertEquals(result.uri, newPostUri);
-    assertEquals(result.cid, "cid-new");
-    assertEquals(result.post, null);
-    assertEquals(dataStore.$posts.get(newPostUri), null);
+    assert.deepEqual(result.uri, newPostUri);
+    assert.deepEqual(result.cid, "cid-new");
+    assert.deepEqual(result.post, null);
+    assert.deepEqual(dataStore.$posts.get(newPostUri), null);
     const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
-    assertEquals(feed.feed.length, 0);
+    assert.deepEqual(feed.feed.length, 0);
   });
 });
 
-t.describe("deletePost", (it) => {
+describe("deletePost", () => {
   it("should call api.deletePost and replace the stored post with a not-found post", async () => {
     const post = {
       uri: "at://did:plc:me/app.bsky.feed.post/abc",
@@ -2324,14 +2346,14 @@ t.describe("deletePost", (it) => {
 
     await mutations.deletePost(post);
 
-    assertEquals(apiCalledWith, post);
+    assert.deepEqual(apiCalledWith, post);
     const stored = dataStore.$posts.get(post.uri);
-    assertEquals(stored.uri, post.uri);
-    assertEquals(stored.$type, "app.bsky.feed.defs#notFoundPost");
+    assert.deepEqual(stored.uri, post.uri);
+    assert.deepEqual(stored.$type, "app.bsky.feed.defs#notFoundPost");
   });
 });
 
-t.describe("createMessage", (it) => {
+describe("createMessage", () => {
   const convoId = "convo-1";
   const sentMessage = {
     id: "msg-1",
@@ -2363,8 +2385,8 @@ t.describe("createMessage", (it) => {
   it("should store the new message and return it", async () => {
     const { mutations, dataStore } = setup();
     const result = await mutations.createMessage(convoId, { text: "hello" });
-    assertEquals(result, sentMessage);
-    assertEquals(dataStore.$messages.get(sentMessage.id), sentMessage);
+    assert.deepEqual(result, sentMessage);
+    assert.deepEqual(dataStore.$messages.get(sentMessage.id), sentMessage);
   });
 
   it("should prepend the message to the cached convo messages", async () => {
@@ -2374,10 +2396,10 @@ t.describe("createMessage", (it) => {
     });
     await mutations.createMessage(convoId, { text: "hello" });
     const stored = dataStore.$convoMessages.get(convoId);
-    assertEquals(stored.messages.length, 2);
-    assertEquals(stored.messages[0].id, sentMessage.id);
-    assertEquals(stored.messages[1].id, existingMessage.id);
-    assertEquals(stored.cursor, "c1");
+    assert.deepEqual(stored.messages.length, 2);
+    assert.deepEqual(stored.messages[0].id, sentMessage.id);
+    assert.deepEqual(stored.messages[1].id, existingMessage.id);
+    assert.deepEqual(stored.cursor, "c1");
   });
 
   it("should update the convo's lastMessage", async () => {
@@ -2385,8 +2407,11 @@ t.describe("createMessage", (it) => {
     const { mutations, dataStore } = setup({ convo });
     await mutations.createMessage(convoId, { text: "hello" });
     const stored = dataStore.$convos.get(convoId);
-    assertEquals(stored.lastMessage.id, sentMessage.id);
-    assertEquals(stored.lastMessage.$type, "chat.bsky.convo.defs#messageView");
+    assert.deepEqual(stored.lastMessage.id, sentMessage.id);
+    assert.deepEqual(
+      stored.lastMessage.$type,
+      "chat.bsky.convo.defs#messageView",
+    );
   });
 
   it("should pass replyTo to the api", async () => {
@@ -2411,7 +2436,7 @@ t.describe("createMessage", (it) => {
       text: "hello",
       replyTo: { messageId: "msg-target" },
     });
-    assertEquals(apiCalledWith.replyTo.messageId, "msg-target");
+    assert.deepEqual(apiCalledWith.replyTo.messageId, "msg-target");
   });
 
   it("should pass embed to the api", async () => {
@@ -2437,7 +2462,7 @@ t.describe("createMessage", (it) => {
       record: { uri: "at://did:plc:abc/app.bsky.feed.post/3abc", cid: "cid1" },
     };
     await mutations.createMessage(convoId, { text: "hello", embed });
-    assertEquals(apiCalledWith.embed, embed);
+    assert.deepEqual(apiCalledWith.embed, embed);
   });
 
   it("should propagate the raw error on send failure", async () => {
@@ -2462,11 +2487,11 @@ t.describe("createMessage", (it) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught?.message, "block between recipient and sender");
+    assert.deepEqual(caught?.message, "block between recipient and sender");
   });
 });
 
-t.describe("acceptConvo", (it) => {
+describe("acceptConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 
   function setup({ convoList, convoRequestList } = {}) {
@@ -2501,9 +2526,9 @@ t.describe("acceptConvo", (it) => {
   it("should set the convo status to accepted in the store", async () => {
     const { mutations, dataStore, getAcceptArg } = setup();
     const result = await mutations.acceptConvo(convo);
-    assertEquals(getAcceptArg(), convo.id);
-    assertEquals(result.status, "accepted");
-    assertEquals(dataStore.$convos.get(convo.id).status, "accepted");
+    assert.deepEqual(getAcceptArg(), convo.id);
+    assert.deepEqual(result.status, "accepted");
+    assert.deepEqual(dataStore.$convos.get(convo.id).status, "accepted");
   });
 
   it("should update the matching convo in the convo list", async () => {
@@ -2513,13 +2538,16 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const list = dataStore.$convoList.get();
-    assertEquals(list.convos.length, 2);
-    assertEquals(list.convos.find((c) => c.id === convo.id).status, "accepted");
-    assertEquals(
+    assert.deepEqual(list.convos.length, 2);
+    assert.deepEqual(
+      list.convos.find((c) => c.id === convo.id).status,
+      "accepted",
+    );
+    assert.deepEqual(
       list.convos.find((c) => c.id === otherConvo.id).status,
       "accepted",
     );
-    assertEquals(list.cursor, "list-cursor");
+    assert.deepEqual(list.cursor, "list-cursor");
   });
 
   it("should remove the convo from the request list", async () => {
@@ -2529,9 +2557,9 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const requestList = dataStore.$convoRequestList.get();
-    assertEquals(requestList.convos.length, 1);
-    assertEquals(requestList.convos[0].id, otherRequest.id);
-    assertEquals(requestList.cursor, "request-cursor");
+    assert.deepEqual(requestList.convos.length, 1);
+    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
+    assert.deepEqual(requestList.cursor, "request-cursor");
   });
 
   it("should add the convo to the convo list when not already present", async () => {
@@ -2541,12 +2569,15 @@ t.describe("acceptConvo", (it) => {
     });
     await mutations.acceptConvo(convo);
     const list = dataStore.$convoList.get();
-    assertEquals(list.convos.length, 2);
-    assertEquals(list.convos.find((c) => c.id === convo.id).status, "accepted");
+    assert.deepEqual(list.convos.length, 2);
+    assert.deepEqual(
+      list.convos.find((c) => c.id === convo.id).status,
+      "accepted",
+    );
   });
 });
 
-t.describe("rejectConvo", (it) => {
+describe("rejectConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 
   it("should clear the convo and remove it from the convo list", async () => {
@@ -2575,13 +2606,13 @@ t.describe("rejectConvo", (it) => {
 
     await mutations.rejectConvo(convo);
 
-    assertEquals(leaveCalledWith, convo.id);
+    assert.deepEqual(leaveCalledWith, convo.id);
     // Mutations sets the convo signal to null on reject (was `undefined` pre-refactor).
-    assertEquals(dataStore.$convos.get(convo.id), null);
+    assert.deepEqual(dataStore.$convos.get(convo.id), null);
     const list = dataStore.$convoList.get();
-    assertEquals(list.convos.length, 1);
-    assertEquals(list.convos[0].id, otherConvo.id);
-    assertEquals(list.cursor, "list-cursor");
+    assert.deepEqual(list.convos.length, 1);
+    assert.deepEqual(list.convos[0].id, otherConvo.id);
+    assert.deepEqual(list.cursor, "list-cursor");
   });
 
   it("should remove the convo from the request list", async () => {
@@ -2608,13 +2639,13 @@ t.describe("rejectConvo", (it) => {
     await mutations.rejectConvo(convo);
 
     const requestList = dataStore.$convoRequestList.get();
-    assertEquals(requestList.convos.length, 1);
-    assertEquals(requestList.convos[0].id, otherRequest.id);
-    assertEquals(requestList.cursor, "request-cursor");
+    assert.deepEqual(requestList.convos.length, 1);
+    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
+    assert.deepEqual(requestList.cursor, "request-cursor");
   });
 });
 
-t.describe("markConvoAsRead", (it) => {
+describe("markConvoAsRead", () => {
   it("should call api.markConvoAsRead and zero the unread count", async () => {
     const convoId = "convo-1";
     const dataStore = new DataStore();
@@ -2637,8 +2668,8 @@ t.describe("markConvoAsRead", (it) => {
 
     await mutations.markConvoAsRead(convoId);
 
-    assertEquals(calledWith, convoId);
-    assertEquals(dataStore.$convos.get(convoId).unreadCount, 0);
+    assert.deepEqual(calledWith, convoId);
+    assert.deepEqual(dataStore.$convos.get(convoId).unreadCount, 0);
   });
 
   it("should not throw when the convo is not cached", async () => {
@@ -2655,7 +2686,7 @@ t.describe("markConvoAsRead", (it) => {
     );
     await mutations.markConvoAsRead("missing");
     // SignalMap returns null for uninitialized keys (was `undefined` pre-refactor).
-    assertEquals(dataStore.$convos.get("missing"), null);
+    assert.deepEqual(dataStore.$convos.get("missing"), null);
   });
 
   it("should not call the api when the convo has no unread messages", async () => {
@@ -2680,11 +2711,11 @@ t.describe("markConvoAsRead", (it) => {
 
     await mutations.markConvoAsRead(convoId);
 
-    assertEquals(callCount, 0);
+    assert.deepEqual(callCount, 0);
   });
 });
 
-t.describe("addMessageReaction", (it) => {
+describe("addMessageReaction", () => {
   const convoId = "convo-1";
   const messageId = "msg-1";
   const currentUserDid = "did:plc:me";
@@ -2716,10 +2747,10 @@ t.describe("addMessageReaction", (it) => {
     const { mutations, patchStore } = setup();
     mutations.addMessageReaction(convoId, messageId, emoji, currentUserDid);
     const patches = patchStore._getMessagePatches(messageId);
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "addReaction");
-    assertEquals(patches[0].body.reaction.value, emoji);
-    assertEquals(patches[0].body.reaction.sender.did, currentUserDid);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "addReaction");
+    assert.deepEqual(patches[0].body.reaction.value, emoji);
+    assert.deepEqual(patches[0].body.reaction.sender.did, currentUserDid);
   });
 
   it("should store the returned message and clear the patch on success", async () => {
@@ -2730,8 +2761,8 @@ t.describe("addMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$messages.get(messageId), updatedMessage);
-    assertEquals(patchStore._getMessagePatches(messageId).length, 0);
+    assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
+    assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
 
   it("should update the convo's lastReaction when the convo is cached", async () => {
@@ -2745,16 +2776,16 @@ t.describe("addMessageReaction", (it) => {
       currentUserDid,
     );
     const convo = dataStore.$convos.get(convoId);
-    assertEquals(
+    assert.deepEqual(
       convo.lastReaction.$type,
       "chat.bsky.convo.defs#messageAndReactionView",
     );
-    assertEquals(convo.lastReaction.message.id, messageId);
-    assertEquals(convo.lastReaction.reaction.value, emoji);
+    assert.deepEqual(convo.lastReaction.message.id, messageId);
+    assert.deepEqual(convo.lastReaction.reaction.value, emoji);
   });
 });
 
-t.describe("removeMessageReaction", (it) => {
+describe("removeMessageReaction", () => {
   const convoId = "convo-1";
   const messageId = "msg-1";
   const currentUserDid = "did:plc:me";
@@ -2783,10 +2814,10 @@ t.describe("removeMessageReaction", (it) => {
     const { mutations, patchStore } = setup();
     mutations.removeMessageReaction(convoId, messageId, emoji, currentUserDid);
     const patches = patchStore._getMessagePatches(messageId);
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "removeReaction");
-    assertEquals(patches[0].body.value, emoji);
-    assertEquals(patches[0].body.currentUserDid, currentUserDid);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "removeReaction");
+    assert.deepEqual(patches[0].body.value, emoji);
+    assert.deepEqual(patches[0].body.currentUserDid, currentUserDid);
   });
 
   it("should store the returned message and clear the patch on success", async () => {
@@ -2797,8 +2828,8 @@ t.describe("removeMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$messages.get(messageId), updatedMessage);
-    assertEquals(patchStore._getMessagePatches(messageId).length, 0);
+    assert.deepEqual(dataStore.$messages.get(messageId), updatedMessage);
+    assert.deepEqual(patchStore._getMessagePatches(messageId).length, 0);
   });
 
   it("should clear the convo's lastReaction when the convo is cached", async () => {
@@ -2814,11 +2845,11 @@ t.describe("removeMessageReaction", (it) => {
       emoji,
       currentUserDid,
     );
-    assertEquals(dataStore.$convos.get(convoId).lastReaction, null);
+    assert.deepEqual(dataStore.$convos.get(convoId).lastReaction, null);
   });
 });
 
-t.describe("sendShowLessInteraction", (it) => {
+describe("sendShowLessInteraction", () => {
   const postURI = "at://did:plc:author/app.bsky.feed.post/1";
   const feedContext = "ctx";
   const feedProxyUrl = "https://feed.example/xrpc";
@@ -2844,13 +2875,13 @@ t.describe("sendShowLessInteraction", (it) => {
     await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
 
     const stored = dataStore.$showLessInteractions.get();
-    assertEquals(stored.length, 1);
-    assertEquals(stored[0].item, postURI);
-    assertEquals(stored[0].event, "app.bsky.feed.defs#requestLess");
-    assertEquals(stored[0].feedContext, feedContext);
-    assertEquals(sendArgs.interactions.length, 1);
-    assertEquals(sendArgs.interactions[0].item, postURI);
-    assertEquals(sendArgs.proxy, feedProxyUrl);
+    assert.deepEqual(stored.length, 1);
+    assert.deepEqual(stored[0].item, postURI);
+    assert.deepEqual(stored[0].event, "app.bsky.feed.defs#requestLess");
+    assert.deepEqual(stored[0].feedContext, feedContext);
+    assert.deepEqual(sendArgs.interactions.length, 1);
+    assert.deepEqual(sendArgs.interactions[0].item, postURI);
+    assert.deepEqual(sendArgs.proxy, feedProxyUrl);
   });
 
   it("should append to an existing list (non-empty branch)", async () => {
@@ -2870,12 +2901,12 @@ t.describe("sendShowLessInteraction", (it) => {
     await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
 
     const stored = dataStore.$showLessInteractions.get();
-    assertEquals(stored.length, 2);
-    assertEquals(stored[1].item, postURI);
+    assert.deepEqual(stored.length, 2);
+    assert.deepEqual(stored[1].item, postURI);
   });
 });
 
-t.describe("sendShowMoreInteraction", (it) => {
+describe("sendShowMoreInteraction", () => {
   const postURI = "at://did:plc:author/app.bsky.feed.post/1";
   const feedContext = "ctx";
   const feedProxyUrl = "https://feed.example/xrpc";
@@ -2901,12 +2932,12 @@ t.describe("sendShowMoreInteraction", (it) => {
     await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
 
     const stored = dataStore.$showMoreInteractions.get();
-    assertEquals(stored.length, 1);
-    assertEquals(stored[0].item, postURI);
-    assertEquals(stored[0].event, "app.bsky.feed.defs#requestMore");
-    assertEquals(stored[0].feedContext, feedContext);
-    assertEquals(sendArgs.interactions[0].item, postURI);
-    assertEquals(sendArgs.proxy, feedProxyUrl);
+    assert.deepEqual(stored.length, 1);
+    assert.deepEqual(stored[0].item, postURI);
+    assert.deepEqual(stored[0].event, "app.bsky.feed.defs#requestMore");
+    assert.deepEqual(stored[0].feedContext, feedContext);
+    assert.deepEqual(sendArgs.interactions[0].item, postURI);
+    assert.deepEqual(sendArgs.proxy, feedProxyUrl);
   });
 
   it("should append to an existing list (non-empty branch)", async () => {
@@ -2926,12 +2957,12 @@ t.describe("sendShowMoreInteraction", (it) => {
     await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
 
     const stored = dataStore.$showMoreInteractions.get();
-    assertEquals(stored.length, 2);
-    assertEquals(stored[1].item, postURI);
+    assert.deepEqual(stored.length, 2);
+    assert.deepEqual(stored[1].item, postURI);
   });
 });
 
-t.describe("pinList", (it) => {
+describe("pinList", () => {
   const listUri = "at://did:test/app.bsky.graph.list/abc";
 
   function makeMockProvider({ updatePreferences } = {}) {
@@ -2962,10 +2993,10 @@ t.describe("pinList", (it) => {
     mutations.pinList(listUri);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "pinFeed");
-    assertEquals(patches[0].body.feedUri, listUri);
-    assertEquals(patches[0].body.entryType, "list");
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "pinFeed");
+    assert.deepEqual(patches[0].body.feedUri, listUri);
+    assert.deepEqual(patches[0].body.entryType, "list");
   });
 
   it("should call preferences.pinFeed with type 'list'", async () => {
@@ -2976,9 +3007,9 @@ t.describe("pinList", (it) => {
 
     await mutations.pinList(listUri);
 
-    assertEquals(pinFeedCalls.length, 1);
-    assertEquals(pinFeedCalls[0].feedUri, listUri);
-    assertEquals(pinFeedCalls[0].type, "list");
+    assert.deepEqual(pinFeedCalls.length, 1);
+    assert.deepEqual(pinFeedCalls[0].feedUri, listUri);
+    assert.deepEqual(pinFeedCalls[0].type, "list");
   });
 
   it("should remove patch after successful update", async () => {
@@ -2989,7 +3020,7 @@ t.describe("pinList", (it) => {
 
     await mutations.pinList(listUri);
 
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 
   it("should remove patch even on error", async () => {
@@ -3009,12 +3040,12 @@ t.describe("pinList", (it) => {
       errorThrown = true;
     }
 
-    assertEquals(errorThrown, true);
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(errorThrown, true);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
-t.describe("pinFeed entryType", (it) => {
+describe("pinFeed entryType", () => {
   it("should add optimistic patch with entryType 'feed'", () => {
     const feedUri = "at://did:test/app.bsky.feed.generator/xyz";
     const preferences = new Preferences(
@@ -3038,12 +3069,12 @@ t.describe("pinFeed entryType", (it) => {
     mutations.pinFeed(feedUri);
 
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.entryType, "feed");
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.entryType, "feed");
   });
 });
 
-t.describe("unpinList", (it) => {
+describe("unpinList", () => {
   const listUri = "at://did:test/app.bsky.graph.list/abc";
 
   it("should call preferences.unpinFeed with the list URI", async () => {
@@ -3063,8 +3094,8 @@ t.describe("unpinList", (it) => {
 
     await mutations.unpinList(listUri);
 
-    assertEquals(unpinCalls.length, 1);
-    assertEquals(unpinCalls[0], listUri);
+    assert.deepEqual(unpinCalls.length, 1);
+    assert.deepEqual(unpinCalls[0], listUri);
   });
 
   it("should add and remove an unpinFeed patch", async () => {
@@ -3084,17 +3115,17 @@ t.describe("unpinList", (it) => {
 
     const promise = mutations.unpinList(listUri);
     const patches = patchStore.$preferencePatches.get();
-    assertEquals(patches.length, 1);
-    assertEquals(patches[0].body.type, "unpinFeed");
-    assertEquals(patches[0].body.feedUri, listUri);
+    assert.deepEqual(patches.length, 1);
+    assert.deepEqual(patches[0].body.type, "unpinFeed");
+    assert.deepEqual(patches[0].body.feedUri, listUri);
 
     updateResolve();
     await promise;
-    assertEquals(patchStore.$preferencePatches.get().length, 0);
+    assert.deepEqual(patchStore.$preferencePatches.get().length, 0);
   });
 });
 
-t.describe("addProfileToList", (it) => {
+describe("addProfileToList", () => {
   const testProfile = {
     did: "did:test:profile",
     handle: "test.user",
@@ -3128,12 +3159,12 @@ t.describe("addProfileToList", (it) => {
     await mutations.addProfileToList(testProfile, testList);
 
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.listsWithMembership.length, 1);
-    assertEquals(
+    assert.deepEqual(entry.listsWithMembership.length, 1);
+    assert.deepEqual(
       entry.listsWithMembership[0].listItem.uri,
       "listitem-real-uri",
     );
-    assertEquals(
+    assert.deepEqual(
       entry.listsWithMembership[0].listItem.subject,
       testProfile.did,
     );
@@ -3157,7 +3188,7 @@ t.describe("addProfileToList", (it) => {
 
     await mutations.addProfileToList(testProfile, testList);
 
-    assertEquals(
+    assert.deepEqual(
       dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
       null,
     );
@@ -3191,9 +3222,9 @@ t.describe("addProfileToList", (it) => {
     await mutations.addProfileToList(testProfile, testList);
 
     const cached = dataStore.$listMembers.get(testList.uri);
-    assertEquals(cached.items.length, 2);
-    assertEquals(cached.items[0].uri, "listitem-real-uri");
-    assertEquals(cached.items[0].subject.did, testProfile.did);
+    assert.deepEqual(cached.items.length, 2);
+    assert.deepEqual(cached.items[0].uri, "listitem-real-uri");
+    assert.deepEqual(cached.items[0].subject.did, testProfile.did);
   });
 
   it("should not touch state when the API call fails", async () => {
@@ -3220,15 +3251,15 @@ t.describe("addProfileToList", (it) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught.message, "nope");
-    assertEquals(
+    assert.deepEqual(caught.message, "nope");
+    assert.deepEqual(
       dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
       null,
     );
   });
 });
 
-t.describe("removeProfileFromList", (it) => {
+describe("removeProfileFromList", () => {
   const testProfile = {
     did: "did:test:profile",
     handle: "test.user",
@@ -3267,7 +3298,7 @@ t.describe("removeProfileFromList", (it) => {
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.listsWithMembership[0].listItem ?? null, null);
+    assert.deepEqual(entry.listsWithMembership[0].listItem ?? null, null);
   });
 
   it("should leave the membership map untouched when no entry is cached for the actor", async () => {
@@ -3288,7 +3319,7 @@ t.describe("removeProfileFromList", (it) => {
 
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
-    assertEquals(
+    assert.deepEqual(
       dataStore.$listsWithMembershipByActor.get(testProfile.did) ?? null,
       null,
     );
@@ -3335,8 +3366,8 @@ t.describe("removeProfileFromList", (it) => {
     await mutations.removeProfileFromList(testProfile, testList, membershipUri);
 
     const cached = dataStore.$listMembers.get(testList.uri);
-    assertEquals(cached.items.length, 1);
-    assertEquals(cached.items[0].subject.did, "did:test:other");
+    assert.deepEqual(cached.items.length, 1);
+    assert.deepEqual(cached.items[0].subject.did, "did:test:other");
   });
 
   it("should leave state unchanged when the API call fails", async () => {
@@ -3372,14 +3403,14 @@ t.describe("removeProfileFromList", (it) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught.message, "boom");
+    assert.deepEqual(caught.message, "boom");
     const entry = dataStore.$listsWithMembershipByActor.get(testProfile.did);
-    assertEquals(entry.listsWithMembership.length, 1);
-    assertEquals(entry.listsWithMembership[0].listItem.uri, membershipUri);
+    assert.deepEqual(entry.listsWithMembership.length, 1);
+    assert.deepEqual(entry.listsWithMembership[0].listItem.uri, membershipUri);
   });
 });
 
-t.describe("$detailedProfiles mirroring", (it) => {
+describe("$detailedProfiles mirroring", () => {
   const targetDid = "did:plc:target";
   const baseProfile = {
     did: targetDid,
@@ -3431,8 +3462,8 @@ t.describe("$detailedProfiles mirroring", (it) => {
       displayName: "Updated Name",
       description: "Updated bio",
     });
-    assertEquals(dataStore.$profiles.get(targetDid), fetched);
-    assertEquals(dataStore.$detailedProfiles.get(targetDid), fetched);
+    assert.deepEqual(dataStore.$profiles.get(targetDid), fetched);
+    assert.deepEqual(dataStore.$detailedProfiles.get(targetDid), fetched);
   });
 
   it("followProfile mirrors viewer.following and count into $detailedProfiles", async () => {
@@ -3442,11 +3473,11 @@ t.describe("$detailedProfiles mirroring", (it) => {
     const { mutations, dataStore } = setup(mockApi);
     await mutations.followProfile(baseProfile);
     const detailed = dataStore.$detailedProfiles.get(targetDid);
-    assertEquals(detailed.viewer.following, "at://follow");
-    assertEquals(detailed.followersCount, 11);
+    assert.deepEqual(detailed.viewer.following, "at://follow");
+    assert.deepEqual(detailed.followersCount, 11);
     // Preserves detailed-only fields like description/pinnedPost.
-    assertEquals(detailed.description, "Detailed bio");
-    assertEquals(detailed.pinnedPost.uri, "at://pinned");
+    assert.deepEqual(detailed.description, "Detailed bio");
+    assert.deepEqual(detailed.pinnedPost.uri, "at://pinned");
   });
 
   it("followProfile does not seed $detailedProfiles when no entry exists", async () => {
@@ -3455,7 +3486,7 @@ t.describe("$detailedProfiles mirroring", (it) => {
     };
     const { mutations, dataStore } = setup(mockApi, { seedDetailed: false });
     await mutations.followProfile(baseProfile);
-    assertEquals(dataStore.$detailedProfiles.get(targetDid), null);
+    assert.deepEqual(dataStore.$detailedProfiles.get(targetDid), null);
   });
 
   it("unfollowProfile mirrors viewer.following=null and decremented count", async () => {
@@ -3482,15 +3513,18 @@ t.describe("$detailedProfiles mirroring", (it) => {
       viewer: { following: "at://x" },
     });
     const detailed = dataStore.$detailedProfiles.get(targetDid);
-    assertEquals(detailed.viewer.following, null);
-    assertEquals(detailed.followersCount, 9);
-    assertEquals(detailed.pinnedPost.uri, "at://pinned");
+    assert.deepEqual(detailed.viewer.following, null);
+    assert.deepEqual(detailed.followersCount, 9);
+    assert.deepEqual(detailed.pinnedPost.uri, "at://pinned");
   });
 
   it("muteProfile mirrors viewer.muted=true into $detailedProfiles", async () => {
     const { mutations, dataStore } = setup({ muteActor: async () => ({}) });
     await mutations.muteProfile(baseProfile);
-    assertEquals(dataStore.$detailedProfiles.get(targetDid).viewer.muted, true);
+    assert.deepEqual(
+      dataStore.$detailedProfiles.get(targetDid).viewer.muted,
+      true,
+    );
   });
 
   it("unmuteProfile mirrors viewer.muted=false into $detailedProfiles", async () => {
@@ -3517,7 +3551,7 @@ t.describe("$detailedProfiles mirroring", (it) => {
       ...baseProfile,
       viewer: { muted: true },
     });
-    assertEquals(
+    assert.deepEqual(
       dataStore.$detailedProfiles.get(targetDid).viewer.muted,
       false,
     );
@@ -3528,7 +3562,7 @@ t.describe("$detailedProfiles mirroring", (it) => {
       blockActor: async () => ({ uri: "at://block" }),
     });
     await mutations.blockProfile(baseProfile);
-    assertEquals(
+    assert.deepEqual(
       dataStore.$detailedProfiles.get(targetDid).viewer.blocking,
       "at://block",
     );
@@ -3558,7 +3592,7 @@ t.describe("$detailedProfiles mirroring", (it) => {
       ...baseProfile,
       viewer: { blocking: "at://block" },
     });
-    assertEquals(
+    assert.deepEqual(
       dataStore.$detailedProfiles.get(targetDid).viewer.blocking,
       null,
     );
@@ -3573,11 +3607,9 @@ t.describe("$detailedProfiles mirroring", (it) => {
       baseProfile,
       subscription,
     );
-    assertEquals(
+    assert.deepEqual(
       dataStore.$detailedProfiles.get(targetDid).viewer.activitySubscription,
       subscription,
     );
   });
 });
-
-await t.run();

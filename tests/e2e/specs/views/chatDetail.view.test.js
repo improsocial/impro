@@ -9,8 +9,8 @@ import {
   createPost,
   createProfile,
   createSystemMessage,
-} from "../../factories.js";
-import { userProfile } from "../../fixtures.js";
+} from "../../../shared/factories.js";
+import { userProfile } from "../../testData.js";
 
 test.describe("Chat detail view", () => {
   test("should display other user's name in header and their messages", async ({

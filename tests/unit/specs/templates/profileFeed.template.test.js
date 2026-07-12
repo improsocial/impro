@@ -1,13 +1,11 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   profileListItemTemplate,
   profileListItemSkeletonTemplate,
   profileFeedTemplate,
 } from "/js/templates/profileFeed.template.js";
 import { render } from "/js/lib/lit-html.js";
-
-const t = new TestSuite("profileListItemTemplate");
 
 const mockActor = {
   did: "did:plc:testuser",
@@ -16,7 +14,7 @@ const mockActor = {
   avatar: "https://example.com/avatar.jpg",
 };
 
-t.describe("profileListItemTemplate", (it) => {
+describe("profileListItemTemplate", () => {
   it("should render avatar", () => {
     const result = profileListItemTemplate({ actor: mockActor });
     const container = document.createElement("div");
@@ -56,7 +54,7 @@ t.describe("profileListItemTemplate", (it) => {
   });
 });
 
-t.describe("profileListItemTemplate - verification badge", (it) => {
+describe("profileListItemTemplate - verification badge", () => {
   it("should render verification badge for verified actor", () => {
     const verifiedActor = {
       ...mockActor,
@@ -67,14 +65,14 @@ t.describe("profileListItemTemplate - verification badge", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Verified");
+    assert.deepEqual(badge.getAttribute("title"), "Verified");
   });
 
   it("should not render verification badge for non-verified actor", () => {
     const result = profileListItemTemplate({ actor: mockActor });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".verification-badge"), null);
+    assert.deepEqual(container.querySelector(".verification-badge"), null);
   });
 
   it("should render verifier badge for trusted verifier actor", () => {
@@ -90,11 +88,11 @@ t.describe("profileListItemTemplate - verification badge", (it) => {
     render(result, container);
     const badge = container.querySelector(".verification-badge");
     assert(badge !== null);
-    assertEquals(badge.getAttribute("title"), "Trusted Verifier");
+    assert.deepEqual(badge.getAttribute("title"), "Trusted Verifier");
   });
 });
 
-t.describe("profileListItemTemplate - no display name", (it) => {
+describe("profileListItemTemplate - no display name", () => {
   it("should use handle as display name when displayName is missing", () => {
     const actorWithoutDisplayName = {
       ...mockActor,
@@ -126,7 +124,7 @@ t.describe("profileListItemTemplate - no display name", (it) => {
   });
 });
 
-t.describe("profileListItemTemplate - special handles", (it) => {
+describe("profileListItemTemplate - special handles", () => {
   it("should render 'Deleted Account' for missing handle without displayName", () => {
     const deletedActor = {
       ...mockActor,
@@ -158,7 +156,7 @@ t.describe("profileListItemTemplate - special handles", (it) => {
   });
 });
 
-t.describe("profileListItemTemplate - displayName sanitization", (it) => {
+describe("profileListItemTemplate - displayName sanitization", () => {
   it("should strip check marks from displayName", () => {
     const actorWithCheckmark = {
       ...mockActor,
@@ -190,7 +188,7 @@ t.describe("profileListItemTemplate - displayName sanitization", (it) => {
   });
 });
 
-t.describe("profileListItemSkeletonTemplate", (it) => {
+describe("profileListItemSkeletonTemplate", () => {
   it("should render skeleton avatar", () => {
     const result = profileListItemSkeletonTemplate();
     const container = document.createElement("div");
@@ -199,7 +197,7 @@ t.describe("profileListItemSkeletonTemplate", (it) => {
   });
 });
 
-t.describe("profileFeedTemplate", (it, { beforeEach }) => {
+describe("profileFeedTemplate", () => {
   let container;
 
   beforeEach(() => {
@@ -240,7 +238,7 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
   it("should render 10 skeletons by default when loading", () => {
     const result = profileFeedTemplate({ profiles: null, hasMore: false });
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll("[data-testid='skeleton-avatar']").length,
       10,
     );
@@ -253,7 +251,7 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
       skeletonCount: 3,
     });
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll("[data-testid='skeleton-avatar']").length,
       3,
     );
@@ -265,7 +263,7 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
       hasMore: false,
     });
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='feed-end-message']"),
       null,
     );
@@ -293,11 +291,9 @@ t.describe("profileFeedTemplate", (it, { beforeEach }) => {
       container.querySelector("[data-testid='feed-loading-indicator']") !==
         null,
     );
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='feed-end-message']"),
       null,
     );
   });
 });
-
-await t.run();

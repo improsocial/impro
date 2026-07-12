@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createPost, createProfile } from "../../factories.js";
+import { createPost, createProfile } from "../../../shared/factories.js";
 
 test.describe("Mute user flow", () => {
   test("should filter posts from feeds and show Unmute option after muting a user", async ({

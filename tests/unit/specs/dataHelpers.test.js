@@ -1,9 +1,10 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   avatarThumbnailUrl,
   getRKey,
   getIsLiked,
+  isListFeed,
   getQuotedPost,
   getBlockedQuote,
   createEmbedFromPost,
@@ -46,77 +47,95 @@ import {
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
 
-const t = new TestSuite("dataHelpers");
-
-t.describe("avatarThumbnailUrl", (it) => {
+describe("avatarThumbnailUrl", () => {
   it("should convert plain avatar URL to thumbnail URL", () => {
     const avatarUrl =
       "https://cdn.bsky.app/img/avatar/plain/did:plc:123/image@jpeg";
     const expected =
       "https://cdn.bsky.app/img/avatar_thumbnail/plain/did:plc:123/image@jpeg";
-    assertEquals(avatarThumbnailUrl(avatarUrl), expected);
+    assert.deepEqual(avatarThumbnailUrl(avatarUrl), expected);
   });
 
   it("should handle URL without /img/avatar/plain/", () => {
     const avatarUrl = "https://cdn.bsky.app/img/other/plain/image.jpg";
-    assertEquals(avatarThumbnailUrl(avatarUrl), avatarUrl);
+    assert.deepEqual(avatarThumbnailUrl(avatarUrl), avatarUrl);
   });
 
   it("should handle empty string", () => {
-    assertEquals(avatarThumbnailUrl(""), "");
+    assert.deepEqual(avatarThumbnailUrl(""), "");
   });
 });
 
-t.describe("getRKey", (it) => {
+describe("getRKey", () => {
   it("should extract rkey from post URI", () => {
     const post = { uri: "at://did:plc:123/app.bsky.feed.post/3l7q2wm5ws22k" };
-    assertEquals(getRKey(post), "3l7q2wm5ws22k");
+    assert.deepEqual(getRKey(post), "3l7q2wm5ws22k");
   });
 
   it("should handle URI with different path structure", () => {
     const post = { uri: "at://did:plc:456/collection/another-rkey" };
-    assertEquals(getRKey(post), "another-rkey");
+    assert.deepEqual(getRKey(post), "another-rkey");
   });
 
   it("should handle URI with single path segment", () => {
     const post = { uri: "single-segment" };
-    assertEquals(getRKey(post), "single-segment");
+    assert.deepEqual(getRKey(post), "single-segment");
   });
 });
 
-t.describe("getIsLiked", (it) => {
+describe("isListFeed", () => {
+  it("should return true for a list URI", () => {
+    assert.deepEqual(
+      isListFeed("at://did:plc:123/app.bsky.graph.list/3ltcvl4ver723"),
+      true,
+    );
+  });
+
+  it("should return false for a feed generator URI", () => {
+    assert.deepEqual(
+      isListFeed("at://did:plc:123/app.bsky.feed.generator/whats-hot"),
+      false,
+    );
+  });
+
+  it("should return false for the following feed", () => {
+    assert.deepEqual(isListFeed("following"), false);
+  });
+});
+
+describe("getIsLiked", () => {
   it("should return true when post has viewer like", () => {
     const post = { viewer: { like: "at://did:plc:123/like/abc123" } };
-    assertEquals(getIsLiked(post), true);
+    assert.deepEqual(getIsLiked(post), true);
   });
 
   it("should return false when viewer like is empty string", () => {
     const post = { viewer: { like: "" } };
-    assertEquals(getIsLiked(post), false);
+    assert.deepEqual(getIsLiked(post), false);
   });
 
   it("should return false when viewer like is null", () => {
     const post = { viewer: { like: null } };
-    assertEquals(getIsLiked(post), false);
+    assert.deepEqual(getIsLiked(post), false);
   });
 
   it("should return false when viewer like is undefined", () => {
     const post = { viewer: { like: undefined } };
-    assertEquals(getIsLiked(post), false);
+    assert.deepEqual(getIsLiked(post), false);
   });
 
   it("should return false when viewer is undefined", () => {
     const post = {};
-    assertEquals(getIsLiked(post), false);
+    assert.deepEqual(getIsLiked(post), false);
   });
 
   it("should return false when post has no viewer property", () => {
     const post = { uri: "test" };
-    assertEquals(getIsLiked(post), false);
+    assert.deepEqual(getIsLiked(post), false);
   });
 });
 
-t.describe("getQuotedPost", (it) => {
+describe("getQuotedPost", () => {
   it("should return record for app.bsky.embed.record#view", () => {
     const post = {
       embed: {
@@ -124,7 +143,7 @@ t.describe("getQuotedPost", (it) => {
         record: { uri: "quoted-post-uri", author: { displayName: "Test" } },
       },
     };
-    assertEquals(getQuotedPost(post), post.embed.record);
+    assert.deepEqual(getQuotedPost(post), post.embed.record);
   });
 
   it("should return nested record for app.bsky.embed.recordWithMedia#view", () => {
@@ -136,7 +155,7 @@ t.describe("getQuotedPost", (it) => {
         },
       },
     };
-    assertEquals(getQuotedPost(post), post.embed.record.record);
+    assert.deepEqual(getQuotedPost(post), post.embed.record.record);
   });
 
   it("should return null for embed with different $type", () => {
@@ -146,22 +165,22 @@ t.describe("getQuotedPost", (it) => {
         images: [],
       },
     };
-    assertEquals(getQuotedPost(post), null);
+    assert.deepEqual(getQuotedPost(post), null);
   });
 
   it("should return null when embed is undefined", () => {
     const post = {};
-    assertEquals(getQuotedPost(post), null);
+    assert.deepEqual(getQuotedPost(post), null);
   });
 
   it("should return null when embed is null", () => {
     const post = { embed: null };
-    assertEquals(getQuotedPost(post), null);
+    assert.deepEqual(getQuotedPost(post), null);
   });
 
   it("should return null when post has no embed property", () => {
     const post = { uri: "test" };
-    assertEquals(getQuotedPost(post), null);
+    assert.deepEqual(getQuotedPost(post), null);
   });
 
   it("should use embeds array when available", () => {
@@ -173,7 +192,7 @@ t.describe("getQuotedPost", (it) => {
         },
       ],
     };
-    assertEquals(getQuotedPost(post), post.embeds[0].record);
+    assert.deepEqual(getQuotedPost(post), post.embeds[0].record);
   });
 
   it("should use embeds array for recordWithMedia", () => {
@@ -190,7 +209,7 @@ t.describe("getQuotedPost", (it) => {
         },
       ],
     };
-    assertEquals(getQuotedPost(post), post.embeds[0].record.record);
+    assert.deepEqual(getQuotedPost(post), post.embeds[0].record.record);
   });
 
   it("should prefer embeds array over embed property", () => {
@@ -206,7 +225,7 @@ t.describe("getQuotedPost", (it) => {
         record: { uri: "from-embed-prop" },
       },
     };
-    assertEquals(getQuotedPost(post), post.embeds[0].record);
+    assert.deepEqual(getQuotedPost(post), post.embeds[0].record);
   });
 
   it("should fall back to embed when embeds is empty", () => {
@@ -217,11 +236,11 @@ t.describe("getQuotedPost", (it) => {
         record: { uri: "from-embed-prop" },
       },
     };
-    assertEquals(getQuotedPost(post), null);
+    assert.deepEqual(getQuotedPost(post), null);
   });
 });
 
-t.describe("getBlockedQuote", (it) => {
+describe("getBlockedQuote", () => {
   it("should return blocked quote when quoted post is blocked", () => {
     const post = {
       embed: {
@@ -233,7 +252,7 @@ t.describe("getBlockedQuote", (it) => {
         },
       },
     };
-    assertEquals(getBlockedQuote(post), post.embed.record);
+    assert.deepEqual(getBlockedQuote(post), post.embed.record);
   });
 
   it("should return null when quoted post is not blocked", () => {
@@ -246,7 +265,7 @@ t.describe("getBlockedQuote", (it) => {
         },
       },
     };
-    assertEquals(getBlockedQuote(post), null);
+    assert.deepEqual(getBlockedQuote(post), null);
   });
 
   it("should return null when no quoted post exists", () => {
@@ -256,16 +275,16 @@ t.describe("getBlockedQuote", (it) => {
         images: [],
       },
     };
-    assertEquals(getBlockedQuote(post), null);
+    assert.deepEqual(getBlockedQuote(post), null);
   });
 
   it("should return null when post has no embed", () => {
     const post = {};
-    assertEquals(getBlockedQuote(post), null);
+    assert.deepEqual(getBlockedQuote(post), null);
   });
 });
 
-t.describe("createEmbedFromPost", (it) => {
+describe("createEmbedFromPost", () => {
   it("should create embed from post with all required fields", () => {
     const post = {
       author: { did: "did:plc:123", displayName: "Test User" },
@@ -282,7 +301,7 @@ t.describe("createEmbedFromPost", (it) => {
 
     const result = createEmbedFromPost(post);
 
-    assertEquals(result, {
+    assert.deepEqual(result, {
       $type: "app.bsky.embed.record#viewRecord",
       author: { did: "did:plc:123", displayName: "Test User" },
       value: { text: "Hello world", createdAt: "2024-01-01" },
@@ -308,8 +327,8 @@ t.describe("createEmbedFromPost", (it) => {
 
     assert(result.author !== post.author);
     assert(result.value !== post.record);
-    assertEquals(result.author, post.author);
-    assertEquals(result.value, post.record);
+    assert.deepEqual(result.author, post.author);
+    assert.deepEqual(result.value, post.record);
   });
 
   it("should handle post with minimal data", () => {
@@ -321,7 +340,7 @@ t.describe("createEmbedFromPost", (it) => {
 
     const result = createEmbedFromPost(post);
 
-    assertEquals(result, {
+    assert.deepEqual(result, {
       $type: "app.bsky.embed.record#viewRecord",
       author: {},
       value: {},
@@ -356,7 +375,7 @@ t.describe("createEmbedFromPost", (it) => {
 
     const result = createEmbedFromPost(post);
 
-    assertEquals(result, {
+    assert.deepEqual(result, {
       $type: "app.bsky.embed.record#viewRecord",
       author: { did: "did:plc:123" },
       value: { text: "Hello" },
@@ -390,7 +409,7 @@ t.describe("createEmbedFromPost", (it) => {
   });
 });
 
-t.describe("embedViewRecordToPostView", (it) => {
+describe("embedViewRecordToPostView", () => {
   it("should convert a ViewRecord to a PostView", () => {
     const viewRecord = {
       uri: "at://did:plc:123/app.bsky.feed.post/abc",
@@ -408,7 +427,7 @@ t.describe("embedViewRecordToPostView", (it) => {
 
     const result = embedViewRecordToPostView(viewRecord);
 
-    assertEquals(result, {
+    assert.deepEqual(result, {
       uri: "at://did:plc:123/app.bsky.feed.post/abc",
       cid: "cid123",
       author: { did: "did:plc:123", handle: "test.user" },
@@ -435,8 +454,8 @@ t.describe("embedViewRecordToPostView", (it) => {
 
     const result = embedViewRecordToPostView(viewRecord);
 
-    assertEquals(result.record, viewRecord.value);
-    assertEquals(result.embed, viewRecord.embeds[0]);
+    assert.deepEqual(result.record, viewRecord.value);
+    assert.deepEqual(result.embed, viewRecord.embeds[0]);
   });
 
   it("should handle missing embeds", () => {
@@ -450,7 +469,7 @@ t.describe("embedViewRecordToPostView", (it) => {
 
     const result = embedViewRecordToPostView(viewRecord);
 
-    assertEquals(result.embed, undefined);
+    assert.deepEqual(result.embed, undefined);
   });
 
   it("should handle empty embeds array", () => {
@@ -465,7 +484,7 @@ t.describe("embedViewRecordToPostView", (it) => {
 
     const result = embedViewRecordToPostView(viewRecord);
 
-    assertEquals(result.embed, undefined);
+    assert.deepEqual(result.embed, undefined);
   });
 
   it("should handle missing optional count fields", () => {
@@ -479,14 +498,14 @@ t.describe("embedViewRecordToPostView", (it) => {
 
     const result = embedViewRecordToPostView(viewRecord);
 
-    assertEquals(result.likeCount, undefined);
-    assertEquals(result.replyCount, undefined);
-    assertEquals(result.repostCount, undefined);
-    assertEquals(result.quoteCount, undefined);
+    assert.deepEqual(result.likeCount, undefined);
+    assert.deepEqual(result.replyCount, undefined);
+    assert.deepEqual(result.repostCount, undefined);
+    assert.deepEqual(result.quoteCount, undefined);
   });
 });
 
-t.describe("replaceTopParent", (it) => {
+describe("replaceTopParent", () => {
   it("should throw error when postThread has no parent", () => {
     const postThread = { post: { uri: "post-uri" } };
     let threw = false;
@@ -494,7 +513,7 @@ t.describe("replaceTopParent", (it) => {
       replaceTopParent(postThread, { post: { uri: "new-parent" } });
     } catch (e) {
       threw = true;
-      assertEquals(e.message, "No parent found");
+      assert.deepEqual(e.message, "No parent found");
     }
     assert(threw, "Expected replaceTopParent to throw");
   });
@@ -508,8 +527,8 @@ t.describe("replaceTopParent", (it) => {
 
     const result = replaceTopParent(postThread, newParent);
 
-    assertEquals(result.parent, newParent);
-    assertEquals(result.post, postThread.post);
+    assert.deepEqual(result.parent, newParent);
+    assert.deepEqual(result.post, postThread.post);
   });
 
   it("should return new object when immediate parent is the top", () => {
@@ -538,8 +557,8 @@ t.describe("replaceTopParent", (it) => {
 
     const result = replaceTopParent(postThread, newParent);
 
-    assertEquals(result.parent.parent, newParent);
-    assertEquals(result.parent.post.uri, "parent-uri");
+    assert.deepEqual(result.parent.parent, newParent);
+    assert.deepEqual(result.parent.post.uri, "parent-uri");
   });
 
   it("should replace top parent when there are three levels", () => {
@@ -559,20 +578,20 @@ t.describe("replaceTopParent", (it) => {
 
     const result = replaceTopParent(postThread, newParent);
 
-    assertEquals(result.parent.parent.parent, newParent);
-    assertEquals(result.parent.parent.post.uri, "grandparent-uri");
+    assert.deepEqual(result.parent.parent.parent, newParent);
+    assert.deepEqual(result.parent.parent.post.uri, "grandparent-uri");
   });
 });
 
-t.describe("isAutomatedAccount", (it) => {
+describe("isAutomatedAccount", () => {
   it("should return false for profile without labels", () => {
     const profile = { did: "did:plc:123", handle: "user.bsky.social" };
-    assertEquals(isAutomatedAccount(profile), false);
+    assert.deepEqual(isAutomatedAccount(profile), false);
   });
 
   it("should return false for profile with empty labels", () => {
     const profile = { did: "did:plc:123", labels: [] };
-    assertEquals(isAutomatedAccount(profile), false);
+    assert.deepEqual(isAutomatedAccount(profile), false);
   });
 
   it("should return false for profile with non-bot labels", () => {
@@ -580,7 +599,7 @@ t.describe("isAutomatedAccount", (it) => {
       did: "did:plc:123",
       labels: [{ val: "!no-unauthenticated" }],
     };
-    assertEquals(isAutomatedAccount(profile), false);
+    assert.deepEqual(isAutomatedAccount(profile), false);
   });
 
   it("should return true for profile with bot label", () => {
@@ -588,7 +607,7 @@ t.describe("isAutomatedAccount", (it) => {
       did: "did:plc:123",
       labels: [{ val: "bot" }],
     };
-    assertEquals(isAutomatedAccount(profile), true);
+    assert.deepEqual(isAutomatedAccount(profile), true);
   });
 
   it("should return true when bot label is among other labels", () => {
@@ -596,47 +615,47 @@ t.describe("isAutomatedAccount", (it) => {
       did: "did:plc:123",
       labels: [{ val: "!no-unauthenticated" }, { val: "bot" }],
     };
-    assertEquals(isAutomatedAccount(profile), true);
+    assert.deepEqual(isAutomatedAccount(profile), true);
   });
 });
 
-t.describe("isLabelerProfile", (it) => {
+describe("isLabelerProfile", () => {
   it("should return true when profile has associated labeler", () => {
     const profile = { associated: { labeler: true } };
-    assertEquals(isLabelerProfile(profile), true);
+    assert.deepEqual(isLabelerProfile(profile), true);
   });
 
   it("should return false when profile has no associated labeler", () => {
     const profile = { associated: { labeler: false } };
-    assertEquals(isLabelerProfile(profile), false);
+    assert.deepEqual(isLabelerProfile(profile), false);
   });
 
   it("should return undefined when profile has no associated property", () => {
     const profile = {};
-    assertEquals(isLabelerProfile(profile), undefined);
+    assert.deepEqual(isLabelerProfile(profile), undefined);
   });
 
   it("should return undefined when associated has no labeler property", () => {
     const profile = { associated: {} };
-    assertEquals(isLabelerProfile(profile), undefined);
+    assert.deepEqual(isLabelerProfile(profile), undefined);
   });
 });
 
-t.describe("getLabelNameAndDescription", (it) => {
+describe("getLabelNameAndDescription", () => {
   it("should return identifier as name when no locales", () => {
     const labelDefinition = { identifier: "test-label" };
     const result = getLabelNameAndDescription(labelDefinition);
 
-    assertEquals(result.name, "test-label");
-    assertEquals(result.description, "");
+    assert.deepEqual(result.name, "test-label");
+    assert.deepEqual(result.description, "");
   });
 
   it("should return identifier as name when locales is empty", () => {
     const labelDefinition = { identifier: "test-label", locales: [] };
     const result = getLabelNameAndDescription(labelDefinition);
 
-    assertEquals(result.name, "test-label");
-    assertEquals(result.description, "");
+    assert.deepEqual(result.name, "test-label");
+    assert.deepEqual(result.description, "");
   });
 
   it("should return preferred language locale", () => {
@@ -649,8 +668,8 @@ t.describe("getLabelNameAndDescription", (it) => {
     };
     const result = getLabelNameAndDescription(labelDefinition, "en");
 
-    assertEquals(result.name, "Label");
-    assertEquals(result.description, "Description");
+    assert.deepEqual(result.name, "Label");
+    assert.deepEqual(result.description, "Description");
   });
 
   it("should fall back to first locale when preferred not found", () => {
@@ -663,8 +682,8 @@ t.describe("getLabelNameAndDescription", (it) => {
     };
     const result = getLabelNameAndDescription(labelDefinition, "en");
 
-    assertEquals(result.name, "Etiqueta");
-    assertEquals(result.description, "Descripción");
+    assert.deepEqual(result.name, "Etiqueta");
+    assert.deepEqual(result.description, "Descripción");
   });
 
   it("should use identifier when locale name is missing", () => {
@@ -674,8 +693,8 @@ t.describe("getLabelNameAndDescription", (it) => {
     };
     const result = getLabelNameAndDescription(labelDefinition, "en");
 
-    assertEquals(result.name, "test-label");
-    assertEquals(result.description, "Description only");
+    assert.deepEqual(result.name, "test-label");
+    assert.deepEqual(result.description, "Description only");
   });
 
   it("should default to en as preferred language", () => {
@@ -688,12 +707,12 @@ t.describe("getLabelNameAndDescription", (it) => {
     };
     const result = getLabelNameAndDescription(labelDefinition);
 
-    assertEquals(result.name, "Label");
-    assertEquals(result.description, "Description");
+    assert.deepEqual(result.name, "Label");
+    assert.deepEqual(result.description, "Description");
   });
 });
 
-t.describe("getLabelerForLabel", (it) => {
+describe("getLabelerForLabel", () => {
   it("should return matching labeler by src did", () => {
     const label = { src: "did:plc:labeler1", val: "nsfw" };
     const labelers = [
@@ -703,7 +722,7 @@ t.describe("getLabelerForLabel", (it) => {
 
     const result = getLabelerForLabel(label, labelers);
 
-    assertEquals(result.creator.did, "did:plc:labeler1");
+    assert.deepEqual(result.creator.did, "did:plc:labeler1");
   });
 
   it("should return null when no matching labeler", () => {
@@ -712,7 +731,7 @@ t.describe("getLabelerForLabel", (it) => {
 
     const result = getLabelerForLabel(label, labelers);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return null when labelers is empty", () => {
@@ -720,11 +739,11 @@ t.describe("getLabelerForLabel", (it) => {
 
     const result = getLabelerForLabel(label, []);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 });
 
-t.describe("getDefinitionForLabel", (it) => {
+describe("getDefinitionForLabel", () => {
   it("should return matching label definition", () => {
     const label = { src: "did:plc:labeler1", val: "nsfw" };
     const labeler = {
@@ -739,8 +758,8 @@ t.describe("getDefinitionForLabel", (it) => {
 
     const result = getDefinitionForLabel(label, labeler);
 
-    assertEquals(result.identifier, "nsfw");
-    assertEquals(result.blurs, "media");
+    assert.deepEqual(result.identifier, "nsfw");
+    assert.deepEqual(result.blurs, "media");
   });
 
   it("should return undefined when no matching definition", () => {
@@ -754,39 +773,39 @@ t.describe("getDefinitionForLabel", (it) => {
 
     const result = getDefinitionForLabel(label, labeler);
 
-    assertEquals(result, undefined);
+    assert.deepEqual(result, undefined);
   });
 });
 
-t.describe("isBadgeLabel", (it) => {
+describe("isBadgeLabel", () => {
   it("should return true when blurs is none", () => {
     const labelDefinition = { blurs: "none" };
-    assertEquals(isBadgeLabel(labelDefinition), true);
+    assert.deepEqual(isBadgeLabel(labelDefinition), true);
   });
 
   it("should return true when blurs is undefined", () => {
     const labelDefinition = {};
-    assertEquals(isBadgeLabel(labelDefinition), true);
+    assert.deepEqual(isBadgeLabel(labelDefinition), true);
   });
 
   it("should return false when blurs is media", () => {
     const labelDefinition = { blurs: "media" };
-    assertEquals(isBadgeLabel(labelDefinition), false);
+    assert.deepEqual(isBadgeLabel(labelDefinition), false);
   });
 
   it("should return false when blurs is content", () => {
     const labelDefinition = { blurs: "content" };
-    assertEquals(isBadgeLabel(labelDefinition), false);
+    assert.deepEqual(isBadgeLabel(labelDefinition), false);
   });
 });
 
-t.describe("addFeedItemToFeed", (it) => {
+describe("addFeedItemToFeed", () => {
   it("should add item to empty feed", () => {
     const feedItem = { post: { uri: "post-1" } };
     const result = addFeedItemToFeed(feedItem, []);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0], feedItem);
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0], feedItem);
   });
 
   it("should add item to beginning of feed without pinned post", () => {
@@ -795,9 +814,9 @@ t.describe("addFeedItemToFeed", (it) => {
 
     const result = addFeedItemToFeed(newItem, [existingItem]);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0], newItem);
-    assertEquals(result[1], existingItem);
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0], newItem);
+    assert.deepEqual(result[1], existingItem);
   });
 
   it("should add item after pinned post", () => {
@@ -810,10 +829,10 @@ t.describe("addFeedItemToFeed", (it) => {
 
     const result = addFeedItemToFeed(newItem, [pinnedItem, existingItem]);
 
-    assertEquals(result.length, 3);
-    assertEquals(result[0], pinnedItem);
-    assertEquals(result[1], newItem);
-    assertEquals(result[2], existingItem);
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0], pinnedItem);
+    assert.deepEqual(result[1], newItem);
+    assert.deepEqual(result[2], existingItem);
   });
 
   it("should handle pinned post not at first position", () => {
@@ -826,10 +845,10 @@ t.describe("addFeedItemToFeed", (it) => {
 
     const result = addFeedItemToFeed(newItem, [existingItem, pinnedItem]);
 
-    assertEquals(result.length, 3);
-    assertEquals(result[0], pinnedItem);
-    assertEquals(result[1], newItem);
-    assertEquals(result[2], existingItem);
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0], pinnedItem);
+    assert.deepEqual(result[1], newItem);
+    assert.deepEqual(result[2], existingItem);
   });
 
   it("should handle repost feed items", () => {
@@ -845,20 +864,20 @@ t.describe("addFeedItemToFeed", (it) => {
 
     const result = addFeedItemToFeed(repostItem, []);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].reason.$type, "app.bsky.feed.defs#reasonRepost");
   });
 });
 
-t.describe("pinPostInFeed", (it) => {
+describe("pinPostInFeed", () => {
   const pinReason = { $type: "app.bsky.feed.defs#reasonPin" };
 
   it("should add a pinned item to an empty feed", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const result = pinPostInFeed([], post);
-    assertEquals(result.length, 1);
-    assertEquals(result[0].post, post);
-    assertEquals(result[0].reason.$type, pinReason.$type);
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].post, post);
+    assert.deepEqual(result[0].reason.$type, pinReason.$type);
   });
 
   it("should move an existing post to the top and mark it pinned", () => {
@@ -869,11 +888,11 @@ t.describe("pinPostInFeed", (it) => {
       { post: { uri: "post-3" } },
     ];
     const result = pinPostInFeed(feed, post);
-    assertEquals(result.length, 3);
-    assertEquals(result[0].post.uri, "post-2");
-    assertEquals(result[0].reason.$type, pinReason.$type);
-    assertEquals(result[1].post.uri, "post-1");
-    assertEquals(result[2].post.uri, "post-3");
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0].post.uri, "post-2");
+    assert.deepEqual(result[0].reason.$type, pinReason.$type);
+    assert.deepEqual(result[1].post.uri, "post-1");
+    assert.deepEqual(result[2].post.uri, "post-3");
   });
 
   it("should unpin a previously pinned item when pinning a new one", () => {
@@ -881,22 +900,22 @@ t.describe("pinPostInFeed", (it) => {
     const other = { post: { uri: "post-2" } };
     const newPost = { uri: "post-3", cid: "cid-3" };
     const result = pinPostInFeed([oldPinned, other], newPost);
-    assertEquals(result.length, 3);
-    assertEquals(result[0].post.uri, "post-3");
-    assertEquals(result[0].reason.$type, pinReason.$type);
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0].post.uri, "post-3");
+    assert.deepEqual(result[0].reason.$type, pinReason.$type);
     // Old pinned item is still present, but no longer carries the pin reason.
     const oldInResult = result.find((item) => item.post.uri === "post-1");
-    assertEquals(oldInResult.reason, undefined);
+    assert.deepEqual(oldInResult.reason, undefined);
   });
 
   it("should not duplicate the post when it is already pinned", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const feed = [{ post, reason: pinReason }, { post: { uri: "post-2" } }];
     const result = pinPostInFeed(feed, post);
-    assertEquals(result.length, 2);
-    assertEquals(result[0].post.uri, "post-1");
-    assertEquals(result[0].reason.$type, pinReason.$type);
-    assertEquals(result[1].post.uri, "post-2");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].post.uri, "post-1");
+    assert.deepEqual(result[0].reason.$type, pinReason.$type);
+    assert.deepEqual(result[1].post.uri, "post-2");
   });
 
   it("should not mutate the input feed", () => {
@@ -904,56 +923,56 @@ t.describe("pinPostInFeed", (it) => {
     const feed = [{ post: { uri: "post-2" } }];
     const before = [...feed];
     pinPostInFeed(feed, post);
-    assertEquals(feed.length, before.length);
-    assertEquals(feed[0], before[0]);
+    assert.deepEqual(feed.length, before.length);
+    assert.deepEqual(feed[0], before[0]);
   });
 });
 
-t.describe("unpinPostInFeed", (it) => {
+describe("unpinPostInFeed", () => {
   const pinReason = { $type: "app.bsky.feed.defs#reasonPin" };
 
   it("should clear the pin reason on the matching item but keep it in place", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const feed = [{ post, reason: pinReason }, { post: { uri: "post-2" } }];
     const result = unpinPostInFeed(feed, post);
-    assertEquals(result.length, 2);
-    assertEquals(result[0].post.uri, "post-1");
-    assertEquals(result[0].reason, undefined);
-    assertEquals(result[1].post.uri, "post-2");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].post.uri, "post-1");
+    assert.deepEqual(result[0].reason, undefined);
+    assert.deepEqual(result[1].post.uri, "post-2");
   });
 
   it("should leave a non-pinned occurrence of the post unchanged", () => {
     const post = { uri: "post-1", cid: "cid-1" };
     const feed = [{ post }, { post: { uri: "post-2" } }];
     const result = unpinPostInFeed(feed, post);
-    assertEquals(result.length, 2);
-    assertEquals(result[0].post.uri, "post-1");
-    assertEquals(result[0].reason, undefined);
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].post.uri, "post-1");
+    assert.deepEqual(result[0].reason, undefined);
   });
 
   it("should not affect another pinned item with a different uri", () => {
     const post = { uri: "post-1" };
     const otherPinned = { post: { uri: "post-2" }, reason: pinReason };
     const result = unpinPostInFeed([otherPinned], post);
-    assertEquals(result.length, 1);
-    assertEquals(result[0].post.uri, "post-2");
-    assertEquals(result[0].reason.$type, pinReason.$type);
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].post.uri, "post-2");
+    assert.deepEqual(result[0].reason.$type, pinReason.$type);
   });
 
   it("should return an empty feed when given one", () => {
-    assertEquals(unpinPostInFeed([], { uri: "post-1" }).length, 0);
+    assert.deepEqual(unpinPostInFeed([], { uri: "post-1" }).length, 0);
   });
 });
 
-t.describe("getDisplayName", (it) => {
+describe("getDisplayName", () => {
   it("should return displayName when present", () => {
     const profile = { displayName: "Alice", handle: "alice.bsky.social" };
-    assertEquals(getDisplayName(profile), "Alice");
+    assert.deepEqual(getDisplayName(profile), "Alice");
   });
 
   it("should trim whitespace from displayName", () => {
     const profile = { displayName: "  Alice  ", handle: "alice.bsky.social" };
-    assertEquals(getDisplayName(profile), "Alice");
+    assert.deepEqual(getDisplayName(profile), "Alice");
   });
 
   it("should strip check mark characters", () => {
@@ -961,7 +980,7 @@ t.describe("getDisplayName", (it) => {
       displayName: "Alice \u2705\u2713\u2714\u2611",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice");
+    assert.deepEqual(getDisplayName(profile), "Alice");
   });
 
   it("should strip control characters", () => {
@@ -969,7 +988,7 @@ t.describe("getDisplayName", (it) => {
       displayName: "Ali\u0000ce\u001F",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice");
+    assert.deepEqual(getDisplayName(profile), "Alice");
   });
 
   it("should strip bidirectional override characters", () => {
@@ -977,7 +996,7 @@ t.describe("getDisplayName", (it) => {
       displayName: "Ali\u202Ace\u202E",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice");
+    assert.deepEqual(getDisplayName(profile), "Alice");
   });
 
   it("should collapse multiple spaces into one", () => {
@@ -985,7 +1004,7 @@ t.describe("getDisplayName", (it) => {
       displayName: "Alice   Bob",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice Bob");
+    assert.deepEqual(getDisplayName(profile), "Alice Bob");
   });
 
   it("should collapse spaces with zero-width spaces", () => {
@@ -993,7 +1012,7 @@ t.describe("getDisplayName", (it) => {
       displayName: "Alice \u200B Bob",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice Bob");
+    assert.deepEqual(getDisplayName(profile), "Alice Bob");
   });
 
   it("should handle all sanitizations together", () => {
@@ -1001,31 +1020,31 @@ t.describe("getDisplayName", (it) => {
       displayName: "  \u2705Alice\u0000   Bob\u202E  ",
       handle: "alice.bsky.social",
     };
-    assertEquals(getDisplayName(profile), "Alice Bob");
+    assert.deepEqual(getDisplayName(profile), "Alice Bob");
   });
 
   it("should return 'Deleted Account' for missing.invalid handle", () => {
     const profile = { handle: "missing.invalid" };
-    assertEquals(getDisplayName(profile), "Deleted Account");
+    assert.deepEqual(getDisplayName(profile), "Deleted Account");
   });
 
   it("should return 'Invalid Handle' for handle.invalid handle", () => {
     const profile = { handle: "handle.invalid" };
-    assertEquals(getDisplayName(profile), "Invalid Handle");
+    assert.deepEqual(getDisplayName(profile), "Invalid Handle");
   });
 
   it("should return handle when no displayName", () => {
     const profile = { handle: "alice.bsky.social" };
-    assertEquals(getDisplayName(profile), "alice.bsky.social");
+    assert.deepEqual(getDisplayName(profile), "alice.bsky.social");
   });
 
   it("should prefer displayName over special handle fallbacks", () => {
     const profile = { displayName: "Still Here", handle: "missing.invalid" };
-    assertEquals(getDisplayName(profile), "Still Here");
+    assert.deepEqual(getDisplayName(profile), "Still Here");
   });
 });
 
-t.describe("hasValidHandle", (it) => {
+describe("hasValidHandle", () => {
   it("returns true for a normal handle", () => {
     assert(hasValidHandle({ handle: "alice.bsky.social" }));
   });
@@ -1043,21 +1062,21 @@ t.describe("hasValidHandle", (it) => {
   });
 });
 
-t.describe("getThreadgateAllowSettings", (it) => {
+describe("getThreadgateAllowSettings", () => {
   it("returns everybody when post has no threadgate", () => {
-    assertEquals(getThreadgateAllowSettings({}), { type: "everybody" });
+    assert.deepEqual(getThreadgateAllowSettings({}), { type: "everybody" });
   });
 
   it("returns everybody when allow is undefined", () => {
     const post = {
       threadgate: { record: { $type: "app.bsky.feed.threadgate" } },
     };
-    assertEquals(getThreadgateAllowSettings(post), { type: "everybody" });
+    assert.deepEqual(getThreadgateAllowSettings(post), { type: "everybody" });
   });
 
   it("returns nobody when allow is empty array", () => {
     const post = { threadgate: { record: { allow: [] } } };
-    assertEquals(getThreadgateAllowSettings(post), { type: "nobody" });
+    assert.deepEqual(getThreadgateAllowSettings(post), { type: "nobody" });
   });
 
   it("maps a mention rule", () => {
@@ -1066,7 +1085,7 @@ t.describe("getThreadgateAllowSettings", (it) => {
         record: { allow: [{ $type: "app.bsky.feed.threadgate#mentionRule" }] },
       },
     };
-    assertEquals(getThreadgateAllowSettings(post), [{ type: "mention" }]);
+    assert.deepEqual(getThreadgateAllowSettings(post), [{ type: "mention" }]);
   });
 
   it("maps follower and following rules", () => {
@@ -1080,7 +1099,7 @@ t.describe("getThreadgateAllowSettings", (it) => {
         },
       },
     };
-    assertEquals(getThreadgateAllowSettings(post), [
+    assert.deepEqual(getThreadgateAllowSettings(post), [
       { type: "followers" },
       { type: "following" },
     ]);
@@ -1099,7 +1118,9 @@ t.describe("getThreadgateAllowSettings", (it) => {
         },
       },
     };
-    assertEquals(getThreadgateAllowSettings(post), [{ type: "list", list }]);
+    assert.deepEqual(getThreadgateAllowSettings(post), [
+      { type: "list", list },
+    ]);
   });
 
   it("returns null list when list rule references missing list", () => {
@@ -1116,7 +1137,7 @@ t.describe("getThreadgateAllowSettings", (it) => {
         },
       },
     };
-    assertEquals(getThreadgateAllowSettings(post), [
+    assert.deepEqual(getThreadgateAllowSettings(post), [
       { type: "list", list: null },
     ]);
   });
@@ -1127,19 +1148,19 @@ t.describe("getThreadgateAllowSettings", (it) => {
         record: { allow: [{ $type: "app.bsky.feed.threadgate#futureRule" }] },
       },
     };
-    assertEquals(getThreadgateAllowSettings(post), [{ type: "unknown" }]);
+    assert.deepEqual(getThreadgateAllowSettings(post), [{ type: "unknown" }]);
   });
 });
 
-t.describe("isEmptyPost", (it) => {
+describe("isEmptyPost", () => {
   it("should return true for blocked posts", () => {
     const post = { $type: "app.bsky.feed.defs#blockedPost", uri: "at://x" };
-    assertEquals(isEmptyPost(post), true);
+    assert.deepEqual(isEmptyPost(post), true);
   });
 
   it("should return true for not-found posts", () => {
     const post = { $type: "app.bsky.feed.defs#notFoundPost", uri: "at://x" };
-    assertEquals(isEmptyPost(post), true);
+    assert.deepEqual(isEmptyPost(post), true);
   });
 
   it("should return true for unavailable posts", () => {
@@ -1147,33 +1168,33 @@ t.describe("isEmptyPost", (it) => {
       $type: "social.impro.feed.defs#unavailablePost",
       uri: "at://x",
     };
-    assertEquals(isEmptyPost(post), true);
+    assert.deepEqual(isEmptyPost(post), true);
   });
 
   it("should return false for normal post views", () => {
     const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
-    assertEquals(isEmptyPost(post), false);
+    assert.deepEqual(isEmptyPost(post), false);
   });
 });
 
-t.describe("canReplyToPost", (it) => {
+describe("canReplyToPost", () => {
   it("should return true for a normal post view with no restrictions", () => {
     const post = {
       $type: "app.bsky.feed.defs#postView",
       uri: "at://x",
       viewer: {},
     };
-    assertEquals(canReplyToPost(post), true);
+    assert.deepEqual(canReplyToPost(post), true);
   });
 
   it("should return false for a blocked post", () => {
     const post = { $type: "app.bsky.feed.defs#blockedPost", uri: "at://x" };
-    assertEquals(canReplyToPost(post), false);
+    assert.deepEqual(canReplyToPost(post), false);
   });
 
   it("should return false for a not-found post", () => {
     const post = { $type: "app.bsky.feed.defs#notFoundPost", uri: "at://x" };
-    assertEquals(canReplyToPost(post), false);
+    assert.deepEqual(canReplyToPost(post), false);
   });
 
   it("should return false for an unavailable post", () => {
@@ -1181,7 +1202,7 @@ t.describe("canReplyToPost", (it) => {
       $type: "social.impro.feed.defs#unavailablePost",
       uri: "at://x",
     };
-    assertEquals(canReplyToPost(post), false);
+    assert.deepEqual(canReplyToPost(post), false);
   });
 
   it("should return false when viewer.replyDisabled is true", () => {
@@ -1190,16 +1211,16 @@ t.describe("canReplyToPost", (it) => {
       uri: "at://x",
       viewer: { replyDisabled: true },
     };
-    assertEquals(canReplyToPost(post), false);
+    assert.deepEqual(canReplyToPost(post), false);
   });
 
   it("should return true when viewer is missing", () => {
     const post = { $type: "app.bsky.feed.defs#postView", uri: "at://x" };
-    assertEquals(canReplyToPost(post), true);
+    assert.deepEqual(canReplyToPost(post), true);
   });
 });
 
-t.describe("transformNestedQuotes", (it) => {
+describe("transformNestedQuotes", () => {
   const makeQuote = (uri, nestedQuote) => {
     const quote = { uri };
     if (nestedQuote) {
@@ -1213,7 +1234,7 @@ t.describe("transformNestedQuotes", (it) => {
   it("returns the post unchanged when there is no quote", () => {
     const post = { uri: "post" };
     const result = transformNestedQuotes(post, () => ({ touched: true }));
-    assertEquals(result, post);
+    assert.deepEqual(result, post);
   });
 
   it("leaves the root post untouched but transforms the direct quote", () => {
@@ -1229,9 +1250,9 @@ t.describe("transformNestedQuotes", (it) => {
       ...quotedPost,
       touched: true,
     }));
-    assertEquals(result.uri, "post");
-    assertEquals(result.flag, "root");
-    assertEquals(result.embed.record, { uri: "quote", touched: true });
+    assert.deepEqual(result.uri, "post");
+    assert.deepEqual(result.flag, "root");
+    assert.deepEqual(result.embed.record, { uri: "quote", touched: true });
   });
 
   it("transforms both the direct and nested quote (two levels)", () => {
@@ -1247,9 +1268,9 @@ t.describe("transformNestedQuotes", (it) => {
       calls.push(quotedPost.uri);
       return { ...quotedPost, touched: true };
     });
-    assertEquals(calls, ["quote", "nested"]);
-    assertEquals(result.embed.record.touched, true);
-    assertEquals(result.embed.record.embeds[0].record, {
+    assert.deepEqual(calls, ["quote", "nested"]);
+    assert.deepEqual(result.embed.record.touched, true);
+    assert.deepEqual(result.embed.record.embeds[0].record, {
       uri: "nested",
       touched: true,
     });
@@ -1270,7 +1291,7 @@ t.describe("transformNestedQuotes", (it) => {
       seen.push(quotedPost.uri);
       return quotedPost;
     });
-    assertEquals(seen, ["quote", "nested"]);
+    assert.deepEqual(seen, ["quote", "nested"]);
   });
 
   it("returns the same post when the transform leaves quotes unchanged", () => {
@@ -1299,19 +1320,19 @@ t.describe("transformNestedQuotes", (it) => {
       ...quotedPost,
       touched: true,
     }));
-    assertEquals(originalQuote.touched, undefined);
-    assertEquals(originalNested.touched, undefined);
-    assertEquals(post.embed.record, originalQuote);
+    assert.deepEqual(originalQuote.touched, undefined);
+    assert.deepEqual(originalNested.touched, undefined);
+    assert.deepEqual(post.embed.record, originalQuote);
   });
 });
 
-t.describe("getInteractionTimestamp", (it) => {
+describe("getInteractionTimestamp", () => {
   it("should return sentAt for message views", () => {
     const timestamp = getInteractionTimestamp({
       $type: "chat.bsky.convo.defs#messageView",
       sentAt: "2026-06-11T01:00:00.000Z",
     });
-    assertEquals(timestamp, "2026-06-11T01:00:00.000Z");
+    assert.deepEqual(timestamp, "2026-06-11T01:00:00.000Z");
   });
 
   it("should return sentAt for system message views", () => {
@@ -1319,7 +1340,7 @@ t.describe("getInteractionTimestamp", (it) => {
       $type: "chat.bsky.convo.defs#systemMessageView",
       sentAt: "2026-06-11T02:00:00.000Z",
     });
-    assertEquals(timestamp, "2026-06-11T02:00:00.000Z");
+    assert.deepEqual(timestamp, "2026-06-11T02:00:00.000Z");
   });
 
   it("should return reaction createdAt for message-and-reaction views", () => {
@@ -1327,11 +1348,11 @@ t.describe("getInteractionTimestamp", (it) => {
       $type: "chat.bsky.convo.defs#messageAndReactionView",
       reaction: { createdAt: "2026-06-11T03:00:00.000Z" },
     });
-    assertEquals(timestamp, "2026-06-11T03:00:00.000Z");
+    assert.deepEqual(timestamp, "2026-06-11T03:00:00.000Z");
   });
 });
 
-t.describe("getGroupConvoDetails", (it) => {
+describe("getGroupConvoDetails", () => {
   const groupKind = {
     $type: "chat.bsky.convo.defs#groupConvo",
     name: "Test Group",
@@ -1342,7 +1363,7 @@ t.describe("getGroupConvoDetails", (it) => {
   };
 
   it("should return the kind object for group convos", () => {
-    assertEquals(
+    assert.deepEqual(
       getGroupConvoDetails({ id: "c1", kind: groupKind }),
       groupKind,
     );
@@ -1353,33 +1374,33 @@ t.describe("getGroupConvoDetails", (it) => {
       id: "c2",
       kind: { $type: "chat.bsky.convo.defs#directConvo" },
     };
-    assertEquals(getGroupConvoDetails(directConvo), null);
+    assert.deepEqual(getGroupConvoDetails(directConvo), null);
   });
 
   it("should return null when kind is missing", () => {
-    assertEquals(getGroupConvoDetails({ id: "c3" }), null);
+    assert.deepEqual(getGroupConvoDetails({ id: "c3" }), null);
   });
 });
 
-t.describe("isGroupConvo", (it) => {
+describe("isGroupConvo", () => {
   it("should detect group convos", () => {
     const convo = {
       id: "c1",
       kind: { $type: "chat.bsky.convo.defs#groupConvo", name: "Test Group" },
     };
-    assertEquals(isGroupConvo(convo), true);
+    assert.deepEqual(isGroupConvo(convo), true);
   });
 
   it("should reject direct and untyped convos", () => {
-    assertEquals(
+    assert.deepEqual(
       isGroupConvo({ kind: { $type: "chat.bsky.convo.defs#directConvo" } }),
       false,
     );
-    assertEquals(isGroupConvo({}), false);
+    assert.deepEqual(isGroupConvo({}), false);
   });
 });
 
-t.describe("getGroupConvoOwner", (it) => {
+describe("getGroupConvoOwner", () => {
   function groupMember(did, role) {
     return {
       did,
@@ -1393,7 +1414,7 @@ t.describe("getGroupConvoOwner", (it) => {
     const convo = {
       members: [groupMember("did:plc:me", "standard"), owner],
     };
-    assertEquals(getGroupConvoOwner(convo), owner);
+    assert.deepEqual(getGroupConvoOwner(convo), owner);
   });
 
   it("should return null when the owner has left", () => {
@@ -1403,7 +1424,7 @@ t.describe("getGroupConvoOwner", (it) => {
         groupMember("did:plc:bob", "standard"),
       ],
     };
-    assertEquals(getGroupConvoOwner(convo), null);
+    assert.deepEqual(getGroupConvoOwner(convo), null);
   });
 
   it("should ignore members without a group member kind", () => {
@@ -1417,11 +1438,11 @@ t.describe("getGroupConvoOwner", (it) => {
         },
       ],
     };
-    assertEquals(getGroupConvoOwner(convo), null);
+    assert.deepEqual(getGroupConvoOwner(convo), null);
   });
 });
 
-t.describe("getSystemMessageDisplayText", (it) => {
+describe("getSystemMessageDisplayText", () => {
   function systemMessage(dataType, data = {}) {
     return {
       $type: "chat.bsky.convo.defs#systemMessageView",
@@ -1431,13 +1452,13 @@ t.describe("getSystemMessageDisplayText", (it) => {
   }
 
   it("should use the member name for member events when provided", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(systemMessage("systemMessageDataAddMember"), {
         memberName: "Alice",
       }),
       "Alice was added to the group",
     );
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(
         systemMessage("systemMessageDataMemberLeave"),
         { memberName: "Alice" },
@@ -1447,14 +1468,14 @@ t.describe("getSystemMessageDisplayText", (it) => {
   });
 
   it("should fall back to anonymous copy for member events without a name", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(systemMessage("systemMessageDataAddMember")),
       "Someone was added to the group",
     );
   });
 
   it("should include the new name for edit-group events", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(
         systemMessage("systemMessageDataEditGroup", {
           oldName: "Old Club",
@@ -1466,14 +1487,14 @@ t.describe("getSystemMessageDisplayText", (it) => {
   });
 
   it("should use generic copy for edit-group events without a new name", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(systemMessage("systemMessageDataEditGroup")),
       "Chat title changed",
     );
   });
 
   it("should ignore memberName for non-member events", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(systemMessage("systemMessageDataLockConvo"), {
         memberName: "Alice",
       }),
@@ -1482,14 +1503,14 @@ t.describe("getSystemMessageDisplayText", (it) => {
   });
 
   it("should fall back to generic copy for unknown kinds", () => {
-    assertEquals(
+    assert.deepEqual(
       getSystemMessageDisplayText(systemMessage("systemMessageDataFuture")),
       "Chat updated",
     );
   });
 });
 
-t.describe("getConvoPreviewText", (it) => {
+describe("getConvoPreviewText", () => {
   const currentUser = { did: "did:plc:me", handle: "me.bsky.social" };
   const alice = {
     did: "did:plc:alice",
@@ -1513,7 +1534,7 @@ t.describe("getConvoPreviewText", (it) => {
   }
 
   it("should prefix group messages with the sender name", () => {
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(messageView({ text: "hi", senderDid: alice.did }), {
         currentUser,
         convo: groupConvo,
@@ -1521,7 +1542,7 @@ t.describe("getConvoPreviewText", (it) => {
       }),
       "Alice: hi",
     );
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         messageView({ text: "hi", senderDid: currentUser.did }),
         { currentUser, convo: groupConvo, profiles: groupConvo.members },
@@ -1531,7 +1552,7 @@ t.describe("getConvoPreviewText", (it) => {
   });
 
   it("should fall back to Someone for unknown group senders", () => {
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         messageView({ text: "hi", senderDid: "did:plc:stranger" }),
         { currentUser, convo: groupConvo, profiles: groupConvo.members },
@@ -1541,7 +1562,7 @@ t.describe("getConvoPreviewText", (it) => {
   });
 
   it("should resolve senders from the passed profiles", () => {
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         messageView({ text: "hi", senderDid: "did:plc:stranger" }),
         {
@@ -1562,7 +1583,7 @@ t.describe("getConvoPreviewText", (it) => {
   });
 
   it("should only prefix own messages in direct convos", () => {
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(messageView({ text: "hi", senderDid: alice.did }), {
         currentUser,
         convo: directConvo,
@@ -1570,7 +1591,7 @@ t.describe("getConvoPreviewText", (it) => {
       }),
       "hi",
     );
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         messageView({ text: "hi", senderDid: currentUser.did }),
         { currentUser, convo: directConvo, profiles: directConvo.members },
@@ -1584,7 +1605,7 @@ t.describe("getConvoPreviewText", (it) => {
       ...messageView({ text: "", senderDid: alice.did }),
       embed: { $type: "app.bsky.embed.images#view" },
     };
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(embedMessage, {
         currentUser,
         convo: directConvo,
@@ -1592,14 +1613,14 @@ t.describe("getConvoPreviewText", (it) => {
       }),
       "(embedded content)",
     );
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         { ...embedMessage, sender: { did: currentUser.did } },
         { currentUser, convo: directConvo, profiles: directConvo.members },
       ),
       "You: (embedded content)",
     );
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(embedMessage, {
         currentUser,
         convo: groupConvo,
@@ -1614,7 +1635,7 @@ t.describe("getConvoPreviewText", (it) => {
       ...messageView({ text: "", senderDid: alice.did }),
       embed: { $type: "app.bsky.embed.record#view" },
     };
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(recordEmbedMessage, {
         currentUser,
         convo: directConvo,
@@ -1630,7 +1651,7 @@ t.describe("getConvoPreviewText", (it) => {
       message: { text: "hello" },
       reaction: { value: "👍", sender: { did: alice.did } },
     };
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(reaction, {
         currentUser,
         convo: groupConvo,
@@ -1641,7 +1662,7 @@ t.describe("getConvoPreviewText", (it) => {
   });
 
   it("should describe deleted messages", () => {
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(
         { $type: "chat.bsky.convo.defs#deletedMessageView" },
         { currentUser, convo: directConvo, profiles: directConvo.members },
@@ -1658,7 +1679,7 @@ t.describe("getConvoPreviewText", (it) => {
         member: { did: alice.did },
       },
     };
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(systemMessage, {
         currentUser,
         convo: groupConvo,
@@ -1676,7 +1697,7 @@ t.describe("getConvoPreviewText", (it) => {
         member: { did: "did:plc:stranger" },
       },
     };
-    assertEquals(
+    assert.deepEqual(
       getConvoPreviewText(systemMessage, {
         currentUser,
         convo: groupConvo,
@@ -1687,9 +1708,9 @@ t.describe("getConvoPreviewText", (it) => {
   });
 });
 
-t.describe("getInteractionProfileDids", (it) => {
+describe("getInteractionProfileDids", () => {
   it("should return an empty list for a missing interaction", () => {
-    assertEquals(getInteractionProfileDids(null), []);
+    assert.deepEqual(getInteractionProfileDids(null), []);
   });
 
   it("should extract the sender from a message", () => {
@@ -1697,7 +1718,7 @@ t.describe("getInteractionProfileDids", (it) => {
       $type: "chat.bsky.convo.defs#messageView",
       sender: { did: "did:plc:sender" },
     };
-    assertEquals(getInteractionProfileDids(message), ["did:plc:sender"]);
+    assert.deepEqual(getInteractionProfileDids(message), ["did:plc:sender"]);
   });
 
   it("should extract both senders from a reaction", () => {
@@ -1706,7 +1727,7 @@ t.describe("getInteractionProfileDids", (it) => {
       message: { sender: { did: "did:plc:author" } },
       reaction: { value: "👍", sender: { did: "did:plc:reactor" } },
     };
-    assertEquals(getInteractionProfileDids(reaction), [
+    assert.deepEqual(getInteractionProfileDids(reaction), [
       "did:plc:author",
       "did:plc:reactor",
     ]);
@@ -1721,14 +1742,14 @@ t.describe("getInteractionProfileDids", (it) => {
         addedBy: { did: "did:plc:adder" },
       },
     };
-    assertEquals(getInteractionProfileDids(systemMessage), [
+    assert.deepEqual(getInteractionProfileDids(systemMessage), [
       "did:plc:added",
       "did:plc:adder",
     ]);
   });
 
   it("should return an empty list for a deleted message", () => {
-    assertEquals(
+    assert.deepEqual(
       getInteractionProfileDids({
         $type: "chat.bsky.convo.defs#deletedMessageView",
       }),
@@ -1737,7 +1758,7 @@ t.describe("getInteractionProfileDids", (it) => {
   });
 });
 
-t.describe("groupReactions", (it) => {
+describe("groupReactions", () => {
   const reaction = (value, did) => ({
     value,
     sender: { did },
@@ -1750,20 +1771,20 @@ t.describe("groupReactions", (it) => {
       reaction("👍", "did:plc:b"),
       reaction("❤️", "did:plc:b"),
     ]);
-    assertEquals(groups.length, 2);
-    assertEquals(groups[0].value, "❤️");
-    assertEquals(groups[0].count, 2);
-    assertEquals(groups[0].senders.length, 2);
-    assertEquals(groups[0].senders[0].did, "did:plc:a");
-    assertEquals(groups[0].senders[1].did, "did:plc:b");
-    assertEquals(groups[1].value, "👍");
-    assertEquals(groups[1].count, 1);
+    assert.deepEqual(groups.length, 2);
+    assert.deepEqual(groups[0].value, "❤️");
+    assert.deepEqual(groups[0].count, 2);
+    assert.deepEqual(groups[0].senders.length, 2);
+    assert.deepEqual(groups[0].senders[0].did, "did:plc:a");
+    assert.deepEqual(groups[0].senders[1].did, "did:plc:b");
+    assert.deepEqual(groups[1].value, "👍");
+    assert.deepEqual(groups[1].count, 1);
   });
 
   it("returns an empty array for empty or missing input", () => {
-    assertEquals(groupReactions([]).length, 0);
-    assertEquals(groupReactions(null).length, 0);
-    assertEquals(groupReactions(undefined).length, 0);
+    assert.deepEqual(groupReactions([]).length, 0);
+    assert.deepEqual(groupReactions(null).length, 0);
+    assert.deepEqual(groupReactions(undefined).length, 0);
   });
 
   it("keeps each sender entry even when the same user reacts twice with one emoji", () => {
@@ -1771,73 +1792,76 @@ t.describe("groupReactions", (it) => {
       reaction("❤️", "did:plc:a"),
       reaction("❤️", "did:plc:a"),
     ]);
-    assertEquals(groups.length, 1);
-    assertEquals(groups[0].count, 2);
-    assertEquals(groups[0].senders.length, 2);
+    assert.deepEqual(groups.length, 1);
+    assert.deepEqual(groups[0].count, 2);
+    assert.deepEqual(groups[0].senders.length, 2);
   });
 });
 
-t.describe("getInviteCodeFromUrl", (it) => {
+describe("getInviteCodeFromUrl", () => {
   it("extracts code from absolute bsky.app URL", () => {
-    assertEquals(
+    assert.deepEqual(
       getInviteCodeFromUrl("https://bsky.app/chat/abcd1234"),
       "abcd1234",
     );
   });
 
   it("extracts code from relative path", () => {
-    assertEquals(getInviteCodeFromUrl("/chat/abcd1234"), "abcd1234");
+    assert.deepEqual(getInviteCodeFromUrl("/chat/abcd1234"), "abcd1234");
   });
 
   it("ignores query and hash", () => {
-    assertEquals(getInviteCodeFromUrl("/chat/abcd1234?ref=x#y"), "abcd1234");
+    assert.deepEqual(
+      getInviteCodeFromUrl("/chat/abcd1234?ref=x#y"),
+      "abcd1234",
+    );
   });
 
   it("rejects non-bsky hosts", () => {
-    assertEquals(
+    assert.deepEqual(
       getInviteCodeFromUrl("https://example.com/chat/abcd1234"),
       null,
     );
   });
 
   it("accepts impro.social hosts", () => {
-    assertEquals(
+    assert.deepEqual(
       getInviteCodeFromUrl("https://impro.social/chat/abcd1234"),
       "abcd1234",
     );
-    assertEquals(
+    assert.deepEqual(
       getInviteCodeFromUrl("https://dev.impro.social/chat/abcd1234"),
       "abcd1234",
     );
   });
 
   it("rejects malformed codes", () => {
-    assertEquals(getInviteCodeFromUrl("/chat/short"), null);
-    assertEquals(getInviteCodeFromUrl("/chat/!!!!!!!!"), null);
+    assert.deepEqual(getInviteCodeFromUrl("/chat/short"), null);
+    assert.deepEqual(getInviteCodeFromUrl("/chat/!!!!!!!!"), null);
   });
 
   it("rejects unrelated paths", () => {
-    assertEquals(getInviteCodeFromUrl("/profile/foo"), null);
-    assertEquals(getInviteCodeFromUrl(""), null);
-    assertEquals(getInviteCodeFromUrl(null), null);
+    assert.deepEqual(getInviteCodeFromUrl("/profile/foo"), null);
+    assert.deepEqual(getInviteCodeFromUrl(""), null);
+    assert.deepEqual(getInviteCodeFromUrl(null), null);
   });
 });
 
-t.describe("isInviteLinkUrl", (it) => {
+describe("isInviteLinkUrl", () => {
   it("is true for valid invite URLs", () => {
-    assertEquals(isInviteLinkUrl("https://bsky.app/chat/abcd1234"), true);
-    assertEquals(isInviteLinkUrl("/chat/abcd1234"), true);
+    assert.deepEqual(isInviteLinkUrl("https://bsky.app/chat/abcd1234"), true);
+    assert.deepEqual(isInviteLinkUrl("/chat/abcd1234"), true);
   });
 
   it("is false otherwise", () => {
-    assertEquals(isInviteLinkUrl("https://bsky.app/profile/x"), false);
-    assertEquals(isInviteLinkUrl(""), false);
+    assert.deepEqual(isInviteLinkUrl("https://bsky.app/profile/x"), false);
+    assert.deepEqual(isInviteLinkUrl(""), false);
   });
 });
 
-t.describe("getJoinLinkCodeFromEmbed", (it) => {
+describe("getJoinLinkCodeFromEmbed", () => {
   it("returns the code from a chat invite view embed", () => {
-    assertEquals(
+    assert.deepEqual(
       getJoinLinkCodeFromEmbed({
         $type: "chat.bsky.embed.joinLink#view",
         joinLinkPreview: { code: "abcd1234" },
@@ -1847,7 +1871,7 @@ t.describe("getJoinLinkCodeFromEmbed", (it) => {
   });
 
   it("returns null for a chat invite view embed without a code", () => {
-    assertEquals(
+    assert.deepEqual(
       getJoinLinkCodeFromEmbed({
         $type: "chat.bsky.embed.joinLink#view",
         joinLinkPreview: {
@@ -1859,7 +1883,7 @@ t.describe("getJoinLinkCodeFromEmbed", (it) => {
   });
 
   it("returns the code from an external embed whose URI is an invite link", () => {
-    assertEquals(
+    assert.deepEqual(
       getJoinLinkCodeFromEmbed({
         $type: "app.bsky.embed.external#view",
         external: { uri: "https://bsky.app/chat/abcd1234" },
@@ -1869,7 +1893,7 @@ t.describe("getJoinLinkCodeFromEmbed", (it) => {
   });
 
   it("returns null for an external embed pointing elsewhere", () => {
-    assertEquals(
+    assert.deepEqual(
       getJoinLinkCodeFromEmbed({
         $type: "app.bsky.embed.external#view",
         external: { uri: "https://example.com" },
@@ -1879,16 +1903,16 @@ t.describe("getJoinLinkCodeFromEmbed", (it) => {
   });
 
   it("returns null for unrelated embed types and falsy input", () => {
-    assertEquals(
+    assert.deepEqual(
       getJoinLinkCodeFromEmbed({ $type: "app.bsky.embed.images#view" }),
       null,
     );
-    assertEquals(getJoinLinkCodeFromEmbed(null), null);
-    assertEquals(getJoinLinkCodeFromEmbed(undefined), null);
+    assert.deepEqual(getJoinLinkCodeFromEmbed(null), null);
+    assert.deepEqual(getJoinLinkCodeFromEmbed(undefined), null);
   });
 });
 
-t.describe("getJoinLinkCodesFromPosts", (it) => {
+describe("getJoinLinkCodesFromPosts", () => {
   it("collects codes from joinLink and external invite embeds", () => {
     const posts = [
       {
@@ -1904,7 +1928,7 @@ t.describe("getJoinLinkCodesFromPosts", (it) => {
         },
       },
     ];
-    assertEquals(getJoinLinkCodesFromPosts(posts), ["aaaaaaa", "bbbbbbb"]);
+    assert.deepEqual(getJoinLinkCodesFromPosts(posts), ["aaaaaaa", "bbbbbbb"]);
   });
 
   it("skips posts without an embed or with unrelated embeds", () => {
@@ -1914,16 +1938,16 @@ t.describe("getJoinLinkCodesFromPosts", (it) => {
       { embed: undefined },
       undefined,
     ];
-    assertEquals(getJoinLinkCodesFromPosts(posts), []);
+    assert.deepEqual(getJoinLinkCodesFromPosts(posts), []);
   });
 
   it("returns an empty array for null/undefined input", () => {
-    assertEquals(getJoinLinkCodesFromPosts(null), []);
-    assertEquals(getJoinLinkCodesFromPosts(undefined), []);
+    assert.deepEqual(getJoinLinkCodesFromPosts(null), []);
+    assert.deepEqual(getJoinLinkCodesFromPosts(undefined), []);
   });
 });
 
-t.describe("getJoinLinkCodesFromMessages", (it) => {
+describe("getJoinLinkCodesFromMessages", () => {
   it("collects codes from message join link embeds", () => {
     const messages = [
       {
@@ -1940,19 +1964,19 @@ t.describe("getJoinLinkCodesFromMessages", (it) => {
         },
       },
     ];
-    assertEquals(getJoinLinkCodesFromMessages(messages), [
+    assert.deepEqual(getJoinLinkCodesFromMessages(messages), [
       "aaaaaaa",
       "bbbbbbb",
     ]);
   });
 
   it("returns an empty array for null/undefined input", () => {
-    assertEquals(getJoinLinkCodesFromMessages(null), []);
-    assertEquals(getJoinLinkCodesFromMessages(undefined), []);
+    assert.deepEqual(getJoinLinkCodesFromMessages(null), []);
+    assert.deepEqual(getJoinLinkCodesFromMessages(undefined), []);
   });
 });
 
-t.describe("attachJoinLinkPreviewToEmbed", (it) => {
+describe("attachJoinLinkPreviewToEmbed", () => {
   const fresh = {
     $type: "chat.bsky.group.defs#joinLinkPreviewView",
     code: "abcd1234",
@@ -1960,7 +1984,7 @@ t.describe("attachJoinLinkPreviewToEmbed", (it) => {
   };
 
   it("returns null for unrelated embeds", () => {
-    assertEquals(
+    assert.deepEqual(
       attachJoinLinkPreviewToEmbed(
         { $type: "app.bsky.embed.images#view" },
         fresh,
@@ -1970,7 +1994,7 @@ t.describe("attachJoinLinkPreviewToEmbed", (it) => {
   });
 
   it("returns null when the cached preview is the same reference", () => {
-    assertEquals(
+    assert.deepEqual(
       attachJoinLinkPreviewToEmbed(
         { $type: "chat.bsky.embed.joinLink#view", joinLinkPreview: fresh },
         fresh,
@@ -1987,8 +2011,8 @@ t.describe("attachJoinLinkPreviewToEmbed", (it) => {
       },
       fresh,
     );
-    assertEquals(updated.$type, "chat.bsky.embed.joinLink#view");
-    assertEquals(updated.joinLinkPreview, fresh);
+    assert.deepEqual(updated.$type, "chat.bsky.embed.joinLink#view");
+    assert.deepEqual(updated.joinLinkPreview, fresh);
   });
 
   it("upgrades an external invite embed into a joinLink embed", () => {
@@ -1999,8 +2023,8 @@ t.describe("attachJoinLinkPreviewToEmbed", (it) => {
       },
       fresh,
     );
-    assertEquals(updated.$type, "chat.bsky.embed.joinLink#view");
-    assertEquals(updated.joinLinkPreview, fresh);
+    assert.deepEqual(updated.$type, "chat.bsky.embed.joinLink#view");
+    assert.deepEqual(updated.joinLinkPreview, fresh);
   });
 });
 
@@ -2019,7 +2043,7 @@ function makeJoinLinkPreview(overrides = {}) {
   };
 }
 
-t.describe("isAvailableJoinLinkPreview", (it) => {
+describe("isAvailableJoinLinkPreview", () => {
   it("returns true only for the available variant", () => {
     assert(isAvailableJoinLinkPreview(makeJoinLinkPreview()));
     assert(
@@ -2030,7 +2054,7 @@ t.describe("isAvailableJoinLinkPreview", (it) => {
   });
 });
 
-t.describe("getPostsFromPostThread", (it) => {
+describe("getPostsFromPostThread", () => {
   it("should extract and deduplicate posts from post thread", () => {
     const mockPostThread = {
       post: { uri: "main-post", content: "Main post" },
@@ -2054,12 +2078,12 @@ t.describe("getPostsFromPostThread", (it) => {
 
     const result = getPostsFromPostThread(mockPostThread);
 
-    assertEquals(result.length, 5);
-    assertEquals(result[0], { uri: "main-post", content: "Main post" });
-    assertEquals(result[1], { uri: "parent1", content: "Parent 1" });
-    assertEquals(result[2], { uri: "parent2", content: "Parent 2" });
-    assertEquals(result[3], { uri: "reply1", content: "Reply 1" });
-    assertEquals(result[4], { uri: "reply2", content: "Reply 2" });
+    assert.deepEqual(result.length, 5);
+    assert.deepEqual(result[0], { uri: "main-post", content: "Main post" });
+    assert.deepEqual(result[1], { uri: "parent1", content: "Parent 1" });
+    assert.deepEqual(result[2], { uri: "parent2", content: "Parent 2" });
+    assert.deepEqual(result[3], { uri: "reply1", content: "Reply 1" });
+    assert.deepEqual(result[4], { uri: "reply2", content: "Reply 2" });
   });
 
   it("should handle thread with no parents or replies", () => {
@@ -2069,8 +2093,8 @@ t.describe("getPostsFromPostThread", (it) => {
 
     const result = getPostsFromPostThread(mockPostThread);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0], { uri: "lonely-post", content: "All alone" });
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0], { uri: "lonely-post", content: "All alone" });
   });
 
   it("should handle duplicate posts across thread parts", () => {
@@ -2093,10 +2117,10 @@ t.describe("getPostsFromPostThread", (it) => {
 
     const result = getPostsFromPostThread(mockPostThread);
 
-    assertEquals(result.length, 3);
-    assertEquals(result[0], { uri: "main-post", content: "Main post" });
-    assertEquals(result[1], { uri: "parent1", content: "Parent 1" });
-    assertEquals(result[2], { uri: "reply1", content: "Reply 1" });
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0], { uri: "main-post", content: "Main post" });
+    assert.deepEqual(result[1], { uri: "parent1", content: "Parent 1" });
+    assert.deepEqual(result[2], { uri: "reply1", content: "Reply 1" });
   });
 
   it("should filter out blocked replies", () => {
@@ -2120,14 +2144,14 @@ t.describe("getPostsFromPostThread", (it) => {
 
     const result = getPostsFromPostThread(mockPostThread);
 
-    assertEquals(result.length, 3);
-    assertEquals(result[0], { uri: "main-post", content: "Main post" });
-    assertEquals(result[1], { uri: "reply1", content: "Reply 1" });
-    assertEquals(result[2], { uri: "reply2", content: "Reply 2" });
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0], { uri: "main-post", content: "Main post" });
+    assert.deepEqual(result[1], { uri: "reply1", content: "Reply 1" });
+    assert.deepEqual(result[2], { uri: "reply2", content: "Reply 2" });
   });
 });
 
-t.describe("getPostsFromFeed", (it) => {
+describe("getPostsFromFeed", () => {
   it("should extract posts from simple feed", () => {
     const mockFeed = {
       feed: [
@@ -2138,9 +2162,9 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0], { uri: "post1", content: "Post 1" });
-    assertEquals(result[1], { uri: "post2", content: "Post 2" });
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0], { uri: "post1", content: "Post 1" });
+    assert.deepEqual(result[1], { uri: "post2", content: "Post 2" });
   });
 
   it("should extract posts from feed with reply context", () => {
@@ -2167,11 +2191,11 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 4);
-    assertEquals(result[0].uri, "post1");
-    assertEquals(result[1].uri, "post2");
-    assertEquals(result[2].uri, "root1");
-    assertEquals(result[3].uri, "parent1");
+    assert.deepEqual(result.length, 4);
+    assert.deepEqual(result[0].uri, "post1");
+    assert.deepEqual(result[1].uri, "post2");
+    assert.deepEqual(result[2].uri, "root1");
+    assert.deepEqual(result[3].uri, "parent1");
   });
 
   it("should handle feed items without reply context", () => {
@@ -2189,9 +2213,9 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0], { uri: "post1", content: "Post 1" });
-    assertEquals(result[1], { uri: "post2", content: "Post 2" });
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0], { uri: "post1", content: "Post 1" });
+    assert.deepEqual(result[1], { uri: "post2", content: "Post 2" });
   });
 
   it("should handle empty feed", () => {
@@ -2199,7 +2223,7 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("should handle duplicates in feed", () => {
@@ -2225,9 +2249,9 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0].uri, "post1");
-    assertEquals(result[1].uri, "root1");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].uri, "post1");
+    assert.deepEqual(result[1].uri, "root1");
   });
 
   it("should handle mixed feed items", () => {
@@ -2255,16 +2279,16 @@ t.describe("getPostsFromFeed", (it) => {
 
     const result = getPostsFromFeed(mockFeed);
 
-    assertEquals(result.length, 5);
-    assertEquals(result[0].uri, "post1");
-    assertEquals(result[1].uri, "post2");
-    assertEquals(result[2].uri, "root1");
-    assertEquals(result[3].uri, "parent1");
-    assertEquals(result[4].uri, "post3");
+    assert.deepEqual(result.length, 5);
+    assert.deepEqual(result[0].uri, "post1");
+    assert.deepEqual(result[1].uri, "post2");
+    assert.deepEqual(result[2].uri, "root1");
+    assert.deepEqual(result[3].uri, "parent1");
+    assert.deepEqual(result[4].uri, "post3");
   });
 });
 
-t.describe("isVideoLink", (it) => {
+describe("isVideoLink", () => {
   it("returns true for youtube watch links", () => {
     assert(isVideoLink("https://www.youtube.com/watch?v=dQw4w9WgXcQ"));
     assert(isVideoLink("https://youtube.com/watch?v=dQw4w9WgXcQ"));
@@ -2292,5 +2316,3 @@ t.describe("isVideoLink", (it) => {
     assert(!isVideoLink(null));
   });
 });
-
-await t.run();

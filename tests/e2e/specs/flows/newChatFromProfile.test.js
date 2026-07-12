@@ -1,7 +1,11 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createConvo, createMessage, createProfile } from "../../factories.js";
+import {
+  createConvo,
+  createMessage,
+  createProfile,
+} from "../../../shared/factories.js";
 
 test.describe("New chat from profile flow", () => {
   test("should start a new conversation from a profile, send a message, and verify it appears in chat list", async ({

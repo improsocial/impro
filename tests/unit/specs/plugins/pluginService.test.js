@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach, afterEach } from "node:test";
+import assert from "node:assert/strict";
 import {
   PluginService,
   PermissionsDeclinedError,
@@ -123,9 +123,7 @@ function makeService({
   };
 }
 
-const t = new TestSuite("pluginService");
-
-t.describe("installPlugin", (it, { afterEach }) => {
+describe("installPlugin", () => {
   afterEach(() => {
     delete globalThis.__testConfirmation;
   });
@@ -144,7 +142,7 @@ t.describe("installPlugin", (it, { afterEach }) => {
       },
     });
     await service.installPlugin("alpha");
-    assertEquals(state.installedPlugins, [
+    assert.deepEqual(state.installedPlugins, [
       {
         id: "alpha",
         name: "Alpha",
@@ -156,7 +154,7 @@ t.describe("installPlugin", (it, { afterEach }) => {
         permissions: {},
       },
     ]);
-    assertEquals(loadCalls, [
+    assert.deepEqual(loadCalls, [
       { id: "alpha", version: "1.0.0", repo: "ow/alpha" },
     ]);
   });
@@ -174,14 +172,14 @@ t.describe("installPlugin", (it, { afterEach }) => {
         },
       },
     });
-    assertEquals(service.$pluginsInfo.get(), []);
+    assert.deepEqual(service.$pluginsInfo.get(), []);
     await service.installPlugin("alpha");
     const info = service.$pluginsInfo.get();
-    assertEquals(info.length, 1);
-    assertEquals(info[0].id, "alpha");
-    assertEquals(info[0].name, "Alpha");
-    assertEquals(info[0].version, "1.0.0");
-    assertEquals(info[0].enabled, true);
+    assert.deepEqual(info.length, 1);
+    assert.deepEqual(info[0].id, "alpha");
+    assert.deepEqual(info[0].name, "Alpha");
+    assert.deepEqual(info[0].version, "1.0.0");
+    assert.deepEqual(info[0].enabled, true);
   });
 
   it("throws and rolls back the preference entry when load fails", async () => {
@@ -201,7 +199,7 @@ t.describe("installPlugin", (it, { afterEach }) => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 
   it("rejects when the plugin is not in the remote registry", async () => {
@@ -235,8 +233,8 @@ t.describe("installPlugin", (it, { afterEach }) => {
       caught = e;
     }
     assert(caught instanceof PermissionsDeclinedError);
-    assertEquals(state.installedPlugins, []);
-    assertEquals(loadCalls, []);
+    assert.deepEqual(state.installedPlugins, []);
+    assert.deepEqual(loadCalls, []);
   });
 
   it("does not prompt on install when manifest has no permissions", async () => {
@@ -250,11 +248,11 @@ t.describe("installPlugin", (it, { afterEach }) => {
     // install proves the prompt was skipped.
     globalThis.__testConfirmation = (resolve) => resolve(false);
     await service.installPlugin("alpha");
-    assertEquals(state.installedPlugins.length, 1);
+    assert.deepEqual(state.installedPlugins.length, 1);
   });
 });
 
-t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
+describe("updatePlugin", () => {
   // Several tests here seed state via installPlugin() with permissions, then
   // exercise update. Auto-accept by default; tests override for decline.
   beforeEach(() => {
@@ -288,8 +286,8 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
     });
 
     const result = await service.updatePlugin("alpha");
-    assertEquals(result, { updated: true, version: "1.1.0" });
-    assertEquals(state.installedPlugins[0], {
+    assert.deepEqual(result, { updated: true, version: "1.1.0" });
+    assert.deepEqual(state.installedPlugins[0], {
       id: "alpha",
       name: "Alpha Renamed",
       version: "1.1.0",
@@ -299,7 +297,7 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
       enabled: true,
       permissions: {},
     });
-    assertEquals(reloadCalls, [
+    assert.deepEqual(reloadCalls, [
       { id: "alpha", version: "1.1.0", repo: "ow/alpha" },
     ]);
   });
@@ -314,9 +312,9 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
     await service.installPlugin("alpha");
 
     const result = await service.updatePlugin("alpha");
-    assertEquals(result, { updated: false });
-    assertEquals(state.installedPlugins[0].version, "1.0.0");
-    assertEquals(reloadCalls.length, 0);
+    assert.deepEqual(result, { updated: false });
+    assert.deepEqual(state.installedPlugins[0].version, "1.0.0");
+    assert.deepEqual(reloadCalls.length, 0);
   });
 
   it("does not prompt when no new permissions were added", async () => {
@@ -343,7 +341,7 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
     // skipped (no new permissions => no prompt).
     globalThis.__testConfirmation = (resolve) => resolve(false);
     const result = await service.updatePlugin("alpha");
-    assertEquals(result, { updated: true, version: "1.1.0" });
+    assert.deepEqual(result, { updated: true, version: "1.1.0" });
   });
 
   it("aborts update and keeps old version when the prompt is declined", async () => {
@@ -376,11 +374,11 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
       caught = e;
     }
     assert(caught instanceof PermissionsDeclinedError);
-    assertEquals(state.installedPlugins[0].version, "1.0.0");
-    assertEquals(state.installedPlugins[0].permissions, {
+    assert.deepEqual(state.installedPlugins[0].version, "1.0.0");
+    assert.deepEqual(state.installedPlugins[0].permissions, {
       fetch: ["https://api.example.com/*"],
     });
-    assertEquals(reloadCalls.length, 0);
+    assert.deepEqual(reloadCalls.length, 0);
   });
 
   it("persists updated permissions when the prompt is accepted", async () => {
@@ -406,13 +404,13 @@ t.describe("updatePlugin", (it, { beforeEach, afterEach }) => {
     });
 
     await service.updatePlugin("alpha");
-    assertEquals(state.installedPlugins[0].permissions, {
+    assert.deepEqual(state.installedPlugins[0].permissions, {
       fetch: ["https://api.example.com/*", "https://newhost.com/*"],
     });
   });
 });
 
-t.describe("loadEnabledPlugins", (it) => {
+describe("loadEnabledPlugins", () => {
   it("only loads entries marked enabled", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [
@@ -425,8 +423,8 @@ t.describe("loadEnabledPlugins", (it) => {
       return { loadedPlugins: entries, erroredPlugins: [] };
     };
     await service.loadEnabledPlugins();
-    assertEquals(loadPluginsCalls.length, 1);
-    assertEquals(
+    assert.deepEqual(loadPluginsCalls.length, 1);
+    assert.deepEqual(
       loadPluginsCalls[0].map((entry) => entry.id),
       ["a"],
     );
@@ -444,7 +442,7 @@ t.describe("loadEnabledPlugins", (it) => {
       return { loadedPlugins: entries, erroredPlugins: [] };
     };
     await service.loadEnabledPlugins();
-    assertEquals(
+    assert.deepEqual(
       loadPluginsCalls[0].map((entry) => entry.id),
       ["a"],
     );
@@ -462,7 +460,7 @@ t.describe("loadEnabledPlugins", (it) => {
       return { loadedPlugins: entries, erroredPlugins: [] };
     };
     await service.loadEnabledPlugins();
-    assertEquals(
+    assert.deepEqual(
       loadPluginsCalls[0].map((entry) => entry.id),
       ["a", "b__LOCAL"],
     );
@@ -479,11 +477,11 @@ t.describe("loadEnabledPlugins", (it) => {
       erroredPlugins: [{ pluginId: "b", error: new Error("nope") }],
     });
     await service.loadEnabledPlugins();
-    assertEquals(
+    assert.deepEqual(
       state.installedPlugins.find((entry) => entry.id === "b").enabled,
       true,
     );
-    assertEquals(
+    assert.deepEqual(
       state.installedPlugins.find((entry) => entry.id === "a").enabled,
       true,
     );
@@ -514,9 +512,9 @@ t.describe("loadEnabledPlugins", (it) => {
     } finally {
       window.history.replaceState({}, "", "http://localhost/");
     }
-    assertEquals(loadPluginsCalls.length, 0);
-    assertEquals(saveCalls, 1);
-    assertEquals(state.installedPlugins, [
+    assert.deepEqual(loadPluginsCalls.length, 0);
+    assert.deepEqual(saveCalls, 1);
+    assert.deepEqual(state.installedPlugins, [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
       { id: "c", version: "1.0.0", repo: "ow/c", enabled: false },
@@ -543,8 +541,8 @@ t.describe("loadEnabledPlugins", (it) => {
     } finally {
       window.history.replaceState({}, "", "http://localhost/");
     }
-    assertEquals(loadPluginsCalls.length, 0);
-    assertEquals(saveCalls, 0);
+    assert.deepEqual(loadPluginsCalls.length, 0);
+    assert.deepEqual(saveCalls, 0);
   });
 
   it("reconciles cache against all installed (including disabled)", async () => {
@@ -554,15 +552,15 @@ t.describe("loadEnabledPlugins", (it) => {
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
     ];
     await service.loadEnabledPlugins();
-    assertEquals(reconcileCalls.length, 1);
-    assertEquals(reconcileCalls[0], [
+    assert.deepEqual(reconcileCalls.length, 1);
+    assert.deepEqual(reconcileCalls[0], [
       "https://cache.test/a/1.0.0/ow/a",
       "https://cache.test/b/1.0.0/ow/b",
     ]);
   });
 });
 
-t.describe("uninstallPlugin", (it) => {
+describe("uninstallPlugin", () => {
   it("unloads, removes preference, clears settings, and reconciles", async () => {
     const { service, state, unloadCalls, reconcileCalls } = makeService();
     state.installedPlugins = [
@@ -571,27 +569,27 @@ t.describe("uninstallPlugin", (it) => {
     ];
     state.pluginSettings = { a: { color: "red" }, b: { color: "blue" } };
     await service.uninstallPlugin("a");
-    assertEquals(unloadCalls, ["a"]);
-    assertEquals(
+    assert.deepEqual(unloadCalls, ["a"]);
+    assert.deepEqual(
       state.installedPlugins.map((entry) => entry.id),
       ["b"],
     );
-    assertEquals(state.pluginSettings, { b: { color: "blue" } });
+    assert.deepEqual(state.pluginSettings, { b: { color: "blue" } });
     // Cache should be reconciled against the remaining plugin only
-    assertEquals(reconcileCalls.length, 1);
-    assertEquals(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
+    assert.deepEqual(reconcileCalls.length, 1);
+    assert.deepEqual(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
   });
 });
 
-t.describe("enablePlugin", (it) => {
+describe("enablePlugin", () => {
   it("flips enabled and loads the plugin", async () => {
     const { service, state, loadCalls } = makeService();
     state.installedPlugins = [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: false },
     ];
     await service.enablePlugin("a");
-    assertEquals(state.installedPlugins[0].enabled, true);
-    assertEquals(loadCalls, [{ id: "a", version: "1.0.0", repo: "ow/a" }]);
+    assert.deepEqual(state.installedPlugins[0].enabled, true);
+    assert.deepEqual(loadCalls, [{ id: "a", version: "1.0.0", repo: "ow/a" }]);
   });
 
   it("rolls back to disabled when load fails", async () => {
@@ -609,11 +607,11 @@ t.describe("enablePlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assertEquals(state.installedPlugins[0].enabled, false);
+    assert.deepEqual(state.installedPlugins[0].enabled, false);
   });
 });
 
-t.describe("reloadPlugins", (it) => {
+describe("reloadPlugins", () => {
   it("reloads only enabled plugins", async () => {
     const { service, state, reloadCalls } = makeService();
     state.installedPlugins = [
@@ -621,7 +619,7 @@ t.describe("reloadPlugins", (it) => {
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: false },
     ];
     await service.reloadPlugins();
-    assertEquals(
+    assert.deepEqual(
       reloadCalls.map((call) => call.id),
       ["a"],
     );
@@ -643,18 +641,18 @@ t.describe("reloadPlugins", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("b broke"));
-    assertEquals(
+    assert.deepEqual(
       state.installedPlugins.find((entry) => entry.id === "b").enabled,
       false,
     );
-    assertEquals(
+    assert.deepEqual(
       state.installedPlugins.find((entry) => entry.id === "a").enabled,
       true,
     );
   });
 });
 
-t.describe("checkForUpdates", (it) => {
+describe("checkForUpdates", () => {
   it("populates $availableUpdates with plugins whose live version is newer", async () => {
     const { service, state } = makeService({
       liveManifests: {
@@ -667,8 +665,8 @@ t.describe("checkForUpdates", (it) => {
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
     ];
     const updates = await service.checkForUpdates();
-    assertEquals([...updates.entries()], [["a", "2.0.0"]]);
-    assertEquals(service.$availableUpdates.get(), updates);
+    assert.deepEqual([...updates.entries()], [["a", "2.0.0"]]);
+    assert.deepEqual(service.$availableUpdates.get(), updates);
   });
 
   it("skips plugins whose live manifest fails to fetch", async () => {
@@ -683,15 +681,15 @@ t.describe("checkForUpdates", (it) => {
       { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
     ];
     const updates = await service.checkForUpdates();
-    assertEquals([...updates.keys()], ["a"]);
+    assert.deepEqual([...updates.keys()], ["a"]);
   });
 });
 
-t.describe("updateAllPlugins", (it) => {
+describe("updateAllPlugins", () => {
   it("returns empty buckets when there are no available updates", async () => {
     const { service } = makeService();
     const result = await service.updateAllPlugins();
-    assertEquals(result, { updated: [], failed: [], declined: [] });
+    assert.deepEqual(result, { updated: [], failed: [], declined: [] });
   });
 
   it("partitions results into updated and failed buckets", async () => {
@@ -711,12 +709,12 @@ t.describe("updateAllPlugins", (it) => {
       if (id === "b") throw new Error("reload failed");
     };
     const result = await service.updateAllPlugins();
-    assertEquals(result.updated, ["a"]);
-    assertEquals(result.failed, ["b"]);
+    assert.deepEqual(result.updated, ["a"]);
+    assert.deepEqual(result.failed, ["b"]);
   });
 });
 
-t.describe("$pluginsInfo", (it) => {
+describe("$pluginsInfo", () => {
   it("hides __LOCAL plugins when localPluginsEnabled is false", () => {
     const { service, state } = makeService({});
     state.installedPlugins = [
@@ -724,8 +722,8 @@ t.describe("$pluginsInfo", (it) => {
       { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
     ];
     const info = service.$pluginsInfo.get();
-    assertEquals(info.length, 1);
-    assertEquals(info[0].id, "alpha");
+    assert.deepEqual(info.length, 1);
+    assert.deepEqual(info[0].id, "alpha");
   });
 
   it("includes __LOCAL plugins when localPluginsEnabled is true", () => {
@@ -735,16 +733,16 @@ t.describe("$pluginsInfo", (it) => {
       { id: "gamma__LOCAL", name: "Gamma", version: "0.1.0", enabled: true },
     ];
     const info = service.$pluginsInfo.get();
-    assertEquals(info.length, 2);
+    assert.deepEqual(info.length, 2);
   });
 });
 
-t.describe("registry listings loader/selector", (it) => {
+describe("registry listings loader/selector", () => {
   it("returns null from the selector before the loader runs", () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
-    assertEquals(service.$registryListings.get(), null);
+    assert.deepEqual(service.$registryListings.get(), null);
   });
 
   it("merges remote + local listings and marks installed entries", async () => {
@@ -764,13 +762,13 @@ t.describe("registry listings loader/selector", (it) => {
     );
     await service.loadRegistryListings();
     const listings = service.$registryListings.get();
-    assertEquals(listings.length, 3);
+    assert.deepEqual(listings.length, 3);
     const byId = Object.fromEntries(
       listings.map((listing) => [listing.id, listing]),
     );
-    assertEquals(byId.alpha.installed, true);
-    assertEquals(byId.beta.installed, false);
-    assertEquals(byId.gamma__LOCAL.installed, false);
+    assert.deepEqual(byId.alpha.installed, true);
+    assert.deepEqual(byId.beta.installed, false);
+    assert.deepEqual(byId.gamma__LOCAL.installed, false);
   });
 
   it("reflects updated install state on subsequent selector reads", async () => {
@@ -778,7 +776,7 @@ t.describe("registry listings loader/selector", (it) => {
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],
     });
     await service.loadRegistryListings();
-    assertEquals(service.$registryListings.get()[0].installed, false);
+    assert.deepEqual(service.$registryListings.get()[0].installed, false);
     provider.$preferences.set(
       provider
         .requirePreferences()
@@ -786,7 +784,7 @@ t.describe("registry listings loader/selector", (it) => {
           { id: "alpha", version: "1.0.0", repo: "ow/alpha", enabled: true },
         ]),
     );
-    assertEquals(service.$registryListings.get()[0].installed, true);
+    assert.deepEqual(service.$registryListings.get()[0].installed, true);
   });
 
   it("updates installed plugin repo when remote listing repo changes", async () => {
@@ -805,7 +803,7 @@ t.describe("registry listings loader/selector", (it) => {
     );
     await service.loadRegistryListings();
     const installed = provider.requirePreferences().getInstalledPlugins();
-    assertEquals(installed[0].repo, "newowner/alpha");
+    assert.deepEqual(installed[0].repo, "newowner/alpha");
   });
 
   it("does not rewrite installed repos when listings match", async () => {
@@ -821,7 +819,7 @@ t.describe("registry listings loader/selector", (it) => {
     );
     const before = provider.$preferences.get();
     await service.loadRegistryListings();
-    assertEquals(provider.$preferences.get(), before);
+    assert.deepEqual(provider.$preferences.get(), before);
   });
 
   it("returns only remote listings when localRegistry is absent", async () => {
@@ -830,12 +828,12 @@ t.describe("registry listings loader/selector", (it) => {
     });
     await service.loadRegistryListings();
     const listings = service.$registryListings.get();
-    assertEquals(listings.length, 1);
-    assertEquals(listings[0].id, "alpha");
+    assert.deepEqual(listings.length, 1);
+    assert.deepEqual(listings[0].id, "alpha");
   });
 });
 
-t.describe("installUnregisteredPlugin", (it) => {
+describe("installUnregisteredPlugin", () => {
   it("installs from a github.com URL using manifest metadata", async () => {
     const { service, state, loadCalls } = makeService({
       liveManifestsByRepo: {
@@ -851,8 +849,8 @@ t.describe("installUnregisteredPlugin", (it) => {
     const result = await service.installUnregisteredPlugin(
       "https://github.com/ow/alpha",
     );
-    assertEquals(result, { id: "alpha", name: "Alpha" });
-    assertEquals(state.installedPlugins, [
+    assert.deepEqual(result, { id: "alpha", name: "Alpha" });
+    assert.deepEqual(state.installedPlugins, [
       {
         id: "alpha",
         name: "Alpha",
@@ -864,7 +862,7 @@ t.describe("installUnregisteredPlugin", (it) => {
         permissions: {},
       },
     ]);
-    assertEquals(loadCalls, [
+    assert.deepEqual(loadCalls, [
       { id: "alpha", version: "1.0.0", repo: "ow/alpha" },
     ]);
   });
@@ -878,7 +876,7 @@ t.describe("installUnregisteredPlugin", (it) => {
     await service.installUnregisteredPlugin(
       "https://github.com/ow/alpha.git/tree/main",
     );
-    assertEquals(state.installedPlugins[0].repo, "ow/alpha");
+    assert.deepEqual(state.installedPlugins[0].repo, "ow/alpha");
   });
 
   it("rejects non-GitHub URLs", async () => {
@@ -890,7 +888,7 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("Invalid GitHub URL"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 
   it("rejects malformed URL strings", async () => {
@@ -916,7 +914,7 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("Failed to fetch manifest"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 
   it("rejects when the plugin id is already installed", async () => {
@@ -941,7 +939,7 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("already installed"));
-    assertEquals(state.installedPlugins.length, 1);
+    assert.deepEqual(state.installedPlugins.length, 1);
   });
 
   it("rolls back the preference entry when load fails", async () => {
@@ -960,7 +958,7 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("boom"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 
   it("rejects when the plugin id is already in the remote registry", async () => {
@@ -983,7 +981,7 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("in the registry"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 
   it("rejects when the plugin id is in the local registry", async () => {
@@ -1006,11 +1004,11 @@ t.describe("installUnregisteredPlugin", (it) => {
       caught = error;
     }
     assert(caught?.message.includes("in the registry"));
-    assertEquals(state.installedPlugins, []);
+    assert.deepEqual(state.installedPlugins, []);
   });
 });
 
-t.describe("getFilteredFeedItems", (it) => {
+describe("getFilteredFeedItems", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
   function addFilter(service, pluginId, invoke) {
@@ -1022,7 +1020,7 @@ t.describe("getFilteredFeedItems", (it) => {
   it("returns an empty object when no filters are registered", async () => {
     const { service } = makeService();
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
-    assertEquals(result, {});
+    assert.deepEqual(result, {});
   });
 
   it("passes feed.feed (not the wrapper) to each filter", async () => {
@@ -1036,7 +1034,7 @@ t.describe("getFilteredFeedItems", (it) => {
 
     await service.getFilteredFeedItems(feedURI, { feed: feedItems });
 
-    assertEquals(captured, feedItems);
+    assert.deepEqual(captured, feedItems);
   });
 
   it("merges hide verdicts from multiple filters", async () => {
@@ -1046,7 +1044,7 @@ t.describe("getFilteredFeedItems", (it) => {
 
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
 
-    assertEquals(result, { p1: false, p2: false });
+    assert.deepEqual(result, { p1: false, p2: false });
   });
 
   it("ignores non-false verdicts", async () => {
@@ -1060,7 +1058,7 @@ t.describe("getFilteredFeedItems", (it) => {
 
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
 
-    assertEquals(result, { p2: false });
+    assert.deepEqual(result, { p2: false });
   });
 
   it("does not let one filter's keep override another filter's hide", async () => {
@@ -1070,7 +1068,7 @@ t.describe("getFilteredFeedItems", (it) => {
 
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
 
-    assertEquals(result, { p1: false, p2: false });
+    assert.deepEqual(result, { p1: false, p2: false });
   });
 
   it("continues past filters that throw", async () => {
@@ -1089,7 +1087,7 @@ t.describe("getFilteredFeedItems", (it) => {
       console.error = originalError;
     }
 
-    assertEquals(result, { p1: false });
+    assert.deepEqual(result, { p1: false });
   });
 
   it("skips filters that return null or non-object values", async () => {
@@ -1100,11 +1098,11 @@ t.describe("getFilteredFeedItems", (it) => {
 
     const result = await service.getFilteredFeedItems(feedURI, { feed: [] });
 
-    assertEquals(result, { p1: false });
+    assert.deepEqual(result, { p1: false });
   });
 });
 
-t.describe("slot registry", (it) => {
+describe("slot registry", () => {
   // These tests exercise the registration target wired by _setupRegistries,
   // so they need the real PluginBridge instead of the makeService stub.
   function makeServiceWithRealBridge() {
@@ -1129,7 +1127,7 @@ t.describe("slot registry", (it) => {
 
   it("returns an empty list for unknown slots", () => {
     const service = makeServiceWithRealBridge();
-    assertEquals(service.getSlotEntries("nope"), []);
+    assert.deepEqual(service.getSlotEntries("nope"), []);
   });
 
   it("records registrations in order", async () => {
@@ -1145,7 +1143,7 @@ t.describe("slot registry", (it) => {
       handlerId: 2,
     });
     const entries = service.getSlotEntries("x");
-    assertEquals(
+    assert.deepEqual(
       entries.map((entry) => entry.pluginId),
       ["alpha", "beta"],
     );
@@ -1161,7 +1159,7 @@ t.describe("slot registry", (it) => {
     });
     const [entry] = service.getSlotEntries("x");
     await entry.invoke({ uri: "at://test" });
-    assertEquals(calls, [{ handlerId: 7, args: [{ uri: "at://test" }] }]);
+    assert.deepEqual(calls, [{ handlerId: 7, args: [{ uri: "at://test" }] }]);
   });
 
   it("dispose removes the entry and prunes the slot when empty", () => {
@@ -1171,10 +1169,10 @@ t.describe("slot registry", (it) => {
       name: "x",
       handlerId: 1,
     });
-    assertEquals(service.getSlotEntries("x").length, 1);
+    assert.deepEqual(service.getSlotEntries("x").length, 1);
     dispose();
-    assertEquals(service.getSlotEntries("x"), []);
-    assertEquals(service.$slots.get("x"), null);
+    assert.deepEqual(service.getSlotEntries("x"), []);
+    assert.deepEqual(service.$slots.get("x"), null);
   });
 
   it("updates the $slots signal on register and unregister", () => {
@@ -1193,12 +1191,12 @@ t.describe("slot registry", (it) => {
     updates.push(
       service.$slots.get("x")?.map((entry) => entry.pluginId) ?? null,
     );
-    assertEquals(initial, null);
-    assertEquals(updates, [["alpha"], null]);
+    assert.deepEqual(initial, null);
+    assert.deepEqual(updates, [["alpha"], null]);
   });
 });
 
-t.describe("app.data host methods", (it) => {
+describe("app.data host methods", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
     return new PluginService(provider, null);
@@ -1230,8 +1228,8 @@ t.describe("app.data host methods", (it) => {
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getPost");
     const result = await handler(null, { uri: "at://example/post/1" });
-    assertEquals(posts.calls, ["at://example/post/1"]);
-    assertEquals(result, {
+    assert.deepEqual(posts.calls, ["at://example/post/1"]);
+    assert.deepEqual(result, {
       uri: "at://example/post/1",
       record: { text: "cached" },
     });
@@ -1251,15 +1249,15 @@ t.describe("app.data host methods", (it) => {
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:abc" });
-    assertEquals(profiles.calls, ["did:plc:abc"]);
-    assertEquals(result, { did: "did:plc:abc", handle: "alice.test" });
+    assert.deepEqual(profiles.calls, ["did:plc:abc"]);
+    assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
   });
 
   it("getPost returns null when dataLayer has not been set", async () => {
     const service = makeServiceWithRealBridge();
     const handler = service.pluginBridge._hostCallHandlers.get("getPost");
     const result = await handler(null, { uri: "at://example" });
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("getProfile returns null when the hydrated profile signal is empty", async () => {
@@ -1272,11 +1270,11 @@ t.describe("app.data host methods", (it) => {
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:missing" });
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 });
 
-t.describe("getPostComposerInit", (it) => {
+describe("getPostComposerInit", () => {
   function addListener(service, pluginId, handler) {
     let listeners = service.registries.eventListeners.get("post-composer-open");
     if (!listeners) {
@@ -1289,7 +1287,7 @@ t.describe("getPostComposerInit", (it) => {
   it("returns null when no listeners are registered", async () => {
     const { service } = makeService();
     const result = await service.getPostComposerInit({ kind: "post" });
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("returns null when listeners contribute no ops and no cursor", async () => {
@@ -1297,7 +1295,7 @@ t.describe("getPostComposerInit", (it) => {
     addListener(service, "noop", async () => ({ ops: [], cursor: null }));
     addListener(service, "alsoNoop", async () => null);
     const result = await service.getPostComposerInit({ kind: "post" });
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("appends text from a single listener", async () => {
@@ -1307,7 +1305,7 @@ t.describe("getPostComposerInit", (it) => {
       cursor: null,
     }));
     const result = await service.getPostComposerInit({ kind: "post" });
-    assertEquals(result, { text: "\n\n— signed", cursor: null });
+    assert.deepEqual(result, { text: "\n\n— signed", cursor: null });
   });
 
   it("composes set/append/prepend across multiple listeners in order", async () => {
@@ -1325,7 +1323,7 @@ t.describe("getPostComposerInit", (it) => {
       cursor: null,
     }));
     const result = await service.getPostComposerInit({ kind: "post" });
-    assertEquals(result.text, "start middle end");
+    assert.deepEqual(result.text, "start middle end");
   });
 
   it("last setCursor wins; nulls do not clobber prior cursor", async () => {
@@ -1343,7 +1341,7 @@ t.describe("getPostComposerInit", (it) => {
       cursor: -1,
     }));
     const result = await service.getPostComposerInit({ kind: "post" });
-    assertEquals(result, { text: "abc", cursor: -1 });
+    assert.deepEqual(result, { text: "abc", cursor: -1 });
   });
 
   it("ignores listeners that throw", async () => {
@@ -1363,7 +1361,7 @@ t.describe("getPostComposerInit", (it) => {
     } finally {
       console.error = originalError;
     }
-    assertEquals(result, { text: "ok", cursor: null });
+    assert.deepEqual(result, { text: "ok", cursor: null });
   });
 
   it("passes context through to each listener", async () => {
@@ -1375,8 +1373,13 @@ t.describe("getPostComposerInit", (it) => {
     });
     const context = { kind: "reply", replyTo: { uri: "at://x" } };
     await service.getPostComposerInit(context);
-    assertEquals(captured, context);
+    // The service normalizes the context, so absent fields arrive as
+    // explicit undefined keys
+    assert.deepEqual(captured, {
+      kind: "reply",
+      replyTo: { uri: "at://x" },
+      replyRoot: undefined,
+      quotedPost: undefined,
+    });
   });
 });
-
-await t.run();

@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { loginWithAccounts } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 
 // The footer nav (used to detect a logged-in boot) only renders on small
 // viewports.

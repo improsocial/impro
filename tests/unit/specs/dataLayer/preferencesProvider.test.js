@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Preferences } from "/js/preferences.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 
-const t = new TestSuite("PreferencesProvider");
-
-t.describe("PreferencesProvider", (it) => {
+describe("PreferencesProvider", () => {
   it("should throw when requirePreferences called before fetch", () => {
     const mockApi = { isAuthenticated: true };
     const provider = new PreferencesProvider(mockApi);
@@ -18,7 +16,7 @@ t.describe("PreferencesProvider", (it) => {
     }
 
     assert(error !== null);
-    assertEquals(error.message, "Preferences not loaded");
+    assert.deepEqual(error.message, "Preferences not loaded");
   });
 
   it("should create logged out preferences when not authenticated", async () => {
@@ -28,7 +26,7 @@ t.describe("PreferencesProvider", (it) => {
     await provider.fetchPreferences();
 
     const preferences = provider.requirePreferences();
-    assertEquals(preferences.obj.length, 1);
+    assert.deepEqual(preferences.obj.length, 1);
   });
 
   it("should fetch preferences from API when authenticated", async () => {
@@ -45,7 +43,7 @@ t.describe("PreferencesProvider", (it) => {
     await provider.fetchPreferences();
 
     const preferences = provider.requirePreferences();
-    assertEquals(preferences.obj, mockPreferencesObj);
+    assert.deepEqual(preferences.obj, mockPreferencesObj);
   });
 
   it("should update preferences via API", async () => {
@@ -67,9 +65,7 @@ t.describe("PreferencesProvider", (it) => {
     );
     await provider.updatePreferences(newPreferences);
 
-    assertEquals(updatedObj, newPreferences.obj);
-    assertEquals(provider.requirePreferences(), newPreferences);
+    assert.deepEqual(updatedObj, newPreferences.obj);
+    assert.deepEqual(provider.requirePreferences(), newPreferences);
   });
 });
-
-await t.run();

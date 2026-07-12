@@ -1,12 +1,10 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("avatarTemplate");
-
-t.describe("avatarTemplate", (it) => {
+describe("avatarTemplate", () => {
   it("should render avatar container", () => {
     const result = avatarTemplate({ author: post.author });
     const container = document.createElement("div");
@@ -60,7 +58,7 @@ t.describe("avatarTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const lightbox = container.querySelector("lightbox-image-group");
-    assertEquals(lightbox.getAttribute("image-shape"), "circle");
+    assert.deepEqual(lightbox.getAttribute("image-shape"), "circle");
   });
 
   it("should render without wrapper when clickAction is none", () => {
@@ -70,8 +68,8 @@ t.describe("avatarTemplate", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector("a.avatar-link"), null);
-    assertEquals(container.querySelector("lightbox-image-group"), null);
+    assert.deepEqual(container.querySelector("a.avatar-link"), null);
+    assert.deepEqual(container.querySelector("lightbox-image-group"), null);
   });
 
   it("should use lazy loading when lazyLoad is true", () => {
@@ -82,7 +80,7 @@ t.describe("avatarTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assertEquals(img.getAttribute("loading"), "lazy");
+    assert.deepEqual(img.getAttribute("loading"), "lazy");
   });
 
   it("should use eager loading by default", () => {
@@ -90,7 +88,7 @@ t.describe("avatarTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assertEquals(img.getAttribute("loading"), "eager");
+    assert.deepEqual(img.getAttribute("loading"), "eager");
   });
 
   it("should set data-lightbox-src to full-size avatar URL", () => {
@@ -98,7 +96,7 @@ t.describe("avatarTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='avatar-image']");
-    assertEquals(img.getAttribute("data-lightbox-src"), post.author.avatar);
+    assert.deepEqual(img.getAttribute("data-lightbox-src"), post.author.avatar);
   });
 
   it("should use thumbnail URL for src and full-size URL for data-lightbox-src", () => {
@@ -123,7 +121,7 @@ t.describe("avatarTemplate", (it) => {
   });
 });
 
-t.describe("avatarTemplate - labeler profiles", (it) => {
+describe("avatarTemplate - labeler profiles", () => {
   it("should render avatar for labeler profile with labeler class", () => {
     const labelerAuthor = {
       ...post.author,
@@ -184,5 +182,3 @@ t.describe("avatarTemplate - labeler profiles", (it) => {
     assert(!img.getAttribute("src").includes("labeler"));
   });
 });
-
-await t.run();

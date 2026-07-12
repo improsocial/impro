@@ -1,7 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
-import { createList } from "../../factories.js";
+import { createList } from "../../../shared/factories.js";
 
 test.describe("Feeds → List Detail flow", () => {
   test("clicking a pinned list opens its detail view", async ({ page }) => {

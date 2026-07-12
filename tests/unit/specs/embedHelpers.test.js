@@ -1,12 +1,10 @@
-import { TestSuite } from "../testSuite.js";
-import { assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
 
-const t = new TestSuite("embedHelpers");
-
-t.describe("parseRecordLink", (it) => {
+describe("parseRecordLink", () => {
   it("parses a post link", () => {
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://bsky.app/profile/alice.test/post/3abc"),
       {
         collection: "app.bsky.feed.post",
@@ -17,7 +15,7 @@ t.describe("parseRecordLink", (it) => {
   });
 
   it("parses a feed link", () => {
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://bsky.app/profile/alice.test/feed/cool-feed"),
       {
         collection: "app.bsky.feed.generator",
@@ -28,7 +26,7 @@ t.describe("parseRecordLink", (it) => {
   });
 
   it("parses a list link", () => {
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://bsky.app/profile/did:plc:abc/lists/3list"),
       {
         collection: "app.bsky.graph.list",
@@ -39,7 +37,7 @@ t.describe("parseRecordLink", (it) => {
   });
 
   it("parses both starter pack link forms", () => {
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://bsky.app/profile/alice.test/starter-pack/3pack"),
       {
         collection: "app.bsky.graph.starterpack",
@@ -47,7 +45,7 @@ t.describe("parseRecordLink", (it) => {
         rkey: "3pack",
       },
     );
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://bsky.app/starter-pack/alice.test/3pack"),
       {
         collection: "app.bsky.graph.starterpack",
@@ -58,24 +56,27 @@ t.describe("parseRecordLink", (it) => {
   });
 
   it("returns null for hosts outside the in-app link domains", () => {
-    assertEquals(
+    assert.deepEqual(
       parseRecordLink("https://example.com/profile/alice.test/post/3abc"),
       null,
     );
   });
 
   it("returns null for unrelated in-app paths", () => {
-    assertEquals(parseRecordLink("https://bsky.app/profile/alice.test"), null);
-    assertEquals(parseRecordLink("https://bsky.app/settings"), null);
+    assert.deepEqual(
+      parseRecordLink("https://bsky.app/profile/alice.test"),
+      null,
+    );
+    assert.deepEqual(parseRecordLink("https://bsky.app/settings"), null);
   });
 
   it("returns null for invalid urls", () => {
-    assertEquals(parseRecordLink("not a url"), null);
-    assertEquals(parseRecordLink(""), null);
+    assert.deepEqual(parseRecordLink("not a url"), null);
+    assert.deepEqual(parseRecordLink(""), null);
   });
 });
 
-t.describe("resolveRecordFromLink", (it) => {
+describe("resolveRecordFromLink", () => {
   function makeDeps({ resolveHandleCalls = [] } = {}) {
     return {
       identityResolver: {
@@ -122,9 +123,12 @@ t.describe("resolveRecordFromLink", (it) => {
       "https://bsky.app/profile/alice.test/post/3abc",
       makeDeps(),
     );
-    assertEquals(record.$type, "app.bsky.embed.record#viewRecord");
-    assertEquals(record.uri, "at://did:plc:resolved1/app.bsky.feed.post/3abc");
-    assertEquals(record.cid, "postcid");
+    assert.deepEqual(record.$type, "app.bsky.embed.record#viewRecord");
+    assert.deepEqual(
+      record.uri,
+      "at://did:plc:resolved1/app.bsky.feed.post/3abc",
+    );
+    assert.deepEqual(record.cid, "postcid");
   });
 
   it("does not resolve the handle for DID-form urls", async () => {
@@ -133,8 +137,11 @@ t.describe("resolveRecordFromLink", (it) => {
       "https://bsky.app/profile/did:plc:direct1/post/3abc",
       makeDeps({ resolveHandleCalls }),
     );
-    assertEquals(resolveHandleCalls, []);
-    assertEquals(record.uri, "at://did:plc:direct1/app.bsky.feed.post/3abc");
+    assert.deepEqual(resolveHandleCalls, []);
+    assert.deepEqual(
+      record.uri,
+      "at://did:plc:direct1/app.bsky.feed.post/3abc",
+    );
   });
 
   it("tags a feed generator view", async () => {
@@ -142,8 +149,8 @@ t.describe("resolveRecordFromLink", (it) => {
       "https://bsky.app/profile/alice.test/feed/cool-feed",
       makeDeps(),
     );
-    assertEquals(record.$type, "app.bsky.feed.defs#generatorView");
-    assertEquals(
+    assert.deepEqual(record.$type, "app.bsky.feed.defs#generatorView");
+    assert.deepEqual(
       record.uri,
       "at://did:plc:resolved1/app.bsky.feed.generator/cool-feed",
     );
@@ -154,7 +161,7 @@ t.describe("resolveRecordFromLink", (it) => {
       "https://bsky.app/profile/alice.test/lists/3list",
       makeDeps(),
     );
-    assertEquals(record.$type, "app.bsky.graph.defs#listView");
+    assert.deepEqual(record.$type, "app.bsky.graph.defs#listView");
   });
 
   it("tags a starter pack view", async () => {
@@ -162,7 +169,7 @@ t.describe("resolveRecordFromLink", (it) => {
       "https://bsky.app/starter-pack/alice.test/3pack",
       makeDeps(),
     );
-    assertEquals(record.$type, "app.bsky.graph.defs#starterPackViewBasic");
+    assert.deepEqual(record.$type, "app.bsky.graph.defs#starterPackViewBasic");
   });
 
   it("throws an informative error for urls that are not record links", async () => {
@@ -175,7 +182,7 @@ t.describe("resolveRecordFromLink", (it) => {
     } catch (error) {
       thrown = error;
     }
-    assertEquals(
+    assert.deepEqual(
       thrown?.message,
       "Not a record link: https://example.com/profile/alice.test/post/3abc",
     );
@@ -195,8 +202,6 @@ t.describe("resolveRecordFromLink", (it) => {
     } catch (error) {
       thrown = error;
     }
-    assertEquals(thrown?.message, "not found");
+    assert.deepEqual(thrown?.message, "not found");
   });
 });
-
-await t.run();

@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { post, feed } from "../../fixtures.js";
+import { post, feed } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 import { noop } from "/js/utils.js";
-
-const t = new TestSuite("postFeedTemplate");
 
 const mockUser = {
   did: "did:plc:testuser",
@@ -20,7 +18,7 @@ const postInteractionHandler = {
   handleShare: noop,
 };
 
-t.describe("postFeedTemplate - loading state", (it) => {
+describe("postFeedTemplate - loading state", () => {
   it("should render skeleton when feed is null", () => {
     const result = postFeedTemplate({
       feed: null,
@@ -45,7 +43,7 @@ t.describe("postFeedTemplate - loading state", (it) => {
   });
 });
 
-t.describe("postFeedTemplate - empty state", (it) => {
+describe("postFeedTemplate - empty state", () => {
   it("should render empty message when feed is empty", () => {
     const result = postFeedTemplate({
       feed: { feed: [], cursor: null },
@@ -82,7 +80,7 @@ t.describe("postFeedTemplate - empty state", (it) => {
   });
 });
 
-t.describe("postFeedTemplate - feed with posts", (it) => {
+describe("postFeedTemplate - feed with posts", () => {
   it("should render feed items", () => {
     const result = postFeedTemplate({
       feed: { feed: feed.slice(0, 2), cursor: null },
@@ -92,7 +90,7 @@ t.describe("postFeedTemplate - feed with posts", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const feedItems = container.querySelectorAll("[data-testid='feed-item']");
-    assertEquals(feedItems.length, 2);
+    assert.deepEqual(feedItems.length, 2);
   });
 
   it("should render infinite scroll container", () => {
@@ -131,7 +129,7 @@ t.describe("postFeedTemplate - feed with posts", (it) => {
   });
 });
 
-t.describe("postFeedTemplate - pagination", (it) => {
+describe("postFeedTemplate - pagination", () => {
   it("should show loading indicator when hasMore is true", () => {
     const result = postFeedTemplate({
       feed: { feed: feed.slice(0, 2), cursor: "next-cursor" },
@@ -170,14 +168,14 @@ t.describe("postFeedTemplate - pagination", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='feed-end-message']"),
       null,
     );
   });
 });
 
-t.describe("postFeedTemplate - hidden posts", (it) => {
+describe("postFeedTemplate - hidden posts", () => {
   it("should show feedback message for hidden posts", () => {
     const feedWithPost = feed.slice(0, 1);
     const hiddenUri = feedWithPost[0].post.uri;
@@ -212,7 +210,7 @@ t.describe("postFeedTemplate - hidden posts", (it) => {
   });
 });
 
-t.describe("postFeedTemplate - feed generator", (it) => {
+describe("postFeedTemplate - feed generator", () => {
   it("should set data-feed-generator-uri when feedGenerator provided", () => {
     const mockFeedGenerator = {
       uri: "at://did:plc:test/app.bsky.feed.generator/test-feed",
@@ -226,7 +224,7 @@ t.describe("postFeedTemplate - feed generator", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const feedItem = container.querySelector("[data-testid='feed-item']");
-    assertEquals(
+    assert.deepEqual(
       feedItem.getAttribute("data-feed-generator-uri"),
       mockFeedGenerator.uri,
     );
@@ -241,8 +239,6 @@ t.describe("postFeedTemplate - feed generator", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const feedItem = container.querySelector("[data-testid='feed-item']");
-    assertEquals(feedItem.getAttribute("data-feed-generator-uri"), "");
+    assert.deepEqual(feedItem.getAttribute("data-feed-generator-uri"), "");
   });
 });
-
-await t.run();

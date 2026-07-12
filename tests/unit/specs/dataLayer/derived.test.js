@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Derived } from "/js/dataLayer/derived.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
@@ -42,15 +42,13 @@ function fakePreferences(overrides = {}) {
   };
 }
 
-const t = new TestSuite("Derived");
-
-t.describe("$hydratedFeeds", (it) => {
+describe("$hydratedFeeds", () => {
   const feedURI = "at://did:test/app.bsky.feed.generator/test";
 
   it("should return null when feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedFeeds.get(feedURI), null);
+    assert.deepEqual(derived.$hydratedFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
@@ -69,8 +67,11 @@ t.describe("$hydratedFeeds", (it) => {
     dataStore.$feeds.set(feedURI, rawFeed);
 
     const result = derived.$hydratedFeeds.get(feedURI);
-    assertEquals(result, {
-      feed: [{ post: post1 }, { post: post2 }],
+    assert.deepEqual(result, {
+      feed: [
+        { post: post1, feedContext: undefined },
+        { post: post2, feedContext: undefined },
+      ],
       cursor: "cursor123",
     });
   });
@@ -95,18 +96,18 @@ t.describe("$hydratedFeeds", (it) => {
     patchStore.addPostPatch("post1", { type: "addLike" });
 
     const result = derived.$hydratedFeeds.get(feedURI);
-    assertEquals(result.feed[0].post.likeCount, 6);
-    assertEquals(result.feed[0].post.viewer.like, "fake like");
+    assert.deepEqual(result.feed[0].post.likeCount, 6);
+    assert.deepEqual(result.feed[0].post.viewer.like, "fake like");
   });
 });
 
-t.describe("$hydratedHashtagFeeds", (it) => {
+describe("$hydratedHashtagFeeds", () => {
   const hashtagKey = "javascript-top";
 
   it("should return null when feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedHashtagFeeds.get(hashtagKey), null);
+    assert.deepEqual(derived.$hydratedHashtagFeeds.get(hashtagKey), null);
   });
 
   it("should hydrate and return a feed with posts", () => {
@@ -125,7 +126,7 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
 
     const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
-    assertEquals(result, {
+    assert.deepEqual(result, {
       feed: [{ post: post1 }, { post: post2 }],
       cursor: "cursor123",
     });
@@ -157,7 +158,10 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     dataStore.$hashtagFeeds.set(hashtagKey, rawFeed);
 
     const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
-    assertEquals(result.feed[0].post.record.reply.parentAuthor, parentAuthor);
+    assert.deepEqual(
+      result.feed[0].post.record.reply.parentAuthor,
+      parentAuthor,
+    );
   });
 
   it("should apply patches to posts in feed", () => {
@@ -179,18 +183,18 @@ t.describe("$hydratedHashtagFeeds", (it) => {
     patchStore.addPostPatch("post1", { type: "addLike" });
 
     const result = derived.$hydratedHashtagFeeds.get(hashtagKey);
-    assertEquals(result.feed[0].post.likeCount, 6);
-    assertEquals(result.feed[0].post.viewer.like, "fake like");
+    assert.deepEqual(result.feed[0].post.likeCount, 6);
+    assert.deepEqual(result.feed[0].post.viewer.like, "fake like");
   });
 });
 
-t.describe("$hydratedProfiles", (it) => {
+describe("$hydratedProfiles", () => {
   const did = "did:plc:user";
 
   it("should return null when profile does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedProfiles.get(did), null);
+    assert.deepEqual(derived.$hydratedProfiles.get(did), null);
   });
 
   it("should return the profile when it exists", () => {
@@ -199,9 +203,9 @@ t.describe("$hydratedProfiles", (it) => {
     const profile = { did, handle: "user.test", followersCount: 10 };
     dataStore.$profiles.set(did, profile);
     const result = derived.$hydratedProfiles.get(did);
-    assertEquals(result.did, did);
-    assertEquals(result.handle, "user.test");
-    assertEquals(result.followersCount, 10);
+    assert.deepEqual(result.did, did);
+    assert.deepEqual(result.handle, "user.test");
+    assert.deepEqual(result.followersCount, 10);
   });
 
   it("should apply profile patches", () => {
@@ -216,12 +220,12 @@ t.describe("$hydratedProfiles", (it) => {
     dataStore.$profiles.set(did, profile);
     patchStore.addProfilePatch(did, { type: "followProfile" });
     const result = derived.$hydratedProfiles.get(did);
-    assertEquals(result.followersCount, 11);
-    assertEquals(result.viewer.following, "fake following");
+    assert.deepEqual(result.followersCount, 11);
+    assert.deepEqual(result.viewer.following, "fake following");
   });
 });
 
-t.describe("$convoProfiles", (it) => {
+describe("$convoProfiles", () => {
   const convoId = "convo1";
   const memberDid = "did:plc:member";
   const referencedDid = "did:plc:referenced";
@@ -237,7 +241,7 @@ t.describe("$convoProfiles", (it) => {
   it("should return an empty list for an unknown convo", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$convoProfiles.get(convoId), []);
+    assert.deepEqual(derived.$convoProfiles.get(convoId), []);
   });
 
   it("should return the members when no other profiles are referenced", () => {
@@ -245,8 +249,8 @@ t.describe("$convoProfiles", (it) => {
     setupConvo(dataStore);
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
-    assertEquals(profiles.length, 1);
-    assertEquals(profiles[0].did, memberDid);
+    assert.deepEqual(profiles.length, 1);
+    assert.deepEqual(profiles[0].did, memberDid);
   });
 
   it("should append hydrated profiles referenced by the last interaction", () => {
@@ -257,10 +261,10 @@ t.describe("$convoProfiles", (it) => {
     dataStore.setProfiles([{ did: referencedDid, handle: "referenced.test" }]);
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
-    assertEquals(profiles.length, 2);
-    assertEquals(profiles[0].did, memberDid);
-    assertEquals(profiles[1].did, referencedDid);
-    assertEquals(profiles[1].handle, "referenced.test");
+    assert.deepEqual(profiles.length, 2);
+    assert.deepEqual(profiles[0].did, memberDid);
+    assert.deepEqual(profiles[1].did, referencedDid);
+    assert.deepEqual(profiles[1].handle, "referenced.test");
   });
 
   it("should append hydrated profiles referenced by loaded messages", () => {
@@ -279,9 +283,9 @@ t.describe("$convoProfiles", (it) => {
     ]);
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
-    assertEquals(profiles.length, 3);
-    assertEquals(profiles[1].handle, "referenced.test");
-    assertEquals(profiles[2].handle, "added.test");
+    assert.deepEqual(profiles.length, 3);
+    assert.deepEqual(profiles[1].handle, "referenced.test");
+    assert.deepEqual(profiles[2].handle, "added.test");
   });
 
   it("should not duplicate referenced profiles that are also members", () => {
@@ -292,7 +296,7 @@ t.describe("$convoProfiles", (it) => {
     dataStore.setProfiles([{ did: memberDid, handle: "member.test" }]);
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
-    assertEquals(profiles.length, 1);
+    assert.deepEqual(profiles.length, 1);
   });
 
   it("should skip referenced dids whose profiles are not hydrated", () => {
@@ -302,19 +306,19 @@ t.describe("$convoProfiles", (it) => {
     });
     const { derived } = makeDerived(dataStore);
     const profiles = derived.$convoProfiles.get(convoId);
-    assertEquals(profiles.length, 1);
-    assertEquals(profiles[0].did, memberDid);
+    assert.deepEqual(profiles.length, 1);
+    assert.deepEqual(profiles[0].did, memberDid);
   });
 });
 
-t.describe("$hydratedAuthorFeeds", (it) => {
+describe("$hydratedAuthorFeeds", () => {
   const did = "did:plc:author";
   const feedURI = `${did}-posts`;
 
   it("should return null when author feed does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedAuthorFeeds.get(feedURI), null);
+    assert.deepEqual(derived.$hydratedAuthorFeeds.get(feedURI), null);
   });
 
   it("should hydrate and return an author feed", () => {
@@ -329,10 +333,10 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       cursor: "c",
     });
     const result = derived.$hydratedAuthorFeeds.get(feedURI);
-    assertEquals(result.feed.length, 2);
-    assertEquals(result.feed[0].post.uri, "post1");
-    assertEquals(result.feed[1].post.uri, "post2");
-    assertEquals(result.cursor, "c");
+    assert.deepEqual(result.feed.length, 2);
+    assert.deepEqual(result.feed[0].post.uri, "post1");
+    assert.deepEqual(result.feed[1].post.uri, "post2");
+    assert.deepEqual(result.cursor, "c");
   });
 
   it("should filter to replies-only for replies feed type", () => {
@@ -355,8 +359,8 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       cursor: "c",
     });
     const result = derived.$hydratedAuthorFeeds.get(repliesFeedURI);
-    assertEquals(result.feed.length, 1);
-    assertEquals(result.feed[0].post.uri, "post2");
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(result.feed[0].post.uri, "post2");
   });
 
   it("should apply author feed patches", () => {
@@ -375,17 +379,17 @@ t.describe("$hydratedAuthorFeeds", (it) => {
       post: { uri: "pinned" },
     });
     const result = derived.$hydratedAuthorFeeds.get(feedURI);
-    assertEquals(result.feed[0].post.uri, "pinned");
+    assert.deepEqual(result.feed[0].post.uri, "pinned");
   });
 });
 
-t.describe("$actorFeeds", (it) => {
+describe("$actorFeeds", () => {
   const did = "did:plc:author";
 
   it("should return null when actor feeds do not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$actorFeeds.get(did), null);
+    assert.deepEqual(derived.$actorFeeds.get(did), null);
   });
 
   it("should return the stored actor feeds", () => {
@@ -393,17 +397,17 @@ t.describe("$actorFeeds", (it) => {
     const { derived } = makeDerived(dataStore);
     const actorFeeds = { feeds: [{ uri: "feed-1" }], cursor: "c" };
     dataStore.$actorFeeds.set(did, actorFeeds);
-    assertEquals(derived.$actorFeeds.get(did), actorFeeds);
+    assert.deepEqual(derived.$actorFeeds.get(did), actorFeeds);
   });
 });
 
-t.describe("$profileChatStatus", (it) => {
+describe("$profileChatStatus", () => {
   const did = "did:plc:user";
 
   it("should return null when chat status does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$profileChatStatus.get(did), null);
+    assert.deepEqual(derived.$profileChatStatus.get(did), null);
   });
 
   it("should return the stored chat status", () => {
@@ -411,17 +415,17 @@ t.describe("$profileChatStatus", (it) => {
     const { derived } = makeDerived(dataStore);
     const status = { canChat: true, convo: null };
     dataStore.$profileChatStatus.set(did, status);
-    assertEquals(derived.$profileChatStatus.get(did), status);
+    assert.deepEqual(derived.$profileChatStatus.get(did), status);
   });
 });
 
-t.describe("$labelerInfo", (it) => {
+describe("$labelerInfo", () => {
   const did = "did:plc:labeler";
 
   it("should return null when labeler info does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$labelerInfo.get(did), null);
+    assert.deepEqual(derived.$labelerInfo.get(did), null);
   });
 
   it("should return the stored labeler info", () => {
@@ -429,26 +433,26 @@ t.describe("$labelerInfo", (it) => {
     const { derived } = makeDerived(dataStore);
     const info = { policies: { labelValues: ["spam"] } };
     dataStore.$labelerInfo.set(did, info);
-    assertEquals(derived.$labelerInfo.get(did), info);
+    assert.deepEqual(derived.$labelerInfo.get(did), info);
   });
 });
 
-t.describe("$labelerSettings", (it) => {
+describe("$labelerSettings", () => {
   it("should return labeler settings from preferences", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
     const labelerDid = "did:plc:labeler";
     const result = derived.$labelerSettings.get(labelerDid);
     // Logged-out preferences should still return a settings object
-    assertEquals(typeof result, "object");
+    assert.deepEqual(typeof result, "object");
   });
 });
 
-t.describe("$hydratedBookmarks", (it) => {
+describe("$hydratedBookmarks", () => {
   it("should return null when bookmarks do not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedBookmarks.get(), null);
+    assert.deepEqual(derived.$hydratedBookmarks.get(), null);
   });
 
   it("should hydrate and return bookmarks", () => {
@@ -463,10 +467,10 @@ t.describe("$hydratedBookmarks", (it) => {
       cursor: "c",
     });
     const result = derived.$hydratedBookmarks.get();
-    assertEquals(result.feed.length, 2);
-    assertEquals(result.feed[0].post.uri, "post1");
-    assertEquals(result.feed[1].post.uri, "post2");
-    assertEquals(result.cursor, "c");
+    assert.deepEqual(result.feed.length, 2);
+    assert.deepEqual(result.feed[0].post.uri, "post1");
+    assert.deepEqual(result.feed[1].post.uri, "post2");
+    assert.deepEqual(result.cursor, "c");
   });
 
   it("should attach parentAuthor when bookmarked post is a reply", () => {
@@ -489,15 +493,18 @@ t.describe("$hydratedBookmarks", (it) => {
       cursor: null,
     });
     const result = derived.$hydratedBookmarks.get();
-    assertEquals(result.feed[0].post.record.reply.parentAuthor, parentAuthor);
+    assert.deepEqual(
+      result.feed[0].post.record.reply.parentAuthor,
+      parentAuthor,
+    );
   });
 });
 
-t.describe("$hydratedPinnedItems", (it) => {
+describe("$hydratedPinnedItems", () => {
   it("should return null when pinned items are not set", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedPinnedItems.get(), null);
+    assert.deepEqual(derived.$hydratedPinnedItems.get(), null);
   });
 
   it("should hydrate pinned feed generators from the store", () => {
@@ -512,12 +519,12 @@ t.describe("$hydratedPinnedItems", (it) => {
       { type: "feed", data: fg2 },
     ]);
     const result = derived.$hydratedPinnedItems.get();
-    assertEquals(result.length, 2);
-    assertEquals(result[0].type, "feed");
-    assertEquals(result[0].uri, "feed-1");
-    assertEquals(result[0].displayName, "Feed One");
-    assertEquals(result[1].uri, "feed-2");
-    assertEquals(result[1].displayName, "Feed Two");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].type, "feed");
+    assert.deepEqual(result[0].uri, "feed-1");
+    assert.deepEqual(result[0].displayName, "Feed One");
+    assert.deepEqual(result[1].uri, "feed-2");
+    assert.deepEqual(result[1].displayName, "Feed Two");
   });
 
   it("should hydrate list and following entries", () => {
@@ -529,21 +536,21 @@ t.describe("$hydratedPinnedItems", (it) => {
       { type: "list", data: list },
     ]);
     const result = derived.$hydratedPinnedItems.get();
-    assertEquals(result[0].type, "following");
-    assertEquals(result[0].displayName, "Following");
-    assertEquals(result[1].type, "list");
-    assertEquals(result[1].uri, "list-1");
-    assertEquals(result[1].displayName, "My List");
+    assert.deepEqual(result[0].type, "following");
+    assert.deepEqual(result[0].displayName, "Following");
+    assert.deepEqual(result[1].type, "list");
+    assert.deepEqual(result[1].uri, "list-1");
+    assert.deepEqual(result[1].displayName, "My List");
   });
 });
 
-t.describe("$hydratedPosts (post hydration)", (it) => {
+describe("$hydratedPosts (post hydration)", () => {
   const postURI = "at://did:test/app.bsky.feed.post/x";
 
   it("should return null when the post does not exist", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedPosts.get(postURI), null);
+    assert.deepEqual(derived.$hydratedPosts.get(postURI), null);
   });
 
   it("should mark the post when it contains a muted word", () => {
@@ -553,7 +560,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.viewer.hasMutedWord, true);
+    assert.deepEqual(result.viewer.hasMutedWord, true);
   });
 
   it("should not mark the post when there is no muted word match", () => {
@@ -563,7 +570,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.viewer, undefined);
+    assert.deepEqual(result.viewer, undefined);
   });
 
   it("should mark the post hidden when preferences say so", () => {
@@ -573,7 +580,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.viewer.isHidden, true);
+    assert.deepEqual(result.viewer.isHidden, true);
   });
 
   it("should attach badge, content, and media labels from preferences", () => {
@@ -587,9 +594,9 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.badgeLabels, ["badge"]);
-    assertEquals(result.contentLabel, "warn");
-    assertEquals(result.mediaLabel, "blur");
+    assert.deepEqual(result.badgeLabels, ["badge"]);
+    assert.deepEqual(result.contentLabel, "warn");
+    assert.deepEqual(result.mediaLabel, "blur");
   });
 
   it("should leave the post untouched when no labels apply", () => {
@@ -599,9 +606,9 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.badgeLabels, undefined);
-    assertEquals(result.contentLabel, undefined);
-    assertEquals(result.mediaLabel, undefined);
+    assert.deepEqual(result.badgeLabels, undefined);
+    assert.deepEqual(result.contentLabel, undefined);
+    assert.deepEqual(result.mediaLabel, undefined);
   });
 
   it("should compose muted/hidden/label marks on a single post", () => {
@@ -615,9 +622,9 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.viewer.hasMutedWord, true);
-    assertEquals(result.viewer.isHidden, true);
-    assertEquals(result.badgeLabels, ["b"]);
+    assert.deepEqual(result.viewer.hasMutedWord, true);
+    assert.deepEqual(result.viewer.isHidden, true);
+    assert.deepEqual(result.badgeLabels, ["b"]);
   });
 
   function makeBlockedQuotePost(viewerState) {
@@ -646,7 +653,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
     );
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(
+    assert.deepEqual(
       result.embed.record.$type,
       "app.bsky.embed.record#viewBlocked",
     );
@@ -667,7 +674,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
     );
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(
+    assert.deepEqual(
       result.embed.record.$type,
       "app.bsky.embed.record#viewNotFound",
     );
@@ -685,7 +692,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, makeBlockedQuotePost({ blockedBy: true }));
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(
+    assert.deepEqual(
       result.embed.record.$type,
       "app.bsky.embed.record#viewNotFound",
     );
@@ -708,7 +715,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
       makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
     );
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(
+    assert.deepEqual(
       result.embed.record.$type,
       "app.bsky.embed.record#viewBlocked",
     );
@@ -728,8 +735,11 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, makeBlockedQuotePost({}));
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(result.embed.record.$type, "app.bsky.embed.record#viewRecord");
-    assertEquals(result.embed.record.uri, quotedUri);
+    assert.deepEqual(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewRecord",
+    );
+    assert.deepEqual(result.embed.record.uri, quotedUri);
   });
 
   it("should keep the quote blocked when the quoted author blocks the viewer", () => {
@@ -746,7 +756,7 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     });
     dataStore.$posts.set(postURI, makeBlockedQuotePost({ blockedBy: true }));
     const result = derived.$hydratedPosts.get(postURI);
-    assertEquals(
+    assert.deepEqual(
       result.embed.record.$type,
       "app.bsky.embed.record#viewBlocked",
     );
@@ -761,12 +771,12 @@ t.describe("$hydratedPosts (post hydration)", (it) => {
     dataStore.$posts.set(postURI, post);
     const result = derived.$hydratedPosts.get(postURI);
     // hydratePostForView always returns a fresh clone
-    assertEquals(result.uri, post.uri);
-    assertEquals(result.record.text, "hello");
+    assert.deepEqual(result.uri, post.uri);
+    assert.deepEqual(result.record.text, "hello");
   });
 });
 
-t.describe("$convoForProfile", (it) => {
+describe("$convoForProfile", () => {
   const profileDid = "did:plc:other";
   const members = [{ did: "did:plc:me" }, { did: profileDid }];
 
@@ -779,7 +789,7 @@ t.describe("$convoForProfile", (it) => {
     });
     const { derived } = makeDerived(dataStore);
 
-    assertEquals(derived.$convoForProfile.get(profileDid).id, "direct1");
+    assert.deepEqual(derived.$convoForProfile.get(profileDid).id, "direct1");
   });
 
   it("should ignore group convos even with two members", () => {
@@ -798,17 +808,17 @@ t.describe("$convoForProfile", (it) => {
     });
     const { derived } = makeDerived(dataStore);
 
-    assertEquals(derived.$convoForProfile.get(profileDid), null);
+    assert.deepEqual(derived.$convoForProfile.get(profileDid), null);
   });
 });
 
-t.describe("$hydratedConvoMessages", (it) => {
+describe("$hydratedConvoMessages", () => {
   const convoId = "convo-1";
 
   it("should return null when the convo has no messages", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    assertEquals(derived.$hydratedConvoMessages.get(convoId), null);
+    assert.deepEqual(derived.$hydratedConvoMessages.get(convoId), null);
   });
 
   function seedMessages(dataStore, convoMessages, cursor = null) {
@@ -833,10 +843,10 @@ t.describe("$hydratedConvoMessages", (it) => {
     );
     const { derived } = makeDerived(dataStore);
     const result = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(result.cursor, "abc");
-    assertEquals(result.messages.length, 2);
-    assertEquals(result.messages[0].id, "m1");
-    assertEquals(result.messages[1].id, "m2");
+    assert.deepEqual(result.cursor, "abc");
+    assert.deepEqual(result.messages.length, 2);
+    assert.deepEqual(result.messages[0].id, "m1");
+    assert.deepEqual(result.messages[1].id, "m2");
   });
 
   it("should preserve replyTo when present on a message", () => {
@@ -858,8 +868,8 @@ t.describe("$hydratedConvoMessages", (it) => {
     ]);
     const { derived } = makeDerived(dataStore);
     const result = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(result.messages[1].replyTo.id, "m1");
-    assertEquals(result.messages[1].replyTo.text, "original");
+    assert.deepEqual(result.messages[1].replyTo.id, "m1");
+    assert.deepEqual(result.messages[1].replyTo.text, "original");
   });
 
   function seedConvoMembers(dataStore, members) {
@@ -896,8 +906,8 @@ t.describe("$hydratedConvoMessages", (it) => {
     ]);
     const { derived } = makeDerived(dataStore);
     const result = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(result.messages[0].reactions.length, 1);
-    assertEquals(result.messages[0].reactions[0].value, "👍");
+    assert.deepEqual(result.messages[0].reactions.length, 1);
+    assert.deepEqual(result.messages[0].reactions[0].value, "👍");
   });
 
   it("should keep reactions from senders who are not convo members", () => {
@@ -913,7 +923,7 @@ t.describe("$hydratedConvoMessages", (it) => {
     ]);
     const { derived } = makeDerived(dataStore);
     const result = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(result.messages[0].reactions.length, 1);
+    assert.deepEqual(result.messages[0].reactions.length, 1);
   });
 
   it("should leave messages without reactions untouched", () => {
@@ -923,7 +933,7 @@ t.describe("$hydratedConvoMessages", (it) => {
     ]);
     const { derived } = makeDerived(dataStore);
     const result = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(result.messages[0].reactions, undefined);
+    assert.deepEqual(result.messages[0].reactions, undefined);
   });
 
   it("should not recompute when the convo changes but members stay the same", () => {
@@ -944,7 +954,7 @@ t.describe("$hydratedConvoMessages", (it) => {
     const convo = dataStore.$convos.get(convoId);
     dataStore.$convos.set(convoId, { ...convo, unreadCount: 0 });
     const after = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(after === before, true);
+    assert.deepEqual(after === before, true);
 
     dataStore.$convos.set(convoId, {
       ...convo,
@@ -956,9 +966,7 @@ t.describe("$hydratedConvoMessages", (it) => {
       ],
     });
     const afterBlock = derived.$hydratedConvoMessages.get(convoId);
-    assertEquals(afterBlock === before, false);
-    assertEquals(afterBlock.messages[0].reactions.length, 0);
+    assert.deepEqual(afterBlock === before, false);
+    assert.deepEqual(afterBlock.messages[0].reactions.length, 0);
   });
 });
-
-await t.run();

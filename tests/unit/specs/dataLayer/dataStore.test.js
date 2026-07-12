@@ -1,10 +1,8 @@
-import { TestSuite } from "../../testSuite.js";
-import { assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { DataStore } from "/js/dataLayer/dataStore.js";
 
-const t = new TestSuite("DataStore");
-
-t.describe("setPosts", (it) => {
+describe("setPosts", () => {
   it("should insert multiple posts", () => {
     const dataStore = new DataStore();
     const posts = [
@@ -14,7 +12,7 @@ t.describe("setPosts", (it) => {
     ];
     dataStore.setPosts(posts);
     for (const post of posts) {
-      assertEquals(dataStore.$posts.get(post.uri), post);
+      assert.deepEqual(dataStore.$posts.get(post.uri), post);
     }
   });
 
@@ -27,11 +25,9 @@ t.describe("setPosts", (it) => {
     };
     dataStoreA.$posts.set(post.uri, post);
     dataStoreB.setPosts([post]);
-    assertEquals(
+    assert.deepEqual(
       dataStoreA.$posts.get(post.uri),
       dataStoreB.$posts.get(post.uri),
     );
   });
 });
-
-await t.run();

@@ -1,5 +1,5 @@
-import { TestSuite } from "../testSuite.js";
-import { assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   Theme,
   getDefaultHighlightColor,
@@ -7,9 +7,7 @@ import {
   getDefaultColorScheme,
 } from "/js/theme.js";
 
-const t = new TestSuite("theme");
-
-t.describe("save", (it) => {
+describe("save", () => {
   it("does not store values that match the defaults", () => {
     localStorage.clear();
     const theme = new Theme({
@@ -18,9 +16,9 @@ t.describe("save", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColorv2"), null);
-    assertEquals(localStorage.getItem("theme-likeColor"), null);
-    assertEquals(localStorage.getItem("theme-colorScheme"), null);
+    assert.deepEqual(localStorage.getItem("theme-highlightColorv2"), null);
+    assert.deepEqual(localStorage.getItem("theme-likeColor"), null);
+    assert.deepEqual(localStorage.getItem("theme-colorScheme"), null);
   });
 
   it("stores values that differ from the defaults", () => {
@@ -31,9 +29,9 @@ t.describe("save", (it) => {
       colorScheme: "dark",
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColorv2"), "#123456");
-    assertEquals(localStorage.getItem("theme-likeColor"), "#abcdef");
-    assertEquals(localStorage.getItem("theme-colorScheme"), "dark");
+    assert.deepEqual(localStorage.getItem("theme-highlightColorv2"), "#123456");
+    assert.deepEqual(localStorage.getItem("theme-likeColor"), "#abcdef");
+    assert.deepEqual(localStorage.getItem("theme-colorScheme"), "dark");
   });
 
   it("removes previously-stored values when reset to the default", () => {
@@ -47,40 +45,40 @@ t.describe("save", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.save();
-    assertEquals(localStorage.getItem("theme-highlightColorv2"), null);
-    assertEquals(localStorage.getItem("theme-likeColor"), null);
-    assertEquals(localStorage.getItem("theme-colorScheme"), null);
+    assert.deepEqual(localStorage.getItem("theme-highlightColorv2"), null);
+    assert.deepEqual(localStorage.getItem("theme-likeColor"), null);
+    assert.deepEqual(localStorage.getItem("theme-colorScheme"), null);
   });
 });
 
-t.describe("getDefaultColorScheme", (it) => {
+describe("getDefaultColorScheme", () => {
   it('returns "system"', () => {
-    assertEquals(getDefaultColorScheme(), "system");
+    assert.deepEqual(getDefaultColorScheme(), "system");
   });
 });
 
-t.describe("fromLocalStorage", (it) => {
+describe("fromLocalStorage", () => {
   it("reads stored values when present", () => {
     localStorage.clear();
     localStorage.setItem("theme-highlightColorv2", "#111111");
     localStorage.setItem("theme-likeColor", "#222222");
     localStorage.setItem("theme-colorScheme", "dark");
     const theme = Theme.fromLocalStorage();
-    assertEquals(theme.$highlightColor.get(), "#111111");
-    assertEquals(theme.$likeColor.get(), "#222222");
-    assertEquals(theme.$colorScheme.get(), "dark");
+    assert.deepEqual(theme.$highlightColor.get(), "#111111");
+    assert.deepEqual(theme.$likeColor.get(), "#222222");
+    assert.deepEqual(theme.$colorScheme.get(), "dark");
   });
 
   it("falls back to defaults when nothing is stored", () => {
     localStorage.clear();
     const theme = Theme.fromLocalStorage();
-    assertEquals(theme.$highlightColor.get(), getDefaultHighlightColor());
-    assertEquals(theme.$likeColor.get(), getDefaultLikeColor());
-    assertEquals(theme.$colorScheme.get(), getDefaultColorScheme());
+    assert.deepEqual(theme.$highlightColor.get(), getDefaultHighlightColor());
+    assert.deepEqual(theme.$likeColor.get(), getDefaultLikeColor());
+    assert.deepEqual(theme.$colorScheme.get(), getDefaultColorScheme());
   });
 });
 
-t.describe("update methods", (it) => {
+describe("update methods", () => {
   it("updateHighlightColor sets the value and persists it", () => {
     localStorage.clear();
     const theme = new Theme({
@@ -89,8 +87,8 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateHighlightColor("#abcdef");
-    assertEquals(theme.$highlightColor.get(), "#abcdef");
-    assertEquals(localStorage.getItem("theme-highlightColorv2"), "#abcdef");
+    assert.deepEqual(theme.$highlightColor.get(), "#abcdef");
+    assert.deepEqual(localStorage.getItem("theme-highlightColorv2"), "#abcdef");
   });
 
   it("updateLikeColor sets the value and persists it", () => {
@@ -101,8 +99,8 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateLikeColor("#abcdef");
-    assertEquals(theme.$likeColor.get(), "#abcdef");
-    assertEquals(localStorage.getItem("theme-likeColor"), "#abcdef");
+    assert.deepEqual(theme.$likeColor.get(), "#abcdef");
+    assert.deepEqual(localStorage.getItem("theme-likeColor"), "#abcdef");
   });
 
   it("updateColorScheme sets the value and persists it", () => {
@@ -113,12 +111,12 @@ t.describe("update methods", (it) => {
       colorScheme: getDefaultColorScheme(),
     });
     theme.updateColorScheme("light");
-    assertEquals(theme.$colorScheme.get(), "light");
-    assertEquals(localStorage.getItem("theme-colorScheme"), "light");
+    assert.deepEqual(theme.$colorScheme.get(), "light");
+    assert.deepEqual(localStorage.getItem("theme-colorScheme"), "light");
   });
 });
 
-t.describe("apply", (it) => {
+describe("apply", () => {
   it("sets CSS custom properties on the root element", () => {
     const theme = new Theme({
       highlightColor: "#abcdef",
@@ -126,15 +124,15 @@ t.describe("apply", (it) => {
       colorScheme: "dark",
     });
     theme.apply();
-    assertEquals(
+    assert.deepEqual(
       document.documentElement.style.getPropertyValue("--highlight-color"),
       "#abcdef",
     );
-    assertEquals(
+    assert.deepEqual(
       document.documentElement.style.getPropertyValue("--like-color"),
       "#fedcba",
     );
-    assertEquals(
+    assert.deepEqual(
       document.documentElement.style.getPropertyValue("color-scheme"),
       "dark",
     );
@@ -147,7 +145,7 @@ t.describe("apply", (it) => {
       colorScheme: "system",
     });
     theme.apply();
-    assertEquals(
+    assert.deepEqual(
       document.documentElement.style.getPropertyValue("color-scheme"),
       "light dark",
     );
@@ -162,8 +160,6 @@ t.describe("apply", (it) => {
     });
     theme.apply();
     const meta = document.querySelector("meta[name='theme-color']");
-    assertEquals(meta !== null, true);
+    assert.deepEqual(meta !== null, true);
   });
 });
-
-await t.run();

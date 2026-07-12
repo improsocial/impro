@@ -2,7 +2,7 @@ import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
 import { getPermissionsFromManifest } from "/js/plugins/pluginPermissions.js";
 
-const SANDBOX_URL = "/js/plugins/sandbox.html";
+const SANDBOX_URL = "/plugin-sandbox.html";
 
 export class Logger {
   static LEVELS = { info: 10, warn: 20, error: 30, silent: 40 };

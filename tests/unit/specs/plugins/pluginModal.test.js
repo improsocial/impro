@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals, mock } from "../../testHelpers.js";
+import { describe, it, mock } from "node:test";
+import assert from "node:assert/strict";
 import {
   showPluginModal as _showPluginModal,
   hidePluginModal,
@@ -11,8 +11,6 @@ function showPluginModal(opts) {
   return _showPluginModal({ pluginRenderer, ...opts });
 }
 
-const t = new TestSuite("pluginModal");
-
 function clearDOM() {
   document.body.innerHTML = "";
 }
@@ -23,7 +21,7 @@ function uniqueModalId(prefix) {
   return `${prefix}-${pluginModalCounter}`;
 }
 
-t.describe("showPluginModal", (it) => {
+describe("showPluginModal", () => {
   it("should create a dialog with plugin-modal class and pluginId dataset", () => {
     clearDOM();
     showPluginModal({
@@ -34,7 +32,7 @@ t.describe("showPluginModal", (it) => {
     });
     const dialog = document.querySelector("dialog.plugin-modal");
     assert(dialog !== null);
-    assertEquals(dialog.dataset.pluginId, "test.plugin");
+    assert.deepEqual(dialog.dataset.pluginId, "test.plugin");
     assert(dialog.classList.contains("modal-dialog"));
     assert(dialog.hasAttribute("open"));
   });
@@ -49,7 +47,7 @@ t.describe("showPluginModal", (it) => {
     });
     const title = document.querySelector(".modal-dialog-title");
     assert(title !== null);
-    assertEquals(title.textContent, "My Title");
+    assert.deepEqual(title.textContent, "My Title");
   });
 
   it("should skip the title when it is empty", () => {
@@ -79,9 +77,9 @@ t.describe("showPluginModal", (it) => {
       },
     });
     const paragraphs = document.querySelectorAll(".modal-dialog-content > p");
-    assertEquals(paragraphs.length, 2);
-    assertEquals(paragraphs[0].textContent, "First");
-    assertEquals(paragraphs[1].textContent, "Second");
+    assert.deepEqual(paragraphs.length, 2);
+    assert.deepEqual(paragraphs[0].textContent, "First");
+    assert.deepEqual(paragraphs[1].textContent, "Second");
   });
 
   it("should render the content node directly when it has no children", () => {
@@ -94,7 +92,7 @@ t.describe("showPluginModal", (it) => {
     });
     const body = document.querySelector(".modal-dialog-content > p");
     assert(body !== null);
-    assertEquals(body.textContent, "Single body");
+    assert.deepEqual(body.textContent, "Single body");
   });
 
   it("should reuse the existing dialog and replace its content on a second call", () => {
@@ -115,11 +113,11 @@ t.describe("showPluginModal", (it) => {
       content: { tag: "p", text: "Second body" },
     });
     const dialogs = document.querySelectorAll("dialog.plugin-modal");
-    assertEquals(dialogs.length, 1);
+    assert.deepEqual(dialogs.length, 1);
     const title = document.querySelector(".modal-dialog-title");
-    assertEquals(title.textContent, "Second Title");
+    assert.deepEqual(title.textContent, "Second Title");
     const body = document.querySelector(".modal-dialog-content > p");
-    assertEquals(body.textContent, "Second body");
+    assert.deepEqual(body.textContent, "Second body");
     assert(dialogs[0].hasAttribute("open"));
   });
 
@@ -140,13 +138,13 @@ t.describe("showPluginModal", (it) => {
       content: { tag: "p", text: "Replaced body" },
     });
     const title = document.querySelector(".modal-dialog-title");
-    assertEquals(title.textContent, "Original");
+    assert.deepEqual(title.textContent, "Original");
     hidePluginModal({ pluginId, modalId });
   });
 
   it("should invoke onDismiss when dismissed via backdrop click", () => {
     clearDOM();
-    const onDismiss = mock();
+    const onDismiss = mock.fn();
     showPluginModal({
       pluginId: "backdrop.plugin",
       modalId: uniqueModalId("backdrop"),
@@ -157,12 +155,12 @@ t.describe("showPluginModal", (it) => {
     const dialog = document.querySelector("dialog.plugin-modal");
     dialog.dispatchEvent(new Event("click", { bubbles: true }));
     assert(!dialog.hasAttribute("open"));
-    assertEquals(onDismiss.calls.length, 1);
+    assert.deepEqual(onDismiss.mock.callCount(), 1);
   });
 
   it("should invoke onDismiss when dismissed via cancel event", () => {
     clearDOM();
-    const onDismiss = mock();
+    const onDismiss = mock.fn();
     showPluginModal({
       pluginId: "cancel.plugin",
       modalId: uniqueModalId("cancel"),
@@ -175,7 +173,7 @@ t.describe("showPluginModal", (it) => {
     cancelEvent.preventDefault = () => {};
     dialog.dispatchEvent(cancelEvent);
     assert(!dialog.hasAttribute("open"));
-    assertEquals(onDismiss.calls.length, 1);
+    assert.deepEqual(onDismiss.mock.callCount(), 1);
   });
 
   it("should not require an onDismiss callback", () => {
@@ -208,16 +206,16 @@ t.describe("showPluginModal", (it) => {
       content: { tag: "p", text: "B body" },
     });
     const dialogs = document.querySelectorAll("dialog.plugin-modal");
-    assertEquals(dialogs.length, 2);
+    assert.deepEqual(dialogs.length, 2);
     hidePluginModal({ pluginId: "iso.plugin", modalId: modalIdA });
     hidePluginModal({ pluginId: "iso.plugin", modalId: modalIdB });
   });
 });
 
-t.describe("hidePluginModal", (it) => {
+describe("hidePluginModal", () => {
   it("should close the dialog without invoking onDismiss", () => {
     clearDOM();
-    const onDismiss = mock();
+    const onDismiss = mock.fn();
     const pluginId = "hide.plugin";
     const modalId = uniqueModalId("hide");
     showPluginModal({
@@ -231,7 +229,7 @@ t.describe("hidePluginModal", (it) => {
     assert(dialog.hasAttribute("open"));
     hidePluginModal({ pluginId, modalId });
     assert(!dialog.hasAttribute("open"));
-    assertEquals(onDismiss.calls.length, 0);
+    assert.deepEqual(onDismiss.mock.callCount(), 0);
   });
 
   it("should be a no-op when no modal exists for the key", () => {
@@ -242,7 +240,7 @@ t.describe("hidePluginModal", (it) => {
 
   it("should be a no-op when the modal is already closed", () => {
     clearDOM();
-    const onDismiss = mock();
+    const onDismiss = mock.fn();
     const pluginId = "double-hide.plugin";
     const modalId = uniqueModalId("double-hide");
     showPluginModal({
@@ -254,8 +252,6 @@ t.describe("hidePluginModal", (it) => {
     });
     hidePluginModal({ pluginId, modalId });
     hidePluginModal({ pluginId, modalId });
-    assertEquals(onDismiss.calls.length, 0);
+    assert.deepEqual(onDismiss.mock.callCount(), 0);
   });
 });
-
-await t.run();

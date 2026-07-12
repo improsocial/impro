@@ -1,30 +1,28 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { Preferences } from "/js/preferences.js";
 
-const t = new TestSuite("Preferences");
-
-t.describe("Preferences.createLoggedOutPreferences", (it) => {
+describe("Preferences.createLoggedOutPreferences", () => {
   it("should create preferences with discover feed pinned", () => {
     const preferences = Preferences.createLoggedOutPreferences();
 
-    assertEquals(preferences.obj.length, 1);
-    assertEquals(
+    assert.deepEqual(preferences.obj.length, 1);
+    assert.deepEqual(
       preferences.obj[0].$type,
       "app.bsky.actor.defs#savedFeedsPrefV2",
     );
-    assertEquals(preferences.obj[0].items.length, 1);
-    assertEquals(preferences.obj[0].items[0].pinned, true);
+    assert.deepEqual(preferences.obj[0].items.length, 1);
+    assert.deepEqual(preferences.obj[0].items[0].pinned, true);
   });
 
   it("should create preferences with empty labelerDefs", () => {
     const preferences = Preferences.createLoggedOutPreferences();
 
-    assertEquals(preferences.labelerDefs, []);
+    assert.deepEqual(preferences.labelerDefs, []);
   });
 });
 
-t.describe("Preferences.getPreferenceByType", (it) => {
+describe("Preferences.getPreferenceByType", () => {
   it("should return matching preference by type", () => {
     const obj = [
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] },
@@ -36,7 +34,7 @@ t.describe("Preferences.getPreferenceByType", (it) => {
       "app.bsky.actor.defs#mutedWordsPref",
     );
 
-    assertEquals(result.$type, "app.bsky.actor.defs#mutedWordsPref");
+    assert.deepEqual(result.$type, "app.bsky.actor.defs#mutedWordsPref");
   });
 
   it("should return undefined when type not found", () => {
@@ -47,11 +45,11 @@ t.describe("Preferences.getPreferenceByType", (it) => {
       "app.bsky.actor.defs#nonExistent",
     );
 
-    assertEquals(result, undefined);
+    assert.deepEqual(result, undefined);
   });
 });
 
-t.describe("Preferences.getSavedFeedsPreference", (it) => {
+describe("Preferences.getSavedFeedsPreference", () => {
   it("should return saved feeds preference", () => {
     const obj = [
       { $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: ["feed1"] },
@@ -59,12 +57,12 @@ t.describe("Preferences.getSavedFeedsPreference", (it) => {
 
     const result = Preferences.getSavedFeedsPreference(obj);
 
-    assertEquals(result.$type, "app.bsky.actor.defs#savedFeedsPrefV2");
-    assertEquals(result.items, ["feed1"]);
+    assert.deepEqual(result.$type, "app.bsky.actor.defs#savedFeedsPrefV2");
+    assert.deepEqual(result.items, ["feed1"]);
   });
 });
 
-t.describe("Preferences.getMutedWordsPreference", (it) => {
+describe("Preferences.getMutedWordsPreference", () => {
   it("should return muted words preference", () => {
     const obj = [
       {
@@ -75,11 +73,11 @@ t.describe("Preferences.getMutedWordsPreference", (it) => {
 
     const result = Preferences.getMutedWordsPreference(obj);
 
-    assertEquals(result.$type, "app.bsky.actor.defs#mutedWordsPref");
+    assert.deepEqual(result.$type, "app.bsky.actor.defs#mutedWordsPref");
   });
 });
 
-t.describe("Preferences.getLabelerDidsFromPreferences", (it) => {
+describe("Preferences.getLabelerDidsFromPreferences", () => {
   it("should return labeler DIDs with default appended", () => {
     const obj = [
       {
@@ -90,10 +88,10 @@ t.describe("Preferences.getLabelerDidsFromPreferences", (it) => {
 
     const result = Preferences.getLabelerDidsFromPreferences(obj);
 
-    assertEquals(result.length, 3);
-    assertEquals(result[0], "did:plc:custom1");
-    assertEquals(result[1], "did:plc:custom2");
-    assertEquals(result[2], "did:plc:ar7c4by46qjdydhdevvrndac");
+    assert.deepEqual(result.length, 3);
+    assert.deepEqual(result[0], "did:plc:custom1");
+    assert.deepEqual(result[1], "did:plc:custom2");
+    assert.deepEqual(result[2], "did:plc:ar7c4by46qjdydhdevvrndac");
   });
 
   it("should return only default when no labelers preference", () => {
@@ -101,12 +99,12 @@ t.describe("Preferences.getLabelerDidsFromPreferences", (it) => {
 
     const result = Preferences.getLabelerDidsFromPreferences(obj);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0], "did:plc:ar7c4by46qjdydhdevvrndac");
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0], "did:plc:ar7c4by46qjdydhdevvrndac");
   });
 });
 
-t.describe("Preferences.getPinnedFeeds", (it) => {
+describe("Preferences.getPinnedFeeds", () => {
   it("should return only pinned feeds", () => {
     const obj = [
       {
@@ -122,20 +120,20 @@ t.describe("Preferences.getPinnedFeeds", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getPinnedFeeds();
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0].value, "feed1");
-    assertEquals(result[1].value, "feed3");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].value, "feed1");
+    assert.deepEqual(result[1].value, "feed3");
   });
 
   it("should return empty array when no saved feeds preference", () => {
     const preferences = new Preferences([], []);
     const result = preferences.getPinnedFeeds();
 
-    assertEquals(result, []);
+    assert.deepEqual(result, []);
   });
 });
 
-t.describe("Preferences.isFeedPinned", (it) => {
+describe("Preferences.isFeedPinned", () => {
   it("should return true for a pinned feed", () => {
     const obj = [
       {
@@ -188,7 +186,7 @@ t.describe("Preferences.isFeedPinned", (it) => {
   });
 });
 
-t.describe("Preferences.unpinFeed", (it) => {
+describe("Preferences.unpinFeed", () => {
   it("should return new preferences with feed unpinned", () => {
     const obj = [
       {
@@ -201,10 +199,10 @@ t.describe("Preferences.unpinFeed", (it) => {
     const newPreferences = preferences.unpinFeed("feed1");
 
     // Original should be unchanged
-    assertEquals(preferences.getPinnedFeeds().length, 1);
+    assert.deepEqual(preferences.getPinnedFeeds().length, 1);
 
     // New preferences should have feed unpinned
-    assertEquals(newPreferences.getPinnedFeeds().length, 0);
+    assert.deepEqual(newPreferences.getPinnedFeeds().length, 0);
   });
 
   it("should do nothing when feed not found", () => {
@@ -218,11 +216,11 @@ t.describe("Preferences.unpinFeed", (it) => {
     const preferences = new Preferences(obj, []);
     const newPreferences = preferences.unpinFeed("nonexistent");
 
-    assertEquals(newPreferences.getPinnedFeeds().length, 1);
+    assert.deepEqual(newPreferences.getPinnedFeeds().length, 1);
   });
 });
 
-t.describe("Preferences.pinFeed", (it) => {
+describe("Preferences.pinFeed", () => {
   it("should pin existing feed", () => {
     const obj = [
       {
@@ -234,8 +232,8 @@ t.describe("Preferences.pinFeed", (it) => {
     const preferences = new Preferences(obj, []);
     const newPreferences = preferences.pinFeed("feed1");
 
-    assertEquals(newPreferences.getPinnedFeeds().length, 1);
-    assertEquals(newPreferences.getPinnedFeeds()[0].value, "feed1");
+    assert.deepEqual(newPreferences.getPinnedFeeds().length, 1);
+    assert.deepEqual(newPreferences.getPinnedFeeds()[0].value, "feed1");
   });
 
   it("should not modify original when pinning existing feed", () => {
@@ -250,14 +248,14 @@ t.describe("Preferences.pinFeed", (it) => {
     const newPreferences = preferences.pinFeed("feed1");
 
     // Original should be unchanged
-    assertEquals(preferences.getPinnedFeeds().length, 0);
+    assert.deepEqual(preferences.getPinnedFeeds().length, 0);
 
     // New preferences should have the feed pinned
-    assertEquals(newPreferences.getPinnedFeeds().length, 1);
+    assert.deepEqual(newPreferences.getPinnedFeeds().length, 1);
   });
 });
 
-t.describe("Preferences.getLabelerDids", (it) => {
+describe("Preferences.getLabelerDids", () => {
   it("should return labeler DIDs from preferences", () => {
     const obj = [
       {
@@ -269,12 +267,12 @@ t.describe("Preferences.getLabelerDids", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getLabelerDids();
 
-    assertEquals(result.includes("did:plc:test"), true);
-    assertEquals(result.includes("did:plc:ar7c4by46qjdydhdevvrndac"), true);
+    assert.deepEqual(result.includes("did:plc:test"), true);
+    assert.deepEqual(result.includes("did:plc:ar7c4by46qjdydhdevvrndac"), true);
   });
 });
 
-t.describe("Preferences.getMutedWords", (it) => {
+describe("Preferences.getMutedWords", () => {
   it("should return muted words items", () => {
     const obj = [
       {
@@ -289,9 +287,9 @@ t.describe("Preferences.getMutedWords", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getMutedWords();
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0].value, "test");
-    assertEquals(result[1].value, "spoiler");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].value, "test");
+    assert.deepEqual(result[1].value, "spoiler");
   });
 
   it("should return empty array when no muted words preference exists", () => {
@@ -300,11 +298,11 @@ t.describe("Preferences.getMutedWords", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getMutedWords();
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 });
 
-t.describe("Preferences.addMutedWord", (it) => {
+describe("Preferences.addMutedWord", () => {
   it("should add a muted word to existing preference", () => {
     const obj = [
       {
@@ -328,10 +326,10 @@ t.describe("Preferences.addMutedWord", (it) => {
     });
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words.length, 2);
-    assertEquals(words[1].value, "newword");
-    assertEquals(words[1].targets.length, 2);
-    assertEquals(words[1].actorTarget, "all");
+    assert.deepEqual(words.length, 2);
+    assert.deepEqual(words[1].value, "newword");
+    assert.deepEqual(words[1].targets.length, 2);
+    assert.deepEqual(words[1].actorTarget, "all");
     assert(words[1].id !== undefined);
   });
 
@@ -346,10 +344,10 @@ t.describe("Preferences.addMutedWord", (it) => {
     });
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].value, "newword");
-    assertEquals(words[0].targets[0], "tag");
-    assertEquals(words[0].actorTarget, "exclude-following");
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].value, "newword");
+    assert.deepEqual(words[0].targets[0], "tag");
+    assert.deepEqual(words[0].actorTarget, "exclude-following");
   });
 
   it("should store expiresAt when provided", () => {
@@ -365,7 +363,7 @@ t.describe("Preferences.addMutedWord", (it) => {
     });
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words[0].expiresAt, expiresAt);
+    assert.deepEqual(words[0].expiresAt, expiresAt);
   });
 
   it("should not modify original preferences", () => {
@@ -390,11 +388,11 @@ t.describe("Preferences.addMutedWord", (it) => {
       actorTarget: "all",
     });
 
-    assertEquals(preferences.getMutedWords().length, 1);
+    assert.deepEqual(preferences.getMutedWords().length, 1);
   });
 });
 
-t.describe("Preferences.removeMutedWord", (it) => {
+describe("Preferences.removeMutedWord", () => {
   it("should remove a muted word by id", () => {
     const obj = [
       {
@@ -410,8 +408,8 @@ t.describe("Preferences.removeMutedWord", (it) => {
     const newPreferences = preferences.removeMutedWord("2");
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].value, "keep");
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].value, "keep");
   });
 
   it("should not modify original preferences", () => {
@@ -427,7 +425,7 @@ t.describe("Preferences.removeMutedWord", (it) => {
     const preferences = new Preferences(obj, []);
     preferences.removeMutedWord("1");
 
-    assertEquals(preferences.getMutedWords().length, 1);
+    assert.deepEqual(preferences.getMutedWords().length, 1);
   });
 
   it("should handle removing non-existent id gracefully", () => {
@@ -443,7 +441,7 @@ t.describe("Preferences.removeMutedWord", (it) => {
     const preferences = new Preferences(obj, []);
     const newPreferences = preferences.removeMutedWord("nonexistent");
 
-    assertEquals(newPreferences.getMutedWords().length, 1);
+    assert.deepEqual(newPreferences.getMutedWords().length, 1);
   });
 
   it("should return clone when no mutedWordsPref exists", () => {
@@ -451,11 +449,11 @@ t.describe("Preferences.removeMutedWord", (it) => {
     const preferences = new Preferences(obj, []);
     const newPreferences = preferences.removeMutedWord("1");
 
-    assertEquals(newPreferences.getMutedWords().length, 0);
+    assert.deepEqual(newPreferences.getMutedWords().length, 0);
   });
 });
 
-t.describe("Preferences.updateMutedWord", (it) => {
+describe("Preferences.updateMutedWord", () => {
   it("should update a muted word by id", () => {
     const obj = [
       {
@@ -479,10 +477,10 @@ t.describe("Preferences.updateMutedWord", (it) => {
     });
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words.length, 2);
-    assertEquals(words[0].expiresAt, "2026-06-01T00:00:00.000Z");
-    assertEquals(words[0].value, "word");
-    assertEquals(words[1].value, "other");
+    assert.deepEqual(words.length, 2);
+    assert.deepEqual(words[0].expiresAt, "2026-06-01T00:00:00.000Z");
+    assert.deepEqual(words[0].value, "word");
+    assert.deepEqual(words[1].value, "other");
   });
 
   it("should not modify original preferences", () => {
@@ -506,7 +504,7 @@ t.describe("Preferences.updateMutedWord", (it) => {
       expiresAt: "2026-06-01T00:00:00.000Z",
     });
 
-    assertEquals(
+    assert.deepEqual(
       preferences.getMutedWords()[0].expiresAt,
       "2025-01-01T00:00:00.000Z",
     );
@@ -528,8 +526,8 @@ t.describe("Preferences.updateMutedWord", (it) => {
     });
 
     const words = newPreferences.getMutedWords();
-    assertEquals(words.length, 1);
-    assertEquals(words[0].expiresAt, undefined);
+    assert.deepEqual(words.length, 1);
+    assert.deepEqual(words[0].expiresAt, undefined);
   });
 
   it("should return clone when no mutedWordsPref exists", () => {
@@ -539,11 +537,11 @@ t.describe("Preferences.updateMutedWord", (it) => {
       expiresAt: "2026-06-01T00:00:00.000Z",
     });
 
-    assertEquals(newPreferences.getMutedWords().length, 0);
+    assert.deepEqual(newPreferences.getMutedWords().length, 0);
   });
 });
 
-t.describe("Preferences.hasMutedWord", (it) => {
+describe("Preferences.hasMutedWord", () => {
   it("should return true when text contains muted word", () => {
     const obj = [
       {
@@ -561,7 +559,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should be case insensitive", () => {
@@ -581,7 +579,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should return false when no muted words match", () => {
@@ -601,7 +599,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should return false when no muted words preference", () => {
@@ -614,7 +612,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should ignore expired muted words", () => {
@@ -635,7 +633,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should include non-expired muted words", () => {
@@ -656,7 +654,7 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should return false when text is null", () => {
@@ -676,11 +674,11 @@ t.describe("Preferences.hasMutedWord", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 });
 
-t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
+describe("Preferences.hasMutedWord - word boundary matching", () => {
   const hasMutedWord = (preferences, text, languages = []) =>
     preferences.hasMutedWord({
       text,
@@ -701,9 +699,18 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
     const preferences = new Preferences(obj, []);
 
     // Should NOT match - "cat" is a substring of these words
-    assertEquals(hasMutedWord(preferences, "I love category theory"), false);
-    assertEquals(hasMutedWord(preferences, "concatenate these strings"), false);
-    assertEquals(hasMutedWord(preferences, "The vacation was great"), false);
+    assert.deepEqual(
+      hasMutedWord(preferences, "I love category theory"),
+      false,
+    );
+    assert.deepEqual(
+      hasMutedWord(preferences, "concatenate these strings"),
+      false,
+    );
+    assert.deepEqual(
+      hasMutedWord(preferences, "The vacation was great"),
+      false,
+    );
   });
 
   it("should match when muted word appears as a standalone word", () => {
@@ -716,9 +723,9 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(hasMutedWord(preferences, "I love my cat"), true);
-    assertEquals(hasMutedWord(preferences, "cat is cute"), true);
-    assertEquals(hasMutedWord(preferences, "the cat sat"), true);
+    assert.deepEqual(hasMutedWord(preferences, "I love my cat"), true);
+    assert.deepEqual(hasMutedWord(preferences, "cat is cute"), true);
+    assert.deepEqual(hasMutedWord(preferences, "the cat sat"), true);
   });
 
   it("should use substring matching for single character muted words", () => {
@@ -731,8 +738,8 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(hasMutedWord(preferences, "example text"), true);
-    assertEquals(hasMutedWord(preferences, "no match here"), false);
+    assert.deepEqual(hasMutedWord(preferences, "example text"), true);
+    assert.deepEqual(hasMutedWord(preferences, "no match here"), false);
   });
 
   it("should use substring matching for language exceptions", () => {
@@ -746,15 +753,15 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
     const preferences = new Preferences(obj, []);
 
     // Languages that don't use spaces should use substring matching
-    assertEquals(hasMutedWord(preferences, "testing", ["ja"]), true); // Japanese
-    assertEquals(hasMutedWord(preferences, "testing", ["zh"]), true); // Chinese
-    assertEquals(hasMutedWord(preferences, "testing", ["ko"]), true); // Korean
-    assertEquals(hasMutedWord(preferences, "testing", ["th"]), true); // Thai
-    assertEquals(hasMutedWord(preferences, "testing", ["vi"]), true); // Vietnamese
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["ja"]), true); // Japanese
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["zh"]), true); // Chinese
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["ko"]), true); // Korean
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["th"]), true); // Thai
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["vi"]), true); // Vietnamese
 
     // Non-exception languages should use word boundary matching
-    assertEquals(hasMutedWord(preferences, "testing", ["en"]), false);
-    assertEquals(hasMutedWord(preferences, "testing", []), false);
+    assert.deepEqual(hasMutedWord(preferences, "testing", ["en"]), false);
+    assert.deepEqual(hasMutedWord(preferences, "testing", []), false);
   });
 
   it("should use substring matching for phrases with spaces", () => {
@@ -767,10 +774,16 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(hasMutedWord(preferences, "this is a bad phrase here"), true);
-    assertEquals(hasMutedWord(preferences, "bad phrase at start"), true);
-    assertEquals(hasMutedWord(preferences, "ends with bad phrase"), true);
-    assertEquals(hasMutedWord(preferences, "bad and phrase separate"), false);
+    assert.deepEqual(
+      hasMutedWord(preferences, "this is a bad phrase here"),
+      true,
+    );
+    assert.deepEqual(hasMutedWord(preferences, "bad phrase at start"), true);
+    assert.deepEqual(hasMutedWord(preferences, "ends with bad phrase"), true);
+    assert.deepEqual(
+      hasMutedWord(preferences, "bad and phrase separate"),
+      false,
+    );
   });
 
   it("should strip leading and trailing punctuation when matching", () => {
@@ -783,11 +796,11 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(hasMutedWord(preferences, "...hello..."), true);
-    assertEquals(hasMutedWord(preferences, '"hello"'), true);
-    assertEquals(hasMutedWord(preferences, "(hello)"), true);
-    assertEquals(hasMutedWord(preferences, "hello!"), true);
-    assertEquals(hasMutedWord(preferences, "!hello"), true);
+    assert.deepEqual(hasMutedWord(preferences, "...hello..."), true);
+    assert.deepEqual(hasMutedWord(preferences, '"hello"'), true);
+    assert.deepEqual(hasMutedWord(preferences, "(hello)"), true);
+    assert.deepEqual(hasMutedWord(preferences, "hello!"), true);
+    assert.deepEqual(hasMutedWord(preferences, "!hello"), true);
   });
 
   it("should handle internal punctuation by normalizing", () => {
@@ -801,7 +814,7 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
     const preferences = new Preferences(obj, []);
 
     // "don't" with punctuation removed becomes "dont"
-    assertEquals(hasMutedWord(preferences, "I don't know"), true);
+    assert.deepEqual(hasMutedWord(preferences, "I don't know"), true);
   });
 
   it("should NOT match words containing slashes to avoid false positives", () => {
@@ -815,9 +828,9 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
     const preferences = new Preferences(obj, []);
 
     // "and/or" contains "/" so should be skipped to avoid "Andor" matching "and/or"
-    assertEquals(hasMutedWord(preferences, "this and/or that"), false);
+    assert.deepEqual(hasMutedWord(preferences, "this and/or that"), false);
     // But standalone "and" should still match
-    assertEquals(hasMutedWord(preferences, "this and that"), true);
+    assert.deepEqual(hasMutedWord(preferences, "this and that"), true);
   });
 
   it("should match multiple muted words correctly", () => {
@@ -833,13 +846,13 @@ t.describe("Preferences.hasMutedWord - word boundary matching", (it) => {
 
     const preferences = new Preferences(obj, []);
 
-    assertEquals(hasMutedWord(preferences, "this is spam"), true);
-    assertEquals(hasMutedWord(preferences, "this is a scam"), true);
-    assertEquals(hasMutedWord(preferences, "normal content"), false);
+    assert.deepEqual(hasMutedWord(preferences, "this is spam"), true);
+    assert.deepEqual(hasMutedWord(preferences, "this is a scam"), true);
+    assert.deepEqual(hasMutedWord(preferences, "normal content"), false);
   });
 });
 
-t.describe("Preferences.postHasMutedWord", (it) => {
+describe("Preferences.postHasMutedWord", () => {
   it("should return true when post text contains muted word", () => {
     const obj = [
       {
@@ -852,7 +865,7 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const post = { record: { text: "This is spam content", langs: [] } };
     const result = preferences.postHasMutedWord(post);
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should return false when post has no text", () => {
@@ -867,7 +880,7 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const post = { record: { langs: [] } };
     const result = preferences.postHasMutedWord(post);
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should return false when post is null", () => {
@@ -881,11 +894,11 @@ t.describe("Preferences.postHasMutedWord", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.postHasMutedWord(null);
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 });
 
-t.describe("Preferences.quotedPostHasMutedWord", (it) => {
+describe("Preferences.quotedPostHasMutedWord", () => {
   it("should return true when quoted post contains muted word", () => {
     const obj = [
       {
@@ -898,7 +911,7 @@ t.describe("Preferences.quotedPostHasMutedWord", (it) => {
     const quotedPost = { value: { text: "This is spam content", langs: [] } };
     const result = preferences.quotedPostHasMutedWord(quotedPost);
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should return false when quoted post has no text", () => {
@@ -913,11 +926,11 @@ t.describe("Preferences.quotedPostHasMutedWord", (it) => {
     const quotedPost = { value: { langs: [] } };
     const result = preferences.quotedPostHasMutedWord(quotedPost);
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 });
 
-t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
+describe("Preferences.hasMutedWord - embed text matching", () => {
   it("should match muted word in image alt text", () => {
     const obj = [
       {
@@ -938,7 +951,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should match muted word in any image alt text", () => {
@@ -965,7 +978,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should skip images without alt text", () => {
@@ -988,7 +1001,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should match muted word in external link title", () => {
@@ -1015,7 +1028,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should match muted word in external link description", () => {
@@ -1042,7 +1055,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should match muted word in recordWithMedia embed", () => {
@@ -1068,7 +1081,7 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should not check embed when target is tags only", () => {
@@ -1095,11 +1108,11 @@ t.describe("Preferences.hasMutedWord - embed text matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 });
 
-t.describe("Preferences.hasMutedWord - tag matching", (it) => {
+describe("Preferences.hasMutedWord - tag matching", () => {
   it("should match muted word in hashtag", () => {
     const obj = [
       {
@@ -1122,7 +1135,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should not match text when target is tags only", () => {
@@ -1142,7 +1155,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
       author: null,
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should match both text and tags when both targets specified", () => {
@@ -1163,7 +1176,7 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
       languages: [],
       author: null,
     });
-    assertEquals(textResult, true);
+    assert.deepEqual(textResult, true);
 
     // Should match tag
     const tagResult = preferences.hasMutedWord({
@@ -1177,11 +1190,11 @@ t.describe("Preferences.hasMutedWord - tag matching", (it) => {
       languages: [],
       author: null,
     });
-    assertEquals(tagResult, true);
+    assert.deepEqual(tagResult, true);
   });
 });
 
-t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
+describe("Preferences.hasMutedWord - exclude-following", () => {
   it("should skip muting for followed accounts when actorTarget is exclude-following", () => {
     const obj = [
       {
@@ -1207,7 +1220,7 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       },
     });
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should mute non-followed accounts even with exclude-following", () => {
@@ -1233,7 +1246,7 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       author: { viewer: { following: null } },
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should mute followed accounts without exclude-following actorTarget", () => {
@@ -1255,11 +1268,11 @@ t.describe("Preferences.hasMutedWord - exclude-following", (it) => {
       },
     });
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 });
 
-t.describe("Preferences.isSubscribedToLabeler", (it) => {
+describe("Preferences.isSubscribedToLabeler", () => {
   it("should return true when subscribed to labeler", () => {
     const obj = [
       {
@@ -1271,7 +1284,7 @@ t.describe("Preferences.isSubscribedToLabeler", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.isSubscribedToLabeler("did:plc:labeler1");
 
-    assertEquals(result, true);
+    assert.deepEqual(result, true);
   });
 
   it("should return false when not subscribed to labeler", () => {
@@ -1285,18 +1298,18 @@ t.describe("Preferences.isSubscribedToLabeler", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.isSubscribedToLabeler("did:plc:other");
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 
   it("should return false when no labeler preference exists", () => {
     const preferences = new Preferences([], []);
     const result = preferences.isSubscribedToLabeler("did:plc:labeler1");
 
-    assertEquals(result, false);
+    assert.deepEqual(result, false);
   });
 });
 
-t.describe("Preferences.subscribeLabeler", (it) => {
+describe("Preferences.subscribeLabeler", () => {
   const makeLabelerInfo = (did) => ({
     creator: { did },
     policies: { labelValueDefinitions: [] },
@@ -1316,8 +1329,8 @@ t.describe("Preferences.subscribeLabeler", (it) => {
       makeLabelerInfo("did:plc:new"),
     );
 
-    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
-    assertEquals(
+    assert.deepEqual(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+    assert.deepEqual(
       newPreferences.isSubscribedToLabeler("did:plc:existing"),
       true,
     );
@@ -1330,7 +1343,7 @@ t.describe("Preferences.subscribeLabeler", (it) => {
       makeLabelerInfo("did:plc:new"),
     );
 
-    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+    assert.deepEqual(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
   });
 
   it("should not add duplicate labeler", () => {
@@ -1351,7 +1364,7 @@ t.describe("Preferences.subscribeLabeler", (it) => {
 
     // Get the labelers preference and check count
     const labelerPref = Preferences.getLabelerPreference(newPreferences.obj);
-    assertEquals(labelerPref.labelers.length, 1);
+    assert.deepEqual(labelerPref.labelers.length, 1);
   });
 
   it("should not modify original preferences", () => {
@@ -1369,9 +1382,9 @@ t.describe("Preferences.subscribeLabeler", (it) => {
     );
 
     // Original should be unchanged
-    assertEquals(preferences.isSubscribedToLabeler("did:plc:new"), false);
+    assert.deepEqual(preferences.isSubscribedToLabeler("did:plc:new"), false);
     // New should have the labeler
-    assertEquals(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
+    assert.deepEqual(newPreferences.isSubscribedToLabeler("did:plc:new"), true);
   });
 
   it("should add labelerInfo to labelerDefs", () => {
@@ -1385,8 +1398,8 @@ t.describe("Preferences.subscribeLabeler", (it) => {
       labelerInfo,
     );
 
-    assertEquals(newPreferences.labelerDefs.length, 1);
-    assertEquals(newPreferences.labelerDefs[0].creator.did, "did:plc:new");
+    assert.deepEqual(newPreferences.labelerDefs.length, 1);
+    assert.deepEqual(newPreferences.labelerDefs[0].creator.did, "did:plc:new");
   });
 
   it("should not add duplicate labelerInfo to labelerDefs", () => {
@@ -1400,11 +1413,11 @@ t.describe("Preferences.subscribeLabeler", (it) => {
       existingLabelerInfo,
     );
 
-    assertEquals(newPreferences.labelerDefs.length, 1);
+    assert.deepEqual(newPreferences.labelerDefs.length, 1);
   });
 });
 
-t.describe("Preferences.unsubscribeLabeler", (it) => {
+describe("Preferences.unsubscribeLabeler", () => {
   it("should remove labeler from labelers preference", () => {
     const obj = [
       {
@@ -1416,11 +1429,11 @@ t.describe("Preferences.unsubscribeLabeler", (it) => {
     const preferences = new Preferences(obj, []);
     const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
 
-    assertEquals(
+    assert.deepEqual(
       newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
       false,
     );
-    assertEquals(
+    assert.deepEqual(
       newPreferences.isSubscribedToLabeler("did:plc:labeler2"),
       true,
     );
@@ -1440,7 +1453,7 @@ t.describe("Preferences.unsubscribeLabeler", (it) => {
     );
 
     // Should not throw and should keep existing labeler
-    assertEquals(
+    assert.deepEqual(
       newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
       true,
     );
@@ -1466,9 +1479,12 @@ t.describe("Preferences.unsubscribeLabeler", (it) => {
     const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
 
     // Original should be unchanged
-    assertEquals(preferences.isSubscribedToLabeler("did:plc:labeler1"), true);
+    assert.deepEqual(
+      preferences.isSubscribedToLabeler("did:plc:labeler1"),
+      true,
+    );
     // New should have the labeler removed
-    assertEquals(
+    assert.deepEqual(
       newPreferences.isSubscribedToLabeler("did:plc:labeler1"),
       false,
     );
@@ -1489,12 +1505,15 @@ t.describe("Preferences.unsubscribeLabeler", (it) => {
     const preferences = new Preferences(obj, labelerDefs);
     const newPreferences = preferences.unsubscribeLabeler("did:plc:labeler1");
 
-    assertEquals(newPreferences.labelerDefs.length, 1);
-    assertEquals(newPreferences.labelerDefs[0].creator.did, "did:plc:labeler2");
+    assert.deepEqual(newPreferences.labelerDefs.length, 1);
+    assert.deepEqual(
+      newPreferences.labelerDefs[0].creator.did,
+      "did:plc:labeler2",
+    );
   });
 });
 
-t.describe("Preferences.clone", (it) => {
+describe("Preferences.clone", () => {
   it("should create independent copy of preferences", () => {
     const obj = [
       {
@@ -1511,11 +1530,11 @@ t.describe("Preferences.clone", (it) => {
     cloned.obj[0].items[0].pinned = false;
 
     // Original should be unchanged
-    assertEquals(preferences.obj[0].items[0].pinned, true);
+    assert.deepEqual(preferences.obj[0].items[0].pinned, true);
   });
 });
 
-t.describe("Preferences.getFollowingFeedPreference", (it) => {
+describe("Preferences.getFollowingFeedPreference", () => {
   it("should return following feed preference", () => {
     const obj = [
       {
@@ -1528,9 +1547,9 @@ t.describe("Preferences.getFollowingFeedPreference", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getFollowingFeedPreference();
 
-    assertEquals(result.$type, "app.bsky.actor.defs#feedViewPref");
-    assertEquals(result.feed, "home");
-    assertEquals(result.hideReplies, true);
+    assert.deepEqual(result.$type, "app.bsky.actor.defs#feedViewPref");
+    assert.deepEqual(result.feed, "home");
+    assert.deepEqual(result.hideReplies, true);
   });
 
   it("should return null when no following feed preference", () => {
@@ -1544,17 +1563,17 @@ t.describe("Preferences.getFollowingFeedPreference", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getFollowingFeedPreference();
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 });
 
-t.describe("Preferences.getBadgeLabels", (it) => {
+describe("Preferences.getBadgeLabels", () => {
   it("should return empty array when post has no labels", () => {
     const preferences = new Preferences([], []);
     const post = { labels: [] };
     const result = preferences.getBadgeLabels(post);
 
-    assertEquals(result, []);
+    assert.deepEqual(result, []);
   });
 
   it("should return badge labels (blurs: none)", () => {
@@ -1579,9 +1598,9 @@ t.describe("Preferences.getBadgeLabels", (it) => {
     };
     const result = preferences.getBadgeLabels(post);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0].labelDefinition.identifier, "verified");
-    assertEquals(result[0].labeler.creator.did, "did:labeler1");
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].labelDefinition.identifier, "verified");
+    assert.deepEqual(result[0].labeler.creator.did, "did:labeler1");
   });
 
   it("should not return content labels as badges", () => {
@@ -1606,7 +1625,7 @@ t.describe("Preferences.getBadgeLabels", (it) => {
     };
     const result = preferences.getBadgeLabels(post);
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("should not return media labels as badges", () => {
@@ -1631,17 +1650,17 @@ t.describe("Preferences.getBadgeLabels", (it) => {
     };
     const result = preferences.getBadgeLabels(post);
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 });
 
-t.describe("Preferences.getContentLabel", (it) => {
+describe("Preferences.getContentLabel", () => {
   it("should return null when post has no content labels", () => {
     const preferences = new Preferences([], []);
     const post = { labels: [] };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return content label with visibility from preference", () => {
@@ -1675,8 +1694,8 @@ t.describe("Preferences.getContentLabel", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "nsfw");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "nsfw");
   });
 
   it("should use defaultSetting when no preference exists", () => {
@@ -1702,7 +1721,7 @@ t.describe("Preferences.getContentLabel", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "warn");
+    assert.deepEqual(result.visibility, "warn");
   });
 
   it("should return most restrictive label (hide over warn)", () => {
@@ -1737,8 +1756,8 @@ t.describe("Preferences.getContentLabel", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "label2");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "label2");
   });
 
   it("should ignore badge labels (blurs: none)", () => {
@@ -1763,17 +1782,17 @@ t.describe("Preferences.getContentLabel", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 });
 
-t.describe("Preferences.getMediaLabel", (it) => {
+describe("Preferences.getMediaLabel", () => {
   it("should return null when post has no media labels", () => {
     const preferences = new Preferences([], []);
     const post = { labels: [] };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return media label with visibility from preference", () => {
@@ -1807,8 +1826,8 @@ t.describe("Preferences.getMediaLabel", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "nudity_custom");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "nudity_custom");
   });
 
   it("should ignore content labels (blurs: content)", () => {
@@ -1833,7 +1852,7 @@ t.describe("Preferences.getMediaLabel", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return most restrictive media label", () => {
@@ -1868,25 +1887,25 @@ t.describe("Preferences.getMediaLabel", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "porn");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "porn");
   });
 });
 
-t.describe("Preferences.getProfileBlurLabel", (it) => {
+describe("Preferences.getProfileBlurLabel", () => {
   it("should return null when author has no labels", () => {
     const preferences = new Preferences([], []);
     const author = { labels: [] };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return null when author is undefined", () => {
     const preferences = new Preferences([], []);
     const result = preferences.getProfileBlurLabel(undefined);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return entry for the !hide global label", () => {
@@ -1896,8 +1915,8 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "!hide");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "!hide");
   });
 
   it("should return entry for the porn global label (default hide)", () => {
@@ -1907,8 +1926,8 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "porn");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "porn");
   });
 
   it("should return null for nudity (default ignore)", () => {
@@ -1918,7 +1937,7 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should respect labeler-defined blur labels when subscribed", () => {
@@ -1944,8 +1963,8 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelDefinition.identifier, "nsfw");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "nsfw");
   });
 
   it("should skip labeler-defined labels when labeler is not subscribed", () => {
@@ -1955,7 +1974,7 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should skip badge labels (blurs: none)", () => {
@@ -1981,7 +2000,7 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should return the most restrictive label (hide over warn)", () => {
@@ -2016,8 +2035,8 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "hard");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "hard");
   });
 
   it("should respect user preference upgrading nudity from ignore to hide", () => {
@@ -2036,12 +2055,12 @@ t.describe("Preferences.getProfileBlurLabel", (it) => {
     };
     const result = preferences.getProfileBlurLabel(author);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "nudity");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "nudity");
   });
 });
 
-t.describe("Preferences.getContentLabelPref", (it) => {
+describe("Preferences.getContentLabelPref", () => {
   it("should return matching content label preference", () => {
     const labelerDid = "did:plc:testlabeler";
     const obj = [
@@ -2059,9 +2078,9 @@ t.describe("Preferences.getContentLabelPref", (it) => {
       labelerDid,
     });
 
-    assertEquals(result.label, "nsfw");
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelerDid, labelerDid);
+    assert.deepEqual(result.label, "nsfw");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelerDid, labelerDid);
   });
 
   it("should return null when no matching preference exists", () => {
@@ -2080,7 +2099,7 @@ t.describe("Preferences.getContentLabelPref", (it) => {
       labelerDid: "did:plc:testlabeler",
     });
 
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should match both label and labelerDid", () => {
@@ -2105,12 +2124,12 @@ t.describe("Preferences.getContentLabelPref", (it) => {
       labelerDid: "did:plc:labeler2",
     });
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelerDid, "did:plc:labeler2");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelerDid, "did:plc:labeler2");
   });
 });
 
-t.describe("Preferences.setContentLabelPref", (it) => {
+describe("Preferences.setContentLabelPref", () => {
   it("should add new content label preference", () => {
     const labelerDid = "did:plc:testlabeler";
     const preferences = new Preferences([], []);
@@ -2125,9 +2144,9 @@ t.describe("Preferences.setContentLabelPref", (it) => {
       label: "nsfw",
       labelerDid,
     });
-    assertEquals(result.label, "nsfw");
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelerDid, labelerDid);
+    assert.deepEqual(result.label, "nsfw");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelerDid, labelerDid);
   });
 
   it("should update existing content label preference", () => {
@@ -2152,7 +2171,7 @@ t.describe("Preferences.setContentLabelPref", (it) => {
       label: "nsfw",
       labelerDid,
     });
-    assertEquals(result.visibility, "hide");
+    assert.deepEqual(result.visibility, "hide");
   });
 
   it("should not modify original preferences", () => {
@@ -2166,12 +2185,12 @@ t.describe("Preferences.setContentLabelPref", (it) => {
     });
 
     // Original should be unchanged
-    assertEquals(
+    assert.deepEqual(
       preferences.getContentLabelPref({ label: "nsfw", labelerDid }),
       null,
     );
     // New should have the pref
-    assertEquals(
+    assert.deepEqual(
       newPreferences.getContentLabelPref({ label: "nsfw", labelerDid }).label,
       "nsfw",
     );
@@ -2188,12 +2207,12 @@ t.describe("Preferences.setContentLabelPref", (it) => {
     });
 
     const prefs = Preferences.getContentLabelPreferences(newPreferences.obj);
-    assertEquals(prefs.length, 1);
-    assertEquals(prefs[0].$type, "app.bsky.actor.defs#contentLabelPref");
+    assert.deepEqual(prefs.length, 1);
+    assert.deepEqual(prefs[0].$type, "app.bsky.actor.defs#contentLabelPref");
   });
 });
 
-t.describe("Preferences.getLabelerSettings", (it) => {
+describe("Preferences.getLabelerSettings", () => {
   it("should return all content label prefs for a labeler", () => {
     const labelerDid = "did:plc:testlabeler";
     const obj = [
@@ -2214,16 +2233,16 @@ t.describe("Preferences.getLabelerSettings", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getLabelerSettings(labelerDid);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0].label, "nsfw");
-    assertEquals(result[1].label, "gore");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].label, "nsfw");
+    assert.deepEqual(result[1].label, "gore");
   });
 
   it("should return empty array when no settings exist", () => {
     const preferences = new Preferences([], []);
     const result = preferences.getLabelerSettings("did:plc:testlabeler");
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("should filter by labelerDid", () => {
@@ -2247,13 +2266,13 @@ t.describe("Preferences.getLabelerSettings", (it) => {
     const preferences = new Preferences(obj, []);
     const result = preferences.getLabelerSettings(labelerDid1);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0].label, "nsfw");
-    assertEquals(result[0].labelerDid, labelerDid1);
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].label, "nsfw");
+    assert.deepEqual(result[0].labelerDid, labelerDid1);
   });
 });
 
-t.describe("Preferences.getContentLabelPreferences", (it) => {
+describe("Preferences.getContentLabelPreferences", () => {
   it("should return all content label preferences", () => {
     const obj = [
       {
@@ -2276,9 +2295,9 @@ t.describe("Preferences.getContentLabelPreferences", (it) => {
 
     const result = Preferences.getContentLabelPreferences(obj);
 
-    assertEquals(result.length, 2);
-    assertEquals(result[0].label, "nsfw");
-    assertEquals(result[1].label, "gore");
+    assert.deepEqual(result.length, 2);
+    assert.deepEqual(result[0].label, "nsfw");
+    assert.deepEqual(result[1].label, "gore");
   });
 
   it("should return empty array when no content label preferences exist", () => {
@@ -2291,7 +2310,7 @@ t.describe("Preferences.getContentLabelPreferences", (it) => {
 
     const result = Preferences.getContentLabelPreferences(obj);
 
-    assertEquals(result.length, 0);
+    assert.deepEqual(result.length, 0);
   });
 
   it("should only return contentLabelPref type", () => {
@@ -2310,12 +2329,12 @@ t.describe("Preferences.getContentLabelPreferences", (it) => {
 
     const result = Preferences.getContentLabelPreferences(obj);
 
-    assertEquals(result.length, 1);
-    assertEquals(result[0].$type, "app.bsky.actor.defs#contentLabelPref");
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].$type, "app.bsky.actor.defs#contentLabelPref");
   });
 });
 
-t.describe("Preferences.getContentLabel - global labels", (it) => {
+describe("Preferences.getContentLabel - global labels", () => {
   it("should handle !hide global label with forced hide visibility", () => {
     const preferences = new Preferences([], []);
     const post = {
@@ -2323,9 +2342,9 @@ t.describe("Preferences.getContentLabel - global labels", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "!hide");
-    assertEquals(result.labeler, null);
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "!hide");
+    assert.deepEqual(result.labeler, null);
   });
 
   it("should handle !warn global label with forced warn visibility", () => {
@@ -2335,9 +2354,9 @@ t.describe("Preferences.getContentLabel - global labels", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelDefinition.identifier, "!warn");
-    assertEquals(result.labeler, null);
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "!warn");
+    assert.deepEqual(result.labeler, null);
   });
 
   it("should not allow user to override !hide visibility", () => {
@@ -2357,7 +2376,7 @@ t.describe("Preferences.getContentLabel - global labels", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "hide");
+    assert.deepEqual(result.visibility, "hide");
   });
 
   it("should not allow user to override !warn visibility", () => {
@@ -2377,7 +2396,7 @@ t.describe("Preferences.getContentLabel - global labels", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "warn");
+    assert.deepEqual(result.visibility, "warn");
   });
 
   it("should prefer !hide over !warn when both present", () => {
@@ -2390,12 +2409,12 @@ t.describe("Preferences.getContentLabel - global labels", (it) => {
     };
     const result = preferences.getContentLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "!hide");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "!hide");
   });
 });
 
-t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
+describe("Preferences.getMediaLabel - global self-labels", () => {
   it("should handle porn self-label with default hide visibility", () => {
     const preferences = new Preferences([], []);
     // Self-labels have src = author's DID, not a labeler's DID
@@ -2405,9 +2424,9 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "porn");
-    assertEquals(result.labeler, null);
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "porn");
+    assert.deepEqual(result.labeler, null);
   });
 
   it("should handle sexual self-label with default warn visibility", () => {
@@ -2418,8 +2437,8 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelDefinition.identifier, "sexual");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "sexual");
   });
 
   it("should handle nudity self-label with default ignore visibility", () => {
@@ -2431,7 +2450,7 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     const result = preferences.getMediaLabel(post);
 
     // nudity defaults to "ignore", so should return null
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 
   it("should handle graphic-media self-label", () => {
@@ -2442,8 +2461,8 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelDefinition.identifier, "graphic-media");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "graphic-media");
   });
 
   it("should handle legacy gore label", () => {
@@ -2454,8 +2473,8 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "warn");
-    assertEquals(result.labelDefinition.identifier, "gore");
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "gore");
   });
 
   it("should allow user to change self-label visibility", () => {
@@ -2476,7 +2495,7 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "warn");
+    assert.deepEqual(result.visibility, "warn");
   });
 
   it("should prefer most restrictive self-label", () => {
@@ -2490,256 +2509,250 @@ t.describe("Preferences.getMediaLabel - global self-labels", (it) => {
     };
     const result = preferences.getMediaLabel(post);
 
-    assertEquals(result.visibility, "hide");
-    assertEquals(result.labelDefinition.identifier, "porn");
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "porn");
   });
 });
 
-t.describe(
-  "Preferences.getContentLabel - mixed global and custom labels",
-  (it) => {
-    it("should check both global and custom labels", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-warn",
-                blurs: "content",
-                defaultSetting: "warn",
-                locales: [{ lang: "en", name: "Custom Warning" }],
-              },
-            ],
-          },
+describe("Preferences.getContentLabel - mixed global and custom labels", () => {
+  it("should check both global and custom labels", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-warn",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Custom Warning" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        labels: [{ src: "did:plc:labeler1", val: "custom-warn" }],
-      };
-      const result = preferences.getContentLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:plc:labeler1", val: "custom-warn" }],
+    };
+    const result = preferences.getContentLabel(post);
 
-      assertEquals(result.visibility, "warn");
-      assertEquals(result.labelDefinition.identifier, "custom-warn");
-      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
-    });
+    assert.deepEqual(result.visibility, "warn");
+    assert.deepEqual(result.labelDefinition.identifier, "custom-warn");
+    assert.deepEqual(result.labeler.creator.did, "did:plc:labeler1");
+  });
 
-    it("should return global label when more restrictive than custom", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-warn",
-                blurs: "content",
-                defaultSetting: "warn",
-                locales: [{ lang: "en", name: "Custom Warning" }],
-              },
-            ],
-          },
+  it("should return global label when more restrictive than custom", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-warn",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Custom Warning" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        labels: [
-          { src: "did:plc:labeler1", val: "custom-warn" }, // warn
-          { src: "did:plc:modservice", val: "!hide" }, // hide (global)
-        ],
-      };
-      const result = preferences.getContentLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [
+        { src: "did:plc:labeler1", val: "custom-warn" }, // warn
+        { src: "did:plc:modservice", val: "!hide" }, // hide (global)
+      ],
+    };
+    const result = preferences.getContentLabel(post);
 
-      assertEquals(result.visibility, "hide");
-      assertEquals(result.labelDefinition.identifier, "!hide");
-      assertEquals(result.labeler, null);
-    });
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "!hide");
+    assert.deepEqual(result.labeler, null);
+  });
 
-    it("should return custom label when more restrictive than global", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-hide",
-                blurs: "content",
-                defaultSetting: "hide",
-                locales: [{ lang: "en", name: "Custom Hide" }],
-              },
-            ],
-          },
+  it("should return custom label when more restrictive than global", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-hide",
+              blurs: "content",
+              defaultSetting: "hide",
+              locales: [{ lang: "en", name: "Custom Hide" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        labels: [
-          { src: "did:plc:modservice", val: "!warn" }, // warn (global) - processed first
-          { src: "did:plc:labeler1", val: "custom-hide" }, // hide - processed second, should win
-        ],
-      };
-      const result = preferences.getContentLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [
+        { src: "did:plc:modservice", val: "!warn" }, // warn (global) - processed first
+        { src: "did:plc:labeler1", val: "custom-hide" }, // hide - processed second, should win
+      ],
+    };
+    const result = preferences.getContentLabel(post);
 
-      assertEquals(result.visibility, "hide");
-      assertEquals(result.labelDefinition.identifier, "custom-hide");
-      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
-    });
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "custom-hide");
+    assert.deepEqual(result.labeler.creator.did, "did:plc:labeler1");
+  });
 
-    it("should return first warn when no hide labels exist", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-warn",
-                blurs: "content",
-                defaultSetting: "warn",
-                locales: [{ lang: "en", name: "Custom Warning" }],
-              },
-            ],
-          },
+  it("should return first warn when no hide labels exist", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-warn",
+              blurs: "content",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Custom Warning" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        labels: [
-          { src: "did:plc:modservice", val: "!warn" }, // warn (global) - first
-          { src: "did:plc:labeler1", val: "custom-warn" }, // warn (custom)
-        ],
-      };
-      const result = preferences.getContentLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [
+        { src: "did:plc:modservice", val: "!warn" }, // warn (global) - first
+        { src: "did:plc:labeler1", val: "custom-warn" }, // warn (custom)
+      ],
+    };
+    const result = preferences.getContentLabel(post);
 
-      assertEquals(result.visibility, "warn");
-      // Should be the first warn encountered
-      assertEquals(result.labelDefinition.identifier, "!warn");
-    });
-  },
-);
+    assert.deepEqual(result.visibility, "warn");
+    // Should be the first warn encountered
+    assert.deepEqual(result.labelDefinition.identifier, "!warn");
+  });
+});
 
-t.describe(
-  "Preferences.getMediaLabel - mixed global and custom labels",
-  (it) => {
-    it("should return global label when more restrictive than custom", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-media-warn",
-                blurs: "media",
-                defaultSetting: "warn",
-                locales: [{ lang: "en", name: "Custom Media Warning" }],
-              },
-            ],
-          },
+describe("Preferences.getMediaLabel - mixed global and custom labels", () => {
+  it("should return global label when more restrictive than custom", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-media-warn",
+              blurs: "media",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Custom Media Warning" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        author: { did: "did:plc:author123" },
-        labels: [
-          { src: "did:plc:labeler1", val: "custom-media-warn" }, // warn
-          { src: "did:plc:author123", val: "porn" }, // hide (global self-label)
-        ],
-      };
-      const result = preferences.getMediaLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:labeler1", val: "custom-media-warn" }, // warn
+        { src: "did:plc:author123", val: "porn" }, // hide (global self-label)
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
 
-      assertEquals(result.visibility, "hide");
-      assertEquals(result.labelDefinition.identifier, "porn");
-      assertEquals(result.labeler, null);
-    });
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "porn");
+    assert.deepEqual(result.labeler, null);
+  });
 
-    it("should return custom label when more restrictive than global", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-media-hide",
-                blurs: "media",
-                defaultSetting: "hide",
-                locales: [{ lang: "en", name: "Custom Media Hide" }],
-              },
-            ],
-          },
+  it("should return custom label when more restrictive than global", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-media-hide",
+              blurs: "media",
+              defaultSetting: "hide",
+              locales: [{ lang: "en", name: "Custom Media Hide" }],
+            },
+          ],
         },
-      ];
+      },
+    ];
 
-      const preferences = new Preferences([], labelerDefs);
-      const post = {
-        author: { did: "did:plc:author123" },
-        labels: [
-          { src: "did:plc:author123", val: "sexual" }, // warn (global self-label)
-          { src: "did:plc:labeler1", val: "custom-media-hide" }, // hide
-        ],
-      };
-      const result = preferences.getMediaLabel(post);
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:author123", val: "sexual" }, // warn (global self-label)
+        { src: "did:plc:labeler1", val: "custom-media-hide" }, // hide
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
 
-      assertEquals(result.visibility, "hide");
-      assertEquals(result.labelDefinition.identifier, "custom-media-hide");
-      assertEquals(result.labeler.creator.did, "did:plc:labeler1");
-    });
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "custom-media-hide");
+    assert.deepEqual(result.labeler.creator.did, "did:plc:labeler1");
+  });
 
-    it("should handle mix of global self-labels and custom labels with user prefs", () => {
-      const labelerDefs = [
-        {
-          creator: { did: "did:plc:labeler1", handle: "labeler.test" },
-          policies: {
-            labelValueDefinitions: [
-              {
-                identifier: "custom-media",
-                blurs: "media",
-                defaultSetting: "warn",
-                locales: [{ lang: "en", name: "Custom Media" }],
-              },
-            ],
-          },
+  it("should handle mix of global self-labels and custom labels with user prefs", () => {
+    const labelerDefs = [
+      {
+        creator: { did: "did:plc:labeler1", handle: "labeler.test" },
+        policies: {
+          labelValueDefinitions: [
+            {
+              identifier: "custom-media",
+              blurs: "media",
+              defaultSetting: "warn",
+              locales: [{ lang: "en", name: "Custom Media" }],
+            },
+          ],
         },
-      ];
-      // User sets porn to warn and custom-media to hide
-      const obj = [
-        {
-          $type: "app.bsky.actor.defs#contentLabelPref",
-          label: "porn",
-          labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
-          visibility: "warn",
-        },
-        {
-          $type: "app.bsky.actor.defs#contentLabelPref",
-          label: "custom-media",
-          labelerDid: "did:plc:labeler1",
-          visibility: "hide",
-        },
-      ];
+      },
+    ];
+    // User sets porn to warn and custom-media to hide
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "porn",
+        labelerDid: "did:plc:ar7c4by46qjdydhdevvrndac",
+        visibility: "warn",
+      },
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "custom-media",
+        labelerDid: "did:plc:labeler1",
+        visibility: "hide",
+      },
+    ];
 
-      const preferences = new Preferences(obj, labelerDefs);
-      const post = {
-        author: { did: "did:plc:author123" },
-        labels: [
-          { src: "did:plc:author123", val: "porn" }, // user set to warn
-          { src: "did:plc:labeler1", val: "custom-media" }, // user set to hide
-        ],
-      };
-      const result = preferences.getMediaLabel(post);
+    const preferences = new Preferences(obj, labelerDefs);
+    const post = {
+      author: { did: "did:plc:author123" },
+      labels: [
+        { src: "did:plc:author123", val: "porn" }, // user set to warn
+        { src: "did:plc:labeler1", val: "custom-media" }, // user set to hide
+      ],
+    };
+    const result = preferences.getMediaLabel(post);
 
-      assertEquals(result.visibility, "hide");
-      assertEquals(result.labelDefinition.identifier, "custom-media");
-    });
-  },
-);
+    assert.deepEqual(result.visibility, "hide");
+    assert.deepEqual(result.labelDefinition.identifier, "custom-media");
+  });
+});
 
-t.describe("Preferences plugin settings", (it) => {
+describe("Preferences plugin settings", () => {
   it("returns null when no settings record exists", () => {
     const preferences = new Preferences([], []);
-    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+    assert.deepEqual(preferences.getPluginSettings("my-plugin"), null);
   });
 
   it("returns stored data for a plugin", () => {
@@ -2751,7 +2764,9 @@ t.describe("Preferences plugin settings", (it) => {
       },
     ];
     const preferences = new Preferences(obj, []);
-    assertEquals(preferences.getPluginSettings("my-plugin"), { foo: "bar" });
+    assert.deepEqual(preferences.getPluginSettings("my-plugin"), {
+      foo: "bar",
+    });
   });
 
   it("does not return data scoped to a different plugin", () => {
@@ -2763,15 +2778,15 @@ t.describe("Preferences plugin settings", (it) => {
       },
     ];
     const preferences = new Preferences(obj, []);
-    assertEquals(preferences.getPluginSettings("plugin-b"), null);
+    assert.deepEqual(preferences.getPluginSettings("plugin-b"), null);
   });
 
   it("inserts a new record when none exists", () => {
     const preferences = new Preferences([], []);
     const updated = preferences.setPluginSettings("my-plugin", { count: 1 });
-    assertEquals(updated.getPluginSettings("my-plugin"), { count: 1 });
+    assert.deepEqual(updated.getPluginSettings("my-plugin"), { count: 1 });
     // Original unchanged
-    assertEquals(preferences.getPluginSettings("my-plugin"), null);
+    assert.deepEqual(preferences.getPluginSettings("my-plugin"), null);
   });
 
   it("updates an existing record", () => {
@@ -2779,20 +2794,20 @@ t.describe("Preferences plugin settings", (it) => {
       count: 1,
     });
     const updated = preferences.setPluginSettings("my-plugin", { count: 2 });
-    assertEquals(updated.getPluginSettings("my-plugin"), { count: 2 });
+    assert.deepEqual(updated.getPluginSettings("my-plugin"), { count: 2 });
     // Only one record stored
     const records = updated.obj.filter(
       (pref) => pref.$type === "app.bsky.actor.defs#improPluginSettingsPref",
     );
-    assertEquals(records.length, 1);
+    assert.deepEqual(records.length, 1);
   });
 
   it("keeps settings for multiple plugins isolated", () => {
     const updated = new Preferences([], [])
       .setPluginSettings("plugin-a", { a: 1 })
       .setPluginSettings("plugin-b", { b: 2 });
-    assertEquals(updated.getPluginSettings("plugin-a"), { a: 1 });
-    assertEquals(updated.getPluginSettings("plugin-b"), { b: 2 });
+    assert.deepEqual(updated.getPluginSettings("plugin-a"), { a: 1 });
+    assert.deepEqual(updated.getPluginSettings("plugin-b"), { b: 2 });
   });
 
   it("clears settings for a single plugin", () => {
@@ -2800,10 +2815,10 @@ t.describe("Preferences plugin settings", (it) => {
       .setPluginSettings("plugin-a", { a: 1 })
       .setPluginSettings("plugin-b", { b: 2 });
     const updated = preferences.clearPluginSettings("plugin-a");
-    assertEquals(updated.getPluginSettings("plugin-a"), null);
-    assertEquals(updated.getPluginSettings("plugin-b"), { b: 2 });
+    assert.deepEqual(updated.getPluginSettings("plugin-a"), null);
+    assert.deepEqual(updated.getPluginSettings("plugin-b"), { b: 2 });
     // Original unchanged
-    assertEquals(preferences.getPluginSettings("plugin-a"), { a: 1 });
+    assert.deepEqual(preferences.getPluginSettings("plugin-a"), { a: 1 });
   });
 
   it("is a no-op when clearing settings for an unknown plugin", () => {
@@ -2811,14 +2826,14 @@ t.describe("Preferences plugin settings", (it) => {
       a: 1,
     });
     const updated = preferences.clearPluginSettings("plugin-b");
-    assertEquals(updated.getPluginSettings("plugin-a"), { a: 1 });
+    assert.deepEqual(updated.getPluginSettings("plugin-a"), { a: 1 });
   });
 });
 
-t.describe("Preferences installed plugins", (it) => {
+describe("Preferences installed plugins", () => {
   it("returns empty array when no record exists", () => {
     const preferences = new Preferences([], []);
-    assertEquals(preferences.getInstalledPlugins(), []);
+    assert.deepEqual(preferences.getInstalledPlugins(), []);
   });
 
   it("returns stored plugins list", () => {
@@ -2832,7 +2847,7 @@ t.describe("Preferences installed plugins", (it) => {
       },
     ];
     const preferences = new Preferences(obj, []);
-    assertEquals(preferences.getInstalledPlugins(), [
+    assert.deepEqual(preferences.getInstalledPlugins(), [
       { id: "alpha", version: "1.0.0", enabled: true },
       { id: "beta", version: "2.0.0", enabled: false },
     ]);
@@ -2843,11 +2858,11 @@ t.describe("Preferences installed plugins", (it) => {
     const updated = preferences.setInstalledPlugins([
       { id: "alpha", version: "1.0.0", enabled: true },
     ]);
-    assertEquals(updated.getInstalledPlugins(), [
+    assert.deepEqual(updated.getInstalledPlugins(), [
       { id: "alpha", version: "1.0.0", enabled: true },
     ]);
     // Original unchanged
-    assertEquals(preferences.getInstalledPlugins(), []);
+    assert.deepEqual(preferences.getInstalledPlugins(), []);
   });
 
   it("updates an existing record without duplicating", () => {
@@ -2857,14 +2872,12 @@ t.describe("Preferences installed plugins", (it) => {
     const updated = preferences.setInstalledPlugins([
       { id: "alpha", version: "1.1.0", enabled: true },
     ]);
-    assertEquals(updated.getInstalledPlugins(), [
+    assert.deepEqual(updated.getInstalledPlugins(), [
       { id: "alpha", version: "1.1.0", enabled: true },
     ]);
     const records = updated.obj.filter(
       (pref) => pref.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
     );
-    assertEquals(records.length, 1);
+    assert.deepEqual(records.length, 1);
   });
 });
-
-await t.run();

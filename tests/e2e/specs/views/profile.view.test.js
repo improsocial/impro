@@ -1,6 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
-import { userProfile } from "../../fixtures.js";
+import { userProfile } from "../../testData.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createPost,
@@ -8,7 +8,7 @@ import {
   createFeedGenerator,
   createLabelerView,
   createList,
-} from "../../factories.js";
+} from "../../../shared/factories.js";
 
 const otherUser = createProfile({
   did: "did:plc:otheruser1",

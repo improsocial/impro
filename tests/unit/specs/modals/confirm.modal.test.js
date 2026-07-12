@@ -1,10 +1,8 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it, beforeEach } from "node:test";
+import assert from "node:assert/strict";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 
-const t = new TestSuite("confirmModal");
-
-t.describe("confirmModal", (it, { beforeEach }) => {
+describe("confirmModal", () => {
   beforeEach(() => {
     document.body.innerHTML = "";
   });
@@ -18,7 +16,7 @@ t.describe("confirmModal", (it, { beforeEach }) => {
   it("should render the message", () => {
     confirmModal("Delete this?");
     const message = document.querySelector('[data-testid="modal-message"]');
-    assertEquals(message.textContent.trim(), "Delete this?");
+    assert.deepEqual(message.textContent.trim(), "Delete this?");
   });
 
   it("should render cancel and confirm buttons", () => {
@@ -38,7 +36,7 @@ t.describe("confirmModal", (it, { beforeEach }) => {
     const confirmButton = document.querySelector(
       '[data-testid="modal-confirm-button"]',
     );
-    assertEquals(confirmButton.textContent.trim(), "Delete");
+    assert.deepEqual(confirmButton.textContent.trim(), "Delete");
   });
 
   it("should apply custom confirm button style", () => {
@@ -61,7 +59,7 @@ t.describe("confirmModal", (it, { beforeEach }) => {
     confirmModal("Body text", { title: "Warning" });
     const title = document.querySelector('[data-testid="modal-title"]');
     assert(title !== null);
-    assertEquals(title.textContent.trim(), "Warning");
+    assert.deepEqual(title.textContent.trim(), "Warning");
   });
 
   it("should not render title when not provided", () => {
@@ -79,20 +77,20 @@ t.describe("confirmModal", (it, { beforeEach }) => {
   it("should resolve true when confirm is clicked", async () => {
     const result = confirmModal("Sure?");
     document.querySelector('[data-testid="modal-confirm-button"]').click();
-    assertEquals(await result, true);
+    assert.deepEqual(await result, true);
   });
 
   it("should resolve false when cancel is clicked", async () => {
     const result = confirmModal("Sure?");
     document.querySelector('[data-testid="modal-cancel-button"]').click();
-    assertEquals(await result, false);
+    assert.deepEqual(await result, false);
   });
 
   it("should resolve false on backdrop click", async () => {
     const result = confirmModal("Sure?");
     const dialog = document.querySelector('[data-testid="confirm-modal"]');
     dialog.dispatchEvent(new Event("click", { bubbles: true }));
-    assertEquals(await result, false);
+    assert.deepEqual(await result, false);
   });
 
   it("should resolve false on cancel event", async () => {
@@ -101,7 +99,7 @@ t.describe("confirmModal", (it, { beforeEach }) => {
     const cancelEvent = new Event("cancel");
     cancelEvent.preventDefault = () => {};
     dialog.dispatchEvent(cancelEvent);
-    assertEquals(await result, false);
+    assert.deepEqual(await result, false);
   });
 
   it("should remove dialog from DOM after confirm", async () => {
@@ -118,5 +116,3 @@ t.describe("confirmModal", (it, { beforeEach }) => {
     assert(document.querySelector('[data-testid="confirm-modal"]') === null);
   });
 });
-
-await t.run();

@@ -38,6 +38,10 @@ export function buildUri({ repo, collection, rkey }) {
   return `at://${repo}/${collection}/${rkey}`;
 }
 
+export function isListFeed(feedURI) {
+  return feedURI.includes("/app.bsky.graph.list/");
+}
+
 export function getRKey(record) {
   return record.uri.split("/").pop();
 }

@@ -31,7 +31,8 @@ Object.defineProperty(globalThis, "navigator", {
 });
 
 // Mock requestAnimationFrame
-globalThis.requestAnimationFrame = (callback) => setTimeout(callback, 0);
+const realSetTimeout = globalThis.setTimeout;
+globalThis.requestAnimationFrame = (callback) => realSetTimeout(callback, 0);
 globalThis.window.requestAnimationFrame = globalThis.requestAnimationFrame;
 
 // Mock matchMedia

@@ -1,11 +1,9 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("richTextTemplate");
-
-t.describe("richTextTemplate", (it) => {
+describe("richTextTemplate", () => {
   it("should render plain text", () => {
     const result = richTextTemplate({
       text: "Hello world",
@@ -37,7 +35,7 @@ t.describe("richTextTemplate", (it) => {
     const link = container.querySelector("a");
     assert(link !== null);
     assert(link.getAttribute("href").startsWith("https://example.com"));
-    assertEquals(link.textContent, "example.com");
+    assert.deepEqual(link.textContent, "example.com");
   });
 
   it("should not truncate long link text by default", () => {
@@ -59,8 +57,8 @@ t.describe("richTextTemplate", (it) => {
     render(result, container);
     const link = container.querySelector("a");
     assert(link !== null);
-    assertEquals(link.getAttribute("href"), url);
-    assertEquals(link.textContent, url);
+    assert.deepEqual(link.getAttribute("href"), url);
+    assert.deepEqual(link.textContent, url);
   });
 
   it("should truncate long link text when truncateUrls is true", () => {
@@ -82,8 +80,8 @@ t.describe("richTextTemplate", (it) => {
     render(result, container);
     const link = container.querySelector("a");
     assert(link !== null);
-    assertEquals(link.getAttribute("href"), url);
-    assertEquals(link.textContent, "example.com/very/long/pa...");
+    assert.deepEqual(link.getAttribute("href"), url);
+    assert.deepEqual(link.textContent, "example.com/very/long/pa...");
   });
 
   it("should not truncate short link text when truncateUrls is true", () => {
@@ -104,7 +102,7 @@ t.describe("richTextTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const link = container.querySelector("a");
-    assertEquals(link.textContent, "example.com/short");
+    assert.deepEqual(link.textContent, "example.com/short");
   });
 
   it("should render text with mention facet", () => {
@@ -126,7 +124,7 @@ t.describe("richTextTemplate", (it) => {
     const link = container.querySelector("a");
     assert(link !== null);
     assert(link.getAttribute("href").includes("did:plc:123"));
-    assertEquals(link.textContent, "@user");
+    assert.deepEqual(link.textContent, "@user");
   });
 
   it("should render text with tag facet", () => {
@@ -148,7 +146,7 @@ t.describe("richTextTemplate", (it) => {
     const link = container.querySelector("a");
     assert(link !== null);
     assert(link.getAttribute("href").includes("world"));
-    assertEquals(link.textContent, "#world");
+    assert.deepEqual(link.textContent, "#world");
   });
 
   it("should render text with multiple facets", () => {
@@ -177,7 +175,7 @@ t.describe("richTextTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const links = container.querySelectorAll("a");
-    assertEquals(links.length, 2);
+    assert.deepEqual(links.length, 2);
   });
 
   it("should preserve newlines in multiline text", () => {
@@ -186,7 +184,7 @@ t.describe("richTextTemplate", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const richText = container.querySelector("[data-testid='rich-text']");
-    assertEquals(richText.textContent, text);
+    assert.deepEqual(richText.textContent, text);
   });
 
   it("should render a facet that spans multiple lines", () => {
@@ -208,10 +206,8 @@ t.describe("richTextTemplate", (it) => {
     render(result, container);
     const link = container.querySelector("a");
     assert(link !== null);
-    assertEquals(link.textContent, url);
+    assert.deepEqual(link.textContent, url);
     const richText = container.querySelector("[data-testid='rich-text']");
-    assertEquals(richText.textContent, text);
+    assert.deepEqual(richText.textContent, text);
   });
 });
-
-await t.run();

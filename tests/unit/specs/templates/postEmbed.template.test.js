@@ -1,15 +1,13 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import {
   postEmbedTemplate,
   recordEmbedTemplate,
 } from "/js/templates/postEmbed.template.js";
-import { post } from "../../fixtures.js";
+import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
-const t = new TestSuite("postEmbedTemplate");
-
-t.describe("postEmbedTemplate - images", (it) => {
+describe("postEmbedTemplate - images", () => {
   it("should render image embed", () => {
     const embed = {
       $type: "app.bsky.embed.images#view",
@@ -46,7 +44,7 @@ t.describe("postEmbedTemplate - images", (it) => {
     const container = document.createElement("div");
     render(result, container);
     const images = container.querySelectorAll(".post-image");
-    assertEquals(images.length, 2);
+    assert.deepEqual(images.length, 2);
   });
 
   it("should show ALT indicator when image has alt text", () => {
@@ -76,7 +74,7 @@ t.describe("postEmbedTemplate - images", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(container.querySelector(".alt-indicator"), null);
+    assert.deepEqual(container.querySelector(".alt-indicator"), null);
   });
 });
 
@@ -89,7 +87,7 @@ function renderEmbed(embed) {
   return container;
 }
 
-t.describe("postEmbedTemplate - gallery", (it) => {
+describe("postEmbedTemplate - gallery", () => {
   function galleryEmbed(count) {
     const items = [];
     for (let i = 0; i < count; i += 1) {
@@ -114,7 +112,7 @@ t.describe("postEmbedTemplate - gallery", (it) => {
     const container = renderEmbed(galleryEmbed(10));
     const carousel = container.querySelector('[data-testid="image-carousel"]');
     assert(carousel !== null);
-    assertEquals(carousel.images.length, 10);
+    assert.deepEqual(carousel.images.length, 10);
   });
 
   it("routes a single gallery image to the single-image grid, not the carousel", () => {
@@ -141,11 +139,14 @@ t.describe("postEmbedTemplate - gallery", (it) => {
       $type: "app.bsky.embed.gallery#view",
       items: [],
     });
-    assertEquals(
+    assert.deepEqual(
       container.querySelector('[data-testid="image-carousel"]'),
       null,
     );
-    assertEquals(container.querySelector('[data-testid="post-images"]'), null);
+    assert.deepEqual(
+      container.querySelector('[data-testid="post-images"]'),
+      null,
+    );
   });
 
   it("filters non-image gallery items out of the carousel slides", () => {
@@ -173,9 +174,9 @@ t.describe("postEmbedTemplate - gallery", (it) => {
       ],
     });
     const carousel = container.querySelector('[data-testid="image-carousel"]');
-    assertEquals(carousel.images.length, 2);
-    assertEquals(carousel.images[0].thumb, "https://example.com/g0.jpg");
-    assertEquals(carousel.images[1].thumb, "https://example.com/g1.jpg");
+    assert.deepEqual(carousel.images.length, 2);
+    assert.deepEqual(carousel.images[0].thumb, "https://example.com/g0.jpg");
+    assert.deepEqual(carousel.images[1].thumb, "https://example.com/g1.jpg");
   });
 
   it("maps gallery item `thumbnail` → carousel image `thumb` and passes other fields through", () => {
@@ -196,17 +197,23 @@ t.describe("postEmbedTemplate - gallery", (it) => {
       ],
     });
     const carousel = container.querySelector('[data-testid="image-carousel"]');
-    assertEquals(carousel.images[0].thumb, "https://example.com/g0-thumb.jpg");
-    assertEquals(
+    assert.deepEqual(
+      carousel.images[0].thumb,
+      "https://example.com/g0-thumb.jpg",
+    );
+    assert.deepEqual(
       carousel.images[0].fullsize,
       "https://example.com/g0-full.jpg",
     );
-    assertEquals(carousel.images[0].alt, "labeled");
-    assertEquals(carousel.images[1].thumb, "https://example.com/g1-only.jpg");
+    assert.deepEqual(carousel.images[0].alt, "labeled");
+    assert.deepEqual(
+      carousel.images[1].thumb,
+      "https://example.com/g1-only.jpg",
+    );
   });
 });
 
-t.describe("postEmbedTemplate - video", (it) => {
+describe("postEmbedTemplate - video", () => {
   function videoEmbed(aspectRatio) {
     return {
       $type: "app.bsky.embed.video#view",
@@ -229,27 +236,27 @@ t.describe("postEmbedTemplate - video", (it) => {
   it("renders the aspect ratio inline on .post-video", () => {
     const el = renderVideo({ width: 16, height: 9 });
     assert(el !== null);
-    assertEquals(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
   });
 
   it("caps tall videos at a 1:2 ratio", () => {
     const el = renderVideo({ width: 1, height: 4 });
-    assertEquals(el.style.aspectRatio, String(1 / 2));
+    assert.deepEqual(el.style.aspectRatio, String(1 / 2));
   });
 
   it("passes through wide videos without clamping", () => {
     const el = renderVideo({ width: 5, height: 1 });
-    assertEquals(el.style.aspectRatio, "5");
+    assert.deepEqual(el.style.aspectRatio, "5");
   });
 
   it("omits aspect-ratio when missing", () => {
     const el = renderVideo(undefined);
-    assertEquals(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("omits aspect-ratio when invalid", () => {
     const el = renderVideo({ width: 0, height: 0 });
-    assertEquals(el.style.aspectRatio, "");
+    assert.deepEqual(el.style.aspectRatio, "");
   });
 
   it("renders a video with controls and no looping by default", () => {
@@ -261,7 +268,7 @@ t.describe("postEmbedTemplate - video", (it) => {
   });
 });
 
-t.describe("postEmbedTemplate - gif presentation video", (it) => {
+describe("postEmbedTemplate - gif presentation video", () => {
   function renderGifVideo({ alt, aspectRatio } = {}) {
     const result = postEmbedTemplate({
       embed: {
@@ -288,12 +295,15 @@ t.describe("postEmbedTemplate - gif presentation video", (it) => {
     assert(player.hasAttribute("muted"));
     assert(player.hasAttribute("playsinline"));
     assert(!player.hasAttribute("controls"));
-    assertEquals(player.getAttribute("src"), "https://example.com/video.m3u8");
+    assert.deepEqual(
+      player.getAttribute("src"),
+      "https://example.com/video.m3u8",
+    );
   });
 
   it("renders the aspect ratio inline on .post-video", () => {
     const el = renderGifVideo({ aspectRatio: { width: 16, height: 9 } });
-    assertEquals(el.style.aspectRatio, String(16 / 9));
+    assert.deepEqual(el.style.aspectRatio, String(16 / 9));
   });
 
   it("shows the ALT badge when alt text is present", () => {
@@ -303,11 +313,11 @@ t.describe("postEmbedTemplate - gif presentation video", (it) => {
 
   it("omits the ALT badge when alt text is missing", () => {
     const el = renderGifVideo();
-    assertEquals(el.querySelector("[data-testid='video-alt-badge']"), null);
+    assert.deepEqual(el.querySelector("[data-testid='video-alt-badge']"), null);
   });
 });
 
-t.describe("postEmbedTemplate - external links", (it) => {
+describe("postEmbedTemplate - external links", () => {
   it("should render external link embed", () => {
     const embed = {
       $type: "app.bsky.embed.external#view",
@@ -344,7 +354,7 @@ t.describe("postEmbedTemplate - external links", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-title']")
         .textContent.trim(),
@@ -368,7 +378,7 @@ t.describe("postEmbedTemplate - external links", (it) => {
     });
     const container = document.createElement("div");
     render(result, container);
-    assertEquals(
+    assert.deepEqual(
       container
         .querySelector("[data-testid='external-link-domain']")
         .textContent.trim(),
@@ -377,7 +387,7 @@ t.describe("postEmbedTemplate - external links", (it) => {
   });
 });
 
-t.describe("postEmbedTemplate - external YouTube", (it) => {
+describe("postEmbedTemplate - external YouTube", () => {
   function youtubeExternalEmbed(uri) {
     return {
       $type: "app.bsky.embed.external#view",
@@ -398,17 +408,17 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       "[data-testid='youtube-embed']",
     );
     assert(embedElement !== null);
-    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
-    assertEquals(embedElement.getAttribute("start"), "32");
-    assertEquals(
+    assert.deepEqual(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assert.deepEqual(embedElement.getAttribute("start"), "32");
+    assert.deepEqual(
       embedElement.getAttribute("thumb"),
       "https://example.com/thumb.jpg",
     );
-    assertEquals(
+    assert.deepEqual(
       embedElement.getAttribute("url"),
       "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=32s",
     );
-    assertEquals(embedElement.getAttribute("description"), "A description");
+    assert.deepEqual(embedElement.getAttribute("description"), "A description");
   });
 
   it("uses a 16:9 aspect ratio for regular videos", () => {
@@ -418,7 +428,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     const embedElement = container.querySelector(
       "[data-testid='youtube-embed']",
     );
-    assertEquals(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
+    assert.deepEqual(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
   });
 
   it("uses a portrait aspect ratio for shorts", () => {
@@ -428,7 +438,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     const embedElement = container.querySelector(
       "[data-testid='youtube-embed']",
     );
-    assertEquals(embedElement.getAttribute("aspect-ratio"), String(9 / 16));
+    assert.deepEqual(embedElement.getAttribute("aspect-ratio"), String(9 / 16));
   });
 
   it("renders watch URLs on all YouTube hostnames", () => {
@@ -446,7 +456,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
         "[data-testid='youtube-embed']",
       );
       assert(embedElement !== null);
-      assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+      assert.deepEqual(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
     }
   });
 
@@ -458,8 +468,8 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       "[data-testid='youtube-embed']",
     );
     assert(embedElement !== null);
-    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
-    assertEquals(embedElement.getAttribute("start"), "0");
+    assert.deepEqual(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assert.deepEqual(embedElement.getAttribute("start"), "0");
   });
 
   it("renders live URLs as regular videos", () => {
@@ -470,8 +480,8 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       "[data-testid='youtube-embed']",
     );
     assert(embedElement !== null);
-    assertEquals(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
-    assertEquals(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
+    assert.deepEqual(embedElement.getAttribute("video-id"), "dQw4w9WgXcQ");
+    assert.deepEqual(embedElement.getAttribute("aspect-ratio"), String(16 / 9));
   });
 
   it("converts hour/minute/second start times to seconds", () => {
@@ -488,7 +498,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       const embedElement = container.querySelector(
         "[data-testid='youtube-embed']",
       );
-      assertEquals(embedElement.getAttribute("start"), expectedSeconds);
+      assert.deepEqual(embedElement.getAttribute("start"), expectedSeconds);
     }
   });
 
@@ -500,7 +510,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       const embedElement = container.querySelector(
         "[data-testid='youtube-embed']",
       );
-      assertEquals(embedElement.getAttribute("start"), "0");
+      assert.deepEqual(embedElement.getAttribute("start"), "0");
     }
   });
 
@@ -514,7 +524,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     for (const uri of uris) {
       const container = renderEmbed(youtubeExternalEmbed(uri));
       assert(container.querySelector("[data-testid='external-link']") !== null);
-      assertEquals(
+      assert.deepEqual(
         container.querySelector("[data-testid='youtube-embed']"),
         null,
       );
@@ -529,7 +539,7 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
     for (const uri of uris) {
       const container = renderEmbed(youtubeExternalEmbed(uri));
       assert(container.querySelector("[data-testid='external-link']") !== null);
-      assertEquals(
+      assert.deepEqual(
         container.querySelector("[data-testid='youtube-embed']"),
         null,
       );
@@ -541,14 +551,14 @@ t.describe("postEmbedTemplate - external YouTube", (it) => {
       youtubeExternalEmbed('https://www.youtube.com/watch?v=abc"def'),
     );
     assert(container.querySelector("[data-testid='external-link']") !== null);
-    assertEquals(
+    assert.deepEqual(
       container.querySelector("[data-testid='youtube-embed']"),
       null,
     );
   });
 });
 
-t.describe("postEmbedTemplate - quoted posts", (it) => {
+describe("postEmbedTemplate - quoted posts", () => {
   it("should render quoted post embed", () => {
     const embed = {
       $type: "app.bsky.embed.record#view",
@@ -657,7 +667,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+    assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should use closed-eye icon-style for a muted-word quoted post", () => {
@@ -682,7 +692,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+    assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should use closed-eye icon-style for a hidden quoted post", () => {
@@ -707,8 +717,8 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("label"), "Post hidden by you");
-    assertEquals(warning.getAttribute("icon-style"), "closed-eye");
+    assert.deepEqual(warning.getAttribute("label"), "Post hidden by you");
+    assert.deepEqual(warning.getAttribute("icon-style"), "closed-eye");
   });
 
   it("should prefer muted-account label over hidden for a quoted post", () => {
@@ -733,7 +743,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("label"), "Muted Account");
+    assert.deepEqual(warning.getAttribute("label"), "Muted Account");
   });
 
   it("should prefer hidden label over muted-word for a quoted post", () => {
@@ -759,7 +769,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("label"), "Post hidden by you");
+    assert.deepEqual(warning.getAttribute("label"), "Post hidden by you");
   });
 
   it("should use info icon-style for a content-labeled quoted post", () => {
@@ -795,7 +805,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
       "moderation-warning.quoted-account-muted-warning",
     );
     assert(warning !== null);
-    assertEquals(warning.getAttribute("icon-style"), "info");
+    assert.deepEqual(warning.getAttribute("icon-style"), "info");
   });
 
   it("should truncate long URLs in quoted post text", () => {
@@ -833,7 +843,7 @@ t.describe("postEmbedTemplate - quoted posts", (it) => {
   });
 });
 
-t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
+describe("recordEmbedTemplate - condensed quoted posts", () => {
   function makeViewRecord({ embeds } = {}) {
     return {
       $type: "app.bsky.embed.record#viewRecord",
@@ -857,7 +867,7 @@ t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
   it("renders without the condensed class by default", () => {
     const container = renderRecord(makeViewRecord());
     assert(container.querySelector(".quoted-post") !== null);
-    assertEquals(container.querySelector(".quoted-post-condensed"), null);
+    assert.deepEqual(container.querySelector(".quoted-post-condensed"), null);
   });
 
   it("adds the condensed class when condensed", () => {
@@ -879,10 +889,10 @@ t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
     });
     const container = renderRecord(record, { condensed: true });
     const thumbs = container.querySelectorAll(".quoted-post-media-thumb");
-    assertEquals(thumbs.length, 2);
-    assertEquals(thumbs[0].getAttribute("src"), "thumb1.jpg");
-    assertEquals(thumbs[0].getAttribute("alt"), "first");
-    assertEquals(container.querySelector(".post-embed"), null);
+    assert.deepEqual(thumbs.length, 2);
+    assert.deepEqual(thumbs[0].getAttribute("src"), "thumb1.jpg");
+    assert.deepEqual(thumbs[0].getAttribute("alt"), "first");
+    assert.deepEqual(container.querySelector(".post-embed"), null);
   });
 
   it("caps condensed image thumbnails at four", () => {
@@ -895,7 +905,7 @@ t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
       embeds: [{ $type: "app.bsky.embed.images#view", images }],
     });
     const container = renderRecord(record, { condensed: true });
-    assertEquals(
+    assert.deepEqual(
       container.querySelectorAll(".quoted-post-media-thumb").length,
       4,
     );
@@ -918,7 +928,7 @@ t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
       ".quoted-post-media-video .quoted-post-media-thumb",
     );
     assert(thumb !== null);
-    assertEquals(thumb.getAttribute("src"), "poster.jpg");
+    assert.deepEqual(thumb.getAttribute("src"), "poster.jpg");
     assert(container.querySelector(".video-preview-play-button") !== null);
   });
 
@@ -936,13 +946,16 @@ t.describe("recordEmbedTemplate - condensed quoted posts", (it) => {
       ],
     });
     const container = renderRecord(record, { condensed: true });
-    assertEquals(container.querySelector(".post-embed"), null);
-    assertEquals(container.querySelector(".quoted-post-media-thumbs"), null);
-    assertEquals(container.querySelector(".external-link-embed"), null);
+    assert.deepEqual(container.querySelector(".post-embed"), null);
+    assert.deepEqual(
+      container.querySelector(".quoted-post-media-thumbs"),
+      null,
+    );
+    assert.deepEqual(container.querySelector(".external-link-embed"), null);
   });
 });
 
-t.describe("postEmbedTemplate - record embeds", (it) => {
+describe("postEmbedTemplate - record embeds", () => {
   it("renders a feed generator embed", () => {
     const container = renderEmbed({
       $type: "app.bsky.embed.record#view",
@@ -998,5 +1011,3 @@ t.describe("postEmbedTemplate - record embeds", (it) => {
     assert(card.textContent.includes("@creator.bsky.social"));
   });
 });
-
-await t.run();

@@ -1,8 +1,6 @@
-import { TestSuite } from "../testSuite.js";
-import { assert, assertEquals } from "../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
-
-const t = new TestSuite("PostSeenObserver");
 
 function createObserver() {
   const api = { sendInteractions: async () => {} };
@@ -14,11 +12,11 @@ function createObserver() {
   return { observer, getScrollHandlerCalls: () => scrollHandlerCalls };
 }
 
-t.describe("PostSeenObserver - scroll listener lifecycle", (it) => {
+describe("PostSeenObserver - scroll listener lifecycle", () => {
   it("should handle scroll events after construction", () => {
     const { observer, getScrollHandlerCalls } = createObserver();
     window.dispatchEvent(new window.Event("scroll"));
-    assertEquals(getScrollHandlerCalls(), 1);
+    assert.deepEqual(getScrollHandlerCalls(), 1);
     observer.disconnect();
   });
 
@@ -26,7 +24,7 @@ t.describe("PostSeenObserver - scroll listener lifecycle", (it) => {
     const { observer, getScrollHandlerCalls } = createObserver();
     observer.disconnect();
     window.dispatchEvent(new window.Event("scroll"));
-    assertEquals(getScrollHandlerCalls(), 0);
+    assert.deepEqual(getScrollHandlerCalls(), 0);
   });
 
   it("should resume handling scroll events after reconnect", () => {
@@ -34,7 +32,7 @@ t.describe("PostSeenObserver - scroll listener lifecycle", (it) => {
     observer.disconnect();
     observer.connect();
     window.dispatchEvent(new window.Event("scroll"));
-    assertEquals(getScrollHandlerCalls(), 1);
+    assert.deepEqual(getScrollHandlerCalls(), 1);
     observer.disconnect();
   });
 
@@ -50,5 +48,3 @@ t.describe("PostSeenObserver - scroll listener lifecycle", (it) => {
     assert(!observer.connected);
   });
 });
-
-await t.run();

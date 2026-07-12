@@ -1,5 +1,5 @@
-import { TestSuite } from "../../testSuite.js";
-import { assert, assertEquals } from "../../testHelpers.js";
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
 
 // PluginBridge reads window.env.playwright during loadFromSource; provide it
 // so the import resolves cleanly. Individual tests avoid the real load path.
@@ -149,9 +149,7 @@ async function expectError(promise) {
   throw new Error("expected promise to reject");
 }
 
-const t = new TestSuite("pluginBridge");
-
-t.describe("PluginBridge:wrapWorkerSource", (it) => {
+describe("PluginBridge:wrapWorkerSource", () => {
   it("prepends a prelude that removes BroadcastChannel/SharedWorker", () => {
     const wrapped = wrapWorkerSource("console.info('hi')");
     assert(wrapped.includes("delete self.BroadcastChannel"));
@@ -160,23 +158,23 @@ t.describe("PluginBridge:wrapWorkerSource", (it) => {
   });
 });
 
-t.describe("PluginBridge:isLoaded / getInstance", (it) => {
+describe("PluginBridge:isLoaded / getInstance", () => {
   it("returns false/null when no plugin is loaded", () => {
     const { bridge } = makeBridge();
-    assertEquals(bridge.isLoaded("missing"), false);
-    assertEquals(bridge.getInstance("missing"), null);
+    assert.deepEqual(bridge.isLoaded("missing"), false);
+    assert.deepEqual(bridge.getInstance("missing"), null);
   });
 
   it("returns true and the instance once stored", () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("demo");
     bridge._loadedPlugins.set("demo", instance);
-    assertEquals(bridge.isLoaded("demo"), true);
+    assert.deepEqual(bridge.isLoaded("demo"), true);
     assert(bridge.getInstance("demo") === instance);
   });
 });
 
-t.describe("PluginBridge:registration targets", (it) => {
+describe("PluginBridge:registration targets", () => {
   it("dispatches to a registered target handler with instance and message", () => {
     const { bridge } = makeBridge();
     const calls = [];
@@ -190,9 +188,9 @@ t.describe("PluginBridge:registration targets", (it) => {
       target: "sidebarItem",
       handlerId: 7,
     });
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0].pluginId, "p1");
-    assertEquals(calls[0].message.handlerId, 7);
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0].pluginId, "p1");
+    assert.deepEqual(calls[0].message.handlerId, 7);
     assert(result === dispose);
   });
 
@@ -201,16 +199,16 @@ t.describe("PluginBridge:registration targets", (it) => {
     const result = bridge._handleRegistration(makeFakeInstance(), {
       target: "nope",
     });
-    assertEquals(result, null);
+    assert.deepEqual(result, null);
   });
 });
 
-t.describe("PluginBridge:host calls", (it) => {
+describe("PluginBridge:host calls", () => {
   it("invokes the handler and posts a hostResult with the value", async () => {
     const { bridge } = makeBridge();
     bridge.addHostMethod("ping", (instance, ...args) => {
-      assertEquals(instance.pluginId, "p1");
-      assertEquals(args, [1, 2]);
+      assert.deepEqual(instance.pluginId, "p1");
+      assert.deepEqual(args, [1, 2]);
       return "pong";
     });
     const instance = makeFakeInstance("p1");
@@ -225,8 +223,8 @@ t.describe("PluginBridge:host calls", (it) => {
     const message = instance.worker.posted.find(
       (entry) => entry.type === "hostResult",
     );
-    assertEquals(message.hostCallId, 42);
-    assertEquals(message.value, "pong");
+    assert.deepEqual(message.hostCallId, 42);
+    assert.deepEqual(message.value, "pong");
   });
 
   it("forwards thrown errors as hostResult.error", async () => {
@@ -251,7 +249,7 @@ t.describe("PluginBridge:host calls", (it) => {
     const message = instance.worker.posted.find(
       (entry) => entry.type === "hostResult",
     );
-    assertEquals(message.error, "nope");
+    assert.deepEqual(message.error, "nope");
   });
 
   it("responds with an error message for unknown host methods", () => {
@@ -271,7 +269,7 @@ t.describe("PluginBridge:host calls", (it) => {
     const message = instance.worker.posted.find(
       (entry) => entry.type === "hostResult",
     );
-    assertEquals(message.hostCallId, 9);
+    assert.deepEqual(message.hostCallId, 9);
     assert(/unknown host method/.test(message.error));
   });
 
@@ -282,19 +280,19 @@ t.describe("PluginBridge:host calls", (it) => {
     bridge._handleHostCall(instance, { method: "fire", args: [] });
     await Promise.resolve();
     await Promise.resolve();
-    assertEquals(instance.worker.posted.length, 0);
+    assert.deepEqual(instance.worker.posted.length, 0);
   });
 });
 
-t.describe("PluginBridge:handleNodeEvent", (it) => {
+describe("PluginBridge:handleNodeEvent", () => {
   it("forwards the event to instance.call with handlerId and virtualEvent", () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("p1");
     bridge._loadedPlugins.set("p1", instance);
     bridge.handleNodeEvent("p1", 12, { kind: "click" });
-    assertEquals(instance._calls.length, 1);
-    assertEquals(instance._calls[0].handlerId, 12);
-    assertEquals(instance._calls[0].args, [{ kind: "click" }]);
+    assert.deepEqual(instance._calls.length, 1);
+    assert.deepEqual(instance._calls[0].handlerId, 12);
+    assert.deepEqual(instance._calls[0].args, [{ kind: "click" }]);
   });
 
   it("warns and skips when plugin is not loaded", () => {
@@ -313,25 +311,25 @@ t.describe("PluginBridge:handleNodeEvent", (it) => {
   });
 });
 
-t.describe("PluginBridge:unloadPlugin", (it) => {
+describe("PluginBridge:unloadPlugin", () => {
   it("unloads the instance, removes it, and unmounts styles", () => {
     const { bridge, stylesLoader } = makeBridge();
     const instance = makeFakeInstance("demo");
     bridge._loadedPlugins.set("demo", instance);
     bridge.unloadPlugin("demo");
-    assertEquals(instance.unloaded, true);
-    assertEquals(bridge.isLoaded("demo"), false);
-    assertEquals(stylesLoader.unmounts, ["demo"]);
+    assert.deepEqual(instance.unloaded, true);
+    assert.deepEqual(bridge.isLoaded("demo"), false);
+    assert.deepEqual(stylesLoader.unmounts, ["demo"]);
   });
 
   it("is a no-op when the plugin is not loaded", () => {
     const { bridge, stylesLoader } = makeBridge();
     bridge.unloadPlugin("missing");
-    assertEquals(stylesLoader.unmounts, []);
+    assert.deepEqual(stylesLoader.unmounts, []);
   });
 });
 
-t.describe("PluginBridge:loadPlugin error paths", (it) => {
+describe("PluginBridge:loadPlugin error paths", () => {
   it("throws a manifest error when getManifest rejects", async () => {
     const provider = makeProvider({ manifest: new Error("bad json") });
     const { bridge } = makeBridge({ provider });
@@ -339,7 +337,7 @@ t.describe("PluginBridge:loadPlugin error paths", (it) => {
     console.warn = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assertEquals(error.message, "Failed to load plugin manifest");
+      assert.deepEqual(error.message, "Failed to load plugin manifest");
     } finally {
       console.warn = originalWarn;
     }
@@ -352,7 +350,7 @@ t.describe("PluginBridge:loadPlugin error paths", (it) => {
     console.error = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assertEquals(error.message, "Failed to load plugin source");
+      assert.deepEqual(error.message, "Failed to load plugin source");
     } finally {
       console.error = originalError;
     }
@@ -365,7 +363,7 @@ t.describe("PluginBridge:loadPlugin error paths", (it) => {
     console.error = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assertEquals(error.message, "Failed to load plugin styles");
+      assert.deepEqual(error.message, "Failed to load plugin styles");
     } finally {
       console.error = originalError;
     }
@@ -382,7 +380,7 @@ t.describe("PluginBridge:loadPlugin error paths", (it) => {
     console.error = () => {};
     try {
       const error = await expectError(bridge.loadPlugin("p1", "1.0.0"));
-      assertEquals(error.message, "Plugin styles failed validation");
+      assert.deepEqual(error.message, "Plugin styles failed validation");
     } finally {
       console.error = originalError;
     }
@@ -399,12 +397,12 @@ t.describe("PluginBridge:loadPlugin error paths", (it) => {
     const { bridge } = makeBridge({ provider });
     bridge._loadedPlugins.set("p1", makeFakeInstance("p1"));
     const result = await bridge.loadPlugin("p1", "1.0.0");
-    assertEquals(result, undefined);
-    assertEquals(getManifestCalled, false);
+    assert.deepEqual(result, undefined);
+    assert.deepEqual(getManifestCalled, false);
   });
 });
 
-t.describe("PluginBridge:loadPlugin success path", (it) => {
+describe("PluginBridge:loadPlugin success path", () => {
   it("mounts styles, stores the instance, and returns it", async () => {
     const provider = makeProvider({
       source: "// js",
@@ -437,13 +435,13 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
       console.info = originalInfo;
     }
     assert(result === fakeInstance);
-    assertEquals(bridge.isLoaded("p1"), true);
-    assertEquals(stylesLoader.mounts, [{ pluginId: "p1", css: ".x {}" }]);
-    assertEquals(loadCalls.length, 1);
-    assertEquals(loadCalls[0].pluginId, "p1");
-    assertEquals(loadCalls[0].manifest.id, "p1");
-    assertEquals(loadCalls[0].manifest.version, "1.2.3");
-    assertEquals(loadCalls[0].source, "// js");
+    assert.deepEqual(bridge.isLoaded("p1"), true);
+    assert.deepEqual(stylesLoader.mounts, [{ pluginId: "p1", css: ".x {}" }]);
+    assert.deepEqual(loadCalls.length, 1);
+    assert.deepEqual(loadCalls[0].pluginId, "p1");
+    assert.deepEqual(loadCalls[0].manifest.id, "p1");
+    assert.deepEqual(loadCalls[0].manifest.version, "1.2.3");
+    assert.deepEqual(loadCalls[0].source, "// js");
     assert(typeof loadCalls[0].callbacks.onRegister === "function");
     assert(typeof loadCalls[0].callbacks.onHostCall === "function");
   });
@@ -464,7 +462,7 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     } finally {
       console.info = originalInfo;
     }
-    assertEquals(stylesLoader.mounts, []);
+    assert.deepEqual(stylesLoader.mounts, []);
   });
 
   it("forwards the manifest to loadPluginInstance", async () => {
@@ -487,7 +485,7 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     } finally {
       console.info = originalInfo;
     }
-    assertEquals(loadCalls.length, 1);
+    assert.deepEqual(loadCalls.length, 1);
     assert(loadCalls[0].manifest === manifest);
   });
 
@@ -510,9 +508,9 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     } finally {
       console.error = originalError;
     }
-    assertEquals(error.message, "Plugin failed during initialization");
-    assertEquals(stylesLoader.unmounts, ["p1"]);
-    assertEquals(bridge.isLoaded("p1"), false);
+    assert.deepEqual(error.message, "Plugin failed during initialization");
+    assert.deepEqual(stylesLoader.unmounts, ["p1"]);
+    assert.deepEqual(bridge.isLoaded("p1"), false);
   });
 
   it("routes onRegister and onHostCall callbacks back through the bridge", async () => {
@@ -546,7 +544,7 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
       target: "sidebarItem",
       handlerId: 1,
     });
-    assertEquals(registrations.length, 1);
+    assert.deepEqual(registrations.length, 1);
     capturedCallbacks.onHostCall(fakeInstance, {
       method: "ping",
       hostCallId: 5,
@@ -557,11 +555,11 @@ t.describe("PluginBridge:loadPlugin success path", (it) => {
     const message = fakeInstance.worker.posted.find(
       (entry) => entry.type === "hostResult",
     );
-    assertEquals(message.value, "hi-p1");
+    assert.deepEqual(message.value, "hi-p1");
   });
 });
 
-t.describe("PluginBridge:loadPlugins", (it) => {
+describe("PluginBridge:loadPlugins", () => {
   it("aggregates loaded and errored plugins", async () => {
     const { bridge } = makeBridge();
     const fakeInstance = makeFakeInstance("good");
@@ -573,16 +571,16 @@ t.describe("PluginBridge:loadPlugins", (it) => {
       { id: "good", version: "1.0.0" },
       { id: "bad", version: "2.0.0" },
     ]);
-    assertEquals(result.loadedPlugins.length, 1);
+    assert.deepEqual(result.loadedPlugins.length, 1);
     assert(result.loadedPlugins[0] === fakeInstance);
-    assertEquals(result.erroredPlugins.length, 1);
-    assertEquals(result.erroredPlugins[0].pluginId, "bad");
-    assertEquals(result.erroredPlugins[0].version, "2.0.0");
-    assertEquals(result.erroredPlugins[0].error.message, "boom");
+    assert.deepEqual(result.erroredPlugins.length, 1);
+    assert.deepEqual(result.erroredPlugins[0].pluginId, "bad");
+    assert.deepEqual(result.erroredPlugins[0].version, "2.0.0");
+    assert.deepEqual(result.erroredPlugins[0].error.message, "boom");
   });
 });
 
-t.describe("PluginBridge:reloadPlugin", (it) => {
+describe("PluginBridge:reloadPlugin", () => {
   it("unloads the existing instance before calling loadPlugin", async () => {
     const { bridge } = makeBridge();
     const instance = makeFakeInstance("demo");
@@ -592,20 +590,20 @@ t.describe("PluginBridge:reloadPlugin", (it) => {
       loadCalls.push({ id, version, repo });
     };
     await bridge.reloadPlugin("demo", "2.0.0", "owner/repo");
-    assertEquals(instance.unloaded, true);
-    assertEquals(loadCalls, [
+    assert.deepEqual(instance.unloaded, true);
+    assert.deepEqual(loadCalls, [
       { id: "demo", version: "2.0.0", repo: "owner/repo" },
     ]);
   });
 });
 
-t.describe("PluginInstance:manifest & permissions", (it) => {
+describe("PluginInstance:manifest & permissions", () => {
   it("stores the manifest and parses an empty permissions set by default", () => {
     const { instance } = makeRealInstance({
       manifest: { id: "demo", version: "1.0.0" },
     });
-    assertEquals(instance.manifest.version, "1.0.0");
-    assertEquals(instance.permissions, {});
+    assert.deepEqual(instance.manifest.version, "1.0.0");
+    assert.deepEqual(instance.permissions, {});
   });
 
   it("parses fetch permissions declared in the manifest", () => {
@@ -616,18 +614,18 @@ t.describe("PluginInstance:manifest & permissions", (it) => {
         permissions: { fetch: ["https://api.example.com/*"] },
       },
     });
-    assertEquals(instance.permissions.fetch, ["https://api.example.com/*"]);
+    assert.deepEqual(instance.permissions.fetch, ["https://api.example.com/*"]);
   });
 
   it("tolerates a manifest with no permissions field", () => {
     const { instance } = makeRealInstance({
       manifest: { id: "demo", version: "1.0.0" },
     });
-    assertEquals(instance.permissions, {});
+    assert.deepEqual(instance.permissions, {});
   });
 });
 
-t.describe("PluginInstance:waitForReady", (it) => {
+describe("PluginInstance:waitForReady", () => {
   it("resolves when a ready message arrives without an error", async () => {
     const { instance, worker } = makeRealInstance();
     const promise = instance.waitForReady(1000);
@@ -646,7 +644,7 @@ t.describe("PluginInstance:waitForReady", (it) => {
     } catch (error) {
       caught = error;
     }
-    assertEquals(caught, "init failed");
+    assert.deepEqual(caught, "init failed");
   });
 
   it("rejects with 'Timed out' when no ready message arrives in time", async () => {
@@ -658,11 +656,11 @@ t.describe("PluginInstance:waitForReady", (it) => {
       caught = error;
     }
     assert(caught instanceof Error);
-    assertEquals(caught.message, "Timed out");
+    assert.deepEqual(caught.message, "Timed out");
   });
 });
 
-t.describe("PluginInstance:worker message dispatch", (it) => {
+describe("PluginInstance:worker message dispatch", () => {
   it("forwards register messages to onRegister and stores returned disposers", () => {
     const disposed = [];
     const dispose = () => disposed.push("yes");
@@ -672,9 +670,9 @@ t.describe("PluginInstance:worker message dispatch", (it) => {
     worker.emit("message", {
       data: { type: "register", target: "sidebarItem", handlerId: 3 },
     });
-    assertEquals(instance.disposers.length, 1);
+    assert.deepEqual(instance.disposers.length, 1);
     instance.disposers[0]();
-    assertEquals(disposed, ["yes"]);
+    assert.deepEqual(disposed, ["yes"]);
   });
 
   it("does not push a disposer when onRegister returns falsy", () => {
@@ -682,7 +680,7 @@ t.describe("PluginInstance:worker message dispatch", (it) => {
     worker.emit("message", {
       data: { type: "register", target: "x", handlerId: 1 },
     });
-    assertEquals(instance.disposers.length, 0);
+    assert.deepEqual(instance.disposers.length, 0);
   });
 
   it("forwards hostCall messages to onHostCall", () => {
@@ -690,8 +688,8 @@ t.describe("PluginInstance:worker message dispatch", (it) => {
     worker.emit("message", {
       data: { type: "hostCall", method: "showToast", hostCallId: 1, args: [] },
     });
-    assertEquals(hostCalls.length, 1);
-    assertEquals(hostCalls[0].message.method, "showToast");
+    assert.deepEqual(hostCalls.length, 1);
+    assert.deepEqual(hostCalls[0].message.method, "showToast");
     assert(hostCalls[0].inst === instance);
   });
 
@@ -700,13 +698,13 @@ t.describe("PluginInstance:worker message dispatch", (it) => {
     worker.emit("message", { data: null });
     worker.emit("message", { data: "string" });
     worker.emit("message", { data: 42 });
-    assertEquals(instance.disposers.length, 0);
+    assert.deepEqual(instance.disposers.length, 0);
   });
 
   it("ignores unknown message types", () => {
     const { instance, worker } = makeRealInstance();
     worker.emit("message", { data: { type: "garbage" } });
-    assertEquals(instance.disposers.length, 0);
+    assert.deepEqual(instance.disposers.length, 0);
   });
 
   it("logs but does not throw on worker error events", () => {
@@ -725,19 +723,19 @@ t.describe("PluginInstance:worker message dispatch", (it) => {
   });
 });
 
-t.describe("PluginInstance:call()", (it) => {
+describe("PluginInstance:call()", () => {
   it("posts a call message and resolves with the result value", async () => {
     const { instance, worker } = makeRealInstance();
     const promise = instance.call(7, "arg1", "arg2");
     const sent = worker.posted[0];
-    assertEquals(sent.type, "call");
-    assertEquals(sent.handlerId, 7);
-    assertEquals(sent.args, ["arg1", "arg2"]);
+    assert.deepEqual(sent.type, "call");
+    assert.deepEqual(sent.handlerId, 7);
+    assert.deepEqual(sent.args, ["arg1", "arg2"]);
     assert(typeof sent.callId === "number");
     worker.emit("message", {
       data: { type: "result", callId: sent.callId, value: "ok" },
     });
-    assertEquals(await promise, "ok");
+    assert.deepEqual(await promise, "ok");
   });
 
   it("rejects with an Error when the result carries an error", async () => {
@@ -754,7 +752,7 @@ t.describe("PluginInstance:call()", (it) => {
       caught = error;
     }
     assert(caught instanceof Error);
-    assertEquals(caught.message, "nope");
+    assert.deepEqual(caught.message, "nope");
   });
 
   it("assigns unique callIds to concurrent calls", async () => {
@@ -770,8 +768,8 @@ t.describe("PluginInstance:call()", (it) => {
     worker.emit("message", {
       data: { type: "result", callId: first.callId, value: "A" },
     });
-    assertEquals(await promise1, "A");
-    assertEquals(await promise2, "B");
+    assert.deepEqual(await promise1, "A");
+    assert.deepEqual(await promise2, "B");
   });
 
   it("ignores result messages for unknown callIds", () => {
@@ -779,15 +777,15 @@ t.describe("PluginInstance:call()", (it) => {
     worker.emit("message", {
       data: { type: "result", callId: 9999, value: "x" },
     });
-    assertEquals(instance._pendingCalls.size, 0);
+    assert.deepEqual(instance._pendingCalls.size, 0);
   });
 });
 
-t.describe("PluginInstance:sendEvent", (it) => {
+describe("PluginInstance:sendEvent", () => {
   it("posts an event message verbatim", () => {
     const { instance, worker } = makeRealInstance();
     instance.sendEvent("modalDismissed", { modalId: "m1" });
-    assertEquals(worker.posted[0], {
+    assert.deepEqual(worker.posted[0], {
       type: "event",
       event: "modalDismissed",
       data: { modalId: "m1" },
@@ -795,34 +793,34 @@ t.describe("PluginInstance:sendEvent", (it) => {
   });
 });
 
-t.describe("PluginInstance:unload", (it) => {
+describe("PluginInstance:unload", () => {
   it("runs each disposer once and terminates the worker", () => {
     const { instance, worker } = makeRealInstance();
     const calls = [];
     instance.disposers.push(() => calls.push("a"));
     instance.disposers.push(() => calls.push("b"));
     instance.unload();
-    assertEquals(calls, ["a", "b"]);
-    assertEquals(worker.terminated, true);
+    assert.deepEqual(calls, ["a", "b"]);
+    assert.deepEqual(worker.terminated, true);
   });
 });
 
-t.describe("internals:Logger", (it) => {
+describe("internals:Logger", () => {
   it("prefixes each log line with the configured prefix", () => {
     const logger = new Logger("[test]", "info");
     const calls = captureConsole("info", () => logger.info("hello", 1));
-    assertEquals(calls.length, 1);
-    assertEquals(calls[0][0], "[test]");
-    assertEquals(calls[0][1], "hello");
-    assertEquals(calls[0][2], 1);
+    assert.deepEqual(calls.length, 1);
+    assert.deepEqual(calls[0][0], "[test]");
+    assert.deepEqual(calls[0][1], "hello");
+    assert.deepEqual(calls[0][2], 1);
   });
 
   it("suppresses info when level is warn", () => {
     const logger = new Logger("[test]", "warn");
     const infoCalls = captureConsole("info", () => logger.info("hidden"));
     const warnCalls = captureConsole("warn", () => logger.warn("shown"));
-    assertEquals(infoCalls.length, 0);
-    assertEquals(warnCalls.length, 1);
+    assert.deepEqual(infoCalls.length, 0);
+    assert.deepEqual(warnCalls.length, 1);
   });
 
   it("suppresses info and warn when level is error", () => {
@@ -830,9 +828,9 @@ t.describe("internals:Logger", (it) => {
     const infoCalls = captureConsole("info", () => logger.info("x"));
     const warnCalls = captureConsole("warn", () => logger.warn("y"));
     const errorCalls = captureConsole("error", () => logger.error("z"));
-    assertEquals(infoCalls.length, 0);
-    assertEquals(warnCalls.length, 0);
-    assertEquals(errorCalls.length, 1);
+    assert.deepEqual(infoCalls.length, 0);
+    assert.deepEqual(warnCalls.length, 0);
+    assert.deepEqual(errorCalls.length, 1);
   });
 
   it("suppresses everything at silent level", () => {
@@ -840,21 +838,21 @@ t.describe("internals:Logger", (it) => {
     const infoCalls = captureConsole("info", () => logger.info("x"));
     const warnCalls = captureConsole("warn", () => logger.warn("y"));
     const errorCalls = captureConsole("error", () => logger.error("z"));
-    assertEquals(infoCalls.length, 0);
-    assertEquals(warnCalls.length, 0);
-    assertEquals(errorCalls.length, 0);
+    assert.deepEqual(infoCalls.length, 0);
+    assert.deepEqual(warnCalls.length, 0);
+    assert.deepEqual(errorCalls.length, 0);
   });
 
   it("defaults to warn level when none is provided", () => {
     const logger = new Logger("[test]");
     const infoCalls = captureConsole("info", () => logger.info("x"));
     const warnCalls = captureConsole("warn", () => logger.warn("y"));
-    assertEquals(infoCalls.length, 0);
-    assertEquals(warnCalls.length, 1);
+    assert.deepEqual(infoCalls.length, 0);
+    assert.deepEqual(warnCalls.length, 1);
   });
 });
 
-t.describe("internals:wrapWorkerSource ordering", (it) => {
+describe("internals:wrapWorkerSource ordering", () => {
   it("places the prelude before the user source so it runs first", () => {
     const wrapped = wrapWorkerSource("user();");
     const preludeIndex = wrapped.indexOf("delete self.BroadcastChannel");
@@ -864,15 +862,15 @@ t.describe("internals:wrapWorkerSource ordering", (it) => {
   });
 });
 
-t.describe("internals:SandboxedWorker", (it) => {
+describe("internals:SandboxedWorker", () => {
   it("appends a sandboxed iframe to document.body and posts init on load", () => {
     const before = document.body.querySelectorAll("iframe").length;
     const worker = new SandboxedWorker("// source");
     const after = document.body.querySelectorAll("iframe").length;
-    assertEquals(after, before + 1);
-    assertEquals(worker.frame.getAttribute("sandbox"), "allow-scripts");
-    assertEquals(worker.frame.getAttribute("aria-hidden"), "true");
-    assertEquals(worker.frame.style.display, "none");
+    assert.deepEqual(after, before + 1);
+    assert.deepEqual(worker.frame.getAttribute("sandbox"), "allow-scripts");
+    assert.deepEqual(worker.frame.getAttribute("aria-hidden"), "true");
+    assert.deepEqual(worker.frame.style.display, "none");
 
     const posted = [];
     Object.defineProperty(worker.frame, "contentWindow", {
@@ -881,8 +879,8 @@ t.describe("internals:SandboxedWorker", (it) => {
     });
     worker._messageTarget = worker.frame.contentWindow;
     worker.frame.dispatchEvent(new Event("load"));
-    assertEquals(posted.length, 1);
-    assertEquals(posted[0].type, "init");
+    assert.deepEqual(posted.length, 1);
+    assert.deepEqual(posted[0].type, "init");
     assert(typeof posted[0].workerSource === "string");
     assert(posted[0].workerSource.includes("// source"));
     worker.terminate();
@@ -896,7 +894,7 @@ t.describe("internals:SandboxedWorker", (it) => {
       value: { postMessage: (message) => posted.push(message) },
     });
     worker.postMessage({ hello: 1 });
-    assertEquals(posted, [{ type: "send", payload: { hello: 1 } }]);
+    assert.deepEqual(posted, [{ type: "send", payload: { hello: 1 } }]);
     worker.terminate();
   });
 
@@ -913,8 +911,8 @@ t.describe("internals:SandboxedWorker", (it) => {
       source: fakeContentWindow,
       data: { type: "fromWorker", payload: { value: 42 } },
     });
-    assertEquals(received.length, 1);
-    assertEquals(received[0].data, { value: 42 });
+    assert.deepEqual(received.length, 1);
+    assert.deepEqual(received[0].data, { value: 42 });
     worker.terminate();
   });
 
@@ -931,8 +929,8 @@ t.describe("internals:SandboxedWorker", (it) => {
       source: fakeContentWindow,
       data: { type: "workerError", error: "boom" },
     });
-    assertEquals(received.length, 1);
-    assertEquals(received[0].message, "boom");
+    assert.deepEqual(received.length, 1);
+    assert.deepEqual(received[0].message, "boom");
     worker.terminate();
   });
 
@@ -944,7 +942,7 @@ t.describe("internals:SandboxedWorker", (it) => {
       source: {},
       data: { type: "fromWorker", payload: 1 },
     });
-    assertEquals(received.length, 0);
+    assert.deepEqual(received.length, 0);
     worker.terminate();
   });
 
@@ -961,5 +959,3 @@ t.describe("internals:SandboxedWorker", (it) => {
     assert(terminated);
   });
 });
-
-await t.run();
