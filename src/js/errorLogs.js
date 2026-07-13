@@ -53,7 +53,7 @@ export function enableErrorLogs() {
         <div style="padding:15px;background:${background};color:${color};">
           ${message}
           <button
-            style="color:${color};float:right;margin-left:10px;border:none;background:none;cursor:pointer;"
+            style="color:${color};float:right;margin-left:10px;border:none;background:none;cursor:pointer;font-size:20px;"
             @click=${() => entry.remove()}
           >
             ✕
