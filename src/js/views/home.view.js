@@ -280,10 +280,10 @@ class HomeView extends View {
       const currentFeedUri = state.$currentFeedUri.get();
       const itemsToPreload = pinnedItems
         .filter((item) => item.uri !== currentFeedUri)
-        .slice(0, 5); // Up to 5 feeds
+        .slice(0, 3); // Up to 3 feeds
       for (const item of itemsToPreload) {
         await dataLayer.requests.loadNextFeedPage(item.uri, {
-          limit: FEED_PAGE_SIZE + 1,
+          limit: 5, // Load the 5 first posts
         });
       }
     }
