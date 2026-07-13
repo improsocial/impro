@@ -487,6 +487,34 @@ describe("loadEnabledPlugins", () => {
     );
   });
 
+  it("shows one error toast per distinct load-error message", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
+    ];
+    service.pluginBridge.loadPlugins = async () => ({
+      loadedPlugins: [],
+      erroredPlugins: [
+        { pluginId: "a", error: new Error("Failed to load plugin source") },
+        { pluginId: "b", error: new Error("Failed to load plugin source") },
+        { pluginId: "c", error: new Error("Failed to load plugin manifest") },
+      ],
+    });
+    document.body.innerHTML = "";
+    await service.loadEnabledPlugins();
+    const toasts = [...document.body.querySelectorAll('[data-testid="toast"]')];
+    assert.deepEqual(
+      toasts.map((toast) => toast.textContent.trim()),
+      [
+        "Failed to load plugin(s): a, b - Failed to load plugin source",
+        "Failed to load plugin(s): c - Failed to load plugin manifest",
+      ],
+    );
+    document.body.innerHTML = "";
+  });
+
   it("with ?disable-plugins, disables all enabled plugins in one save and skips loading", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [

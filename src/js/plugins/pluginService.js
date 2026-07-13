@@ -21,7 +21,7 @@ import {
   diffPermissions,
   isEmptyPermissions,
 } from "/js/plugins/pluginPermissions.js";
-import { compareVersions, isDev, sortBy } from "/js/utils.js";
+import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import {
   validateRichTextTokens,
   hydrateRichTextFacets,
@@ -376,10 +376,17 @@ export class PluginService extends ReactiveStore {
     const { erroredPlugins } =
       await this.pluginBridge.loadPlugins(enabledPlugins);
     if (erroredPlugins.length) {
-      const failedPluginIds = erroredPlugins.map(({ pluginId }) => pluginId);
-      showToast(`Failed to load plugin(s): ${failedPluginIds.join(", ")}`, {
-        style: "error",
-      });
+      const groupedErrors = groupBy(
+        erroredPlugins,
+        (erroredPlugin) => erroredPlugin.error?.message ?? "Unknown error",
+      );
+      for (const [message, group] of groupedErrors) {
+        const pluginIds = group.map(({ pluginId }) => pluginId);
+        showToast(
+          `Failed to load plugin(s): ${pluginIds.join(", ")} - ${message}`,
+          { style: "error", timeout: 5000 },
+        );
+      }
     }
     // Reconcile against all installed plugins (not just enabled) so disabled
     // plugins keep their cached assets on re-enable
