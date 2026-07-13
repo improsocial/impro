@@ -283,7 +283,7 @@ class HomeView extends View {
         .slice(0, 3); // Up to 3 feeds
       for (const item of itemsToPreload) {
         await dataLayer.requests.loadNextFeedPage(item.uri, {
-          limit: 5, // Load the 5 first posts
+          limit: 10, // Load the 10 first posts
         });
       }
     }
