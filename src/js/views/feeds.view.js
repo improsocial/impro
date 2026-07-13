@@ -28,76 +28,79 @@ class FeedsView extends View {
                 title: "Feeds",
                 subtitle: "",
               })}
-              <div class="feeds-list-header">Pinned Feeds</div>
-              <div class="feeds-list">
-                ${pinnedItems
-                  ? pinnedItems.map((item) => {
-                      if (item.type === "following") {
-                        return html`
-                          <div class="feeds-list-item">
-                            <div class="feeds-list-item-avatar">
-                              <img
-                                src="/img/list-avatar-fallback.svg"
-                                alt=${item.data.displayName}
-                                class="feed-avatar"
-                              />
-                            </div>
-                            <div class="feeds-list-item-content">
-                              <div class="feeds-list-item-title">
-                                ${item.data.displayName}
+              <main>
+                <div class="feeds-list-header">Pinned Feeds</div>
+                <div class="feeds-list">
+                  ${pinnedItems
+                    ? pinnedItems.map((item) => {
+                        if (item.type === "following") {
+                          return html`
+                            <div class="feeds-list-item">
+                              <div class="feeds-list-item-avatar">
+                                <img
+                                  src="/img/list-avatar-fallback.svg"
+                                  alt=${item.data.displayName}
+                                  class="feed-avatar"
+                                />
                               </div>
-                              <div class="feeds-list-item-creator">
-                                Feed by @bsky.app
+                              <div class="feeds-list-item-content">
+                                <div class="feeds-list-item-title">
+                                  ${item.data.displayName}
+                                </div>
+                                <div class="feeds-list-item-creator">
+                                  Feed by @bsky.app
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        `;
-                      }
-                      if (item.type === "list") {
-                        return html`
-                          <container-link
-                            class="feeds-list-item clickable"
-                            data-testid="feeds-list-item-list"
-                            href=${linkToList(item.data)}
-                          >
-                            <div class="feeds-list-item-avatar">
-                              ${item.data.avatar
-                                ? html`<img
-                                    src=${item.data.avatar}
-                                    alt=${item.data.name}
-                                    class="feed-avatar"
-                                  />`
-                                : html`<img
-                                    src="/img/list-avatar-fallback.svg"
-                                    alt=${item.data.name}
-                                    class="feed-avatar"
-                                  />`}
-                            </div>
-                            <div class="feeds-list-item-content">
-                              <div class="feeds-list-item-title">
-                                ${item.data.name}
+                          `;
+                        }
+                        if (item.type === "list") {
+                          return html`
+                            <container-link
+                              class="feeds-list-item clickable"
+                              data-testid="feeds-list-item-list"
+                              href=${linkToList(item.data)}
+                            >
+                              <div class="feeds-list-item-avatar">
+                                ${item.data.avatar
+                                  ? html`<img
+                                      src=${item.data.avatar}
+                                      alt=${item.data.name}
+                                      class="feed-avatar"
+                                    />`
+                                  : html`<img
+                                      src="/img/list-avatar-fallback.svg"
+                                      alt=${item.data.name}
+                                      class="feed-avatar"
+                                    />`}
                               </div>
-                              ${item.data.creator
-                                ? html`<div class="feeds-list-item-creator">
-                                    List by
-                                    ${item.data.creator.did === currentUser?.did
-                                      ? "you"
-                                      : `@${item.data.creator.handle}`}
-                                  </div>`
-                                : ""}
-                            </div>
-                          </container-link>
-                        `;
-                      }
-                      return feedGeneratorListItemTemplate({
-                        feedGenerator: item.data,
-                        currentUserDid: currentUser?.did,
-                      });
-                    })
-                  : Array.from({ length: 5 }).map(() =>
-                      feedGeneratorListItemSkeletonTemplate(),
-                    )}
-              </div>
+                              <div class="feeds-list-item-content">
+                                <div class="feeds-list-item-title">
+                                  ${item.data.name}
+                                </div>
+                                ${item.data.creator
+                                  ? html`<div class="feeds-list-item-creator">
+                                      List by
+                                      ${item.data.creator.did ===
+                                      currentUser?.did
+                                        ? "you"
+                                        : `@${item.data.creator.handle}`}
+                                    </div>`
+                                  : ""}
+                              </div>
+                            </container-link>
+                          `;
+                        }
+                        return feedGeneratorListItemTemplate({
+                          feedGenerator: item.data,
+                          currentUserDid: currentUser?.did,
+                        });
+                      })
+                    : Array.from({ length: 5 }).map(() =>
+                        feedGeneratorListItemSkeletonTemplate(),
+                      )}
+                </div>
+              </main>
             `,
           })}
         </div>`,
