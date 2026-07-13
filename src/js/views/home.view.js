@@ -276,17 +276,17 @@ class HomeView extends View {
       });
     }
 
-    async function preloadHiddenFeeds(pinnedItems) {
-      const currentFeedUri = state.$currentFeedUri.get();
-      const itemsToPreload = pinnedItems
-        .filter((item) => item.uri !== currentFeedUri)
-        .slice(0, 3); // Up to 3 feeds
-      for (const item of itemsToPreload) {
-        await dataLayer.requests.loadNextFeedPage(item.uri, {
-          limit: 10, // Load the 10 first posts
-        });
-      }
-    }
+    // async function preloadHiddenFeeds(pinnedItems) {
+    //   const currentFeedUri = state.$currentFeedUri.get();
+    //   const itemsToPreload = pinnedItems
+    //     .filter((item) => item.uri !== currentFeedUri)
+    //     .slice(0, 3); // Up to 3 feeds
+    //   for (const item of itemsToPreload) {
+    //     await dataLayer.requests.loadNextFeedPage(item.uri, {
+    //       limit: 10, // Load the 10 first posts
+    //     });
+    //   }
+    // }
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
@@ -296,7 +296,7 @@ class HomeView extends View {
           resetToDefaultFeed();
         }
 
-        preloadHiddenFeeds(pinnedItems);
+        // preloadHiddenFeeds(pinnedItems);
         initializePostSeenObservers(pinnedItems);
         window.scrollTo(0, 0);
       });
