@@ -643,6 +643,39 @@ describe("new-chat-dialog", () => {
     });
   });
 
+  describe("NewChatDialog - autofocus", () => {
+    function setMaxTouchPoints(value) {
+      Object.defineProperty(window.navigator, "maxTouchPoints", {
+        value,
+        configurable: true,
+      });
+    }
+
+    afterEach(() => setMaxTouchPoints(0));
+
+    it("should focus the search input on open on non-touch devices", () => {
+      setMaxTouchPoints(0);
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      element.open();
+      const input = element.querySelector(
+        '[data-testid="new-chat-search-input"]',
+      );
+      assert.deepEqual(document.activeElement, input);
+    });
+
+    it("should not focus the search input on open on touch devices", () => {
+      setMaxTouchPoints(5);
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      element.open();
+      const input = element.querySelector(
+        '[data-testid="new-chat-search-input"]',
+      );
+      assert(document.activeElement !== input);
+    });
+  });
+
   describe("NewChatDialog - dismissal", () => {
     it("should close on the close button", () => {
       const { dataLayer } = createFakeDataLayer();
