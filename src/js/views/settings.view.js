@@ -395,7 +395,6 @@ class SettingsView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       loadOtherAccounts();
     });
 

@@ -100,7 +100,6 @@ class FeedsView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await dataLayer.declarative.ensurePinnedItems();
     });
 

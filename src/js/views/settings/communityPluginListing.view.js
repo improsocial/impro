@@ -10,13 +10,7 @@ import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/rendered-markdown.js";
 
 class SettingsCommunityPluginListingView extends View {
-  async render({
-    root,
-    router,
-    layout,
-    params,
-    context: { dataLayer, pluginService },
-  }) {
+  async render({ root, router, layout, params, context: { pluginService } }) {
     await auth.requireAuth();
 
     const { pluginId } = params;
@@ -240,7 +234,6 @@ class SettingsCommunityPluginListingView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await loadListings();
       await loadDetails();
     });

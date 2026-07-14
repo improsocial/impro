@@ -16,12 +16,7 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 
 class SettingsAdvancedView extends View {
-  async render({
-    root,
-    router,
-    layout,
-    context: { dataLayer, pluginService },
-  }) {
+  async render({ root, router, layout, context: { pluginService } }) {
     await auth.requireAuth();
 
     const storedConfig = getAppViewConfig();
@@ -278,10 +273,6 @@ class SettingsAdvancedView extends View {
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

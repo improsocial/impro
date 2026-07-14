@@ -60,7 +60,6 @@ class BookmarksView extends View {
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
-      dataLayer.declarative.ensureCurrentUser();
       await loadBookmarks();
     });
 

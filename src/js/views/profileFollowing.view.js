@@ -91,7 +91,6 @@ class ProfileFollowingView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       // Load the profile to get the follows count
       dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadFollowing();

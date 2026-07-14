@@ -87,9 +87,6 @@ class PostRepostsView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post repost count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadReposts();

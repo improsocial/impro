@@ -7,12 +7,7 @@ import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.templ
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsCommunityPluginsView extends View {
-  async render({
-    root,
-    router,
-    layout,
-    context: { dataLayer, pluginService },
-  }) {
+  async render({ root, router, layout, context: { pluginService } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsCommunityPluginsView");
@@ -117,7 +112,6 @@ class SettingsCommunityPluginsView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await loadListings();
     });
 

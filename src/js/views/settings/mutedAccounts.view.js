@@ -65,7 +65,6 @@ class SettingsMutedAccountsView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await loadMore();
     });
 

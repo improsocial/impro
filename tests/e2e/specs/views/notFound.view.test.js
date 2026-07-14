@@ -8,13 +8,32 @@ test.describe("Not Found view", () => {
   }) => {
     await page.goto("/some/nonexistent/route");
 
-    const notFoundView = page.locator("#not-found-view");
+    const notFoundView = page.locator(
+      '[data-testid="view-column-center"] #not-found-view',
+    );
     await expect(
-      notFoundView.getByRole("heading", { name: "Not Found" }),
+      notFoundView.getByRole("heading", { name: "Page not found" }),
     ).toBeVisible();
     await expect(
-      notFoundView.getByRole("link", { name: "Go Home" }),
+      notFoundView.getByRole("link", { name: "Go home" }),
     ).toBeVisible();
+  });
+
+  test("should load the current user into the layout when authenticated", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/some/nonexistent/route");
+
+    const profileNavItem = page.locator('[data-testid="sidebar-nav-profile"]');
+    await expect(profileNavItem).toHaveAttribute(
+      "href",
+      "/profile/did:plc:testuser123",
+    );
+    await expect(profileNavItem).not.toHaveClass(/disabled/);
   });
 
   test("should navigate home when clicking Go Home", async ({ page }) => {
@@ -26,7 +45,7 @@ test.describe("Not Found view", () => {
 
     await page
       .locator("#not-found-view")
-      .getByRole("link", { name: "Go Home" })
+      .getByRole("link", { name: "Go home" })
       .click();
 
     await expect(page).toHaveURL("/");

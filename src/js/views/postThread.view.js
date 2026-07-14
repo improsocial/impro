@@ -582,9 +582,6 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       try {
         await dataLayer.declarative.ensurePostThread(postUri);
       } catch (error) {

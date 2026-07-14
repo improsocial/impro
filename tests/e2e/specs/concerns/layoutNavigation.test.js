@@ -13,7 +13,7 @@ test.describe("Persistent layout navigation", () => {
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
   });
 
-  test("keeps a single layout whose active nav item follows navigation and hides on bare routes", async ({
+  test("keeps a single layout whose active nav item follows navigation, including the not-found page", async ({
     page,
   }) => {
     const layoutRoot = page.locator("#main-layout");
@@ -53,19 +53,17 @@ test.describe("Persistent layout navigation", () => {
       notificationsNavItem.locator(".icon.filled"),
     ).not.toBeVisible();
 
-    // Bare routes (layout: false, e.g. the not-found page) hide the layout
-    // entirely. /login can't be used here: it redirects authenticated users.
+    // The not-found page keeps the layout, with no active nav item
     await page.goto("/this-route-does-not-exist");
     await expect(page.locator("#not-found-view")).toBeVisible({
       timeout: 10000,
     });
-    await expect(layoutRoot).toHaveClass(/layout-hidden/);
-    await expect(layoutRoot).not.toBeVisible();
+    await expect(layoutRoot).toBeVisible();
+    await expect(layoutRoot.locator(".icon.filled")).not.toBeVisible();
 
-    // Returning to a layout route shows the chrome again
+    // Returning to a layout route restores the active nav item
     await page.goto("/");
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
-    await expect(layoutRoot).not.toHaveClass(/layout-hidden/);
     await expect(layoutRoot).toBeVisible();
     await expect(homeNavItem.locator(".icon.filled")).toBeVisible();
   });

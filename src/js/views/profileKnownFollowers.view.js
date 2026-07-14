@@ -85,7 +85,6 @@ class ProfileKnownFollowersView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadKnownFollowers();
     });

@@ -357,10 +357,6 @@ class SettingsMutedWordsView extends View {
       );
     });
 
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
-    });
-
     root.addEventListener("page-restore", () => {
       window.scrollTo(0, 0);
     });

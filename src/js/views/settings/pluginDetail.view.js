@@ -6,13 +6,7 @@ import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 class SettingsPluginDetailView extends View {
-  async render({
-    root,
-    router,
-    layout,
-    params,
-    context: { dataLayer, pluginService },
-  }) {
+  async render({ root, router, layout, params, context: { pluginService } }) {
     await auth.requireAuth();
 
     const { pluginId } = params;
@@ -125,10 +119,6 @@ class SettingsPluginDetailView extends View {
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

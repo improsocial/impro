@@ -93,9 +93,6 @@ class PostQuotesView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post quote count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadQuotes();

@@ -93,7 +93,6 @@ class ProfileFollowersView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       // Load the profile to get the follower count
       dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadFollowers();

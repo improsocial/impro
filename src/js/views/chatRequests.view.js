@@ -253,7 +253,6 @@ class ChatRequestsView extends View {
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await dataLayer.declarative.ensureConvoRequestList();
     });
 

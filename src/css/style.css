@@ -7865,7 +7865,16 @@ moderation-warning .toggle-content {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 45px);
+  min-height: calc(100dvh - 45px);
+}
+
+@media (max-width: 799px) {
+  #not-found-view main {
+    min-height: calc(
+      100dvh - 45px - var(--footer-height) - var(--safe-area-inset-bottom)
+    );
+  }
 }
 
 #not-found-view h1 {

@@ -11,7 +11,7 @@ import {
 } from "/js/theme.js";
 
 class SettingsAppearanceView extends View {
-  async render({ root, router, layout, context: { dataLayer } }) {
+  async render({ root, router, layout }) {
     await auth.requireAuth();
 
     function handleHighlightColorChange(newHighlightColor) {
@@ -144,10 +144,6 @@ class SettingsAppearanceView extends View {
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

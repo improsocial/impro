@@ -88,9 +88,6 @@ class PostLikesView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post like count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadLikes();

@@ -463,9 +463,6 @@ class SearchView extends View {
       if (state.$searchQuery.get()) {
         loadSearchResults();
       }
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
     });
 
     root.addEventListener("page-restore", (event) => {

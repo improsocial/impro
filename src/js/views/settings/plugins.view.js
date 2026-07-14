@@ -15,12 +15,7 @@ import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
 class SettingsPluginsView extends View {
-  async render({
-    root,
-    router,
-    layout,
-    context: { dataLayer, pluginService },
-  }) {
+  async render({ root, router, layout, context: { pluginService } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsPluginsView");
@@ -332,10 +327,6 @@ class SettingsPluginsView extends View {
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

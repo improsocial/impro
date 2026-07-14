@@ -299,7 +299,6 @@ class ListDetailView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await Promise.all([
         dataLayer.declarative.ensureList(listUri),
         loadFeed(),

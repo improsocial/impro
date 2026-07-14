@@ -793,7 +793,6 @@ class NotificationsView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await loadNotifications({ reload: true });
     });
 
