@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   unique,
   groupBy,
+  sortBy,
   noop,
   sliceByByte,
   formatLargeNumber,
@@ -25,6 +26,44 @@ import {
   debounce,
   resetScrollOnBlur,
 } from "/js/utils.js";
+
+describe("sortBy", () => {
+  it("sorts by a key string ascending", () => {
+    const input = [{ name: "Gamma" }, { name: "Alpha" }, { name: "Beta" }];
+    const result = sortBy(input, "name");
+    assert.deepEqual(
+      result.map((item) => item.name),
+      ["Alpha", "Beta", "Gamma"],
+    );
+  });
+
+  it("sorts by a function descending", () => {
+    const input = [{ value: 1 }, { value: 3 }, { value: 2 }];
+    const result = sortBy(input, (item) => item.value, {
+      direction: "desc",
+    });
+    assert.deepEqual(
+      result.map((item) => item.value),
+      [3, 2, 1],
+    );
+  });
+
+  it("returns a copy without mutating the input array", () => {
+    const input = [{ name: "Beta" }, { name: "Alpha" }];
+    const result = sortBy(input, "name");
+    assert(result !== input);
+    assert.deepEqual(
+      input.map((item) => item.name),
+      ["Beta", "Alpha"],
+    );
+  });
+
+  it("throws on an invalid direction", () => {
+    assert.throws(() => sortBy([], "name", { direction: "up" }), {
+      message: "Invalid direction: up",
+    });
+  });
+});
 
 describe("unique", () => {
   it("should remove duplicates from simple array", () => {

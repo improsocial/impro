@@ -850,6 +850,22 @@ describe("registry listings loader/selector", () => {
     assert.deepEqual(provider.$preferences.get(), before);
   });
 
+  it("sorts listings alphabetically by name, ignoring case", async () => {
+    const { service } = makeService({
+      remoteListings: [
+        { id: "gamma", repo: "ow/gamma", name: "gamma" },
+        { id: "alpha", repo: "ow/alpha", name: "Alpha" },
+      ],
+      localListings: [{ id: "beta__LOCAL", name: "Beta" }],
+    });
+    await service.loadRegistryListings();
+    const listings = service.$registryListings.get();
+    assert.deepEqual(
+      listings.map((listing) => listing.name),
+      ["Alpha", "Beta", "gamma"],
+    );
+  });
+
   it("returns only remote listings when localRegistry is absent", async () => {
     const { service } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha", name: "Alpha" }],

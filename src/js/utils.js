@@ -52,7 +52,7 @@ export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
     throw new Error(`Invalid direction: ${direction}`);
   }
   const sign = direction === "desc" ? -1 : 1;
-  const sorted = array.sort((a, b) => {
+  const sorted = [...array].sort((a, b) => {
     const aValue = fn(a);
     const bValue = fn(b);
     if (aValue < bValue) return -1 * sign;

@@ -104,7 +104,10 @@ export class PluginService extends ReactiveStore {
       const installedIds = new Set(
         this.prefManager.$installedPlugins.get().map((entry) => entry.id),
       );
-      return rawListings.map((listing) => ({
+      const sortedListings = sortBy(rawListings, (listing) =>
+        listing.name.toLowerCase(),
+      );
+      return sortedListings.map((listing) => ({
         ...listing,
         installed: installedIds.has(listing.id),
       }));
@@ -114,7 +117,9 @@ export class PluginService extends ReactiveStore {
       const visiblePlugins = this.localPluginsEnabled
         ? installedPlugins
         : installedPlugins.filter((entry) => !entry.id.endsWith("__LOCAL"));
-      const sortedVisiblePlugins = sortBy(visiblePlugins, "name");
+      const sortedVisiblePlugins = sortBy(visiblePlugins, (plugin) =>
+        plugin.name.toLowerCase(),
+      );
       return sortedVisiblePlugins.map((entry) => ({
         id: entry.id,
         name: entry.name,
