@@ -143,8 +143,8 @@
       import settingsAdvancedView from "/js/views/settings/advanced.view.js";
       import settingsPluginsView from "/js/views/settings/plugins.view.js";
       import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
-      import settingsCommunityPluginsView from "/js/views/settings/communityPlugins.view.js";
-      import settingsCommunityPluginListingView from "/js/views/settings/communityPluginListing.view.js";
+      import communityPluginsView from "/js/views/communityPlugins.view.js";
+      import communityPluginListingView from "/js/views/communityPluginListing.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import listDetailView from "/js/views/listDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
@@ -241,7 +241,7 @@
         // This will save us from needing to resolve handles when navigating between pages.
         setUpIdentityPrecaching(dataLayer, identityResolver);
 
-        // Preload the current user for layout + views
+        // Preload the current user for layout
         if (session) {
           dataLayer.declarative.ensureCurrentUser().catch((error) => {
             console.warn("Error preloading current user:", error);
@@ -435,20 +435,21 @@
           settingsRouteOptions,
         );
         router.addRoute(
-          "/settings/plugins/community",
-          () => settingsCommunityPluginsView,
-          settingsRouteOptions,
-        );
-        router.addRoute(
-          "/settings/plugins/community/:pluginId",
-          () => settingsCommunityPluginListingView,
-          settingsRouteOptions,
-        );
-        router.addRoute(
           "/settings/plugins/:pluginId",
           () => settingsPluginDetailView,
           settingsRouteOptions,
         );
+        router.addRoute("/plugins/community", () => communityPluginsView);
+        router.addRoute(
+          "/plugins/community/:pluginId",
+          () => communityPluginListingView,
+        );
+        router.addRedirects({
+          // Old community plugin URLs
+          "/settings/plugins/community": () => "/plugins/community",
+          "/settings/plugins/community/:pluginId": (params) =>
+            `/plugins/community/${encodeURIComponent(params.pluginId)}`,
+        });
         router.setNotFoundView(() => notFoundView);
 
         router.renderRoute(({ view, params, container, layout }) => {

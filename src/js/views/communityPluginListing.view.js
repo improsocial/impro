@@ -1,22 +1,20 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
+import { linkToLogin } from "/js/navigation.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/rendered-markdown.js";
 
-class SettingsCommunityPluginListingView extends View {
-  async render({ root, router, layout, params, context: { pluginService } }) {
-    await auth.requireAuth();
-
+class CommunityPluginListingView extends View {
+  async render({ root, params, context: { pluginService, isAuthenticated } }) {
     const { pluginId } = params;
     const isLocal = pluginId.endsWith("__LOCAL");
 
-    const state = new ReactiveStore("settingsCommunityPluginListingView");
+    const state = new ReactiveStore("communityPluginListingView");
     state.$loadError = new Signal.State(null);
     state.$version = new Signal.State(null);
     state.$readme = new Signal.State(null);
@@ -105,10 +103,26 @@ class SettingsCommunityPluginListingView extends View {
       state.$pendingAction.set(null);
     }
 
-    bindToPage(root, layout, "active-nav-click", (event) => {
-      event.preventDefault();
-      router.go("/settings");
-    });
+    function installButtonTemplate({ listing, pendingAction }) {
+      const installButtonClass = listing.installed
+        ? "plugin-install-button rounded-button"
+        : "plugin-install-button rounded-button rounded-button-primary";
+      return html`<button
+        class=${installButtonClass}
+        data-testid="plugin-listing-install-button"
+        ?disabled=${pendingAction !== null}
+        @click=${() => toggleInstall(listing)}
+      >
+        ${pendingAction
+          ? html`${pendingAction === "uninstall"
+                ? "Uninstalling"
+                : "Installing"}
+              <div class="loading-spinner" data-testid="loading-spinner"></div>`
+          : listing.installed
+            ? "Uninstall"
+            : "Install"}
+      </button>`;
+    }
 
     pageEffect(root, () => {
       const listing = state.$listing.get();
@@ -117,14 +131,11 @@ class SettingsCommunityPluginListingView extends View {
       const readme = state.$readme.get();
       const loading = state.$loading.get();
       const pendingAction = state.$pendingAction.get();
-      const installButtonClass = listing?.installed
-        ? "plugin-install-button rounded-button"
-        : "plugin-install-button rounded-button rounded-button-primary";
       render(
-        html`<div id="settings-community-plugin-listing-view">
+        html`<div id="community-plugin-listing-view">
           ${headerTemplate({
             title: "Community plugins",
-            backButtonFallbackRoute: "/settings/plugins/community",
+            backButtonFallbackRoute: "/plugins/community",
           })}
           <main>
             ${(() => {
@@ -197,24 +208,14 @@ class SettingsCommunityPluginListingView extends View {
                       </p>`
                     : ""}
                   <div class="plugin-listing-actions">
-                    <button
-                      class=${installButtonClass}
-                      data-testid="plugin-listing-install-button"
-                      ?disabled=${pendingAction !== null}
-                      @click=${() => toggleInstall(listing)}
-                    >
-                      ${pendingAction
-                        ? html`${pendingAction === "uninstall"
-                              ? "Uninstalling"
-                              : "Installing"}
-                            <div
-                              class="loading-spinner"
-                              data-testid="loading-spinner"
-                            ></div>`
-                        : listing.installed
-                          ? "Uninstall"
-                          : "Install"}
-                    </button>
+                    ${isAuthenticated
+                      ? installButtonTemplate({ listing, pendingAction })
+                      : html`<a
+                          class="plugin-install-button rounded-button rounded-button-primary"
+                          data-testid="plugin-listing-login-button"
+                          href=${linkToLogin()}
+                          >Sign in to install</a
+                        >`}
                   </div>
                 </div>
                 ${readme
@@ -244,4 +245,4 @@ class SettingsCommunityPluginListingView extends View {
   }
 }
 
-export default new SettingsCommunityPluginListingView();
+export default new CommunityPluginListingView();

@@ -63,6 +63,7 @@ export class Router extends EventEmitter {
   constructor() {
     super();
     this.routes = {};
+    this.redirects = {};
     this.notFoundView = () => {};
     this.notFoundOptions = {};
     this.renderFunc = () => {};
@@ -102,6 +103,20 @@ export class Router extends EventEmitter {
     for (const path of [].concat(paths)) {
       this.routes[path] = { viewGetter, options };
     }
+  }
+
+  addRedirects(redirects) {
+    Object.assign(this.redirects, redirects);
+  }
+
+  matchRedirect(pathname) {
+    for (const [pattern, redirect] of Object.entries(this.redirects)) {
+      const params = Router.matchPath(pathname, pattern);
+      if (params) {
+        return redirect(params);
+      }
+    }
+    return null;
   }
 
   renderRoute(renderFunc) {
@@ -188,6 +203,15 @@ export class Router extends EventEmitter {
   }
 
   async load(path, { isBack = false } = {}) {
+    const [pathnameForRedirect, query] = path.split("?");
+    const redirectTarget = this.matchRedirect(pathnameForRedirect);
+    if (redirectTarget !== null) {
+      const redirectPath = query
+        ? `${redirectTarget}?${query}`
+        : redirectTarget;
+      window.history.replaceState(window.history.state, "", redirectPath);
+      return this.load(redirectPath, { isBack });
+    }
     // Save the scroll position of the page we're leaving before swapping it out
     if (this.currentPath != null) {
       this.scrollStates.set(this.currentPath, window.scrollY);

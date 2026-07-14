@@ -166,10 +166,7 @@ class SettingsPluginsView extends View {
             backButtonFallbackRoute: "/settings",
           })}
           <main>
-            <a
-              class="community-plugins-link"
-              href="/settings/plugins/community"
-            >
+            <a class="community-plugins-link" href="/plugins/community">
               <span class="community-plugins-link-icon"
                 >${globeIconTemplate()}</span
               >

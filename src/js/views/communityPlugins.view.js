@@ -1,16 +1,13 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { auth } from "/js/auth.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
-class SettingsCommunityPluginsView extends View {
-  async render({ root, router, layout, context: { pluginService } }) {
-    await auth.requireAuth();
-
-    const state = new ReactiveStore("settingsCommunityPluginsView");
+class CommunityPluginsView extends View {
+  async render({ root, context: { pluginService, isAuthenticated } }) {
+    const state = new ReactiveStore("communityPluginsView");
     state.$error = new Signal.State(null);
 
     async function loadListings() {
@@ -23,19 +20,16 @@ class SettingsCommunityPluginsView extends View {
       }
     }
 
-    bindToPage(root, layout, "active-nav-click", (event) => {
-      event.preventDefault();
-      router.go("/settings");
-    });
-
     pageEffect(root, () => {
       const error = state.$error.get();
       const listings = pluginService.$registryListings.get();
       render(
-        html`<div id="settings-community-plugins-view">
+        html`<div id="community-plugins-view">
           ${headerTemplate({
             title: "Community plugins",
-            backButtonFallbackRoute: "/settings/plugins",
+            backButtonFallbackRoute: isAuthenticated
+              ? "/settings/plugins"
+              : "/",
           })}
           <main>
             ${error
@@ -68,7 +62,7 @@ class SettingsCommunityPluginsView extends View {
                           <li class="plugin-list-item">
                             <a
                               class="plugin-list-item-link"
-                              href="/settings/plugins/community/${listing.id}"
+                              href="/plugins/community/${listing.id}"
                             >
                               <div class="plugin-list-item-info">
                                 <div class="plugin-list-item-name">
@@ -122,4 +116,4 @@ class SettingsCommunityPluginsView extends View {
   }
 }
 
-export default new SettingsCommunityPluginsView();
+export default new CommunityPluginsView();

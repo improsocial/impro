@@ -802,6 +802,74 @@ describe("back", () => {
   });
 });
 
+describe("redirect routes", () => {
+  const originalPath =
+    window.location.pathname + window.location.search + window.location.hash;
+  const originalState = window.history.state;
+
+  afterEach(() => {
+    window.history.replaceState(originalState, "", originalPath);
+  });
+
+  function createRouter() {
+    const router = new Router();
+    mountRouter(router);
+    router.addRedirects({
+      "/old": () => "/new",
+      "/old/:id": (params) => `/new/${params.id}`,
+    });
+    router.addRoute("/new", () => Promise.resolve({ name: "new" }));
+    router.addRoute("/new/:id", () => Promise.resolve({ name: "newDetail" }));
+    router.renderRoute(() => {});
+    return router;
+  }
+
+  it("keeps redirects separate from routes", () => {
+    const router = createRouter();
+    assert.deepEqual(router.hasRoute("/old"), false);
+    assert.deepEqual(router.matchRedirect("/old"), "/new");
+    assert.deepEqual(router.matchRedirect("/old/123"), "/new/123");
+    assert.deepEqual(router.matchRedirect("/unrelated"), null);
+  });
+
+  it("loads the target route and replaces the URL", async () => {
+    const router = createRouter();
+    await router.load("/old");
+    assert.deepEqual(window.location.pathname, "/new");
+    assert.deepEqual(router.$currentRoute.get().route, "/new");
+  });
+
+  it("passes route params to the redirect function", async () => {
+    const router = createRouter();
+    await router.load("/old/123");
+    assert.deepEqual(window.location.pathname, "/new/123");
+    assert.deepEqual(router.$currentRoute.get().params, { id: "123" });
+  });
+
+  it("preserves the query string across the redirect", async () => {
+    const router = createRouter();
+    await router.load("/old?foo=bar&baz=1");
+    assert.deepEqual(window.location.pathname, "/new");
+    assert.deepEqual(window.location.search, "?foo=bar&baz=1");
+    assert.deepEqual(router.$currentRoute.get().route, "/new");
+  });
+
+  it("replaces the history entry instead of pushing", async () => {
+    const router = createRouter();
+    window.history.replaceState(null, "", "/old");
+    const lengthBefore = window.history.length;
+    await router.load("/old");
+    assert.deepEqual(window.history.length, lengthBefore);
+  });
+
+  it("preserves the existing history state across the redirect", async () => {
+    const router = createRouter();
+    window.history.replaceState({ previousRoute: "/prior" }, "", "/old");
+    await router.load("/old");
+    assert.deepEqual(window.history.state?.previousRoute, "/prior");
+  });
+});
+
 describe("route options", () => {
   it("stores options on the route and returns them from match", () => {
     const router = new Router();

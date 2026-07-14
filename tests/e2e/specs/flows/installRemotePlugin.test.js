@@ -21,15 +21,15 @@ test.describe("Remote plugin install flow", () => {
     await login(page);
 
     // Open the plugin's detail page from the community view, then install.
-    await page.goto("/settings/plugins/community");
-    const community = page.locator("#settings-community-plugins-view");
+    await page.goto("/plugins/community");
+    const community = page.locator("#community-plugins-view");
     const installItem = community.locator(".plugin-list-item", {
       hasText: "Remote Themes",
     });
     await expect(installItem).toBeVisible({ timeout: 10000 });
     await installItem.locator(".plugin-list-item-link").click();
 
-    const listing = page.locator("#settings-community-plugin-listing-view");
+    const listing = page.locator("#community-plugin-listing-view");
     const installButton = listing.locator(
       '[data-testid="plugin-listing-install-button"]',
     );

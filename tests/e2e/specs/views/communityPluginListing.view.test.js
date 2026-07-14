@@ -1,6 +1,6 @@
-import { test, expect } from "../../../base.js";
-import { login } from "../../../helpers.js";
-import { MockServer } from "../../../mockServer.js";
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
 
 const REMOTE_ID = "remote-themes";
 const REGISTRY_ENTRY = {
@@ -12,10 +12,10 @@ const REGISTRY_ENTRY = {
 };
 
 function detailUrl(id = REMOTE_ID) {
-  return `/settings/plugins/community/${id}`;
+  return `/plugins/community/${id}`;
 }
 
-test.describe("Settings community plugin listing view", () => {
+test.describe("Community plugin listing view", () => {
   test("shows the plugin's header info and renders its README", async ({
     page,
   }) => {
@@ -26,7 +26,7 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl());
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     await expect(
       view.locator('[data-testid="plugin-listing-name"]'),
     ).toHaveText("Remote Themes", { timeout: 10000 });
@@ -58,7 +58,7 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl());
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     await expect(
       view.locator('[data-testid="plugin-listing-header"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -76,7 +76,7 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl());
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
@@ -104,7 +104,7 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl());
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
@@ -135,7 +135,7 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl());
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     const button = view.locator(
       '[data-testid="plugin-listing-install-button"]',
     );
@@ -159,9 +159,50 @@ test.describe("Settings community plugin listing view", () => {
     await login(page);
 
     await page.goto(detailUrl("does-not-exist"));
-    const view = page.locator("#settings-community-plugin-listing-view");
+    const view = page.locator("#community-plugin-listing-view");
     await expect(
       view.locator('[data-testid="plugin-listing-not-found"]'),
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("shows a sign-in button instead of Install when logged out", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+
+    await page.goto(detailUrl());
+    const view = page.locator("#community-plugin-listing-view");
+    const loginButton = view.locator(
+      '[data-testid="plugin-listing-login-button"]',
+    );
+    await expect(loginButton).toBeVisible({ timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="plugin-listing-install-button"]'),
+    ).toHaveCount(0);
+
+    await loginButton.click();
+    await expect(page).toHaveURL(
+      new RegExp(`/login\\?returnTo=${encodeURIComponent(detailUrl())}$`),
+    );
+  });
+
+  test("redirects the old settings URL to the new listing URL", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto(`/settings/plugins/community/${REMOTE_ID}`);
+    await expect(page).toHaveURL(
+      new RegExp(`/plugins/community/${REMOTE_ID}$`),
+    );
+    const view = page.locator("#community-plugin-listing-view");
+    await expect(
+      view.locator('[data-testid="plugin-listing-name"]'),
+    ).toHaveText("Remote Themes", { timeout: 10000 });
   });
 });
