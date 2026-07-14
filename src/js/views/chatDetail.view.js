@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -47,11 +47,13 @@ class ChatDetailView extends View {
   async render({
     root,
     params,
+    router,
+    layout,
     context: {
       dataLayer,
       chatNotificationService,
       identityResolver,
-      mainLayout,
+      pluginService,
     },
   }) {
     await auth.requireAuth();
@@ -141,6 +143,7 @@ class ChatDetailView extends View {
             record,
             isAuthenticated: true,
             condensed: true,
+            pluginService,
           })}
         </div>`;
       }
@@ -951,6 +954,7 @@ class ChatDetailView extends View {
                       embed: message.embed,
                       isAuthenticated: true,
                       currentConvoId: convoId,
+                      pluginService,
                     })}
                   </div>`
                 : null}
@@ -1211,6 +1215,11 @@ class ChatDetailView extends View {
       return convo.members.find((member) => member.did !== currentUser?.did);
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/messages");
+    });
+
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
@@ -1251,141 +1260,127 @@ class ChatDetailView extends View {
 
       render(
         html`<div id="chat-detail-view">
-          ${mainLayout({
-            activeNavItem: "chat",
-            onClickActiveNavItem: () => {
-              router.go("/messages");
+          ${headerTemplate({
+            avatarTemplate: () => {
+              if (groupDetails) {
+                const otherMembers = convo.members.filter(
+                  (member) => member.did !== currentUser?.did,
+                );
+                return avatarGroupTemplate({ authors: otherMembers });
+              }
+              const otherMember = getOtherMember(currentUser, convo);
+              return otherMember ? avatarTemplate({ author: otherMember }) : "";
             },
-            showSidebarOverlay: false,
-            children: html`
-              ${headerTemplate({
-                avatarTemplate: () => {
-                  if (groupDetails) {
-                    const otherMembers = convo.members.filter(
-                      (member) => member.did !== currentUser?.did,
-                    );
-                    return avatarGroupTemplate({ authors: otherMembers });
-                  }
-                  const otherMember = getOtherMember(currentUser, convo);
-                  return otherMember
-                    ? avatarTemplate({ author: otherMember })
-                    : "";
-                },
-                title,
-                subtitle,
-                backButtonFallbackRoute: "/messages",
-                rightItemTemplate: () => html`
-                  <button
-                    class="chat-menu-button"
-                    data-testid="chat-menu-button"
-                    @click=${function (e) {
-                      const contextMenu = this.nextElementSibling;
-                      contextMenu.open(e.clientX, e.clientY);
-                    }}
-                  >
-                    <span>...</span>
-                  </button>
-                  <context-menu>
-                    <context-menu-item
-                      data-testid="menu-action-chat-open-in-bsky"
-                      @click=${() => {
-                        window.open(convoPermalink, "_blank");
-                      }}
-                    >
-                      Open in bsky.app
-                    </context-menu-item>
-                  </context-menu>
-                `,
-              })}
-              <main class="chat-detail-main">
-                ${(() => {
-                  if (messagesRequestStatus.error) {
-                    return messagesErrorTemplate({
-                      error: messagesRequestStatus.error,
-                    });
-                  } else if (messages) {
-                    return messagesTemplate({
-                      loadingEnabled: state.$loadingEnabled.get(),
-                      messages,
-                      currentUserDid: currentUser?.did,
-                      convo,
-                      isGroup: !!groupDetails,
-                      hasMore,
-                      canReactNow,
-                    });
-                  } else {
-                    return html`<div
-                      class="loading-spinner-container"
-                      style="padding-top: 16px;"
-                    >
-                      <div class="loading-spinner"></div>
-                    </div>`;
-                  }
-                })()}
-                <div class="message-input-wrapper">
-                  ${isLocked
-                    ? html`<div
-                        class="chat-locked-notice"
-                        data-testid="chat-locked-notice"
-                      >
-                        ${groupDetails.lockStatus === "locked-permanently"
-                          ? "This chat has ended."
-                          : "This chat is locked. New messages can't be sent."}
-                      </div>`
-                    : html`
-                        ${stagedReply
-                          ? messageReplyPreviewTemplate({
-                              staged: stagedReply,
-                              senderProfile: stagedReplySenderProfile,
-                            })
-                          : ""}
-                        ${stagedRecordEmbed
-                          ? stagedEmbedPreviewTemplate({
-                              staged: stagedRecordEmbed,
-                            })
-                          : ""}
-                        <chat-input
-                          @send=${(e) =>
-                            handleSendMessage(
-                              e.detail.message,
-                              e.detail.onSuccess,
-                            )}
-                          @input-change=${(e) => handleComposerInput(e.detail)}
-                          @height-change=${handleInputHeightChange}
-                          ?has-embed=${!!stagedRecordEmbed}
-                          ?disabled=${!messages || isSendingMessage}
-                          ?loading=${isSendingMessage}
-                        ></chat-input>
-                      `}
-                </div>
-              </main>
-              ${reactionsDialogMessageId
-                ? html`<reactions-dialog
-                    .messageId=${reactionsDialogMessageId}
-                    .convoId=${convoId}
-                    .currentUserDid=${currentUser?.did}
-                    .dataLayer=${dataLayer}
-                    @close=${() => state.$reactionsDialogMessageId.set(null)}
-                    @remove-reaction=${async (e) => {
-                      const { emoji } = e.detail;
-                      try {
-                        await dataLayer.mutations.removeMessageReaction(
-                          convoId,
-                          reactionsDialogMessageId,
-                          emoji,
-                          currentUser?.did,
-                        );
-                      } catch (error) {
-                        console.error(error);
-                        showToast("Failed to remove emoji reaction", {
-                          style: "error",
-                        });
-                      }
-                    }}
-                  ></reactions-dialog>`
-                : ""}
+            title,
+            subtitle,
+            backButtonFallbackRoute: "/messages",
+            rightItemTemplate: () => html`
+              <button
+                class="chat-menu-button"
+                data-testid="chat-menu-button"
+                @click=${function (e) {
+                  const contextMenu = this.nextElementSibling;
+                  contextMenu.open(e.clientX, e.clientY);
+                }}
+              >
+                <span>...</span>
+              </button>
+              <context-menu>
+                <context-menu-item
+                  data-testid="menu-action-chat-open-in-bsky"
+                  @click=${() => {
+                    window.open(convoPermalink, "_blank");
+                  }}
+                >
+                  Open in bsky.app
+                </context-menu-item>
+              </context-menu>
             `,
           })}
+          <main class="chat-detail-main">
+            ${(() => {
+              if (messagesRequestStatus.error) {
+                return messagesErrorTemplate({
+                  error: messagesRequestStatus.error,
+                });
+              } else if (messages) {
+                return messagesTemplate({
+                  loadingEnabled: state.$loadingEnabled.get(),
+                  messages,
+                  currentUserDid: currentUser?.did,
+                  convo,
+                  isGroup: !!groupDetails,
+                  hasMore,
+                  canReactNow,
+                });
+              } else {
+                return html`<div
+                  class="loading-spinner-container"
+                  style="padding-top: 16px;"
+                >
+                  <div class="loading-spinner"></div>
+                </div>`;
+              }
+            })()}
+            <div class="message-input-wrapper">
+              ${isLocked
+                ? html`<div
+                    class="chat-locked-notice"
+                    data-testid="chat-locked-notice"
+                  >
+                    ${groupDetails.lockStatus === "locked-permanently"
+                      ? "This chat has ended."
+                      : "This chat is locked. New messages can't be sent."}
+                  </div>`
+                : html`
+                    ${stagedReply
+                      ? messageReplyPreviewTemplate({
+                          staged: stagedReply,
+                          senderProfile: stagedReplySenderProfile,
+                        })
+                      : ""}
+                    ${stagedRecordEmbed
+                      ? stagedEmbedPreviewTemplate({
+                          staged: stagedRecordEmbed,
+                        })
+                      : ""}
+                    <chat-input
+                      @send=${(e) =>
+                        handleSendMessage(e.detail.message, e.detail.onSuccess)}
+                      @input-change=${(e) => handleComposerInput(e.detail)}
+                      @height-change=${handleInputHeightChange}
+                      ?has-embed=${!!stagedRecordEmbed}
+                      ?disabled=${!messages || isSendingMessage}
+                      ?loading=${isSendingMessage}
+                    ></chat-input>
+                  `}
+            </div>
+          </main>
+          ${reactionsDialogMessageId
+            ? html`<reactions-dialog
+                .messageId=${reactionsDialogMessageId}
+                .convoId=${convoId}
+                .currentUserDid=${currentUser?.did}
+                .dataLayer=${dataLayer}
+                @close=${() => state.$reactionsDialogMessageId.set(null)}
+                @remove-reaction=${async (e) => {
+                  const { emoji } = e.detail;
+                  try {
+                    await dataLayer.mutations.removeMessageReaction(
+                      convoId,
+                      reactionsDialogMessageId,
+                      emoji,
+                      currentUser?.did,
+                    );
+                  } catch (error) {
+                    console.error(error);
+                    showToast("Failed to remove emoji reaction", {
+                      style: "error",
+                    });
+                  }
+                }}
+              ></reactions-dialog>`
+            : ""}
         </div>`,
         root,
       );

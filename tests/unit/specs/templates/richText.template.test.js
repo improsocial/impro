@@ -1,6 +1,9 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { richTextTemplate } from "/js/templates/richText.template.js";
+import {
+  richTextTemplate,
+  richTextTokensTemplate,
+} from "/js/templates/richText.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 describe("richTextTemplate", () => {
@@ -209,5 +212,73 @@ describe("richTextTemplate", () => {
     assert.deepEqual(link.textContent, url);
     const richText = container.querySelector("[data-testid='rich-text']");
     assert.deepEqual(richText.textContent, text);
+  });
+});
+
+describe("richTextTokensTemplate", () => {
+  function renderTokenAsElement(token) {
+    const element = document.createElement(token.node.tag);
+    element.textContent = token.node.text ?? "";
+    return element;
+  }
+
+  it("renders inline tokens inside the rich text flow", () => {
+    const result = richTextTokensTemplate({
+      tokens: [
+        { type: "text", value: "use " },
+        {
+          type: "inline",
+          pluginId: "p1",
+          node: { tag: "code", text: "npm i" },
+        },
+        { type: "text", value: " now" },
+      ],
+      renderNodeToken: renderTokenAsElement,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    const code = richText.querySelector("code");
+    assert(code !== null);
+    assert.deepEqual(code.textContent, "npm i");
+    assert.deepEqual(richText.textContent, "use npm i now");
+  });
+
+  it("wraps block tokens and trims the adjoining newlines", () => {
+    const result = richTextTokensTemplate({
+      tokens: [
+        { type: "text", value: "before\n" },
+        {
+          type: "block",
+          pluginId: "p1",
+          node: { tag: "pre", text: "const a = 1;" },
+        },
+        { type: "text", value: "\nafter" },
+      ],
+      renderNodeToken: renderTokenAsElement,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    const block = richText.querySelector(".rich-text-block");
+    assert(block !== null);
+    assert.deepEqual(block.querySelector("pre").textContent, "const a = 1;");
+    // The newlines flanking the block are trimmed so the pre-wrap text
+    // doesn't add gaps around it.
+    assert.deepEqual(richText.textContent, "before" + "const a = 1;" + "after");
+  });
+
+  it("skips inline/block tokens the renderer returns null for", () => {
+    const result = richTextTokensTemplate({
+      tokens: [
+        { type: "text", value: "hello" },
+        { type: "inline", node: { tag: "code", text: "x" } },
+      ],
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert.deepEqual(richText.textContent, "hello");
+    assert.deepEqual(richText.querySelector("code"), null);
   });
 });

@@ -143,8 +143,8 @@
       import settingsAdvancedView from "/js/views/settings/advanced.view.js";
       import settingsPluginsView from "/js/views/settings/plugins.view.js";
       import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
-      import settingsCommunityPluginsView from "/js/views/settings/communityPlugins.view.js";
-      import settingsCommunityPluginListingView from "/js/views/settings/communityPluginListing.view.js";
+      import communityPluginsView from "/js/views/communityPlugins.view.js";
+      import communityPluginListingView from "/js/views/communityPluginListing.view.js";
       import feedDetailView from "/js/views/feedDetail.view.js";
       import listDetailView from "/js/views/listDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
@@ -180,7 +180,7 @@
         handleAppViewResetQueryParam,
       } from "/js/appViewConfig.js";
       import { PluginService } from "/js/plugins/pluginService.js";
-      import { createMainLayout } from "/js/templates/mainLayout.template.js";
+      import { MainLayout } from "/js/mainLayout.js";
 
       async function main() {
         // Body class for styling
@@ -240,6 +240,13 @@
         // Precache author DIDs when data is set in the data store.
         // This will save us from needing to resolve handles when navigating between pages.
         setUpIdentityPrecaching(dataLayer, identityResolver);
+
+        // Preload the current user for layout
+        if (session) {
+          dataLayer.declarative.ensureCurrentUser().catch((error) => {
+            console.warn("Error preloading current user:", error);
+          });
+        }
 
         // Preload preferences - sometimes this fails, so try it twice.
         try {
@@ -307,22 +314,44 @@
           pluginService,
           interactionHandlers,
         };
-        // Bind context to layout
-        context.mainLayout = createMainLayout(context);
-
         pluginService.setRenderContext(context);
 
+        const isOwnProfile = (params) => {
+          const currentUser = dataLayer.derived.$currentUser.get();
+          if (!currentUser) return false;
+          return (
+            params.handleOrDid == null ||
+            params.handleOrDid === currentUser.did ||
+            params.handleOrDid === currentUser.handle
+          );
+        };
+
         const router = new Router();
-        router.addRoute("/", () => homeView);
-        router.addRoute("/intent/compose", () => homeView);
-        router.addRoute("/login", () => loginView);
-        router.addRoute("/notifications", () => notificationsView);
-        router.addRoute("/messages/inbox", () => chatRequestsView);
-        router.addRoute("/messages/:convoId", () => chatDetailView);
-        router.addRoute("/messages", () => chatView);
-        router.addRoute("/feeds", () => feedsView);
-        router.addRoute("/bookmarks", () => bookmarksView);
-        router.addRoute("/search", () => searchView);
+        router.addRoute(["/", "/intent/compose"], () => homeView, {
+          layoutOptions: { activeNavItem: "home" },
+        });
+        router.addRoute("/login", () => loginView, { layout: false });
+        router.addRoute("/notifications", () => notificationsView, {
+          layoutOptions: { activeNavItem: "notifications" },
+        });
+        router.addRoute("/messages/inbox", () => chatRequestsView, {
+          layoutOptions: { activeNavItem: "chat" },
+        });
+        router.addRoute("/messages/:convoId", () => chatDetailView, {
+          layoutOptions: { activeNavItem: "chat" },
+        });
+        router.addRoute("/messages", () => chatView, {
+          layoutOptions: { activeNavItem: "chat" },
+        });
+        router.addRoute("/feeds", () => feedsView, {
+          layoutOptions: { activeNavItem: "feeds" },
+        });
+        router.addRoute("/bookmarks", () => bookmarksView, {
+          layoutOptions: { activeNavItem: "bookmarks" },
+        });
+        router.addRoute("/search", () => searchView, {
+          layoutOptions: { activeNavItem: "search" },
+        });
         router.addRoute("/hashtag/:tag", () => hashtagView);
         router.addRoute(
           "/profile/:handleOrDid/feed/:rkey",
@@ -360,38 +389,73 @@
           "/profile/:handleOrDid/following",
           () => profileFollowingView,
         );
-        router.addRoute("/profile/:handleOrDid", () => profileView);
-        router.addRoute("/profile", () => profileView); // current user profile
-        router.addRoute("/settings", () => settingsView);
-        router.addRoute("/settings/appearance", () => settingsAppearanceView);
-        router.addRoute("/settings/muted-words", () => settingsMutedWordsView);
+        // "/profile" with no param is the current user's profile
+        router.addRoute(
+          ["/profile/:handleOrDid", "/profile"],
+          () => profileView,
+          {
+            layoutOptions: {
+              activeNavItem: (params) =>
+                isOwnProfile(params) ? "profile" : null,
+            },
+          },
+        );
+        const settingsRouteOptions = {
+          layoutOptions: { activeNavItem: "settings" },
+        };
+        router.addRoute("/settings", () => settingsView, settingsRouteOptions);
+        router.addRoute(
+          "/settings/appearance",
+          () => settingsAppearanceView,
+          settingsRouteOptions,
+        );
+        router.addRoute(
+          "/settings/muted-words",
+          () => settingsMutedWordsView,
+          settingsRouteOptions,
+        );
         router.addRoute(
           "/settings/muted-accounts",
           () => settingsMutedAccountsView,
+          settingsRouteOptions,
         );
         router.addRoute(
           "/settings/blocked-accounts",
           () => settingsBlockedAccountsView,
-        );
-        router.addRoute("/settings/advanced", () => settingsAdvancedView);
-        router.addRoute("/settings/plugins", () => settingsPluginsView);
-        router.addRoute(
-          "/settings/plugins/community",
-          () => settingsCommunityPluginsView,
+          settingsRouteOptions,
         );
         router.addRoute(
-          "/settings/plugins/community/:pluginId",
-          () => settingsCommunityPluginListingView,
+          "/settings/advanced",
+          () => settingsAdvancedView,
+          settingsRouteOptions,
+        );
+        router.addRoute(
+          "/settings/plugins",
+          () => settingsPluginsView,
+          settingsRouteOptions,
         );
         router.addRoute(
           "/settings/plugins/:pluginId",
           () => settingsPluginDetailView,
+          settingsRouteOptions,
         );
+        router.addRoute("/plugins/community", () => communityPluginsView);
+        router.addRoute(
+          "/plugins/community/:pluginId",
+          () => communityPluginListingView,
+        );
+        router.addRedirects({
+          // Old community plugin URLs
+          "/settings/plugins/community": () => "/plugins/community",
+          "/settings/plugins/community/:pluginId": (params) =>
+            `/plugins/community/${encodeURIComponent(params.pluginId)}`,
+        });
         router.setNotFoundView(() => notFoundView);
 
-        router.renderRoute(({ view, params, container }) => {
+        router.renderRoute(({ view, params, container, layout }) => {
           return view.render({
             root: container,
+            layout,
             router,
             params,
             context,
@@ -416,6 +480,9 @@
             }
           });
         });
+
+        const mainLayout = new MainLayout(context, router);
+        router.setLayout(mainLayout);
 
         router.mount(document.getElementById("app-root"));
 

@@ -32,6 +32,8 @@ const {
   Setting,
   VirtualEl,
   fetch: pluginFetch,
+  flattenForScan,
+  FlattenedTokens,
 } = worker;
 
 function lastMessage() {
@@ -817,5 +819,149 @@ describe("fetch — header serialization", () => {
       !("headers" in sent.args[0].init),
       "headers should be omitted when init.headers is null",
     );
+  });
+});
+
+describe("registerRichTextTransform", () => {
+  it("posts a register message", () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerRichTextTransform((tokens) => tokens);
+    const msg = lastMessage();
+    assert.deepEqual(msg.type, "register");
+    assert.deepEqual(msg.target, "richTextTransform");
+    assert(typeof msg.handlerId === "number");
+  });
+
+  it("maps a batch through the callback and serializes VirtualEl nodes", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerRichTextTransform((tokens, context) => {
+      if (context.surface === "smallPost") return tokens;
+      const node = new VirtualEl("code");
+      node.setText("hi");
+      return [...tokens, { type: "inline", node }];
+    });
+    const register = lastMessage();
+    clearMessages();
+    const batch = [
+      {
+        tokens: [{ type: "text", value: "one" }],
+        context: { surface: "largePost" },
+      },
+      {
+        tokens: [{ type: "text", value: "two" }],
+        context: { surface: "smallPost" },
+      },
+    ];
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 7,
+      args: [batch],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.callId, 7);
+    assert.deepEqual(result.value.length, 2);
+    const [first, second] = result.value;
+    assert.deepEqual(first.value[0], { type: "text", value: "one" });
+    assert.deepEqual(first.value[1].type, "inline");
+    assert.deepEqual(first.value[1].node.tag, "code");
+    assert.deepEqual(first.value[1].node.text, "hi");
+    assert.deepEqual(second.value, [{ type: "text", value: "two" }]);
+  });
+
+  it("returns an error entry for items whose callback throws", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    plugin.registerRichTextTransform((tokens, context) => {
+      if (context.uri === "at://bad") throw new Error("nope");
+      return tokens;
+    });
+    const register = lastMessage();
+    clearMessages();
+    await dispatch({
+      type: "call",
+      handlerId: register.handlerId,
+      callId: 8,
+      args: [
+        [
+          { tokens: [], context: { uri: "at://bad" } },
+          {
+            tokens: [{ type: "text", value: "ok" }],
+            context: { uri: "at://good" },
+          },
+        ],
+      ],
+    });
+    const result = postedMessages.find((message) => message.type === "result");
+    assert.deepEqual(result.value[0].error, "nope");
+    assert.deepEqual(result.value[1].value, [{ type: "text", value: "ok" }]);
+  });
+});
+
+describe("flattenForScan", () => {
+  const facetToken = {
+    type: "facet",
+    facet: {
+      index: { byteStart: 4, byteEnd: 23 },
+      features: [
+        {
+          $type: "app.bsky.richtext.facet#link",
+          uri: "https://example.com",
+        },
+      ],
+    },
+    text: "https://example.com",
+  };
+  const tokens = [
+    { type: "text", value: "see " },
+    facetToken,
+    { type: "text", value: " now" },
+  ];
+
+  it("returns a FlattenedTokens instance concatenating text and facet token text", () => {
+    const flat = flattenForScan(tokens);
+    assert(flat instanceof FlattenedTokens);
+    assert.deepEqual(flat.text, "see https://example.com now");
+  });
+
+  it("textFor returns the flattened source text", () => {
+    const flat = flattenForScan(tokens);
+    assert.deepEqual(flat.textFor(4, 23), "https://example.com");
+  });
+
+  it("tokensFor preserves whole tokens by identity", () => {
+    const flat = flattenForScan(tokens);
+    const covered = flat.tokensFor(0, flat.text.length);
+    assert.deepEqual(covered.length, 3);
+    assert(covered[1] === facetToken);
+  });
+
+  it("tokensFor slices partially covered text tokens", () => {
+    const flat = flattenForScan(tokens);
+    assert.deepEqual(flat.tokensFor(0, 3), [{ type: "text", value: "see" }]);
+  });
+
+  it("tokensFor demotes a partially covered facet to text", () => {
+    const flat = flattenForScan(tokens);
+    const covered = flat.tokensFor(0, 9);
+    assert.deepEqual(covered, [
+      { type: "text", value: "see " },
+      { type: "text", value: "https" },
+    ]);
+  });
+
+  it("passes zero-width inline/block tokens through in range", () => {
+    const inlineToken = { type: "inline", node: { tag: "code" } };
+    const flat = flattenForScan([
+      { type: "text", value: "ab" },
+      inlineToken,
+      { type: "text", value: "cd" },
+    ]);
+    assert.deepEqual(flat.text, "abcd");
+    const covered = flat.tokensFor(0, 4);
+    assert.deepEqual(covered.length, 3);
+    assert(covered[1] === inlineToken);
   });
 });

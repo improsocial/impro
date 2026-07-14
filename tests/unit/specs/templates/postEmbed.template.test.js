@@ -7,6 +7,12 @@ import {
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
 
+const pluginService = {
+  $richTextTransformsVersion: { get: () => 0 },
+  transformRichTextTokens: async () => null,
+  renderRichTextNodeToken: () => null,
+};
+
 describe("postEmbedTemplate - images", () => {
   it("should render image embed", () => {
     const embed = {
@@ -833,13 +839,16 @@ describe("postEmbedTemplate - quoted posts", () => {
       embed,
       labels: [],
       isAuthenticated: true,
+      pluginService,
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const link = container.querySelector(".quoted-post a[href='" + url + "']");
     assert(link !== null);
     assert(link.textContent.endsWith("..."));
     assert(link.textContent.length < url.length);
+    container.remove();
   });
 });
 

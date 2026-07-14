@@ -9,7 +9,7 @@ import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
-import { richTextTemplate } from "/js/templates/richText.template.js";
+import "/js/components/plugin-rich-text.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
@@ -149,6 +149,7 @@ export function quotedPostTemplate({
   lazyLoadImages,
   isAuthenticated,
   condensed = false,
+  pluginService,
 }) {
   if (!quotedPost) {
     return html`<div class="quoted-post embed-card">Post not found</div>`;
@@ -224,11 +225,17 @@ export function quotedPostTemplate({
           <div class="quoted-post-body">
             ${postText.length > 0
               ? html`<div class="post-text">
-                  ${richTextTemplate({
-                    text: postText,
-                    facets: quotedPost.value.facets,
-                    truncateUrls: true,
-                  })}
+                  <plugin-rich-text
+                    .pluginService=${pluginService}
+                    .text=${postText}
+                    .facets=${quotedPost.value.facets}
+                    .transformContext=${{
+                      surface: "quotedPost",
+                      uri: quotedPost.uri,
+                      did: quotedPost.author?.did ?? null,
+                    }}
+                    truncate-urls
+                  ></plugin-rich-text>
                 </div>`
               : ""}
             ${embed && condensed
@@ -240,6 +247,7 @@ export function quotedPostTemplate({
                       mediaLabel: quotedPost.mediaLabel,
                       lazyLoadImages,
                       isAuthenticated,
+                      pluginService,
                     })}
                   </div>`
                 : ""}
@@ -599,6 +607,7 @@ export function recordEmbedTemplate({
   lazyLoadImages,
   isAuthenticated,
   condensed = false,
+  pluginService,
 }) {
   switch (record.$type) {
     case "app.bsky.embed.record#viewRecord":
@@ -614,6 +623,7 @@ export function recordEmbedTemplate({
         lazyLoadImages,
         isAuthenticated,
         condensed,
+        pluginService,
       });
     case "app.bsky.embed.record#viewBlocked":
       return blockedQuoteTemplate();
@@ -641,6 +651,7 @@ export function postEmbedTemplate({
   lazyLoadImages = false,
   isAuthenticated,
   currentConvoId = null,
+  pluginService,
 }) {
   if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
     return null;
@@ -651,6 +662,7 @@ export function postEmbedTemplate({
         record: embed.record,
         lazyLoadImages,
         isAuthenticated,
+        pluginService,
       });
     case "app.bsky.embed.recordWithMedia#view":
       return html`
@@ -664,6 +676,7 @@ export function postEmbedTemplate({
           record: embed.record.record,
           lazyLoadImages,
           isAuthenticated,
+          pluginService,
         })}
       `;
     case "app.bsky.embed.video#view":

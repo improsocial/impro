@@ -38,6 +38,7 @@ export class PostComposerService {
       this.currentPostComposer = document.createElement("post-composer");
       this.currentPostComposer.dataLayer = this.dataLayer;
       this.currentPostComposer.identityResolver = this.identityResolver;
+      this.currentPostComposer.pluginService = this.pluginService;
       this.currentPostComposer.replyTo = replyTo;
       this.currentPostComposer.replyRoot = replyRoot;
       this.currentPostComposer.quotedRecord = quotedPost

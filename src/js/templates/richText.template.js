@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
-import { sliceByByte, sortBy, getByteLength, sanitizeUri } from "/js/utils.js";
-import { clampFacetIndex } from "/js/facetHelpers.js";
+import { sanitizeUri } from "/js/utils.js";
+import { tokenizeRichText } from "/js/richTextHelpers.js";
 import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
@@ -53,41 +53,58 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
   }
 }
 
-function facetOverlaps(facet1, facet2) {
-  return (
-    facet1.index.byteStart < facet2.index.byteEnd &&
-    facet1.index.byteEnd > facet2.index.byteStart
-  );
+// tokens: ({ type: "text" } / { type: "facet" } / { type: "inline" } / { type: "block" })
+export function richTextTokensTemplate({
+  tokens,
+  truncateUrls = false,
+  renderNodeToken = () => null,
+}) {
+  const parts = [];
+  tokens.forEach((token, index) => {
+    switch (token.type) {
+      case "text": {
+        let value = token.value;
+        // Trim the newlines adjoining a block token so blocks don't render
+        // with double gaps (the text is displayed white-space: pre-wrap).
+        if (tokens[index - 1]?.type === "block" && value.startsWith("\n")) {
+          value = value.slice(1);
+        }
+        if (tokens[index + 1]?.type === "block" && value.endsWith("\n")) {
+          value = value.slice(0, -1);
+        }
+        parts.push(value);
+        break;
+      }
+      case "facet":
+        parts.push(
+          facetTemplate({
+            facet: token.facet,
+            wrappedText: token.text,
+            truncateUrls,
+          }),
+        );
+        break;
+      case "inline":
+      case "block": {
+        const element = renderNodeToken(token) ?? null;
+        if (!element) break;
+        parts.push(
+          token.type === "block"
+            ? html`<div class="rich-text-block">${element}</div>`
+            : element,
+        );
+        break;
+      }
+    }
+  });
+  // prettier-ignore
+  return html`<div class="rich-text" data-testid="rich-text">${parts}</div>`;
 }
 
 export function richTextTemplate({ text, facets = [], truncateUrls = false }) {
-  const textByteLength = getByteLength(text);
-  const clampedFacets = facets.map((facet) =>
-    clampFacetIndex(facet, {
-      byteStart: 0,
-      byteEnd: textByteLength,
-    }),
-  );
-  const sortedFacets = sortBy(clampedFacets, (facet) => facet.index.byteStart);
-  const distinctFacets = [];
-  for (const facet of sortedFacets) {
-    if (!distinctFacets.some((f) => facetOverlaps(f, facet))) {
-      distinctFacets.push(facet);
-    }
-  }
-  const parts = [];
-  let currentIndex = 0;
-  for (const facet of distinctFacets) {
-    parts.push(sliceByByte(text, currentIndex, facet.index.byteStart));
-    const wrappedText = sliceByByte(
-      text,
-      facet.index.byteStart,
-      facet.index.byteEnd,
-    );
-    parts.push(facetTemplate({ facet, wrappedText, truncateUrls }));
-    currentIndex = facet.index.byteEnd;
-  }
-  parts.push(sliceByByte(text, currentIndex));
-  // prettier-ignore
-  return html`<div class="rich-text" data-testid="rich-text">${parts}</div>`;
+  const tokens = tokenizeRichText({ text, facets });
+  return richTextTokensTemplate({
+    tokens,
+    truncateUrls,
+  });
 }

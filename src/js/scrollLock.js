@@ -96,7 +96,6 @@ let __lockedContainer = null;
 export class ScrollLock {
   constructor(target) {
     this.target = target ?? null;
-    this.container = document.querySelector(".page-visible"); // todo find better way to get container
     this.locked = false;
     this._lockedAncestor = null;
     this._previousAncestorOverflow = "";
@@ -106,15 +105,16 @@ export class ScrollLock {
     if (this.locked) {
       return;
     }
-    if (!this.container) {
+    const container = document.querySelector(".page-visible"); // todo find better way to get container
+    if (!container) {
       console.warn(
         "ScrollLock: no .page-visible container found; skipping lock",
       );
       return;
     }
     if (__scrollLockHolders.length === 0) {
-      lockScroll(this.container);
-      __lockedContainer = this.container;
+      lockScroll(container);
+      __lockedContainer = container;
     }
     __scrollLockHolders.push(this);
     // If target is passed, lock the nearest scrollable ancestor of that target in addition to the outer page

@@ -9,7 +9,7 @@ import {
 import { noop } from "/js/utils.js";
 import { linkToPost } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { richTextTemplate } from "/js/templates/richText.template.js";
+import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
@@ -160,11 +160,17 @@ export function smallPostTemplate({
                   </div>`
                 : html`${postText.length > 0
                     ? html`<div class="post-text">
-                        ${richTextTemplate({
-                          text: postText,
-                          facets: post.record.facets,
-                          truncateUrls: true,
-                        })}
+                        <plugin-rich-text
+                          .pluginService=${pluginService}
+                          .text=${postText}
+                          .facets=${post.record.facets}
+                          .transformContext=${{
+                            surface: "smallPost",
+                            uri: post.uri,
+                            did: post.author?.did ?? null,
+                          }}
+                          truncate-urls
+                        ></plugin-rich-text>
                       </div>`
                     : ""}
                   ${post.embed
@@ -174,6 +180,7 @@ export function smallPostTemplate({
                           mediaLabel: post.mediaLabel,
                           lazyLoadImages,
                           isAuthenticated,
+                          pluginService,
                         })}
                       </div>`
                     : null}`}

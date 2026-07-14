@@ -15,7 +15,6 @@ class PostQuotesView extends View {
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -63,27 +62,25 @@ class PostQuotesView extends View {
 
       render(
         html`<div id="post-quotes-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: "Quotes",
-                subtitle,
-              })}
-              <main style="position: relative;">
-                ${postQuotesRequestStatus.error
-                  ? quotesErrorTemplate({
-                      error: postQuotesRequestStatus.error,
-                    })
-                  : postFeedTemplate({
-                      feed: postQuotesFeed,
-                      currentUser,
-                      isAuthenticated,
-                      onLoadMore: loadQuotes,
-                      postInteractionHandler,
-                      emptyMessage: "No quotes yet.",
-                      pluginService,
-                    })}
-              </main>`,
+          ${headerTemplate({
+            title: "Quotes",
+            subtitle,
           })}
+          <main style="position: relative;">
+            ${postQuotesRequestStatus.error
+              ? quotesErrorTemplate({
+                  error: postQuotesRequestStatus.error,
+                })
+              : postFeedTemplate({
+                  feed: postQuotesFeed,
+                  currentUser,
+                  isAuthenticated,
+                  onLoadMore: loadQuotes,
+                  postInteractionHandler,
+                  emptyMessage: "No quotes yet.",
+                  pluginService,
+                })}
+          </main>
         </div>`,
         root,
       );
@@ -96,9 +93,6 @@ class PostQuotesView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post quote count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadQuotes();

@@ -65,11 +65,7 @@ function sidebarNavTemplate({
               if (activeNavItem === item.id) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (onClickActiveItem) {
-                  onClickActiveItem(item.id);
-                } else {
-                  window.scrollTo(0, 0);
-                }
+                onClickActiveItem?.(item.id);
               }
               // Close sidebar
               const sidebar = this.closest("animated-sidebar");

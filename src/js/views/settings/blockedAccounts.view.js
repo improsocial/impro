@@ -1,13 +1,13 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsBlockedAccountsView extends View {
-  async render({ root, context: { dataLayer, mainLayout } }) {
+  async render({ root, router, layout, context: { dataLayer } }) {
     await auth.requireAuth();
 
     async function loadMore() {
@@ -24,6 +24,11 @@ class SettingsBlockedAccountsView extends View {
       </div>`;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/settings");
+    });
+
     pageEffect(root, () => {
       const blockedProfiles = dataLayer.derived.$blockedProfiles.get();
       const status = dataLayer.requests.statusStore.$statuses.get(
@@ -33,42 +38,37 @@ class SettingsBlockedAccountsView extends View {
 
       render(
         html`<div id="settings-blocked-accounts-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({
-                title: "Blocked accounts",
-                backButtonFallbackRoute: "/settings",
-              })}
-              <main>
-                <p
-                  class="blocked-account-description"
-                  data-testid="page-description"
-                >
-                  Blocked accounts cannot reply to your posts, mention you, or
-                  interact with you. You won't see their content.
-                </p>
-                ${(() => {
-                  if (status.error) {
-                    return errorTemplate({ error: status.error });
-                  }
-                  return profileFeedTemplate({
-                    profiles: blockedProfiles?.blocks ?? null,
-                    hasMore,
-                    onLoadMore: loadMore,
-                    emptyMessage: "You haven't blocked any accounts.",
-                    showFollowButton: false,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: "Blocked accounts",
+            backButtonFallbackRoute: "/settings",
           })}
+          <main>
+            <p
+              class="blocked-account-description"
+              data-testid="page-description"
+            >
+              Blocked accounts cannot reply to your posts, mention you, or
+              interact with you. You won't see their content.
+            </p>
+            ${(() => {
+              if (status.error) {
+                return errorTemplate({ error: status.error });
+              }
+              return profileFeedTemplate({
+                profiles: blockedProfiles?.blocks ?? null,
+                hasMore,
+                onLoadMore: loadMore,
+                emptyMessage: "You haven't blocked any accounts.",
+                showFollowButton: false,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );
     });
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       await loadMore();
     });
 

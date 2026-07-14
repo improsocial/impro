@@ -3,19 +3,14 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
   async render({
     root,
-    context: {
-      dataLayer,
-      isAuthenticated,
-      pluginService,
-      interactionHandlers,
-      mainLayout,
-    },
+    layout,
+    context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
     await auth.requireAuth();
 
@@ -28,32 +23,29 @@ class BookmarksView extends View {
       await loadBookmarks({ reload: true });
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      scrollAndReloadBookmarks();
+    });
+
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const bookmarks = dataLayer.derived.$hydratedBookmarks.get();
 
       render(
         html`<div id="bookmarks-view">
-          ${mainLayout({
-            onClickActiveNavItem: () => {
-              scrollAndReloadBookmarks();
-            },
-            activeNavItem: "bookmarks",
-            children: html`
-              ${headerTemplate({ title: "Saved Posts" })}
-              <main>
-                ${postFeedTemplate({
-                  feed: bookmarks,
-                  currentUser,
-                  isAuthenticated,
-                  onLoadMore: () => loadBookmarks(),
-                  postInteractionHandler,
-                  emptyMessage: "No saved posts yet!",
-                  pluginService,
-                })}
-              </main>
-            `,
-          })}
+          ${headerTemplate({ title: "Saved Posts" })}
+          <main>
+            ${postFeedTemplate({
+              feed: bookmarks,
+              currentUser,
+              isAuthenticated,
+              onLoadMore: () => loadBookmarks(),
+              postInteractionHandler,
+              emptyMessage: "No saved posts yet!",
+              pluginService,
+            })}
+          </main>
         </div>`,
         root,
       );
@@ -68,7 +60,6 @@ class BookmarksView extends View {
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
-      dataLayer.declarative.ensureCurrentUser();
       await loadBookmarks();
     });
 

@@ -293,9 +293,6 @@ video {
 }
 
 .page {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   min-height: 100%;
   min-height: calc(100dvh - var(--safe-area-inset-bottom));
@@ -304,13 +301,14 @@ video {
 
 .page.page-hidden {
   display: none;
-  /* visibility: hidden;
-  position: fixed;
-  transform: translateX(-200vw); */
 }
 
 .page.page-visible {
   display: block;
+}
+
+#main-layout.layout-hidden {
+  display: none;
 }
 
 main {
@@ -372,8 +370,16 @@ main {
   word-wrap: break-word;
 }
 
+plugin-rich-text {
+  display: contents;
+}
+
 .rich-text a {
   color: var(--text-link-color);
+}
+
+.rich-text-block {
+  white-space: normal;
 }
 
 @media (hover: hover) {
@@ -1483,16 +1489,17 @@ button.sidebar-plugin-nav-item {
 }
 
 .footer-nav nav {
-  margin-right: 20px;
-  margin-left: 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 100%;
 }
 
 .footer-nav-item {
-  padding: 16px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   cursor: pointer;
   position: relative;
 }
@@ -1522,7 +1529,7 @@ button.sidebar-plugin-nav-item {
 
 .footer-nav-item .status-badge {
   top: 10px;
-  left: 27px;
+  left: calc(50% - 1px);
 }
 
 .footer-nav-item .avatar-image-frame {
@@ -7858,7 +7865,16 @@ moderation-warning .toggle-content {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 100vh;
+  min-height: calc(100vh - 45px);
+  min-height: calc(100dvh - 45px);
+}
+
+@media (max-width: 799px) {
+  #not-found-view main {
+    min-height: calc(
+      100dvh - 45px - var(--footer-height) - var(--safe-area-inset-bottom)
+    );
+  }
 }
 
 #not-found-view h1 {
@@ -8917,6 +8933,7 @@ toggle-switch {
 }
 
 .new-chat-result-name {
+  font-size: 15px;
   font-weight: 600;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -9377,7 +9394,7 @@ image-cropper {
   max-width: 32em;
 }
 
-#settings-community-plugins-view .error-state,
+#community-plugins-view .error-state,
 #settings-plugins-view .error-state {
   padding: 32px 20px;
 }
@@ -9478,7 +9495,7 @@ image-cropper {
 }
 
 /* Community plugin rows are whole-row navigation links */
-#settings-community-plugins-view .plugin-list-item {
+#community-plugins-view .plugin-list-item {
   padding: 0;
 }
 
@@ -9570,7 +9587,7 @@ image-cropper {
   padding: 16px;
 }
 
-#settings-community-plugin-listing-view rendered-markdown {
+#community-plugin-listing-view rendered-markdown {
   display: block;
   font-size: 15px;
   line-height: 1.6;
@@ -9578,35 +9595,35 @@ image-cropper {
   word-break: break-word;
 }
 
-#settings-community-plugin-listing-view rendered-markdown h1,
-#settings-community-plugin-listing-view rendered-markdown h2,
-#settings-community-plugin-listing-view rendered-markdown h3,
-#settings-community-plugin-listing-view rendered-markdown h4 {
+#community-plugin-listing-view rendered-markdown h1,
+#community-plugin-listing-view rendered-markdown h2,
+#community-plugin-listing-view rendered-markdown h3,
+#community-plugin-listing-view rendered-markdown h4 {
   line-height: 1.25;
   margin: 24px 0 12px;
 }
 
-#settings-community-plugin-listing-view rendered-markdown h1 {
+#community-plugin-listing-view rendered-markdown h1 {
   font-size: 24px;
 }
 
-#settings-community-plugin-listing-view rendered-markdown h2 {
+#community-plugin-listing-view rendered-markdown h2 {
   font-size: 20px;
 }
 
-#settings-community-plugin-listing-view rendered-markdown h3 {
+#community-plugin-listing-view rendered-markdown h3 {
   font-size: 17px;
 }
 
-#settings-community-plugin-listing-view
+#community-plugin-listing-view
   rendered-markdown
   :is(h1, h2, h3, h4):first-child {
   margin-top: 0;
 }
 
-#settings-community-plugin-listing-view rendered-markdown p,
-#settings-community-plugin-listing-view rendered-markdown ul,
-#settings-community-plugin-listing-view rendered-markdown ol {
+#community-plugin-listing-view rendered-markdown p,
+#community-plugin-listing-view rendered-markdown ul,
+#community-plugin-listing-view rendered-markdown ol {
   margin: 12px 0;
 }
 
@@ -9637,16 +9654,16 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
   padding-left: 0;
 }
 
-#settings-community-plugin-listing-view rendered-markdown a {
+#community-plugin-listing-view rendered-markdown a {
   color: var(--primary-button-color);
 }
 
-#settings-community-plugin-listing-view rendered-markdown img {
+#community-plugin-listing-view rendered-markdown img {
   max-width: 100%;
   height: auto;
 }
 
-#settings-community-plugin-listing-view rendered-markdown code {
+#community-plugin-listing-view rendered-markdown code {
   font-family: var(--mono-font, monospace);
   font-size: 0.9em;
   background: var(--secondary-button-color);
@@ -9654,19 +9671,19 @@ rendered-markdown ul:has(> li > input[type="checkbox"]) {
   border-radius: var(--tag-border-radius);
 }
 
-#settings-community-plugin-listing-view rendered-markdown pre {
+#community-plugin-listing-view rendered-markdown pre {
   background: var(--secondary-button-color);
   padding: 12px;
   border-radius: var(--callout-border-radius);
   overflow-x: auto;
 }
 
-#settings-community-plugin-listing-view rendered-markdown pre code {
+#community-plugin-listing-view rendered-markdown pre code {
   background: none;
   padding: 0;
 }
 
-#settings-community-plugin-listing-view rendered-markdown blockquote {
+#community-plugin-listing-view rendered-markdown blockquote {
   margin: 12px 0;
   padding-left: 12px;
   border-left: 3px solid var(--post-border-color);
@@ -9831,7 +9848,10 @@ p.setting-item-desc {
 }
 
 .bottom-sheet.text-modal .modal-dialog-content {
-  padding: 32px 24px 24px;
+  padding-top: 32px;
+  padding-right: 24px;
+  padding-bottom: 16px;
+  padding-left: 24px;
 }
 
 @media (min-width: 800px) {
@@ -9843,7 +9863,10 @@ p.setting-item-desc {
     max-width: 320px;
   }
   .bottom-sheet.text-modal .modal-dialog-content {
-    padding: 24px;
+    padding-top: 24px;
+    padding-right: 24px;
+    padding-bottom: 16px;
+    padding-left: 24px;
   }
 }
 

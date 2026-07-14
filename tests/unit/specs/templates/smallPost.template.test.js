@@ -20,6 +20,9 @@ const postInteractionHandler = {
 
 const pluginService = {
   getPostContextMenuItems: async () => [],
+  $richTextTransformsVersion: { get: () => 0 },
+  transformRichTextTokens: async () => null,
+  renderRichTextNodeToken: () => null,
 };
 
 const baseProps = {
@@ -72,8 +75,10 @@ describe("smallPostTemplate", () => {
       ...baseProps,
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     assert(container.textContent.includes("Hello small world!"));
+    container.remove();
   });
 
   it("should render post action bar", () => {
@@ -113,11 +118,13 @@ describe("smallPostTemplate - rich text", () => {
       ...baseProps,
     });
     const container = document.createElement("div");
+    document.body.appendChild(container);
     render(result, container);
     const link = container.querySelector("a[href='" + url + "']");
     assert(link !== null);
     assert(link.textContent.endsWith("..."));
     assert(link.textContent.length < url.length);
+    container.remove();
   });
 });
 
@@ -521,6 +528,7 @@ describe("smallPostTemplate - plugin context menu items", () => {
 
   it("should render plugin-provided context menu items in the action bar", async () => {
     const customPluginService = {
+      ...pluginService,
       getPostContextMenuItems: async () => [
         { title: "Custom plugin item", invoke: () => {} },
         { title: "Save to Notion", invoke: () => {} },
@@ -553,6 +561,7 @@ describe("smallPostTemplate - plugin context menu items", () => {
   it("should invoke the plugin item callback when clicked", async () => {
     let invoked = false;
     const customPluginService = {
+      ...pluginService,
       getPostContextMenuItems: async () => [
         {
           title: "Custom plugin item",

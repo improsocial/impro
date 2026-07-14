@@ -53,7 +53,7 @@ test.describe("Footer navigation flow", () => {
     await page.locator('[data-testid="footer-nav-search"]').click();
     await expect(page.locator("#search-view")).toBeVisible({ timeout: 10000 });
 
-    await page.locator('#search-view [data-testid="footer-nav-home"]').click();
+    await page.locator('[data-testid="footer-nav-home"]').click();
 
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
     await expect(page).toHaveURL("/");

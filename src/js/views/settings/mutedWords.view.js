@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
@@ -13,7 +13,7 @@ import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-label.js";
 
 class SettingsMutedWordsView extends View {
-  async render({ root, context: { dataLayer, mainLayout } }) {
+  async render({ root, router, layout, context: { dataLayer } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsMutedWordsView");
@@ -224,6 +224,11 @@ class SettingsMutedWordsView extends View {
       `;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/settings");
+    });
+
     pageEffect(root, () => {
       const preferences = dataLayer.derived.$preferences.get();
       const mutedWords = preferences
@@ -232,151 +237,124 @@ class SettingsMutedWordsView extends View {
 
       render(
         html`<div id="settings-muted-words-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({
-                title: "Muted words",
-                backButtonFallbackRoute: "/settings",
-              })}
-              <main>
-                <form
-                  class="muted-word-form"
-                  data-testid="muted-word-form"
-                  @submit=${(e) => handleSubmit(e)}
-                >
-                  <h2>Add muted words and tags</h2>
-                  <p data-testid="page-description">
-                    Posts can be muted based on their text, their tags, or both.
-                  </p>
-                  <input
-                    class="muted-word-input"
-                    data-testid="muted-word-input"
-                    type="text"
-                    name="word"
-                    autocapitalize="none"
-                    autocomplete="off"
-                    autocorrect="off"
-                    placeholder="Enter a word or tag"
-                    @input=${(e) => {
-                      if (state.$error.get()) {
-                        state.$error.set("");
-                      }
-                      state.$hasValue.set(!!e.target.value.trim());
-                    }}
-                    autocomplete="off"
-                    autocorrect="off"
-                    autocapitalize="none"
-                  />
-
-                  <div class="muted-word-field-label">Duration:</div>
-                  <div
-                    class="muted-word-radio-group"
-                    data-testid="duration-group"
-                  >
-                    <label>
-                      <input
-                        type="radio"
-                        name="duration"
-                        value="forever"
-                        checked
-                      />
-                      Forever
-                    </label>
-                    <label>
-                      <input type="radio" name="duration" value="24_hours" />
-                      24 hours
-                    </label>
-                    <label>
-                      <input type="radio" name="duration" value="7_days" />
-                      7 days
-                    </label>
-                    <label>
-                      <input type="radio" name="duration" value="30_days" />
-                      30 days
-                    </label>
-                  </div>
-
-                  <div class="muted-word-field-label">Mute in:</div>
-                  <div
-                    class="muted-word-radio-group"
-                    data-testid="target-group"
-                  >
-                    <label>
-                      <input
-                        type="radio"
-                        name="target"
-                        value="content"
-                        checked
-                      />
-                      Text & tags
-                    </label>
-                    <label>
-                      <input type="radio" name="target" value="tag" />
-                      Tags only
-                    </label>
-                  </div>
-
-                  <div class="muted-word-field-label">Options:</div>
-                  <label
-                    class="muted-word-checkbox-row"
-                    data-testid="exclude-following"
-                  >
-                    <input type="checkbox" name="exclude-following" />
-                    Exclude users you follow
-                  </label>
-
-                  <button
-                    class="settings-button"
-                    data-testid="muted-word-add"
-                    type="submit"
-                    ?disabled=${state.$isSaving.get() || !state.$hasValue.get()}
-                  >
-                    ${state.$isSaving.get()
-                      ? html`<div class="loading-spinner"></div>`
-                      : html`<span>Add</span>${plusIconTemplate()}`}
-                  </button>
-                  ${state.$error.get()
-                    ? html`<div
-                        class="muted-word-error"
-                        data-testid="muted-word-error"
-                      >
-                        ${state.$error.get()}
-                      </div>`
-                    : ""}
-                </form>
-
-                <h2 class="muted-word-list-header">Your muted words</h2>
-                ${mutedWords.length > 0
-                  ? html`<div
-                      class="muted-word-list"
-                      data-testid="muted-word-list"
-                    >
-                      ${mutedWords.map((word) =>
-                        mutedWordItemTemplate({
-                          word,
-                          isRemoving: state.$removingWordId.get() === word.id,
-                          isRenewing: state.$renewingWordId.get() === word.id,
-                          onRemove: handleRemove,
-                          onRenew: handleRenew,
-                        }),
-                      )}
-                    </div>`
-                  : html`<div
-                      class="muted-word-empty"
-                      data-testid="muted-word-empty"
-                    >
-                      You haven't muted any words or tags yet
-                    </div>`}
-              </main>`,
+          ${headerTemplate({
+            title: "Muted words",
+            backButtonFallbackRoute: "/settings",
           })}
+          <main>
+            <form
+              class="muted-word-form"
+              data-testid="muted-word-form"
+              @submit=${(e) => handleSubmit(e)}
+            >
+              <h2>Add muted words and tags</h2>
+              <p data-testid="page-description">
+                Posts can be muted based on their text, their tags, or both.
+              </p>
+              <input
+                class="muted-word-input"
+                data-testid="muted-word-input"
+                type="text"
+                name="word"
+                autocapitalize="none"
+                autocomplete="off"
+                autocorrect="off"
+                placeholder="Enter a word or tag"
+                @input=${(e) => {
+                  if (state.$error.get()) {
+                    state.$error.set("");
+                  }
+                  state.$hasValue.set(!!e.target.value.trim());
+                }}
+                autocomplete="off"
+                autocorrect="off"
+                autocapitalize="none"
+              />
+
+              <div class="muted-word-field-label">Duration:</div>
+              <div class="muted-word-radio-group" data-testid="duration-group">
+                <label>
+                  <input type="radio" name="duration" value="forever" checked />
+                  Forever
+                </label>
+                <label>
+                  <input type="radio" name="duration" value="24_hours" />
+                  24 hours
+                </label>
+                <label>
+                  <input type="radio" name="duration" value="7_days" />
+                  7 days
+                </label>
+                <label>
+                  <input type="radio" name="duration" value="30_days" />
+                  30 days
+                </label>
+              </div>
+
+              <div class="muted-word-field-label">Mute in:</div>
+              <div class="muted-word-radio-group" data-testid="target-group">
+                <label>
+                  <input type="radio" name="target" value="content" checked />
+                  Text & tags
+                </label>
+                <label>
+                  <input type="radio" name="target" value="tag" />
+                  Tags only
+                </label>
+              </div>
+
+              <div class="muted-word-field-label">Options:</div>
+              <label
+                class="muted-word-checkbox-row"
+                data-testid="exclude-following"
+              >
+                <input type="checkbox" name="exclude-following" />
+                Exclude users you follow
+              </label>
+
+              <button
+                class="settings-button"
+                data-testid="muted-word-add"
+                type="submit"
+                ?disabled=${state.$isSaving.get() || !state.$hasValue.get()}
+              >
+                ${state.$isSaving.get()
+                  ? html`<div class="loading-spinner"></div>`
+                  : html`<span>Add</span>${plusIconTemplate()}`}
+              </button>
+              ${state.$error.get()
+                ? html`<div
+                    class="muted-word-error"
+                    data-testid="muted-word-error"
+                  >
+                    ${state.$error.get()}
+                  </div>`
+                : ""}
+            </form>
+
+            <h2 class="muted-word-list-header">Your muted words</h2>
+            ${mutedWords.length > 0
+              ? html`<div class="muted-word-list" data-testid="muted-word-list">
+                  ${mutedWords.map((word) =>
+                    mutedWordItemTemplate({
+                      word,
+                      isRemoving: state.$removingWordId.get() === word.id,
+                      isRenewing: state.$renewingWordId.get() === word.id,
+                      onRemove: handleRemove,
+                      onRenew: handleRenew,
+                    }),
+                  )}
+                </div>`
+              : html`<div
+                  class="muted-word-empty"
+                  data-testid="muted-word-empty"
+                >
+                  You haven't muted any words or tags yet
+                </div>`}
+          </main>
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

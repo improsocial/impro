@@ -355,6 +355,7 @@ class PostComposer extends Component {
                         ${recordEmbedTemplate({
                           record: quotedRecord,
                           isAuthenticated: true,
+                          pluginService: this.pluginService,
                         })}
                       </div>
                     </div>`

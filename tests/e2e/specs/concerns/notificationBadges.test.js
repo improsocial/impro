@@ -111,20 +111,17 @@ test.describe("Notification and Chat Badges", () => {
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
 
     // Verify badge shows before visiting notifications
-    const visibleBadge = () =>
-      page.locator(
-        '.page-visible [data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
-      );
-    await expect(visibleBadge()).toBeVisible({ timeout: 10000 });
-    await expect(visibleBadge()).toContainText("2");
+    const badge = page.locator(
+      '[data-testid="sidebar-nav-notifications"] [data-testid="status-badge"]',
+    );
+    await expect(badge).toBeVisible({ timeout: 10000 });
+    await expect(badge).toContainText("2");
 
     // Navigate to notifications — this calls updateSeen
     const updateSeenPromise = page.waitForRequest((req) =>
       req.url().includes("app.bsky.notification.updateSeen"),
     );
-    await page
-      .locator('.page-visible [data-testid="sidebar-nav-notifications"]')
-      .click();
+    await page.locator('[data-testid="sidebar-nav-notifications"]').click();
 
     await expect(page.locator("#notifications-view")).toBeVisible({
       timeout: 10000,
@@ -132,7 +129,7 @@ test.describe("Notification and Chat Badges", () => {
     await updateSeenPromise;
 
     // Badge should disappear after notifications are marked as seen
-    await expect(visibleBadge()).toBeHidden({ timeout: 10000 });
+    await expect(badge).toBeHidden({ timeout: 10000 });
   });
 
   test("should show chat unread badge and clear after reading messages", async ({
@@ -185,14 +182,14 @@ test.describe("Notification and Chat Badges", () => {
 
     // Verify chat badge shows count of 2 unread conversations
     const homeView = page.locator("#home-view");
-    const chatBadge = homeView.locator(
+    const chatBadge = page.locator(
       '[data-testid="sidebar-nav-chat"] .status-badge-text',
     );
     await expect(chatBadge).toBeVisible({ timeout: 10000 });
     await expect(chatBadge).toContainText("2");
 
     // Navigate to chat and open Alice's conversation (triggers updateRead)
-    await homeView.locator('[data-testid="sidebar-nav-chat"]').click();
+    await page.locator('[data-testid="sidebar-nav-chat"]').click();
     await expect(page.locator("#chat-view")).toBeVisible({ timeout: 10000 });
 
     await page.locator("#chat-view .convo-item").first().click();
@@ -201,15 +198,11 @@ test.describe("Notification and Chat Badges", () => {
     });
 
     // Navigate to home to verify badge updated
-    await page
-      .locator('#chat-detail-view [data-testid="sidebar-nav-home"]')
-      .click();
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
     await expect(homeView).toBeVisible({ timeout: 10000 });
 
     // Chat badge should now show 1 (only Bob's convo is still unread)
-    await expect(
-      homeView.locator('[data-testid="sidebar-nav-chat"] .status-badge-text'),
-    ).toContainText("1", { timeout: 15000 });
+    await expect(chatBadge).toContainText("1", { timeout: 15000 });
   });
 
   test("should show 30+ when there are 30 or more unread notifications", async ({

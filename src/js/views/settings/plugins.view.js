@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
@@ -15,7 +15,7 @@ import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/toggle-switch.js";
 
 class SettingsPluginsView extends View {
-  async render({ root, context: { dataLayer, pluginService, mainLayout } }) {
+  async render({ root, router, layout, context: { pluginService } }) {
     await auth.requireAuth();
 
     const state = new ReactiveStore("settingsPluginsView");
@@ -146,6 +146,11 @@ class SettingsPluginsView extends View {
       }
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/settings");
+    });
+
     pageEffect(root, () => {
       const reloading = state.$reloading.get();
       const checkingForUpdates = state.$checkingForUpdates.get();
@@ -156,182 +161,169 @@ class SettingsPluginsView extends View {
         availableUpdates !== null && availableUpdates.size > 0;
       render(
         html`<div id="settings-plugins-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({
-                title: "Plugins",
-                backButtonFallbackRoute: "/settings",
-              })}
-              <main>
-                <a
-                  class="community-plugins-link"
-                  href="/settings/plugins/community"
-                >
-                  <span class="community-plugins-link-icon"
-                    >${globeIconTemplate()}</span
-                  >
-                  <span class="community-plugins-link-text">
-                    <span class="community-plugins-link-title"
-                      >Browse community plugins</span
-                    >
-                    <span class="community-plugins-link-subtitle"
-                      >Discover plugins built by the community</span
-                    >
-                  </span>
-                  <span class="community-plugins-link-arrow"
-                    >${chevronRightIconTemplate()}</span
-                  >
-                </a>
-
-                ${!pluginsInfo
-                  ? html`<p class="plugin-list-loading">Loading…</p>`
-                  : pluginsInfo.length === 0
-                    ? html`<div class="plugins-empty-state">
-                        <div class="plugins-empty-state-title">
-                          No plugins installed
-                        </div>
-                        <p class="plugins-empty-state-message">
-                          Browse the community registry to find and install
-                          plugins.
-                        </p>
-                      </div>`
-                    : html`<div class="installed-plugins-header">
-                          <h2>Installed plugins</h2>
-                          <div class="installed-plugins-header-actions">
-                            <button
-                              class="plugin-check-updates-button rounded-button rounded-button-primary"
-                              ?disabled=${checkingForUpdates || updatingAll}
-                              @click=${() =>
-                                hasAvailableUpdates
-                                  ? updateAllPlugins()
-                                  : checkForUpdates()}
-                            >
-                              ${checkingForUpdates || updatingAll
-                                ? html`${hasAvailableUpdates
-                                      ? "Updating..."
-                                      : "Checking..."}
-                                    <div
-                                      class="loading-spinner"
-                                      data-testid="loading-spinner"
-                                    ></div>`
-                                : hasAvailableUpdates
-                                  ? "Update all"
-                                  : "Check for updates"}
-                            </button>
-                            <button
-                              class="plugin-reload-button icon-button"
-                              aria-label="Reload plugins"
-                              ?disabled=${reloading}
-                              @click=${() => reloadPlugins()}
-                            >
-                              ${reloadIconTemplate()}
-                            </button>
-                          </div>
-                        </div>
-                        <ul class="plugin-list">
-                          ${pluginsInfo.map((plugin) => {
-                            const hasUpdate =
-                              availableUpdates?.has(plugin.id) ?? false;
-                            const isUpdating =
-                              state.$updatingIds.has(plugin.id) ||
-                              (updatingAll && hasUpdate);
-                            const isPending =
-                              state.$uninstallingIds.has(plugin.id) ||
-                              state.$enablingIds.has(plugin.id) ||
-                              state.$disablingIds.has(plugin.id) ||
-                              isUpdating;
-                            return html`
-                              <li
-                                class="plugin-list-item ${state.$uninstallingIds.has(
-                                  plugin.id,
-                                )
-                                  ? "uninstalling"
-                                  : ""}"
-                                ?inert=${isPending}
-                              >
-                                <div class="plugin-list-item-info">
-                                  <div class="plugin-list-item-name">
-                                    ${plugin.name}
-                                    ${plugin.id.endsWith("__LOCAL")
-                                      ? html`<span class="plugin-local-badge"
-                                          >local</span
-                                        >`
-                                      : ""}
-                                  </div>
-                                  ${plugin.description
-                                    ? html`<div
-                                        class="plugin-list-item-description"
-                                      >
-                                        ${plugin.description}
-                                      </div>`
-                                    : ""}
-                                  <div class="plugin-list-item-version">
-                                    Version: ${plugin.version}
-                                  </div>
-                                  <div class="plugin-list-item-author">
-                                    By ${plugin.author}
-                                  </div>
-                                </div>
-                                <div class="plugin-list-item-controls">
-                                  ${hasUpdate
-                                    ? html`<button
-                                        class="plugin-update-button rounded-button rounded-button-primary"
-                                        @click=${() => updatePlugin(plugin)}
-                                        ?disabled=${isUpdating}
-                                      >
-                                        ${isUpdating
-                                          ? html`Updating
-                                              <div
-                                                class="loading-spinner"
-                                                data-testid="loading-spinner"
-                                              ></div>`
-                                          : "Update"}
-                                      </button>`
-                                    : ""}
-                                  ${plugin.enabled && plugin.hasSettings
-                                    ? html`<a
-                                        class="plugin-settings-link icon-button"
-                                        href="/settings/plugins/${plugin.id}"
-                                        aria-label="Settings for ${plugin.name}"
-                                      >
-                                        ${settingsIconTemplate()}
-                                      </a>`
-                                    : ""}
-                                  <button
-                                    class="plugin-uninstall-button icon-button"
-                                    aria-label="Uninstall ${plugin.name}"
-                                    @click=${() => uninstallPlugin(plugin)}
-                                  >
-                                    ${trashCanIconTemplate()}
-                                  </button>
-                                  <toggle-switch
-                                    class="plugin-toggle"
-                                    label="Enable ${plugin.name}"
-                                    ?checked=${state.$enablingIds.has(plugin.id)
-                                      ? true
-                                      : state.$disablingIds.has(plugin.id)
-                                        ? false
-                                        : plugin.enabled}
-                                    ?disabled=${state.$enablingIds.has(
-                                      plugin.id,
-                                    ) || state.$disablingIds.has(plugin.id)}
-                                    @change=${() => togglePlugin(plugin)}
-                                  ></toggle-switch>
-                                </div>
-                              </li>
-                            `;
-                          })}
-                        </ul>`}
-              </main>`,
+          ${headerTemplate({
+            title: "Plugins",
+            backButtonFallbackRoute: "/settings",
           })}
+          <main>
+            <a class="community-plugins-link" href="/plugins/community">
+              <span class="community-plugins-link-icon"
+                >${globeIconTemplate()}</span
+              >
+              <span class="community-plugins-link-text">
+                <span class="community-plugins-link-title"
+                  >Browse community plugins</span
+                >
+                <span class="community-plugins-link-subtitle"
+                  >Discover plugins built by the community</span
+                >
+              </span>
+              <span class="community-plugins-link-arrow"
+                >${chevronRightIconTemplate()}</span
+              >
+            </a>
+
+            ${!pluginsInfo
+              ? html`<p class="plugin-list-loading">Loading…</p>`
+              : pluginsInfo.length === 0
+                ? html`<div class="plugins-empty-state">
+                    <div class="plugins-empty-state-title">
+                      No plugins installed
+                    </div>
+                    <p class="plugins-empty-state-message">
+                      Browse the community registry to find and install plugins.
+                    </p>
+                  </div>`
+                : html`<div class="installed-plugins-header">
+                      <h2>Installed plugins</h2>
+                      <div class="installed-plugins-header-actions">
+                        <button
+                          class="plugin-check-updates-button rounded-button rounded-button-primary"
+                          ?disabled=${checkingForUpdates || updatingAll}
+                          @click=${() =>
+                            hasAvailableUpdates
+                              ? updateAllPlugins()
+                              : checkForUpdates()}
+                        >
+                          ${checkingForUpdates || updatingAll
+                            ? html`${hasAvailableUpdates
+                                  ? "Updating..."
+                                  : "Checking..."}
+                                <div
+                                  class="loading-spinner"
+                                  data-testid="loading-spinner"
+                                ></div>`
+                            : hasAvailableUpdates
+                              ? "Update all"
+                              : "Check for updates"}
+                        </button>
+                        <button
+                          class="plugin-reload-button icon-button"
+                          aria-label="Reload plugins"
+                          ?disabled=${reloading}
+                          @click=${() => reloadPlugins()}
+                        >
+                          ${reloadIconTemplate()}
+                        </button>
+                      </div>
+                    </div>
+                    <ul class="plugin-list">
+                      ${pluginsInfo.map((plugin) => {
+                        const hasUpdate =
+                          availableUpdates?.has(plugin.id) ?? false;
+                        const isUpdating =
+                          state.$updatingIds.has(plugin.id) ||
+                          (updatingAll && hasUpdate);
+                        const isPending =
+                          state.$uninstallingIds.has(plugin.id) ||
+                          state.$enablingIds.has(plugin.id) ||
+                          state.$disablingIds.has(plugin.id) ||
+                          isUpdating;
+                        return html`
+                          <li
+                            class="plugin-list-item ${state.$uninstallingIds.has(
+                              plugin.id,
+                            )
+                              ? "uninstalling"
+                              : ""}"
+                            ?inert=${isPending}
+                          >
+                            <div class="plugin-list-item-info">
+                              <div class="plugin-list-item-name">
+                                ${plugin.name}
+                                ${plugin.id.endsWith("__LOCAL")
+                                  ? html`<span class="plugin-local-badge"
+                                      >local</span
+                                    >`
+                                  : ""}
+                              </div>
+                              ${plugin.description
+                                ? html`<div
+                                    class="plugin-list-item-description"
+                                  >
+                                    ${plugin.description}
+                                  </div>`
+                                : ""}
+                              <div class="plugin-list-item-version">
+                                Version: ${plugin.version}
+                              </div>
+                              <div class="plugin-list-item-author">
+                                By ${plugin.author}
+                              </div>
+                            </div>
+                            <div class="plugin-list-item-controls">
+                              ${hasUpdate
+                                ? html`<button
+                                    class="plugin-update-button rounded-button rounded-button-primary"
+                                    @click=${() => updatePlugin(plugin)}
+                                    ?disabled=${isUpdating}
+                                  >
+                                    ${isUpdating
+                                      ? html`Updating
+                                          <div
+                                            class="loading-spinner"
+                                            data-testid="loading-spinner"
+                                          ></div>`
+                                      : "Update"}
+                                  </button>`
+                                : ""}
+                              ${plugin.enabled && plugin.hasSettings
+                                ? html`<a
+                                    class="plugin-settings-link icon-button"
+                                    href="/settings/plugins/${plugin.id}"
+                                    aria-label="Settings for ${plugin.name}"
+                                  >
+                                    ${settingsIconTemplate()}
+                                  </a>`
+                                : ""}
+                              <button
+                                class="plugin-uninstall-button icon-button"
+                                aria-label="Uninstall ${plugin.name}"
+                                @click=${() => uninstallPlugin(plugin)}
+                              >
+                                ${trashCanIconTemplate()}
+                              </button>
+                              <toggle-switch
+                                class="plugin-toggle"
+                                label="Enable ${plugin.name}"
+                                ?checked=${state.$enablingIds.has(plugin.id)
+                                  ? true
+                                  : state.$disablingIds.has(plugin.id)
+                                    ? false
+                                    : plugin.enabled}
+                                ?disabled=${state.$enablingIds.has(plugin.id) ||
+                                state.$disablingIds.has(plugin.id)}
+                                @change=${() => togglePlugin(plugin)}
+                              ></toggle-switch>
+                            </div>
+                          </li>
+                        `;
+                      })}
+                    </ul>`}
+          </main>
         </div>`,
         root,
       );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
     });
 
     root.addEventListener("page-restore", () => {

@@ -36,6 +36,7 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Override component rendering with custom HTML (e.g. posts, profiles, buttons etc)
 - Add a full page with custom HTML content
 - Add custom feed filters
+- Transform rich text in posts
 - Make whitelisted network requests (requires permissions)
 
 ### Plugins CANNOT:

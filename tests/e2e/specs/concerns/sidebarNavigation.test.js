@@ -78,7 +78,7 @@ test.describe("Sidebar navigation flow", () => {
     await page.locator('[data-testid="sidebar-nav-search"]').click();
     await expect(page.locator("#search-view")).toBeVisible({ timeout: 10000 });
 
-    await page.locator('#search-view [data-testid="sidebar-nav-home"]').click();
+    await page.locator('[data-testid="sidebar-nav-home"]').click();
 
     await expect(page.locator("#home-view")).toBeVisible({ timeout: 10000 });
     await expect(page).toHaveURL("/");

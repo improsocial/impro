@@ -23,7 +23,6 @@ class FeedDetailView extends View {
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -57,73 +56,67 @@ class FeedDetailView extends View {
       const feed = dataLayer.derived.$hydratedFeeds.get(feedUri);
       render(
         html`<div id="feed-detail-view">
-          ${mainLayout({
-            showSidebarOverlay: false,
-            children: html`${headerTemplate({
-                title: feedName,
-                subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
-                rightItemTemplate: () => {
-                  const feedLink = `https://bsky.app/profile/${feedAuthorHandle || handleOrDid}/feed/${rkey}`;
-                  return html`<button
-                      class="feed-menu-button"
-                      @click=${function (e) {
-                        const contextMenu = this.nextElementSibling;
-                        contextMenu.open(e.clientX, e.clientY);
-                      }}
-                    >
-                      <span>...</span>
-                    </button>
-                    <context-menu>
-                      <context-menu-item
-                        data-testid="menu-action-feed-open-in-bsky"
-                        @click=${() => {
-                          window.open(feedLink, "_blank");
-                        }}
-                      >
-                        Open in bsky.app
-                      </context-menu-item>
-                      <context-menu-item
-                        data-testid="menu-action-feed-copy-link"
-                        @click=${() => {
-                          navigator.clipboard.writeText(feedLink);
-                          showToast("Link copied to clipboard", {
-                            style: "success",
-                          });
-                        }}
-                      >
-                        Copy link to feed
-                      </context-menu-item>
-                    </context-menu>
-                    <button
-                      class=${classnames("pin-feed-button", {
-                        pinned: isPinned,
-                      })}
-                      @click=${() =>
-                        feedInteractionHandler.handlePinFeed(
-                          feedUri,
-                          !isPinned,
-                        )}
-                    >
-                      ${pinIconTemplate({ filled: isPinned })}
-                    </button>`;
-                },
-              })}
-              <main>
-                <div class="feed-container">
-                  ${postFeedTemplate({
-                    feed,
-                    currentUser,
-                    isAuthenticated,
-                    feedGenerator,
-                    hiddenPostUris,
-                    onLoadMore: () => loadFeed(),
-                    postInteractionHandler,
-                    pluginService,
-                    showEndMessage: true,
+          ${headerTemplate({
+            title: feedName,
+            subtitle: feedAuthorHandle ? `@${feedAuthorHandle}` : "",
+            rightItemTemplate: () => {
+              const feedLink = `https://bsky.app/profile/${feedAuthorHandle || handleOrDid}/feed/${rkey}`;
+              return html`<button
+                  class="feed-menu-button"
+                  @click=${function (e) {
+                    const contextMenu = this.nextElementSibling;
+                    contextMenu.open(e.clientX, e.clientY);
+                  }}
+                >
+                  <span>...</span>
+                </button>
+                <context-menu>
+                  <context-menu-item
+                    data-testid="menu-action-feed-open-in-bsky"
+                    @click=${() => {
+                      window.open(feedLink, "_blank");
+                    }}
+                  >
+                    Open in bsky.app
+                  </context-menu-item>
+                  <context-menu-item
+                    data-testid="menu-action-feed-copy-link"
+                    @click=${() => {
+                      navigator.clipboard.writeText(feedLink);
+                      showToast("Link copied to clipboard", {
+                        style: "success",
+                      });
+                    }}
+                  >
+                    Copy link to feed
+                  </context-menu-item>
+                </context-menu>
+                <button
+                  class=${classnames("pin-feed-button", {
+                    pinned: isPinned,
                   })}
-                </div>
-              </main>`,
+                  @click=${() =>
+                    feedInteractionHandler.handlePinFeed(feedUri, !isPinned)}
+                >
+                  ${pinIconTemplate({ filled: isPinned })}
+                </button>`;
+            },
           })}
+          <main>
+            <div class="feed-container">
+              ${postFeedTemplate({
+                feed,
+                currentUser,
+                isAuthenticated,
+                feedGenerator,
+                hiddenPostUris,
+                onLoadMore: () => loadFeed(),
+                postInteractionHandler,
+                pluginService,
+                showEndMessage: true,
+              })}
+            </div>
+          </main>
         </div>`,
         root,
       );
@@ -137,7 +130,6 @@ class FeedDetailView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       dataLayer.declarative.ensureFeedGenerator(feedUri);
       await loadFeed();
     });

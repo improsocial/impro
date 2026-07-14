@@ -15,7 +15,6 @@ class PostLikesView extends View {
       identityResolver,
       isAuthenticated,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -54,32 +53,29 @@ class PostLikesView extends View {
 
       render(
         html`<div id="post-likes-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: "Liked by",
-                subtitle,
-              })}
-              <main style="position: relative;">
-                ${(() => {
-                  if (postLikesRequestStatus.error) {
-                    return likesErrorTemplate({
-                      error: postLikesRequestStatus.error,
-                    });
-                  }
-                  return profileFeedTemplate({
-                    profiles:
-                      postLikes?.likes?.map((like) => like.actor) ?? null,
-                    hasMore,
-                    onLoadMore: loadLikes,
-                    emptyMessage: "No likes yet.",
-                    isAuthenticated,
-                    currentUserDid: currentUser?.did ?? null,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: "Liked by",
+            subtitle,
           })}
+          <main style="position: relative;">
+            ${(() => {
+              if (postLikesRequestStatus.error) {
+                return likesErrorTemplate({
+                  error: postLikesRequestStatus.error,
+                });
+              }
+              return profileFeedTemplate({
+                profiles: postLikes?.likes?.map((like) => like.actor) ?? null,
+                hasMore,
+                onLoadMore: loadLikes,
+                emptyMessage: "No likes yet.",
+                isAuthenticated,
+                currentUserDid: currentUser?.did ?? null,
+                profileInteractionHandler:
+                  interactionHandlers.profileInteractionHandler,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );
@@ -92,9 +88,6 @@ class PostLikesView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post like count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadLikes();

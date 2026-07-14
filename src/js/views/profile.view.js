@@ -8,10 +8,11 @@ import {
 } from "/js/dataHelpers.js";
 import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
+import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { ApiError } from "/js/api.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
@@ -28,13 +29,14 @@ class ProfileView extends View {
     root,
     router,
     params,
+    layout,
     context: {
       identityResolver,
       dataLayer,
+      postComposerService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const defaultAuthorFeeds = [
@@ -522,6 +524,11 @@ class ProfileView extends View {
       return html`<div class="profile-container"></div>`;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      scrollAndReloadFeed();
+    });
+
     pageEffect(root, () => {
       const profile =
         dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
@@ -538,41 +545,33 @@ class ProfileView extends View {
       const activeTab = state.$activeTab.get();
       render(
         html`<div id="profile-view">
-          ${mainLayout({
-            showSidebarOverlay: false,
-            activeNavItem: currentUser?.did === profile?.did ? "profile" : null,
-            onClickActiveNavItem: () => {
-              scrollAndReloadFeed();
-            },
-            showFloatingComposeButton: true,
-            children: html`
-              <main style="position: relative;">
-                <button
-                  class="floating-back-button"
-                  @click=${() => router.back()}
-                >
-                  ${arrowLeftIconTemplate()}
-                </button>
-                ${(() => {
-                  if (profileRequestStatus.error) {
-                    return profileErrorTemplate({
-                      error: profileRequestStatus.error,
-                    });
-                  } else if (isLoaded) {
-                    return profileTemplate({
-                      profile,
-                      isLabeler,
-                      labelerInfo,
-                      currentUser,
-                      activeTab,
-                    });
-                  } else {
-                    return profileSkeletonTemplate();
-                  }
-                })()}
-              </main>
-            `,
-          })}
+          <main style="position: relative;">
+            <button class="floating-back-button" @click=${() => router.back()}>
+              ${arrowLeftIconTemplate()}
+            </button>
+            ${(() => {
+              if (profileRequestStatus.error) {
+                return profileErrorTemplate({
+                  error: profileRequestStatus.error,
+                });
+              } else if (isLoaded) {
+                return profileTemplate({
+                  profile,
+                  isLabeler,
+                  labelerInfo,
+                  currentUser,
+                  activeTab,
+                });
+              } else {
+                return profileSkeletonTemplate();
+              }
+            })()}
+          </main>
+          ${currentUser
+            ? floatingComposeButtonTemplate({
+                onClick: () => postComposerService.composePost({ currentUser }),
+              })
+            : ""}
         </div>`,
         root,
       );

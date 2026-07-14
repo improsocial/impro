@@ -15,7 +15,6 @@ class PostRepostsView extends View {
       identityResolver,
       isAuthenticated,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -53,31 +52,29 @@ class PostRepostsView extends View {
 
       render(
         html`<div id="post-reposts-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: "Reposted by",
-                subtitle,
-              })}
-              <main style="position: relative;">
-                ${(() => {
-                  if (postRepostsRequestStatus.error) {
-                    return repostsErrorTemplate({
-                      error: postRepostsRequestStatus.error,
-                    });
-                  }
-                  return profileFeedTemplate({
-                    profiles: postReposts?.repostedBy ?? null,
-                    hasMore,
-                    onLoadMore: loadReposts,
-                    emptyMessage: "No reposts yet.",
-                    isAuthenticated,
-                    currentUserDid: currentUser?.did ?? null,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: "Reposted by",
+            subtitle,
           })}
+          <main style="position: relative;">
+            ${(() => {
+              if (postRepostsRequestStatus.error) {
+                return repostsErrorTemplate({
+                  error: postRepostsRequestStatus.error,
+                });
+              }
+              return profileFeedTemplate({
+                profiles: postReposts?.repostedBy ?? null,
+                hasMore,
+                onLoadMore: loadReposts,
+                emptyMessage: "No reposts yet.",
+                isAuthenticated,
+                currentUserDid: currentUser?.did ?? null,
+                profileInteractionHandler:
+                  interactionHandlers.profileInteractionHandler,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );
@@ -90,9 +87,6 @@ class PostRepostsView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      if (isAuthenticated) {
-        dataLayer.declarative.ensureCurrentUser();
-      }
       // Load the post thread to get the post repost count
       dataLayer.declarative.ensurePostThread(postUri);
       await loadReposts();

@@ -16,7 +16,6 @@ class ProfileFollowersView extends View {
       identityResolver,
       interactionHandlers,
       isAuthenticated,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -58,31 +57,29 @@ class ProfileFollowersView extends View {
 
       render(
         html`<div id="profile-followers-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: profile ? getDisplayName(profile) : "",
-                subtitle,
-              })}
-              <main style="position: relative;">
-                ${(() => {
-                  if (profileFollowersRequestStatus.error) {
-                    return followersErrorTemplate({
-                      error: profileFollowersRequestStatus.error,
-                    });
-                  }
-                  return profileFeedTemplate({
-                    profiles: profileFollowers?.followers ?? null,
-                    hasMore,
-                    onLoadMore: loadFollowers,
-                    emptyMessage: "No followers yet.",
-                    isAuthenticated,
-                    currentUserDid: currentUser?.did ?? null,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: profile ? getDisplayName(profile) : "",
+            subtitle,
           })}
+          <main style="position: relative;">
+            ${(() => {
+              if (profileFollowersRequestStatus.error) {
+                return followersErrorTemplate({
+                  error: profileFollowersRequestStatus.error,
+                });
+              }
+              return profileFeedTemplate({
+                profiles: profileFollowers?.followers ?? null,
+                hasMore,
+                onLoadMore: loadFollowers,
+                emptyMessage: "No followers yet.",
+                isAuthenticated,
+                currentUserDid: currentUser?.did ?? null,
+                profileInteractionHandler:
+                  interactionHandlers.profileInteractionHandler,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );
@@ -96,7 +93,6 @@ class ProfileFollowersView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
-      dataLayer.declarative.ensureCurrentUser();
       // Load the profile to get the follower count
       dataLayer.declarative.ensureDetailedProfile(profileDid);
       await loadFollowers();

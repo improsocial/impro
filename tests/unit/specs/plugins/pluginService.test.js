@@ -487,6 +487,34 @@ describe("loadEnabledPlugins", () => {
     );
   });
 
+  it("shows one error toast per distinct load-error message", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+      { id: "b", version: "1.0.0", repo: "ow/b", enabled: true },
+      { id: "c", version: "1.0.0", repo: "ow/c", enabled: true },
+    ];
+    service.pluginBridge.loadPlugins = async () => ({
+      loadedPlugins: [],
+      erroredPlugins: [
+        { pluginId: "a", error: new Error("Failed to load plugin source") },
+        { pluginId: "b", error: new Error("Failed to load plugin source") },
+        { pluginId: "c", error: new Error("Failed to load plugin manifest") },
+      ],
+    });
+    document.body.innerHTML = "";
+    await service.loadEnabledPlugins();
+    const toasts = [...document.body.querySelectorAll('[data-testid="toast"]')];
+    assert.deepEqual(
+      toasts.map((toast) => toast.textContent.trim()),
+      [
+        "Failed to load plugin(s): a, b - Failed to load plugin source",
+        "Failed to load plugin(s): c - Failed to load plugin manifest",
+      ],
+    );
+    document.body.innerHTML = "";
+  });
+
   it("with ?disable-plugins, disables all enabled plugins in one save and skips loading", async () => {
     const { service, state } = makeService();
     state.installedPlugins = [
@@ -1381,5 +1409,366 @@ describe("getPostComposerInit", () => {
       replyRoot: undefined,
       quotedPost: undefined,
     });
+  });
+});
+
+describe("rich text transform pipeline", () => {
+  const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+  function makeContext({
+    uri = "at://did:test/app.bsky.feed.post/1",
+    surface = "largePost",
+    text = "hello",
+    facets = [],
+  } = {}) {
+    return {
+      surface,
+      uri,
+      did: "did:test",
+      numberOfLines: null,
+      source: { text, facets },
+    };
+  }
+
+  function addTransform(service, pluginId, invoke) {
+    const entry = { pluginId, invoke };
+    service.registries.richTextTransforms.add(entry);
+    return entry;
+  }
+
+  function silencingErrors(run) {
+    const originalError = console.error;
+    console.error = () => {};
+    return Promise.resolve()
+      .then(run)
+      .finally(() => {
+        console.error = originalError;
+      });
+  }
+
+  it("resolves null with no transforms registered", async () => {
+    const { service } = makeService();
+    const tokens = [{ type: "text", value: "hello" }];
+    assert.deepEqual(
+      await service.transformRichTextTokens(tokens, makeContext()),
+      null,
+    );
+  });
+
+  it("resolves the transformed tokens and caches them per post and surface", async () => {
+    const { service } = makeService();
+    const batches = [];
+    addTransform(service, "alpha", async (batch) => {
+      batches.push(batch);
+      return batch.map(({ tokens }) => ({
+        value: [...tokens, { type: "text", value: "!" }],
+      }));
+    });
+    const tokens = [{ type: "text", value: "hello" }];
+    const context = makeContext();
+
+    const transformed = await service.transformRichTextTokens(tokens, context);
+    assert.deepEqual(transformed, [
+      { type: "text", value: "hello" },
+      { type: "text", value: "!" },
+    ]);
+
+    // Second request hits the cache: same result, no extra plugin call.
+    assert.deepEqual(
+      await service.transformRichTextTokens(tokens, context),
+      transformed,
+    );
+    assert.deepEqual(batches.length, 1);
+  });
+
+  it("batches all posts of a render burst into one call per plugin", async () => {
+    const { service } = makeService();
+    const batches = [];
+    addTransform(service, "alpha", async (batch) => {
+      batches.push(batch);
+      return batch.map(({ tokens }) => ({ value: tokens }));
+    });
+
+    await Promise.all([
+      service.transformRichTextTokens(
+        [{ type: "text", value: "one" }],
+        makeContext({ uri: "at://post/1", text: "one" }),
+      ),
+      service.transformRichTextTokens(
+        [{ type: "text", value: "two" }],
+        makeContext({ uri: "at://post/2", text: "two" }),
+      ),
+    ]);
+
+    assert.deepEqual(batches.length, 1);
+    assert.deepEqual(batches[0].length, 2);
+    assert.deepEqual(batches[0][0].tokens, [{ type: "text", value: "one" }]);
+    assert.deepEqual(batches[0][1].tokens, [{ type: "text", value: "two" }]);
+  });
+
+  it("shares one run between concurrent requests for the same post and surface", async () => {
+    const { service } = makeService();
+    const batches = [];
+    addTransform(service, "alpha", async (batch) => {
+      batches.push(batch);
+      return batch.map(({ tokens }) => ({ value: tokens }));
+    });
+    const tokens = [{ type: "text", value: "hello" }];
+    const context = makeContext();
+
+    const [first, second] = await Promise.all([
+      service.transformRichTextTokens(tokens, context),
+      service.transformRichTextTokens(tokens, context),
+    ]);
+
+    assert.deepEqual(first, second);
+    assert.deepEqual(batches.length, 1);
+    assert.deepEqual(batches[0].length, 1);
+  });
+
+  it("chains transforms in registration order", async () => {
+    const { service } = makeService();
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(({ tokens }) => ({
+        value: [...tokens, { type: "text", value: "A" }],
+      })),
+    );
+    addTransform(service, "beta", async (batch) =>
+      batch.map(({ tokens }) => ({
+        value: [...tokens, { type: "text", value: "B" }],
+      })),
+    );
+
+    const transformed = await service.transformRichTextTokens(
+      [{ type: "text", value: "hello" }],
+      makeContext(),
+    );
+
+    assert.deepEqual(
+      transformed.map((token) => token.value),
+      ["hello", "A", "B"],
+    );
+  });
+
+  it("fails open when a transform throws", async () => {
+    const { service } = makeService();
+    addTransform(service, "alpha", async () => {
+      throw new Error("boom");
+    });
+    addTransform(service, "beta", async (batch) =>
+      batch.map(({ tokens }) => ({
+        value: [...tokens, { type: "text", value: "B" }],
+      })),
+    );
+
+    const transformed = await silencingErrors(() =>
+      service.transformRichTextTokens(
+        [{ type: "text", value: "hello" }],
+        makeContext(),
+      ),
+    );
+
+    assert.deepEqual(
+      transformed.map((token) => token.value),
+      ["hello", "B"],
+    );
+  });
+
+  it("fails open per item on error entries and malformed tokens", async () => {
+    const { service } = makeService();
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(({ context }) =>
+        context.uri.endsWith("/1")
+          ? { error: "no thanks" }
+          : { value: [{ type: "bogus" }] },
+      ),
+    );
+
+    const [first, second] = await silencingErrors(() =>
+      Promise.all([
+        service.transformRichTextTokens(
+          [{ type: "text", value: "one" }],
+          makeContext({ uri: "at://post/1", text: "one" }),
+        ),
+        service.transformRichTextTokens(
+          [{ type: "text", value: "two" }],
+          makeContext({ uri: "at://post/2", text: "two" }),
+        ),
+      ]),
+    );
+
+    assert.deepEqual(first, [{ type: "text", value: "one" }]);
+    assert.deepEqual(second, [{ type: "text", value: "two" }]);
+  });
+
+  it("re-hydrates returned facet tokens to the host originals", async () => {
+    const { service } = makeService();
+    const facet = {
+      index: { byteStart: 0, byteEnd: 4 },
+      features: [{ $type: "app.bsky.richtext.facet#tag", tag: "tag" }],
+    };
+    const facetToken = { type: "facet", facet, text: "#tag" };
+    // Simulate the structured-clone boundary: the plugin returns a copy.
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(({ tokens }) => ({
+        value: JSON.parse(JSON.stringify(tokens)),
+      })),
+    );
+
+    const transformed = await service.transformRichTextTokens(
+      [facetToken, { type: "text", value: " in front" }],
+      makeContext({ text: "#tag in front", facets: [facet] }),
+    );
+
+    assert(
+      transformed[0] === facetToken,
+      "facet token should be the host object",
+    );
+  });
+
+  it("rejects a result containing an unrecognized facet", async () => {
+    const { service } = makeService();
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(() => ({
+        value: [
+          {
+            type: "facet",
+            facet: { index: { byteStart: 0, byteEnd: 99 }, features: [] },
+            text: "forged",
+          },
+        ],
+      })),
+    );
+    const tokens = [{ type: "text", value: "hello" }];
+
+    const transformed = await silencingErrors(() =>
+      service.transformRichTextTokens(tokens, makeContext()),
+    );
+
+    assert.deepEqual(transformed, tokens);
+  });
+
+  it("stamps inline/block tokens with the emitting transform's pluginId and preserves earlier ids", async () => {
+    const { service } = makeService();
+    const node = { tag: "code", text: "x" };
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(() => ({ value: [{ type: "inline", node }] })),
+    );
+    addTransform(service, "beta", async (batch) =>
+      batch.map(({ tokens }) => ({
+        value: [...tokens, { type: "block", node }],
+      })),
+    );
+
+    const transformed = await service.transformRichTextTokens(
+      [{ type: "text", value: "hello" }],
+      makeContext(),
+    );
+
+    assert.deepEqual(
+      transformed.map((token) => token.pluginId),
+      ["alpha", "beta"],
+    );
+  });
+
+  it("re-stamps a forged pluginId naming another plugin", async () => {
+    const { service } = makeService();
+    const node = { tag: "code", text: "x" };
+    addTransform(service, "alpha", async (batch) =>
+      batch.map(() => ({
+        value: [{ type: "inline", pluginId: "victim", node }],
+      })),
+    );
+
+    const transformed = await service.transformRichTextTokens(
+      [{ type: "text", value: "hello" }],
+      makeContext(),
+    );
+
+    assert.deepEqual(
+      transformed.map((token) => token.pluginId),
+      ["alpha"],
+    );
+  });
+
+  it("clears cached results when the transform set changes", async () => {
+    const { service } = makeService();
+    const batches = [];
+    addTransform(service, "alpha", async (batch) => {
+      batches.push(batch);
+      return batch.map(({ tokens }) => ({ value: tokens }));
+    });
+    const tokens = [{ type: "text", value: "hello" }];
+    const context = makeContext();
+
+    await service.transformRichTextTokens(tokens, context);
+    service._invalidateRichTextTransforms();
+    await service.transformRichTextTokens(tokens, context);
+
+    assert.deepEqual(batches.length, 2);
+  });
+
+  it("resolves in-flight requests with null when transforms change mid-run", async () => {
+    const { service } = makeService();
+    let releaseTransform;
+    const gate = new Promise((resolve) => {
+      releaseTransform = resolve;
+    });
+    addTransform(service, "alpha", async (batch) => {
+      await gate;
+      return batch.map(({ tokens }) => ({ value: tokens }));
+    });
+    const request = service.transformRichTextTokens(
+      [{ type: "text", value: "hello" }],
+      makeContext(),
+    );
+    await flush();
+    service._invalidateRichTextTransforms();
+    releaseTransform();
+
+    assert.deepEqual(await request, null);
+    assert.deepEqual(service._richTextTokensCache.size, 0);
+  });
+
+  it("re-runs when the cached entry no longer matches the source text", async () => {
+    const { service } = makeService();
+    const batches = [];
+    addTransform(service, "alpha", async (batch) => {
+      batches.push(batch);
+      return batch.map(({ tokens }) => ({ value: tokens }));
+    });
+    const context = makeContext({ text: "before" });
+
+    await service.transformRichTextTokens(
+      [{ type: "text", value: "before" }],
+      context,
+    );
+    const transformed = await service.transformRichTextTokens(
+      [{ type: "text", value: "after" }],
+      makeContext({ text: "after" }),
+    );
+
+    assert.deepEqual(batches.length, 2);
+    assert.deepEqual(transformed, [{ type: "text", value: "after" }]);
+  });
+
+  it("renderRichTextNodeToken mounts a sanitized element and reuses it per token and host", () => {
+    const { service } = makeService();
+    service.setRenderContext({});
+    const token = {
+      type: "inline",
+      pluginId: "alpha",
+      node: { tag: "code", attrs: {}, text: "x", children: [], events: {} },
+    };
+    const host = document.createElement("div");
+
+    const element = service.renderRichTextNodeToken(token, host);
+    assert.deepEqual(element.localName, "code");
+    assert.deepEqual(element.textContent, "x");
+    assert(service.renderRichTextNodeToken(token, host) === element);
+    const otherHost = document.createElement("div");
+    const otherElement = service.renderRichTextNodeToken(token, otherHost);
+    assert.deepEqual(otherElement.localName, "code");
+    assert(otherElement !== element);
   });
 });

@@ -8,6 +8,7 @@ import {
   formatLargeNumber,
   formatFullTimestamp,
   classnames,
+  shallowEquals,
   deepClone,
   differenceInMinutes,
   differenceInHours,
@@ -259,6 +260,33 @@ describe("classnames", () => {
       assert.deepEqual(e.message, "Invalid classname definition");
     }
     assert(errorThrown);
+  });
+});
+
+describe("shallowEquals", () => {
+  it("returns true for the same reference and for equal null/undefined", () => {
+    const obj = { a: 1 };
+    assert.deepEqual(shallowEquals(obj, obj), true);
+    assert.deepEqual(shallowEquals(null, null), true);
+    assert.deepEqual(shallowEquals(undefined, undefined), true);
+  });
+
+  it("returns false when either side is nullish and the other is not", () => {
+    assert.deepEqual(shallowEquals(null, {}), false);
+    assert.deepEqual(shallowEquals({}, null), false);
+  });
+
+  it("compares own keys by value identity", () => {
+    assert.deepEqual(shallowEquals({ a: 1, b: "x" }, { a: 1, b: "x" }), true);
+    assert.deepEqual(shallowEquals({ a: 1 }, { a: 2 }), false);
+    const nested = { c: 3 };
+    assert.deepEqual(shallowEquals({ a: nested }, { a: nested }), true);
+    assert.deepEqual(shallowEquals({ a: { c: 3 } }, { a: { c: 3 } }), false);
+  });
+
+  it("returns false when key sets differ", () => {
+    assert.deepEqual(shallowEquals({ a: 1 }, { a: 1, b: 2 }), false);
+    assert.deepEqual(shallowEquals({ a: 1, b: 2 }, { a: 1 }), false);
   });
 });
 
