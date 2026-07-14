@@ -1,5 +1,5 @@
-import { EventEmitter } from "/js/eventEmitter.js";
-import { effect } from "/js/signals.js";
+import { EventEmitter, EventTarget } from "/js/eventEmitter.js";
+import { effect, Signal } from "/js/signals.js";
 
 const MAX_PAGES = 5;
 
@@ -38,6 +38,12 @@ export function bindToPage(root, source, event, handler) {
   root.addEventListener("page-exit", detach);
 }
 
+export class Layout extends EventTarget {
+  slot = null;
+  mount(container) {}
+  dispose() {}
+}
+
 export function pageEffect(root, callback, options) {
   let dispose;
   const attach = () => {
@@ -58,10 +64,13 @@ export class Router extends EventEmitter {
     super();
     this.routes = {};
     this.notFoundView = () => {};
+    this.notFoundOptions = {};
     this.renderFunc = () => {};
-    this.container = null;
+    this.layout = null;
+    this.containers = { default: null, bare: null, layout: null };
     this.currentPage = null;
     this.currentPath = null;
+    this.$currentRoute = new Signal.State(null);
     this.pages = new Map();
     this.scrollStates = new Map();
     bindMiddleClickRedispatch();
@@ -89,21 +98,49 @@ export class Router extends EventEmitter {
     });
   }
 
-  addRoute(path, viewGetter) {
-    this.routes[path] = { viewGetter };
+  addRoute(paths, viewGetter, options = {}) {
+    for (const path of [].concat(paths)) {
+      this.routes[path] = { viewGetter, options };
+    }
   }
 
   renderRoute(renderFunc) {
     this.renderFunc = renderFunc;
   }
 
-  setNotFoundView(viewGetter) {
+  setNotFoundView(viewGetter, options = {}) {
     this.notFoundView = viewGetter;
+    this.notFoundOptions = options;
   }
 
-  mount(container) {
-    container.innerHTML = "";
-    this.container = container;
+  setLayout(layout) {
+    this.layout = layout;
+  }
+
+  mount(root) {
+    // Clear any pre-mount loading state
+    root.innerHTML = "";
+    let layoutContainer = null;
+    if (this.layout) {
+      layoutContainer = document.createElement("div");
+      root.append(layoutContainer);
+      this.layout.mount(layoutContainer);
+      if (!(this.layout.slot instanceof Element)) {
+        throw new Error("Layout must expose a slot element for pages");
+      }
+    }
+    const bareContainer = document.createElement("div");
+    bareContainer.id = "bare-pages";
+    root.append(bareContainer);
+    this.containers = {
+      default: this.layout ? this.layout.slot : root,
+      bare: bareContainer,
+      layout: layoutContainer,
+    };
+  }
+
+  #setLayoutHidden(hidden) {
+    this.containers.layout?.classList.toggle("layout-hidden", hidden);
   }
 
   static matchPath(path, route) {
@@ -130,13 +167,20 @@ export class Router extends EventEmitter {
   match(path) {
     // path: e.g. /profile/gracekind.net/post/3lykznxiikc2k
     // route: e.g. /profile/:handle/post/:rkey
-    for (const [route, { viewGetter }] of Object.entries(this.routes)) {
+    for (const [route, { viewGetter, options }] of Object.entries(
+      this.routes,
+    )) {
       const params = Router.matchPath(path, route);
       if (params) {
-        return { route, viewGetter, params };
+        return { route, viewGetter, params, options };
       }
     }
-    return { route: null, viewGetter: this.notFoundView, params: {} };
+    return {
+      route: null,
+      viewGetter: this.notFoundView,
+      params: {},
+      options: this.notFoundOptions,
+    };
   }
 
   hasRoute(path) {
@@ -160,12 +204,14 @@ export class Router extends EventEmitter {
     }
     if (this.pages.has(path)) {
       // Return to existing page
-      const page = this.pages.get(path);
+      const { el: page, routeInfo } = this.pages.get(path);
       this.currentPage = page;
       // Re-insert the page so it's at the end of the stack
       // This means the least recently used page is always at the start of the stack
       this.pages.delete(path);
-      this.pages.set(path, page);
+      this.pages.set(path, { el: page, routeInfo });
+      this.$currentRoute.set({ path, ...routeInfo });
+      this.#setLayoutHidden(routeInfo.options.layout === false);
       const scrollY = this.scrollStates.get(path) ?? 0;
       this.currentPage.classList.remove("page-hidden");
       this.currentPage.classList.add("page-visible");
@@ -182,25 +228,31 @@ export class Router extends EventEmitter {
     }
     // First load of new page
     const matchingRoute = this.match(pathname);
-    const { viewGetter, params } = matchingRoute;
+    const { route, viewGetter, params, options } = matchingRoute;
+    const routeInfo = { route, params, options };
+    this.$currentRoute.set({ path, ...routeInfo });
+    this.#setLayoutHidden(options.layout === false);
     const view = await viewGetter();
 
     const newPage = document.createElement("div");
     newPage.classList.add("page", "page-visible");
-    this.container.appendChild(newPage);
+    const container =
+      options.layout === false ? this.containers.bare : this.containers.default;
+    container.appendChild(newPage);
     this.currentPage = newPage;
-    this.pages.set(path, newPage);
+    this.pages.set(path, { el: newPage, routeInfo });
     // Limit stored pages to prevent memory leaks / performance issues
     if (this.pages.size > MAX_PAGES) {
       const firstPageKey = this.pages.keys().next().value;
       const firstPage = this.pages.get(firstPageKey);
-      firstPage.remove();
+      firstPage.el.remove();
       this.pages.delete(firstPageKey);
     }
     window.scrollTo(0, 0);
     await this.renderFunc({
       view,
       params,
+      layout: options.layout === false ? null : this.layout,
       container: this.currentPage,
     });
     this.currentPage.dispatchEvent(new CustomEvent("page-enter"));

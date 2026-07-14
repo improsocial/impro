@@ -27,7 +27,6 @@ class ListDetailView extends View {
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -121,173 +120,168 @@ class ListDetailView extends View {
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
       render(
         html`<div id="list-detail-view">
-          ${mainLayout({
-            showSidebarOverlay: false,
-            children: html`${headerTemplate({
-              rightItemTemplate: list
-                ? () => html`
-                    ${isCurateList
-                      ? html`<button
-                          class=${classnames("pin-feed-button", {
-                            pinned: isPinned,
-                          })}
-                          data-testid="pin-list-button"
-                          data-teststate=${isPinned ? "pinned" : "not-pinned"}
-                          @click=${() =>
-                            listInteractionHandler.handlePinList(
-                              listUri,
-                              !isPinned,
-                            )}
-                        >
-                          ${pinIconTemplate({ filled: isPinned })}
-                        </button>`
-                      : listSubscriptionButtonTemplate({
-                          list,
-                          listInteractionHandler,
+          ${headerTemplate({
+            rightItemTemplate: list
+              ? () => html`
+                  ${isCurateList
+                    ? html`<button
+                        class=${classnames("pin-feed-button", {
+                          pinned: isPinned,
                         })}
-                    <button
-                      class="list-menu-button"
-                      @click=${function (e) {
-                        const contextMenu = this.nextElementSibling;
-                        contextMenu.open(e.clientX, e.clientY);
+                        data-testid="pin-list-button"
+                        data-teststate=${isPinned ? "pinned" : "not-pinned"}
+                        @click=${() =>
+                          listInteractionHandler.handlePinList(
+                            listUri,
+                            !isPinned,
+                          )}
+                      >
+                        ${pinIconTemplate({ filled: isPinned })}
+                      </button>`
+                    : listSubscriptionButtonTemplate({
+                        list,
+                        listInteractionHandler,
+                      })}
+                  <button
+                    class="list-menu-button"
+                    @click=${function (e) {
+                      const contextMenu = this.nextElementSibling;
+                      contextMenu.open(e.clientX, e.clientY);
+                    }}
+                  >
+                    <span>...</span>
+                  </button>
+                  <context-menu>
+                    <context-menu-item
+                      data-testid="menu-action-list-open-in-bsky"
+                      @click=${() => {
+                        window.open(listPermalink, "_blank");
                       }}
                     >
-                      <span>...</span>
-                    </button>
-                    <context-menu>
-                      <context-menu-item
-                        data-testid="menu-action-list-open-in-bsky"
-                        @click=${() => {
-                          window.open(listPermalink, "_blank");
-                        }}
-                      >
-                        Open in bsky.app
-                      </context-menu-item>
-                      <context-menu-item
-                        data-testid="menu-action-list-copy-link"
-                        @click=${() => {
-                          navigator.clipboard.writeText(listPermalink);
-                          showToast("Link copied to clipboard", {
-                            style: "success",
-                          });
-                        }}
-                      >
-                        Copy link to list
-                      </context-menu-item>
-                    </context-menu>
-                  `
-                : null,
-            })}
-            ${!list
-              ? html`<main>
-                  <div
-                    class="list-detail-loading"
-                    data-testid="list-detail-loading"
-                  >
-                    <div class="loading-spinner"></div>
-                  </div>
-                </main>`
-              : html`<main>
-                  <div
-                    class="list-detail-header"
-                    data-testid="list-detail-header"
-                  >
-                    ${list.avatar
-                      ? html`<img
-                          class="list-detail-avatar"
-                          src=${list.avatar}
-                          alt=${list.name}
-                        />`
-                      : html`<img
-                          class="list-detail-avatar"
-                          src="/img/list-avatar-fallback.svg"
-                          alt=${list.name}
-                        />`}
-                    <div class="list-detail-header-text">
-                      <div
-                        class="list-detail-name"
-                        data-testid="list-detail-name"
-                      >
-                        ${list.name}
-                      </div>
-                      ${listCreator
-                        ? html`<div
-                            class="list-detail-creator"
-                            data-testid="list-detail-creator"
-                          >
-                            ${isModerationList(list)
-                              ? "Moderation list"
-                              : "List"}
-                            by
-                            ${listCreator.did === currentUser?.did
-                              ? "you"
-                              : `@${listCreator.handle}`}
-                          </div>`
-                        : ""}
+                      Open in bsky.app
+                    </context-menu-item>
+                    <context-menu-item
+                      data-testid="menu-action-list-copy-link"
+                      @click=${() => {
+                        navigator.clipboard.writeText(listPermalink);
+                        showToast("Link copied to clipboard", {
+                          style: "success",
+                        });
+                      }}
+                    >
+                      Copy link to list
+                    </context-menu-item>
+                  </context-menu>
+                `
+              : null,
+          })}
+          ${!list
+            ? html`<main>
+                <div
+                  class="list-detail-loading"
+                  data-testid="list-detail-loading"
+                >
+                  <div class="loading-spinner"></div>
+                </div>
+              </main>`
+            : html`<main>
+                <div
+                  class="list-detail-header"
+                  data-testid="list-detail-header"
+                >
+                  ${list.avatar
+                    ? html`<img
+                        class="list-detail-avatar"
+                        src=${list.avatar}
+                        alt=${list.name}
+                      />`
+                    : html`<img
+                        class="list-detail-avatar"
+                        src="/img/list-avatar-fallback.svg"
+                        alt=${list.name}
+                      />`}
+                  <div class="list-detail-header-text">
+                    <div
+                      class="list-detail-name"
+                      data-testid="list-detail-name"
+                    >
+                      ${list.name}
                     </div>
+                    ${listCreator
+                      ? html`<div
+                          class="list-detail-creator"
+                          data-testid="list-detail-creator"
+                        >
+                          ${isModerationList(list) ? "Moderation list" : "List"}
+                          by
+                          ${listCreator.did === currentUser?.did
+                            ? "you"
+                            : `@${listCreator.handle}`}
+                        </div>`
+                      : ""}
                   </div>
-                  ${list.description
-                    ? html`<div
-                        class="list-detail-description"
-                        data-testid="list-detail-description"
-                      >
-                        ${richTextTemplate({
-                          text: list.description,
-                          facets: list.descriptionFacets ?? [],
+                </div>
+                ${list.description
+                  ? html`<div
+                      class="list-detail-description"
+                      data-testid="list-detail-description"
+                    >
+                      ${richTextTemplate({
+                        text: list.description,
+                        facets: list.descriptionFacets ?? [],
+                      })}
+                    </div>`
+                  : ""}
+                ${isCurateList
+                  ? html`<div
+                      class="list-detail-tab-bar"
+                      data-scroll-lock-sticky
+                    >
+                      <tab-bar
+                        .tabs=${[
+                          { value: "posts", label: "Posts" },
+                          { value: "people", label: "People" },
+                        ]}
+                        active-tab=${activeTab}
+                        full-width
+                        @tab-click=${(event) =>
+                          state.$activeTab.set(event.detail)}
+                      ></tab-bar>
+                    </div>`
+                  : html`<hr />`}
+                <div
+                  class="list-tab-content"
+                  data-testid="list-tab-content"
+                  data-teststate=${activeTab}
+                >
+                  ${activeTab === "posts" && isCurateList
+                    ? html`<div class="feed-container">
+                        ${postFeedTemplate({
+                          feed,
+                          currentUser,
+                          isAuthenticated,
+                          hiddenPostUris,
+                          onLoadMore: () => loadFeed(),
+                          postInteractionHandler,
+                          pluginService,
+                          showEndMessage: true,
                         })}
                       </div>`
-                    : ""}
-                  ${isCurateList
-                    ? html`<div
-                        class="list-detail-tab-bar"
-                        data-scroll-lock-sticky
-                      >
-                        <tab-bar
-                          .tabs=${[
-                            { value: "posts", label: "Posts" },
-                            { value: "people", label: "People" },
-                          ]}
-                          active-tab=${activeTab}
-                          full-width
-                          @tab-click=${(event) =>
-                            state.$activeTab.set(event.detail)}
-                        ></tab-bar>
-                      </div>`
-                    : html`<hr />`}
-                  <div
-                    class="list-tab-content"
-                    data-testid="list-tab-content"
-                    data-teststate=${activeTab}
-                  >
-                    ${activeTab === "posts" && isCurateList
-                      ? html`<div class="feed-container">
-                          ${postFeedTemplate({
-                            feed,
-                            currentUser,
-                            isAuthenticated,
-                            hiddenPostUris,
-                            onLoadMore: () => loadFeed(),
-                            postInteractionHandler,
-                            pluginService,
-                            showEndMessage: true,
-                          })}
-                        </div>`
-                      : html`<div class="list-members-container">
-                          ${profileFeedTemplate({
-                            profiles: members,
-                            hasMore: hasMoreMembers,
-                            onLoadMore: () => loadMembers(),
-                            emptyMessage: "This list has no members.",
-                            showEndMessage: true,
-                            isAuthenticated,
-                            currentUserDid: currentUser?.did ?? null,
-                            profileInteractionHandler,
-                            showFollowButton: isCurateList,
-                          })}
-                        </div>`}
-                  </div>
-                </main>`}`,
-          })}
+                    : html`<div class="list-members-container">
+                        ${profileFeedTemplate({
+                          profiles: members,
+                          hasMore: hasMoreMembers,
+                          onLoadMore: () => loadMembers(),
+                          emptyMessage: "This list has no members.",
+                          showEndMessage: true,
+                          isAuthenticated,
+                          currentUserDid: currentUser?.did ?? null,
+                          profileInteractionHandler,
+                          showFollowButton: isCurateList,
+                        })}
+                      </div>`}
+                </div>
+              </main>`}
         </div>`,
         root,
       );

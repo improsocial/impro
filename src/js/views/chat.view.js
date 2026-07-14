@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -24,13 +24,13 @@ class ChatView extends View {
   async render({
     root,
     router,
-    context: { dataLayer, mainLayout, chatNotificationService },
+    layout,
+    context: { dataLayer, chatNotificationService },
   }) {
     await auth.requireAuth();
 
     async function handleMenuClick() {
-      const sidebar = root.querySelector("animated-sidebar");
-      sidebar.open();
+      layout.openSidebar();
     }
 
     function handleNewChatClick() {
@@ -194,6 +194,11 @@ class ChatView extends View {
       await loadConvoList({ reload: true });
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      scrollAndReloadConvos();
+    });
+
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convos = dataLayer.derived.$convoList.get();
@@ -206,54 +211,46 @@ class ChatView extends View {
 
       render(
         html`<div id="chat-view">
-          ${mainLayout({
-            activeNavItem: "chat",
-            onClickActiveNavItem: () => {
-              scrollAndReloadConvos();
-            },
-            children: html`
-              ${headerTemplate({
-                title: "Chats",
-                showLoadingSpinner: convosRequestStatus.loading && !!convos,
-                leftButton: "menu",
-                onClickMenuButton: () => handleMenuClick(),
-                rightItemTemplate: () => html`
-                  <div class="chat-header-buttons">
-                    ${inboxButtonTemplate({ hasUnreadRequests })}
-                    ${newChatButtonTemplate()}
-                  </div>
-                `,
-              })}
-              <main class="chat-main">
-                ${(() => {
-                  if (convosRequestStatus.error) {
-                    return convosErrorTemplate({
-                      error: convosRequestStatus.error,
-                    });
-                  } else if (convos && currentUser) {
-                    const acceptedConvos = convos.filter(
-                      (convo) => convo.status === "accepted",
-                    );
-                    return convosTemplate({
-                      currentUser,
-                      convos: acceptedConvos,
-                      hasMore,
-                    });
-                  } else {
-                    return convoSkeletonTemplate();
-                  }
-                })()}
-              </main>
-              <button
-                class="new-chat-fab"
-                aria-label="New chat"
-                data-testid="new-chat-fab"
-                @click=${() => handleNewChatClick()}
-              >
-                ${messagePlusIconTemplate()}
-              </button>
+          ${headerTemplate({
+            title: "Chats",
+            showLoadingSpinner: convosRequestStatus.loading && !!convos,
+            leftButton: "menu",
+            onClickMenuButton: () => handleMenuClick(),
+            rightItemTemplate: () => html`
+              <div class="chat-header-buttons">
+                ${inboxButtonTemplate({ hasUnreadRequests })}
+                ${newChatButtonTemplate()}
+              </div>
             `,
           })}
+          <main class="chat-main">
+            ${(() => {
+              if (convosRequestStatus.error) {
+                return convosErrorTemplate({
+                  error: convosRequestStatus.error,
+                });
+              } else if (convos && currentUser) {
+                const acceptedConvos = convos.filter(
+                  (convo) => convo.status === "accepted",
+                );
+                return convosTemplate({
+                  currentUser,
+                  convos: acceptedConvos,
+                  hasMore,
+                });
+              } else {
+                return convoSkeletonTemplate();
+              }
+            })()}
+          </main>
+          <button
+            class="new-chat-fab"
+            aria-label="New chat"
+            data-testid="new-chat-fab"
+            @click=${() => handleNewChatClick()}
+          >
+            ${messagePlusIconTemplate()}
+          </button>
         </div>`,
         root,
       );

@@ -16,7 +16,6 @@ class ProfileFollowingView extends View {
       identityResolver,
       interactionHandlers,
       isAuthenticated,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -56,31 +55,29 @@ class ProfileFollowingView extends View {
 
       render(
         html`<div id="profile-following-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: profile ? getDisplayName(profile) : "",
-                subtitle,
-              })}
-              <main style="position: relative;">
-                ${(() => {
-                  if (profileFollowingRequestStatus.error) {
-                    return followingErrorTemplate({
-                      error: profileFollowingRequestStatus.error,
-                    });
-                  }
-                  return profileFeedTemplate({
-                    profiles: profileFollowing?.follows ?? null,
-                    hasMore,
-                    onLoadMore: loadFollowing,
-                    emptyMessage: "Not following anyone yet.",
-                    isAuthenticated,
-                    currentUserDid: currentUser?.did ?? null,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: profile ? getDisplayName(profile) : "",
+            subtitle,
           })}
+          <main style="position: relative;">
+            ${(() => {
+              if (profileFollowingRequestStatus.error) {
+                return followingErrorTemplate({
+                  error: profileFollowingRequestStatus.error,
+                });
+              }
+              return profileFeedTemplate({
+                profiles: profileFollowing?.follows ?? null,
+                hasMore,
+                onLoadMore: loadFollowing,
+                emptyMessage: "Not following anyone yet.",
+                isAuthenticated,
+                currentUserDid: currentUser?.did ?? null,
+                profileInteractionHandler:
+                  interactionHandlers.profileInteractionHandler,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );

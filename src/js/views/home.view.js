@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
 import { FEED_PAGE_SIZE, LOGGED_OUT_FEED_URI } from "/js/config.js";
@@ -14,6 +15,7 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 class HomeView extends View {
   async render({
     root,
+    layout,
     context: {
       dataLayer,
       api,
@@ -21,7 +23,6 @@ class HomeView extends View {
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const CURRENT_FEED_URI_STORAGE_KEY = "home-view-currentFeedUri";
@@ -96,8 +97,7 @@ class HomeView extends View {
     }
 
     async function handleMenuClick() {
-      const sidebar = root.querySelector("animated-sidebar");
-      sidebar.open();
+      layout.openSidebar();
     }
 
     // When supported, replace with: https://developer.mozilla.org/en-US/docs/Web/API/Element/scrollIntoViewIfNeeded
@@ -186,6 +186,11 @@ class HomeView extends View {
       </div>`;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      scrollAndReloadFeed();
+    });
+
     pageEffect(root, () => {
       const showLessInteractions =
         dataLayer.derived.$showLessInteractions.get() ?? [];
@@ -197,62 +202,59 @@ class HomeView extends View {
       const currentFeedUri = state.$currentFeedUri.get();
       render(
         html`<div id="home-view">
-          ${mainLayout({
-            onClickActiveNavItem: () => {
-              scrollAndReloadFeed();
-            },
-            activeNavItem: "home",
-            showFloatingComposeButton: true,
-            children: html` ${headerTemplate({
-                leftButton: "menu",
-                onClickMenuButton: () => handleMenuClick(),
-                bottomItemTemplate: () => html`
-                  <tab-bar
-                    .tabs=${pinnedItems.map((item) => ({
-                      value: item.uri,
-                      label: item.displayName,
-                    }))}
-                    active-tab=${currentFeedUri}
-                    @tab-click=${(event) => handleTabClick(event.detail)}
-                  ></tab-bar>
-                `,
-              })}
-              <main>
-                ${pinnedItems.map((item) => {
-                  const acceptsInteractions =
-                    item.acceptsInteractions ||
-                    item.uri === LOGGED_OUT_FEED_URI;
-                  const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
-                  const feedRequestStatus =
-                    dataLayer.requests.statusStore.$statuses.get(
-                      "loadNextFeedPage-" + item.uri,
-                    );
-                  return html`<div
-                    class="feed-container"
-                    ?hidden=${currentFeedUri !== item.uri}
-                  >
-                    ${feedRequestStatus.error
-                      ? feedErrorTemplate({ feedGenerator: item })
-                      : postFeedTemplate({
-                          feed,
-                          currentUser,
-                          isAuthenticated,
-                          feedGenerator: item,
-                          hiddenPostUris,
-                          postInteractionHandler,
-                          onClickShowLess: (post, feedContext) =>
-                            handleShowLess(post, feedContext, item),
-                          onClickShowMore: (post, feedContext) =>
-                            handleShowMore(post, feedContext, item),
-                          enableFeedFeedback: acceptsInteractions,
-                          onLoadMore: () => loadCurrentFeed(),
-                          pluginService,
-                          showEndMessage: true,
-                        })}
-                  </div>`;
-                })}
-              </main>`,
+          ${headerTemplate({
+            leftButton: "menu",
+            onClickMenuButton: () => handleMenuClick(),
+            bottomItemTemplate: () => html`
+              <tab-bar
+                .tabs=${pinnedItems.map((item) => ({
+                  value: item.uri,
+                  label: item.displayName,
+                }))}
+                active-tab=${currentFeedUri}
+                @tab-click=${(event) => handleTabClick(event.detail)}
+              ></tab-bar>
+            `,
           })}
+          <main>
+            ${pinnedItems.map((item) => {
+              const acceptsInteractions =
+                item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI;
+              const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
+              const feedRequestStatus =
+                dataLayer.requests.statusStore.$statuses.get(
+                  "loadNextFeedPage-" + item.uri,
+                );
+              return html`<div
+                class="feed-container"
+                ?hidden=${currentFeedUri !== item.uri}
+              >
+                ${feedRequestStatus.error
+                  ? feedErrorTemplate({ feedGenerator: item })
+                  : postFeedTemplate({
+                      feed,
+                      currentUser,
+                      isAuthenticated,
+                      feedGenerator: item,
+                      hiddenPostUris,
+                      postInteractionHandler,
+                      onClickShowLess: (post, feedContext) =>
+                        handleShowLess(post, feedContext, item),
+                      onClickShowMore: (post, feedContext) =>
+                        handleShowMore(post, feedContext, item),
+                      enableFeedFeedback: acceptsInteractions,
+                      onLoadMore: () => loadCurrentFeed(),
+                      pluginService,
+                      showEndMessage: true,
+                    })}
+              </div>`;
+            })}
+          </main>
+          ${currentUser
+            ? floatingComposeButtonTemplate({
+                onClick: () => postComposerService.composePost({ currentUser }),
+              })
+            : ""}
         </div>`,
         root,
       );
@@ -276,17 +278,17 @@ class HomeView extends View {
       });
     }
 
-    // async function preloadHiddenFeeds(pinnedItems) {
-    //   const currentFeedUri = state.$currentFeedUri.get();
-    //   const itemsToPreload = pinnedItems
-    //     .filter((item) => item.uri !== currentFeedUri)
-    //     .slice(0, 3); // Up to 3 feeds
-    //   for (const item of itemsToPreload) {
-    //     await dataLayer.requests.loadNextFeedPage(item.uri, {
-    //       limit: 10, // Load the 10 first posts
-    //     });
-    //   }
-    // }
+    async function preloadHiddenFeeds(pinnedItems) {
+      const currentFeedUri = state.$currentFeedUri.get();
+      const itemsToPreload = pinnedItems
+        .filter((item) => item.uri !== currentFeedUri)
+        .slice(0, 3); // Up to 3 feeds
+      for (const item of itemsToPreload) {
+        await dataLayer.requests.loadNextFeedPage(item.uri, {
+          limit: FEED_PAGE_SIZE + 1,
+        });
+      }
+    }
 
     root.addEventListener("page-enter", async () => {
       window.scrollTo(0, 0);
@@ -296,7 +298,7 @@ class HomeView extends View {
           resetToDefaultFeed();
         }
 
-        // preloadHiddenFeeds(pinnedItems);
+        preloadHiddenFeeds(pinnedItems);
         initializePostSeenObservers(pinnedItems);
         window.scrollTo(0, 0);
       });

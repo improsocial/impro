@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { showToast } from "/js/toasts.js";
@@ -12,8 +12,10 @@ import "/js/components/rendered-markdown.js";
 class SettingsCommunityPluginListingView extends View {
   async render({
     root,
+    router,
+    layout,
     params,
-    context: { dataLayer, pluginService, mainLayout },
+    context: { dataLayer, pluginService },
   }) {
     await auth.requireAuth();
 
@@ -109,6 +111,11 @@ class SettingsCommunityPluginListingView extends View {
       state.$pendingAction.set(null);
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/settings");
+    });
+
     pageEffect(root, () => {
       const listing = state.$listing.get();
       const loadError = state.$loadError.get();
@@ -121,116 +128,112 @@ class SettingsCommunityPluginListingView extends View {
         : "plugin-install-button rounded-button rounded-button-primary";
       render(
         html`<div id="settings-community-plugin-listing-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({
-                title: "Community plugins",
-                backButtonFallbackRoute: "/settings/plugins/community",
-              })}
-              <main>
-                ${(() => {
-                  if (loadError) {
-                    return html`<div class="error-state">
-                      <div>Failed to load plugin</div>
-                      <button @click=${() => window.location.reload()}>
-                        Try again
-                      </button>
-                    </div>`;
-                  }
-                  if (loading) {
-                    return html`<div
-                      class="plugins-loading-state"
-                      data-testid="plugins-loading-state"
-                    >
-                      <div
-                        class="loading-spinner"
-                        data-testid="loading-spinner"
-                      ></div>
-                    </div>`;
-                  }
-                  if (!listing) {
-                    return html`<p
-                      class="error-message"
-                      data-testid="plugin-listing-not-found"
-                    >
-                      Plugin not found.
-                    </p>`;
-                  }
-                  return html`
-                    <div
-                      class="plugin-listing-header"
-                      data-testid="plugin-listing-header"
-                    >
-                      <h1
-                        class="plugin-listing-name"
-                        data-testid="plugin-listing-name"
-                      >
-                        ${listing.name}
-                        ${isLocal
-                          ? html`<span class="plugin-local-badge">local</span>`
-                          : ""}
-                      </h1>
-                      <div class="plugin-listing-meta">
-                        ${version
-                          ? html`<div class="plugin-listing-version">
-                              Version: ${version}
-                            </div>`
-                          : ""}
-                        <div class="plugin-listing-author">
-                          By ${listing.author}
-                        </div>
-                        ${listing.repo
-                          ? html`<div class="plugin-listing-repo">
-                              Repository:
-                              <a
-                                href="https://github.com/${listing.repo}"
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                data-external
-                                >https://github.com/${listing.repo}</a
-                              >
-                            </div>`
-                          : ""}
-                      </div>
-                      ${listing.description
-                        ? html`<p class="plugin-listing-description">
-                            ${listing.description}
-                          </p>`
-                        : ""}
-                      <div class="plugin-listing-actions">
-                        <button
-                          class=${installButtonClass}
-                          data-testid="plugin-listing-install-button"
-                          ?disabled=${pendingAction !== null}
-                          @click=${() => toggleInstall(listing)}
-                        >
-                          ${pendingAction
-                            ? html`${pendingAction === "uninstall"
-                                  ? "Uninstalling"
-                                  : "Installing"}
-                                <div
-                                  class="loading-spinner"
-                                  data-testid="loading-spinner"
-                                ></div>`
-                            : listing.installed
-                              ? "Uninstall"
-                              : "Install"}
-                        </button>
-                      </div>
-                    </div>
-                    ${readme
-                      ? html` <div class="plugin-listing-readme">
-                          <rendered-markdown
-                            data-testid="plugin-listing-readme"
-                            content=${readme}
-                          ></rendered-markdown>
+          ${headerTemplate({
+            title: "Community plugins",
+            backButtonFallbackRoute: "/settings/plugins/community",
+          })}
+          <main>
+            ${(() => {
+              if (loadError) {
+                return html`<div class="error-state">
+                  <div>Failed to load plugin</div>
+                  <button @click=${() => window.location.reload()}>
+                    Try again
+                  </button>
+                </div>`;
+              }
+              if (loading) {
+                return html`<div
+                  class="plugins-loading-state"
+                  data-testid="plugins-loading-state"
+                >
+                  <div
+                    class="loading-spinner"
+                    data-testid="loading-spinner"
+                  ></div>
+                </div>`;
+              }
+              if (!listing) {
+                return html`<p
+                  class="error-message"
+                  data-testid="plugin-listing-not-found"
+                >
+                  Plugin not found.
+                </p>`;
+              }
+              return html`
+                <div
+                  class="plugin-listing-header"
+                  data-testid="plugin-listing-header"
+                >
+                  <h1
+                    class="plugin-listing-name"
+                    data-testid="plugin-listing-name"
+                  >
+                    ${listing.name}
+                    ${isLocal
+                      ? html`<span class="plugin-local-badge">local</span>`
+                      : ""}
+                  </h1>
+                  <div class="plugin-listing-meta">
+                    ${version
+                      ? html`<div class="plugin-listing-version">
+                          Version: ${version}
                         </div>`
                       : ""}
-                  `;
-                })()}
-              </main>`,
-          })}
+                    <div class="plugin-listing-author">
+                      By ${listing.author}
+                    </div>
+                    ${listing.repo
+                      ? html`<div class="plugin-listing-repo">
+                          Repository:
+                          <a
+                            href="https://github.com/${listing.repo}"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-external
+                            >https://github.com/${listing.repo}</a
+                          >
+                        </div>`
+                      : ""}
+                  </div>
+                  ${listing.description
+                    ? html`<p class="plugin-listing-description">
+                        ${listing.description}
+                      </p>`
+                    : ""}
+                  <div class="plugin-listing-actions">
+                    <button
+                      class=${installButtonClass}
+                      data-testid="plugin-listing-install-button"
+                      ?disabled=${pendingAction !== null}
+                      @click=${() => toggleInstall(listing)}
+                    >
+                      ${pendingAction
+                        ? html`${pendingAction === "uninstall"
+                              ? "Uninstalling"
+                              : "Installing"}
+                            <div
+                              class="loading-spinner"
+                              data-testid="loading-spinner"
+                            ></div>`
+                        : listing.installed
+                          ? "Uninstall"
+                          : "Install"}
+                    </button>
+                  </div>
+                </div>
+                ${readme
+                  ? html` <div class="plugin-listing-readme">
+                      <rendered-markdown
+                        data-testid="plugin-listing-readme"
+                        content=${readme}
+                      ></rendered-markdown>
+                    </div>`
+                  : ""}
+              `;
+            })()}
+          </main>
         </div>`,
         root,
       );

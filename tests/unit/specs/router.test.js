@@ -1,6 +1,32 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Router } from "/js/router.js";
+import { Router, Layout } from "/js/router.js";
+
+class TestLayout extends Layout {
+  constructor() {
+    super();
+    this.slot = document.createElement("div");
+    this.mountedInto = null;
+  }
+  mount(container) {
+    this.mountedInto = container;
+    container.appendChild(this.slot);
+  }
+}
+
+function mountRouter(router, { layout = null } = {}) {
+  const root = document.createElement("div");
+  if (layout) {
+    router.setLayout(layout);
+  }
+  router.mount(root);
+  return {
+    root,
+    defaultContainer: router.containers.default,
+    bareContainer: router.containers.bare,
+    layoutContainer: router.containers.layout,
+  };
+}
 
 describe("constructor and initialization", () => {
   it("should initialize with empty routes", () => {
@@ -13,9 +39,18 @@ describe("constructor and initialization", () => {
     assert(typeof router.notFoundView === "function");
   });
 
-  it("should initialize with null container", () => {
+  it("should initialize with null containers", () => {
     const router = new Router();
-    assert.deepEqual(router.container, null);
+    assert.deepEqual(router.containers, {
+      default: null,
+      bare: null,
+      layout: null,
+    });
+  });
+
+  it("should initialize with a null current route", () => {
+    const router = new Router();
+    assert.deepEqual(router.$currentRoute.get(), null);
   });
 });
 
@@ -34,6 +69,18 @@ describe("addRoute", () => {
     router.addRoute("/path2", () => {});
     assert.deepEqual(Object.keys(router.routes).length, 2);
   });
+
+  it("should register every path in an array under the same view and options", () => {
+    const router = new Router();
+    const viewGetter = () => "view";
+    const options = { layoutOptions: { activeNavItem: "home" } };
+    router.addRoute(["/", "/intent/compose"], viewGetter, options);
+
+    assert.deepEqual(Object.keys(router.routes), ["/", "/intent/compose"]);
+    assert.deepEqual(router.match("/intent/compose").viewGetter, viewGetter);
+    assert.deepEqual(router.match("/intent/compose").options, options);
+    assert.deepEqual(router.match("/").viewGetter, viewGetter);
+  });
 });
 
 describe("setNotFoundView", () => {
@@ -46,19 +93,41 @@ describe("setNotFoundView", () => {
 });
 
 describe("mount", () => {
-  it("should set container", () => {
+  it("should default pages to the root and create the bare container", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
-    assert.deepEqual(router.container, container);
+    const { root, defaultContainer, bareContainer } = mountRouter(router);
+    assert.deepEqual(defaultContainer, root);
+    assert.deepEqual(bareContainer, root.querySelector("#bare-pages"));
   });
 
-  it("should clear pre-existing container contents", () => {
+  it("should mount the layout into a router-created container and use its slot for pages", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    container.innerHTML = "<p>stale ssr/loading markup</p>";
-    router.mount(container);
-    assert.deepEqual(container.innerHTML, "");
+    const layout = new TestLayout();
+    const { root, defaultContainer, bareContainer, layoutContainer } =
+      mountRouter(router, { layout });
+    assert.deepEqual(layout.mountedInto, layoutContainer);
+    assert.deepEqual(layoutContainer.parentElement, root);
+    assert(layoutContainer.contains(layout.slot));
+    assert.deepEqual(defaultContainer, layout.slot);
+    assert.deepEqual(bareContainer, root.querySelector("#bare-pages"));
+  });
+
+  it("should clear pre-existing root contents", () => {
+    const router = new Router();
+    const root = document.createElement("div");
+    root.innerHTML = "<p>stale ssr/loading markup</p>";
+    router.mount(root);
+    assert.deepEqual(root.querySelector("p"), null);
+  });
+
+  it("should throw when the layout does not expose a slot element", () => {
+    const router = new Router();
+    const slotlessLayout = new Layout();
+    router.setLayout(slotlessLayout);
+    assert.throws(
+      () => router.mount(document.createElement("div")),
+      /slot element/,
+    );
   });
 });
 
@@ -197,8 +266,7 @@ describe("popstate", () => {
 
   it("should emit navigate event when popstate fires", async () => {
     const { router, popstateHandler } = createRouterWithPopstateHandler();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
 
     const listener = mock.fn();
     router.on("navigate", listener);
@@ -210,8 +278,7 @@ describe("popstate", () => {
 
   it("should emit navigate before loading the new page", async () => {
     const { router, popstateHandler } = createRouterWithPopstateHandler();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
 
     const order = [];
     router.on("navigate", () => order.push("navigate"));
@@ -227,15 +294,14 @@ describe("popstate", () => {
       window.location.pathname + window.location.search + window.location.hash;
     const originalState = window.history.state;
     const { router, popstateHandler } = createRouterWithPopstateHandler();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/search", () => Promise.resolve({}));
     router.addRoute("/other", () => Promise.resolve({}));
     router.renderRoute(() => {});
 
     try {
       await router.load("/search?q=alice");
-      const searchPage = router.pages.get("/search?q=alice");
+      const searchPage = router.pages.get("/search?q=alice")?.el;
       assert(searchPage, "page should be cached under its full path");
       await router.load("/other");
 
@@ -261,8 +327,7 @@ describe("popstate", () => {
 describe("load", () => {
   it("should load route and render view", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    const { defaultContainer } = mountRouter(router);
 
     const view = { name: "TestView" };
     const viewGetter = () => Promise.resolve(view);
@@ -281,13 +346,12 @@ describe("load", () => {
     assert.deepEqual(renderArgs.view, view);
     assert.deepEqual(renderArgs.params, {});
     assert(renderArgs.container);
-    assert(container.contains(renderArgs.container));
+    assert(defaultContainer.contains(renderArgs.container));
   });
 
   it("should pass route parameters to renderFunc", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
 
     router.addRoute("/user/:id", () => Promise.resolve({}));
 
@@ -309,8 +373,7 @@ describe("go", () => {
 
   it("should emit navigate event before loading the new page", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/go-test", () => Promise.resolve({}));
 
     const order = [];
@@ -329,8 +392,7 @@ describe("go", () => {
 
   it("should store the previous route in history state", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/go-prev-test", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", "/starting-path");
@@ -346,8 +408,7 @@ describe("go", () => {
 
   it("should replace the current history entry when called with replace: true", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/go-replace-test", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", "/starting-path");
@@ -391,8 +452,7 @@ describe("modifier-click navigation", () => {
 
   it("should open in a new tab on cmd+click instead of navigating", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/meta-test", () => Promise.resolve({}));
 
     let navigated = false;
@@ -426,8 +486,7 @@ describe("modifier-click navigation", () => {
 
   it("should navigate normally on unmodified click", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/plain-test", () => Promise.resolve({}));
     button.addEventListener("click", () => router.go("/plain-test"));
 
@@ -453,8 +512,7 @@ describe("modifier-click navigation", () => {
 
   it("should navigate normally when metaKey is held on a non-Enter key", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/keyboard-test", () => Promise.resolve({}));
     button.addEventListener("keydown", () => router.go("/keyboard-test"));
 
@@ -523,8 +581,7 @@ describe("middle-click navigation", () => {
 
   it("should open in a new tab on middle click instead of navigating", () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/middle-test", () => Promise.resolve({}));
 
     let navigated = false;
@@ -625,8 +682,7 @@ describe("previousRoute", () => {
 
   it("should reflect the previousRoute after a go() call", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/prev-getter-test", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", "/origin-path");
@@ -647,8 +703,7 @@ describe("back", () => {
 
   it("should call window.history.back when a previousRoute exists", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
 
     window.history.replaceState({ previousRoute: "/prior" }, "", originalPath);
 
@@ -669,8 +724,7 @@ describe("back", () => {
 
   it("should navigate to / when no previousRoute exists", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", originalPath);
@@ -693,8 +747,7 @@ describe("back", () => {
 
   it("should navigate to fallbackRoute when no previousRoute exists", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/messages", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", originalPath);
@@ -709,8 +762,7 @@ describe("back", () => {
 
   it("should ignore fallbackRoute when a previousRoute exists", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
 
     window.history.replaceState({ previousRoute: "/prior" }, "", originalPath);
 
@@ -733,8 +785,7 @@ describe("back", () => {
 
   it("should replace history when falling back, not push", async () => {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/messages", () => Promise.resolve({}));
 
     window.history.replaceState(null, "", "/deep-link");
@@ -748,6 +799,152 @@ describe("back", () => {
     } finally {
       window.history.replaceState(originalState, "", originalPath);
     }
+  });
+});
+
+describe("route options", () => {
+  it("stores options on the route and returns them from match", () => {
+    const router = new Router();
+    const options = { layoutOptions: { activeNavItem: "home" } };
+    router.addRoute("/test", () => {}, options);
+    assert.deepEqual(router.match("/test").options, options);
+  });
+
+  it("defaults options to an empty object", () => {
+    const router = new Router();
+    router.addRoute("/test", () => {});
+    assert.deepEqual(router.match("/test").options, {});
+  });
+
+  it("returns notFound options for unmatched paths", () => {
+    const router = new Router();
+    router.setNotFoundView(() => {}, { layout: false });
+    assert.deepEqual(router.match("/nope").options, { layout: false });
+  });
+
+  it("appends pages to the default container by default", async () => {
+    const router = new Router();
+    const { defaultContainer, bareContainer } = mountRouter(router);
+    router.addRoute("/test", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+
+    await router.load("/test");
+
+    assert.deepEqual(router.currentPage.parentElement, defaultContainer);
+    assert(!bareContainer.contains(router.currentPage));
+  });
+
+  it("passes the layout to renders of layout routes only", async () => {
+    const router = new Router();
+    const layout = new TestLayout();
+    mountRouter(router, { layout });
+    router.addRoute("/test", () => Promise.resolve({}));
+    router.addRoute("/login", () => Promise.resolve({}), { layout: false });
+    let receivedLayout;
+    router.renderRoute(({ layout: renderLayout }) => {
+      receivedLayout = renderLayout;
+    });
+
+    await router.load("/test");
+    assert.deepEqual(receivedLayout, layout);
+
+    await router.load("/login");
+    assert.deepEqual(receivedLayout, null);
+  });
+
+  it("appends pages to the bare container when layout is false", async () => {
+    const router = new Router();
+    const { defaultContainer, bareContainer } = mountRouter(router);
+    router.addRoute("/login", () => Promise.resolve({}), { layout: false });
+    router.renderRoute(() => {});
+
+    await router.load("/login");
+
+    assert.deepEqual(router.currentPage.parentElement, bareContainer);
+  });
+});
+
+describe("layout visibility", () => {
+  function createRouterWithLayout() {
+    const router = new Router();
+    const layout = new TestLayout();
+    const { layoutContainer } = mountRouter(router, { layout });
+    const isLayoutHidden = () =>
+      layoutContainer.classList.contains("layout-hidden");
+    router.addRoute("/test", () => Promise.resolve({}));
+    router.addRoute("/login", () => Promise.resolve({}), { layout: false });
+    router.renderRoute(() => {});
+    return { router, isLayoutHidden };
+  }
+
+  it("hides the layout before rendering a new bare page", async () => {
+    const { router, isLayoutHidden } = createRouterWithLayout();
+    let hiddenAtRenderTime = null;
+    router.renderRoute(() => {
+      hiddenAtRenderTime = isLayoutHidden();
+    });
+
+    await router.load("/login");
+    assert.deepEqual(hiddenAtRenderTime, true);
+
+    await router.load("/test");
+    assert.deepEqual(hiddenAtRenderTime, false);
+  });
+
+  it("shows the layout before a cached page's restore handlers run", async () => {
+    const { router, isLayoutHidden } = createRouterWithLayout();
+    await router.load("/test");
+    await router.load("/login");
+    assert.deepEqual(isLayoutHidden(), true);
+
+    // Views restore scroll synchronously in page-restore handlers, so the
+    // layout must already be visible when the event fires
+    let hiddenAtRestoreTime = null;
+    const { el: testPage } = router.pages.get("/test");
+    testPage.addEventListener("page-restore", () => {
+      hiddenAtRestoreTime = isLayoutHidden();
+    });
+
+    await router.load("/test");
+
+    assert.deepEqual(hiddenAtRestoreTime, false);
+  });
+});
+
+describe("$currentRoute", () => {
+  function createRouter() {
+    const router = new Router();
+    mountRouter(router);
+    router.addRoute("/user/:id", () => Promise.resolve({}), {
+      layoutOptions: { activeNavItem: "profile" },
+    });
+    router.addRoute("/other", () => Promise.resolve({}));
+    router.renderRoute(() => {});
+    return router;
+  }
+
+  it("is set when loading a new page", async () => {
+    const router = createRouter();
+
+    await router.load("/user/123?tab=posts");
+
+    assert.deepEqual(router.$currentRoute.get(), {
+      path: "/user/123?tab=posts",
+      route: "/user/:id",
+      params: { id: "123" },
+      options: { layoutOptions: { activeNavItem: "profile" } },
+    });
+  });
+
+  it("is set when restoring a cached page", async () => {
+    const router = createRouter();
+    await router.load("/user/123");
+    await router.load("/other");
+
+    await router.load("/user/123");
+
+    assert.deepEqual(router.$currentRoute.get().route, "/user/:id");
+    assert.deepEqual(router.$currentRoute.get().params, { id: "123" });
   });
 });
 
@@ -775,8 +972,7 @@ describe("scroll position persistence", () => {
 
   function createRouter() {
     const router = new Router();
-    const container = document.createElement("div");
-    router.mount(container);
+    mountRouter(router);
     router.addRoute("/a", () => Promise.resolve({}));
     router.addRoute("/b", () => Promise.resolve({}));
     router.renderRoute(() => {});
@@ -804,7 +1000,7 @@ describe("scroll position persistence", () => {
     const router = createRouter();
     await router.load("/a");
 
-    const pageA = router.pages.get("/a");
+    const pageA = router.pages.get("/a").el;
     let restoredScrollY = null;
     pageA.addEventListener("page-restore", (event) => {
       restoredScrollY = event.detail.scrollY;

@@ -16,7 +16,6 @@ class ProfileKnownFollowersView extends View {
       identityResolver,
       interactionHandlers,
       isAuthenticated,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -51,31 +50,29 @@ class ProfileKnownFollowersView extends View {
       const hasMore = knownFollowers?.cursor ? true : false;
       render(
         html`<div id="profile-known-followers-view">
-          ${mainLayout({
-            children: html`${headerTemplate({
-                title: profile ? getDisplayName(profile) : "",
-                subtitle: "Followers you know",
-              })}
-              <main style="position: relative;">
-                ${(() => {
-                  if (requestStatus.error) {
-                    return errorTemplate({ error: requestStatus.error });
-                  }
-                  return profileFeedTemplate({
-                    profiles: knownFollowers?.followers ?? null,
-                    hasMore,
-                    onLoadMore: loadKnownFollowers,
-                    emptyMessage: profile
-                      ? `You don't follow anyone who follows @${profile.handle}.`
-                      : "You don't follow anyone who follows this user.",
-                    isAuthenticated,
-                    currentUserDid: currentUser?.did ?? null,
-                    profileInteractionHandler:
-                      interactionHandlers.profileInteractionHandler,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: profile ? getDisplayName(profile) : "",
+            subtitle: "Followers you know",
           })}
+          <main style="position: relative;">
+            ${(() => {
+              if (requestStatus.error) {
+                return errorTemplate({ error: requestStatus.error });
+              }
+              return profileFeedTemplate({
+                profiles: knownFollowers?.followers ?? null,
+                hasMore,
+                onLoadMore: loadKnownFollowers,
+                emptyMessage: profile
+                  ? `You don't follow anyone who follows @${profile.handle}.`
+                  : "You don't follow anyone who follows this user.",
+                isAuthenticated,
+                currentUserDid: currentUser?.did ?? null,
+                profileInteractionHandler:
+                  interactionHandlers.profileInteractionHandler,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );

@@ -16,13 +16,7 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 class SearchView extends View {
   async render({
     root,
-    context: {
-      dataLayer,
-      isAuthenticated,
-      pluginService,
-      interactionHandlers,
-      mainLayout,
-    },
+    context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
     const state = new ReactiveStore("searchView");
     state.$activeTab = new Signal.State("profiles");
@@ -346,121 +340,113 @@ class SearchView extends View {
 
       render(
         html`<div id="search-view">
-          ${mainLayout({
-            activeNavItem: "search",
-            children: html`
-              ${headerTemplate({
-                title: "Search",
-                bottomItemTemplate: () => html`
-                  <div class="search-input-container">
-                    ${searchIconTemplate()}
-                    <input
-                      class="search-input"
-                      type="search"
-                      autocapitalize="none"
-                      autocomplete="off"
-                      autocorrect="off"
-                      placeholder=${isAuthenticated
-                        ? "Search for users, posts, and feeds"
-                        : "Search for users"}
-                      .value=${searchQuery}
-                      @input=${(event) => handleSearchInput(event.target.value)}
-                    />
-                    ${searchQuery.length > 0
-                      ? html`
-                          <button
-                            class="search-clear-button"
-                            @click=${() => handleClearSearch()}
-                          >
-                            ${closeIconTemplate()}
-                          </button>
-                        `
-                      : ""}
-                    ${showResults
-                      ? html`
-                          <tab-bar
-                            .tabs=${[
-                              { value: "profiles", label: "Profiles" },
-                              ...(isAuthenticated
-                                ? [
-                                    { value: "posts", label: "Posts" },
-                                    { value: "feeds", label: "Feeds" },
-                                  ]
-                                : []),
-                            ]}
-                            active-tab=${activeTab}
-                            full-width
-                            @tab-click=${(event) =>
-                              handleTabChange(event.detail)}
-                          ></tab-bar>
-                        `
-                      : ""}
-                  </div>
-                `,
-              })}
-              <main>
-                <div class="search-results-container">
-                  ${showResults
-                    ? html`
-                        <div class="search-tab-panels">
-                          <div
-                            class="search-tab-panel"
-                            ?hidden=${activeTab !== "posts"}
-                          >
-                            <div
-                              class="search-results-panel search-post-results"
-                            >
-                              ${postSearchResultsTemplate({
-                                status: postStatus,
-                                postSearchResults,
-                                postSearchHasMore,
-                                currentUser,
-                              })}
-                            </div>
-                          </div>
-                          <div
-                            class="search-tab-panel"
-                            ?hidden=${activeTab !== "profiles"}
-                          >
-                            <div class="search-results-panel">
-                              ${profileSearchResultsTemplate({
-                                status: profileStatus,
-                                profileSearchResults,
-                                profileSearchHasMore,
-                                currentUser,
-                              })}
-                            </div>
-                          </div>
-                          <div
-                            class="search-tab-panel"
-                            ?hidden=${activeTab !== "feeds"}
-                          >
-                            <div class="search-results-panel">
-                              ${feedSearchResultsTemplate({
-                                status: feedStatus,
-                                feedSearchResults,
-                                feedSearchHasMore,
-                                preferences,
-                              })}
-                            </div>
-                          </div>
-                        </div>
-                      `
-                    : html`<div class="search-placeholder">
-                        <div class="search-placeholder-icon">
-                          ${searchIconTemplate()}
-                        </div>
-                        <div class="search-placeholder-text">
-                          ${isAuthenticated
-                            ? "Start typing to search for users, posts, and feeds."
-                            : html`Start typing to search for users.<br />Sign
-                                in to search for posts.`}
-                        </div>
-                      </div>`}
-                </div>
-              </main>
+          ${headerTemplate({
+            title: "Search",
+            bottomItemTemplate: () => html`
+              <div class="search-input-container">
+                ${searchIconTemplate()}
+                <input
+                  class="search-input"
+                  type="search"
+                  autocapitalize="none"
+                  autocomplete="off"
+                  autocorrect="off"
+                  placeholder=${isAuthenticated
+                    ? "Search for users, posts, and feeds"
+                    : "Search for users"}
+                  .value=${searchQuery}
+                  @input=${(event) => handleSearchInput(event.target.value)}
+                />
+                ${searchQuery.length > 0
+                  ? html`
+                      <button
+                        class="search-clear-button"
+                        @click=${() => handleClearSearch()}
+                      >
+                        ${closeIconTemplate()}
+                      </button>
+                    `
+                  : ""}
+                ${showResults
+                  ? html`
+                      <tab-bar
+                        .tabs=${[
+                          { value: "profiles", label: "Profiles" },
+                          ...(isAuthenticated
+                            ? [
+                                { value: "posts", label: "Posts" },
+                                { value: "feeds", label: "Feeds" },
+                              ]
+                            : []),
+                        ]}
+                        active-tab=${activeTab}
+                        full-width
+                        @tab-click=${(event) => handleTabChange(event.detail)}
+                      ></tab-bar>
+                    `
+                  : ""}
+              </div>
             `,
           })}
+          <main>
+            <div class="search-results-container">
+              ${showResults
+                ? html`
+                    <div class="search-tab-panels">
+                      <div
+                        class="search-tab-panel"
+                        ?hidden=${activeTab !== "posts"}
+                      >
+                        <div class="search-results-panel search-post-results">
+                          ${postSearchResultsTemplate({
+                            status: postStatus,
+                            postSearchResults,
+                            postSearchHasMore,
+                            currentUser,
+                          })}
+                        </div>
+                      </div>
+                      <div
+                        class="search-tab-panel"
+                        ?hidden=${activeTab !== "profiles"}
+                      >
+                        <div class="search-results-panel">
+                          ${profileSearchResultsTemplate({
+                            status: profileStatus,
+                            profileSearchResults,
+                            profileSearchHasMore,
+                            currentUser,
+                          })}
+                        </div>
+                      </div>
+                      <div
+                        class="search-tab-panel"
+                        ?hidden=${activeTab !== "feeds"}
+                      >
+                        <div class="search-results-panel">
+                          ${feedSearchResultsTemplate({
+                            status: feedStatus,
+                            feedSearchResults,
+                            feedSearchHasMore,
+                            preferences,
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                  `
+                : html`<div class="search-placeholder">
+                    <div class="search-placeholder-icon">
+                      ${searchIconTemplate()}
+                    </div>
+                    <div class="search-placeholder-text">
+                      ${isAuthenticated
+                        ? "Start typing to search for users, posts, and feeds."
+                        : html`Start typing to search for users.<br />Sign in to
+                            search for posts.`}
+                    </div>
+                  </div>`}
+            </div>
+          </main>
         </div>`,
         root,
       );

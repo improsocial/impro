@@ -25,7 +25,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 
 class SettingsView extends View {
-  async render({ root, context: { dataLayer, mainLayout } }) {
+  async render({ root, context: { dataLayer } }) {
     const currentSession = await auth.requireAuth();
     const supportsMultipleAccounts = auth.supportsMultipleAccounts();
 
@@ -229,155 +229,143 @@ class SettingsView extends View {
       if (otherAccounts === null) return;
       render(
         html`<div id="settings-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.scrollTo(0, 0),
-            children: html`${headerTemplate({
-                title: "Settings",
-                backButtonFallbackRoute: "/",
-              })}
-              <main>
-                <nav class="vertical-nav">
-                  ${supportsMultipleAccounts
-                    ? accountsSwitcherTemplate({
-                        expanded: $accountSwitcherExpanded.get(),
-                        accounts: otherAccounts,
-                        accountProfiles: otherAccountProfiles,
-                        pendingAction: $pendingAccountSwitcherAction.get(),
-                        onToggle: () => {
-                          if ($pendingAccountSwitcherAction.get() !== null)
-                            return;
-                          $accountSwitcherExpanded.set(
-                            !$accountSwitcherExpanded.get(),
-                          );
-                        },
-                        onSwitch: async (account) => {
-                          if ($pendingAccountSwitcherAction.get() !== null)
-                            return;
-                          $pendingAccountSwitcherAction.set({
-                            type: "switch",
-                            did: account.did,
+          ${headerTemplate({
+            title: "Settings",
+            backButtonFallbackRoute: "/",
+          })}
+          <main>
+            <nav class="vertical-nav">
+              ${supportsMultipleAccounts
+                ? accountsSwitcherTemplate({
+                    expanded: $accountSwitcherExpanded.get(),
+                    accounts: otherAccounts,
+                    accountProfiles: otherAccountProfiles,
+                    pendingAction: $pendingAccountSwitcherAction.get(),
+                    onToggle: () => {
+                      if ($pendingAccountSwitcherAction.get() !== null) return;
+                      $accountSwitcherExpanded.set(
+                        !$accountSwitcherExpanded.get(),
+                      );
+                    },
+                    onSwitch: async (account) => {
+                      if ($pendingAccountSwitcherAction.get() !== null) return;
+                      $pendingAccountSwitcherAction.set({
+                        type: "switch",
+                        did: account.did,
+                      });
+                      if (account.needsReauth) {
+                        try {
+                          await auth.login({
+                            handle: account.handle,
+                            returnTo:
+                              window.location.pathname + window.location.search,
                           });
-                          if (account.needsReauth) {
-                            try {
-                              await auth.login({
-                                handle: account.handle,
-                                returnTo:
-                                  window.location.pathname +
-                                  window.location.search,
-                              });
-                            } catch (error) {
-                              $pendingAccountSwitcherAction.set(null);
-                              showToast(getLoginErrorMessage(error), {
-                                style: "error",
-                              });
-                            }
-                            return;
-                          }
-                          try {
-                            await auth.switchAccount(account.did);
-                          } catch {
-                            $pendingAccountSwitcherAction.set(null);
-                            showToast("Failed to switch account", {
-                              style: "error",
-                            });
-                          }
-                        },
-                        onAdd: () => {
-                          if ($pendingAccountSwitcherAction.get() !== null)
-                            return;
-                          $pendingAccountSwitcherAction.set({ type: "add" });
-                          window.location.href = linkToLogin({
-                            query: { addAccount: 1 },
+                        } catch (error) {
+                          $pendingAccountSwitcherAction.set(null);
+                          showToast(getLoginErrorMessage(error), {
+                            style: "error",
                           });
-                        },
-                        onRemove: async (account) => {
-                          const ok = await confirmModal(
-                            `Remove @${account.handle} from this device?`,
-                            {
-                              title: "Remove account?",
-                              confirmButtonStyle: "danger",
-                              confirmButtonText: "Remove",
-                            },
-                          );
-                          if (!ok) return;
-                          await auth.removeAccount(account.did);
-                          await loadOtherAccounts();
-                          const stillHasOthers =
-                            $otherAccounts.get().length > 0;
-                          if (!stillHasOthers) {
-                            $accountSwitcherExpanded.set(false);
-                          }
-                        },
-                      })
-                    : null}
-                  ${menuItems.map(
-                    (item) => html`
-                      <a
-                        href="${item.url}"
-                        class=${classnames("vertical-nav-item", {
-                          disabled: !item.enabled,
-                        })}
-                        data-testid="settings-nav-${item.key}"
-                      >
-                        <span class="vertical-nav-icon">${item.icon()}</span>
-                        <span class="vertical-nav-label">${item.label}</span>
-                        <span class="vertical-nav-arrow"
-                          >${chevronRightIconTemplate()}</span
-                        >
-                      </a>
-                    `,
-                  )}
-                  <hr />
-                  <button
-                    class="vertical-nav-item danger-button"
-                    data-testid="settings-sign-out"
-                    @click=${async () => {
-                      if (
-                        !(await confirmModal(
-                          "Are you sure you want to sign out?",
-                          {
-                            title: "Sign out?",
-                            confirmButtonStyle: "danger",
-                            confirmButtonText: "Sign out",
-                          },
-                        ))
-                      ) {
+                        }
                         return;
                       }
-                      await auth.logout();
-                      window.location.reload();
-                    }}
-                  >
-                    Sign out
-                  </button>
-                </nav>
-                <div class="version-info" data-testid="version-info">
-                  Impro v${window.env.version} - ${window.env.gitCommit}
-                </div>
-                <div class="settings-footer-links">
+                      try {
+                        await auth.switchAccount(account.did);
+                      } catch {
+                        $pendingAccountSwitcherAction.set(null);
+                        showToast("Failed to switch account", {
+                          style: "error",
+                        });
+                      }
+                    },
+                    onAdd: () => {
+                      if ($pendingAccountSwitcherAction.get() !== null) return;
+                      $pendingAccountSwitcherAction.set({ type: "add" });
+                      window.location.href = linkToLogin({
+                        query: { addAccount: 1 },
+                      });
+                    },
+                    onRemove: async (account) => {
+                      const ok = await confirmModal(
+                        `Remove @${account.handle} from this device?`,
+                        {
+                          title: "Remove account?",
+                          confirmButtonStyle: "danger",
+                          confirmButtonText: "Remove",
+                        },
+                      );
+                      if (!ok) return;
+                      await auth.removeAccount(account.did);
+                      await loadOtherAccounts();
+                      const stillHasOthers = $otherAccounts.get().length > 0;
+                      if (!stillHasOthers) {
+                        $accountSwitcherExpanded.set(false);
+                      }
+                    },
+                  })
+                : null}
+              ${menuItems.map(
+                (item) => html`
                   <a
-                    href="/tos.html"
-                    data-testid="footer-link-terms"
-                    data-external="true"
-                    >Terms</a
+                    href="${item.url}"
+                    class=${classnames("vertical-nav-item", {
+                      disabled: !item.enabled,
+                    })}
+                    data-testid="settings-nav-${item.key}"
                   >
-                  <span class="settings-footer-separator">·</span>
-                  <a
-                    href="/privacy.html"
-                    data-testid="footer-link-privacy"
-                    data-external="true"
-                    >Privacy Policy</a
-                  >
-                  <span class="settings-footer-separator">·</span>
-                  <a
-                    href="https://github.com/improsocial/impro"
-                    data-testid="footer-link-github"
-                    >GitHub</a
-                  >
-                </div>
-              </main>`,
-          })}
+                    <span class="vertical-nav-icon">${item.icon()}</span>
+                    <span class="vertical-nav-label">${item.label}</span>
+                    <span class="vertical-nav-arrow"
+                      >${chevronRightIconTemplate()}</span
+                    >
+                  </a>
+                `,
+              )}
+              <hr />
+              <button
+                class="vertical-nav-item danger-button"
+                data-testid="settings-sign-out"
+                @click=${async () => {
+                  if (
+                    !(await confirmModal("Are you sure you want to sign out?", {
+                      title: "Sign out?",
+                      confirmButtonStyle: "danger",
+                      confirmButtonText: "Sign out",
+                    }))
+                  ) {
+                    return;
+                  }
+                  await auth.logout();
+                  window.location.reload();
+                }}
+              >
+                Sign out
+              </button>
+            </nav>
+            <div class="version-info" data-testid="version-info">
+              Impro v${window.env.version} - ${window.env.gitCommit}
+            </div>
+            <div class="settings-footer-links">
+              <a
+                href="/tos.html"
+                data-testid="footer-link-terms"
+                data-external="true"
+                >Terms</a
+              >
+              <span class="settings-footer-separator">·</span>
+              <a
+                href="/privacy.html"
+                data-testid="footer-link-privacy"
+                data-external="true"
+                >Privacy Policy</a
+              >
+              <span class="settings-footer-separator">·</span>
+              <a
+                href="https://github.com/improsocial/impro"
+                data-testid="footer-link-github"
+                >GitHub</a
+              >
+            </div>
+          </main>
         </div>`,
         root,
       );

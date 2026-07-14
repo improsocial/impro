@@ -293,9 +293,6 @@ video {
 }
 
 .page {
-  position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   min-height: 100%;
   min-height: calc(100dvh - var(--safe-area-inset-bottom));
@@ -304,13 +301,14 @@ video {
 
 .page.page-hidden {
   display: none;
-  /* visibility: hidden;
-  position: fixed;
-  transform: translateX(-200vw); */
 }
 
 .page.page-visible {
   display: block;
+}
+
+#main-layout.layout-hidden {
+  display: none;
 }
 
 main {

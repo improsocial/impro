@@ -12,13 +12,7 @@ class HashtagView extends View {
   async render({
     root,
     params,
-    context: {
-      dataLayer,
-      isAuthenticated,
-      pluginService,
-      interactionHandlers,
-      mainLayout,
-    },
+    context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
     await auth.requireAuth();
 
@@ -72,44 +66,38 @@ class HashtagView extends View {
       const currentSort = state.$currentSort.get();
       render(
         html`<div id="hashtag-view">
-          ${mainLayout({
-            onClickActiveNavItem: () => {
-              scrollAndReloadFeed();
-            },
-            activeNavItem: null,
-            children: html` <main>
-              ${headerTemplate({
-                title: `#${hashtag}`,
-                bottomItemTemplate: () => html`
-                  <tab-bar
-                    .tabs=${sortOptions}
-                    active-tab=${currentSort}
-                    full-width
-                    @tab-click=${(event) => handleTabClick(event.detail)}
-                  ></tab-bar>
-                `,
-              })}
-              ${sortOptions.map((sort) => {
-                const feed = dataLayer.derived.$hydratedHashtagFeeds.get(
-                  `${hashtag}-${sort.value}`,
-                );
-                return html`<div
-                  class="feed-container"
-                  ?hidden=${currentSort !== sort.value}
-                >
-                  ${postFeedTemplate({
-                    feed,
-                    currentUser,
-                    isAuthenticated,
-                    postInteractionHandler,
-                    enableFeedFeedback: false,
-                    onLoadMore: () => loadCurrentFeed(),
-                    pluginService,
-                  })}
-                </div>`;
-              })}
-            </main>`,
-          })}
+          <main>
+            ${headerTemplate({
+              title: `#${hashtag}`,
+              bottomItemTemplate: () => html`
+                <tab-bar
+                  .tabs=${sortOptions}
+                  active-tab=${currentSort}
+                  full-width
+                  @tab-click=${(event) => handleTabClick(event.detail)}
+                ></tab-bar>
+              `,
+            })}
+            ${sortOptions.map((sort) => {
+              const feed = dataLayer.derived.$hydratedHashtagFeeds.get(
+                `${hashtag}-${sort.value}`,
+              );
+              return html`<div
+                class="feed-container"
+                ?hidden=${currentSort !== sort.value}
+              >
+                ${postFeedTemplate({
+                  feed,
+                  currentUser,
+                  isAuthenticated,
+                  postInteractionHandler,
+                  enableFeedFeedback: false,
+                  onLoadMore: () => loadCurrentFeed(),
+                  pluginService,
+                })}
+              </div>`;
+            })}
+          </main>
         </div>`,
         root,
       );

@@ -2,12 +2,13 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import { auth } from "/js/auth.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
@@ -47,13 +48,14 @@ function notificationItemTemplate({ href, isUnread, children }) {
 class NotificationsView extends View {
   async render({
     root,
+    layout,
     context: {
       dataLayer,
       notificationService,
+      postComposerService,
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     await auth.requireAuth();
@@ -120,8 +122,7 @@ class NotificationsView extends View {
     state.$isReloadingMentionNotifications = new Signal.State(false);
 
     async function handleMenuClick() {
-      const sidebar = root.querySelector("animated-sidebar");
-      sidebar.open();
+      layout.openSidebar();
     }
 
     const GROUPED_NOTIFICATION_TYPES = [
@@ -671,6 +672,11 @@ class NotificationsView extends View {
       }
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      scrollAndReloadNotifications();
+    });
+
     pageEffect(root, () => {
       const activeTab = state.$activeTab.get();
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -703,75 +709,68 @@ class NotificationsView extends View {
 
       render(
         html`<div id="notifications-view">
-          ${mainLayout({
-            activeNavItem: "notifications",
-            onClickActiveNavItem: () => {
-              scrollAndReloadNotifications();
-            },
-            showFloatingComposeButton: true,
-            children: html`
-              ${headerTemplate({
-                title: "Notifications",
-                showLoadingSpinner: isLoading,
-                leftButton: "menu",
-                onClickMenuButton: handleMenuClick,
-                bottomItemTemplate: () => html`
-                  <tab-bar
-                    .tabs=${[
-                      { value: "all", label: "All" },
-                      { value: "mentions", label: "Mentions" },
-                    ]}
-                    active-tab=${activeTab}
-                    full-width
-                    @tab-click=${(event) => handleTabClick(event.detail)}
-                  ></tab-bar>
-                `,
-              })}
-              <main>
-                <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
-                  ${(() => {
-                    if (notificationsRequestStatus.error) {
-                      return notificationsErrorTemplate({
-                        error: notificationsRequestStatus.error,
-                      });
-                    } else if (groupedNotifications) {
-                      return notificationsTemplate({
-                        groupedNotifications,
-                        currentUser,
-                        hasMore,
-                        loadMore: loadNotifications,
-                      });
-                    } else {
-                      return notificationsSkeletonTemplate();
-                    }
-                  })()}
-                </div>
-                <div
-                  class="notifications-feed"
-                  ?hidden=${activeTab !== "mentions"}
-                >
-                  ${(() => {
-                    if (mentionNotificationsRequestStatus.error) {
-                      return notificationsErrorTemplate({
-                        error: mentionNotificationsRequestStatus.error,
-                      });
-                    } else if (groupedMentionNotifications) {
-                      return notificationsTemplate({
-                        groupedNotifications: groupedMentionNotifications,
-                        currentUser,
-                        hasMore: mentionHasMore,
-                        loadMore: loadMentionNotifications,
-                      });
-                    } else if (activeTab === "mentions") {
-                      return notificationsSkeletonTemplate();
-                    } else {
-                      return "";
-                    }
-                  })()}
-                </div>
-              </main>
+          ${headerTemplate({
+            title: "Notifications",
+            showLoadingSpinner: isLoading,
+            leftButton: "menu",
+            onClickMenuButton: handleMenuClick,
+            bottomItemTemplate: () => html`
+              <tab-bar
+                .tabs=${[
+                  { value: "all", label: "All" },
+                  { value: "mentions", label: "Mentions" },
+                ]}
+                active-tab=${activeTab}
+                full-width
+                @tab-click=${(event) => handleTabClick(event.detail)}
+              ></tab-bar>
             `,
           })}
+          <main>
+            <div class="notifications-feed" ?hidden=${activeTab !== "all"}>
+              ${(() => {
+                if (notificationsRequestStatus.error) {
+                  return notificationsErrorTemplate({
+                    error: notificationsRequestStatus.error,
+                  });
+                } else if (groupedNotifications) {
+                  return notificationsTemplate({
+                    groupedNotifications,
+                    currentUser,
+                    hasMore,
+                    loadMore: loadNotifications,
+                  });
+                } else {
+                  return notificationsSkeletonTemplate();
+                }
+              })()}
+            </div>
+            <div class="notifications-feed" ?hidden=${activeTab !== "mentions"}>
+              ${(() => {
+                if (mentionNotificationsRequestStatus.error) {
+                  return notificationsErrorTemplate({
+                    error: mentionNotificationsRequestStatus.error,
+                  });
+                } else if (groupedMentionNotifications) {
+                  return notificationsTemplate({
+                    groupedNotifications: groupedMentionNotifications,
+                    currentUser,
+                    hasMore: mentionHasMore,
+                    loadMore: loadMentionNotifications,
+                  });
+                } else if (activeTab === "mentions") {
+                  return notificationsSkeletonTemplate();
+                } else {
+                  return "";
+                }
+              })()}
+            </div>
+          </main>
+          ${currentUser
+            ? floatingComposeButtonTemplate({
+                onClick: () => postComposerService.composePost({ currentUser }),
+              })
+            : ""}
         </div>`,
         root,
       );

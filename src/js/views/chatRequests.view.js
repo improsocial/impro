@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -19,7 +19,7 @@ import "/js/components/container-link.js";
 import "/js/components/infinite-scroll-container.js";
 
 class ChatRequestsView extends View {
-  async render({ root, router, context: { dataLayer, mainLayout } }) {
+  async render({ root, router, layout, context: { dataLayer } }) {
     await auth.requireAuth();
 
     async function handleAccept(convo) {
@@ -211,6 +211,11 @@ class ChatRequestsView extends View {
       </div>`;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/messages");
+    });
+
     pageEffect(root, () => {
       const chatRequests = dataLayer.derived.$convoRequestList.get();
       const requestsStatus = dataLayer.requests.statusStore.$statuses.get(
@@ -221,35 +226,27 @@ class ChatRequestsView extends View {
 
       render(
         html`<div id="chat-requests-view">
-          ${mainLayout({
-            activeNavItem: "chat",
-            onClickActiveNavItem: () => {
-              router.go("/messages");
-            },
-            children: html`
-              ${headerTemplate({
-                title: "Chat requests",
-                showLoadingSpinner: requestsStatus.loading && !!chatRequests,
-                backButtonFallbackRoute: "/messages",
-              })}
-              <main class="chat-requests-main">
-                ${(() => {
-                  if (requestsStatus.error) {
-                    return requestsErrorTemplate({
-                      error: requestsStatus.error,
-                    });
-                  } else if (chatRequests) {
-                    return requestsTemplate({
-                      requests: chatRequests,
-                      hasMore,
-                    });
-                  } else {
-                    return requestSkeletonTemplate();
-                  }
-                })()}
-              </main>
-            `,
+          ${headerTemplate({
+            title: "Chat requests",
+            showLoadingSpinner: requestsStatus.loading && !!chatRequests,
+            backButtonFallbackRoute: "/messages",
           })}
+          <main class="chat-requests-main">
+            ${(() => {
+              if (requestsStatus.error) {
+                return requestsErrorTemplate({
+                  error: requestsStatus.error,
+                });
+              } else if (chatRequests) {
+                return requestsTemplate({
+                  requests: chatRequests,
+                  hasMore,
+                });
+              } else {
+                return requestSkeletonTemplate();
+              }
+            })()}
+          </main>
         </div>`,
         root,
       );

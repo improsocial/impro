@@ -113,11 +113,7 @@ export function footerTemplate({
               if (active) {
                 e.preventDefault();
                 e.stopPropagation();
-                if (onClickActiveItem) {
-                  onClickActiveItem(item.id);
-                } else {
-                  window.scrollTo({ top: -1, behavior: "smooth" });
-                }
+                onClickActiveItem?.(item.id);
               }
             }}
             >${item.template

@@ -26,7 +26,7 @@ import {
   validateRichTextTokens,
   hydrateRichTextFacets,
 } from "/js/richTextHelpers.js";
-import { Signal, SignalMap, ReactiveStore } from "/js/signals.js";
+import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
@@ -91,7 +91,7 @@ export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session) {
     super("pluginService");
     this.registries = {
-      sidebarItems: new Set(),
+      sidebarItems: new SignalSet(),
       eventListeners: new Map(),
       feedFilters: new Set(),
       richTextTransforms: new Set(),

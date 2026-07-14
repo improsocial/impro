@@ -38,7 +38,6 @@ class PostThreadView extends View {
       isAuthenticated,
       pluginService,
       interactionHandlers,
-      mainLayout,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -529,23 +528,20 @@ class PostThreadView extends View {
 
       render(
         html`<div id="post-detail-view">
-          ${mainLayout({
-            showSidebarOverlay: false,
-            children: html`${headerTemplate({ title: "Post" })}
-              <main>
-                ${(() => {
-                  if (postThreadRequestStatus.error) {
-                    return postThreadErrorTemplate({
-                      error: postThreadRequestStatus.error,
-                    });
-                  } else if (postThread) {
-                    return threadTemplate({ postThread, currentUser });
-                  } else {
-                    return threadSkeletonTemplate();
-                  }
-                })()}
-              </main>`,
-          })}
+          ${headerTemplate({ title: "Post" })}
+          <main>
+            ${(() => {
+              if (postThreadRequestStatus.error) {
+                return postThreadErrorTemplate({
+                  error: postThreadRequestStatus.error,
+                });
+              } else if (postThread) {
+                return threadTemplate({ postThread, currentUser });
+              } else {
+                return threadSkeletonTemplate();
+              }
+            })()}
+          </main>
         </div>`,
         root,
       );

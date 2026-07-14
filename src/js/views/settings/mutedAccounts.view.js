@@ -1,13 +1,13 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsMutedAccountsView extends View {
-  async render({ root, context: { dataLayer, mainLayout } }) {
+  async render({ root, router, layout, context: { dataLayer } }) {
     await auth.requireAuth();
 
     async function loadMore() {
@@ -24,6 +24,11 @@ class SettingsMutedAccountsView extends View {
       </div>`;
     }
 
+    bindToPage(root, layout, "active-nav-click", (event) => {
+      event.preventDefault();
+      router.go("/settings");
+    });
+
     pageEffect(root, () => {
       const mutedProfiles = dataLayer.derived.$mutedProfiles.get();
       const status =
@@ -32,35 +37,28 @@ class SettingsMutedAccountsView extends View {
 
       render(
         html`<div id="settings-muted-accounts-view">
-          ${mainLayout({
-            activeNavItem: "settings",
-            onClickActiveNavItem: () => window.router.go("/settings"),
-            children: html`${headerTemplate({
-                title: "Muted accounts",
-                backButtonFallbackRoute: "/settings",
-              })}
-              <main>
-                <p
-                  class="muted-account-description"
-                  data-testid="page-description"
-                >
-                  Muted accounts have their posts removed from your feed and
-                  from your notifications. Mutes are completely private.
-                </p>
-                ${(() => {
-                  if (status.error) {
-                    return errorTemplate({ error: status.error });
-                  }
-                  return profileFeedTemplate({
-                    profiles: mutedProfiles?.mutes ?? null,
-                    hasMore,
-                    onLoadMore: loadMore,
-                    emptyMessage: "You have not muted any accounts yet.",
-                    showFollowButton: false,
-                  });
-                })()}
-              </main>`,
+          ${headerTemplate({
+            title: "Muted accounts",
+            backButtonFallbackRoute: "/settings",
           })}
+          <main>
+            <p class="muted-account-description" data-testid="page-description">
+              Muted accounts have their posts removed from your feed and from
+              your notifications. Mutes are completely private.
+            </p>
+            ${(() => {
+              if (status.error) {
+                return errorTemplate({ error: status.error });
+              }
+              return profileFeedTemplate({
+                profiles: mutedProfiles?.mutes ?? null,
+                hasMore,
+                onLoadMore: loadMore,
+                emptyMessage: "You have not muted any accounts yet.",
+                showFollowButton: false,
+              });
+            })()}
+          </main>
         </div>`,
         root,
       );
