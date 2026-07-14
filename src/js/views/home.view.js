@@ -36,6 +36,7 @@ class HomeView extends View {
     state.$currentFeedUri = new Signal.State(
       storedFeedUri ? JSON.parse(storedFeedUri) : null,
     );
+    state.$isReloadingFeed = new Signal.State(false);
 
     function resetToDefaultFeed() {
       state.$currentFeedUri.set(
@@ -143,7 +144,12 @@ class HomeView extends View {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
       // TODO - add setting to prevent reload?
-      await loadCurrentFeed({ reload: true });
+      state.$isReloadingFeed.set(true);
+      try {
+        await loadCurrentFeed({ reload: true });
+      } finally {
+        state.$isReloadingFeed.set(false);
+      }
     }
 
     async function handleTabClick(feedUri) {
@@ -200,9 +206,18 @@ class HomeView extends View {
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
       const currentFeedUri = state.$currentFeedUri.get();
+      const currentFeedRequestStatus =
+        dataLayer.requests.statusStore.$statuses.get(
+          "loadNextFeedPage-" + currentFeedUri,
+        );
+      const isLoading =
+        currentFeedRequestStatus.loading &&
+        state.$isReloadingFeed.get() &&
+        !!dataLayer.derived.$hydratedFeeds.get(currentFeedUri);
       render(
         html`<div id="home-view">
           ${headerTemplate({
+            showLoadingSpinner: isLoading,
             leftButton: "menu",
             onClickMenuButton: () => handleMenuClick(),
             bottomItemTemplate: () => html`

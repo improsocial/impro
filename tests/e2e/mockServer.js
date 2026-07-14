@@ -37,6 +37,7 @@ export class MockServer {
     this.contentLabelPrefs = [];
     this.notifications = [];
     this.notificationCursor = undefined;
+    this.notificationsDelayMs = 0;
     this.pinnedFeedUris = [];
     this.pinnedListUris = [];
     this.lists = [];
@@ -63,6 +64,7 @@ export class MockServer {
     this.searchPosts = [];
     this.searchProfiles = [];
     this.timelinePosts = [];
+    this.timelineDelayMs = 0;
     this.pluginSettings = new Map();
     this.installedPlugins = [];
     // Override the source served for the local test plugin's main.js; defaults
@@ -156,6 +158,16 @@ export class MockServer {
 
   addTimelinePosts(posts) {
     this.timelinePosts.push(...posts);
+  }
+
+  // Delays apply to requests made after the setter is called, so a test can
+  // let the initial load complete instantly and only slow down a reload.
+  setTimelineDelay(delayMs) {
+    this.timelineDelayMs = delayMs;
+  }
+
+  setNotificationsDelay(delayMs) {
+    this.notificationsDelayMs = delayMs;
   }
 
   addSearchPosts(posts) {
@@ -613,7 +625,12 @@ export class MockServer {
 
     await page.route(
       "**/xrpc/app.bsky.notification.listNotifications*",
-      (route) => {
+      async (route) => {
+        if (this.notificationsDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.notificationsDelayMs),
+          );
+        }
         const url = new URL(route.request().url());
         const cursor = url.searchParams.get("cursor") || "";
         const limit = parseInt(url.searchParams.get("limit") || "0", 10);
@@ -1279,7 +1296,12 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.feed.getTimeline*", (route) => {
+    await page.route("**/xrpc/app.bsky.feed.getTimeline*", async (route) => {
+      if (this.timelineDelayMs > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.timelineDelayMs),
+        );
+      }
       const url = new URL(route.request().url());
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);

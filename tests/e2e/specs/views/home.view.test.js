@@ -44,6 +44,43 @@ test.describe("Home view", () => {
     await expect(view).toContainText("Another timeline post");
   });
 
+  // The home header row (and its spinner) is only visible on mobile widths;
+  // on desktop only the tab bar row renders.
+  test.describe("Feed reload spinner (mobile viewport)", () => {
+    test.use({ viewport: { width: 375, height: 667 } });
+
+    test("should show a header loading spinner while the feed reloads", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const post = createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "Hello from the timeline",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      });
+      mockServer.addTimelinePosts([post]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      const spinner = view.locator('[data-testid="loading-spinner"]');
+      await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(spinner).not.toBeVisible();
+
+      mockServer.setTimelineDelay(1500);
+      await view.locator(".tab-bar-button.active").click();
+
+      await expect(spinner).toBeVisible();
+      await expect(spinner).not.toBeVisible({ timeout: 10000 });
+      await expect(view.locator('[data-testid="feed-item"]')).toHaveCount(1);
+    });
+  });
+
   test("should display pinned feed tabs alongside Following", async ({
     page,
   }) => {

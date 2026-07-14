@@ -64,6 +64,37 @@ test.describe("Notifications view", () => {
     await expect(item).toContainText("followed you");
   });
 
+  test("should show a header loading spinner while notifications reload", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addNotifications([
+      createNotification({
+        reason: "follow",
+        author: alice,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const spinner = view.locator('[data-testid="loading-spinner"]');
+    await expect(view.locator(".notification-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(spinner).not.toBeVisible();
+
+    mockServer.setNotificationsDelay(1500);
+    await view.locator(".tab-bar-button.active").click();
+
+    await expect(spinner).toBeVisible();
+    await expect(spinner).not.toBeVisible({ timeout: 10000 });
+    await expect(view.locator(".notification-item")).toHaveCount(1);
+  });
+
   test("should display a like notification with post preview", async ({
     page,
   }) => {
