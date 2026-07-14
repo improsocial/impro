@@ -1489,16 +1489,17 @@ button.sidebar-plugin-nav-item {
 }
 
 .footer-nav nav {
-  margin-right: 20px;
-  margin-left: 20px;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   height: 100%;
 }
 
 .footer-nav-item {
-  padding: 16px;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
   cursor: pointer;
   position: relative;
 }
@@ -1528,7 +1529,7 @@ button.sidebar-plugin-nav-item {
 
 .footer-nav-item .status-badge {
   top: 10px;
-  left: 27px;
+  left: calc(50% - 1px);
 }
 
 .footer-nav-item .avatar-image-frame {
