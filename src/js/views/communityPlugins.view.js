@@ -27,9 +27,6 @@ class CommunityPluginsView extends View {
         html`<div id="community-plugins-view">
           ${headerTemplate({
             title: "Community plugins",
-            backButtonFallbackRoute: isAuthenticated
-              ? "/settings/plugins"
-              : "/",
           })}
           <main>
             ${error
