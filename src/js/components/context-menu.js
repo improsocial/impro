@@ -119,6 +119,7 @@ class ContextMenu extends Component {
       onClose: () => this.close(),
       allowUpwardStretch: true,
       ignoreTouchTarget: (el) => el.closest("button, a") !== null,
+      scrollContainer: this.querySelector(".context-menu"),
     });
   }
 

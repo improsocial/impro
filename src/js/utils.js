@@ -405,6 +405,10 @@ export function enableDragToDismiss(
     // Only allow a downward drag to dismiss when the scrollable body is already
     // at the top; otherwise this gesture belongs to the scroll area.
     dragState.canDismiss = !scrollContainer || scrollContainer.scrollTop <= 0;
+    dragState.canStretch =
+      allowUpwardStretch &&
+      (!scrollContainer ||
+        scrollContainer.scrollHeight <= scrollContainer.clientHeight);
 
     target.style.transition = "none";
   };
@@ -419,7 +423,7 @@ export function enableDragToDismiss(
       e.preventDefault();
       const adjustedDelta = deltaY * RESISTANCE_FACTOR;
       target.style.transform = `translateY(${adjustedDelta}px)`;
-    } else if (deltaY < 0 && allowUpwardStretch) {
+    } else if (deltaY < 0 && dragState.canStretch) {
       e.preventDefault();
       const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
       target.style.height = `${dragState.initialHeight + adjustedDelta}px`;
@@ -444,7 +448,7 @@ export function enableDragToDismiss(
       onClose();
     } else {
       target.style.transform = "";
-      if (allowUpwardStretch) target.style.height = "";
+      if (dragState.canStretch) target.style.height = "";
     }
 
     dragState.isDragging = false;

@@ -6260,6 +6260,9 @@ emoji-picker-dialog emoji-picker,
   padding-right: 16px;
   padding-bottom: calc(var(--safe-area-inset-bottom) + 16px);
   touch-action: pan-y;
+  max-height: 90dvh;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .context-menu::backdrop {
