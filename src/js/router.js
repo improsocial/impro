@@ -222,6 +222,12 @@ export class Router extends EventEmitter {
     // Strip query parameters for route matching (but keep full path for caching)
     const pathname = path.split("?")[0];
     if (this.currentPage) {
+      // Safari can keep processing a focused search control after its page is
+      // hidden. Release focus before moving the page into the route cache.
+      const activeElement = document.activeElement;
+      if (activeElement && this.currentPage.contains(activeElement)) {
+        activeElement.blur();
+      }
       this.currentPage.dispatchEvent(new CustomEvent("page-exit"));
       this.currentPage.classList.remove("page-visible");
       this.currentPage.classList.add("page-hidden");

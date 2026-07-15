@@ -364,6 +364,34 @@ describe("load", () => {
 
     assert.deepEqual(receivedParams, { id: "123" });
   });
+
+  it("should blur a focused control on the page being hidden", async () => {
+    const router = new Router();
+    const { root } = mountRouter(router);
+    document.body.appendChild(root);
+    router.addRoute("/search", () => Promise.resolve({}));
+    router.addRoute("/profile", () => Promise.resolve({}));
+    let renderCount = 0;
+    router.renderRoute(({ container }) => {
+      if (renderCount++ === 0) {
+        const input = document.createElement("input");
+        container.appendChild(input);
+      }
+    });
+
+    try {
+      await router.load("/search");
+      const input = router.currentPage.querySelector("input");
+      input.focus();
+      assert.deepEqual(document.activeElement, input);
+
+      await router.load("/profile");
+
+      assert.notDeepEqual(document.activeElement, input);
+    } finally {
+      root.remove();
+    }
+  });
 });
 
 describe("go", () => {
