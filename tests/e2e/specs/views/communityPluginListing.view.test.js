@@ -167,9 +167,7 @@ test.describe("Community plugin listing view", () => {
     });
 
     await view.locator(".context-menu-button").click();
-    await view
-      .locator('[data-testid="menu-action-plugin-copy-link"]')
-      .click();
+    await view.locator('[data-testid="menu-action-plugin-copy-link"]').click();
 
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();
   });
