@@ -125,7 +125,7 @@ function loggedOutSidebarTemplate({ activeNavItem, onClickActiveItem }) {
           >Sign in</a
         >
         <button
-          class="sidebar-about-link sidebar-text-link"
+          class="rounded-button sidebar-about-link"
           data-testid="sidebar-about-link"
           @click=${() => {
             WelcomeModal.open();

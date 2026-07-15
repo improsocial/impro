@@ -1385,18 +1385,6 @@ button.sidebar-plugin-nav-item {
   gap: 20px;
 }
 
-.sidebar-about-link {
-  margin: 16px;
-  margin-left: 35px;
-  text-align: left;
-}
-
-@media (hover: hover) {
-  .sidebar-about-link:hover {
-    text-decoration: underline;
-  }
-}
-
 @media (min-width: 800px) {
   .logged-out-sidebar .sidebar-header {
     align-items: center;
@@ -1421,6 +1409,7 @@ button.sidebar-plugin-nav-item {
   width: 100%;
   padding-top: 10px;
   padding-left: 20px;
+  padding-bottom: 6px;
 }
 
 @media (min-width: 800px) {
@@ -1445,7 +1434,8 @@ button.sidebar-plugin-nav-item {
   min-width: 100px;
 }
 
-.logged-out-sidebar .login-button {
+.logged-out-sidebar .login-button,
+.logged-out-sidebar .sidebar-about-link {
   width: fit-content;
   margin-left: 16px;
   margin-top: 8px;
@@ -1454,15 +1444,10 @@ button.sidebar-plugin-nav-item {
 }
 
 @media (min-width: 800px) {
-  .logged-out-sidebar .login-button {
-    margin-left: auto;
-    margin-right: auto;
-  }
-
+  .logged-out-sidebar .login-button,
   .logged-out-sidebar .sidebar-about-link {
     margin-left: auto;
     margin-right: auto;
-    text-align: center;
   }
 }
 
@@ -9872,6 +9857,29 @@ p.setting-item-desc {
     padding-bottom: 16px;
     padding-left: 24px;
   }
+}
+
+.bottom-sheet.welcome-modal {
+  width: 90%;
+  max-width: 410px;
+  top: 50%;
+  left: 50%;
+  right: auto;
+  bottom: auto;
+  max-height: 80vh;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: var(--dialog-border-radius);
+  box-shadow: none;
+  animation: none;
+  transform: translate(-50%, -50%);
+}
+
+.bottom-sheet.welcome-modal::before {
+  display: none;
+}
+
+.bottom-sheet.welcome-modal .modal-dialog-content {
+  padding-top: 24px;
 }
 
 .sidebar-action-items {
