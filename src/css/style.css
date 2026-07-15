@@ -2092,6 +2092,10 @@ container-link {
   }
 }
 
+.post-thread-reply-prompt .avatar {
+  display: flex;
+}
+
 .post-thread-reply-prompt .avatar .avatar-image-frame {
   width: var(--avatar-size-reply-prompt);
   height: var(--avatar-size-reply-prompt);
