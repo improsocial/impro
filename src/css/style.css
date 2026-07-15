@@ -6671,6 +6671,10 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   gap: 8px;
 }
 
+.image-alt-text-dialog-footer-buttons .rounded-button {
+  padding: 12px 20px;
+}
+
 .image-alt-text-dialog-footer {
   display: flex;
   justify-content: space-between;
@@ -8385,6 +8389,7 @@ moderation-warning .toggle-content {
 
 .report-submit-button {
   width: 100%;
+  padding: 12px 20px;
 }
 
 .report-submit-button:disabled {
@@ -8542,8 +8547,7 @@ toggle-switch {
 
 .post-notifications-dialog-save {
   width: 100%;
-  padding: 10px 16px;
-  font-size: 1rem;
+  padding: 12px 20px;
   text-align: center;
 }
 
