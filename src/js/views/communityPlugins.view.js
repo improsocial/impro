@@ -4,6 +4,7 @@ import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
+import { linkToCommunityPlugin } from "/js/navigation.js";
 
 class CommunityPluginsView extends View {
   async render({ root, context: { pluginService, isAuthenticated } }) {
@@ -59,7 +60,7 @@ class CommunityPluginsView extends View {
                           <li class="plugin-list-item">
                             <a
                               class="plugin-list-item-link"
-                              href="/plugins/community/${listing.id}"
+                              href=${linkToCommunityPlugin(listing.id)}
                             >
                               <div class="plugin-list-item-info">
                                 <div class="plugin-list-item-name">

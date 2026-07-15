@@ -62,7 +62,7 @@ class FeedDetailView extends View {
             rightItemTemplate: () => {
               const feedLink = `https://bsky.app/profile/${feedAuthorHandle || handleOrDid}/feed/${rkey}`;
               return html`<button
-                  class="feed-menu-button"
+                  class="context-menu-button"
                   @click=${function (e) {
                     const contextMenu = this.nextElementSibling;
                     contextMenu.open(e.clientX, e.clientY);

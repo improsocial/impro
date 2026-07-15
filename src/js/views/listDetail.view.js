@@ -143,7 +143,7 @@ class ListDetailView extends View {
                         listInteractionHandler,
                       })}
                   <button
-                    class="list-menu-button"
+                    class="context-menu-button"
                     @click=${function (e) {
                       const contextMenu = this.nextElementSibling;
                       contextMenu.open(e.clientX, e.clientY);

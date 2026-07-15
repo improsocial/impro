@@ -13,8 +13,10 @@ import {
   linkToProfileFollowers,
   linkToProfileFollowing,
   linkToFeed,
+  linkToCommunityPlugin,
   getPermalinkForPost,
   getPermalinkForProfile,
+  getPermalinkForCommunityPlugin,
   validateReturnToParam,
   linkToLogin,
 } from "/js/navigation.js";
@@ -325,6 +327,31 @@ describe("getPermalinkForProfile", () => {
     assert.deepEqual(
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/did:plc:alice",
+    );
+  });
+});
+
+describe("linkToCommunityPlugin", () => {
+  it("should return correct community plugin link", () => {
+    assert.deepEqual(
+      linkToCommunityPlugin("remote-themes"),
+      "/plugins/community/remote-themes",
+    );
+  });
+
+  it("should encode slashes in plugin ids", () => {
+    assert.deepEqual(
+      linkToCommunityPlugin("evil/plugin"),
+      "/plugins/community/evil%2Fplugin",
+    );
+  });
+});
+
+describe("getPermalinkForCommunityPlugin", () => {
+  it("should return impro.social permalink for community plugin", () => {
+    assert.deepEqual(
+      getPermalinkForCommunityPlugin("remote-themes"),
+      "https://impro.social/plugins/community/remote-themes",
     );
   });
 });

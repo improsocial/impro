@@ -1257,7 +1257,7 @@ class ChatDetailView extends View {
             backButtonFallbackRoute: "/messages",
             rightItemTemplate: () => html`
               <button
-                class="chat-menu-button"
+                class="context-menu-button"
                 data-testid="chat-menu-button"
                 @click=${function (e) {
                   const contextMenu = this.nextElementSibling;
