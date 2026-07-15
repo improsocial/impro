@@ -31,6 +31,7 @@ import {
   differenceInMinutes,
   isMobileViewport,
   canHover,
+  pinScrollPosition,
 } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { getPermalinkForConvo } from "/js/navigation.js";
@@ -306,36 +307,16 @@ class ChatDetailView extends View {
       if (!scroller) {
         return;
       }
-      let stopped = false;
-      const stop = () => {
-        stopped = true;
-      };
-      const startTime = performance.now();
-      let lastPinnedScrollTop = null;
-      const step = () => {
-        if (stopped) {
-          return;
-        }
+      pinScrollPosition({
+        targetY: () => scroller.scrollHeight - scroller.clientHeight,
+        durationMs,
+        scroller,
         // If the position moved above where we last pinned it, the user
-        // (or other code) scrolled up - stop fighting them
-        if (
-          lastPinnedScrollTop !== null &&
-          scroller.scrollTop < lastPinnedScrollTop - 1
-        ) {
-          return;
-        }
-        scroller.scrollTop = scroller.scrollHeight;
-        lastPinnedScrollTop = scroller.scrollTop;
-        if (performance.now() - startTime < durationMs) {
-          requestAnimationFrame(step);
-        }
-      };
-      step();
-      scroller.addEventListener("touchmove", stop, {
-        once: true,
-        passive: true,
+        // (or other code, e.g. a reply-jump scrollIntoView) scrolled up -
+        // stop fighting them
+        shouldStop: (currentY, lastPinnedY) =>
+          lastPinnedY !== null && currentY < lastPinnedY - 1,
       });
-      scroller.addEventListener("wheel", stop, { once: true, passive: true });
     }
 
     function isScrolledToBottom() {

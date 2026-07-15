@@ -606,6 +606,62 @@ export async function withTimeout(fn, timeoutMs) {
   }
 }
 
+export function pinScrollPosition({
+  targetY,
+  durationMs = 1000,
+  scroller = null,
+  shouldStop = null,
+} = {}) {
+  const listenTarget = scroller ?? window;
+  const readScrollY = () => (scroller ? scroller.scrollTop : window.scrollY);
+  const writeScrollY = (y) => {
+    if (scroller) {
+      scroller.scrollTop = y;
+    } else {
+      window.scrollTo(0, y);
+    }
+  };
+  let stopped = false;
+  let lastPinnedY = null;
+  const stop = () => {
+    stopped = true;
+    listenTarget.removeEventListener("touchmove", stop);
+    listenTarget.removeEventListener("wheel", stop);
+    window.removeEventListener("keydown", stop);
+    window.removeEventListener("page-transition", stop);
+  };
+  const startTime = performance.now();
+  const step = () => {
+    if (stopped) {
+      return;
+    }
+    if (shouldStop && shouldStop(readScrollY(), lastPinnedY)) {
+      stop();
+      return;
+    }
+    const currentTargetY = typeof targetY === "function" ? targetY() : targetY;
+    if (currentTargetY === null) {
+      stop();
+      return;
+    }
+    if (Math.abs(readScrollY() - currentTargetY) >= 1) {
+      writeScrollY(currentTargetY);
+    }
+    lastPinnedY = readScrollY();
+    if (performance.now() - startTime < durationMs) {
+      requestAnimationFrame(step);
+    } else {
+      stop();
+    }
+  };
+  step();
+  listenTarget.addEventListener("touchmove", stop, { passive: true });
+  listenTarget.addEventListener("wheel", stop, { passive: true });
+  window.addEventListener("keydown", stop);
+  window.addEventListener("page-transition", stop);
+  return stop;
+}
+
 const LONG_PRESS_TIMEOUT_MS = 500;
 const LONG_PRESS_MOVE_CANCEL_THRESHOLD_PX = 10;
 const LONG_PRESS_GHOST_CLICK_WINDOW_MS = 400;
