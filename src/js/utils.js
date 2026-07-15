@@ -618,7 +618,7 @@ export function pinScrollPosition({
     if (scroller) {
       scroller.scrollTop = y;
     } else {
-      window.scrollTo(0, y);
+      window.scrollTo(window.scrollX, y);
     }
   };
   let stopped = false;
@@ -654,11 +654,11 @@ export function pinScrollPosition({
       stop();
     }
   };
-  step();
   listenTarget.addEventListener("touchmove", stop, { passive: true });
   listenTarget.addEventListener("wheel", stop, { passive: true });
   window.addEventListener("keydown", stop);
   window.addEventListener("page-transition", stop);
+  step();
   return stop;
 }
 
