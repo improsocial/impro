@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy, pinScrollPosition } from "/js/utils.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -518,6 +518,15 @@ class PostThreadView extends View {
 
     let hasScrolledToLargePost = false;
 
+    // The pin only starts once the full thread has loaded, skip it if the user has already scrolled
+    let userHasScrolled = false;
+    const markUserScrolled = () => {
+      userHasScrolled = true;
+    };
+    bindToPage(root, window, "touchmove", markUserScrolled);
+    bindToPage(root, window, "wheel", markUserScrolled);
+    bindToPage(root, window, "keydown", markUserScrolled);
+
     pageEffect(root, () => {
       const postThread = state.$postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -556,7 +565,9 @@ class PostThreadView extends View {
         !hasScrolledToLargePost
       ) {
         hasScrolledToLargePost = true;
-        scrollToLargePost(largePost, header);
+        if (!userHasScrolled) {
+          scrollToLargePost(largePost, header);
+        }
       }
     });
 
@@ -597,6 +608,7 @@ class PostThreadView extends View {
     }
 
     root.addEventListener("page-enter", async () => {
+      userHasScrolled = false;
       try {
         await dataLayer.declarative.ensurePostThread(postUri);
       } catch (error) {
@@ -605,6 +617,7 @@ class PostThreadView extends View {
     });
 
     root.addEventListener("page-restore", async (e) => {
+      userHasScrolled = false;
       const scrollY = e.detail?.scrollY ?? 0;
       const isBack = e.detail?.isBack ?? false;
       if (isBack) {

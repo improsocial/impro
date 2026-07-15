@@ -12,6 +12,58 @@ const mainPost = createPost({
   authorDisplayName: "Author One",
 });
 
+// Build a thread with a deep parent chain so the large (main) post starts
+// below the fold and loading it triggers the pin-under-header scroll.
+async function setupDeepParentThread(page, { delayMs = null } = {}) {
+  const NUM_PARENTS = 12;
+  const parents = Array.from({ length: NUM_PARENTS }).map((_, index) =>
+    createPost({
+      uri: `at://did:plc:parent${index}/app.bsky.feed.post/parent${index}`,
+      text: `Parent post number ${index}`,
+      authorHandle: `parent${index}.bsky.social`,
+      authorDisplayName: `Parent ${index}`,
+    }),
+  );
+  const rootParent = parents[0];
+  const immediateParent = parents[NUM_PARENTS - 1];
+
+  const childPost = createPost({
+    uri: postUri,
+    text: "This is the main post we should scroll to",
+    authorHandle: "author1.bsky.social",
+    authorDisplayName: "Author One",
+    reply: {
+      parent: { uri: immediateParent.uri, cid: immediateParent.cid },
+      root: { uri: rootParent.uri, cid: rootParent.cid },
+    },
+  });
+
+  // Nest the parents so the root ends up deepest in the `parent` chain.
+  let parentNode = null;
+  for (const parentPost of parents) {
+    parentNode = {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: parentPost,
+      parent: parentNode,
+      replies: [],
+    };
+  }
+
+  const mockServer = new MockServer();
+  mockServer.addPosts([childPost, ...parents]);
+  mockServer.setPostThread(
+    postUri,
+    {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: childPost,
+      parent: parentNode,
+      replies: [],
+    },
+    delayMs === null ? undefined : { delayMs },
+  );
+  await mockServer.setup(page);
+}
+
 test.describe("Post thread view", () => {
   test("should display header and the main post", async ({ page }) => {
     const mockServer = new MockServer();
@@ -85,50 +137,7 @@ test.describe("Post thread view", () => {
   test("should scroll the main post into view on load when it has parents", async ({
     page,
   }) => {
-    // Build a deep parent chain so the large (main) post starts below the fold.
-    const NUM_PARENTS = 12;
-    const parents = Array.from({ length: NUM_PARENTS }).map((_, index) =>
-      createPost({
-        uri: `at://did:plc:parent${index}/app.bsky.feed.post/parent${index}`,
-        text: `Parent post number ${index}`,
-        authorHandle: `parent${index}.bsky.social`,
-        authorDisplayName: `Parent ${index}`,
-      }),
-    );
-    const rootParent = parents[0];
-    const immediateParent = parents[NUM_PARENTS - 1];
-
-    const childPost = createPost({
-      uri: postUri,
-      text: "This is the main post we should scroll to",
-      authorHandle: "author1.bsky.social",
-      authorDisplayName: "Author One",
-      reply: {
-        parent: { uri: immediateParent.uri, cid: immediateParent.cid },
-        root: { uri: rootParent.uri, cid: rootParent.cid },
-      },
-    });
-
-    // Nest the parents so the root ends up deepest in the `parent` chain.
-    let parentNode = null;
-    for (const parentPost of parents) {
-      parentNode = {
-        $type: "app.bsky.feed.defs#threadViewPost",
-        post: parentPost,
-        parent: parentNode,
-        replies: [],
-      };
-    }
-
-    const mockServer = new MockServer();
-    mockServer.addPosts([childPost, ...parents]);
-    mockServer.setPostThread(postUri, {
-      $type: "app.bsky.feed.defs#threadViewPost",
-      post: childPost,
-      parent: parentNode,
-      replies: [],
-    });
-    await mockServer.setup(page);
+    await setupDeepParentThread(page);
 
     await login(page);
     await page.goto("/profile/author1.bsky.social/post/abc123");
@@ -177,58 +186,12 @@ test.describe("Post thread view", () => {
     expect(scrollHeight - innerHeight).toBeLessThanOrEqual(1);
   });
 
-  test("should pin the main post under the header even if the user scrolled while loading", async ({
+  test("should pin the main post under the header even if a programmatic scroll happens while loading", async ({
     page,
   }) => {
-    // Build a deep parent chain so the main post starts below the fold.
-    const NUM_PARENTS = 12;
-    const parents = Array.from({ length: NUM_PARENTS }).map((_, index) =>
-      createPost({
-        uri: `at://did:plc:parent${index}/app.bsky.feed.post/parent${index}`,
-        text: `Parent post number ${index}`,
-        authorHandle: `parent${index}.bsky.social`,
-        authorDisplayName: `Parent ${index}`,
-      }),
-    );
-    const rootParent = parents[0];
-    const immediateParent = parents[NUM_PARENTS - 1];
-
-    const childPost = createPost({
-      uri: postUri,
-      text: "This is the main post we should scroll to",
-      authorHandle: "author1.bsky.social",
-      authorDisplayName: "Author One",
-      reply: {
-        parent: { uri: immediateParent.uri, cid: immediateParent.cid },
-        root: { uri: rootParent.uri, cid: rootParent.cid },
-      },
-    });
-
-    let parentNode = null;
-    for (const parentPost of parents) {
-      parentNode = {
-        $type: "app.bsky.feed.defs#threadViewPost",
-        post: parentPost,
-        parent: parentNode,
-        replies: [],
-      };
-    }
-
-    const mockServer = new MockServer();
-    mockServer.addPosts([childPost, ...parents]);
-    // Delay the thread response so the skeleton is shown long enough for the
-    // user to scroll before the full thread (with parents) loads.
-    mockServer.setPostThread(
-      postUri,
-      {
-        $type: "app.bsky.feed.defs#threadViewPost",
-        post: childPost,
-        parent: parentNode,
-        replies: [],
-      },
-      { delayMs: 1500 },
-    );
-    await mockServer.setup(page);
+    // Delay the thread response so the skeleton is shown long enough to
+    // scroll before the full thread (with parents) loads.
+    await setupDeepParentThread(page, { delayMs: 1500 });
 
     await login(page);
     // A short viewport guarantees the loading skeleton is tall enough to scroll.
@@ -238,8 +201,10 @@ test.describe("Post thread view", () => {
     const view = page.locator("#post-detail-view");
 
     // Wait until the loading skeleton has rendered (the router resets scroll to
-    // the top as part of navigation, so we must scroll after that happens), then
-    // scroll down while the full thread is still loading.
+    // the top as part of navigation, so we must scroll after that happens),
+    // then scroll down while the full thread is still loading. window.scrollTo
+    // fires no input events, mirroring iOS Safari's async history scroll
+    // restore - the case the pin exists to override.
     await expect(
       view.locator('[data-testid="post-skeleton"]').first(),
     ).toBeVisible();
@@ -252,9 +217,8 @@ test.describe("Post thread view", () => {
     const largePost = view.locator('[data-testid="large-post"]');
     await expect(largePost).toBeVisible({ timeout: 10000 });
 
-    // Despite the user's scroll while loading, the main post pins to just below
-    // the header once the full thread (with parents) loads in - the extra
-    // scroll is overridden, not preserved.
+    // The stray scroll is overridden, not preserved - the main post pins to
+    // just below the header once the full thread (with parents) loads in.
     const headerHeight = await view
       .locator("header")
       .evaluate((el) => el.offsetHeight);
@@ -267,6 +231,47 @@ test.describe("Post thread view", () => {
       (el) => el.getBoundingClientRect().top,
     );
     expect(postTop).toBeGreaterThanOrEqual(headerHeight - 8);
+  });
+
+  test("should not pin the main post when the user scrolls while loading", async ({
+    page,
+  }) => {
+    await setupDeepParentThread(page, { delayMs: 1500 });
+
+    await login(page);
+    await page.setViewportSize({ width: 400, height: 200 });
+    await page.goto("/profile/author1.bsky.social/post/abc123");
+
+    const view = page.locator("#post-detail-view");
+
+    // Scroll with real wheel input while the thread is still loading - unlike
+    // a programmatic scroll, this marks the user as having taken over.
+    await expect(
+      view.locator('[data-testid="post-skeleton"]').first(),
+    ).toBeVisible();
+    await expect(view.locator('[data-testid="large-post"]')).toHaveCount(0);
+    await page.mouse.move(200, 100);
+    await page.mouse.wheel(0, 80);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+    const userScrollY = await page.evaluate(() => window.scrollY);
+
+    const largePost = view.locator('[data-testid="large-post"]');
+    await expect(largePost).toBeVisible({ timeout: 10000 });
+
+    // Give a would-be pin (1000ms duration) time to fire, then check the
+    // user's scroll position was left alone.
+    await page.waitForTimeout(1200);
+    const scrollYAfterLoad = await page.evaluate(() => window.scrollY);
+    expect(Math.abs(scrollYAfterLoad - userScrollY)).toBeLessThanOrEqual(1);
+    const headerHeight = await view
+      .locator("header")
+      .evaluate((el) => el.offsetHeight);
+    const postTop = await largePost.evaluate(
+      (el) => el.getBoundingClientRect().top,
+    );
+    expect(postTop).toBeGreaterThan(headerHeight + 8);
   });
 
   test("should show 'Load parent post' link when reply ref is broken", async ({
