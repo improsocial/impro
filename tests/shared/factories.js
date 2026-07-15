@@ -146,6 +146,7 @@ export function createProfile({
   postsCount,
   associated,
   viewer,
+  labels,
 }) {
   return {
     did,
@@ -155,7 +156,7 @@ export function createProfile({
     avatar: avatar || "",
     banner: banner || "",
     viewer: { muted: false, blockedBy: false, ...viewer },
-    labels: [],
+    labels: labels || [],
     createdAt: "2025-01-01T00:00:00.000Z",
     ...(associated ? { associated } : {}),
     ...(followersCount !== undefined ? { followersCount } : {}),

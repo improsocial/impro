@@ -17,7 +17,75 @@ const mockProfile = {
   },
 };
 
+const mockBadgeLabels = [
+  {
+    visibility: "warn",
+    label: { val: "spam", src: "did:plc:labeler1" },
+    labelDefinition: {
+      identifier: "spam",
+      blurs: "none",
+      severity: "inform",
+      locales: [{ lang: "en", name: "Spam", description: "Spam account" }],
+    },
+    labeler: {
+      creator: {
+        did: "did:plc:labeler1",
+        handle: "labeler.test",
+        avatar: null,
+      },
+    },
+  },
+];
+
 describe("profileCardTemplate", () => {
+  it("should render badge label pills for another user's labeled profile", () => {
+    const profile = { ...mockProfile, badgeLabels: mockBadgeLabels };
+    const result = profileCardTemplate({
+      profile,
+      isCurrentUser: false,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector("[data-testid='label-badge']");
+    assert(badge);
+    assert.deepEqual(
+      badge
+        .querySelector("[data-testid='label-badge-text']")
+        .textContent.trim(),
+      "Spam",
+    );
+  });
+
+  it("should not render badge label pills on the current user's profile", () => {
+    const profile = { ...mockProfile, badgeLabels: mockBadgeLabels };
+    const result = profileCardTemplate({
+      profile,
+      isCurrentUser: true,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-badge']"),
+      null,
+    );
+  });
+
+  it("should not render a label pill row for an unlabeled profile", () => {
+    const result = profileCardTemplate({
+      profile: mockProfile,
+      isCurrentUser: false,
+      onClickFollow: () => {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-badges']"),
+      null,
+    );
+  });
+
   it("should render profile card", () => {
     const result = profileCardTemplate({
       profile: mockProfile,

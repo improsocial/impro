@@ -813,7 +813,8 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoList);
-    const res = await this.api.listConvos({ cursor, limit });
+    const labelers = this.requireLabelers();
+    const res = await this.api.listConvos({ cursor, limit, labelers });
     // Store individual convos
     for (const convo of res.convos) {
       this.dataStore.$convos.set(convo.id, convo);
@@ -828,7 +829,13 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoRequestList);
-    const res = await this.api.listConvos({ cursor, limit, status: "request" });
+    const labelers = this.requireLabelers();
+    const res = await this.api.listConvos({
+      cursor,
+      limit,
+      status: "request",
+      labelers,
+    });
     // Store individual convos
     for (const convo of res.convos) {
       this.dataStore.$convos.set(convo.id, convo);
@@ -840,7 +847,8 @@ export class Requests {
   }
 
   async loadConvo(convoId) {
-    const res = await this.api.getConvo(convoId);
+    const labelers = this.requireLabelers();
+    const res = await this.api.getConvo(convoId, { labelers });
     this.dataStore.$convos.set(convoId, res.convo);
   }
 
@@ -873,7 +881,8 @@ export class Requests {
   }
 
   async loadConvoForProfile(profileDid) {
-    const res = await this.api.getConvoForMembers([profileDid]);
+    const labelers = this.requireLabelers();
+    const res = await this.api.getConvoForMembers([profileDid], { labelers });
     this.dataStore.$convos.set(res.convo.id, res.convo);
   }
 
@@ -881,7 +890,12 @@ export class Requests {
     const cursor = reload
       ? ""
       : readCollectionCursor(this.dataStore.$convoMessages, { key: convoId });
-    const res = await this.api.getMessages(convoId, { cursor, limit });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getMessages(convoId, {
+      cursor,
+      limit,
+      labelers,
+    });
     if (res.messages.length === 0 && res.cursor) {
       console.warn("getMessages returned an empty page with a cursor", {
         convoId,
@@ -909,7 +923,8 @@ export class Requests {
   }
 
   async pollConvoMessages(convoId, { cursor = "" } = {}) {
-    const res = await this.api.getChatLogs({ cursor });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getChatLogs({ cursor, labelers });
     const logsForConvo = res.logs.filter((log) => log.convoId === convoId);
     const newMessages = [];
     for (const log of logsForConvo) {
@@ -1352,7 +1367,10 @@ export class Requests {
   }
 
   async loadProfileChatStatus(profileDid) {
-    const res = await this.api.getConvoAvailability([profileDid]);
+    const labelers = this.requireLabelers();
+    const res = await this.api.getConvoAvailability([profileDid], {
+      labelers,
+    });
     this.dataStore.$profileChatStatus.set(profileDid, res);
   }
 

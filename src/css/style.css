@@ -132,6 +132,7 @@ html {
   --avatar-size-sidebar-compact: 48px;
   --avatar-size-convo: 50px;
   --avatar-size-sidebar: 52px;
+  --avatar-size-chat-info-panel: 88px;
   --avatar-size-profile: 100px;
 
   /* border radius */
@@ -1856,7 +1857,7 @@ container-link {
   height: 16px;
 }
 
-.large-post .post-labels {
+.large-post .label-badges {
   margin-top: 3px;
   margin-bottom: 4px;
 }
@@ -3801,6 +3802,71 @@ image-carousel {
   font-size: 15px;
 }
 
+.chat-info-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 24px 20px;
+  text-align: center;
+}
+
+.chat-info-panel > .avatar .avatar-image-frame,
+.chat-info-panel-avatars > .avatar .avatar-image-frame {
+  width: var(--avatar-size-chat-info-panel);
+  height: var(--avatar-size-chat-info-panel);
+}
+
+.chat-info-panel-avatars .avatar-group {
+  width: var(--avatar-size-chat-info-panel);
+  height: var(--avatar-size-chat-info-panel);
+}
+
+.chat-info-panel-name {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-color);
+}
+
+.chat-info-panel-handle {
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.chat-info-panel-go-to-profile-button {
+  margin-top: 12px;
+  color: var(--text-color);
+  text-decoration: none;
+}
+
+.chat-info-panel .label-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+}
+
+.chat-info-panel .label-badge {
+  font-size: 13px;
+  padding: 3px 8px 4px;
+  background: light-dark(var(--lightest-gray), var(--gray));
+}
+
+@media (hover: hover) {
+  .chat-info-panel .label-badge:hover {
+    background: light-dark(var(--lighter-gray), var(--light-gray));
+  }
+}
+
+.chat-info-panel .label-badge-image {
+  width: 16px;
+  height: 16px;
+}
+
 .message-day-title {
   font-size: 12px;
   color: var(--text-color-muted);
@@ -5060,6 +5126,31 @@ emoji-picker-dialog emoji-picker,
   justify-content: flex-start;
   gap: 8px;
   margin-bottom: 8px;
+}
+
+.profile-card .label-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 12px;
+  padding: 0 16px;
+}
+
+.profile-card .label-badge {
+  font-size: 13px;
+  padding: 3px 8px 4px;
+  background: light-dark(var(--lightest-gray), var(--gray));
+}
+
+@media (hover: hover) {
+  .profile-card .label-badge:hover {
+    background: light-dark(var(--lighter-gray), var(--light-gray));
+  }
+}
+
+.profile-card .label-badge-image {
+  width: 16px;
+  height: 16px;
 }
 
 .profile-follows-you {
