@@ -126,7 +126,7 @@ describe("loadNextFeedPage", () => {
       mockPreferencesProvider,
     );
 
-    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
     // Check feed was stored
     assert.deepEqual(dataStore.$feeds.get(feedURI), mockFeed);
@@ -167,7 +167,7 @@ describe("loadNextFeedPage", () => {
       mockPreferencesProvider,
     );
 
-    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
     // Check feed was appended
     const storedFeed = dataStore.$feeds.get(feedURI);
@@ -210,7 +210,7 @@ describe("loadNextFeedPage", () => {
       mockPreferencesProvider,
     );
 
-    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
     assert.deepEqual(dataStore.$feeds.get(feedURI), reloadedFeed);
   });
@@ -240,8 +240,11 @@ describe("loadNextFeedPage", () => {
       { constellation: stubConstellation },
     );
 
-    await requests.loadNextFeedPage(feedURI);
-    await requests.loadNextFeedPage(feedURI, { reload: true });
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
+    await requests.loadNextFeedPage(
+      { type: "feed", uri: feedURI },
+      { reload: true },
+    );
 
     assert.deepEqual(capturedReloads, [false, true]);
   });
@@ -266,7 +269,7 @@ describe("loadNextFeedPage", () => {
       mockPreferencesProvider,
     );
 
-    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
     assert.deepEqual(dataStore.$feeds.get(feedURI), emptyFeed);
   });
@@ -305,7 +308,7 @@ describe("loadNextFeedPage", () => {
       mockPreferencesProvider,
     );
 
-    await requests.loadNextFeedPage(feedURI);
+    await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
 
     assert.deepEqual(dataStore.$feeds.get(feedURI), feedWithReplies);
     assert.deepEqual(dataStore.$posts.get("post1").uri, normalizedPosts[0].uri);
@@ -2545,7 +2548,7 @@ describe("loadPinnedItems", () => {
     assert.deepEqual(pinned.length, 4);
     assert.deepEqual(pinned[0].type, "feed");
     assert.deepEqual(pinned[2].type, "list");
-    assert.deepEqual(pinned[3].type, "following");
+    assert.deepEqual(pinned[3].type, "timeline");
     assert.deepEqual(
       dataStore.$feedGenerators.get("at://did/feed/one").displayName,
       "name-at://did/feed/one",
@@ -2578,7 +2581,7 @@ describe("loadPinnedItems", () => {
     assert.deepEqual(listCalled, false);
     const pinned = dataStore.$pinnedItems.get();
     assert.deepEqual(pinned.length, 1);
-    assert.deepEqual(pinned[0].type, "following");
+    assert.deepEqual(pinned[0].type, "timeline");
   });
 });
 

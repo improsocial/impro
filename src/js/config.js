@@ -7,6 +7,7 @@ export const BOOKMARKS_PAGE_SIZE = 40;
 export const AUTHOR_FEED_PAGE_SIZE = 40;
 export const LOGGED_OUT_FEED_URI =
   "at://did:plc:z72i7hdynmk6r22z27h6tvur/app.bsky.feed.generator/whats-hot";
+export const FOLLOWING_FEED_URI = "following";
 export const CHAT_MESSAGES_PAGE_SIZE = 100;
 
 // Plugins

@@ -27,7 +27,7 @@ class FeedsView extends View {
             <div class="feeds-list">
               ${pinnedItems
                 ? pinnedItems.map((item) => {
-                    if (item.type === "following") {
+                    if (item.type === "timeline") {
                       return html`
                         <div class="feeds-list-item">
                           <div class="feeds-list-item-avatar">

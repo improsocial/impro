@@ -123,10 +123,10 @@ class FeedDetailView extends View {
     });
 
     async function loadFeed({ reload = false } = {}) {
-      await dataLayer.requests.loadNextFeedPage(feedUri, {
-        reload,
-        limit: FEED_PAGE_SIZE + 1,
-      });
+      await dataLayer.requests.loadNextFeedPage(
+        { type: "feed", uri: feedUri },
+        { reload, limit: FEED_PAGE_SIZE + 1 },
+      );
     }
 
     root.addEventListener("page-enter", async () => {

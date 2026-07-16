@@ -9,7 +9,6 @@ import {
   getPostUrisFromNotifications,
   buildUri,
   parseUri,
-  isListFeed,
   isGroupConvo,
   getGroupConvoDetails,
   getJoinLinkCodesFromPosts,
@@ -21,6 +20,7 @@ import { Constellation } from "/js/constellation.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
+import { FOLLOWING_FEED_URI } from "/js/config.js";
 
 const CONVO_LOG_SYSTEM_MESSAGE_TYPES = new Set([
   "chat.bsky.convo.defs#logAddMember",
@@ -182,7 +182,7 @@ export class Requests {
     );
     this.enableStatus(
       this.loadNextFeedPage,
-      (feedURI) => "loadNextFeedPage-" + feedURI,
+      ({ uri }) => "loadNextFeedPage-" + uri,
     );
     this.enableStatus(
       this.loadDetailedProfile,
@@ -469,25 +469,31 @@ export class Requests {
     return loadedReplies;
   }
 
-  async loadNextFeedPage(feedURI, { reload = false, limit = 31 } = {}) {
+  async loadNextFeedPage({ type, uri }, { reload = false, limit = 31 } = {}) {
     const labelers = this.requireLabelers();
     const cursor = reload
       ? ""
-      : readCollectionCursor(this.dataStore.$feeds, { key: feedURI });
-    const feed =
-      feedURI === "following"
-        ? await this.api.getFollowingFeed({ limit, cursor, labelers })
-        : isListFeed(feedURI)
-          ? await this.api.getListFeed(feedURI, { limit, cursor, labelers })
-          : await this.api.getFeed(feedURI, { limit, cursor, labelers });
-    // Save posts
+      : readCollectionCursor(this.dataStore.$feeds, { key: uri });
+    let feed;
+    switch (type) {
+      case "timeline":
+        feed = await this.api.getFollowingFeed({ limit, cursor, labelers });
+        break;
+      case "list":
+        feed = await this.api.getListFeed(uri, { limit, cursor, labelers });
+        break;
+      case "feed":
+        feed = await this.api.getFeed(uri, { limit, cursor, labelers });
+        break;
+      default:
+        throw new Error(`Unknown pinned item type: ${type}`);
+    }
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    // Filter posts with plugins
-    await this.pluginService.refreshFiltersForFeed(feedURI, feed, { reload });
+    await this.pluginService.refreshFiltersForFeed(uri, feed, { reload });
     writePageToCollection(this.dataStore.$feeds, "feed", feed, {
-      key: feedURI,
+      key: uri,
       requestCursor: cursor,
       overwrite: reload,
     });
@@ -1141,8 +1147,8 @@ export class Requests {
     for (const item of pinnedFeeds) {
       if (item.type === "timeline") {
         orderedItems.push({
-          type: "following",
-          data: { uri: "following", displayName: "Following" },
+          type: "timeline",
+          data: { uri: FOLLOWING_FEED_URI, displayName: "Following" },
         });
       } else if (item.type === "feed") {
         const fg = feedGeneratorMap.get(item.value);
