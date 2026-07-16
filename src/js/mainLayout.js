@@ -29,10 +29,11 @@ function pluginPreviewBannerTemplate({ plugins }) {
     <div class="plugin-preview-banner" data-testid="plugin-preview-banner">
       <div class="plugin-preview-banner-icon">${eyeIconTemplate()}</div>
       <div class="plugin-preview-banner-body">
-        <div class="plugin-preview-banner-title">Plugin preview mode</div>
+        <div class="plugin-preview-banner-title">Preview mode</div>
         <div class="plugin-preview-banner-subtitle">
-          You are currently previewing ${links}. Changes you make to the page
-          won't be saved.
+          You are currently previewing community
+          ${links.length === 1 ? "plugin" : "plugins"}: ${links}. Changes you
+          make to the page won't be saved.
         </div>
       </div>
       <!-- <button
