@@ -112,11 +112,8 @@ class ChatInput extends Component {
   handleEmojiSelect(emoji) {
     const richTextInput = this.querySelector("rich-text-input");
     if (!richTextInput) return;
-    const text = richTextInput.text;
-    const cursor = this._emojiCursor ?? text.length;
-    richTextInput.setText(text.slice(0, cursor) + emoji + text.slice(cursor));
+    richTextInput.insertText(emoji, this._emojiCursor);
     richTextInput.focus();
-    richTextInput.setCursor(cursor + emoji.length);
   }
 
   handleKeyDown(e) {

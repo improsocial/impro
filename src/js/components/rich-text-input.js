@@ -405,6 +405,12 @@ export class RichTextInput extends Component {
     setCursorPosition(input, position);
   }
 
+  insertText(str, position) {
+    const at = position ?? this.getCursor() ?? this.text.length;
+    this.setText(this.text.slice(0, at) + str + this.text.slice(at));
+    this.setCursor(at + str.length);
+  }
+
   render() {
     render(
       html`

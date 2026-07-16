@@ -438,32 +438,17 @@ class PostComposer extends Component {
       dialog.close();
       return;
     }
-    const selection = window.getSelection();
     const richTextInput = this.querySelector("rich-text-input");
-    const editable = richTextInput?.querySelector(".rich-text-input");
-    if (
-      editable &&
-      selection?.rangeCount &&
-      editable.contains(selection.getRangeAt(0).commonAncestorContainer)
-    ) {
-      this._savedEmojiRange = selection.getRangeAt(0).cloneRange();
-    } else {
-      this._savedEmojiRange = null;
-    }
+    this._savedEmojiCursor = richTextInput?.getCursor() ?? null;
     dialog.open(event.currentTarget);
   }
 
   handleEmojiSelect(emoji) {
     const richTextInput = this.querySelector("rich-text-input");
     if (!richTextInput) return;
+    richTextInput.insertText(emoji, this._savedEmojiCursor);
     richTextInput.focus();
-    if (this._savedEmojiRange) {
-      const selection = window.getSelection();
-      selection.removeAllRanges();
-      selection.addRange(this._savedEmojiRange);
-    }
-    document.execCommand("insertText", false, emoji);
-    this._savedEmojiRange = null;
+    this._savedEmojiCursor = null;
   }
 
   handleExternalLinkEmbedPreviewClose() {

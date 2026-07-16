@@ -599,6 +599,39 @@ describe("rich-text-input", () => {
     });
   });
 
+  describe("RichTextInput - insertText", () => {
+    it("inserts at the given position and moves the caret past the inserted text", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("abcdef");
+      element.insertText("XY", 2);
+      assert.deepEqual(element.text, "abXYcdef");
+    });
+
+    it("falls back to the current cursor when position is null", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setText("abcdef");
+      const input = element.querySelector(".rich-text-input");
+      const textNode = [...input.querySelector("div").childNodes].find(
+        (node) => node.nodeType === Node.TEXT_NODE,
+      );
+      const originalGetSelection = window.getSelection;
+      window.getSelection = () => ({
+        rangeCount: 1,
+        getRangeAt: () => ({ endContainer: textNode, endOffset: 3 }),
+        removeAllRanges: () => {},
+        addRange: () => {},
+      });
+      try {
+        element.insertText("Z", null);
+      } finally {
+        window.getSelection = originalGetSelection;
+      }
+      assert.deepEqual(element.text, "abcZdef");
+    });
+  });
+
   describe("RichTextInput - typeahead direction", () => {
     let originalRangeRect;
 
