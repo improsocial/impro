@@ -72,23 +72,21 @@ describe("atproto handle resolution", () => {
   });
 
   describe("resolveHandle", () => {
-    it("returns the verified did", async () => {
+    it("returns the did from the handle resolver without fetching the DID doc", async () => {
       const did = "did:plc:aaaa";
       stubDid(did);
-      stubPlcDoc(did, {
-        alsoKnownAs: ["at://alice.example"],
-        service: [],
-      });
       assert.deepEqual(await resolveHandle("alice.example"), did);
+      assert(
+        !globalThis.fetch.calls.some((call) =>
+          call.url.startsWith("https://plc.directory/"),
+        ),
+        "resolveHandle should not hit plc.directory",
+      );
     });
 
-    it("throws on verification failure — callers cannot silently use a spoofed mapping", async () => {
-      stubDid("did:plc:aaaa");
-      stubPlcDoc("did:plc:aaaa", {
-        alsoKnownAs: ["at://mallory.example"],
-        service: [],
-      });
-      await assert.rejects(() => resolveHandle("alice.example"));
+    it("returns null when the handle does not resolve", async () => {
+      stubDid(null);
+      assert.deepEqual(await resolveHandle("nope.example"), null);
     });
   });
 
@@ -111,13 +109,9 @@ describe("atproto handle resolution", () => {
   });
 
   describe("IdentityResolver.resolveHandle", () => {
-    it("caches the verified DID and does not re-verify", async () => {
+    it("caches the resolved DID", async () => {
       const did = "did:plc:aaaa";
       stubDid(did);
-      stubPlcDoc(did, {
-        alsoKnownAs: ["at://alice.example"],
-        service: [],
-      });
       const resolver = new IdentityResolver();
       const first = await resolver.resolveHandle("alice.example");
       const callsAfterFirst = globalThis.fetch.calls.length;
@@ -125,17 +119,6 @@ describe("atproto handle resolution", () => {
       assert.deepEqual(first, did);
       assert.deepEqual(second, did);
       assert.deepEqual(globalThis.fetch.calls.length, callsAfterFirst);
-    });
-
-    it("does not cache when verification fails, so retries are possible", async () => {
-      stubDid("did:plc:aaaa");
-      stubPlcDoc("did:plc:aaaa", {
-        alsoKnownAs: ["at://someone-else.example"],
-        service: [],
-      });
-      const resolver = new IdentityResolver();
-      await assert.rejects(() => resolver.resolveHandle("alice.example"));
-      assert(!resolver.handleToDidMap.has("alice.example"));
     });
   });
 });
