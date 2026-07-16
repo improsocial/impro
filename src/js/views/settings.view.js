@@ -80,6 +80,7 @@ class SettingsView extends View {
                     }
                     return avatarTemplate({
                       author: profile,
+                      clickAction: "none",
                     });
                   })}
                 </span>`}
@@ -111,7 +112,10 @@ class SettingsView extends View {
                     >
                       ${profile
                         ? html`<span class="vertical-nav-icon"
-                            >${avatarTemplate({ author: profile })}</span
+                            >${avatarTemplate({
+                              author: profile,
+                              clickAction: "none",
+                            })}</span
                           >`
                         : null}
                       <span class="vertical-nav-label">
