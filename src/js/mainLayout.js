@@ -35,13 +35,13 @@ function pluginPreviewBannerTemplate({ plugins }) {
           won't be saved.
         </div>
       </div>
-      <button
+      <!-- <button
         class="plugin-preview-banner-exit"
         data-testid="plugin-preview-banner-exit"
         @click=${exitPluginPreview}
       >
         Exit preview
-      </button>
+      </button> -->
     </div>
   `;
 }
