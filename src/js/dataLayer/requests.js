@@ -896,13 +896,6 @@ export class Requests {
       limit,
       labelers,
     });
-    if (res.messages.length === 0 && res.cursor) {
-      console.warn("getMessages returned an empty page with a cursor", {
-        convoId,
-        cursor: res.cursor,
-      });
-      res.cursor = null;
-    }
     // For group convos, convo.members is partial; relatedProfiles carries
     // the authors and system-message subjects for the returned page.
     if (res.relatedProfiles) {

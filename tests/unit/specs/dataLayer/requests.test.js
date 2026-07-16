@@ -1824,18 +1824,6 @@ describe("loadConvoMessages", () => {
     assert.deepEqual(stored.messages[1].id, "m2");
   });
 
-  it("should null out cursor when a page comes back empty with a cursor", async () => {
-    const dataStore = new DataStore();
-    const mockApi = {
-      getMessages: async () => ({ messages: [], cursor: "fakecursor" }),
-    };
-    const requests = makeRequests(mockApi, dataStore);
-
-    await requests.loadConvoMessages(convoId);
-
-    assert.deepEqual(dataStore.$convoMessages.get(convoId).cursor, null);
-  });
-
   it("should reset on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$convoMessages.set(convoId, {
