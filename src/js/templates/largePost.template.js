@@ -121,6 +121,7 @@ export function largePostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const embed = post.embed ?? post.record?.embed;
   const postText = post.record.text || "";
   const badgeLabels = post.badgeLabels ?? [];
   const contentLabel = post.contentLabel;
@@ -165,10 +166,10 @@ export function largePostTemplate({
                   ></plugin-rich-text>
                 </div>`
               : ""}
-            ${post.embed
+            ${embed
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({
-                    embed: post.embed,
+                    embed,
                     mediaLabel: post.mediaLabel,
                     isAuthenticated,
                     pluginService,

@@ -647,15 +647,11 @@ export function recordEmbedTemplate({
 export function postEmbedTemplate({
   embed,
   mediaLabel,
-  enabledEmbedTypes,
   lazyLoadImages = false,
   isAuthenticated,
   currentConvoId = null,
   pluginService,
 }) {
-  if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
-    return null;
-  }
   switch (embed.$type) {
     case "app.bsky.embed.record#view":
       return recordEmbedTemplate({
