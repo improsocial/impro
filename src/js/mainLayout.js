@@ -4,10 +4,7 @@ import { auth } from "/js/auth.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
-import {
-  getPluginPreviewIdsFromQueryParam,
-  PLUGIN_PREVIEW_QUERY_PARAM,
-} from "/js/plugins/pluginService.js";
+import { PLUGIN_PREVIEW_QUERY_PARAM } from "/js/plugins/pluginService.js";
 
 function exitPluginPreview() {
   const url = new URL(window.location.href);
@@ -152,7 +149,6 @@ export class MainLayout extends Layout {
       }
     };
 
-    const previewIds = getPluginPreviewIdsFromQueryParam();
     this.#disposeEffect = effect(() => {
       const currentRoute = router.$currentRoute.get();
       const layoutOptions = currentRoute?.options?.layoutOptions ?? {};
@@ -161,14 +157,9 @@ export class MainLayout extends Layout {
         typeof layoutOptions.activeNavItem === "function"
           ? layoutOptions.activeNavItem(currentRoute.params)
           : (layoutOptions.activeNavItem ?? null);
-      const previewingPlugins =
-        previewIds.length > 0
-          ? pluginService.$pluginsInfo
-              .get()
-              .filter(
-                (plugin) => previewIds.includes(plugin.id) && plugin.loaded,
-              )
-          : [];
+      const previewingPlugins = pluginService.isPreviewMode
+        ? pluginService.$pluginsInfo.get().filter((plugin) => plugin.loaded)
+        : [];
       render(
         mainLayoutTemplate({
           isAuthenticated,

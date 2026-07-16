@@ -171,6 +171,7 @@ export class PluginService extends ReactiveStore {
       this.prefManager.$installedPlugins.get(),
     );
     this.session = session;
+    this.isPreviewMode = false;
     this._renderContext = null;
     this._dataLayer = null;
     this._setupRegistries();
@@ -392,6 +393,7 @@ export class PluginService extends ReactiveStore {
     }
     const previewPluginIds = getPluginPreviewIdsFromQueryParam();
     if (previewPluginIds.length > 0 && !this.session) {
+      this.isPreviewMode = true;
       // Serial to avoid racing on preferences
       for (const previewPluginId of previewPluginIds) {
         await this._installPreviewPlugin(previewPluginId);
@@ -453,7 +455,7 @@ export class PluginService extends ReactiveStore {
     const permissions = getPermissionsFromManifest(manifest);
     if (!isEmptyPermissions(permissions)) {
       showToast(
-        `"${manifest.name}" can't be previewed because it requires additional permissions.`,
+        `"${manifest.name}" can't be previewed because it requires user permissions.`,
         { style: "error", timeout: 5000 },
       );
       return;

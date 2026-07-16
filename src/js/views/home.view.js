@@ -50,6 +50,7 @@ class HomeView extends View {
 
     if (
       !isAuthenticated &&
+      !pluginService.isPreviewMode &&
       !sessionStorage.getItem(WELCOME_MODAL_SEEN_STORAGE_KEY)
     ) {
       sessionStorage.setItem(WELCOME_MODAL_SEEN_STORAGE_KEY, "true");
