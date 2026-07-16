@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { waitFor } from "../../testHelpers.js";
 import "/js/components/post-composer.js";
 
 describe("post-composer", () => {
@@ -548,9 +549,8 @@ describe("post-composer", () => {
       connectElement(element);
       const event = makePasteEvent([makeImageFile()]);
       element.handlePaste(event);
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await waitFor(() => element.state.$selectedImages.get().length === 1);
       const selectedImages = element.state.$selectedImages.get();
-      assert.deepEqual(selectedImages.length, 1);
       assert(selectedImages[0].dataUrl.startsWith("data:image/png"));
       assert(event.defaultPrevented);
     });
@@ -569,8 +569,7 @@ describe("post-composer", () => {
         makeImageFile("c.png"),
       ]);
       element.handlePaste(event);
-      await new Promise((resolve) => setTimeout(resolve, 10));
-      assert.deepEqual(element.state.$selectedImages.get().length, 4);
+      await waitFor(() => element.state.$selectedImages.get().length === 4);
     });
 
     it("does not add pasted images when a video is already selected", async () => {
@@ -579,7 +578,7 @@ describe("post-composer", () => {
       element.state.$selectedVideo.set({ file: {}, status: "done" });
       const event = makePasteEvent([makeImageFile()]);
       element.handlePaste(event);
-      await new Promise((resolve) => setTimeout(resolve, 10));
+      await new Promise((resolve) => setTimeout(resolve, 20));
       assert.deepEqual(element.state.$selectedImages.get().length, 0);
       assert(event.defaultPrevented);
     });
