@@ -370,17 +370,14 @@ class SearchView extends View {
                       </button>
                     `
                   : ""}
-                ${showResults
+                ${showResults && isAuthenticated
                   ? html`
                       <tab-bar
                         .tabs=${[
                           { value: "profiles", label: "Profiles" },
-                          ...(isAuthenticated
-                            ? [
-                                { value: "posts", label: "Posts" },
-                                { value: "feeds", label: "Feeds" },
-                              ]
-                            : []),
+
+                          { value: "posts", label: "Posts" },
+                          { value: "feeds", label: "Feeds" },
                         ]}
                         active-tab=${activeTab}
                         full-width
