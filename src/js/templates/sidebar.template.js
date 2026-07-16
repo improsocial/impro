@@ -61,15 +61,14 @@ function sidebarNavTemplate({
             })}
             data-testid="sidebar-nav-${item.id}"
             @click=${function (e) {
-              // Handle active item click
-              if (activeNavItem === item.id) {
+              const isActive = activeNavItem === item.id;
+              if (isActive) {
                 e.preventDefault();
                 e.stopPropagation();
                 onClickActiveItem?.(item.id);
               }
-              // Close sidebar
               const sidebar = this.closest("animated-sidebar");
-              sidebar.close();
+              sidebar.close({ restoreScroll: isActive });
             }}
           >
             <span class="sidebar-nav-icon"
@@ -264,7 +263,7 @@ export function sidebarTemplate({
             @click=${(e) => {
               if (currentUser) {
                 const sidebar = e.target.closest("animated-sidebar");
-                sidebar.close();
+                sidebar.close({ restoreScroll: false });
               }
             }}
           >
@@ -281,7 +280,7 @@ export function sidebarTemplate({
             @click=${(e) => {
               if (currentUser) {
                 const sidebar = e.target.closest("animated-sidebar");
-                sidebar.close();
+                sidebar.close({ restoreScroll: false });
               }
             }}
           >

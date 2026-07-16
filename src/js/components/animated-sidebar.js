@@ -63,12 +63,12 @@ class AnimatedSidebar extends Component {
     this.querySelector("dialog.sidebar").showModal();
   }
 
-  close() {
+  close({ restoreScroll = true } = {}) {
     if (!this.isOpen) {
       return;
     }
     this.isOpen = false;
-    this.scrollLock.unlock();
+    this.scrollLock.unlock({ restoreScroll });
     const dialog = this.querySelector("dialog.sidebar");
     if (dialog.hasAttribute("open")) {
       dialog.close();

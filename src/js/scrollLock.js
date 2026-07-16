@@ -39,7 +39,7 @@ function lockScroll(container) {
   }
 }
 
-function unlockScroll(container) {
+function unlockScroll(container, { restoreScroll = true } = {}) {
   const header = getHeaderElement(container);
   let headerHeight = 0;
   if (header) {
@@ -65,7 +65,9 @@ function unlockScroll(container) {
   body.style.top = "";
   body.style.width = "";
   body.style.height = "";
-  window.scrollTo(0, scrollTo);
+  if (restoreScroll) {
+    window.scrollTo(0, scrollTo);
+  }
 }
 
 function findScrollableAncestor(element) {
@@ -127,7 +129,7 @@ export class ScrollLock {
     this.locked = true;
   }
 
-  unlock() {
+  unlock({ restoreScroll = true } = {}) {
     if (!this.locked) {
       return;
     }
@@ -140,7 +142,7 @@ export class ScrollLock {
       (holder) => holder !== this,
     );
     if (__scrollLockHolders.length === 0) {
-      unlockScroll(__lockedContainer);
+      unlockScroll(__lockedContainer, { restoreScroll });
       __lockedContainer = null;
     }
     this.locked = false;
