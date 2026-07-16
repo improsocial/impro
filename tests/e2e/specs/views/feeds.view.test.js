@@ -156,7 +156,7 @@ test.describe("Feeds view", () => {
       await page.mouse.up();
     }
 
-    test("gear button is hidden when there is only one pinned item", async ({
+    test("gear button is disabled when there is only one pinned item", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -170,7 +170,7 @@ test.describe("Feeds view", () => {
       });
       await expect(
         feedsView.locator('[data-testid="feeds-edit-button"]'),
-      ).toHaveCount(0);
+      ).toBeDisabled();
     });
 
     test("drag handles are hidden until entering edit mode via the gear", async ({
@@ -244,6 +244,9 @@ test.describe("Feeds view", () => {
       const feedBRow = feedsView.locator(`[data-pinned-value="${feedB.uri}"]`);
       await dragRow(page, followingRow, feedBRow);
 
+      await expect(
+        feedsView.locator(".feeds-list-item").first(),
+      ).toHaveAttribute("data-pinned-value", feedA.uri);
       const titlesAfterDrag = await feedsView
         .locator(".feeds-list-item-title")
         .allTextContents();
@@ -370,6 +373,259 @@ test.describe("Feeds view", () => {
         .allTextContents();
       expect(titlesAfterCancel).toEqual(["Following", "Feed A", "Feed B"]);
       expect(sawPut).toBe(false);
+    });
+
+    test("unpin buttons are hidden until entering edit mode", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      const feedB = createFeedGenerator({
+        uri: "at://did:plc:b/app.bsky.feed.generator/b",
+        displayName: "Feed B",
+        creatorHandle: "creator-b.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA, feedB]);
+      mockServer.setPinnedFeeds([feedA.uri, feedB.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+      await expect(
+        feedsView.locator('[data-testid="feeds-list-item-unpin-button"]'),
+      ).toHaveCount(0);
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+      await expect(
+        feedsView.locator('[data-testid="feeds-list-item-unpin-button"]'),
+      ).toHaveCount(3);
+    });
+
+    test("clicking a row's unpin button hides it visually without a request", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      const feedB = createFeedGenerator({
+        uri: "at://did:plc:b/app.bsky.feed.generator/b",
+        displayName: "Feed B",
+        creatorHandle: "creator-b.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA, feedB]);
+      mockServer.setPinnedFeeds([feedA.uri, feedB.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      let sawPut = false;
+      page.on("request", (req) => {
+        if (req.url().includes("/xrpc/app.bsky.actor.putPreferences")) {
+          sawPut = true;
+        }
+      });
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+
+      const feedARow = feedsView.locator(`[data-pinned-value="${feedA.uri}"]`);
+      await feedARow
+        .locator('[data-testid="feeds-list-item-unpin-button"]')
+        .click();
+
+      const titlesAfterUnpin = await feedsView
+        .locator(".feeds-list-item-title")
+        .allTextContents();
+      expect(titlesAfterUnpin).toEqual(["Following", "Feed B"]);
+      expect(sawPut).toBe(false);
+    });
+
+    test("unpin + Save persists via putPreferences and exits edit mode", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      const feedB = createFeedGenerator({
+        uri: "at://did:plc:b/app.bsky.feed.generator/b",
+        displayName: "Feed B",
+        creatorHandle: "creator-b.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA, feedB]);
+      mockServer.setPinnedFeeds([feedA.uri, feedB.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+
+      const feedARow = feedsView.locator(`[data-pinned-value="${feedA.uri}"]`);
+      await feedARow
+        .locator('[data-testid="feeds-list-item-unpin-button"]')
+        .click();
+
+      const putRequest = page.waitForRequest(
+        (req) =>
+          req.url().includes("/xrpc/app.bsky.actor.putPreferences") &&
+          req.method() === "POST",
+      );
+      await feedsView.locator('[data-testid="feeds-save-button"]').click();
+      const request = await putRequest;
+      const body = request.postDataJSON();
+      const savedFeedsPref = body.preferences.find(
+        (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
+      );
+      const pinnedValues = savedFeedsPref.items
+        .filter((it) => it.pinned)
+        .map((it) => it.value);
+      expect(pinnedValues).toEqual(["following", feedB.uri]);
+
+      await expect(
+        feedsView.locator('[data-testid="feeds-edit-button"]'),
+      ).toBeVisible();
+      await expect(
+        feedsView.locator('[data-testid="feeds-save-button"]'),
+      ).toHaveCount(0);
+    });
+
+    test("Cancel discards the unsaved unpin and restores the row", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      const feedB = createFeedGenerator({
+        uri: "at://did:plc:b/app.bsky.feed.generator/b",
+        displayName: "Feed B",
+        creatorHandle: "creator-b.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA, feedB]);
+      mockServer.setPinnedFeeds([feedA.uri, feedB.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      let sawPut = false;
+      page.on("request", (req) => {
+        if (req.url().includes("/xrpc/app.bsky.actor.putPreferences")) {
+          sawPut = true;
+        }
+      });
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+
+      const feedARow = feedsView.locator(`[data-pinned-value="${feedA.uri}"]`);
+      await feedARow
+        .locator('[data-testid="feeds-list-item-unpin-button"]')
+        .click();
+
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2);
+
+      await feedsView.locator('[data-testid="feeds-cancel-button"]').click();
+
+      await expect(
+        feedsView.locator('[data-testid="feeds-edit-button"]'),
+      ).toBeVisible();
+      const titlesAfterCancel = await feedsView
+        .locator(".feeds-list-item-title")
+        .allTextContents();
+      expect(titlesAfterCancel).toEqual(["Following", "Feed A", "Feed B"]);
+      expect(sawPut).toBe(false);
+    });
+
+    test("unpin + drag reorder + Save persists the combined change", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      const feedB = createFeedGenerator({
+        uri: "at://did:plc:b/app.bsky.feed.generator/b",
+        displayName: "Feed B",
+        creatorHandle: "creator-b.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA, feedB]);
+      mockServer.setPinnedFeeds([feedA.uri, feedB.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(3, {
+        timeout: 10000,
+      });
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+
+      const feedARow = feedsView.locator(`[data-pinned-value="${feedA.uri}"]`);
+      await feedARow
+        .locator('[data-testid="feeds-list-item-unpin-button"]')
+        .click();
+
+      const followingRow = feedsView.locator(
+        '[data-testid="feeds-list-item-following"]',
+      );
+      const feedBRow = feedsView.locator(`[data-pinned-value="${feedB.uri}"]`);
+      await dragRow(page, followingRow, feedBRow);
+
+      const putRequests = [];
+      page.on("request", (req) => {
+        if (
+          req.url().includes("/xrpc/app.bsky.actor.putPreferences") &&
+          req.method() === "POST"
+        ) {
+          putRequests.push(req);
+        }
+      });
+
+      await feedsView.locator('[data-testid="feeds-save-button"]').click();
+      await expect(
+        feedsView.locator('[data-testid="feeds-edit-button"]'),
+      ).toBeVisible();
+
+      expect(putRequests.length).toBeGreaterThanOrEqual(1);
+      const lastBody = putRequests[putRequests.length - 1].postDataJSON();
+      const savedFeedsPref = lastBody.preferences.find(
+        (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
+      );
+      const pinnedValues = savedFeedsPref.items
+        .filter((it) => it.pinned)
+        .map((it) => it.value);
+      expect(pinnedValues).toEqual([feedB.uri, "following"]);
     });
 
     test("navigating away discards the unsaved draft order", async ({

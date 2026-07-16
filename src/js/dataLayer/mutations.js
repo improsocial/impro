@@ -435,9 +435,9 @@ export class Mutations {
     }
   }
 
-  async reorderPinnedItems(orderedValues) {
+  async setPinnedItems(values) {
     const preferences = this.preferencesProvider.requirePreferences();
-    const newPreferences = preferences.reorderPinnedItems(orderedValues);
+    const newPreferences = preferences.setPinnedItems(values);
     try {
       await this.preferencesProvider.updatePreferences(newPreferences);
     } catch (error) {
@@ -448,14 +448,11 @@ export class Mutations {
     // Update pinned items in memory
     const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
     if (pinnedItems) {
-      const indexOf = (item) => {
-        const idx = orderedValues.indexOf(valueForPinnedItem(item));
-        return idx === -1 ? orderedValues.length : idx;
-      };
-      const reordered = [...pinnedItems].sort(
-        (a, b) => indexOf(a) - indexOf(b),
+      const byValue = new Map(
+        pinnedItems.map((item) => [valueForPinnedItem(item), item]),
       );
-      this.dataStore.$pinnedItems.set(reordered);
+      const next = values.map((value) => byValue.get(value)).filter(Boolean);
+      this.dataStore.$pinnedItems.set(next);
     }
   }
 

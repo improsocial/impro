@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Signal, SignalSet, SignalMap } from "/js/signals.js";
+import { Signal, SignalSet, SignalMap, SignalArray } from "/js/signals.js";
 
 describe("SignalSet - Set behavior", () => {
   it("starts empty by default", () => {
@@ -304,5 +304,212 @@ describe("SignalMap - reactivity", () => {
     map.delete("a");
     assert.deepEqual($hasA.get(), false);
     assert.deepEqual(runs, 3);
+  });
+});
+
+describe("SignalArray - Array behavior", () => {
+  it("starts empty by default", () => {
+    const arr = new SignalArray();
+    assert.deepEqual(arr.length, 0);
+    assert.deepEqual([...arr], []);
+  });
+
+  it("seeds from an iterable passed to the constructor", () => {
+    const arr = new SignalArray(["a", "b", "c"]);
+    assert.deepEqual(arr.length, 3);
+    assert.deepEqual([...arr], ["a", "b", "c"]);
+  });
+
+  it("does not share the backing storage with the seed array", () => {
+    const seed = ["a", "b"];
+    const arr = new SignalArray(seed);
+    seed.push("c");
+    assert.deepEqual([...arr], ["a", "b"]);
+  });
+
+  it("at() returns the element at the given index", () => {
+    const arr = new SignalArray(["a", "b", "c"]);
+    assert.deepEqual(arr.at(0), "a");
+    assert.deepEqual(arr.at(-1), "c");
+    assert.deepEqual(arr.at(99), undefined);
+  });
+
+  it("indexOf and includes work like a native Array", () => {
+    const arr = new SignalArray(["a", "b", "c"]);
+    assert.deepEqual(arr.indexOf("b"), 1);
+    assert.deepEqual(arr.indexOf("missing"), -1);
+    assert(arr.includes("c"));
+    assert.deepEqual(arr.includes("missing"), false);
+  });
+
+  it("push appends and returns the new length", () => {
+    const arr = new SignalArray(["a"]);
+    assert.deepEqual(arr.push("b", "c"), 3);
+    assert.deepEqual([...arr], ["a", "b", "c"]);
+  });
+
+  it("pop removes and returns the last element", () => {
+    const arr = new SignalArray(["a", "b"]);
+    assert.deepEqual(arr.pop(), "b");
+    assert.deepEqual([...arr], ["a"]);
+    assert.deepEqual(new SignalArray().pop(), undefined);
+  });
+
+  it("set replaces the element at an index", () => {
+    const arr = new SignalArray(["a", "b", "c"]);
+    arr.set(1, "B");
+    assert.deepEqual([...arr], ["a", "B", "c"]);
+  });
+
+  it("splice inserts, removes, and returns removed items", () => {
+    const arr = new SignalArray(["a", "b", "c", "d"]);
+    const removed = arr.splice(1, 2, "X", "Y", "Z");
+    assert.deepEqual(removed, ["b", "c"]);
+    assert.deepEqual([...arr], ["a", "X", "Y", "Z", "d"]);
+  });
+
+  it("replace swaps the whole contents in one shot", () => {
+    const arr = new SignalArray(["a", "b"]);
+    arr.replace(["x", "y", "z"]);
+    assert.deepEqual([...arr], ["x", "y", "z"]);
+    arr.replace([]);
+    assert.deepEqual([...arr], []);
+  });
+
+  it("clear empties the array", () => {
+    const arr = new SignalArray(["a", "b"]);
+    arr.clear();
+    assert.deepEqual(arr.length, 0);
+    assert.deepEqual([...arr], []);
+  });
+
+  it("map/filter/slice return plain arrays", () => {
+    const arr = new SignalArray([1, 2, 3, 4]);
+    const doubled = arr.map((n) => n * 2);
+    assert.deepEqual(doubled, [2, 4, 6, 8]);
+    assert(Array.isArray(doubled));
+    assert.deepEqual(
+      arr.filter((n) => n % 2 === 0),
+      [2, 4],
+    );
+    assert.deepEqual(arr.slice(1, 3), [2, 3]);
+  });
+
+  it("forEach visits each element in order", () => {
+    const arr = new SignalArray(["a", "b", "c"]);
+    const seen = [];
+    arr.forEach((value, index) => seen.push([index, value]));
+    assert.deepEqual(seen, [
+      [0, "a"],
+      [1, "b"],
+      [2, "c"],
+    ]);
+  });
+});
+
+describe("SignalArray - reactivity", () => {
+  it("a length reader recomputes on push, pop, splice, replace, and clear", () => {
+    const arr = new SignalArray();
+    let runs = 0;
+    const $length = new Signal.Computed(() => {
+      runs++;
+      return arr.length;
+    });
+
+    assert.deepEqual($length.get(), 0);
+    assert.deepEqual(runs, 1);
+
+    arr.push("a");
+    assert.deepEqual($length.get(), 1);
+    assert.deepEqual(runs, 2);
+
+    arr.pop();
+    assert.deepEqual($length.get(), 0);
+    assert.deepEqual(runs, 3);
+
+    arr.splice(0, 0, "a", "b");
+    assert.deepEqual($length.get(), 2);
+    assert.deepEqual(runs, 4);
+
+    arr.replace(["x"]);
+    assert.deepEqual($length.get(), 1);
+    assert.deepEqual(runs, 5);
+
+    arr.clear();
+    assert.deepEqual($length.get(), 0);
+    assert.deepEqual(runs, 6);
+  });
+
+  it("an iteration reader recomputes on mutation", () => {
+    const arr = new SignalArray(["a"]);
+    let runs = 0;
+    const $joined = new Signal.Computed(() => {
+      runs++;
+      return [...arr].join(",");
+    });
+
+    assert.deepEqual($joined.get(), "a");
+    assert.deepEqual(runs, 1);
+
+    arr.push("b");
+    assert.deepEqual($joined.get(), "a,b");
+    assert.deepEqual(runs, 2);
+
+    arr.replace(["z"]);
+    assert.deepEqual($joined.get(), "z");
+    assert.deepEqual(runs, 3);
+  });
+
+  it("set(index, value) notifies iteration and length readers", () => {
+    const arr = new SignalArray(["a", "b"]);
+    let runs = 0;
+    const $joined = new Signal.Computed(() => {
+      runs++;
+      return [...arr].join(",");
+    });
+
+    assert.deepEqual($joined.get(), "a,b");
+    arr.set(1, "B");
+    assert.deepEqual($joined.get(), "a,B");
+    assert.deepEqual(runs, 2);
+  });
+
+  it("map/filter/indexOf/at/includes readers all subscribe to the collection", () => {
+    const cases = [
+      { name: "map", read: (arr) => arr.map((v) => v).join(",") },
+      { name: "filter", read: (arr) => arr.filter(() => true).join(",") },
+      { name: "indexOf", read: (arr) => arr.indexOf("b") },
+      { name: "at", read: (arr) => arr.at(0) },
+      { name: "includes", read: (arr) => arr.includes("a") },
+    ];
+    for (const { name, read } of cases) {
+      const arr = new SignalArray(["a", "b"]);
+      let runs = 0;
+      const $c = new Signal.Computed(() => {
+        runs++;
+        return read(arr);
+      });
+      $c.get();
+      assert.deepEqual(runs, 1, `${name}: initial run`);
+      arr.push("c");
+      $c.get();
+      assert.deepEqual(runs, 2, `${name}: refires after push`);
+    }
+  });
+
+  it("replacing with an equal-content array still notifies (no dedup, signal-utils semantics)", () => {
+    const arr = new SignalArray(["a", "b"]);
+    let runs = 0;
+    const $length = new Signal.Computed(() => {
+      runs++;
+      return arr.length;
+    });
+
+    assert.deepEqual($length.get(), 2);
+    assert.deepEqual(runs, 1);
+
+    arr.replace(["a", "b"]);
+    assert.deepEqual($length.get(), 2);
+    assert.deepEqual(runs, 2);
   });
 });

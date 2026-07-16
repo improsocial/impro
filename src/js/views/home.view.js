@@ -228,7 +228,7 @@ class HomeView extends View {
             onClickMenuButton: () => handleMenuClick(),
             rightItemTemplate: () => html`
               <a
-                class="feeds-button"
+                class="header-icon-button feeds-button"
                 href="/feeds"
                 aria-label="Feeds"
                 data-testid="feeds-button"

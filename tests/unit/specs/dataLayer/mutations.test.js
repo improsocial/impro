@@ -2036,7 +2036,7 @@ describe("unpinFeed", () => {
   });
 });
 
-describe("reorderPinnedItems", () => {
+describe("setPinnedItems", () => {
   const feedA = "at://did:plc:x/app.bsky.feed.generator/a";
   const feedB = "at://did:plc:x/app.bsky.feed.generator/b";
   const listA = "at://did:plc:x/app.bsky.graph.list/a";
@@ -2102,7 +2102,7 @@ describe("reorderPinnedItems", () => {
     const before = dataStore.$pinnedItems
       .get()
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
-    const promise = mutations.reorderPinnedItems([listA, "following", feedA]);
+    const promise = mutations.setPinnedItems([listA, "following", feedA]);
     const during = dataStore.$pinnedItems
       .get()
       .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
@@ -2117,7 +2117,7 @@ describe("reorderPinnedItems", () => {
 
   it("sends the reordered preferences to updatePreferences", async () => {
     const { mutations, resolveUpdate, getUpdatedPreferences } = setup();
-    const promise = mutations.reorderPinnedItems([feedA, listA, "following"]);
+    const promise = mutations.setPinnedItems([feedA, listA, "following"]);
     resolveUpdate();
     await promise;
     const items = getUpdatedPreferences().obj[0].items;
@@ -2163,7 +2163,7 @@ describe("reorderPinnedItems", () => {
     console.error = () => {};
     try {
       await assert.rejects(
-        () => mutations.reorderPinnedItems([listA, feedA]),
+        () => mutations.setPinnedItems([listA, feedA]),
         (err) => err === error,
       );
     } finally {

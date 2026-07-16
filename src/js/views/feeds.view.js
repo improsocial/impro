@@ -5,10 +5,11 @@ import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
+import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
 import { linkToList, linkToFeed } from "/js/navigation.js";
-import { Signal, ReactiveStore } from "/js/signals.js";
+import { Signal, ReactiveStore, SignalSet, SignalArray } from "/js/signals.js";
 import { enableReorder } from "/js/utils.js";
 import { showToast } from "/js/toasts.js";
 import { valueForPinnedItem } from "/js/dataHelpers.js";
@@ -19,7 +20,8 @@ class FeedsView extends View {
     await auth.requireAuth();
 
     const state = new ReactiveStore("feedsView");
-    state.$draftOrder = new Signal.State(null);
+    state.$draftOrder = new SignalArray();
+    state.$draftUnpinned = new SignalSet();
     state.$isEditing = new Signal.State(false);
     state.$isSaving = new Signal.State(false);
 
@@ -33,40 +35,70 @@ class FeedsView extends View {
 
     async function handleSave() {
       if (state.$isSaving.get()) return;
-      const draft = state.$draftOrder.get();
-      if (draft) {
+      const draftOrder = state.$draftOrder;
+      const draftUnpinned = state.$draftUnpinned;
+      if (draftOrder.length > 0 || draftUnpinned.size > 0) {
+        const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
+        if (!pinnedItems) return;
+        const baseOrder =
+          draftOrder.length > 0
+            ? [...draftOrder]
+            : pinnedItems.map(valueForPinnedItem);
+        const nextValues =
+          draftUnpinned.size > 0
+            ? baseOrder.filter((value) => !draftUnpinned.has(value))
+            : baseOrder;
         state.$isSaving.set(true);
         try {
-          await dataLayer.mutations.reorderPinnedItems(draft);
+          await dataLayer.mutations.setPinnedItems(nextValues);
         } catch {
-          showToast("Couldn't save feed order");
+          showToast("Couldn't save changes");
           return;
         } finally {
           state.$isSaving.set(false);
         }
       }
-      state.$draftOrder.set(null);
+      state.$draftOrder.clear();
+      state.$draftUnpinned.clear();
       state.$isEditing.set(false);
     }
 
     function cancelEditing() {
       if (state.$isSaving.get()) return;
-      state.$draftOrder.set(null);
+      state.$draftOrder.clear();
+      state.$draftUnpinned.clear();
       state.$isEditing.set(false);
     }
 
+    function editControlsTemplate({ value, isSaving }) {
+      return html`<button
+          class="feeds-list-item-unpin-button"
+          data-testid="feeds-list-item-unpin-button"
+          aria-label="Unpin"
+          ?disabled=${isSaving}
+          @click=${(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            state.$draftUnpinned.add(value);
+          }}
+        >
+          ${pinIconTemplate({ filled: true })}
+        </button>
+        <button
+          class="feeds-list-item-drag-handle"
+          data-testid="feeds-list-item-drag-handle"
+          aria-label="Drag to reorder"
+          ?disabled=${isSaving}
+        >
+          ${menuIconTemplate()}
+        </button>`;
+    }
+
     function rowTemplate({ item, currentUser, isEditing, isSaving }) {
-      const dragHandle = isEditing
-        ? html`<button
-            class="feeds-list-item-drag-handle"
-            data-testid="feeds-list-item-drag-handle"
-            aria-label="Drag to reorder"
-            ?disabled=${isSaving}
-          >
-            ${menuIconTemplate()}
-          </button>`
-        : "";
       const value = valueForPinnedItem(item);
+      const editControls = isEditing
+        ? editControlsTemplate({ value, isSaving })
+        : "";
       if (item.type === "timeline") {
         return html`<div
           class="feeds-list-item"
@@ -80,7 +112,7 @@ class FeedsView extends View {
             <div class="feeds-list-item-title">Following</div>
             <div class="feeds-list-item-creator">Feed by @bsky.app</div>
           </div>
-          ${dragHandle}
+          ${editControls}
         </div>`;
       }
       if (item.type === "list") {
@@ -108,7 +140,7 @@ class FeedsView extends View {
                 </div>`
               : ""}
           </div>
-          ${dragHandle}
+          ${editControls}
         </container-link>`;
       }
       const feedGenerator = item.data;
@@ -136,14 +168,15 @@ class FeedsView extends View {
               </div>`
             : ""}
         </div>
-        ${dragHandle}
+        ${editControls}
       </container-link>`;
     }
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get();
-      const draftOrder = state.$draftOrder.get();
+      const draftOrder = state.$draftOrder;
+      const draftUnpinned = state.$draftUnpinned;
       const isEditing = state.$isEditing.get();
       const isSaving = state.$isSaving.get();
 
@@ -151,13 +184,18 @@ class FeedsView extends View {
       let persistedOrder = null;
       if (pinnedItems) {
         persistedOrder = pinnedItems.map(valueForPinnedItem);
-        if (draftOrder) {
+        if (draftOrder.length > 0) {
           const byValue = new Map(
             pinnedItems.map((it) => [valueForPinnedItem(it), it]),
           );
           orderedItems = draftOrder
             .map((value) => byValue.get(value))
             .filter(Boolean);
+        }
+        if (draftUnpinned.size > 0) {
+          orderedItems = orderedItems.filter(
+            (it) => !draftUnpinned.has(valueForPinnedItem(it)),
+          );
         }
       }
 
@@ -169,7 +207,6 @@ class FeedsView extends View {
             title: "Feeds",
             subtitle: "",
             rightItemTemplate: () => {
-              if (!canEdit) return null;
               if (isEditing) {
                 return html`<div class="header-actions">
                   <button
@@ -193,10 +230,11 @@ class FeedsView extends View {
                 </div>`;
               }
               return html`<button
-                class="header-edit-button"
+                class="header-icon-button header-edit-button"
                 data-testid="feeds-edit-button"
-                aria-label="Reorder feeds"
+                aria-label="Edit feeds"
                 @click=${() => state.$isEditing.set(true)}
+                ?disabled=${!canEdit}
               >
                 ${settingsIconTemplate()}
               </button>`;
@@ -236,9 +274,9 @@ class FeedsView extends View {
             const nextOrder = elements.map((el) => el.dataset.pinnedValue);
             const baseline = persistedOrder ?? [];
             if (orderMatches(nextOrder, baseline)) {
-              state.$draftOrder.set(null);
+              state.$draftOrder.clear();
             } else {
-              state.$draftOrder.set(nextOrder);
+              state.$draftOrder.replace(nextOrder);
             }
           },
         });
@@ -248,7 +286,8 @@ class FeedsView extends View {
     });
 
     function resetEditingState() {
-      state.$draftOrder.set(null);
+      state.$draftOrder.clear();
+      state.$draftUnpinned.clear();
       state.$isEditing.set(false);
     }
 

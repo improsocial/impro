@@ -136,7 +136,7 @@ class ChatView extends View {
     function inboxButtonTemplate({ hasUnreadRequests }) {
       return html`
         <a
-          class="inbox-button"
+          class="header-icon-button inbox-button"
           href="/messages/inbox"
           aria-label=${hasUnreadRequests ? "Requests (unread)" : "Requests"}
           data-testid="inbox-button"

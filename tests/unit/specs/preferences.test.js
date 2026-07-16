@@ -255,7 +255,7 @@ describe("Preferences.pinFeed", () => {
   });
 });
 
-describe("Preferences.reorderPinnedItems", () => {
+describe("Preferences.setPinnedItems", () => {
   const buildObj = () => [
     {
       $type: "app.bsky.actor.defs#savedFeedsPrefV2",
@@ -270,7 +270,7 @@ describe("Preferences.reorderPinnedItems", () => {
 
   it("reorders the pinned slice and preserves unpinned entries at the end", () => {
     const preferences = new Preferences(buildObj(), []);
-    const newPreferences = preferences.reorderPinnedItems([
+    const newPreferences = preferences.setPinnedItems([
       "list-a",
       "following",
       "feed-a",
@@ -284,7 +284,7 @@ describe("Preferences.reorderPinnedItems", () => {
 
   it("does not mutate the original preferences", () => {
     const preferences = new Preferences(buildObj(), []);
-    preferences.reorderPinnedItems(["feed-a", "following", "list-a"]);
+    preferences.setPinnedItems(["feed-a", "following", "list-a"]);
     const items = Preferences.getSavedFeedsPreference(preferences.obj).items;
     assert.deepEqual(
       items.map((it) => it.value),
@@ -292,9 +292,9 @@ describe("Preferences.reorderPinnedItems", () => {
     );
   });
 
-  it("drops unknown values and unpinned values silently", () => {
+  it("drops unknown values silently and pins listed unpinned items", () => {
     const preferences = new Preferences(buildObj(), []);
-    const newPreferences = preferences.reorderPinnedItems([
+    const newPreferences = preferences.setPinnedItems([
       "feed-a",
       "unknown-value",
       "feed-unpinned",
@@ -303,8 +303,28 @@ describe("Preferences.reorderPinnedItems", () => {
     ]);
     const items = Preferences.getSavedFeedsPreference(newPreferences.obj).items;
     assert.deepEqual(
-      items.map((it) => it.value),
-      ["feed-a", "following", "list-a", "feed-unpinned"],
+      items.map((it) => ({ value: it.value, pinned: it.pinned })),
+      [
+        { value: "feed-a", pinned: true },
+        { value: "feed-unpinned", pinned: true },
+        { value: "following", pinned: true },
+        { value: "list-a", pinned: true },
+      ],
+    );
+  });
+
+  it("unpins currently-pinned items that are omitted from the target list", () => {
+    const preferences = new Preferences(buildObj(), []);
+    const newPreferences = preferences.setPinnedItems(["following", "list-a"]);
+    const items = Preferences.getSavedFeedsPreference(newPreferences.obj).items;
+    assert.deepEqual(
+      items.map((it) => ({ value: it.value, pinned: it.pinned })),
+      [
+        { value: "following", pinned: true },
+        { value: "list-a", pinned: true },
+        { value: "feed-a", pinned: false },
+        { value: "feed-unpinned", pinned: false },
+      ],
     );
   });
 });

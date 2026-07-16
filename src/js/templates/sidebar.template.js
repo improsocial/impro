@@ -12,7 +12,7 @@ import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
-import { feedIconTemplate } from "/js/templates/icons/feedIcon.template.js";
+import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
@@ -197,7 +197,7 @@ export function sidebarTemplate({
     },
     {
       id: "feeds",
-      icon: feedIconTemplate,
+      icon: hashtagIconTemplate,
       label: "Feeds",
       url: "/feeds",
     },

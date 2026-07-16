@@ -552,23 +552,34 @@ plugin-rich-text {
   }
 }
 
-.inbox-button {
-  position: relative;
+.header-icon-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
   color: var(--text-color-muted);
-  height: 30px;
-  width: 30px;
   border-radius: var(--icon-button-border-radius);
   transition: background-color 0.2s;
 }
 
 @media (hover: hover) {
-  .inbox-button:hover {
+  .header-icon-button:not(:disabled):hover {
     background-color: var(--back-button-hover-color);
   }
+}
+
+.header-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inbox-button {
+  position: relative;
+  height: 30px;
+  width: 30px;
 }
 
 .inbox-button .icon {
@@ -577,21 +588,8 @@ plugin-rich-text {
 }
 
 .feeds-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-color-muted);
   height: 30px;
   width: 30px;
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
-}
-
-@media (hover: hover) {
-  .feeds-button:hover {
-    background-color: var(--back-button-hover-color);
-  }
 }
 
 .feeds-button .icon {
@@ -5617,7 +5615,6 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   text-decoration: none;
@@ -5648,6 +5645,7 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item-content {
   flex: 1;
   min-width: 0;
+  padding-left: 12px;
 }
 
 .feeds-list-item-title {
@@ -5660,7 +5658,6 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item-creator {
   font-size: 14px;
   color: var(--text-color-muted);
-  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5687,6 +5684,30 @@ emoji-picker-dialog emoji-picker,
   touch-action: none;
   -webkit-user-select: none;
   user-select: none;
+}
+
+.feeds-list-item-unpin-button {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--highlight-color);
+  cursor: pointer;
+}
+
+.feeds-list-item-unpin-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.feeds-list-item-unpin-button svg {
+  width: 20px;
+  height: 20px;
 }
 
 .feeds-list-item-drag-handle:active {
@@ -5728,19 +5749,17 @@ emoji-picker-dialog emoji-picker,
 }
 
 .header-edit-button {
-  background: transparent;
-  border: none;
   padding: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: var(--text-color-muted);
 }
 
 .header-edit-button svg {
   width: 24px;
   height: 24px;
+}
+
+.new-chat-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .header svg {
@@ -5853,6 +5872,7 @@ emoji-picker-dialog emoji-picker,
 
 .feeds-list-item-skeleton {
   pointer-events: none;
+  min-height: 75px;
 }
 
 .feeds-list-item-skeleton-avatar {

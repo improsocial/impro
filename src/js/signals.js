@@ -310,6 +310,95 @@ export class SignalSet {
   }
 }
 
+export class SignalArray {
+  __debugName = "<SignalArray>";
+
+  #collection = new Signal.State(null, { equals: () => false });
+  #array;
+
+  constructor(values = []) {
+    this.#array = [...values];
+  }
+
+  get length() {
+    this.#collection.get();
+    return this.#array.length;
+  }
+
+  at(index) {
+    this.#collection.get();
+    return this.#array.at(index);
+  }
+
+  indexOf(value, fromIndex) {
+    this.#collection.get();
+    return this.#array.indexOf(value, fromIndex);
+  }
+
+  includes(value, fromIndex) {
+    this.#collection.get();
+    return this.#array.includes(value, fromIndex);
+  }
+
+  slice(start, end) {
+    this.#collection.get();
+    return this.#array.slice(start, end);
+  }
+
+  map(fn, thisArg) {
+    this.#collection.get();
+    return this.#array.map(fn, thisArg);
+  }
+
+  filter(fn, thisArg) {
+    this.#collection.get();
+    return this.#array.filter(fn, thisArg);
+  }
+
+  forEach(callback, thisArg) {
+    this.#collection.get();
+    this.#array.forEach(callback, thisArg);
+  }
+
+  [Symbol.iterator]() {
+    this.#collection.get();
+    return this.#array[Symbol.iterator]();
+  }
+
+  set(index, value) {
+    this.#array[index] = value;
+    this.#collection.set(null);
+  }
+
+  push(...values) {
+    this.#array.push(...values);
+    this.#collection.set(null);
+    return this.#array.length;
+  }
+
+  pop() {
+    const value = this.#array.pop();
+    this.#collection.set(null);
+    return value;
+  }
+
+  splice(start, deleteCount, ...items) {
+    const removed = this.#array.splice(start, deleteCount, ...items);
+    this.#collection.set(null);
+    return removed;
+  }
+
+  replace(values) {
+    this.#array = [...values];
+    this.#collection.set(null);
+  }
+
+  clear() {
+    this.#array.length = 0;
+    this.#collection.set(null);
+  }
+}
+
 export class ComputedMap {
   __debugName = "<ComputedMap>";
 
