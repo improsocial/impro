@@ -3,7 +3,10 @@ import { sanitizeUri } from "/js/utils.js";
 import { tokenizeRichText } from "/js/richTextHelpers.js";
 import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
 
-const KNOWN_UNSUPPORTED_FACET_TYPES = ["blue.poll.post.facet#option"];
+const KNOWN_UNSUPPORTED_FACET_TYPES = [
+  "blue.poll.post.facet#option",
+  "blue.moji.richtext.facet",
+];
 
 // Matches social-app behavior
 export function truncateUrl(url) {

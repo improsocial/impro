@@ -1,4 +1,5 @@
 import { buildQueryString } from "/js/utils.js";
+import { CONSTELLATION_URL } from "/js/config.js";
 
 export class Constellation {
   async getLinks({ subject, source, limit = null, timeout = 10000 }) {
@@ -18,7 +19,7 @@ export class Constellation {
         query.cursor = cursor;
       }
       const response = await fetch(
-        `https://constellation.microcosm.blue/xrpc/blue.microcosm.links.getBacklinks?${buildQueryString(
+        `${CONSTELLATION_URL}/xrpc/blue.microcosm.links.getBacklinks?${buildQueryString(
           query,
         )}`,
         {

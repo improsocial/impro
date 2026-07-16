@@ -147,6 +147,9 @@ class PluginData {
   getProfile(did) {
     return hostCall("getProfile", { did });
   }
+  getRecord(repo, collection, rkey) {
+    return hostCall("getRecord", { repo, collection, rkey });
+  }
 }
 
 class App {

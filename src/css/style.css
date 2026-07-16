@@ -1287,6 +1287,23 @@ plugin-icon svg {
   height: 100%;
 }
 
+plugin-blob-image {
+  display: inline-block;
+  vertical-align: middle;
+}
+
+plugin-blob-image img {
+  display: block;
+  max-width: 100%;
+  max-height: 128px;
+  font-size: inherit;
+  color: transparent;
+}
+
+plugin-blob-image .blob-image-fallback {
+  color: var(--text-color-muted);
+}
+
 .sidebar-nav-icon plugin-icon {
   width: 25px;
   height: 25px;

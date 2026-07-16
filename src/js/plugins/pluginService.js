@@ -15,7 +15,8 @@ import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { makePluginRequest } from "/js/plugins/pluginRequests.js";
+import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
   diffPermissions,
@@ -90,6 +91,7 @@ export class PermissionsDeclinedError extends Error {
 export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session) {
     super("pluginService");
+    this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
       eventListeners: new Map(),
@@ -345,7 +347,7 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      return makePluginRequest(plugin, url, init);
+      return pluginFetch(plugin, url, init);
     });
 
     this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
@@ -355,6 +357,10 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
       return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
     });
+
+    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
+      this.slingshot.getRecord(args),
+    );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
       if (!this.session) return null;

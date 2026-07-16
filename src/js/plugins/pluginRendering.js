@@ -3,6 +3,7 @@ import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
 import "/js/components/plugin-icon.js";
+import "/js/components/plugin-blob-image.js";
 
 function isExternalHref(href) {
   try {
@@ -41,6 +42,7 @@ const ALLOWED_TAGS = [
   "plugin-profiles-list",
   "plugin-posts-feed",
   "plugin-icon",
+  "plugin-blob-image",
   "toggle-switch",
 ];
 

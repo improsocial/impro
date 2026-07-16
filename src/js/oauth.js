@@ -1,9 +1,4 @@
-import {
-  resolveHandle,
-  didDocReferencesHandle,
-  resolveDid,
-  getServiceEndpointFromDidDoc,
-} from "/js/atproto.js";
+import { resolveIdentity, getServiceEndpointFromDidDoc } from "/js/atproto.js";
 
 // Inspiration from:
 // https://www.npmjs.com/package/@atproto/oauth-client-browser
@@ -549,16 +544,11 @@ export class OauthClient {
   }
 
   async getAuthorizationUrl(handle, { scope = "atproto", state = {} } = {}) {
-    const did = await resolveHandle(handle);
-    if (!did) {
+    const result = await resolveIdentity(handle);
+    if (!result) {
       throw new HandleNotFoundError("DID not found for handle: " + handle);
     }
-    const didDoc = await resolveDid(did);
-    if (!didDocReferencesHandle(didDoc, handle)) {
-      throw new Error(
-        `DID doc for ${did} does not reference handle: ${handle}`,
-      );
-    }
+    const { did, didDoc } = result;
     const pdsEndpoint = getServiceEndpointFromDidDoc(didDoc);
     const serviceEndpoint = this.proxyUrl ?? pdsEndpoint;
     const resourceMetadata = await fetchResourceServerMetadata(serviceEndpoint);
