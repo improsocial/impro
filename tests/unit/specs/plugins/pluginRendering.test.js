@@ -390,6 +390,57 @@ describe("PluginRenderer:plugin-icon", () => {
   });
 });
 
+describe("PluginRenderer:plugin-blob-image", () => {
+  it("renders <plugin-blob-image> and passes did/cid/alt/cdn-prefix attrs", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-blob-image",
+      attrs: {
+        did: "did:plc:abc",
+        cid: "bafkreiabcdefghijklmnopqrstuvwxyz234567",
+        alt: ":blobcat:",
+        "cdn-prefix": "feed_thumbnail",
+      },
+    });
+    assert.deepEqual(element.tagName.toLowerCase(), "plugin-blob-image");
+    assert.deepEqual(element.getAttribute("did"), "did:plc:abc");
+    assert.deepEqual(
+      element.getAttribute("cid"),
+      "bafkreiabcdefghijklmnopqrstuvwxyz234567",
+    );
+    assert.deepEqual(element.getAttribute("alt"), ":blobcat:");
+    assert.deepEqual(element.getAttribute("cdn-prefix"), "feed_thumbnail");
+  });
+
+  it("does not accept src or onclick on <plugin-blob-image>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "plugin-blob-image",
+      attrs: {
+        did: "did:plc:abc",
+        src: "https://evil.example.com/track.gif",
+        onclick: "alert(1)",
+      },
+    });
+    assert(!element.hasAttribute("src"));
+    assert(!element.hasAttribute("onclick"));
+  });
+
+  it("does not allow <img> tags from plugin trees", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "img",
+      attrs: { src: "https://evil.example.com/track.gif" },
+    });
+    // Disallowed tags fall back to <span> and the src attribute is not on the allowlist.
+    assert.deepEqual(element.tagName.toLowerCase(), "span");
+    assert(!element.hasAttribute("src"));
+  });
+});
+
 describe("PluginRenderer:custom element observedAttributes", () => {
   it("passes through attrs declared in a custom element's observedAttributes", () => {
     // plugin-icon declares observedAttributes = ["icon"] — verifies the

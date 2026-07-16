@@ -95,6 +95,14 @@ export function getPermalinkForConvo(convoId) {
   return `${getPermalinkOrigin()}/messages/${encodePathSegment(convoId)}`;
 }
 
+export function linkToCommunityPlugin(pluginId) {
+  return `/plugins/community/${encodePathSegment(pluginId)}`;
+}
+
+export function getPermalinkForCommunityPlugin(pluginId) {
+  return "https://impro.social" + linkToCommunityPlugin(pluginId);
+}
+
 export function linkToLogin({ query = {} } = {}) {
   const params = new URLSearchParams();
   for (const [key, value] of Object.entries(query)) {

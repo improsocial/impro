@@ -12,6 +12,7 @@ import { auth } from "/js/auth.js";
 import {
   getDisplayName,
   getGroupConvoDetails,
+  hasValidHandle,
   isGroupConvo,
   getSystemMessageDisplayText,
   groupReactions,
@@ -19,6 +20,9 @@ import {
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
+import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
+import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import {
   postEmbedTemplate,
   recordEmbedTemplate,
@@ -31,9 +35,10 @@ import {
   differenceInMinutes,
   isMobileViewport,
   canHover,
+  pinScrollPosition,
 } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { getPermalinkForConvo } from "/js/navigation.js";
+import { getPermalinkForConvo, linkToProfile } from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
@@ -306,36 +311,16 @@ class ChatDetailView extends View {
       if (!scroller) {
         return;
       }
-      let stopped = false;
-      const stop = () => {
-        stopped = true;
-      };
-      const startTime = performance.now();
-      let lastPinnedScrollTop = null;
-      const step = () => {
-        if (stopped) {
-          return;
-        }
+      pinScrollPosition({
+        targetY: () => scroller.scrollHeight - scroller.clientHeight,
+        durationMs,
+        scroller,
         // If the position moved above where we last pinned it, the user
-        // (or other code) scrolled up - stop fighting them
-        if (
-          lastPinnedScrollTop !== null &&
-          scroller.scrollTop < lastPinnedScrollTop - 1
-        ) {
-          return;
-        }
-        scroller.scrollTop = scroller.scrollHeight;
-        lastPinnedScrollTop = scroller.scrollTop;
-        if (performance.now() - startTime < durationMs) {
-          requestAnimationFrame(step);
-        }
-      };
-      step();
-      scroller.addEventListener("touchmove", stop, {
-        once: true,
-        passive: true,
+        // (or other code, e.g. a reply-jump scrollIntoView) scrolled up -
+        // stop fighting them
+        shouldStop: (currentY, lastPinnedY) =>
+          lastPinnedY !== null && currentY < lastPinnedY - 1,
       });
-      scroller.addEventListener("wheel", stop, { once: true, passive: true });
     }
 
     function isScrolledToBottom() {
@@ -1114,6 +1099,112 @@ class ChatDetailView extends View {
       </div>`;
     }
 
+    function directInfoPanelTemplate({ profile }) {
+      const isFollowedBy =
+        !!profile.viewer?.followedBy &&
+        !profile.viewer?.blocking &&
+        !profile.viewer?.blockedBy;
+      const hasBadgeLabels = !!profile.badgeLabels?.length;
+      return html`<div class="chat-info-panel" data-testid="chat-info-panel">
+        ${avatarTemplate({ author: profile })}
+        <div class="chat-info-panel-name">
+          ${getDisplayName(profile)}${verificationBadgeTemplate({
+            profile,
+          })}${automatedAccountBadgeTemplate({ profile })}
+        </div>
+        ${hasValidHandle(profile)
+          ? html`<div class="chat-info-panel-handle">@${profile.handle}</div>`
+          : ""}
+        ${isFollowedBy
+          ? html`<div
+              class="profile-follows-you"
+              data-testid="follows-you-badge"
+            >
+              Follows you
+            </div>`
+          : ""}
+        ${hasBadgeLabels
+          ? labelBadgesTemplate({ badgeLabels: profile.badgeLabels })
+          : ""}
+        <a
+          class="rounded-button chat-info-panel-go-to-profile-button"
+          data-testid="chat-info-panel-go-to-profile"
+          href="${linkToProfile(profile)}"
+        >
+          Go to profile
+        </a>
+      </div>`;
+    }
+
+    function getNewGroupChatDescription({ otherMembers, memberCount }) {
+      const names = otherMembers.map((member) => getDisplayName(member));
+      if (names.length === 0) {
+        return "New group chat.";
+      }
+      if (names.length === 1) {
+        return `New chat with ${names[0]}.`;
+      }
+      // memberCount includes the current user, so subtract them plus the
+      // two named members
+      const remainingCount = memberCount - 3;
+      if (remainingCount > 0) {
+        return `New chat with ${names[0]}, ${names[1]}, and ${remainingCount} more.`;
+      }
+      return `New chat with ${names[0]} and ${names[1]}.`;
+    }
+
+    function groupInfoPanelTemplate({ convo, groupDetails, currentUserDid }) {
+      const otherMembers = convo.members.filter(
+        (member) => member.did !== currentUserDid,
+      );
+      return html`<div class="chat-info-panel" data-testid="chat-info-panel">
+        <div class="chat-info-panel-avatars">
+          ${avatarGroupTemplate({ authors: otherMembers })}
+        </div>
+        ${groupDetails.name
+          ? html`<div class="chat-info-panel-name">${groupDetails.name}</div>`
+          : ""}
+        <div class="chat-info-panel-handle">
+          ${getNewGroupChatDescription({
+            otherMembers,
+            memberCount: groupDetails.memberCount,
+          })}
+        </div>
+      </div>`;
+    }
+
+    function chatInfoPanelTemplate({ convo, isGroup, currentUserDid }) {
+      if (!convo) {
+        return null;
+      }
+      if (isGroup) {
+        return groupInfoPanelTemplate({
+          convo,
+          groupDetails: getGroupConvoDetails(convo),
+          currentUserDid,
+        });
+      }
+      const otherMember = convo.members.find(
+        (member) => member.did !== currentUserDid,
+      );
+      if (!otherMember) {
+        return null;
+      }
+      const profile = getMemberProfile(convo, otherMember.did) ?? otherMember;
+      return directInfoPanelTemplate({ profile });
+    }
+
+    function chatEmptyTemplate({ convo, isGroup, currentUserDid }) {
+      const infoPanel = chatInfoPanelTemplate({
+        convo,
+        isGroup,
+        currentUserDid,
+      });
+      return html`<div class="chat-detail-empty">
+        ${infoPanel ?? html`<div>No messages yet!</div>`}
+      </div>`;
+    }
+
     function messagesTemplate({
       loadingEnabled,
       messages,
@@ -1124,9 +1215,7 @@ class ChatDetailView extends View {
       canReactNow,
     }) {
       if (!messages || messages.length === 0) {
-        return html`<div class="chat-detail-empty">
-          <div>No messages yet!</div>
-        </div>`;
+        return chatEmptyTemplate({ convo, isGroup, currentUserDid });
       }
       const reversedMessages = messages.toReversed();
       const messageGroups = groupMessages(reversedMessages, currentUserDid);
@@ -1145,16 +1234,26 @@ class ChatDetailView extends View {
           @load-more=${async (e) => {
             if (hasMore) {
               const scrollContainer = getMessageScroller();
+              // In a short chat the top sentinel is visible while the user
+              // sits at the bottom; when the fetch inserts the info panel
+              // above, keep them pinned to the bottom instead of restoring
+              // a stale offset
+              const shouldStickToBottom = isScrolledToBottom();
               // Maintain scroll position using scrollHeight difference
               const previousScrollHeight = scrollContainer.scrollHeight;
               const previousScrollTop = scrollContainer.scrollTop;
               await loadMessages();
               await raf();
               await raf();
-              // Restore scroll position
-              const newScrollHeight = scrollContainer.scrollHeight;
-              const heightDifference = newScrollHeight - previousScrollHeight;
-              scrollContainer.scrollTop = previousScrollTop + heightDifference;
+              if (shouldStickToBottom) {
+                pinScrollToBottom();
+              } else {
+                // Restore scroll position
+                const newScrollHeight = scrollContainer.scrollHeight;
+                const heightDifference = newScrollHeight - previousScrollHeight;
+                scrollContainer.scrollTop =
+                  previousScrollTop + heightDifference;
+              }
               await wait(100); // wait for the scroll to complete so that we don't accidentally trigger the load more event again
               e.detail.resume();
             }
@@ -1165,6 +1264,9 @@ class ChatDetailView extends View {
                 <div class="loading-spinner"></div>
               </div>`
             : ""}
+          ${hasMore
+            ? ""
+            : chatInfoPanelTemplate({ convo, isGroup, currentUserDid })}
           <div class="message-list">
             ${days.map((day) => {
               return html`<div class="message-day">
@@ -1276,7 +1378,7 @@ class ChatDetailView extends View {
             backButtonFallbackRoute: "/messages",
             rightItemTemplate: () => html`
               <button
-                class="chat-menu-button"
+                class="context-menu-button"
                 data-testid="chat-menu-button"
                 @click=${function (e) {
                   const contextMenu = this.nextElementSibling;

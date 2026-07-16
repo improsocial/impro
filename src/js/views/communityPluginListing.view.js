@@ -2,12 +2,14 @@ import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { linkToLogin } from "/js/navigation.js";
+import { linkToLogin, getPermalinkForCommunityPlugin } from "/js/navigation.js";
 import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
 import "/js/components/rendered-markdown.js";
+import "/js/components/context-menu.js";
+import "/js/components/context-menu-item.js";
 
 class CommunityPluginListingView extends View {
   async render({ root, params, context: { pluginService, isAuthenticated } }) {
@@ -131,11 +133,38 @@ class CommunityPluginListingView extends View {
       const readme = state.$readme.get();
       const loading = state.$loading.get();
       const pendingAction = state.$pendingAction.get();
+      const pluginPermalink = getPermalinkForCommunityPlugin(pluginId);
       render(
         html`<div id="community-plugin-listing-view">
           ${headerTemplate({
             title: "Community plugins",
             backButtonFallbackRoute: "/plugins/community",
+            rightItemTemplate: listing
+              ? () => html`
+                  <button
+                    class="context-menu-button"
+                    @click=${function (e) {
+                      const contextMenu = this.nextElementSibling;
+                      contextMenu.open(e.clientX, e.clientY);
+                    }}
+                  >
+                    <span>...</span>
+                  </button>
+                  <context-menu>
+                    <context-menu-item
+                      data-testid="menu-action-plugin-copy-link"
+                      @click=${() => {
+                        navigator.clipboard.writeText(pluginPermalink);
+                        showToast("Link copied to clipboard", {
+                          style: "success",
+                        });
+                      }}
+                    >
+                      Copy link to plugin
+                    </context-menu-item>
+                  </context-menu>
+                `
+              : null,
           })}
           <main>
             ${(() => {

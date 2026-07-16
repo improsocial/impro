@@ -1567,11 +1567,11 @@ describe("Preferences.getFollowingFeedPreference", () => {
   });
 });
 
-describe("Preferences.getBadgeLabels", () => {
+describe("Preferences.getBadgeLabelsForPost", () => {
   it("should return empty array when post has no labels", () => {
     const preferences = new Preferences([], []);
     const post = { labels: [] };
-    const result = preferences.getBadgeLabels(post);
+    const result = preferences.getBadgeLabelsForPost(post);
 
     assert.deepEqual(result, []);
   });
@@ -1596,7 +1596,7 @@ describe("Preferences.getBadgeLabels", () => {
     const post = {
       labels: [{ src: "did:labeler1", val: "verified" }],
     };
-    const result = preferences.getBadgeLabels(post);
+    const result = preferences.getBadgeLabelsForPost(post);
 
     assert.deepEqual(result.length, 1);
     assert.deepEqual(result[0].labelDefinition.identifier, "verified");
@@ -1623,7 +1623,7 @@ describe("Preferences.getBadgeLabels", () => {
     const post = {
       labels: [{ src: "did:labeler1", val: "nsfw" }],
     };
-    const result = preferences.getBadgeLabels(post);
+    const result = preferences.getBadgeLabelsForPost(post);
 
     assert.deepEqual(result.length, 0);
   });
@@ -1648,7 +1648,121 @@ describe("Preferences.getBadgeLabels", () => {
     const post = {
       labels: [{ src: "did:labeler1", val: "nudity" }],
     };
-    const result = preferences.getBadgeLabels(post);
+    const result = preferences.getBadgeLabelsForPost(post);
+
+    assert.deepEqual(result.length, 0);
+  });
+});
+
+describe("Preferences.getBadgeLabelsForProfile", () => {
+  const labelerDefs = [
+    {
+      creator: { did: "did:labeler1", handle: "labeler.test" },
+      policies: {
+        labelValueDefinitions: [
+          {
+            identifier: "spam",
+            blurs: "none",
+            severity: "inform",
+            locales: [{ lang: "en", name: "Spam" }],
+          },
+          {
+            identifier: "nsfw",
+            blurs: "content",
+            locales: [{ lang: "en", name: "NSFW" }],
+          },
+          {
+            identifier: "impersonation",
+            blurs: "content",
+            severity: "alert",
+            locales: [{ lang: "en", name: "Impersonation" }],
+          },
+        ],
+      },
+    },
+  ];
+
+  it("should return empty array when profile has no labels", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const result = preferences.getBadgeLabelsForProfile({ labels: [] });
+
+    assert.deepEqual(result, []);
+  });
+
+  it("should return empty array when profile labels are missing", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const result = preferences.getBadgeLabelsForProfile({});
+
+    assert.deepEqual(result, []);
+  });
+
+  it("should return badge labels on the profile", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const profile = {
+      labels: [{ src: "did:labeler1", val: "spam" }],
+    };
+    const result = preferences.getBadgeLabelsForProfile(profile);
+
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].labelDefinition.identifier, "spam");
+    assert.deepEqual(result[0].labeler.creator.did, "did:labeler1");
+  });
+
+  it("should not return blur labels without alert/inform severity", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const profile = {
+      labels: [{ src: "did:labeler1", val: "nsfw" }],
+    };
+    const result = preferences.getBadgeLabelsForProfile(profile);
+
+    assert.deepEqual(result.length, 0);
+  });
+
+  it("should return blur labels with alert/inform severity", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const profile = {
+      labels: [{ src: "did:labeler1", val: "impersonation" }],
+    };
+    const result = preferences.getBadgeLabelsForProfile(profile);
+
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].labelDefinition.identifier, "impersonation");
+  });
+
+  it("should not return blur labels as badges on posts", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const post = {
+      labels: [{ src: "did:labeler1", val: "impersonation" }],
+    };
+    const result = preferences.getBadgeLabelsForPost(post);
+
+    assert.deepEqual(result.length, 0);
+  });
+
+  it("should skip labels from unknown labelers", () => {
+    const preferences = new Preferences([], labelerDefs);
+    const profile = {
+      labels: [{ src: "did:labeler-unknown", val: "spam" }],
+    };
+    const result = preferences.getBadgeLabelsForProfile(profile);
+
+    assert.deepEqual(result.length, 0);
+  });
+
+  it("should not return labels the user set to ignore", () => {
+    const obj = [
+      {
+        $type: "app.bsky.actor.defs#contentLabelPref",
+        label: "spam",
+        labelerDid: "did:labeler1",
+        visibility: "ignore",
+      },
+    ];
+    const preferences = new Preferences(obj, labelerDefs);
+    const profile = {
+      labels: [{ src: "did:labeler1", val: "spam" }],
+    };
+    const result = preferences.getBadgeLabelsForProfile(profile);
 
     assert.deepEqual(result.length, 0);
   });

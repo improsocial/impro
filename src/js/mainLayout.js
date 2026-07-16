@@ -3,6 +3,48 @@ import { effect } from "/js/signals.js";
 import { auth } from "/js/auth.js";
 import { sidebarTemplate } from "/js/templates/sidebar.template.js";
 import { footerTemplate } from "/js/templates/footer.template.js";
+import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
+import { PLUGIN_PREVIEW_QUERY_PARAM } from "/js/plugins/pluginService.js";
+
+function exitPluginPreview() {
+  const url = new URL(window.location.href);
+  url.searchParams.delete(PLUGIN_PREVIEW_QUERY_PARAM);
+  window.location.assign(url.toString());
+}
+
+function pluginPreviewBannerTemplate({ plugins }) {
+  if (plugins.length === 0) return null;
+  const links = [];
+  plugins.forEach((plugin, index) => {
+    if (index > 0) links.push(", ");
+    links.push(
+      html`<a
+        class="plugin-preview-banner-link"
+        href="/plugins/community/${encodeURIComponent(plugin.id)}"
+        >${plugin.name}</a
+      >`,
+    );
+  });
+  return html`
+    <div class="plugin-preview-banner" data-testid="plugin-preview-banner">
+      <div class="plugin-preview-banner-icon">${eyeIconTemplate()}</div>
+      <div class="plugin-preview-banner-body">
+        <div class="plugin-preview-banner-title">Plugin preview mode</div>
+        <div class="plugin-preview-banner-subtitle">
+          You are currently previewing ${links}. Changes you make to the page
+          won't be saved.
+        </div>
+      </div>
+      <button
+        class="plugin-preview-banner-exit"
+        data-testid="plugin-preview-banner-exit"
+        @click=${exitPluginPreview}
+      >
+        Exit preview
+      </button>
+    </div>
+  `;
+}
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
 
@@ -16,6 +58,7 @@ export function mainLayoutTemplate({
   children,
   onClickComposeButton,
   pluginService,
+  previewingPlugins = [],
   onLongPressProfile = null,
   groupChatLinkService,
 }) {
@@ -46,6 +89,7 @@ export function mainLayoutTemplate({
         </div>
         <div class="view-column-right"></div>
       </div>
+      ${pluginPreviewBannerTemplate({ plugins: previewingPlugins })}
       ${footerTemplate({
         isAuthenticated,
         currentUser,
@@ -113,6 +157,9 @@ export class MainLayout extends Layout {
         typeof layoutOptions.activeNavItem === "function"
           ? layoutOptions.activeNavItem(currentRoute.params)
           : (layoutOptions.activeNavItem ?? null);
+      const previewingPlugins = pluginService.isPreviewMode
+        ? pluginService.$pluginsInfo.get().filter((plugin) => plugin.loaded)
+        : [];
       render(
         mainLayoutTemplate({
           isAuthenticated,
@@ -127,6 +174,7 @@ export class MainLayout extends Layout {
           onClickComposeButton: () =>
             postComposerService.composePost({ currentUser }),
           pluginService,
+          previewingPlugins,
           onLongPressProfile,
           groupChatLinkService,
         }),

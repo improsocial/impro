@@ -213,11 +213,11 @@ test.describe("Feed Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/feed/trending");
 
     const view = page.locator("#feed-detail-view");
-    await expect(view.locator(".feed-menu-button")).toBeVisible({
+    await expect(view.locator(".context-menu-button")).toBeVisible({
       timeout: 10000,
     });
 
-    await view.locator(".feed-menu-button").click();
+    await view.locator(".context-menu-button").click();
 
     const menu = view.locator("context-menu");
     await expect(menu.locator("context-menu-item")).toHaveCount(2, {
@@ -247,12 +247,12 @@ test.describe("Feed Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/feed/trending");
 
     const view = page.locator("#feed-detail-view");
-    await expect(view.locator(".feed-menu-button")).toBeVisible({
+    await expect(view.locator(".context-menu-button")).toBeVisible({
       timeout: 10000,
     });
 
     const popupPromise = page.waitForEvent("popup");
-    await view.locator(".feed-menu-button").click();
+    await view.locator(".context-menu-button").click();
     await view.locator('[data-testid="menu-action-feed-open-in-bsky"]').click();
 
     const popup = await popupPromise;
@@ -277,11 +277,11 @@ test.describe("Feed Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/feed/trending");
 
     const view = page.locator("#feed-detail-view");
-    await expect(view.locator(".feed-menu-button")).toBeVisible({
+    await expect(view.locator(".context-menu-button")).toBeVisible({
       timeout: 10000,
     });
 
-    await view.locator(".feed-menu-button").click();
+    await view.locator(".context-menu-button").click();
     await view.locator('[data-testid="menu-action-feed-copy-link"]').click();
 
     await expect(page.locator('[data-testid="toast"]')).toBeVisible();

@@ -11,6 +11,10 @@ export class WelcomeModal extends Modal {
     return { "data-testid": "welcome-modal" };
   }
 
+  get dragToDismiss() {
+    return false;
+  }
+
   render({ dismiss }) {
     return html`
       <div class="modal-dialog-content">

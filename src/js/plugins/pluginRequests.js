@@ -5,7 +5,7 @@ const ALLOWED_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"];
 const FORBIDDEN_HEADERS = ["authorization", "cookie"];
 const MAX_BODY_CHARS = 1_000_000;
 
-export async function makePluginRequest(
+export async function pluginFetch(
   plugin,
   url,
   init,

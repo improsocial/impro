@@ -23,6 +23,7 @@ import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/detected-rich-text.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -86,6 +87,9 @@ function profileDescriptionTemplate({
     ${!isLabeler && !isCurrentUser
       ? knownFollowersSummaryTemplate({ profile })
       : null}
+    ${!isCurrentUser && profile.badgeLabels?.length
+      ? labelBadgesTemplate({ badgeLabels: profile.badgeLabels })
+      : ""}
   `;
 }
 

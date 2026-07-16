@@ -196,11 +196,11 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator(".list-menu-button")).toBeVisible({
+    await expect(view.locator(".context-menu-button")).toBeVisible({
       timeout: 10000,
     });
 
-    await view.locator(".list-menu-button").click();
+    await view.locator(".context-menu-button").click();
 
     const menu = view.locator("context-menu");
     await expect(
@@ -222,12 +222,12 @@ test.describe("List Detail view", () => {
     await page.goto("/profile/creator1.bsky.social/lists/mylist");
 
     const view = page.locator("#list-detail-view");
-    await expect(view.locator(".list-menu-button")).toBeVisible({
+    await expect(view.locator(".context-menu-button")).toBeVisible({
       timeout: 10000,
     });
 
     const popupPromise = page.waitForEvent("popup");
-    await view.locator(".list-menu-button").click();
+    await view.locator(".context-menu-button").click();
     await view.locator('[data-testid="menu-action-list-open-in-bsky"]').click();
 
     const popup = await popupPromise;

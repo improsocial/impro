@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { sortBy } from "/js/utils.js";
-import { pageEffect } from "/js/router.js";
+import { sortBy, pinScrollPosition } from "/js/utils.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -518,6 +518,15 @@ class PostThreadView extends View {
 
     let hasScrolledToLargePost = false;
 
+    // The pin only starts once the full thread has loaded, skip it if the user has already scrolled
+    let userHasScrolled = false;
+    const markUserScrolled = () => {
+      userHasScrolled = true;
+    };
+    bindToPage(root, window, "touchmove", markUserScrolled);
+    bindToPage(root, window, "wheel", markUserScrolled);
+    bindToPage(root, window, "keydown", markUserScrolled);
+
     pageEffect(root, () => {
       const postThread = state.$postThread.get();
       const currentUser = dataLayer.derived.$currentUser.get();
@@ -556,32 +565,50 @@ class PostThreadView extends View {
         !hasScrolledToLargePost
       ) {
         hasScrolledToLargePost = true;
-        scrollToLargePost(largePost, header);
+        if (!userHasScrolled) {
+          scrollToLargePost(largePost, header);
+        }
       }
     });
 
-    function scrollToLargePost(largePost, header) {
+    function getLargePostPinOffset(largePost, header) {
       const headerHeight = header.getBoundingClientRect().height;
-      const largePostTop = largePost.getBoundingClientRect().top;
-      const offset = largePostTop - headerHeight;
-      // The browser clamps scrolling at the document height, so when there
-      // isn't enough content below the post to pin it under the header,
-      // stretch the main section to provide the missing scroll runway.
+      return largePost.getBoundingClientRect().top - headerHeight;
+    }
+
+    // The browser clamps scrolling at the document height, so when there
+    // isn't enough content below the post to pin it under the header,
+    // stretch the main section to provide the missing scroll runway.
+    function ensureScrollRunway(largePost, header) {
       const mainSection = root.querySelector(".post-thread-main-section");
-      if (mainSection) {
-        const targetScrollY = window.scrollY + offset;
-        const shortfall =
-          targetScrollY +
-          window.innerHeight -
-          document.documentElement.scrollHeight;
-        if (shortfall > 0) {
-          mainSection.style.minHeight = `${mainSection.offsetHeight + shortfall}px`;
-        }
+      if (!mainSection) {
+        return;
       }
-      window.scrollBy(0, offset);
+      mainSection.style.minHeight = "";
+      const targetScrollY =
+        window.scrollY + getLargePostPinOffset(largePost, header);
+      const shortfall =
+        targetScrollY +
+        window.innerHeight -
+        document.documentElement.scrollHeight;
+      if (shortfall > -1) {
+        const sectionHeight = mainSection.getBoundingClientRect().height;
+        mainSection.style.minHeight = `${Math.ceil(sectionHeight + shortfall) + 1}px`;
+      }
+    }
+
+    function scrollToLargePost(largePost, header) {
+      ensureScrollRunway(largePost, header);
+      pinScrollPosition({
+        targetY: () => {
+          const offset = getLargePostPinOffset(largePost, header);
+          return window.scrollY + offset;
+        },
+      });
     }
 
     root.addEventListener("page-enter", async () => {
+      userHasScrolled = false;
       try {
         await dataLayer.declarative.ensurePostThread(postUri);
       } catch (error) {
@@ -590,6 +617,7 @@ class PostThreadView extends View {
     });
 
     root.addEventListener("page-restore", async (e) => {
+      userHasScrolled = false;
       const scrollY = e.detail?.scrollY ?? 0;
       const isBack = e.detail?.isBack ?? false;
       if (isBack) {

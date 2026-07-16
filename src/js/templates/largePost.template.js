@@ -11,7 +11,7 @@ import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
@@ -121,6 +121,7 @@ export function largePostTemplate({
   ) {
     return unavailablePostTemplate();
   }
+  const embed = post.embed ?? post.record?.embed;
   const postText = post.record.text || "";
   const badgeLabels = post.badgeLabels ?? [];
   const contentLabel = post.contentLabel;
@@ -145,7 +146,7 @@ export function largePostTemplate({
           })}
         </div>
       </div>
-      ${badgeLabels.length > 0 ? postLabelsTemplate({ badgeLabels }) : ""}
+      ${badgeLabels.length > 0 ? labelBadgesTemplate({ badgeLabels }) : ""}
       <div class="post-content-bottom">
         ${mutedWarningTemplate({
           post,
@@ -165,10 +166,10 @@ export function largePostTemplate({
                   ></plugin-rich-text>
                 </div>`
               : ""}
-            ${post.embed
+            ${embed
               ? html`<div class="post-embed">
                   ${postEmbedTemplate({
-                    embed: post.embed,
+                    embed,
                     mediaLabel: post.mediaLabel,
                     isAuthenticated,
                     pluginService,

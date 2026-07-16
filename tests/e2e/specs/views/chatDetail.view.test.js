@@ -4,6 +4,7 @@ import { MockServer } from "../../mockServer.js";
 import {
   createConvo,
   createGroupConvo,
+  createLabelerView,
   createMessage,
   createMessageLog,
   createPost,
@@ -1649,7 +1650,7 @@ test.describe("Chat detail view", () => {
     await expect(preview).toBeVisible();
   });
 
-  test("should show empty state when there are no messages", async ({
+  test("should show a user card empty state when there are no messages", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -1657,6 +1658,9 @@ test.describe("Chat detail view", () => {
       did: "did:plc:alice1",
       handle: "alice.bsky.social",
       displayName: "Alice",
+      viewer: {
+        followedBy: "at://did:plc:alice1/app.bsky.graph.follow/follow1",
+      },
     });
     const convo = createConvo({
       id: "convo-1",
@@ -1670,13 +1674,170 @@ test.describe("Chat detail view", () => {
     await page.goto("/messages/convo-1");
 
     const chatDetailView = page.locator("#chat-detail-view");
+    const infoPanel = chatDetailView.locator('[data-testid="chat-info-panel"]');
+    await expect(infoPanel).toBeVisible({ timeout: 10000 });
+    await expect(infoPanel).toContainText("Alice");
+    await expect(infoPanel).toContainText("@alice.bsky.social");
     await expect(
-      chatDetailView.locator('[data-testid="header-title"]'),
-    ).toContainText("Alice", { timeout: 10000 });
-    await expect(chatDetailView.locator(".chat-detail-empty")).toContainText(
-      "No messages yet!",
-      { timeout: 10000 },
+      infoPanel.locator('[data-testid="avatar-image"]'),
+    ).toBeVisible();
+    await expect(
+      infoPanel.locator('[data-testid="follows-you-badge"]'),
+    ).toBeVisible();
+
+    await infoPanel
+      .locator('[data-testid="chat-info-panel-go-to-profile"]')
+      .click();
+    await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/);
+  });
+
+  test("should show moderation label pills on the empty state user card", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const labelerDid = "did:plc:customlabeler1";
+    const labeler = createLabelerView({
+      did: labelerDid,
+      handle: "safety.example.com",
+      displayName: "Safety Labeler",
+      labelDefinitions: [
+        {
+          identifier: "spam",
+          blurs: "none",
+          severity: "inform",
+          defaultSetting: "warn",
+          locales: [
+            {
+              lang: "en",
+              name: "Spam",
+              description: "Likely spam content",
+            },
+          ],
+        },
+      ],
+    });
+    mockServer.addLabelerViews([labeler]);
+    mockServer.addLabelerSubscription(labelerDid);
+
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+      labels: [
+        {
+          val: "spam",
+          src: labelerDid,
+          uri: "did:plc:alice1",
+          cts: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", []);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const infoPanel = chatDetailView.locator('[data-testid="chat-info-panel"]');
+    await expect(infoPanel).toBeVisible({ timeout: 10000 });
+    const labelBadge = infoPanel.locator('[data-testid="label-badge"]');
+    await expect(labelBadge).toBeVisible();
+    await expect(
+      labelBadge.locator('[data-testid="label-badge-text"]'),
+    ).toContainText("Spam");
+  });
+
+  test("should show a group card empty state when a group convo has no messages", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const bob = createProfile({
+      did: "did:plc:bob1",
+      handle: "bob.bsky.social",
+      displayName: "Bob",
+    });
+    const carol = createProfile({
+      did: "did:plc:carol1",
+      handle: "carol.bsky.social",
+      displayName: "Carol",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice, bob, carol],
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", []);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const infoPanel = chatDetailView.locator('[data-testid="chat-info-panel"]');
+    await expect(infoPanel).toBeVisible({ timeout: 10000 });
+    await expect(infoPanel).toContainText("Cool Group");
+    await expect(infoPanel).toContainText(
+      "New chat with Alice, Bob, and 1 more.",
     );
+    await expect(
+      infoPanel.locator('[data-testid="avatar-group"]'),
+    ).toBeVisible();
+  });
+
+  test("should show the user card above the first message once all history is loaded", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [
+      createMessage({
+        id: "msg-1",
+        text: "Hey there!",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:00:00.000Z",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView).toContainText("Hey there!", {
+      timeout: 10000,
+    });
+    const infoPanel = chatDetailView.locator(
+      'infinite-scroll-container [data-testid="chat-info-panel"]',
+    );
+    await expect(infoPanel).toBeVisible();
+    await expect(infoPanel).toContainText("Alice");
+
+    const panelBox = await infoPanel.boundingBox();
+    const messageBox = await chatDetailView
+      .locator('.message-wrapper[data-message-id="msg-1"]')
+      .boundingBox();
+    expect(panelBox.y).toBeLessThan(messageBox.y);
   });
 
   test.describe("Scrolling on new messages", () => {

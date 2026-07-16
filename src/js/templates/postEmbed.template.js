@@ -11,7 +11,7 @@ import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import "/js/components/plugin-rich-text.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/container-link.js";
@@ -220,7 +220,7 @@ export function quotedPostTemplate({
             })}
           </div>
           ${quotedPost.badgeLabels
-            ? postLabelsTemplate({ badgeLabels: quotedPost.badgeLabels })
+            ? labelBadgesTemplate({ badgeLabels: quotedPost.badgeLabels })
             : ""}
           <div class="quoted-post-body">
             ${postText.length > 0
@@ -647,15 +647,11 @@ export function recordEmbedTemplate({
 export function postEmbedTemplate({
   embed,
   mediaLabel,
-  enabledEmbedTypes,
   lazyLoadImages = false,
   isAuthenticated,
   currentConvoId = null,
   pluginService,
 }) {
-  if (enabledEmbedTypes && !enabledEmbedTypes.includes(embed.$type)) {
-    return null;
-  }
   switch (embed.$type) {
     case "app.bsky.embed.record#view":
       return recordEmbedTemplate({

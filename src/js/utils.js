@@ -405,6 +405,10 @@ export function enableDragToDismiss(
     // Only allow a downward drag to dismiss when the scrollable body is already
     // at the top; otherwise this gesture belongs to the scroll area.
     dragState.canDismiss = !scrollContainer || scrollContainer.scrollTop <= 0;
+    dragState.canStretch =
+      allowUpwardStretch &&
+      (!scrollContainer ||
+        scrollContainer.scrollHeight <= scrollContainer.clientHeight);
 
     target.style.transition = "none";
   };
@@ -419,7 +423,7 @@ export function enableDragToDismiss(
       e.preventDefault();
       const adjustedDelta = deltaY * RESISTANCE_FACTOR;
       target.style.transform = `translateY(${adjustedDelta}px)`;
-    } else if (deltaY < 0 && allowUpwardStretch) {
+    } else if (deltaY < 0 && dragState.canStretch) {
       e.preventDefault();
       const adjustedDelta = Math.abs(deltaY) * (RESISTANCE_FACTOR * 0.5);
       target.style.height = `${dragState.initialHeight + adjustedDelta}px`;
@@ -444,7 +448,7 @@ export function enableDragToDismiss(
       onClose();
     } else {
       target.style.transform = "";
-      if (allowUpwardStretch) target.style.height = "";
+      if (dragState.canStretch) target.style.height = "";
     }
 
     dragState.isDragging = false;
@@ -604,6 +608,62 @@ export async function withTimeout(fn, timeoutMs) {
   } finally {
     clearTimeout(timeoutId);
   }
+}
+
+export function pinScrollPosition({
+  targetY,
+  durationMs = 1000,
+  scroller = null,
+  shouldStop = null,
+} = {}) {
+  const listenTarget = scroller ?? window;
+  const readScrollY = () => (scroller ? scroller.scrollTop : window.scrollY);
+  const writeScrollY = (y) => {
+    if (scroller) {
+      scroller.scrollTop = y;
+    } else {
+      window.scrollTo(window.scrollX, y);
+    }
+  };
+  let stopped = false;
+  let lastPinnedY = null;
+  const stop = () => {
+    stopped = true;
+    listenTarget.removeEventListener("touchmove", stop);
+    listenTarget.removeEventListener("wheel", stop);
+    window.removeEventListener("keydown", stop);
+    window.removeEventListener("page-transition", stop);
+  };
+  const startTime = performance.now();
+  const step = () => {
+    if (stopped) {
+      return;
+    }
+    if (shouldStop && shouldStop(readScrollY(), lastPinnedY)) {
+      stop();
+      return;
+    }
+    const currentTargetY = typeof targetY === "function" ? targetY() : targetY;
+    if (currentTargetY === null) {
+      stop();
+      return;
+    }
+    if (Math.abs(readScrollY() - currentTargetY) >= 1) {
+      writeScrollY(currentTargetY);
+    }
+    lastPinnedY = readScrollY();
+    if (performance.now() - startTime < durationMs) {
+      requestAnimationFrame(step);
+    } else {
+      stop();
+    }
+  };
+  listenTarget.addEventListener("touchmove", stop, { passive: true });
+  listenTarget.addEventListener("wheel", stop, { passive: true });
+  window.addEventListener("keydown", stop);
+  window.addEventListener("page-transition", stop);
+  step();
+  return stop;
 }
 
 const LONG_PRESS_TIMEOUT_MS = 500;

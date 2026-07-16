@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { postLabelsTemplate } from "/js/templates/postLabels.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { render } from "/js/lib/lit-html.js";
 
 const mockLabeler = {
@@ -29,9 +29,9 @@ const mockBadgeLabels = [
   },
 ];
 
-describe("postLabelsTemplate", () => {
+describe("labelBadgesTemplate", () => {
   it("should render label badge for each label", () => {
-    const result = postLabelsTemplate({ badgeLabels: mockBadgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels: mockBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='label-badge']");
@@ -39,7 +39,7 @@ describe("postLabelsTemplate", () => {
   });
 
   it("should render label badge as link to labeler profile", () => {
-    const result = postLabelsTemplate({ badgeLabels: mockBadgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels: mockBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const badge = container.querySelector("[data-testid='label-badge']");
@@ -48,7 +48,7 @@ describe("postLabelsTemplate", () => {
   });
 
   it("should render labeler avatar image", () => {
-    const result = postLabelsTemplate({ badgeLabels: mockBadgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels: mockBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='label-badge-image']");
@@ -57,7 +57,7 @@ describe("postLabelsTemplate", () => {
   });
 
   it("should render label name text", () => {
-    const result = postLabelsTemplate({ badgeLabels: mockBadgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels: mockBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const text = container.querySelector("[data-testid='label-badge-text']");
@@ -66,7 +66,7 @@ describe("postLabelsTemplate", () => {
   });
 });
 
-describe("postLabelsTemplate - multiple labels", () => {
+describe("labelBadgesTemplate - multiple labels", () => {
   it("should render multiple label badges", () => {
     const secondLabelDefinition = {
       identifier: "educational",
@@ -86,7 +86,7 @@ describe("postLabelsTemplate - multiple labels", () => {
       { labelDefinition: mockLabelDefinition, labeler: mockLabeler },
       { labelDefinition: secondLabelDefinition, labeler: secondLabeler },
     ];
-    const result = postLabelsTemplate({ badgeLabels: multipleBadgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels: multipleBadgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const badges = container.querySelectorAll("[data-testid='label-badge']");
@@ -94,7 +94,7 @@ describe("postLabelsTemplate - multiple labels", () => {
   });
 });
 
-describe("postLabelsTemplate - fallback avatar", () => {
+describe("labelBadgesTemplate - fallback avatar", () => {
   it("should use fallback avatar when labeler has no avatar", () => {
     const labelerWithoutAvatar = {
       ...mockLabeler,
@@ -109,7 +109,7 @@ describe("postLabelsTemplate - fallback avatar", () => {
         labeler: labelerWithoutAvatar,
       },
     ];
-    const result = postLabelsTemplate({ badgeLabels });
+    const result = labelBadgesTemplate({ badgeLabels });
     const container = document.createElement("div");
     render(result, container);
     const img = container.querySelector("[data-testid='label-badge-image']");
@@ -117,12 +117,12 @@ describe("postLabelsTemplate - fallback avatar", () => {
   });
 });
 
-describe("postLabelsTemplate - empty labels", () => {
+describe("labelBadgesTemplate - empty labels", () => {
   it("should render empty container when no badge labels", () => {
-    const result = postLabelsTemplate({ badgeLabels: [] });
+    const result = labelBadgesTemplate({ badgeLabels: [] });
     const container = document.createElement("div");
     render(result, container);
-    assert(container.querySelector("[data-testid='post-labels']") !== null);
+    assert(container.querySelector("[data-testid='label-badges']") !== null);
     assert.deepEqual(
       container.querySelectorAll("[data-testid='label-badge']").length,
       0,

@@ -16,6 +16,7 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 class SearchView extends View {
   async render({
     root,
+    layout,
     context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
     const state = new ReactiveStore("searchView");
@@ -342,6 +343,8 @@ class SearchView extends View {
         html`<div id="search-view">
           ${headerTemplate({
             title: "Search",
+            leftButton: "menu",
+            onClickMenuButton: () => layout.openSidebar(),
             bottomItemTemplate: () => html`
               <div class="search-input-container">
                 ${searchIconTemplate()}

@@ -1,8 +1,8 @@
 import { html } from "/js/lib/lit-html.js";
 import { getLabelNameAndDescription } from "/js/dataHelpers.js";
 
-export function postLabelsTemplate({ badgeLabels }) {
-  return html`<div class="post-labels" data-testid="post-labels">
+export function labelBadgesTemplate({ badgeLabels }) {
+  return html`<div class="label-badges" data-testid="label-badges">
     ${badgeLabels.map(({ labelDefinition, labeler }) => {
       const { name: displayName } = getLabelNameAndDescription(labelDefinition);
       return html`<a

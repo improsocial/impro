@@ -64,7 +64,7 @@ function applyIsHidden(post, preferences) {
 
 function applyLabelsToPost(post, preferences) {
   let result = post;
-  const badgeLabels = preferences.getBadgeLabels(post);
+  const badgeLabels = preferences.getBadgeLabelsForPost(post);
   if (badgeLabels.length > 0) {
     result = { ...result, badgeLabels };
   }
@@ -358,9 +358,16 @@ export class Derived extends ReactiveStore {
       if (!profile) return null;
       const preferences = this.$preferences.get();
       if (!preferences) return profile;
+      let result = profile;
       const blurLabel = preferences.getProfileBlurLabel(profile);
-      if (!blurLabel) return profile;
-      return { ...profile, blurLabel };
+      if (blurLabel) {
+        result = { ...result, blurLabel };
+      }
+      const badgeLabels = preferences.getBadgeLabelsForProfile(profile);
+      if (badgeLabels.length > 0) {
+        result = { ...result, badgeLabels };
+      }
+      return result;
     });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
       const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
@@ -495,7 +502,14 @@ export class Derived extends ReactiveStore {
         .filter((did) => !convo.members.some((member) => member.did === did))
         .map((did) => this.$hydratedProfiles.get(did))
         .filter(Boolean);
-      return [...convo.members, ...referencedProfiles];
+      const preferences = this.$preferences.get();
+      const members = convo.members.map((member) => {
+        if (!preferences) return member;
+        const badgeLabels = preferences.getBadgeLabelsForProfile(member);
+        if (badgeLabels.length === 0) return member;
+        return { ...member, badgeLabels };
+      });
+      return [...members, ...referencedProfiles];
     });
     this.$convoForProfile = new ComputedMap((profileDid) => {
       const convoIds = [...this.dataStore.$convos.keys()];

@@ -91,9 +91,10 @@ function textMatchesMutedWord(text, mutedWord, languages) {
 }
 
 export class Preferences {
-  constructor(obj, labelerDefs) {
+  constructor(obj, labelerDefs, { persist = true } = {}) {
     this.obj = obj;
     this.labelerDefs = labelerDefs;
+    this.persist = persist;
   }
 
   // Note, these methods return a new Preferences object, instead of mutating the existing one.
@@ -269,14 +270,18 @@ export class Preferences {
     return contentLabelPrefs.filter((pref) => pref.labelerDid === labelerDid);
   }
 
-  getBadgeLabels(post) {
-    const labels = getPostLabels(post);
+  _getBadgeLabelsFromLabels(labels, { includeBlurLabels = false } = {}) {
     const badgeLabels = [];
     for (const label of labels) {
       const labeler = getLabelerForLabel(label, this.labelerDefs);
       if (!labeler) continue;
       const labelDefinition = getDefinitionForLabel(label, labeler);
-      if (!labelDefinition || !isBadgeLabel(labelDefinition)) continue;
+      if (!labelDefinition) continue;
+      const rendersAsBadge =
+        isBadgeLabel(labelDefinition) ||
+        (includeBlurLabels &&
+          ["alert", "inform"].includes(labelDefinition.severity));
+      if (!rendersAsBadge) continue;
       const visibility = this.getLabelVisibility(label, labelDefinition);
       if (visibility === "ignore") continue;
       badgeLabels.push({
@@ -287,6 +292,21 @@ export class Preferences {
       });
     }
     return badgeLabels;
+  }
+
+  getBadgeLabelsForPost(post) {
+    return this._getBadgeLabelsFromLabels(getPostLabels(post));
+  }
+
+  getBadgeLabelsForProfile(profile) {
+    // Blur labels on a post surface as its content warning, so only
+    // blurs: "none" labels become pills there. A profile-targeted blur label
+    // blurs the account's content/media, not the profile card, so it still
+    // renders as a pill when its severity is alert/inform (mirrors
+    // social-app's profileList/profileView behaviors).
+    return this._getBadgeLabelsFromLabels(profile?.labels ?? [], {
+      includeBlurLabels: true,
+    });
   }
 
   _getLabelByBlurType(post, blurType) {
@@ -469,7 +489,9 @@ export class Preferences {
   }
 
   clone() {
-    return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs));
+    return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs), {
+      persist: this.persist,
+    });
   }
 
   getPluginSettings(pluginId) {
@@ -620,6 +642,7 @@ export class Preferences {
         },
       ],
       [],
+      { persist: false },
     );
   }
 }

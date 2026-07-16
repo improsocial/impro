@@ -41,7 +41,7 @@ function makeProvider() {
     provider: {
       $preferences,
       requirePreferences: () => preferences,
-      savePreferences: async (saved) => {
+      updatePreferences: async (saved) => {
         $preferences.set(saved);
       },
     },
@@ -529,8 +529,10 @@ describe("loadEnabledPlugins", () => {
     };
     let saveCalls = 0;
     const originalSave =
-      service.prefManager.preferencesProvider.savePreferences;
-    service.prefManager.preferencesProvider.savePreferences = async (prefs) => {
+      service.prefManager.preferencesProvider.updatePreferences;
+    service.prefManager.preferencesProvider.updatePreferences = async (
+      prefs,
+    ) => {
       saveCalls++;
       return originalSave(prefs);
     };
@@ -560,7 +562,7 @@ describe("loadEnabledPlugins", () => {
       return { loadedPlugins: entries, erroredPlugins: [] };
     };
     let saveCalls = 0;
-    service.prefManager.preferencesProvider.savePreferences = async () => {
+    service.prefManager.preferencesProvider.updatePreferences = async () => {
       saveCalls++;
     };
     window.history.replaceState({}, "", "http://localhost/?disable-plugins");
@@ -1315,6 +1317,131 @@ describe("app.data host methods", () => {
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:missing" });
     assert.deepEqual(result, null);
+  });
+});
+
+describe("getRecord host method", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(provider, null);
+  }
+
+  function jsonResponse(status, body) {
+    return {
+      ok: status >= 200 && status < 300,
+      status,
+      json: async () => body,
+    };
+  }
+
+  const VALID_COLLECTION = "blue.moji.collection.item";
+  const VALID_RKEY = "blobcat";
+
+  let didCounter = 0;
+  function uniqueDid() {
+    didCounter++;
+    return `did:plc:test${didCounter.toString().padStart(6, "0")}`;
+  }
+
+  const originalFetch = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = originalFetch;
+  });
+
+  function stubFetch(handler) {
+    const calls = [];
+    globalThis.fetch = async (input) => {
+      const url = typeof input === "string" ? input : input.toString();
+      calls.push(url);
+      return handler(url);
+    };
+    return { calls };
+  }
+
+  it("fetches the record from Slingshot", async () => {
+    const service = makeServiceWithRealBridge();
+    const did = uniqueDid();
+    const record = {
+      uri: `at://${did}/${VALID_COLLECTION}/${VALID_RKEY}`,
+      cid: "bafyfake",
+      value: { name: "blobcat" },
+    };
+    const { calls } = stubFetch(async () => jsonResponse(200, record));
+    const handler = service.pluginBridge._hostCallHandlers.get("getRecord");
+    const result = await handler(null, {
+      repo: did,
+      collection: VALID_COLLECTION,
+      rkey: VALID_RKEY,
+    });
+    assert.deepEqual(result, record);
+    const url = new URL(calls[0]);
+    assert.deepEqual(url.origin, "https://slingshot.microcosm.blue");
+    assert.deepEqual(url.pathname, "/xrpc/com.atproto.repo.getRecord");
+    assert.deepEqual(url.searchParams.get("repo"), did);
+    assert.deepEqual(url.searchParams.get("collection"), VALID_COLLECTION);
+    assert.deepEqual(url.searchParams.get("rkey"), VALID_RKEY);
+  });
+
+  it("returns null on RecordNotFound", async () => {
+    const service = makeServiceWithRealBridge();
+    const did = uniqueDid();
+    stubFetch(async () =>
+      jsonResponse(400, { error: "RecordNotFound", message: "gone" }),
+    );
+    const handler = service.pluginBridge._hostCallHandlers.get("getRecord");
+    const result = await handler(null, {
+      repo: did,
+      collection: VALID_COLLECTION,
+      rkey: VALID_RKEY,
+    });
+    assert.deepEqual(result, null);
+  });
+
+  it("rejects on other errors so the plugin can retry", async () => {
+    const service = makeServiceWithRealBridge();
+    const did = uniqueDid();
+    stubFetch(async () => jsonResponse(502, null));
+    const handler = service.pluginBridge._hostCallHandlers.get("getRecord");
+    let caught = null;
+    try {
+      await handler(null, {
+        repo: did,
+        collection: VALID_COLLECTION,
+        rkey: VALID_RKEY,
+      });
+    } catch (e) {
+      caught = e;
+    }
+    assert(caught !== null);
+  });
+
+  it("rejects invalid repo/collection/rkey inputs without hitting the network", async () => {
+    const service = makeServiceWithRealBridge();
+    let fetched = false;
+    globalThis.fetch = async () => {
+      fetched = true;
+      return jsonResponse(200, {});
+    };
+    const handler = service.pluginBridge._hostCallHandlers.get("getRecord");
+    const invalidInputs = [
+      { repo: "not-a-did", collection: VALID_COLLECTION, rkey: VALID_RKEY },
+      { repo: "did:plc:abc", collection: "not.enough", rkey: VALID_RKEY },
+      { repo: "did:plc:abc", collection: VALID_COLLECTION, rkey: "" },
+      { repo: "did:plc:abc", collection: VALID_COLLECTION, rkey: "has/slash" },
+    ];
+    for (const inputs of invalidInputs) {
+      let caught = null;
+      try {
+        await handler(null, inputs);
+      } catch (e) {
+        caught = e;
+      }
+      assert(
+        caught !== null,
+        `expected rejection for ${JSON.stringify(inputs)}`,
+      );
+    }
+    assert.deepEqual(fetched, false);
   });
 });
 

@@ -109,6 +109,44 @@ test.describe("Profile view", () => {
     );
   });
 
+  test("should display badge label pills on a labeled profile", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const labeledUser = createProfile({
+      did: "did:plc:labeleduser1",
+      handle: "labeled.bsky.social",
+      displayName: "Labeled User",
+      labels: [
+        {
+          val: "badge-label",
+          src: "did:plc:labeler123",
+          uri: "did:plc:labeleduser1",
+          cts: "2025-01-01T00:00:00.000Z",
+        },
+      ],
+    });
+    mockServer.addProfile(labeledUser);
+    mockServer.addLabelerViews([labelerView]);
+    mockServer.addLabelerSubscription("did:plc:labeler123");
+    await mockServer.setup(page);
+    await login(page);
+    await page.goto(`/profile/${labeledUser.did}`);
+
+    const view = page.locator("#profile-view");
+    await expect(view.locator('[data-testid="profile-name"]')).toContainText(
+      "Labeled User",
+      { timeout: 10000 },
+    );
+    const labelBadge = view.locator(
+      '.profile-card [data-testid="label-badge"]',
+    );
+    await expect(labelBadge).toBeVisible();
+    await expect(
+      labelBadge.locator('[data-testid="label-badge-text"]'),
+    ).toContainText("Badge Label");
+  });
+
   test("should display profile description", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.addProfile(otherUser);

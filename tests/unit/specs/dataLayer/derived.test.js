@@ -31,7 +31,7 @@ function fakePreferences(overrides = {}) {
     postHasMutedWord: () => false,
     quotedPostHasMutedWord: () => false,
     isPostHidden: () => false,
-    getBadgeLabels: () => [],
+    getBadgeLabelsForPost: () => [],
     getContentLabel: () => null,
     getMediaLabel: () => null,
     getProfileBlurLabel: () => null,
@@ -587,7 +587,7 @@ describe("$hydratedPosts (post hydration)", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
-        getBadgeLabels: () => ["badge"],
+        getBadgeLabelsForPost: () => ["badge"],
         getContentLabel: () => "warn",
         getMediaLabel: () => "blur",
       }),
@@ -617,7 +617,7 @@ describe("$hydratedPosts (post hydration)", () => {
       preferences: fakePreferences({
         postHasMutedWord: () => true,
         isPostHidden: () => true,
-        getBadgeLabels: () => ["b"],
+        getBadgeLabelsForPost: () => ["b"],
       }),
     });
     dataStore.$posts.set(postURI, { uri: postURI, record: { text: "hello" } });

@@ -15,7 +15,8 @@ import { PluginCache } from "/js/plugins/pluginCache.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
-import { makePluginRequest } from "/js/plugins/pluginRequests.js";
+import { pluginFetch } from "/js/plugins/pluginRequests.js";
+import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
   diffPermissions,
@@ -31,10 +32,21 @@ import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
 
 const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
+export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
 
 export function arePluginsDisabledByQueryParam() {
   const params = new URLSearchParams(window.location.search);
   return params.has(DISABLE_PLUGINS_QUERY_PARAM);
+}
+
+export function getPluginPreviewIdsFromQueryParam() {
+  const params = new URLSearchParams(window.location.search);
+  const values = params.getAll(PLUGIN_PREVIEW_QUERY_PARAM);
+  const ids = values
+    .flatMap((value) => value.split(","))
+    .map((id) => id.trim())
+    .filter(Boolean);
+  return [...new Set(ids)];
 }
 
 export function parseGithubRepoUrl(input) {
@@ -90,6 +102,7 @@ export class PermissionsDeclinedError extends Error {
 export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session) {
     super("pluginService");
+    this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
       eventListeners: new Map(),
@@ -158,6 +171,7 @@ export class PluginService extends ReactiveStore {
       this.prefManager.$installedPlugins.get(),
     );
     this.session = session;
+    this.isPreviewMode = false;
     this._renderContext = null;
     this._dataLayer = null;
     this._setupRegistries();
@@ -345,7 +359,7 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      return makePluginRequest(plugin, url, init);
+      return pluginFetch(plugin, url, init);
     });
 
     this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
@@ -355,6 +369,10 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
       return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
     });
+
+    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
+      this.slingshot.getRecord(args),
+    );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
       if (!this.session) return null;
@@ -372,6 +390,14 @@ export class PluginService extends ReactiveStore {
         .map((entry) => entry.id);
       await this.prefManager.setPluginsDisabled(enabledPluginIds);
       return;
+    }
+    const previewPluginIds = getPluginPreviewIdsFromQueryParam();
+    if (previewPluginIds.length > 0 && !this.session) {
+      this.isPreviewMode = true;
+      // Serial to avoid racing on preferences
+      for (const previewPluginId of previewPluginIds) {
+        await this._installPreviewPlugin(previewPluginId);
+      }
     }
     const enabledPlugins = this.prefManager.$enabledPlugins
       .get()
@@ -397,6 +423,54 @@ export class PluginService extends ReactiveStore {
     // plugins keep their cached assets on re-enable
     const installedPlugins = this.prefManager.$installedPlugins.get();
     await this._reconcileCache(installedPlugins);
+  }
+
+  async _installPreviewPlugin(pluginId) {
+    const listing =
+      (await this.remoteRegistry.getListing(pluginId).catch(() => null)) ??
+      (this.localRegistry
+        ? await this.localRegistry.getListing(pluginId).catch(() => null)
+        : null);
+    if (!listing) {
+      showToast(`Plugin "${pluginId}" not found`, {
+        style: "error",
+        timeout: 5000,
+      });
+      return;
+    }
+    let manifest = null;
+    try {
+      manifest = await this.sourceProvider.getLiveManifest(
+        pluginId,
+        listing.repo,
+      );
+    } catch (e) {
+      console.error("Failed to fetch manifest for preview", e);
+      showToast(`Failed to load plugin "${pluginId}"`, {
+        style: "error",
+        timeout: 5000,
+      });
+      return;
+    }
+    const permissions = getPermissionsFromManifest(manifest);
+    if (!isEmptyPermissions(permissions)) {
+      showToast(
+        `"${manifest.name}" can't be previewed because it requires user permissions.`,
+        { style: "error", timeout: 5000 },
+      );
+      return;
+    }
+    const { name, version, author, description } = manifest;
+    await this.prefManager.addInstalledPlugin({
+      id: pluginId,
+      name,
+      version,
+      author,
+      description,
+      repo: listing.repo,
+      enabled: true,
+      permissions,
+    });
   }
 
   async checkForUpdates() {

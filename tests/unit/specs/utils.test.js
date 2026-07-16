@@ -1,4 +1,4 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   unique,
@@ -25,6 +25,7 @@ import {
   TimeoutError,
   debounce,
   resetScrollOnBlur,
+  pinScrollPosition,
 } from "/js/utils.js";
 
 describe("sortBy", () => {
@@ -1148,5 +1149,207 @@ describe("resetScrollOnBlur", () => {
     scrollArea.appendChild(button);
     blurFrom(button);
     assert.deepEqual(scrollArea.scrollTop, 42);
+  });
+});
+
+describe("pinScrollPosition", () => {
+  let activeStops;
+  let scroller;
+
+  beforeEach(() => {
+    activeStops = [];
+    scroller = document.createElement("div");
+  });
+
+  afterEach(() => {
+    for (const stop of activeStops) {
+      stop();
+    }
+  });
+
+  const startPin = (options) => {
+    const stop = pinScrollPosition(options);
+    activeStops.push(stop);
+    return stop;
+  };
+
+  it("evaluates the target synchronously and again on later frames", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 30,
+      scroller,
+    });
+    assert.equal(getTargetY.mock.callCount(), 1);
+    await wait(60);
+    assert(getTargetY.mock.callCount() > 1);
+  });
+
+  it("scrolls the scroller to the target", () => {
+    startPin({
+      targetY: () => 100,
+      durationMs: 30,
+      scroller,
+    });
+    assert.equal(scroller.scrollTop, 100);
+  });
+
+  it("accepts a plain number target", async () => {
+    startPin({ targetY: 100, durationMs: 60, scroller });
+    assert.equal(scroller.scrollTop, 100);
+    scroller.scrollTop = 130;
+    await wait(30);
+    assert.equal(scroller.scrollTop, 100);
+  });
+
+  it("re-pins when the position deviates from the target", async () => {
+    startPin({
+      targetY: () => 100,
+      durationMs: 60,
+      scroller,
+    });
+    scroller.scrollTop = 130;
+    await wait(30);
+    assert.equal(scroller.scrollTop, 100);
+  });
+
+  it("follows a target that moves between frames", async () => {
+    let target = 100;
+    startPin({
+      targetY: () => target,
+      durationMs: 60,
+      scroller,
+    });
+    assert.equal(scroller.scrollTop, 100);
+    target = 200;
+    await wait(30);
+    assert.equal(scroller.scrollTop, 200);
+  });
+
+  it("stops re-evaluating once the duration elapses", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 20,
+      scroller,
+    });
+    await wait(60);
+    const countAfterExpiry = getTargetY.mock.callCount();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), countAfterExpiry);
+  });
+
+  it("stops when getTargetY returns null", async () => {
+    const getTargetY = mock.fn(() => null);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), 1);
+  });
+
+  it("stops when shouldStop returns true", async () => {
+    startPin({
+      targetY: () => 100,
+      durationMs: 1000,
+      scroller,
+      shouldStop: (currentY, lastPinnedY) =>
+        lastPinnedY !== null && currentY < lastPinnedY - 1,
+    });
+    assert.equal(scroller.scrollTop, 100);
+    scroller.scrollTop = 50;
+    await wait(30);
+    assert.equal(scroller.scrollTop, 50);
+  });
+
+  it("passes the current and last pinned positions to shouldStop", async () => {
+    const shouldStop = mock.fn(() => false);
+    startPin({
+      targetY: () => 100,
+      durationMs: 30,
+      scroller,
+      shouldStop,
+    });
+    assert.deepEqual(shouldStop.mock.calls[0].arguments, [0, null]);
+    await wait(60);
+    const laterCall = shouldStop.mock.calls.at(-1);
+    assert.deepEqual(laterCall.arguments, [100, 100]);
+  });
+
+  it("keeps pinning after an upward deviation without shouldStop", async () => {
+    startPin({
+      targetY: () => 100,
+      durationMs: 60,
+      scroller,
+    });
+    scroller.scrollTop = 50;
+    await wait(30);
+    assert.equal(scroller.scrollTop, 100);
+  });
+
+  it("stops on touchmove on the scroller", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    scroller.dispatchEvent(new window.Event("touchmove"));
+    const countAtStop = getTargetY.mock.callCount();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), countAtStop);
+  });
+
+  it("stops on wheel on the scroller", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    scroller.dispatchEvent(new window.Event("wheel"));
+    const countAtStop = getTargetY.mock.callCount();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), countAtStop);
+  });
+
+  it("stops on page-transition", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    window.dispatchEvent(new window.CustomEvent("page-transition"));
+    const countAtStop = getTargetY.mock.callCount();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), countAtStop);
+  });
+
+  it("stops on keydown", async () => {
+    const getTargetY = mock.fn(() => 0);
+    startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    window.dispatchEvent(new window.KeyboardEvent("keydown", { key: "a" }));
+    const countAtStop = getTargetY.mock.callCount();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), countAtStop);
+  });
+
+  it("stops when the returned stop function is called", async () => {
+    const getTargetY = mock.fn(() => 0);
+    const stop = startPin({
+      targetY: getTargetY,
+      durationMs: 1000,
+      scroller,
+    });
+    stop();
+    await wait(30);
+    assert.equal(getTargetY.mock.callCount(), 1);
   });
 });

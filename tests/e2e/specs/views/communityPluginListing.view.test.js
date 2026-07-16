@@ -152,6 +152,26 @@ test.describe("Community plugin listing view", () => {
     ).toEqual([REMOTE_ID]);
   });
 
+  test("copies a link to the plugin from the context menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.registryEntries = [REGISTRY_ENTRY];
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto(detailUrl());
+    const view = page.locator("#community-plugin-listing-view");
+    await expect(view.locator(".context-menu-button")).toBeVisible({
+      timeout: 10000,
+    });
+
+    await view.locator(".context-menu-button").click();
+    await view.locator('[data-testid="menu-action-plugin-copy-link"]').click();
+
+    await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+  });
+
   test("shows a not-found message for an unknown plugin", async ({ page }) => {
     const mockServer = new MockServer();
     mockServer.registryEntries = [REGISTRY_ENTRY];
