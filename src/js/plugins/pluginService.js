@@ -395,7 +395,7 @@ export class PluginService extends ReactiveStore {
       return;
     }
     const previewPluginIds = getPluginPreviewIdsFromQueryParam();
-    if (previewPluginIds.length > 0 && !this.session) {
+    if (previewPluginIds.length > 0) {
       if (!this.session) {
         this.isPreviewMode = true;
         // Serial to avoid racing on preferences
@@ -404,7 +404,7 @@ export class PluginService extends ReactiveStore {
         }
       } else {
         showToast(`You must be logged out to view plugin preview links`, {
-          style: "error",
+          style: "warning",
           timeout: 5000,
         });
       }
