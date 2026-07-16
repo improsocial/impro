@@ -91,9 +91,10 @@ function textMatchesMutedWord(text, mutedWord, languages) {
 }
 
 export class Preferences {
-  constructor(obj, labelerDefs) {
+  constructor(obj, labelerDefs, { persist = true } = {}) {
     this.obj = obj;
     this.labelerDefs = labelerDefs;
+    this.persist = persist;
   }
 
   // Note, these methods return a new Preferences object, instead of mutating the existing one.
@@ -488,7 +489,9 @@ export class Preferences {
   }
 
   clone() {
-    return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs));
+    return new Preferences(deepClone(this.obj), deepClone(this.labelerDefs), {
+      persist: this.persist,
+    });
   }
 
   getPluginSettings(pluginId) {
@@ -639,6 +642,7 @@ export class Preferences {
         },
       ],
       [],
+      { persist: false },
     );
   }
 }

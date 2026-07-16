@@ -41,7 +41,7 @@ function makeProvider() {
     provider: {
       $preferences,
       requirePreferences: () => preferences,
-      savePreferences: async (saved) => {
+      updatePreferences: async (saved) => {
         $preferences.set(saved);
       },
     },
@@ -529,8 +529,10 @@ describe("loadEnabledPlugins", () => {
     };
     let saveCalls = 0;
     const originalSave =
-      service.prefManager.preferencesProvider.savePreferences;
-    service.prefManager.preferencesProvider.savePreferences = async (prefs) => {
+      service.prefManager.preferencesProvider.updatePreferences;
+    service.prefManager.preferencesProvider.updatePreferences = async (
+      prefs,
+    ) => {
       saveCalls++;
       return originalSave(prefs);
     };
@@ -560,7 +562,7 @@ describe("loadEnabledPlugins", () => {
       return { loadedPlugins: entries, erroredPlugins: [] };
     };
     let saveCalls = 0;
-    service.prefManager.preferencesProvider.savePreferences = async () => {
+    service.prefManager.preferencesProvider.updatePreferences = async () => {
       saveCalls++;
     };
     window.history.replaceState({}, "", "http://localhost/?disable-plugins");

@@ -22,7 +22,7 @@ export class PluginPreferencesManager extends ReactiveStore {
     const preferences = this.preferencesProvider
       .requirePreferences()
       .setInstalledPlugins(plugins);
-    await this.preferencesProvider.savePreferences(preferences);
+    await this.preferencesProvider.updatePreferences(preferences);
   }
 
   async addInstalledPlugin(plugin) {
@@ -91,13 +91,13 @@ export class PluginPreferencesManager extends ReactiveStore {
     const preferences = this.preferencesProvider
       .requirePreferences()
       .setPluginSettings(pluginId, data);
-    await this.preferencesProvider.savePreferences(preferences);
+    await this.preferencesProvider.updatePreferences(preferences);
   }
 
   async clearSettingsForPlugin(pluginId) {
     const preferences = this.preferencesProvider
       .requirePreferences()
       .clearPluginSettings(pluginId);
-    await this.preferencesProvider.savePreferences(preferences);
+    await this.preferencesProvider.updatePreferences(preferences);
   }
 }

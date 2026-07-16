@@ -50,7 +50,7 @@ function makeProvider({ installedPlugins = [], pluginSettings = {} } = {}) {
     provider: {
       $preferences,
       requirePreferences: () => preferences,
-      savePreferences: async (prefs) => {
+      updatePreferences: async (prefs) => {
         saveCalls.push(prefs);
         $preferences.set(prefs);
       },
@@ -69,7 +69,7 @@ describe("installed plugins", () => {
     ]);
   });
 
-  it("setInstalledPlugins persists via savePreferences", async () => {
+  it("setInstalledPlugins persists via updatePreferences", async () => {
     const { provider, saveCalls, state } = makeProvider();
     const manager = new PluginPreferencesManager(provider);
     await manager.setInstalledPlugins([{ id: "a", enabled: true }]);

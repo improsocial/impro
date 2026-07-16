@@ -28,12 +28,9 @@ export class PreferencesProvider {
   }
 
   async updatePreferences(preferences) {
-    await this.api.updatePreferences(preferences.obj);
-    this._setPreferences(preferences);
-  }
-
-  async savePreferences(preferences) {
-    await this.api.updatePreferences(preferences.obj);
+    if (preferences.persist) {
+      await this.api.updatePreferences(preferences.obj);
+    }
     this._setPreferences(preferences);
   }
 
