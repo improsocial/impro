@@ -1,24 +1,39 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { Signal } from "/js/signals.js";
 import "/js/components/plugin-rich-text.js";
 
 describe("plugin-rich-text", () => {
+  const originalSetTimeout = globalThis.setTimeout;
+  beforeEach(() => {
+    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+  });
+  afterEach(() => {
+    globalThis.setTimeout = originalSetTimeout;
+  });
+
   async function flushEffects() {
     // Two ticks: signal changes re-run effects via rAF, which the test env
     // pins to setTimeout.
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
+    await new Promise((resolve) => originalSetTimeout(resolve, 0));
   }
 
   // Stand-in for the pipeline's async API. The element reads
   // $richTextTransformsVersion inside its render effect, so bumping it
   // re-fires the effect.
-  function makePluginService({ result = null } = {}) {
+  function makePluginService({
+    result = null,
+    claimedFacetTypes = new Set(),
+  } = {}) {
     return {
       $richTextTransformsVersion: new Signal.State(0),
       calls: [],
       result,
+      claimedFacetTypes,
+      getClaimedFacetTypes() {
+        return this.claimedFacetTypes;
+      },
       async transformRichTextTokens(tokens, context) {
         this.calls.push({ tokens, context });
         return this.result;
@@ -204,6 +219,96 @@ describe("plugin-rich-text", () => {
     await flushEffects();
 
     assert.deepEqual(pluginService.calls.length, 1);
+  });
+
+  describe("facet placeholders for claimed types", () => {
+    const claimedType = "blue.moji.richtext.facet";
+    function makeClaimedFacetsPost() {
+      const shortcode = ":blobcat:";
+      const text = `hi ${shortcode}`;
+      const start = text.indexOf(shortcode);
+      const facets = [
+        {
+          index: { byteStart: start, byteEnd: start + shortcode.length },
+          features: [{ $type: claimedType, did: "did:test", name: "blobcat" }],
+        },
+      ];
+      return { text, facets };
+    }
+
+    it("hides claimed facet tokens while the transform is pending", () => {
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+      });
+      const { text, facets } = makeClaimedFacetsPost();
+      const element = mount({ pluginService, text, facets });
+      const placeholder = element.querySelector(".rich-text-facet-pending");
+      assert(placeholder !== null);
+      assert.deepEqual(placeholder.textContent, ":blobcat:");
+    });
+
+    it("swaps in the transformed rendering when the request resolves", async () => {
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+        result: [
+          { type: "text", value: "hi " },
+          {
+            type: "inline",
+            pluginId: "p1",
+            node: { tag: "img", text: "" },
+          },
+        ],
+      });
+      const { text, facets } = makeClaimedFacetsPost();
+      const element = mount({ pluginService, text, facets });
+      await flushEffects();
+      assert.deepEqual(element.querySelector(".rich-text-facet-pending"), null);
+      assert(element.querySelector("img") !== null);
+    });
+
+    it("falls back to the plaintext shortcode after the placeholder timeout", async () => {
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+      });
+      pluginService.transformRichTextTokens = () => new Promise(() => {});
+      const { text, facets } = makeClaimedFacetsPost();
+      const element = mount({ pluginService, text, facets });
+      assert(element.querySelector(".rich-text-facet-pending") !== null);
+      await flushEffects();
+      assert.deepEqual(element.querySelector(".rich-text-facet-pending"), null);
+      const richText = element.querySelector("[data-testid='rich-text']");
+      assert.deepEqual(richText.textContent, "hi :blobcat:");
+    });
+
+    it("falls back when a pending transform resolves null", async () => {
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+        result: null,
+      });
+      const { text, facets } = makeClaimedFacetsPost();
+      const element = mount({ pluginService, text, facets });
+      await flushEffects();
+      assert.deepEqual(element.querySelector(".rich-text-facet-pending"), null);
+      const richText = element.querySelector("[data-testid='rich-text']");
+      assert.deepEqual(richText.textContent, "hi :blobcat:");
+    });
+
+    it("does not hide facets whose feature $type is not claimed", () => {
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+      });
+      const url = "https://example.com";
+      const text = `see ${url}`;
+      const facets = [
+        {
+          index: { byteStart: 4, byteEnd: 4 + url.length },
+          features: [{ $type: "app.bsky.richtext.facet#link", uri: url }],
+        },
+      ];
+      const element = mount({ pluginService, text, facets });
+      assert.deepEqual(element.querySelector(".rich-text-facet-pending"), null);
+      assert(element.querySelector("a") !== null);
+    });
   });
 
   it("stops rendering after disconnect and resumes with the latest text on reconnect", async () => {

@@ -46,6 +46,19 @@ export function tokenizeRichText({ text, facets = [] }) {
   return tokens;
 }
 
+export function tokensHaveFacetType(tokens, facetTypes) {
+  if (!facetTypes || facetTypes.size === 0) return false;
+  for (const token of tokens) {
+    if (token.type !== "facet") continue;
+    const features = token.facet.features;
+    if (!features) continue;
+    for (const feature of features) {
+      if (facetTypes.has(feature.$type)) return true;
+    }
+  }
+  return false;
+}
+
 export function validateRichTextTokens(tokens) {
   if (!Array.isArray(tokens)) return false;
   return tokens.every((token) => {

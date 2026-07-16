@@ -383,6 +383,10 @@ plugin-rich-text {
   white-space: normal;
 }
 
+.rich-text-facet-pending {
+  display: none;
+}
+
 @media (hover: hover) {
   .rich-text a:hover {
     text-decoration: underline;

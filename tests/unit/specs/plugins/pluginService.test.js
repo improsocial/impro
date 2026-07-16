@@ -1148,6 +1148,55 @@ describe("getFilteredFeedItems", () => {
   });
 });
 
+describe("getClaimedFacetTypes", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(provider, null);
+  }
+  function registerTransform(service, pluginId, message) {
+    const handler =
+      service.pluginBridge._registrationTargets.get("richTextTransform");
+    return handler({ pluginId, call: () => {} }, message);
+  }
+
+  it("is empty when no transforms are registered", () => {
+    const service = makeServiceWithRealBridge();
+    assert.deepEqual([...service.getClaimedFacetTypes()], []);
+  });
+
+  it("unions handlesFacetTypes across registered transforms", () => {
+    const service = makeServiceWithRealBridge();
+    registerTransform(service, "alpha", {
+      handlerId: 1,
+      handlesFacetTypes: ["blue.moji.richtext.facet", "dev.impro.foo"],
+    });
+    registerTransform(service, "beta", {
+      handlerId: 2,
+      handlesFacetTypes: ["dev.impro.foo"],
+    });
+    assert.deepEqual([...service.getClaimedFacetTypes()].sort(), [
+      "blue.moji.richtext.facet",
+      "dev.impro.foo",
+    ]);
+  });
+
+  it("drops entries when a transform unregisters", () => {
+    const service = makeServiceWithRealBridge();
+    const dispose = registerTransform(service, "alpha", {
+      handlerId: 1,
+      handlesFacetTypes: ["blue.moji.richtext.facet"],
+    });
+    dispose();
+    assert.deepEqual([...service.getClaimedFacetTypes()], []);
+  });
+
+  it("tolerates a transform registered without handlesFacetTypes", () => {
+    const service = makeServiceWithRealBridge();
+    registerTransform(service, "alpha", { handlerId: 1 });
+    assert.deepEqual([...service.getClaimedFacetTypes()], []);
+  });
+});
+
 describe("slot registry", () => {
   // These tests exercise the registration target wired by _setupRegistries,
   // so they need the real PluginBridge instead of the makeService stub.
