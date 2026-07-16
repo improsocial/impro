@@ -18,7 +18,7 @@ export function didDocReferencesHandle(didDoc, handle) {
   return aliases.includes(atHandle);
 }
 
-async function resolveHandleUnverified(handle) {
+export async function resolveHandle(handle) {
   const params = new URLSearchParams({
     handle,
   });
@@ -46,18 +46,13 @@ export async function resolveDid(did) {
 }
 
 export async function resolveIdentity(handle) {
-  const did = await resolveHandleUnverified(handle);
+  const did = await resolveHandle(handle);
   if (!did) return null;
   const didDoc = await resolveDid(did);
   if (!didDocReferencesHandle(didDoc, handle)) {
     throw new Error(`DID doc for ${did} does not reference handle: ${handle}`);
   }
   return { did, didDoc };
-}
-
-export async function resolveHandle(handle) {
-  const result = await resolveIdentity(handle);
-  return result?.did ?? null;
 }
 
 export async function getServiceEndpointForHandle(handle) {
