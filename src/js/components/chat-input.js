@@ -2,7 +2,7 @@ import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { sendIconTemplate } from "/js/templates/icons/sendIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
-import { isMobileViewport, graphemeCount, getByteLength } from "/js/utils.js";
+import { hasKeyboardInput, graphemeCount, getByteLength } from "/js/utils.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/emoji-picker-dialog.js";
 
@@ -119,7 +119,7 @@ class ChatInput extends Component {
   handleKeyDown(e) {
     if (e.defaultPrevented) return;
     if (e.key === "Enter" && !e.shiftKey) {
-      if (isMobileViewport()) return;
+      if (!hasKeyboardInput()) return;
       e.preventDefault();
       this.handleSend();
     }

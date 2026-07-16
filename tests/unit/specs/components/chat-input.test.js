@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
 await import("/js/components/chat-input.js");
@@ -427,6 +427,24 @@ describe("chat-input", () => {
   });
 
   describe("ChatInput - keyboard handling", () => {
+    let originalMatchMedia;
+    beforeEach(() => {
+      originalMatchMedia = window.matchMedia;
+      window.matchMedia = (query) => ({
+        matches: query === "(hover: hover) and (pointer: fine)",
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => {},
+      });
+    });
+    afterEach(() => {
+      window.matchMedia = originalMatchMedia;
+    });
+
     function enterEvent(options = {}) {
       return new window.KeyboardEvent("keydown", {
         key: "Enter",
@@ -448,6 +466,31 @@ describe("chat-input", () => {
       getEditable(element).dispatchEvent(enterEvent());
 
       assert.deepEqual(receivedMessage, "Hello world");
+    });
+
+    it("should not send message on Enter without a keyboard input device", () => {
+      window.matchMedia = (query) => ({
+        matches: false,
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: () => {},
+        removeEventListener: () => {},
+        dispatchEvent: () => {},
+      });
+
+      const element = createChatInput();
+      getRichTextInput(element).setText("Hello world");
+
+      let eventFired = false;
+      element.addEventListener("send", () => {
+        eventFired = true;
+      });
+
+      getEditable(element).dispatchEvent(enterEvent());
+
+      assert.deepEqual(eventFired, false);
     });
 
     it("should not send message on Shift+Enter", () => {

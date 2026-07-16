@@ -40,6 +40,8 @@ export const isMobileViewport = () =>
   window.matchMedia("(max-width: 799px)").matches;
 export const isTouchDevice = () => navigator.maxTouchPoints > 0;
 export const canHover = () => window.matchMedia("(hover: hover)").matches;
+export const hasKeyboardInput = () =>
+  window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
