@@ -396,10 +396,17 @@ export class PluginService extends ReactiveStore {
     }
     const previewPluginIds = getPluginPreviewIdsFromQueryParam();
     if (previewPluginIds.length > 0 && !this.session) {
-      this.isPreviewMode = true;
-      // Serial to avoid racing on preferences
-      for (const previewPluginId of previewPluginIds) {
-        await this._installPreviewPlugin(previewPluginId);
+      if (!this.session) {
+        this.isPreviewMode = true;
+        // Serial to avoid racing on preferences
+        for (const previewPluginId of previewPluginIds) {
+          await this._installPreviewPlugin(previewPluginId);
+        }
+      } else {
+        showToast(`You must be logged out to view plugin preview links`, {
+          style: "error",
+          timeout: 5000,
+        });
       }
     }
     const enabledPlugins = this.prefManager.$enabledPlugins
