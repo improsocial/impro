@@ -61,8 +61,10 @@ export function headerTemplate({
             <div class="loading-spinner" data-testid="loading-spinner"></div>`
         : ""}
       ${rightItemTemplate
-        ? html`<div class="header-spacer"></div>
-            ${rightItemTemplate()}`
+        ? html`${showLoadingSpinner
+            ? ""
+            : html`<div class="header-spacer"></div>`}
+          ${rightItemTemplate()}`
         : ""}
     </div>
     ${bottomItemTemplate

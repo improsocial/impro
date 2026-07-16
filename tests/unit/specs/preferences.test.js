@@ -255,6 +255,60 @@ describe("Preferences.pinFeed", () => {
   });
 });
 
+describe("Preferences.reorderPinnedItems", () => {
+  const buildObj = () => [
+    {
+      $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+      items: [
+        { id: "1", value: "following", type: "timeline", pinned: true },
+        { id: "2", value: "feed-a", type: "feed", pinned: true },
+        { id: "3", value: "list-a", type: "list", pinned: true },
+        { id: "4", value: "feed-unpinned", type: "feed", pinned: false },
+      ],
+    },
+  ];
+
+  it("reorders the pinned slice and preserves unpinned entries at the end", () => {
+    const preferences = new Preferences(buildObj(), []);
+    const newPreferences = preferences.reorderPinnedItems([
+      "list-a",
+      "following",
+      "feed-a",
+    ]);
+    const items = Preferences.getSavedFeedsPreference(newPreferences.obj).items;
+    assert.deepEqual(
+      items.map((it) => it.value),
+      ["list-a", "following", "feed-a", "feed-unpinned"],
+    );
+  });
+
+  it("does not mutate the original preferences", () => {
+    const preferences = new Preferences(buildObj(), []);
+    preferences.reorderPinnedItems(["feed-a", "following", "list-a"]);
+    const items = Preferences.getSavedFeedsPreference(preferences.obj).items;
+    assert.deepEqual(
+      items.map((it) => it.value),
+      ["following", "feed-a", "list-a", "feed-unpinned"],
+    );
+  });
+
+  it("drops unknown values and unpinned values silently", () => {
+    const preferences = new Preferences(buildObj(), []);
+    const newPreferences = preferences.reorderPinnedItems([
+      "feed-a",
+      "unknown-value",
+      "feed-unpinned",
+      "following",
+      "list-a",
+    ]);
+    const items = Preferences.getSavedFeedsPreference(newPreferences.obj).items;
+    assert.deepEqual(
+      items.map((it) => it.value),
+      ["feed-a", "following", "list-a", "feed-unpinned"],
+    );
+  });
+});
+
 describe("Preferences.getLabelerDids", () => {
   it("should return labeler DIDs from preferences", () => {
     const obj = [

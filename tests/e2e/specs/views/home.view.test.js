@@ -81,6 +81,31 @@ test.describe("Home view", () => {
     });
   });
 
+  // The home header row is only visible on mobile widths; on desktop only the
+  // tab bar row renders.
+  test.describe("Feeds button (mobile viewport)", () => {
+    test.use({ viewport: { width: 375, height: 667 } });
+
+    test("should navigate to the feeds view when clicking the feeds button", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/");
+
+      const view = page.locator("#home-view");
+      const feedsButton = view.locator('[data-testid="feeds-button"]');
+      await expect(feedsButton).toBeVisible();
+
+      await feedsButton.click();
+
+      await expect(page.locator("#feeds-view")).toBeVisible();
+      await expect(page).toHaveURL("/feeds");
+    });
+  });
+
   test("should display pinned feed tabs alongside Following", async ({
     page,
   }) => {

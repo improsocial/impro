@@ -3,6 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
@@ -225,6 +226,16 @@ class HomeView extends View {
             showLoadingSpinner: isLoading,
             leftButton: "menu",
             onClickMenuButton: () => handleMenuClick(),
+            rightItemTemplate: () => html`
+              <a
+                class="feeds-button"
+                href="/feeds"
+                aria-label="Feeds"
+                data-testid="feeds-button"
+              >
+                ${hashtagIconTemplate()}
+              </a>
+            `,
             bottomItemTemplate: () => html`
               <tab-bar
                 .tabs=${pinnedItems.map((item) => ({

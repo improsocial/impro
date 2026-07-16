@@ -2036,6 +2036,144 @@ describe("unpinFeed", () => {
   });
 });
 
+describe("reorderPinnedItems", () => {
+  const feedA = "at://did:plc:x/app.bsky.feed.generator/a";
+  const feedB = "at://did:plc:x/app.bsky.feed.generator/b";
+  const listA = "at://did:plc:x/app.bsky.graph.list/a";
+
+  function setup({ preloadPinnedItems = true } = {}) {
+    let updatedPreferences = null;
+    let resolveUpdate;
+    const updatePromise = new Promise((resolve) => {
+      resolveUpdate = resolve;
+    });
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [
+            {
+              id: "1",
+              value: "following",
+              type: "timeline",
+              pinned: true,
+            },
+            { id: "2", value: feedA, type: "feed", pinned: true },
+            { id: "3", value: listA, type: "list", pinned: true },
+            { id: "4", value: feedB, type: "feed", pinned: false },
+          ],
+        },
+      ],
+      [],
+    );
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async (prefs) => {
+        updatedPreferences = prefs;
+        await updatePromise;
+      },
+    };
+    const dataStore = new DataStore();
+    if (preloadPinnedItems) {
+      dataStore.$pinnedItems.set([
+        { type: "timeline", data: { uri: "following" } },
+        { type: "feed", data: { uri: feedA } },
+        { type: "list", data: { uri: listA } },
+      ]);
+    }
+    const patchStore = new PatchStore(dataStore);
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    return {
+      mutations,
+      patchStore,
+      dataStore,
+      resolveUpdate,
+      getUpdatedPreferences: () => updatedPreferences,
+    };
+  }
+
+  it("does not touch $pinnedItems until the network round-trip resolves", async () => {
+    const { mutations, dataStore, resolveUpdate } = setup();
+    const before = dataStore.$pinnedItems
+      .get()
+      .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
+    const promise = mutations.reorderPinnedItems([listA, "following", feedA]);
+    const during = dataStore.$pinnedItems
+      .get()
+      .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
+    assert.deepEqual(during, before);
+    resolveUpdate();
+    await promise;
+    const after = dataStore.$pinnedItems
+      .get()
+      .map((it) => (it.type === "timeline" ? "following" : it.data.uri));
+    assert.deepEqual(after, [listA, "following", feedA]);
+  });
+
+  it("sends the reordered preferences to updatePreferences", async () => {
+    const { mutations, resolveUpdate, getUpdatedPreferences } = setup();
+    const promise = mutations.reorderPinnedItems([feedA, listA, "following"]);
+    resolveUpdate();
+    await promise;
+    const items = getUpdatedPreferences().obj[0].items;
+    assert.deepEqual(
+      items.map((it) => it.value),
+      [feedA, listA, "following", feedB],
+    );
+  });
+
+  it("leaves $pinnedItems untouched when updatePreferences rejects", async () => {
+    const preferences = new Preferences(
+      [
+        {
+          $type: "app.bsky.actor.defs#savedFeedsPrefV2",
+          items: [
+            { id: "1", value: feedA, type: "feed", pinned: true },
+            { id: "2", value: listA, type: "list", pinned: true },
+          ],
+        },
+      ],
+      [],
+    );
+    const error = new Error("network");
+    const mockPreferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async () => {
+        throw error;
+      },
+    };
+    const dataStore = new DataStore();
+    dataStore.$pinnedItems.set([
+      { type: "feed", data: { uri: feedA } },
+      { type: "list", data: { uri: listA } },
+    ]);
+    const patchStore = new PatchStore(dataStore);
+    const mutations = makeMutations(
+      {},
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    const originalConsoleError = console.error;
+    console.error = () => {};
+    try {
+      await assert.rejects(
+        () => mutations.reorderPinnedItems([listA, feedA]),
+        (err) => err === error,
+      );
+    } finally {
+      console.error = originalConsoleError;
+    }
+    const after = dataStore.$pinnedItems.get().map((it) => it.data.uri);
+    assert.deepEqual(after, [feedA, listA]);
+  });
+});
+
 describe("hidePost", () => {
   const testPost = { uri: "at://did:plc:author/app.bsky.feed.post/1" };
 

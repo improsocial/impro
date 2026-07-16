@@ -135,6 +135,23 @@ export class Preferences {
     return clone;
   }
 
+  reorderPinnedItems(orderedValues) {
+    const clone = this.clone();
+    const savedFeedsPreference = Preferences.getSavedFeedsPreference(clone.obj);
+    if (!savedFeedsPreference) {
+      throw new Error("Saved feeds preference not found");
+    }
+    const byValue = new Map(
+      savedFeedsPreference.items.map((item) => [item.value, item]),
+    );
+    const reordered = orderedValues
+      .map((value) => byValue.get(value))
+      .filter((item) => item && item.pinned);
+    const unpinned = savedFeedsPreference.items.filter((item) => !item.pinned);
+    savedFeedsPreference.items = [...reordered, ...unpinned];
+    return clone;
+  }
+
   hidePost(postUri) {
     const clone = this.clone();
     let hiddenPostsPreference = Preferences.getHiddenPostsPreference(clone.obj);

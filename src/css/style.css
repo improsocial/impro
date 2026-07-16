@@ -537,6 +537,13 @@ plugin-rich-text {
   height: 30px;
   width: 30px;
   border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+@media (hover: hover) {
+  .menu-button:hover {
+    background-color: var(--back-button-hover-color);
+  }
 }
 
 @media (min-width: 800px) {
@@ -565,6 +572,29 @@ plugin-rich-text {
 }
 
 .inbox-button .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.feeds-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-color-muted);
+  height: 30px;
+  width: 30px;
+  border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+@media (hover: hover) {
+  .feeds-button:hover {
+    background-color: var(--back-button-hover-color);
+  }
+}
+
+.feeds-button .icon {
   width: 24px;
   height: 24px;
 }
@@ -5640,6 +5670,89 @@ emoji-picker-dialog emoji-picker,
   font-size: 14px;
   color: var(--text-color-secondary);
   white-space: pre-wrap;
+}
+
+.feeds-list-item-drag-handle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text-color-muted);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.feeds-list-item-drag-handle:active {
+  cursor: grabbing;
+}
+
+.feeds-list-item-drag-handle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.feeds-list-item.is-dragging {
+  opacity: 0.85;
+  z-index: 1;
+  will-change: transform;
+  background-color: var(--background-color);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-color) 15%, transparent);
+  user-select: none;
+}
+
+.feeds-list-item.is-shifting {
+  transition: transform 150ms ease;
+}
+
+.following-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--list-avatar-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--highlight-color);
+  color: var(--background-color);
+}
+
+.following-avatar .icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header-edit-button {
+  background: transparent;
+  border: none;
+  padding: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: var(--text-color-muted);
+}
+
+.header-edit-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header svg {
+  display: block;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  min-height: 40px;
 }
 
 .feeds-list-item-actions {

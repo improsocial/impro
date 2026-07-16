@@ -135,7 +135,7 @@ class ChatView extends View {
 
     function inboxButtonTemplate({ hasUnreadRequests }) {
       return html`
-        <container-link
+        <a
           class="inbox-button"
           href="/messages/inbox"
           aria-label=${hasUnreadRequests ? "Requests (unread)" : "Requests"}
@@ -146,7 +146,7 @@ class ChatView extends View {
           ${hasUnreadRequests
             ? html`<div class="unread-dot" data-testid="unread-dot"></div>`
             : ""}
-        </container-link>
+        </a>
       `;
     }
 

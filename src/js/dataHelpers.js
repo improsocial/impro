@@ -46,6 +46,11 @@ export function isFollowingFeedUri(feedURI) {
   return feedURI === FOLLOWING_FEED_URI;
 }
 
+// The `value` used in savedFeedsPrefV2 for a hydrated pinned item
+export function valueForPinnedItem(item) {
+  return item.type === "timeline" ? FOLLOWING_FEED_URI : item.data.uri;
+}
+
 export function getRKey(record) {
   return record.uri.split("/").pop();
 }
