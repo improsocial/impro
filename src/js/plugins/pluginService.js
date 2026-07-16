@@ -248,6 +248,9 @@ export class PluginService extends ReactiveStore {
       (plugin, message) => {
         const entry = {
           pluginId: plugin.pluginId,
+          handlesFacetTypes: Array.isArray(message.handlesFacetTypes)
+            ? message.handlesFacetTypes
+            : [],
           invoke: (batch) => plugin.call(message.handlerId, batch),
         };
         this.registries.richTextTransforms.add(entry);
@@ -909,6 +912,15 @@ export class PluginService extends ReactiveStore {
     this.$richTextTransformsVersion.set(
       this.$richTextTransformsVersion.get() + 1,
     );
+  }
+
+  getClaimedFacetTypes() {
+    const types = new Set();
+    for (const entry of this.registries.richTextTransforms) {
+      if (!entry.handlesFacetTypes) continue;
+      for (const type of entry.handlesFacetTypes) types.add(type);
+    }
+    return types;
   }
 
   // Results are cached by (uri, surface); requests are batched per render flush

@@ -316,7 +316,10 @@ export class Plugin {
   // callback(tokens, context) receives the rich-text token stream for one
   // post and returns a new token array (or the input unchanged). The host
   // batches all posts of a render into one call per plugin.
-  registerRichTextTransform(callback = (tokens) => tokens) {
+  //
+  // options.handlesFacetTypes: array of facet feature $type strings this
+  // transform owns, to prevent render flash of fallback text
+  registerRichTextTransform(callback = (tokens) => tokens, options = {}) {
     const handlerId = uuid.create();
     callHandlers.set(handlerId, async (batch) => {
       const results = [];
@@ -330,10 +333,14 @@ export class Plugin {
       }
       return results;
     });
+    const handlesFacetTypes = Array.isArray(options.handlesFacetTypes)
+      ? options.handlesFacetTypes.filter((type) => typeof type === "string")
+      : [];
     self.postMessage({
       type: "register",
       target: "richTextTransform",
       handlerId,
+      handlesFacetTypes,
     });
   }
 

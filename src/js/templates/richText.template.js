@@ -57,10 +57,14 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
 }
 
 // tokens: ({ type: "text" } / { type: "facet" } / { type: "inline" } / { type: "block" })
+// placeholderFacetTypes: Set of facet feature $types to render as
+// invisible-but-space-preserving spans (used while a rich-text transform
+// that claims the type is still pending, to avoid flashing plaintext).
 export function richTextTokensTemplate({
   tokens,
   truncateUrls = false,
   renderNodeToken = () => null,
+  placeholderFacetTypes = null,
 }) {
   const parts = [];
   tokens.forEach((token, index) => {
@@ -78,7 +82,20 @@ export function richTextTokensTemplate({
         parts.push(value);
         break;
       }
-      case "facet":
+      case "facet": {
+        if (
+          placeholderFacetTypes &&
+          token.facet.features?.some((feature) =>
+            placeholderFacetTypes.has(feature.$type),
+          )
+        ) {
+          parts.push(
+            html`<span class="rich-text-facet-pending" aria-hidden="true"
+              >${token.text}</span
+            >`,
+          );
+          break;
+        }
         parts.push(
           facetTemplate({
             facet: token.facet,
@@ -87,6 +104,7 @@ export function richTextTokensTemplate({
           }),
         );
         break;
+      }
       case "inline":
       case "block": {
         const element = renderNodeToken(token) ?? null;

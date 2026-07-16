@@ -18,7 +18,7 @@ async function transformFiles(filePaths, replacer) {
 const BUILD_DIR = process.env.BUILD_DIR || "build";
 
 // Bump to bust cache
-const CACHE_SALT = "1";
+const CACHE_SALT = "2";
 
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");

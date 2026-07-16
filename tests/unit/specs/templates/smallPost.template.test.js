@@ -23,6 +23,7 @@ const pluginService = {
   $richTextTransformsVersion: { get: () => 0 },
   transformRichTextTokens: async () => null,
   renderRichTextNodeToken: () => null,
+  getClaimedFacetTypes: () => new Set(),
 };
 
 const baseProps = {
