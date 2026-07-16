@@ -49,7 +49,7 @@ function facetTemplate({ facet, wrappedText, truncateUrls }) {
       if (!KNOWN_UNSUPPORTED_FACET_TYPES.includes(feature.$type)) {
         console.warn("unknown facet type " + feature.$type, feature);
       }
-      return null;
+      return wrappedText;
   }
 }
 

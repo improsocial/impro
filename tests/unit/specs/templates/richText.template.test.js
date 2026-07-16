@@ -213,6 +213,23 @@ describe("richTextTemplate", () => {
     const richText = container.querySelector("[data-testid='rich-text']");
     assert.deepEqual(richText.textContent, text);
   });
+
+  it("should render a facet with an unknown type as plain text", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const text = "before unknown after";
+    const facets = [
+      {
+        index: { byteStart: 7, byteEnd: 14 },
+        features: [{ $type: "com.example.facet#mystery" }],
+      },
+    ];
+    const result = richTextTemplate({ text, facets });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert.deepEqual(richText.textContent, text);
+    assert.deepEqual(container.querySelector("a"), null);
+  });
 });
 
 describe("richTextTokensTemplate", () => {
