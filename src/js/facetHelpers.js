@@ -149,7 +149,11 @@ export async function resolveFacets(facets, identityResolver) {
   const unresolvedMentions = [];
   for (const facet of facets) {
     // Only handle one feature for now
-    const feature = facet.features[0];
+    const feature = facet.features?.[0];
+    if (!feature) {
+      resolvedFacets.push(facet);
+      continue;
+    }
     if (feature.$type === "app.bsky.richtext.facet#mention" && !feature.did) {
       unresolvedMentions.push(facet);
     } else {
@@ -203,7 +207,7 @@ export function stripLeadingOrTrailingLink(text, url) {
 
 export function getTagsFromFacets(facets) {
   return facets.filter(
-    (facet) => facet.features[0].$type === "app.bsky.richtext.facet#tag",
+    (facet) => facet.features?.[0]?.$type === "app.bsky.richtext.facet#tag",
   );
 }
 
