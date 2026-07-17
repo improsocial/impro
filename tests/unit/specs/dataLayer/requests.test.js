@@ -1021,6 +1021,50 @@ describe("loadPostSearch", () => {
     assert.deepEqual(stored.cursor, "fresh");
   });
 
+  it("should discard a stale cursored response that finishes dependency loading after a re-search", async () => {
+    const dataStore = new DataStore();
+    const replyPost = (uri) => ({
+      uri,
+      record: { reply: { parent: { uri: `${uri}-parent` } } },
+    });
+    const page1 = { posts: [replyPost("p1")], cursor: "c1" };
+    const page2 = { posts: [replyPost("p2")], cursor: null };
+    let getPostsGate = null;
+    const mockApi = {
+      searchPosts: async (query, { cursor }) => (cursor ? page2 : page1),
+      getPosts: async () => {
+        if (getPostsGate) {
+          const gate = getPostsGate;
+          getPostsGate = null;
+          await gate;
+        }
+        return [];
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPostSearch("query");
+
+    // A load-more passes the requestTime guard, then stalls loading
+    // dependencies while a re-search and a fresh load-more complete
+    let releaseGate;
+    getPostsGate = new Promise((resolve) => {
+      releaseGate = resolve;
+    });
+    const staleLoadMore = requests.loadPostSearch("query", { cursor: "c1" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadPostSearch("query");
+    await requests.loadPostSearch("query", { cursor: "c1" });
+    releaseGate();
+    await staleLoadMore;
+
+    const stored = dataStore.$postSearchResults.get();
+    assert.deepEqual(
+      stored.posts.map((post) => post.uri),
+      ["p1", "p2"],
+    );
+  });
+
   it("should append when cursor is provided and existing results present", async () => {
     const dataStore = new DataStore();
     dataStore.$postSearchResults.set({

@@ -667,6 +667,10 @@ export class Requests {
       await this._loadPostDependencies(searchResults);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
     }
+    // Re-check relevance after loading dependencies
+    if (requestTime !== this.dataStore.$latestPostSearchRequestTime.get()) {
+      return;
+    }
     const existingResults = this.dataStore.$postSearchResults.get();
     if (existingResults && cursor) {
       this.dataStore.$postSearchResults.set({
