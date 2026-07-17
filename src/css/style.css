@@ -4544,7 +4544,8 @@ chat-input .rich-text-input {
   scrollbar-width: thin;
 }
 
-chat-input .rich-text-input[contenteditable="false"] {
+chat-input .rich-text-input[contenteditable="false"],
+chat-input[disabled] .rich-text-input-placeholder {
   opacity: 0.6;
 }
 

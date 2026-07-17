@@ -2392,4 +2392,20 @@ test.describe("Chat detail view", () => {
       ).toBeVisible();
     });
   });
+
+  test("shows a not-found error when the conversation doesn't exist", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-missing");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="convo-not-found"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(0);
+  });
 });

@@ -746,10 +746,20 @@ export class MockServer {
       const url = new URL(route.request().url());
       const convoId = url.searchParams.get("convoId");
       const convo = this.convos.find((c) => c.id === convoId);
+      if (!convo) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidConvo",
+            message: "Conversation not found",
+          }),
+        });
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ convo: convo || {} }),
+        body: JSON.stringify({ convo }),
       });
     });
 

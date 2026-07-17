@@ -1780,6 +1780,52 @@ describe("loadConvoRequestList", () => {
   });
 });
 
+describe("loadConvo", () => {
+  const convoId = "convo1";
+
+  it("should store the convo and track status under a namespaced key", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvo: async () => ({ convo: { id: convoId } }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvo(convoId);
+
+    assert.deepEqual(dataStore.$convos.get(convoId).id, convoId);
+    const status = requests.getStatus("loadConvo-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert.deepEqual(status.error, null);
+  });
+
+  it("should record an ApiError under the namespaced key without rethrowing", async () => {
+    const apiError = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "InvalidConvo" },
+      headers: {},
+      url: "/x",
+    });
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvo: async () => {
+        throw apiError;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvo(convoId);
+
+    const status = requests.getStatus("loadConvo-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert(
+      status.error === apiError,
+      "expected status.error to be the ApiError",
+    );
+    assert.deepEqual(dataStore.$convos.get(convoId), null);
+  });
+});
+
 describe("loadConvoMessages", () => {
   const convoId = "convo1";
 

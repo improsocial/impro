@@ -208,6 +208,7 @@ export class Requests {
     );
     this.enableStatus(this.loadConvoList, "loadConvoList");
     this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
+    this.enableStatus(this.loadConvo, (convoId) => "loadConvo-" + convoId);
     this.enableStatus(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
