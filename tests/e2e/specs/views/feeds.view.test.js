@@ -268,6 +268,8 @@ test.describe("Feeds view", () => {
         .map((it) => it.value);
       expect(pinnedValues).toEqual([feedA.uri, feedB.uri, "following"]);
 
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+
       // After saving, the header reverts to the gear button.
       await expect(
         feedsView.locator('[data-testid="feeds-edit-button"]'),
@@ -453,6 +455,42 @@ test.describe("Feeds view", () => {
         .allTextContents();
       expect(titlesAfterUnpin).toEqual(["Following", "Feed B"]);
       expect(sawPut).toBe(false);
+    });
+
+    test("the unpin button disappears when only one feed remains", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const feedA = createFeedGenerator({
+        uri: "at://did:plc:a/app.bsky.feed.generator/a",
+        displayName: "Feed A",
+        creatorHandle: "creator-a.bsky.social",
+      });
+      mockServer.addFeedGenerators([feedA]);
+      mockServer.setPinnedFeeds([feedA.uri]);
+      await mockServer.setup(page);
+      await login(page);
+      await page.goto("/feeds");
+
+      const feedsView = page.locator("#feeds-view");
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(2, {
+        timeout: 10000,
+      });
+
+      await feedsView.locator('[data-testid="feeds-edit-button"]').click();
+      await expect(
+        feedsView.locator('[data-testid="feeds-list-item-unpin-button"]'),
+      ).toHaveCount(2);
+
+      const feedARow = feedsView.locator(`[data-pinned-value="${feedA.uri}"]`);
+      await feedARow
+        .locator('[data-testid="feeds-list-item-unpin-button"]')
+        .click();
+
+      await expect(feedsView.locator(".feeds-list-item")).toHaveCount(1);
+      await expect(
+        feedsView.locator('[data-testid="feeds-list-item-unpin-button"]'),
+      ).toHaveCount(0);
     });
 
     test("unpin + Save persists via putPreferences and exits edit mode", async ({

@@ -51,6 +51,7 @@ class FeedsView extends View {
         state.$isSaving.set(true);
         try {
           await dataLayer.mutations.setPinnedItems(nextValues);
+          showToast("Feeds updated!");
         } catch {
           showToast("Couldn't save changes");
           return;
@@ -70,20 +71,22 @@ class FeedsView extends View {
       state.$isEditing.set(false);
     }
 
-    function editControlsTemplate({ value, isSaving }) {
-      return html`<button
-          class="feeds-list-item-unpin-button"
-          data-testid="feeds-list-item-unpin-button"
-          aria-label="Unpin"
-          ?disabled=${isSaving}
-          @click=${(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            state.$draftUnpinned.add(value);
-          }}
-        >
-          ${pinIconTemplate({ filled: true })}
-        </button>
+    function editControlsTemplate({ value, isSaving, showUnpin }) {
+      return html`${showUnpin
+          ? html`<button
+              class="feeds-list-item-unpin-button"
+              data-testid="feeds-list-item-unpin-button"
+              aria-label="Unpin"
+              ?disabled=${isSaving}
+              @click=${(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                state.$draftUnpinned.add(value);
+              }}
+            >
+              ${pinIconTemplate({ filled: true })}
+            </button>`
+          : ""}
         <button
           class="feeds-list-item-drag-handle"
           data-testid="feeds-list-item-drag-handle"
@@ -94,10 +97,16 @@ class FeedsView extends View {
         </button>`;
     }
 
-    function rowTemplate({ item, currentUser, isEditing, isSaving }) {
+    function rowTemplate({
+      item,
+      currentUser,
+      isEditing,
+      isSaving,
+      showUnpin,
+    }) {
       const value = valueForPinnedItem(item);
       const editControls = isEditing
-        ? editControlsTemplate({ value, isSaving })
+        ? editControlsTemplate({ value, isSaving, showUnpin })
         : "";
       if (item.type === "timeline") {
         return html`<div
@@ -200,6 +209,7 @@ class FeedsView extends View {
       }
 
       const canEdit = (pinnedItems?.length ?? 0) >= 2;
+      const showUnpin = (orderedItems?.length ?? 0) >= 2;
 
       render(
         html`<div id="feeds-view">
@@ -254,6 +264,7 @@ class FeedsView extends View {
                       currentUser,
                       isEditing,
                       isSaving,
+                      showUnpin,
                     }),
                   )
                 : Array.from({ length: 5 }).map(() =>
