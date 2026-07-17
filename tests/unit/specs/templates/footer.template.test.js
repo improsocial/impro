@@ -218,17 +218,3 @@ describe("footerTemplate - profile long-press", () => {
     assert.deepEqual(fired, 1);
   });
 });
-
-describe("footerTemplate - safe area", () => {
-  it("should render footer safe area div", () => {
-    const result = footerTemplate({
-      isAuthenticated: true,
-      currentUser: mockUser,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    assert(
-      container.querySelector("[data-testid='footer-safe-area']") !== null,
-    );
-  });
-});

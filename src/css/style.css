@@ -253,6 +253,13 @@ body.native {
   --safe-area-inset-bottom: 1.75em;
 }
 
+/* Installed as a PWA (e.g. added to the iOS home screen) */
+@media (display-mode: standalone) {
+  html {
+    --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
 /* Don't show backdrop for modals by default */
 *::backdrop {
   background-color: transparent;
@@ -1503,18 +1510,13 @@ button.sidebar-plugin-nav-item {
 
 .footer-nav {
   position: fixed;
-  bottom: var(--safe-area-inset-bottom);
-  height: var(--footer-height);
+  bottom: 0;
+  height: calc(var(--footer-height) + var(--safe-area-inset-bottom));
+  padding-bottom: var(--safe-area-inset-bottom);
   width: 100%;
   background: var(--background-color);
   z-index: var(--footer-z-index);
   border-top: var(--hair) solid var(--post-border-color);
-}
-
-.footer-nav-safe-area {
-  background: var(--background-color);
-  height: var(--safe-area-inset-bottom);
-  width: 100%;
 }
 
 @media (min-width: 800px) {
@@ -6086,6 +6088,24 @@ emoji-picker-dialog emoji-picker,
   transition: color 0.2s;
   border-radius: var(--pill-button-border-radius);
   color: var(--highlight-color);
+}
+
+.post-composer-drafts-button {
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px 12px;
+  transition: color 0.2s;
+  border-radius: var(--pill-button-border-radius);
+  color: var(--highlight-color);
+  margin-left: auto;
+  margin-right: 8px;
+}
+
+.post-composer-drafts-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .post-composer-send-button {
