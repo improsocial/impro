@@ -354,6 +354,18 @@ describe("resolveFacets", () => {
     assert.deepEqual(resolved.length, 0);
   });
 
+  it("should pass through facets with no features", async () => {
+    const facets = [
+      { index: { byteStart: 0, byteEnd: 5 } },
+      { index: { byteStart: 6, byteEnd: 10 }, features: [] },
+    ];
+
+    const resolver = createMockIdentityResolver();
+    const resolved = await resolveFacets(facets, resolver);
+
+    assert.deepEqual(resolved, facets);
+  });
+
   it("should handle mixed resolved and unresolved mentions", async () => {
     const facets = [
       {
@@ -475,6 +487,22 @@ describe("getTagsFromFacets", () => {
     const tags = getTagsFromFacets([]);
 
     assert.deepEqual(tags.length, 0);
+  });
+
+  it("should skip facets with no features", () => {
+    const facets = [
+      { index: { byteStart: 0, byteEnd: 5 } },
+      { index: { byteStart: 6, byteEnd: 10 }, features: [] },
+      {
+        index: { byteStart: 12, byteEnd: 17 },
+        features: [{ $type: "app.bsky.richtext.facet#tag", tag: "hello" }],
+      },
+    ];
+
+    const tags = getTagsFromFacets(facets);
+
+    assert.deepEqual(tags.length, 1);
+    assert.deepEqual(tags[0].features[0].tag, "hello");
   });
 
   it("should filter out mentions", () => {
