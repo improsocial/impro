@@ -688,13 +688,15 @@ export class RichTextInput extends Component {
   }
 
   handleInput(e) {
-    if (this.isComposing) return;
-
     this.text = getContentEditableText(e.target);
 
     this.facets = getUnresolvedFacetsFromText(this.text);
 
-    this.paintFacets();
+    // Rewriting the editable's DOM mid-composition cancels the IME, so facet
+    // painting waits for compositionend
+    if (!this.isComposing) {
+      this.paintFacets();
+    }
     this.render();
 
     this.updateMentionSuggestions();

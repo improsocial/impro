@@ -200,36 +200,40 @@ describe("rich-text-input", () => {
       assert.deepEqual(details[1].inputType, null);
     });
 
-    it("skips updates while IME composition is in progress", () => {
+    it("updates text and dispatches input during IME composition without repainting facets", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
-      element.setText("hello");
 
-      let inputEvents = 0;
-      element.addEventListener("input", () => {
-        inputEvents++;
+      const details = [];
+      element.addEventListener("input", (event) => {
+        details.push(event.detail);
       });
 
       const input = element.querySelector(".rich-text-input");
       input.dispatchEvent(new window.CompositionEvent("compositionstart"));
-      input.textContent = "hello でも";
+      input.textContent = "https://example.com";
       input.dispatchEvent(new Event("input"));
 
-      assert.deepEqual(element.text, "hello");
-      assert.deepEqual(inputEvents, 0);
+      assert.deepEqual(element.text, "https://example.com");
+      assert.deepEqual(details.length, 1);
+      assert.deepEqual(details[0].text, "https://example.com");
+      const placeholder = element.querySelector(".rich-text-input-placeholder");
+      assert(placeholder.classList.contains("hidden"));
+      assert.deepEqual(input.querySelectorAll(".facet").length, 0);
     });
 
-    it("resumes updates after composition ends", () => {
+    it("paints facets when composition ends", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
-      element.setText("hello");
 
       const input = element.querySelector(".rich-text-input");
       input.dispatchEvent(new window.CompositionEvent("compositionstart"));
-      input.textContent = "hello でも";
+      input.textContent = "https://example.com";
+      input.dispatchEvent(new Event("input"));
       input.dispatchEvent(new window.CompositionEvent("compositionend"));
 
-      assert.deepEqual(element.text, "hello でも");
+      assert.deepEqual(element.text, "https://example.com");
+      assert.deepEqual(input.querySelectorAll(".facet").length, 1);
     });
   });
 
