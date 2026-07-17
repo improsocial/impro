@@ -403,7 +403,7 @@ plugin-rich-text {
   border: none;
   cursor: pointer;
   font-size: 14px;
-  transition: all 0.2s;
+  transition: background-color 0.2s;
   background-color: var(--secondary-button-color);
 }
 
@@ -537,6 +537,13 @@ plugin-rich-text {
   height: 30px;
   width: 30px;
   border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+@media (hover: hover) {
+  .menu-button:hover {
+    background-color: var(--back-button-hover-color);
+  }
 }
 
 @media (min-width: 800px) {
@@ -545,26 +552,47 @@ plugin-rich-text {
   }
 }
 
-.inbox-button {
-  position: relative;
+.header-icon-button {
   display: flex;
   align-items: center;
   justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
   cursor: pointer;
   color: var(--text-color-muted);
-  height: 30px;
-  width: 30px;
   border-radius: var(--icon-button-border-radius);
   transition: background-color 0.2s;
 }
 
 @media (hover: hover) {
-  .inbox-button:hover {
+  .header-icon-button:not(:disabled):hover {
     background-color: var(--back-button-hover-color);
   }
 }
 
+.header-icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.inbox-button {
+  position: relative;
+  height: 30px;
+  width: 30px;
+}
+
 .inbox-button .icon {
+  width: 24px;
+  height: 24px;
+}
+
+.feeds-button {
+  height: 30px;
+  width: 30px;
+}
+
+.feeds-button .icon {
   width: 24px;
   height: 24px;
 }
@@ -5587,7 +5615,6 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
   padding: 16px;
   border-bottom: var(--hair) solid var(--post-border-color);
   text-decoration: none;
@@ -5618,6 +5645,7 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item-content {
   flex: 1;
   min-width: 0;
+  padding-left: 12px;
 }
 
 .feeds-list-item-title {
@@ -5630,7 +5658,6 @@ emoji-picker-dialog emoji-picker,
 .feeds-list-item-creator {
   font-size: 14px;
   color: var(--text-color-muted);
-  margin-bottom: 6px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5640,6 +5667,111 @@ emoji-picker-dialog emoji-picker,
   font-size: 14px;
   color: var(--text-color-secondary);
   white-space: pre-wrap;
+}
+
+.feeds-list-item-drag-handle {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--text-color-muted);
+  cursor: grab;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.feeds-list-item-unpin-button {
+  flex-shrink: 0;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  padding: 0;
+  color: var(--highlight-color);
+  cursor: pointer;
+}
+
+.feeds-list-item-unpin-button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.feeds-list-item-unpin-button svg {
+  width: 20px;
+  height: 20px;
+}
+
+.feeds-list-item-drag-handle:active {
+  cursor: grabbing;
+}
+
+.feeds-list-item-drag-handle svg {
+  width: 20px;
+  height: 20px;
+}
+
+.feeds-list-item.is-dragging {
+  opacity: 0.85;
+  z-index: 1;
+  will-change: transform;
+  background-color: var(--background-color);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--text-color) 15%, transparent);
+  user-select: none;
+}
+
+.feeds-list-item.is-shifting {
+  transition: transform 150ms ease;
+}
+
+.following-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--list-avatar-border-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--highlight-color);
+  color: var(--background-color);
+}
+
+.following-avatar .icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.header-edit-button {
+  padding: 8px;
+}
+
+.header-edit-button svg {
+  width: 24px;
+  height: 24px;
+}
+
+.new-chat-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.header svg {
+  display: block;
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 8px;
+  min-height: 40px;
 }
 
 .feeds-list-item-actions {
@@ -5740,6 +5872,7 @@ emoji-picker-dialog emoji-picker,
 
 .feeds-list-item-skeleton {
   pointer-events: none;
+  min-height: 75px;
 }
 
 .feeds-list-item-skeleton-avatar {

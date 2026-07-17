@@ -42,6 +42,16 @@ export function restoreWindow() {
   globalThis.window = originalWindow;
 }
 
+export async function waitFor(predicate, { timeout = 2000 } = {}) {
+  const deadline = Number(process.hrtime.bigint() / 1_000_000n) + timeout;
+  while (!predicate()) {
+    if (Number(process.hrtime.bigint() / 1_000_000n) > deadline) {
+      throw new Error("waitFor timed out");
+    }
+    await new Promise((resolve) => setTimeout(resolve, 5));
+  }
+}
+
 // A callable fetch replacement. Assign to globalThis.fetch, register routes
 // with __intercept(matcher, handler), and inspect captured requests on `calls`.
 // Matchers are strings (matched by URL prefix) or regex (matched with .test).

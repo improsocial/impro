@@ -23,8 +23,10 @@ import {
   transformNestedQuotes,
   attachJoinLinkPreviewToEmbed,
   getJoinLinkCodeFromEmbed,
+  isFollowingFeedUri,
 } from "/js/dataHelpers.js";
 import { sortBy } from "/js/utils.js";
+import { FOLLOWING_FEED_URI } from "/js/config.js";
 import {
   effect,
   Signal,
@@ -166,7 +168,7 @@ export class Derived extends ReactiveStore {
       };
       const pluginFilteredFeedItems =
         this.pluginService.$pluginFilteredFeedItems.get(feedURI) ?? {};
-      if (feedURI === "following") {
+      if (isFollowingFeedUri(feedURI)) {
         const currentUser = this.$currentUser.get();
         const preferences = this.$preferences.get();
         return filterFollowingFeed(
@@ -319,11 +321,11 @@ export class Derived extends ReactiveStore {
       const pinnedItems = this.dataStore.$pinnedItems.get();
       if (!pinnedItems) return null;
       return pinnedItems.map((item) => {
-        if (item.type === "following") {
+        if (item.type === "timeline") {
           return {
-            type: "following",
+            type: "timeline",
             data: item.data,
-            uri: "following",
+            uri: FOLLOWING_FEED_URI,
             displayName: "Following",
           };
         }

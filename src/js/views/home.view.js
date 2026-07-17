@@ -3,10 +3,15 @@ import { html, render } from "/js/lib/lit-html.js";
 import { linkToProfile } from "/js/navigation.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
+import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
 import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButton.template.js";
 import "/js/components/tab-bar.js";
 import { PostSeenObserver } from "/js/postSeenObserver.js";
-import { FEED_PAGE_SIZE, LOGGED_OUT_FEED_URI } from "/js/config.js";
+import {
+  FEED_PAGE_SIZE,
+  FOLLOWING_FEED_URI,
+  LOGGED_OUT_FEED_URI,
+} from "/js/config.js";
 import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -40,7 +45,7 @@ class HomeView extends View {
 
     function resetToDefaultFeed() {
       state.$currentFeedUri.set(
-        isAuthenticated ? "following" : LOGGED_OUT_FEED_URI,
+        isAuthenticated ? FOLLOWING_FEED_URI : LOGGED_OUT_FEED_URI,
       );
     }
 
@@ -221,6 +226,16 @@ class HomeView extends View {
             showLoadingSpinner: isLoading,
             leftButton: "menu",
             onClickMenuButton: () => handleMenuClick(),
+            rightItemTemplate: () => html`
+              <a
+                class="header-icon-button feeds-button"
+                href="/feeds"
+                aria-label="Feeds"
+                data-testid="feeds-button"
+              >
+                ${hashtagIconTemplate()}
+              </a>
+            `,
             bottomItemTemplate: () => html`
               <tab-bar
                 .tabs=${pinnedItems.map((item) => ({
@@ -286,12 +301,18 @@ class HomeView extends View {
       });
     });
 
+    function getFeedRequestDescriptor(uri) {
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+      const item = pinnedItems.find((i) => i.uri === uri);
+      return item ? { type: item.type, uri } : { type: "feed", uri };
+    }
+
     async function loadCurrentFeed({ reload = false } = {}) {
       const currentFeedUri = state.$currentFeedUri.get();
-      await dataLayer.requests.loadNextFeedPage(currentFeedUri, {
-        reload,
-        limit: FEED_PAGE_SIZE + 1,
-      });
+      await dataLayer.requests.loadNextFeedPage(
+        getFeedRequestDescriptor(currentFeedUri),
+        { reload, limit: FEED_PAGE_SIZE + 1 },
+      );
     }
 
     async function preloadHiddenFeeds(pinnedItems) {
@@ -300,7 +321,7 @@ class HomeView extends View {
         .filter((item) => item.uri !== currentFeedUri)
         .slice(0, 3); // Up to 3 feeds
       for (const item of itemsToPreload) {
-        await dataLayer.requests.loadNextFeedPage(item.uri, {
+        await dataLayer.requests.loadNextFeedPage(item, {
           limit: FEED_PAGE_SIZE + 1,
         });
       }

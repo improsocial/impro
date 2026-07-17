@@ -1,8 +1,8 @@
 import { html } from "/js/lib/lit-html.js";
 import { classnames } from "/js/utils.js";
 
-export function feedIconTemplate({ filled = false } = {}) {
-  return html`<div class=${classnames("icon feed-icon", { filled })}>
+export function listIconTemplate({ filled = false } = {}) {
+  return html`<div class=${classnames("icon list-icon", { filled })}>
     ${filled
       ? html`<svg
           xmlns="http://www.w3.org/2000/svg"

@@ -756,5 +756,28 @@ test.describe("Search view", () => {
         0,
       );
     });
+
+    test("should hide the tab bar entirely when logged out", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addSearchProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await page.goto("/search?q=ali");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+
+      await expect(view.locator("tab-bar")).toBeHidden();
+    });
   });
 });

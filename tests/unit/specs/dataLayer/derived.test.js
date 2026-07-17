@@ -527,16 +527,16 @@ describe("$hydratedPinnedItems", () => {
     assert.deepEqual(result[1].displayName, "Feed Two");
   });
 
-  it("should hydrate list and following entries", () => {
+  it("should hydrate list and timeline entries", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
     const list = { uri: "list-1", name: "My List" };
     dataStore.$pinnedItems.set([
-      { type: "following", data: { uri: "following" } },
+      { type: "timeline", data: { uri: "following" } },
       { type: "list", data: list },
     ]);
     const result = derived.$hydratedPinnedItems.get();
-    assert.deepEqual(result[0].type, "following");
+    assert.deepEqual(result[0].type, "timeline");
     assert.deepEqual(result[0].displayName, "Following");
     assert.deepEqual(result[1].type, "list");
     assert.deepEqual(result[1].uri, "list-1");

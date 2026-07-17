@@ -288,10 +288,10 @@ class ListDetailView extends View {
     });
 
     async function loadFeed({ reload = false } = {}) {
-      await dataLayer.requests.loadNextFeedPage(listUri, {
-        reload,
-        limit: FEED_PAGE_SIZE + 1,
-      });
+      await dataLayer.requests.loadNextFeedPage(
+        { type: "list", uri: listUri },
+        { reload, limit: FEED_PAGE_SIZE + 1 },
+      );
     }
 
     async function loadMembers({ reload = false } = {}) {

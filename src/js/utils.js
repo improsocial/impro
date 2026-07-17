@@ -40,6 +40,8 @@ export const isMobileViewport = () =>
   window.matchMedia("(max-width: 799px)").matches;
 export const isTouchDevice = () => navigator.maxTouchPoints > 0;
 export const canHover = () => window.matchMedia("(hover: hover)").matches;
+export const hasKeyboardInput = () =>
+  window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
@@ -753,4 +755,149 @@ export function enableLongPress(el, timeout = LONG_PRESS_TIMEOUT_MS) {
   el.addEventListener("mouseup", endPress);
   el.addEventListener("contextmenu", suppressContextMenu);
   el.__longPressEnabled = true;
+}
+
+// Enables drag-to-reorder inside `container`. On pointerdown on any element
+// matching `handleSelector`, the containing `itemSelector` element becomes
+// draggable; siblings slide out of the way as the pointer crosses their
+// midpoints. On pointerup, `onReorder(orderedItemElements)` fires with the new
+// element order.
+export function enableReorder(
+  container,
+  { itemSelector, handleSelector, onReorder },
+) {
+  if (container.__reorderEnabled) {
+    container.__reorderEnabled.cleanup();
+  }
+
+  let draggedItem = null;
+  let pointerId = null;
+  let startPointerY = 0;
+  let currentDeltaY = 0;
+  let currentTargetIndex = 0;
+  let itemRects = [];
+  let items = [];
+  let removeClickSuppressor = null;
+
+  const suppressNextClick = () => {
+    removeClickSuppressor?.();
+    const onClick = (event) => {
+      event.preventDefault();
+      event.stopImmediatePropagation();
+      removeSuppressor();
+    };
+    const removeSuppressor = () => {
+      document.removeEventListener("click", onClick, true);
+      removeClickSuppressor = null;
+    };
+    document.addEventListener("click", onClick, true);
+    removeClickSuppressor = removeSuppressor;
+  };
+
+  const onPointerDown = (event) => {
+    if (event.button > 0) return;
+    const handle = event.target.closest(handleSelector);
+    if (!handle || !container.contains(handle)) return;
+    const item = handle.closest(itemSelector);
+    if (!item || item.parentElement !== container) return;
+
+    draggedItem = item;
+    pointerId = event.pointerId;
+    startPointerY = event.clientY;
+    currentDeltaY = 0;
+    items = Array.from(container.querySelectorAll(`:scope > ${itemSelector}`));
+    itemRects = items.map((el) => el.getBoundingClientRect());
+    currentTargetIndex = items.indexOf(draggedItem);
+
+    handle.setPointerCapture(event.pointerId);
+    draggedItem.classList.add("is-dragging");
+    for (const el of items) {
+      if (el !== draggedItem) el.classList.add("is-shifting");
+    }
+    event.preventDefault();
+  };
+
+  const onPointerMove = (event) => {
+    if (!draggedItem || event.pointerId !== pointerId) return;
+    currentDeltaY = event.clientY - startPointerY;
+
+    const draggedIndex = items.indexOf(draggedItem);
+    const draggedRect = itemRects[draggedIndex];
+    const pointerY = draggedRect.top + draggedRect.height / 2 + currentDeltaY;
+
+    let newIndex = draggedIndex;
+    for (let i = 0; i < itemRects.length; i++) {
+      if (i === draggedIndex) continue;
+      const rect = itemRects[i];
+      const mid = rect.top + rect.height / 2;
+      if (i < draggedIndex && pointerY < mid) {
+        newIndex = Math.min(newIndex, i);
+      } else if (i > draggedIndex && pointerY > mid) {
+        newIndex = Math.max(newIndex, i);
+      }
+    }
+    currentTargetIndex = newIndex;
+
+    draggedItem.style.transform = `translateY(${currentDeltaY}px)`;
+
+    for (let i = 0; i < items.length; i++) {
+      if (i === draggedIndex) continue;
+      const el = items[i];
+      const height = draggedRect.height;
+      if (i > draggedIndex && i <= currentTargetIndex) {
+        el.style.transform = `translateY(${-height}px)`;
+      } else if (i < draggedIndex && i >= currentTargetIndex) {
+        el.style.transform = `translateY(${height}px)`;
+      } else {
+        el.style.transform = "";
+      }
+    }
+  };
+
+  const finish = (event, { commit }) => {
+    if (!draggedItem || event.pointerId !== pointerId) return;
+    const handle = event.target.closest(handleSelector);
+    handle?.releasePointerCapture?.(pointerId);
+
+    const draggedIndex = items.indexOf(draggedItem);
+    const shouldReorder = commit && currentTargetIndex !== draggedIndex;
+
+    for (const el of items) {
+      el.style.transform = "";
+      el.classList.remove("is-shifting");
+    }
+    draggedItem.classList.remove("is-dragging");
+
+    if (shouldReorder) {
+      const reordered = [...items];
+      const [moved] = reordered.splice(draggedIndex, 1);
+      reordered.splice(currentTargetIndex, 0, moved);
+      suppressNextClick();
+      onReorder(reordered);
+    }
+
+    draggedItem = null;
+    pointerId = null;
+    items = [];
+    itemRects = [];
+  };
+
+  const onPointerUp = (event) => finish(event, { commit: true });
+  const onPointerCancel = (event) => finish(event, { commit: false });
+
+  container.addEventListener("pointerdown", onPointerDown);
+  container.addEventListener("pointermove", onPointerMove);
+  container.addEventListener("pointerup", onPointerUp);
+  container.addEventListener("pointercancel", onPointerCancel);
+
+  const cleanup = () => {
+    container.removeEventListener("pointerdown", onPointerDown);
+    container.removeEventListener("pointermove", onPointerMove);
+    container.removeEventListener("pointerup", onPointerUp);
+    container.removeEventListener("pointercancel", onPointerCancel);
+    removeClickSuppressor?.();
+    delete container.__reorderEnabled;
+  };
+  container.__reorderEnabled = { cleanup };
+  return { cleanup };
 }

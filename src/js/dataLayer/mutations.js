@@ -8,6 +8,7 @@ import {
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
+import { valueForPinnedItem } from "/js/dataHelpers.js";
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -431,6 +432,27 @@ export class Mutations {
       throw error;
     } finally {
       this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async setPinnedItems(values) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.setPinnedItems(values);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    }
+
+    // Update pinned items in memory
+    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    if (pinnedItems) {
+      const byValue = new Map(
+        pinnedItems.map((item) => [valueForPinnedItem(item), item]),
+      );
+      const next = values.map((value) => byValue.get(value)).filter(Boolean);
+      this.dataStore.$pinnedItems.set(next);
     }
   }
 

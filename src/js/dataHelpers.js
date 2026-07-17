@@ -1,5 +1,5 @@
 import { unique } from "/js/utils.js";
-import { IN_APP_LINK_DOMAINS } from "/js/config.js";
+import { FOLLOWING_FEED_URI, IN_APP_LINK_DOMAINS } from "/js/config.js";
 
 export const INVALID_HANDLE = "handle.invalid";
 export const MISSING_HANDLE = "missing.invalid";
@@ -40,6 +40,15 @@ export function buildUri({ repo, collection, rkey }) {
 
 export function isListFeed(feedURI) {
   return feedURI.includes("/app.bsky.graph.list/");
+}
+
+export function isFollowingFeedUri(feedURI) {
+  return feedURI === FOLLOWING_FEED_URI;
+}
+
+// The `value` used in savedFeedsPrefV2 for a hydrated pinned item
+export function valueForPinnedItem(item) {
+  return item.type === "timeline" ? FOLLOWING_FEED_URI : item.data.uri;
 }
 
 export function getRKey(record) {
