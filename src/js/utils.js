@@ -44,6 +44,8 @@ export const hasKeyboardInput = () =>
   window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+export const isAndroid = () => /android/i.test(navigator.userAgent);
+export const isFirefox = () => /firefox/i.test(navigator.userAgent);
 
 export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   let fn = fnOrKey;

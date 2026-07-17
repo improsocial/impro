@@ -1,8 +1,9 @@
-import { describe, it, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { post } from "../../testData.js";
 import { render } from "/js/lib/lit-html.js";
+import { mockWindowLocation, restoreWindow } from "../../testHelpers.js";
 
 describe("postActionBarTemplate", () => {
   it("should render action bar with reply button", () => {
@@ -537,5 +538,128 @@ describe("postActionBarTemplate - plugin context menu items", () => {
     item.click();
     assert.deepEqual(invoked, true);
     container.remove();
+  });
+});
+
+describe("postActionBarTemplate - translate menu action", () => {
+  const androidChromeUserAgent =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36";
+  const androidFirefoxUserAgent =
+    "Mozilla/5.0 (Android 14; Mobile; rv:126.0) Gecko/126.0 Firefox/126.0";
+  const originalUserAgentDescriptor = Object.getOwnPropertyDescriptor(
+    window.navigator,
+    "userAgent",
+  );
+  const originalOpen = window.open;
+  let openMock;
+  let capturedHrefs;
+
+  beforeEach(() => {
+    openMock = mock.fn();
+    window.open = openMock;
+    capturedHrefs = mockWindowLocation();
+  });
+
+  afterEach(() => {
+    restoreWindow();
+    window.open = originalOpen;
+    if (originalUserAgentDescriptor) {
+      Object.defineProperty(
+        window.navigator,
+        "userAgent",
+        originalUserAgentDescriptor,
+      );
+    } else {
+      delete window.navigator.userAgent;
+    }
+    document.body
+      .querySelectorAll("context-menu")
+      .forEach((menu) => menu.remove());
+  });
+
+  function setUserAgent(value) {
+    Object.defineProperty(window.navigator, "userAgent", {
+      value,
+      configurable: true,
+    });
+  }
+
+  function ensurePageVisible() {
+    if (!document.querySelector(".page-visible")) {
+      const pageVisible = document.createElement("div");
+      pageVisible.classList.add("page-visible");
+      document.body.appendChild(pageVisible);
+    }
+  }
+
+  async function clickTranslateMenuItem() {
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService: { getPostContextMenuItems: async () => [] },
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    ensurePageVisible();
+    const moreButton = Array.from(
+      container.querySelectorAll(".post-action-button.text-button"),
+    ).find((button) => button.textContent.trim() === "...");
+    moreButton.click();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const item = document.body.querySelector(
+      "[data-testid='menu-action-post-translate']",
+    );
+    assert(item !== null);
+    item.click();
+    container.remove();
+  }
+
+  it("should open the Google Translate web URL with the post text", async () => {
+    await clickTranslateMenuItem();
+    assert.deepEqual(openMock.mock.callCount(), 1);
+    const [url, target] = openMock.mock.calls[0].arguments;
+    assert.deepEqual(target, "_blank");
+    const parsedUrl = new URL(url);
+    assert.deepEqual(parsedUrl.origin, "https://translate.google.com");
+    assert.deepEqual(parsedUrl.searchParams.get("sl"), "auto");
+    assert(parsedUrl.searchParams.get("tl"));
+    assert.deepEqual(parsedUrl.searchParams.get("text"), post.record.text);
+    assert.deepEqual(capturedHrefs, []);
+  });
+
+  it("should launch a PROCESS_TEXT intent on Android", async () => {
+    setUserAgent(androidChromeUserAgent);
+    await clickTranslateMenuItem();
+    assert.deepEqual(openMock.mock.callCount(), 0);
+    assert.deepEqual(capturedHrefs.length, 1);
+    const intentUrl = capturedHrefs[0];
+    assert(
+      intentUrl.startsWith(
+        "intent:#Intent;action=android.intent.action.PROCESS_TEXT;type=text/plain;",
+      ),
+    );
+    assert(
+      intentUrl.includes(
+        `S.android.intent.extra.PROCESS_TEXT=${encodeURIComponent(post.record.text)};`,
+      ),
+    );
+    const fallbackMatch = intentUrl.match(/S\.browser_fallback_url=([^;]+);/);
+    assert(fallbackMatch !== null);
+    const fallbackUrl = new URL(decodeURIComponent(fallbackMatch[1]));
+    assert.deepEqual(fallbackUrl.origin, "https://translate.google.com");
+    assert.deepEqual(fallbackUrl.searchParams.get("text"), post.record.text);
+  });
+
+  it("should keep the web URL on Firefox for Android", async () => {
+    setUserAgent(androidFirefoxUserAgent);
+    await clickTranslateMenuItem();
+    assert.deepEqual(openMock.mock.callCount(), 1);
+    const parsedUrl = new URL(openMock.mock.calls[0].arguments[0]);
+    assert.deepEqual(parsedUrl.origin, "https://translate.google.com");
+    assert.deepEqual(parsedUrl.searchParams.get("text"), post.record.text);
+    assert.deepEqual(capturedHrefs, []);
   });
 });
