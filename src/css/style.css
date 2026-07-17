@@ -5387,10 +5387,13 @@ emoji-picker-dialog emoji-picker,
     background: var(--post-hover-color);
   }
 }
-/* 
-.profile-list-item:last-of-type {
-  border-bottom: none;
-} */
+
+/* This element fixes a weird bug on iOS safari
+  where the chatDetail page would render extra slowly.
+  I don't know why it works, but it does. */
+.hack-x {
+  color: transparent;
+}
 
 .profile-list-item-body {
   flex: 1;
@@ -7558,6 +7561,8 @@ img[data-lightbox] {
 }
 
 .settings-account-avatar-stack .avatar {
+  width: 24px;
+  height: 24px;
   margin-left: -8px;
 }
 
@@ -7577,6 +7582,11 @@ img[data-lightbox] {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.settings-account-row .vertical-nav-icon .avatar {
+  width: 26px;
+  height: 26px;
 }
 
 .settings-account-row .vertical-nav-icon .avatar .avatar-image-frame {
