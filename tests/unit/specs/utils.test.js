@@ -1169,6 +1169,42 @@ describe("enableDragToDismiss", () => {
     dragState.cleanup();
     assert.deepEqual(el.style.caretColor, "");
   });
+
+  describe("with text selected", () => {
+    beforeEach(() => {
+      el.textContent = "some selectable text";
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = document.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+
+    afterEach(() => {
+      document.getSelection().removeAllRanges();
+    });
+
+    it("ignores drags that start while text is selected", async () => {
+      dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+      await drag(150);
+      assert.deepEqual(closeCount, 0);
+      assert.deepEqual(el.style.transform, "");
+    });
+
+    it("abandons a drag when a selection appears mid-gesture", async () => {
+      dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+      document.getSelection().removeAllRanges();
+      el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      document.getSelection().addRange(range);
+      el.dispatchEvent(pressEvent("touchmove", { touch: true, clientY: 250 }));
+      el.dispatchEvent(pressEvent("touchend", { touch: true }));
+      await wait(0);
+      assert.deepEqual(closeCount, 0);
+      assert.deepEqual(el.style.transform, "");
+    });
+  });
 });
 
 describe("debounce", () => {

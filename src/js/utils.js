@@ -400,9 +400,15 @@ export function enableDragToDismiss(
     viewport &&
     window.innerHeight - viewport.height > KEYBOARD_THRESHOLD;
 
+  const hasTextSelection = () => {
+    const selection = document.getSelection();
+    return selection !== null && !selection.isCollapsed;
+  };
+
   const handleTouchStart = (e) => {
     if (isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
+    if (hasTextSelection()) return;
 
     clearTimeout(caretRestoreTimer);
     dragState.startY = e.touches[0].clientY;
@@ -422,6 +428,14 @@ export function enableDragToDismiss(
 
   const handleTouchMove = (e) => {
     if (!dragState.isDragging) return;
+
+    // A selection that appears mid-gesture (long-press) switches to text selection.
+    if (hasTextSelection()) {
+      dragState.isDragging = false;
+      target.style.transform = "";
+      target.style.caretColor = "";
+      return;
+    }
 
     dragState.currentY = e.touches[0].clientY;
     const deltaY = dragState.currentY - dragState.startY;
