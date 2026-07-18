@@ -1034,10 +1034,10 @@ test.describe("Chat detail view", () => {
     await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
-  test("should hide the chat-input emoji button on mobile viewports", async ({
+  test("should show the chat-input emoji button on mobile viewports", async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 600, height: 800 });
+    await page.setViewportSize({ width: 375, height: 667 });
 
     const mockServer = new MockServer();
     const alice = createProfile({
@@ -1063,7 +1063,7 @@ test.describe("Chat detail view", () => {
     });
     await expect(
       chatDetailView.locator(".message-input-emoji-button"),
-    ).toBeHidden();
+    ).toBeVisible();
   });
 
   test.describe("Group conversations", () => {
