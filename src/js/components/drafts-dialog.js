@@ -336,6 +336,7 @@ class DraftsDialog extends Component {
       onClose: () => this.close(),
       scrollContainer: this.querySelector(".drafts-dialog-list"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
+      disableWhenKeyboardOpen: true,
     });
   }
 

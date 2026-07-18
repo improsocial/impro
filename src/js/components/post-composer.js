@@ -905,6 +905,7 @@ class PostComposer extends Component {
         el.tagName === "TEXTAREA" ||
         el.isContentEditable ||
         !!el.closest("[contenteditable]"),
+      disableWhenKeyboardOpen: true,
     });
 
     resetScrollOnBlur(dialog, this.querySelector(".post-composer-scroll-area"));

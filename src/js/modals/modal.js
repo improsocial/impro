@@ -80,6 +80,7 @@ export class Modal {
           onClose: () => dismiss(),
           confirmDismiss: () => this.canDismiss(),
           ignoreTouchTarget: (element) => this.ignoreTouchTarget(element),
+          disableWhenKeyboardOpen: true,
         });
       }
     });

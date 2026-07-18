@@ -370,7 +370,7 @@ export function enableDragToDismiss(
     allowUpwardStretch = false,
     ignoreTouchTarget = () => false,
     scrollContainer = null,
-    disableWhenKeyboardOpen = true,
+    disableWhenKeyboardOpen = false,
   } = {},
 ) {
   if (!isMobileViewport()) return null;
@@ -381,6 +381,8 @@ export function enableDragToDismiss(
 
   const DISMISS_THRESHOLD = 75;
   const RESISTANCE_FACTOR = 0.6;
+  const SNAP_BACK_MS = 150;
+  let caretRestoreTimer = null;
 
   const dragState = {
     startY: 0,
@@ -402,6 +404,7 @@ export function enableDragToDismiss(
     if (isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
 
+    clearTimeout(caretRestoreTimer);
     dragState.startY = e.touches[0].clientY;
     dragState.currentY = dragState.startY;
     dragState.isDragging = true;
@@ -426,6 +429,8 @@ export function enableDragToDismiss(
     if (deltaY > 0 && dragState.canDismiss) {
       e.preventDefault();
       const adjustedDelta = deltaY * RESISTANCE_FACTOR;
+      // Hide caret while dragging
+      target.style.caretColor = "transparent";
       target.style.transform = `translateY(${adjustedDelta}px)`;
     } else if (deltaY < 0 && dragState.canStretch) {
       e.preventDefault();
@@ -434,6 +439,7 @@ export function enableDragToDismiss(
     } else if (scrollContainer && deltaY !== 0) {
       dragState.isDragging = false;
       target.style.transform = "";
+      target.style.caretColor = "";
     } else {
       e.preventDefault();
     }
@@ -444,8 +450,8 @@ export function enableDragToDismiss(
 
     const deltaY = dragState.currentY - dragState.startY;
     target.style.transition = allowUpwardStretch
-      ? "transform 0.15s ease-out, height 0.15s ease-out"
-      : "transform 0.15s ease-out";
+      ? `transform ${SNAP_BACK_MS}ms ease-out, height ${SNAP_BACK_MS}ms ease-out`
+      : `transform ${SNAP_BACK_MS}ms ease-out`;
 
     if (deltaY > DISMISS_THRESHOLD && (await confirmDismiss())) {
       target.style.transform = "translateY(100%)";
@@ -453,6 +459,9 @@ export function enableDragToDismiss(
     } else {
       target.style.transform = "";
       if (dragState.canStretch) target.style.height = "";
+      caretRestoreTimer = setTimeout(() => {
+        target.style.caretColor = "";
+      }, SNAP_BACK_MS);
     }
 
     dragState.isDragging = false;
@@ -467,6 +476,7 @@ export function enableDragToDismiss(
   eventSource.addEventListener("touchend", handleTouchEnd);
 
   dragState.cleanup = () => {
+    clearTimeout(caretRestoreTimer);
     delete target.__dragToDismiss;
     eventSource.removeEventListener("touchstart", handleTouchStart);
     eventSource.removeEventListener("touchmove", handleTouchMove);
@@ -474,6 +484,7 @@ export function enableDragToDismiss(
     target.style.transform = "";
     target.style.transition = "";
     target.style.height = "";
+    target.style.caretColor = "";
   };
 
   target.__dragToDismiss = dragState;

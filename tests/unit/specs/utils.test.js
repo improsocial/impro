@@ -22,6 +22,7 @@ import {
   withTimeout,
   wait,
   enableLongPress,
+  enableDragToDismiss,
   TimeoutError,
   debounce,
   resetScrollOnBlur,
@@ -1057,6 +1058,116 @@ describe("enableLongPress - context menu", () => {
     const contextmenu = pressEvent("contextmenu");
     el.dispatchEvent(contextmenu);
     assert(!contextmenu.defaultPrevented);
+  });
+});
+
+describe("enableDragToDismiss", () => {
+  let el;
+  let closeCount;
+  let dragState;
+  let originalMatchMedia;
+  let originalVisualViewport;
+
+  const setKeyboardOpen = (open) => {
+    window.visualViewport = {
+      height: open ? window.innerHeight - 300 : window.innerHeight,
+    };
+  };
+
+  const drag = async (deltaY) => {
+    el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+    el.dispatchEvent(
+      pressEvent("touchmove", { touch: true, clientY: 100 + deltaY }),
+    );
+    el.dispatchEvent(pressEvent("touchend", { touch: true }));
+    await wait(0);
+  };
+
+  beforeEach(() => {
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = (query) => ({
+      matches: query === "(max-width: 799px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    originalVisualViewport = window.visualViewport;
+    setKeyboardOpen(false);
+    el = document.createElement("div");
+    document.body.appendChild(el);
+    closeCount = 0;
+    dragState = null;
+  });
+
+  afterEach(() => {
+    dragState?.cleanup();
+    el.remove();
+    window.matchMedia = originalMatchMedia;
+    window.visualViewport = originalVisualViewport;
+  });
+
+  it("returns null on non-mobile viewports", () => {
+    window.matchMedia = originalMatchMedia;
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    assert.deepEqual(dragState, null);
+  });
+
+  it("dismisses on a downward drag past the threshold", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(closeCount, 1);
+  });
+
+  it("does not dismiss on a drag below the threshold", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(50);
+    assert.deepEqual(closeCount, 0);
+  });
+
+  it("dismisses while the keyboard is open by default", async () => {
+    setKeyboardOpen(true);
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(closeCount, 1);
+  });
+
+  it("ignores drags while the keyboard is open when disableWhenKeyboardOpen is true", async () => {
+    setKeyboardOpen(true);
+    dragState = enableDragToDismiss(el, {
+      onClose: () => closeCount++,
+      disableWhenKeyboardOpen: true,
+    });
+    await drag(150);
+    assert.deepEqual(closeCount, 0);
+    assert.deepEqual(el.style.transform, "");
+  });
+
+  it("hides the caret while the sheet is displaced", () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+    el.dispatchEvent(pressEvent("touchmove", { touch: true, clientY: 150 }));
+    assert.deepEqual(el.style.caretColor, "transparent");
+  });
+
+  it("restores the caret only after the snap-back transition lands", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(50);
+    assert.deepEqual(el.style.caretColor, "transparent");
+    await wait(200);
+    assert.deepEqual(el.style.caretColor, "");
+  });
+
+  it("keeps the caret hidden through a dismiss", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(el.style.caretColor, "transparent");
+  });
+
+  it("restores the caret on cleanup", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    dragState.cleanup();
+    assert.deepEqual(el.style.caretColor, "");
   });
 });
 
