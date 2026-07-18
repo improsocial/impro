@@ -108,7 +108,7 @@ html {
   --post-border-color: var(--generic-border-color);
   --avatar-border-color: var(--generic-border-color);
   --reply-context-line-color: light-dark(var(--lighter-gray), var(--mid-gray));
-  --reply-context-line-width: 1px;
+  --reply-context-line-width: 2px;
 
   /* button colors */
   --primary-button-color: var(--highlight-color);
@@ -3158,7 +3158,7 @@ image-carousel {
 
 .reply-context-line-in {
   position: absolute;
-  left: 20px;
+  left: 19px;
   top: -13px;
   width: var(--reply-context-line-width);
   height: 13px;
@@ -3173,7 +3173,7 @@ image-carousel {
 
 .reply-context-line-out {
   position: absolute;
-  left: 20px;
+  left: 19px;
   width: var(--reply-context-line-width);
   top: 0;
   bottom: -12px;
