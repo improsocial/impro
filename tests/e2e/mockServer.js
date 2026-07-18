@@ -68,6 +68,7 @@ export class MockServer {
     this.actorLists = new Map();
     this.searchFeedGenerators = [];
     this.searchPosts = [];
+    this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
     this.timelinePosts = [];
     this.timelineDelayMs = 0;
@@ -176,8 +177,14 @@ export class MockServer {
     this.notificationsDelayMs = delayMs;
   }
 
-  addSearchPosts(posts) {
+  addSearchPosts(posts, { sort } = {}) {
     this.searchPosts.push(...posts);
+    if (sort) {
+      this.searchPostsBySort[sort].push(...posts);
+    } else {
+      this.searchPostsBySort.top.push(...posts);
+      this.searchPostsBySort.latest.push(...posts);
+    }
   }
 
   addSearchProfiles(profiles) {
@@ -1409,16 +1416,16 @@ export class MockServer {
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
+      const sort = url.searchParams.get("sort") || "top";
+      const sortedPosts = this.searchPostsBySort[sort] ?? this.searchPosts;
 
       let posts, nextCursor;
       if (limit) {
-        posts = this.searchPosts.slice(offset, offset + limit);
+        posts = sortedPosts.slice(offset, offset + limit);
         nextCursor =
-          offset + limit < this.searchPosts.length
-            ? String(offset + limit)
-            : "";
+          offset + limit < sortedPosts.length ? String(offset + limit) : "";
       } else {
-        posts = this.searchPosts;
+        posts = sortedPosts;
         nextCursor = "";
       }
 

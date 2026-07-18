@@ -197,8 +197,12 @@ export class Requests {
     );
     this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
     this.enableStatus(
-      this.loadPostSearch,
-      (query, { sort = "top" } = {}) => `loadPostSearch-${query}-${sort}`,
+      this.loadPostSearchTop,
+      (query) => "loadPostSearchTop-" + query,
+    );
+    this.enableStatus(
+      this.loadPostSearchLatest,
+      (query) => "loadPostSearchLatest-" + query,
     );
     this.enableStatus(
       this.loadFeedSearch,
@@ -639,26 +643,49 @@ export class Requests {
     this.dataStore.$chatRecipientSearchResults.set(searchData);
   }
 
-  async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
+  async loadPostSearchTop(query, { limit = 25, cursor = "" } = {}) {
+    await this._loadPostSearch(query, {
+      limit,
+      cursor,
+      sort: "top",
+      $results: this.dataStore.$postSearchResultsTop,
+      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeTop,
+    });
+  }
+
+  async loadPostSearchLatest(query, { limit = 25, cursor = "" } = {}) {
+    await this._loadPostSearch(query, {
+      limit,
+      cursor,
+      sort: "latest",
+      $results: this.dataStore.$postSearchResultsLatest,
+      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeLatest,
+    });
+  }
+
+  async _loadPostSearch(
+    query,
+    { limit, cursor, sort, $results, $latestRequestTime },
+  ) {
     if (!query) {
       // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestPostSearchRequestTime.set(null);
-      this.dataStore.$postSearchResults.set(null);
+      $latestRequestTime.set(null);
+      $results.set(null);
       return;
     }
     if (!cursor) {
-      this.dataStore.$postSearchResults.set(null);
+      $results.set(null);
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
-    this.dataStore.$latestPostSearchRequestTime.set(requestTime);
+    $latestRequestTime.set(requestTime);
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
       cursor,
       labelers,
     });
-    if (requestTime !== this.dataStore.$latestPostSearchRequestTime.get()) {
+    if (requestTime !== $latestRequestTime.get()) {
       return;
     }
     const searchResults = searchData.posts || [];
@@ -676,17 +703,17 @@ export class Requests {
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
     }
     // Re-check relevance after loading dependencies
-    if (requestTime !== this.dataStore.$latestPostSearchRequestTime.get()) {
+    if (requestTime !== $latestRequestTime.get()) {
       return;
     }
-    const existingResults = this.dataStore.$postSearchResults.get();
+    const existingResults = $results.get();
     if (existingResults && cursor) {
-      this.dataStore.$postSearchResults.set({
+      $results.set({
         posts: [...existingResults.posts, ...searchResults],
         cursor: searchData.cursor,
       });
     } else {
-      this.dataStore.$postSearchResults.set({
+      $results.set({
         posts: searchResults,
         cursor: searchData.cursor,
       });

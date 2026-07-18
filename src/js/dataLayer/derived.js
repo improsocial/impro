@@ -289,19 +289,17 @@ export class Derived extends ReactiveStore {
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
     );
-    this.$postSearchResults = new Signal.Computed(() => {
-      const data = this.dataStore.$postSearchResults.get();
-      if (!data) return null;
-      const hydratedSearchResults = [];
-      for (const result of data.posts) {
-        const post = this.$hydratedPosts.get(result.uri);
-        if (!post) continue;
-        hydratedSearchResults.push(this.attachParentAuthor(post));
-      }
-      return hydratedSearchResults;
-    });
-    this.$postSearchCursor = new Signal.Computed(
-      () => this.dataStore.$postSearchResults.get()?.cursor ?? null,
+    this.$postSearchResultsTop = new Signal.Computed(() =>
+      this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
+    );
+    this.$postSearchResultsLatest = new Signal.Computed(() =>
+      this.hydratePostSearchResults(this.dataStore.$postSearchResultsLatest),
+    );
+    this.$postSearchCursorTop = new Signal.Computed(
+      () => this.dataStore.$postSearchResultsTop.get()?.cursor ?? null,
+    );
+    this.$postSearchCursorLatest = new Signal.Computed(
+      () => this.dataStore.$postSearchResultsLatest.get()?.cursor ?? null,
     );
     this.$hydratedPostQuotes = new ComputedMap((postUri) => {
       const quotes = this.dataStore.$postQuotes.get(postUri);
@@ -725,6 +723,18 @@ export class Derived extends ReactiveStore {
         },
       },
     };
+  }
+
+  hydratePostSearchResults($storedResults) {
+    const data = $storedResults.get();
+    if (!data) return null;
+    const hydratedSearchResults = [];
+    for (const result of data.posts) {
+      const post = this.$hydratedPosts.get(result.uri);
+      if (!post) continue;
+      hydratedSearchResults.push(this.attachParentAuthor(post));
+    }
+    return hydratedSearchResults;
   }
 
   hydrateNotification(notification) {

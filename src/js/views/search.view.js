@@ -48,7 +48,12 @@ class SearchView extends View {
 
       if (isAuthenticated) {
         requests.push(
-          dataLayer.requests.loadPostSearch(normalizedQuery, {
+          dataLayer.requests.loadPostSearchTop(normalizedQuery, {
+            limit: 25,
+          }),
+        );
+        requests.push(
+          dataLayer.requests.loadPostSearchLatest(normalizedQuery, {
             limit: 25,
           }),
         );
@@ -78,13 +83,28 @@ class SearchView extends View {
       );
     }
 
-    async function loadMorePosts() {
-      const cursor = dataLayer.derived.$postSearchCursor.get();
+    async function loadMoreTopPosts() {
+      const cursor = dataLayer.derived.$postSearchCursorTop.get();
       if (!cursor) return;
-      await dataLayer.requests.loadPostSearch(state.$searchQuery.get().trim(), {
-        limit: 25,
-        cursor,
-      });
+      await dataLayer.requests.loadPostSearchTop(
+        state.$searchQuery.get().trim(),
+        {
+          limit: 25,
+          cursor,
+        },
+      );
+    }
+
+    async function loadMoreLatestPosts() {
+      const cursor = dataLayer.derived.$postSearchCursorLatest.get();
+      if (!cursor) return;
+      await dataLayer.requests.loadPostSearchLatest(
+        state.$searchQuery.get().trim(),
+        {
+          limit: 25,
+          cursor,
+        },
+      );
     }
 
     async function loadMoreFeeds() {
@@ -127,6 +147,7 @@ class SearchView extends View {
       status,
       postSearchResults,
       postSearchHasMore,
+      onLoadMore,
       currentUser,
     }) {
       if (!postSearchResults && status.loading) {
@@ -150,7 +171,7 @@ class SearchView extends View {
         lookahead="2500px"
         @load-more=${async (event) => {
           if (postSearchHasMore) {
-            await loadMorePosts();
+            await onLoadMore();
             event.detail.resume();
           }
         }}
@@ -320,20 +341,29 @@ class SearchView extends View {
       const activeTab = state.$activeTab.get();
       const normalizedQuery = searchQuery.trim();
       const showResults = normalizedQuery.length > 0;
-      const postStatus = dataLayer.requests.statusStore.$statuses.get(
-        `loadPostSearch-${normalizedQuery}-top`,
+      const topPostStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadPostSearchTop-" + normalizedQuery,
       );
+      const latestPostStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadPostSearchLatest-" + normalizedQuery,
+      );
+      const topPostSearchResults =
+        dataLayer.derived.$postSearchResultsTop.get();
+      const latestPostSearchResults =
+        dataLayer.derived.$postSearchResultsLatest.get();
+      const topPostSearchHasMore =
+        !!dataLayer.derived.$postSearchCursorTop.get();
+      const latestPostSearchHasMore =
+        !!dataLayer.derived.$postSearchCursorLatest.get();
       const profileStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadProfileSearch-" + normalizedQuery,
       );
       const feedStatus = dataLayer.requests.statusStore.$statuses.get(
         "loadFeedSearch-" + normalizedQuery,
       );
-      const postSearchResults = dataLayer.derived.$postSearchResults.get();
       const profileSearchResults =
         dataLayer.derived.$profileSearchResults.get();
       const feedSearchResults = dataLayer.derived.$feedSearchResults.get();
-      const postSearchHasMore = !!dataLayer.derived.$postSearchCursor.get();
       const profileSearchHasMore =
         !!dataLayer.derived.$profileSearchCursor.get();
       const feedSearchHasMore = !!dataLayer.derived.$feedSearchCursor.get();
@@ -375,8 +405,8 @@ class SearchView extends View {
                       <tab-bar
                         .tabs=${[
                           { value: "profiles", label: "Profiles" },
-
-                          { value: "posts", label: "Posts" },
+                          { value: "top", label: "Top" },
+                          { value: "latest", label: "Latest" },
                           { value: "feeds", label: "Feeds" },
                         ]}
                         active-tab=${activeTab}
@@ -395,13 +425,32 @@ class SearchView extends View {
                     <div class="search-tab-panels">
                       <div
                         class="search-tab-panel"
-                        ?hidden=${activeTab !== "posts"}
+                        ?hidden=${activeTab !== "top"}
                       >
-                        <div class="search-results-panel search-post-results">
+                        <div
+                          class="search-results-panel search-post-results search-post-results-top"
+                        >
                           ${postSearchResultsTemplate({
-                            status: postStatus,
-                            postSearchResults,
-                            postSearchHasMore,
+                            status: topPostStatus,
+                            postSearchResults: topPostSearchResults,
+                            postSearchHasMore: topPostSearchHasMore,
+                            onLoadMore: loadMoreTopPosts,
+                            currentUser,
+                          })}
+                        </div>
+                      </div>
+                      <div
+                        class="search-tab-panel"
+                        ?hidden=${activeTab !== "latest"}
+                      >
+                        <div
+                          class="search-results-panel search-post-results search-post-results-latest"
+                        >
+                          ${postSearchResultsTemplate({
+                            status: latestPostStatus,
+                            postSearchResults: latestPostSearchResults,
+                            postSearchHasMore: latestPostSearchHasMore,
+                            onLoadMore: loadMoreLatestPosts,
                             currentUser,
                           })}
                         </div>
@@ -458,7 +507,8 @@ class SearchView extends View {
         state.$searchQuery.set(query.get("q"));
       }
       if (query.get("tab")) {
-        state.$activeTab.set(query.get("tab"));
+        const tab = query.get("tab");
+        state.$activeTab.set(tab === "posts" ? "top" : tab);
       }
       if (state.$searchQuery.get()) {
         loadSearchResults();

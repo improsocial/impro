@@ -73,7 +73,7 @@ export function linkToSearchPostsByProfile(profile) {
   const searchString = `from:@${profile.handle} `;
   const query = new URLSearchParams();
   query.set("q", searchString);
-  query.set("tab", "posts");
+  query.set("tab", "top");
   return `/search?${query.toString()}`;
 }
 

@@ -53,7 +53,7 @@ test.describe("Search view", () => {
     await expect(view).toContainText("@alicia.bsky.social");
   });
 
-  test("should display post search results when switching to Posts tab", async ({
+  test("should display post search results when switching to Top tab", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -76,12 +76,12 @@ test.describe("Search view", () => {
     await page.goto("/search?q=hello");
 
     const view = page.locator("#search-view");
-    // Click the Posts tab
-    await view.locator('[data-testid="tab-posts"]').click();
+    // Click the Top tab
+    await view.locator('[data-testid="tab-top"]').click();
 
-    await expect(view.locator("[data-post-uri]")).toHaveCount(2, {
-      timeout: 10000,
-    });
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(2, { timeout: 10000 });
     await expect(view).toContainText("Hello world from search");
     await expect(view).toContainText("Another search result");
   });
@@ -127,15 +127,15 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=nonexistentpost&tab=posts");
+    await page.goto("/search?q=nonexistentpost&tab=top");
 
     const view = page.locator("#search-view");
     await expect(
-      view.locator('.search-post-results [data-testid="empty-state"]'),
+      view.locator('.search-post-results-top [data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
   });
 
-  test("should switch between Profiles, Posts, and Feeds tabs", async ({
+  test("should switch between Profiles, Top, Latest, and Feeds tabs", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -173,15 +173,22 @@ test.describe("Search view", () => {
       timeout: 10000,
     });
 
-    // Switch to Posts tab
-    await view.locator('[data-testid="tab-posts"]').click();
+    // Switch to Top tab
+    await view.locator('[data-testid="tab-top"]').click();
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible();
     await expect(
-      view.locator('[data-testid="tab-posts"].active'),
-    ).toBeVisible();
-    await expect(view.locator("[data-post-uri]")).toHaveCount(1, {
-      timeout: 10000,
-    });
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
     await expect(view).toContainText("A matching post");
+
+    // Switch to Latest tab
+    await view.locator('[data-testid="tab-latest"]').click();
+    await expect(
+      view.locator('[data-testid="tab-latest"].active'),
+    ).toBeVisible();
+    await expect(
+      view.locator(".search-post-results-latest [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
 
     // Switch to Feeds tab
     await view.locator('[data-testid="tab-feeds"]').click();
@@ -290,16 +297,114 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
+    await page.goto("/search?q=test&tab=top");
+
+    const view = page.locator("#search-view");
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
+    await expect(view).toContainText("Post from tab param");
+  });
+
+  test("should map legacy tab=posts query parameter to the Top tab", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts([
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "Post from legacy tab param",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
     await page.goto("/search?q=test&tab=posts");
 
     const view = page.locator("#search-view");
-    await expect(view.locator('[data-testid="tab-posts"].active')).toBeVisible({
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible({
       timeout: 10000,
     });
-    await expect(view.locator("[data-post-uri]")).toHaveCount(1, {
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
+    await expect(view).toContainText("Post from legacy tab param");
+  });
+
+  test("should show separate results for Top and Latest tabs", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.addSearchPosts(
+      [
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/toppost",
+          text: "A top ranked post",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ],
+      { sort: "top" },
+    );
+    mockServer.addSearchPosts(
+      [
+        createPost({
+          uri: "at://did:plc:author2/app.bsky.feed.post/latestpost",
+          text: "A very recent post",
+          authorHandle: "author2.bsky.social",
+          authorDisplayName: "Author Two",
+        }),
+      ],
+      { sort: "latest" },
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=post&tab=top");
+
+    const view = page.locator("#search-view");
+    const topPanel = view.locator(".search-post-results-top");
+    const latestPanel = view.locator(".search-post-results-latest");
+
+    await expect(topPanel.locator("[data-post-uri]")).toHaveCount(1, {
       timeout: 10000,
     });
-    await expect(view).toContainText("Post from tab param");
+    await expect(topPanel).toContainText("A top ranked post");
+
+    await view.locator('[data-testid="tab-latest"]').click();
+    await expect(latestPanel.locator("[data-post-uri]")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(latestPanel).toContainText("A very recent post");
+    await expect(latestPanel).not.toContainText("A top ranked post");
+
+    // Returning to Top keeps its cached results
+    await view.locator('[data-testid="tab-top"]').click();
+    await expect(topPanel.locator("[data-post-uri]")).toHaveCount(1);
+    await expect(topPanel).toContainText("A top ranked post");
+  });
+
+  test("should render tabs in order: Profiles, Top, Latest, Feeds", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=test");
+
+    const view = page.locator("#search-view");
+    const tabs = view.locator("tab-bar [data-testid^='tab-']");
+    await expect(tabs).toHaveCount(4, { timeout: 10000 });
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-profiles");
+    await expect(tabs.nth(1)).toHaveAttribute("data-testid", "tab-top");
+    await expect(tabs.nth(2)).toHaveAttribute("data-testid", "tab-latest");
+    await expect(tabs.nth(3)).toHaveAttribute("data-testid", "tab-feeds");
   });
 
   test("should navigate to post thread view when clicking a post", async ({
@@ -316,14 +421,15 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=click&tab=posts");
+    await page.goto("/search?q=click&tab=top");
 
     const view = page.locator("#search-view");
-    await expect(view.locator("[data-post-uri]")).toHaveCount(1, {
+    const topPanel = view.locator(".search-post-results-top");
+    await expect(topPanel.locator("[data-post-uri]")).toHaveCount(1, {
       timeout: 10000,
     });
 
-    await view.locator("[data-post-uri]").click();
+    await topPanel.locator("[data-post-uri]").click();
 
     const threadView = page.locator("#post-detail-view");
     await expect(threadView).toBeVisible({ timeout: 10000 });
@@ -653,13 +759,13 @@ test.describe("Search view", () => {
       await mockServer.setup(page);
 
       await login(page);
-      await page.goto("/search?q=result&tab=posts");
+      await page.goto("/search?q=result&tab=top");
 
       const view = page.locator("#search-view");
       // All 30 posts should load across multiple pages
-      await expect(view.locator("[data-post-uri]")).toHaveCount(30, {
-        timeout: 10000,
-      });
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(30, { timeout: 10000 });
       await expect(view).toContainText("Search result post 0");
       await expect(view).toContainText("Search result post 29");
     });
@@ -747,8 +853,11 @@ test.describe("Search view", () => {
       await expect(view).toContainText("Alice");
       await expect(view).toContainText("Alicia");
 
-      // Posts and Feeds tabs should be hidden for logged-out users
-      await expect(view.locator('[data-testid="tab-posts"]')).not.toBeVisible();
+      // Post and Feeds tabs should be hidden for logged-out users
+      await expect(view.locator('[data-testid="tab-top"]')).not.toBeVisible();
+      await expect(
+        view.locator('[data-testid="tab-latest"]'),
+      ).not.toBeVisible();
       await expect(view.locator('[data-testid="tab-feeds"]')).not.toBeVisible();
 
       // Follow buttons should be hidden for logged-out users

@@ -970,16 +970,25 @@ describe("loadNextAuthorFeedPage", () => {
   });
 });
 
-describe("loadPostSearch", () => {
-  it("should clear results when query is empty", async () => {
+describe("loadPostSearchTop / loadPostSearchLatest", () => {
+  it("should clear results for both sorts when query is empty", async () => {
     const dataStore = new DataStore();
-    dataStore.$postSearchResults.set({ posts: [{ uri: "p1" }], cursor: "c1" });
+    dataStore.$postSearchResultsTop.set({
+      posts: [{ uri: "p1" }],
+      cursor: "c1",
+    });
+    dataStore.$postSearchResultsLatest.set({
+      posts: [{ uri: "p2" }],
+      cursor: "c2",
+    });
     const mockApi = { searchPosts: async () => ({ posts: [], cursor: null }) };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("");
+    await requests.loadPostSearchTop("");
+    await requests.loadPostSearchLatest("");
 
-    assert.deepEqual(dataStore.$postSearchResults.get(), null);
+    assert.deepEqual(dataStore.$postSearchResultsTop.get(), null);
+    assert.deepEqual(dataStore.$postSearchResultsLatest.get(), null);
   });
 
   it("should store results from a fresh search", async () => {
@@ -992,11 +1001,67 @@ describe("loadPostSearch", () => {
     const dataStore = new DataStore();
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("hello");
+    await requests.loadPostSearchTop("hello");
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts.length, 1);
     assert.deepEqual(stored.cursor, "next");
+  });
+
+  it("should store each sort's results independently", async () => {
+    const mockApi = {
+      searchPosts: async (query, { sort }) => ({
+        posts: [{ uri: `post-${sort}`, record: {} }],
+        cursor: null,
+      }),
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPostSearchTop("hello");
+    await requests.loadPostSearchLatest("hello");
+
+    assert.deepEqual(
+      dataStore.$postSearchResultsTop.get().posts[0].uri,
+      "post-top",
+    );
+    assert.deepEqual(
+      dataStore.$postSearchResultsLatest.get().posts[0].uri,
+      "post-latest",
+    );
+  });
+
+  it("should not discard an in-flight sort when the other sort loads", async () => {
+    const dataStore = new DataStore();
+    let resolveTop;
+    const topPromise = new Promise((resolve) => {
+      resolveTop = resolve;
+    });
+    const mockApi = {
+      searchPosts: async (query, { sort }) => {
+        if (sort === "top") {
+          await topPromise;
+          return { posts: [{ uri: "top-post", record: {} }], cursor: "tc" };
+        }
+        return { posts: [{ uri: "latest-post", record: {} }], cursor: "lc" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const topCall = requests.loadPostSearchTop("query");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadPostSearchLatest("query");
+    resolveTop();
+    await topCall;
+
+    assert.deepEqual(
+      dataStore.$postSearchResultsTop.get().posts[0].uri,
+      "top-post",
+    );
+    assert.deepEqual(
+      dataStore.$postSearchResultsLatest.get().posts[0].uri,
+      "latest-post",
+    );
   });
 
   it("should discard stale responses based on requestTime guard", async () => {
@@ -1018,13 +1083,13 @@ describe("loadPostSearch", () => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    const firstCall = requests.loadPostSearch("query");
+    const firstCall = requests.loadPostSearchTop("query");
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await requests.loadPostSearch("query");
+    await requests.loadPostSearchTop("query");
     resolveFirst();
     await firstCall;
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts[0].uri, "fresh");
     assert.deepEqual(stored.cursor, "fresh");
   });
@@ -1051,7 +1116,7 @@ describe("loadPostSearch", () => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("query");
+    await requests.loadPostSearchTop("query");
 
     // A load-more passes the requestTime guard, then stalls loading
     // dependencies while a re-search and a fresh load-more complete
@@ -1059,14 +1124,14 @@ describe("loadPostSearch", () => {
     getPostsGate = new Promise((resolve) => {
       releaseGate = resolve;
     });
-    const staleLoadMore = requests.loadPostSearch("query", { cursor: "c1" });
+    const staleLoadMore = requests.loadPostSearchTop("query", { cursor: "c1" });
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await requests.loadPostSearch("query");
-    await requests.loadPostSearch("query", { cursor: "c1" });
+    await requests.loadPostSearchTop("query");
+    await requests.loadPostSearchTop("query", { cursor: "c1" });
     releaseGate();
     await staleLoadMore;
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(
       stored.posts.map((post) => post.uri),
       ["p1", "p2"],
@@ -1075,7 +1140,7 @@ describe("loadPostSearch", () => {
 
   it("should append when cursor is provided and existing results present", async () => {
     const dataStore = new DataStore();
-    dataStore.$postSearchResults.set({
+    dataStore.$postSearchResultsTop.set({
       posts: [{ uri: "p1", record: {} }],
       cursor: "c1",
     });
@@ -1087,9 +1152,9 @@ describe("loadPostSearch", () => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("hello", { cursor: "c1" });
+    await requests.loadPostSearchTop("hello", { cursor: "c1" });
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts.length, 2);
     assert.deepEqual(stored.posts[1].uri, "p2");
     assert.deepEqual(stored.cursor, "c2");
