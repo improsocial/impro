@@ -94,6 +94,12 @@ html {
   --text-link-color: var(--highlight-color);
   --like-color: var(--pink);
   --error-color: var(--red-muted);
+  --error-subtle-color: color-mix(in srgb, var(--error-color) 12%, transparent);
+  --error-subtle-hover-color: color-mix(
+    in srgb,
+    var(--error-color) 20%,
+    transparent
+  );
   --warning-color: var(--yellow);
 
   /* border colors */
@@ -5905,7 +5911,8 @@ emoji-picker-dialog emoji-picker,
 }
 
 .post-composer {
-  border: none;
+  border: var(--hair) solid var(--post-border-color);
+  border-bottom: none;
   border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
   background-color: light-dark(var(--white), var(--mid-gray));
   color: var(--text-color);
@@ -5939,6 +5946,7 @@ emoji-picker-dialog emoji-picker,
     bottom: auto;
     height: auto;
     max-height: calc(100vh - 64px);
+    border-bottom: var(--hair) solid var(--post-border-color);
     border-radius: var(--dialog-border-radius);
     box-shadow: none;
     animation: none;
@@ -6035,6 +6043,7 @@ emoji-picker-dialog emoji-picker,
     bottom: auto;
     height: auto;
     max-height: 80vh;
+    border-bottom: var(--hair) solid var(--post-border-color);
     border-radius: var(--dialog-border-radius);
     box-shadow: none;
     animation: none;
@@ -6790,6 +6799,17 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 .modal-dialog-button.danger-button {
   background-color: var(--error-color);
   color: var(--off-white);
+}
+
+.modal-dialog-button.danger-subtle-button {
+  background-color: var(--error-subtle-color);
+  color: var(--error-color);
+}
+
+@media (hover: hover) {
+  .modal-dialog-button.danger-subtle-button:hover {
+    background-color: var(--error-subtle-hover-color);
+  }
 }
 
 @media (hover: hover) {
@@ -7658,6 +7678,188 @@ img[data-lightbox] {
 @media (min-width: 800px) {
   .account-switcher-dialog {
     max-width: 410px;
+  }
+}
+
+.modal-dialog-buttons-stacked {
+  flex-direction: column;
+}
+
+@media (max-width: 799px) {
+  .drafts-dialog {
+    top: 32px;
+  }
+}
+
+@media (min-width: 800px) {
+  .drafts-dialog {
+    max-width: 500px;
+  }
+}
+
+.drafts-dialog::before {
+  display: none;
+}
+
+.drafts-dialog-content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.drafts-dialog-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.drafts-dialog-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.drafts-dialog-back {
+  position: absolute;
+  left: 0;
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px 12px;
+  transition: color 0.2s;
+  border-radius: var(--pill-button-border-radius);
+  color: var(--highlight-color);
+}
+
+.drafts-dialog-list {
+  overflow-y: auto;
+  min-height: 120px;
+  max-height: 60vh;
+}
+
+.drafts-dialog-message {
+  display: flex;
+  justify-content: center;
+  padding: 32px 0;
+  color: var(--text-color-muted);
+  font-size: 15px;
+}
+
+.draft-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 12px;
+  border: var(--hair) solid var(--post-border-color);
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.draft-item:not(:first-child) {
+  margin-top: 8px;
+}
+
+@media (hover: hover) {
+  .draft-item:hover {
+    background-color: var(--secondary-background-color);
+  }
+}
+
+.draft-item-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.draft-item-text {
+  font-size: 15px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-break: break-word;
+  display: -webkit-box;
+  -webkit-line-clamp: 8;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.draft-item-media {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.draft-item-thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 8px;
+  border: var(--hair) solid var(--post-border-color);
+}
+
+.draft-item-video-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-color-muted);
+  background-color: var(--secondary-background-color);
+}
+
+.draft-item-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.draft-item-tag {
+  font-size: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background-color: var(--secondary-background-color);
+  color: var(--text-color-muted);
+}
+
+.draft-item-tag-warning {
+  background-color: color-mix(in srgb, var(--error-color) 15%, transparent);
+  color: var(--error-color);
+}
+
+.draft-item-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: space-between;
+  align-self: stretch;
+  gap: 6px;
+}
+
+.draft-item-timestamp {
+  font-size: 12px;
+  color: var(--text-color-muted);
+  margin-bottom: 4px;
+}
+
+.draft-item-delete {
+  background: none;
+  border: none;
+  color: var(--text-color-muted);
+  cursor: pointer;
+  border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+.draft-item-delete .icon {
+  width: 18px;
+  height: 18px;
+}
+
+@media (hover: hover) {
+  .draft-item-delete:hover {
+    background-color: var(--back-button-hover-color);
   }
 }
 

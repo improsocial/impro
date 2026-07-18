@@ -96,6 +96,10 @@ const BSKY_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.video.getJobStatus",
   "rpc:app.bsky.video.getUploadLimits",
   "rpc:app.bsky.video.uploadVideo",
+  "rpc:app.bsky.draft.getDrafts",
+  "rpc:app.bsky.draft.createDraft",
+  "rpc:app.bsky.draft.updateDraft",
+  "rpc:app.bsky.draft.deleteDraft",
 ];
 
 const BSKY_OAUTH_REPO_SCOPES = [

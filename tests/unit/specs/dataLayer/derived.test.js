@@ -2,11 +2,12 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Derived } from "/js/dataLayer/derived.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { DraftMediaStore, getDraftDeviceId } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal, SignalMap } from "/js/signals.js";
 
-function makeDerived(dataStore, { preferences } = {}) {
+function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
   const patchStore = new PatchStore(dataStore);
   const prefs = preferences ?? Preferences.createLoggedOutPreferences();
   const preferencesProvider = {
@@ -22,6 +23,7 @@ function makeDerived(dataStore, { preferences } = {}) {
     preferencesProvider,
     pluginService,
     false,
+    draftMediaStore ?? new DraftMediaStore("test-media"),
   );
   return { derived, patchStore };
 }
@@ -968,5 +970,157 @@ describe("$hydratedConvoMessages", () => {
     const afterBlock = derived.$hydratedConvoMessages.get(convoId);
     assert.deepEqual(afterBlock === before, false);
     assert.deepEqual(afterBlock.messages[0].reactions.length, 0);
+  });
+});
+
+describe("$hydratedDrafts", () => {
+  function makeDraftView(draftOverrides = {}) {
+    return {
+      id: "draft-1",
+      createdAt: "2026-07-01T00:00:00.000Z",
+      updatedAt: "2026-07-02T00:00:00.000Z",
+      draft: {
+        $type: "app.bsky.draft.defs#draft",
+        deviceId: getDraftDeviceId(),
+        deviceName: "Web",
+        posts: [{ $type: "app.bsky.draft.defs#draftPost", text: "hi" }],
+        ...draftOverrides,
+      },
+    };
+  }
+
+  // `localMedia` seeds the store's $media: path -> { url } | null
+  function hydrateDraftPosts(draftViews, { localMedia = {} } = {}) {
+    const dataStore = new DataStore();
+    const draftMediaStore = new DraftMediaStore("test-media");
+    draftMediaStore.$media.set(localMedia);
+    const { derived } = makeDerived(dataStore, { draftMediaStore });
+    dataStore.$drafts.set({ drafts: draftViews, cursor: null });
+    return derived.$hydratedDrafts.get().drafts[0].posts;
+  }
+
+  it("is null before loading and carries the view fields and cursor through", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$hydratedDrafts.get(), null);
+    dataStore.$drafts.set({ drafts: [makeDraftView()], cursor: "next" });
+    const data = derived.$hydratedDrafts.get();
+    assert.deepEqual(data.cursor, "next");
+    assert.deepEqual(data.drafts[0].id, "draft-1");
+    assert.deepEqual(data.drafts[0].updatedAt, "2026-07-02T00:00:00.000Z");
+    assert.deepEqual(data.drafts[0].draft.deviceName, "Web");
+  });
+
+  it("passes a text-only draft post through unchanged", () => {
+    const posts = hydrateDraftPosts([makeDraftView()]);
+    assert.deepEqual(posts, [
+      { $type: "app.bsky.draft.defs#draftPost", text: "hi" },
+    ]);
+  });
+
+  it("decorates gallery images with exists and previewUrl on the originating device", () => {
+    const posts = hydrateDraftPosts(
+      [
+        makeDraftView({
+          posts: [
+            {
+              text: "pics",
+              embedGallery: {
+                items: [{ localRef: { path: "image:a" }, alt: "cat" }],
+              },
+            },
+          ],
+        }),
+      ],
+      { localMedia: { "image:a": { url: "blob:stub-image:a" } } },
+    );
+    assert.deepEqual(posts[0].embedGallery.items, [
+      {
+        localRef: { path: "image:a" },
+        alt: "cat",
+        exists: true,
+        previewUrl: "blob:stub-image:a",
+      },
+    ]);
+  });
+
+  it("decorates legacy embedImages the same way", () => {
+    const posts = hydrateDraftPosts(
+      [
+        makeDraftView({
+          posts: [
+            {
+              text: "",
+              embedImages: [{ localRef: { path: "image:a" }, alt: "old" }],
+            },
+          ],
+        }),
+      ],
+      { localMedia: { "image:a": { url: null } } },
+    );
+    assert.deepEqual(posts[0].embedImages[0].exists, true);
+  });
+
+  it("marks media missing when bytes are gone on the originating device", () => {
+    const posts = hydrateDraftPosts([
+      makeDraftView({
+        posts: [
+          {
+            text: "",
+            embedVideos: [{ localRef: { path: "video:video/mp4:v.mp4" } }],
+          },
+        ],
+      }),
+    ]);
+    assert.deepEqual(posts[0].embedVideos[0].exists, false);
+  });
+
+  it("hydrates from local byte presence even for drafts saved on another device", () => {
+    const posts = hydrateDraftPosts(
+      [
+        makeDraftView({
+          deviceId: "some-other-device",
+          posts: [
+            {
+              text: "",
+              embedGallery: {
+                items: [
+                  { localRef: { path: "image:a" } },
+                  { localRef: { path: "image:elsewhere" } },
+                ],
+              },
+            },
+          ],
+        }),
+      ],
+      { localMedia: { "image:a": { url: "blob:stub-image:a" } } },
+    );
+    assert.deepEqual(posts[0].embedGallery.items[0].exists, true);
+    assert.deepEqual(
+      posts[0].embedGallery.items[0].previewUrl,
+      "blob:stub-image:a",
+    );
+    assert.deepEqual(posts[0].embedGallery.items[1].exists, false);
+    assert.deepEqual(posts[0].embedGallery.items[1].previewUrl, null);
+  });
+
+  it("hydrates every post of a thread draft", () => {
+    const posts = hydrateDraftPosts([
+      makeDraftView({
+        posts: [
+          {
+            text: "a",
+            embedRecords: [{ record: { uri: "at://x", cid: "c" } }],
+          },
+          { text: "b" },
+          { text: "c" },
+        ],
+      }),
+    ]);
+    assert.deepEqual(posts.length, 3);
+    assert.deepEqual(posts[0].embedRecords, [
+      { record: { uri: "at://x", cid: "c" } },
+    ]);
+    assert.deepEqual(posts[1].embedRecords, undefined);
   });
 });

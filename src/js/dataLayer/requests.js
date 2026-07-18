@@ -17,6 +17,7 @@ import {
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
+import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
@@ -167,12 +168,14 @@ export class Requests {
     dataStore,
     preferencesProvider,
     pluginService,
+    draftMediaStore,
     { constellation } = {},
   ) {
     this.api = api;
     this.pluginService = pluginService;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
+    this.draftMediaStore = draftMediaStore;
     this.constellation = constellation ?? new Constellation();
     this.statusStore = new StatusStore();
     // Enable status tracking
@@ -237,6 +240,7 @@ export class Requests {
       this.loadKnownFollowers,
       (profileDid) => "loadKnownFollowers-" + profileDid,
     );
+    this.enableStatus(this.loadDrafts, "loadDrafts");
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
@@ -1309,6 +1313,20 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadDrafts({ reload = false } = {}) {
+    const cursor = reload ? "" : readCollectionCursor(this.dataStore.$drafts);
+    const res = await this.api.getDrafts({ cursor });
+    writePageToCollection(this.dataStore.$drafts, "drafts", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
+    // Load media refs
+    const localRefs = res.drafts.flatMap((draftView) =>
+      getLocalRefsFromDraft(draftView.draft),
+    );
+    await this.draftMediaStore.load(localRefs);
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {

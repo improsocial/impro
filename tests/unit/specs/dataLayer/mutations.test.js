@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { Mutations } from "/js/dataLayer/mutations.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { DraftMediaStore } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
@@ -18,6 +19,7 @@ function makeMutations(api, dataStore, patchStore, preferencesProvider) {
     patchStore,
     preferencesProvider,
     mockIdentityResolver,
+    new DraftMediaStore("test-media"),
   );
 }
 
@@ -59,6 +61,7 @@ function makeDerived(
     provider,
     makePluginService(),
     isAuthenticated,
+    new DraftMediaStore("test-media"),
   );
 }
 

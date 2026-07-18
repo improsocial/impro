@@ -149,6 +149,7 @@
       import listDetailView from "/js/views/listDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
+      import { DraftMediaStore } from "/js/drafts.js";
       import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
@@ -207,11 +208,13 @@
         window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
 
         const identityResolver = new IdentityResolver();
+        const draftMediaStore = new DraftMediaStore();
         const dataLayer = new DataLayer(
           api,
           pluginService,
           preferencesProvider,
           identityResolver,
+          draftMediaStore,
         );
         pluginService.setDataLayer(dataLayer);
         // put dataLayer on window for easy access in dev tools

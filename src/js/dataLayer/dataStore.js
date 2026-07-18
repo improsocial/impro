@@ -17,6 +17,7 @@ export class DataStore extends ReactiveStore {
     this.$mentionNotifications = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
     this.$bookmarks = new Signal.State(null);
+    this.$drafts = new Signal.State(null);
     this.$convoList = new Signal.State(null);
     this.$convoRequestList = new Signal.State(null);
     this.$blockedProfiles = new Signal.State(null);

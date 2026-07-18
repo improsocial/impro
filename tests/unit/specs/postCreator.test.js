@@ -14,13 +14,22 @@ function makeApi() {
       mimeType: "image/jpeg",
       size: 100,
     }),
-    createPost: async ({ embed, langs }) => {
+    createPost: async ({ embed, langs, labels }) => {
       api.lastEmbed = embed;
       api.lastLangs = langs;
+      api.lastLabels = labels;
       return {
         uri: "at://did:plc:user/app.bsky.feed.post/abc",
         cid: "cid1",
       };
+    },
+    threadgateCalls: [],
+    createThreadgate: async (postUri, allow) => {
+      api.threadgateCalls.push({ postUri, allow });
+    },
+    postgateCalls: [],
+    createPostgate: async (postUri, embeddingRules) => {
+      api.postgateCalls.push({ postUri, embeddingRules });
     },
     getPostCalls: 0,
     getPost: async function () {
@@ -492,6 +501,102 @@ describe("app view hydration", () => {
       assert.deepEqual(calls, 5);
     } finally {
       globalThis.setTimeout = originalWait;
+    }
+  });
+});
+
+describe("draft passthrough fields", () => {
+  const labels = {
+    $type: "com.atproto.label.defs#selfLabels",
+    values: [{ val: "porn" }],
+  };
+
+  it("forwards labels to api.createPost", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await pc.createPost({ postText: "hi", labels });
+    assert.deepEqual(api.lastLabels, labels);
+  });
+
+  it("omits labels when not provided", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await pc.createPost({ postText: "hi" });
+    assert.deepEqual(api.lastLabels, null);
+  });
+
+  it("creates threadgate and postgate records against the new post", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    const threadgateAllow = [
+      { $type: "app.bsky.feed.threadgate#followingRule" },
+    ];
+    const postgateEmbeddingRules = [
+      { $type: "app.bsky.feed.postgate#disableRule" },
+    ];
+    await pc.createPost({
+      postText: "hi",
+      threadgateAllow,
+      postgateEmbeddingRules,
+    });
+    assert.deepEqual(api.threadgateCalls, [
+      {
+        postUri: "at://did:plc:user/app.bsky.feed.post/abc",
+        allow: threadgateAllow,
+      },
+    ]);
+    assert.deepEqual(api.postgateCalls, [
+      {
+        postUri: "at://did:plc:user/app.bsky.feed.post/abc",
+        embeddingRules: postgateEmbeddingRules,
+      },
+    ]);
+  });
+
+  it("creates no gate records when the fields are absent or empty", async () => {
+    const api = makeApi();
+    const pc = new PostCreator(
+      api,
+      mockIdentityResolver,
+      makeImageCompressor(),
+    );
+    await pc.createPost({ postText: "hi", postgateEmbeddingRules: [] });
+    assert.deepEqual(api.threadgateCalls, []);
+    assert.deepEqual(api.postgateCalls, []);
+  });
+
+  it("still resolves the post when gate creation fails", async () => {
+    const originalError = console.error;
+    console.error = () => {};
+    try {
+      const api = makeApi();
+      api.createThreadgate = async () => {
+        throw new Error("gate failed");
+      };
+      const pc = new PostCreator(
+        api,
+        mockIdentityResolver,
+        makeImageCompressor(),
+      );
+      const res = await pc.createPost({
+        postText: "hi",
+        threadgateAllow: [{ $type: "app.bsky.feed.threadgate#followingRule" }],
+      });
+      assert.deepEqual(res.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+    } finally {
+      console.error = originalError;
     }
   });
 });

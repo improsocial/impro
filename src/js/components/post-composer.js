@@ -30,9 +30,33 @@ import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import { recordEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
+import { choiceModal } from "/js/modals/choice.modal.js";
+import {
+  parseUri,
+  createEmbedFromPost,
+  getLocalRefsFromDraft,
+  getImagesFromDraftPost,
+} from "/js/dataHelpers.js";
+import {
+  DraftMediaStore,
+  buildDraftFromComposerSnapshot,
+  getDraftDeviceId,
+} from "/js/drafts.js";
+import { ApiError } from "/js/api.js";
 import "/js/components/rich-text-input.js";
 import "/js/components/image-alt-text-dialog.js";
 import "/js/components/emoji-picker-dialog.js";
+import "/js/components/drafts-dialog.js";
+
+const MAX_DRAFT_GRAPHEME_LENGTH = 1000;
+
+function isDraftTextSavable(text) {
+  return graphemeCount(text) <= MAX_DRAFT_GRAPHEME_LENGTH;
+}
+
+function isDraftLimitError(error) {
+  return error instanceof ApiError && error.data?.error === "DraftLimitReached";
+}
 
 function replyToTemplate({ post }) {
   return html`
@@ -191,9 +215,17 @@ class PostComposer extends Component {
     this._externalLinkUrl = null;
     this._rejectedLinkEmbeds = new Set();
     this._videoToken = null;
+    this._draftId = null;
+    this._isDirty = false;
+    this._originalLocalRefs = null;
+    // Pass through unsupported fields on drafts
+    this._draftPassthrough = null;
+    this._draftVideoCaptions = null;
+    this._draftUnrestoredMedia = null;
     this.state = new ReactiveStore("postComposer");
     this.state.$postText = new Signal.State("");
     this.state.$isSending = new Signal.State(false);
+    this.state.$isSavingDraft = new Signal.State(false);
     this.state.$externalLinkEmbedData = new Signal.State(null);
     this.state.$selectedImages = new Signal.State([]);
     this.state.$selectedVideo = new Signal.State(null);
@@ -231,6 +263,7 @@ class PostComposer extends Component {
   render() {
     const promptText = this.replyTo ? "Write your reply" : "What's up?";
     const isSending = this.state.$isSending.get();
+    const isSavingDraft = this.state.$isSavingDraft.get();
     const externalLinkEmbedData = this.state.$externalLinkEmbedData.get();
     const selectedImages = this.state.$selectedImages.get();
     const selectedVideo = this.state.$selectedVideo.get();
@@ -284,6 +317,16 @@ class PostComposer extends Component {
               >
                 Cancel
               </button>
+              ${!this.replyTo
+                ? html`<button
+                    class="post-composer-drafts-button"
+                    data-testid="composer-drafts-button"
+                    .disabled=${isSavingDraft}
+                    @click=${() => this.handleDraftsButtonClick()}
+                  >
+                    Drafts
+                  </button>`
+                : ""}
               <button
                 class="rounded-button rounded-button-primary"
                 data-testid="composer-submit-button"
@@ -455,11 +498,13 @@ class PostComposer extends Component {
     this._rejectedLinkEmbeds.add(this._externalLinkUrl);
     this._externalLinkUrl = null;
     this.state.$externalLinkEmbedData.set(null);
+    this._isDirty = true;
   }
 
   handleQuotedEmbedPreviewClose() {
     this._quotedRecordUrl = null;
     this.state.$quotedRecord.set(null);
+    this._isDirty = true;
   }
 
   async loadQuotedRecordFromLink() {
@@ -525,6 +570,7 @@ class PostComposer extends Component {
           style: "warning",
         });
       }
+      this._isDirty = true;
       await this.processVideoFile(videoFiles[0]);
       return;
     }
@@ -562,6 +608,7 @@ class PostComposer extends Component {
     const latestImages = untrack(() => this.state.$selectedImages.get());
     const selectedImages = [...latestImages, ...newImages];
     this.state.$selectedImages.set(selectedImages);
+    this._isDirty = true;
 
     // Reject external link embed if images are added
     if (selectedImages.length > 0 && this._externalLinkUrl) {
@@ -576,6 +623,7 @@ class PostComposer extends Component {
     this.state.$selectedImages.set(
       selectedImages.filter((image, imageIndex) => imageIndex !== index),
     );
+    this._isDirty = true;
   }
 
   handleEditAltText(index) {
@@ -594,6 +642,7 @@ class PostComposer extends Component {
             : selectedImage,
         ),
       );
+      this._isDirty = true;
       dialog.remove();
     });
 
@@ -629,6 +678,7 @@ class PostComposer extends Component {
     }
     const token = Symbol();
     this._videoToken = token;
+    this._draftVideoCaptions = null;
     this.state.$selectedVideo.set({
       file,
       previewUrl: URL.createObjectURL(file),
@@ -689,6 +739,8 @@ class PostComposer extends Component {
     }
     this._videoToken = null;
     this.state.$selectedVideo.set(null);
+    this._draftVideoCaptions = null;
+    this._isDirty = true;
   }
 
   handleEditVideoAltText() {
@@ -700,6 +752,7 @@ class PostComposer extends Component {
 
     dialog.addEventListener("alt-text-saved", (e) => {
       this.patchSelectedVideo(token, { alt: e.detail.altText });
+      this._isDirty = true;
       dialog.remove();
     });
 
@@ -712,6 +765,7 @@ class PostComposer extends Component {
   }
 
   handleInput(e) {
+    this._isDirty = true;
     const previousFacets = this._unresolvedFacets;
     this.state.$postText.set(e.detail.text);
     this._unresolvedFacets = e.detail.facets;
@@ -891,21 +945,25 @@ class PostComposer extends Component {
       this.state.$isSending.set(false);
       // todo: show error message
     };
-    const postText = untrack(() => this.state.$postText.get());
-    const external = untrack(() => this.state.$externalLinkEmbedData.get());
-    const quotedRecord = untrack(() => this.state.$quotedRecord.get());
-    const images = untrack(() => this.state.$selectedImages.get());
-    const video = untrack(() => this.state.$selectedVideo.get());
     this.dispatchEvent(
       new CustomEvent("send-post", {
         detail: {
-          postText,
-          external,
-          replyTo: this.replyTo,
-          replyRoot: this.replyRoot,
-          quotedRecord,
-          images,
-          video,
+          post: {
+            ...this.readComposerState(),
+            replyTo: this.replyTo,
+            replyRoot: this.replyRoot,
+            labels: this._draftPassthrough?.labels ?? null,
+            threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
+            postgateEmbeddingRules:
+              this._draftPassthrough?.postgateEmbeddingRules ?? null,
+          },
+          // Publishing a saved/restored draft consumes it
+          draft: this._draftId
+            ? {
+                draftId: this._draftId,
+                localRefs: [...this._originalLocalRefs],
+              }
+            : null,
           successCallback,
           errorCallback,
         },
@@ -913,23 +971,394 @@ class PostComposer extends Component {
     );
   }
 
-  confirmClose() {
-    // Todo - check for other unsaved changes
+  readComposerState() {
+    return untrack(() => ({
+      postText: this.state.$postText.get(),
+      images: this.state.$selectedImages.get(),
+      video: this.state.$selectedVideo.get(),
+      external: this.state.$externalLinkEmbedData.get(),
+      quotedRecord: this.state.$quotedRecord.get(),
+    }));
+  }
+
+  hasContent() {
+    const { postText, images, video, external, quotedRecord } =
+      this.readComposerState();
+    return (
+      postText.length > 0 ||
+      images.length > 0 ||
+      video !== null ||
+      external !== null ||
+      quotedRecord !== null
+    );
+  }
+
+  buildDraftSnapshot() {
+    const composerState = this.readComposerState();
+    return {
+      ...composerState,
+      video: composerState.video
+        ? {
+            file: composerState.video.file,
+            alt: composerState.video.alt,
+            captions: this._draftVideoCaptions,
+          }
+        : null,
+      labels: this._draftPassthrough?.labels ?? null,
+      threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
+      postgateEmbeddingRules:
+        this._draftPassthrough?.postgateEmbeddingRules ?? null,
+      unrestoredImages: this._draftUnrestoredMedia?.images ?? null,
+      unrestoredVideo: this._draftUnrestoredMedia?.video ?? null,
+    };
+  }
+
+  async saveDraft() {
     const postText = untrack(() => this.state.$postText.get());
-    const selectedImages = untrack(() => this.state.$selectedImages.get());
-    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
-    if (
-      postText.length === 0 &&
-      selectedImages.length === 0 &&
-      !selectedVideo
-    ) {
+    if (!isDraftTextSavable(postText)) {
+      showToast(
+        `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters`,
+        { style: "warning" },
+      );
+      return false;
+    }
+    this.state.$isSavingDraft.set(true);
+    const snapshot = this.buildDraftSnapshot();
+    // Clear dirty so any edits made during save set it again
+    this._isDirty = false;
+    try {
+      const { draft, media } = buildDraftFromComposerSnapshot(snapshot);
+      const localRefs = getLocalRefsFromDraft(draft);
+      let id = this._draftId;
+      if (!id) {
+        id = await this.dataLayer.mutations.createDraft({ draft, media });
+      } else {
+        // prune outdated refs along with update
+        const refsToPrune = [...this._originalLocalRefs].filter(
+          (key) => !localRefs.includes(key),
+        );
+        await this.dataLayer.mutations.updateDraft({
+          draftId: id,
+          draft,
+          media,
+          pruneLocalRefs: refsToPrune,
+        });
+      }
+      // Add new image keys back onto composer state so they can be reused.
+      const draftImages = draft.posts[0].embedGallery?.items ?? [];
+      const currentImages = untrack(() => this.state.$selectedImages.get());
+      this.state.$selectedImages.set(
+        currentImages.map((image) => {
+          if (image.localRefPath) return image;
+          const snapshotIndex = snapshot.images.indexOf(image);
+          if (snapshotIndex === -1) return image;
+          return {
+            ...image,
+            localRefPath: draftImages[snapshotIndex].localRef.path,
+          };
+        }),
+      );
+      this.markSaved(id, localRefs);
+      return true;
+    } catch (error) {
+      this._isDirty = true;
+      console.error("Failed to save draft", error);
+      showToast(
+        isDraftLimitError(error)
+          ? "You've reached the maximum number of drafts"
+          : "Failed to save draft",
+        { style: "error" },
+      );
+      return false;
+    } finally {
+      this.state.$isSavingDraft.set(false);
+    }
+  }
+
+  markSaved(draftId, localRefs) {
+    this._draftId = draftId;
+    this._originalLocalRefs = new Set(localRefs);
+  }
+
+  clearComposer() {
+    const richTextInput = this.querySelector("rich-text-input");
+    richTextInput?.setText("");
+    this.state.$postText.set("");
+    this._unresolvedFacets = [];
+    this._rejectedLinkEmbeds = new Set();
+    this.state.$selectedImages.set([]);
+    this.handleRemoveVideo();
+    this._externalLinkUrl = null;
+    this.state.$externalLinkEmbedData.set(null);
+    this._quotedRecordUrl = null;
+    this.state.$quotedRecord.set(null);
+    this._draftId = null;
+    this._originalLocalRefs = null;
+    this._draftPassthrough = null;
+    this._draftVideoCaptions = null;
+    this._draftUnrestoredMedia = null;
+    this._isDirty = false;
+  }
+
+  async handleDraftsButtonClick() {
+    if (untrack(() => this.state.$isSavingDraft.get())) return;
+    if (!this.hasContent() || (this._draftId && !this._isDirty)) {
+      this.openDraftsDialog();
+      return;
+    }
+    const postText = untrack(() => this.state.$postText.get());
+    if (!isDraftTextSavable(postText)) {
+      const discard = await confirmModal(
+        `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
+        {
+          title: "Discard post?",
+          confirmButtonStyle: "danger",
+          confirmButtonText: "Discard",
+        },
+      );
+      if (!discard) return;
+      this.clearComposer();
+      this.openDraftsDialog();
+      return;
+    }
+    const choice = await this.promptSaveChoice({ forDraftsList: true });
+    if (choice === "save") {
+      if (await this.saveDraft()) {
+        this.openDraftsDialog();
+      }
+    } else if (choice === "discard") {
+      this.clearComposer();
+      this.openDraftsDialog();
+    }
+  }
+
+  promptSaveChoice({ forDraftsList = false } = {}) {
+    const isEditingDraft = this._draftId !== null;
+    let message;
+    if (forDraftsList) {
+      message = isEditingDraft
+        ? "You have unsaved changes. Would you like to save them before viewing your drafts?"
+        : "Would you like to save this post as a draft before viewing your drafts?";
+    } else {
+      message = isEditingDraft
+        ? "You have unsaved changes to this draft. Would you like to save them?"
+        : "Would you like to save this post as a draft?";
+    }
+    return choiceModal(message, {
+      title: isEditingDraft ? "Save changes?" : "Save draft?",
+      choices: [
+        {
+          value: "save",
+          label: isEditingDraft ? "Save changes" : "Save draft",
+          style: "primary",
+        },
+        { value: "discard", label: "Discard", style: "danger-subtle" },
+        { value: "keep", label: "Keep editing", style: "cancel" },
+      ],
+    });
+  }
+
+  openDraftsDialog() {
+    const dialog = document.createElement("drafts-dialog");
+    dialog.dataLayer = this.dataLayer;
+    dialog.addEventListener("draft-selected", (e) => {
+      this.restoreFromDraft(e.detail.draftView);
+    });
+    dialog.addEventListener("draft-deleted", (e) => {
+      this.handleDraftDeleted(e.detail.draftId);
+    });
+    dialog.addEventListener("dialog-closed", () => {
+      dialog.remove();
+    });
+    document.body.appendChild(dialog);
+    dialog.open();
+  }
+
+  // The server silently ignores updates to a deleted draft id, so once the
+  // loaded draft is deleted from the list, treat the content as a new
+  // unsaved post
+  handleDraftDeleted(draftId) {
+    if (draftId === null || draftId !== this._draftId) return;
+    this._draftId = null;
+    this._originalLocalRefs = null;
+    this._draftUnrestoredMedia = null;
+    this._isDirty = true;
+  }
+
+  async restoreFromDraft(draftView) {
+    const draft = draftView.draft;
+    const draftPost = draft.posts?.[0] ?? { text: "" };
+    const isOriginatingDevice = draft.deviceId === getDraftDeviceId();
+    this.clearComposer();
+    const richTextInput = this.querySelector("rich-text-input");
+    richTextInput?.setText(draftPost.text ?? "");
+    this._draftPassthrough = {
+      labels: draftPost.labels ?? null,
+      threadgateAllow: draft.threadgateAllow ?? null,
+      postgateEmbeddingRules: draft.postgateEmbeddingRules ?? null,
+    };
+    this._draftId = draftView.id;
+    this._originalLocalRefs = new Set(getLocalRefsFromDraft(draft));
+    this._isDirty = false;
+    const unrestoredImages = [];
+    if (isOriginatingDevice) {
+      const restoredImages = [];
+      for (const item of getImagesFromDraftPost(draftPost)) {
+        try {
+          const blob = await this.dataLayer.draftMediaStore.readBlob(
+            item.localRef.path,
+          );
+          if (!blob) {
+            unrestoredImages.push(item);
+            continue;
+          }
+          const file = new File([blob], "draft-image", {
+            type: blob.type || "image/jpeg",
+          });
+          const image = {
+            file,
+            dataUrl: await readFileAsDataUrl(blob),
+            localRefPath: item.localRef.path,
+          };
+          if (item.alt) {
+            image.alt = item.alt;
+          }
+          restoredImages.push(image);
+        } catch (error) {
+          console.warn("Failed to restore draft image", error);
+          unrestoredImages.push(item);
+        }
+      }
+      if (restoredImages.length > 0) {
+        this.state.$selectedImages.set(restoredImages);
+      }
+    } else {
+      unrestoredImages.push(...getImagesFromDraftPost(draftPost));
+    }
+    const externalUri = draftPost.embedExternals?.[0]?.uri ?? null;
+    if (externalUri) {
+      this._externalLinkUrl = externalUri;
+      this.loadExternalLinkEmbedPreview();
+    }
+    const quoteRef = draftPost.embedRecords?.[0]?.record ?? null;
+    if (quoteRef) {
+      await this.restoreQuotedRecord(quoteRef);
+    }
+    const videoEmbed = draftPost.embedVideos?.[0] ?? null;
+    let videoRestored = false;
+    if (videoEmbed?.localRef?.path && isOriginatingDevice) {
+      videoRestored = await this.restoreDraftVideo(videoEmbed);
+    }
+    const unrestoredVideo = videoEmbed && !videoRestored ? videoEmbed : null;
+    this._draftUnrestoredMedia =
+      unrestoredImages.length > 0 || unrestoredVideo
+        ? { images: unrestoredImages, video: unrestoredVideo }
+        : null;
+  }
+
+  async restoreQuotedRecord(recordRef) {
+    try {
+      const { collection } = parseUri(recordRef.uri);
+      let record = null;
+      if (collection === "app.bsky.feed.generator") {
+        const view = await this.dataLayer.declarative.ensureFeedGenerator(
+          recordRef.uri,
+        );
+        record = { ...view, $type: "app.bsky.feed.defs#generatorView" };
+      } else if (collection === "app.bsky.graph.list") {
+        const view = await this.dataLayer.declarative.ensureList(recordRef.uri);
+        record = { ...view, $type: "app.bsky.graph.defs#listView" };
+      } else if (collection === "app.bsky.graph.starterpack") {
+        const view = await this.dataLayer.declarative.ensureStarterPack(
+          recordRef.uri,
+        );
+        record = { ...view, $type: "app.bsky.graph.defs#starterPackViewBasic" };
+      } else {
+        const post = await this.dataLayer.declarative.ensurePost(recordRef.uri);
+        record = createEmbedFromPost(post);
+      }
+      this.state.$quotedRecord.set(record);
+    } catch (error) {
+      console.warn("Failed to restore draft quote", error);
+      showToast("Couldn't load this draft's quoted record", {
+        style: "warning",
+      });
+    }
+  }
+
+  async restoreDraftVideo(videoEmbed) {
+    try {
+      const path = videoEmbed.localRef.path;
+      const blob = await this.dataLayer.draftMediaStore.readBlob(path);
+      if (!blob) {
+        showToast("This draft's video is not available on this device", {
+          style: "warning",
+        });
+        return false;
+      }
+      const extension = DraftMediaStore.parseVideoExtension(path);
+      const file = new File([blob], `draft-video.${extension}`, {
+        type: blob.type || DraftMediaStore.parseVideoMimeType(path),
+      });
+      await this.processVideoFile(file);
+      if (!untrack(() => this.state.$selectedVideo.get())) {
+        return false;
+      }
+      if (videoEmbed.alt) {
+        this.patchSelectedVideo(this._videoToken, { alt: videoEmbed.alt });
+      }
+      this._draftVideoCaptions = videoEmbed.captions ?? null;
+      return true;
+    } catch (error) {
+      console.warn("Failed to restore draft video", error);
+      showToast("Couldn't restore this draft's video", { style: "warning" });
+      return false;
+    }
+  }
+
+  async confirmClose() {
+    if (this.replyTo) {
+      const postText = untrack(() => this.state.$postText.get());
+      const selectedImages = untrack(() => this.state.$selectedImages.get());
+      const selectedVideo = untrack(() => this.state.$selectedVideo.get());
+      if (
+        postText.length === 0 &&
+        selectedImages.length === 0 &&
+        !selectedVideo
+      ) {
+        return true;
+      }
+      return confirmModal("Are you sure you'd like to discard this reply?", {
+        title: "Discard reply?",
+        confirmButtonStyle: "danger",
+        confirmButtonText: "Discard",
+      });
+    }
+    if (!this.hasContent()) {
       return true;
     }
-    return confirmModal("Are you sure you'd like to discard this draft?", {
-      title: "Discard draft?",
-      confirmButtonStyle: "danger",
-      confirmButtonText: "Discard",
-    });
+    if (this._draftId && !this._isDirty) {
+      return true;
+    }
+    const postText = untrack(() => this.state.$postText.get());
+    if (!isDraftTextSavable(postText)) {
+      return confirmModal(
+        `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
+        {
+          title: "Discard post?",
+          confirmButtonStyle: "danger",
+          confirmButtonText: "Discard",
+        },
+      );
+    }
+    const choice = await this.promptSaveChoice();
+    if (choice === "discard") {
+      return true;
+    }
+    if (choice === "save") {
+      return this.saveDraft();
+    }
+    return false;
   }
 }
 

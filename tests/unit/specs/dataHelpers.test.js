@@ -6,6 +6,8 @@ import {
   getIsLiked,
   isListFeed,
   getQuotedPost,
+  getImagesFromDraftPost,
+  getLocalRefsFromDraft,
   getBlockedQuote,
   createEmbedFromPost,
   embedViewRecordToPostView,
@@ -2314,5 +2316,47 @@ describe("isVideoLink", () => {
     assert(!isVideoLink("https://example.com/watch?v=dQw4w9WgXcQ"));
     assert(!isVideoLink("not a url"));
     assert(!isVideoLink(null));
+  });
+});
+
+describe("getImagesFromDraftPost", () => {
+  it("reads embedGallery items", () => {
+    const images = getImagesFromDraftPost({
+      embedGallery: { items: [{ localRef: { path: "image:a" } }] },
+    });
+    assert.deepEqual(images.length, 1);
+  });
+
+  it("reads legacy embedImages", () => {
+    const images = getImagesFromDraftPost({
+      embedImages: [{ localRef: { path: "image:a" }, alt: "old" }],
+    });
+    assert.deepEqual(images[0].alt, "old");
+  });
+
+  it("skips entries without a localRef path", () => {
+    const images = getImagesFromDraftPost({
+      embedGallery: { items: [{ localRef: {} }, {}] },
+    });
+    assert.deepEqual(images, []);
+  });
+});
+
+describe("getLocalRefsFromDraft", () => {
+  it("collects image and video refs across posts, including legacy images", () => {
+    const refs = getLocalRefsFromDraft({
+      posts: [
+        {
+          embedGallery: { items: [{ localRef: { path: "image:a" } }] },
+          embedVideos: [{ localRef: { path: "video:video/mp4:v.mp4" } }],
+        },
+        { embedImages: [{ localRef: { path: "image:b" } }] },
+      ],
+    });
+    assert.deepEqual(refs, ["image:a", "video:video/mp4:v.mp4", "image:b"]);
+  });
+
+  it("returns an empty array for drafts with no media", () => {
+    assert.deepEqual(getLocalRefsFromDraft({ posts: [{ text: "hi" }] }), []);
   });
 });

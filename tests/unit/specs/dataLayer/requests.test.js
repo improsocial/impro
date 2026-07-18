@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { DraftMediaStore } from "/js/drafts.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
 import { SignalMap } from "/js/signals.js";
@@ -13,9 +14,14 @@ const stubPluginService = {
 };
 
 function createRequests(api, dataStore, preferencesProvider) {
-  return new Requests(api, dataStore, preferencesProvider, stubPluginService, {
-    constellation: stubConstellation,
-  });
+  return new Requests(
+    api,
+    dataStore,
+    preferencesProvider,
+    stubPluginService,
+    new DraftMediaStore("test-media"),
+    { constellation: stubConstellation },
+  );
 }
 
 describe("loadPostThread", () => {
@@ -237,6 +243,7 @@ describe("loadNextFeedPage", () => {
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
       pluginService,
+      new DraftMediaStore("test-media"),
       { constellation: stubConstellation },
     );
 
@@ -345,6 +352,7 @@ describe("loadPluginFilteredFeedItems", () => {
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
       pluginService,
+      new DraftMediaStore("test-media"),
       { constellation: stubConstellation },
     );
   }

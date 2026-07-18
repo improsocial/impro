@@ -204,6 +204,58 @@ export class Api {
     return res.data;
   }
 
+  async getDrafts({ cursor = "", limit } = {}) {
+    const query = {};
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    if (limit) {
+      query.limit = limit;
+    }
+    const res = await this.request("app.bsky.draft.getDrafts", {
+      query,
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async createDraft(draft) {
+    const res = await this.request("app.bsky.draft.createDraft", {
+      method: "POST",
+      body: { draft },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async updateDraft(id, draft) {
+    const res = await this.request("app.bsky.draft.updateDraft", {
+      method: "POST",
+      body: { draft: { id, draft } },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res.data;
+  }
+
+  async deleteDraft(id) {
+    const res = await this.request("app.bsky.draft.deleteDraft", {
+      method: "POST",
+      body: { id },
+      headers: {
+        "atproto-proxy": this.bskyAppViewServiceDid,
+      },
+      parseJson: false,
+    });
+    return res.data;
+  }
+
   async createFollowRecord(profile) {
     const res = await this.request(`com.atproto.repo.createRecord`, {
       method: "POST",
@@ -1163,7 +1215,7 @@ export class Api {
     return res.data;
   }
 
-  async createPost({ text, facets, embed, reply, langs }) {
+  async createPost({ text, facets, embed, reply, langs, labels = null }) {
     const record = {
       text,
       facets,
@@ -1176,12 +1228,54 @@ export class Api {
     if (reply) {
       record.reply = reply;
     }
+    if (labels) {
+      record.labels = labels;
+    }
     const res = await this.request("com.atproto.repo.createRecord", {
       method: "POST",
       body: {
         repo: this.session.did,
         collection: "app.bsky.feed.post",
         record,
+      },
+    });
+    return res.data;
+  }
+
+  // Threadgate and postgate records use the same rkey as the post they gate
+  async createThreadgate(postUri, allow) {
+    const { rkey } = parseUri(postUri);
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.threadgate",
+        rkey,
+        record: {
+          $type: "app.bsky.feed.threadgate",
+          post: postUri,
+          allow,
+          createdAt: getCurrentTimestamp(),
+        },
+      },
+    });
+    return res.data;
+  }
+
+  async createPostgate(postUri, embeddingRules) {
+    const { rkey } = parseUri(postUri);
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.feed.postgate",
+        rkey,
+        record: {
+          $type: "app.bsky.feed.postgate",
+          post: postUri,
+          embeddingRules,
+          createdAt: getCurrentTimestamp(),
+        },
       },
     });
     return res.data;

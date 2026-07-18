@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
+import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
 
 function createMockApi(options = {}) {
@@ -14,9 +15,13 @@ function createMockApi(options = {}) {
 }
 
 function createDataLayer(api) {
-  return new DataLayer(api, null, new PreferencesProvider(api), {
-    resolveHandle: async () => null,
-  });
+  return new DataLayer(
+    api,
+    null,
+    new PreferencesProvider(api),
+    { resolveHandle: async () => null },
+    new DraftMediaStore("test-media"),
+  );
 }
 
 describe("constructor", () => {

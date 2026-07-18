@@ -18,6 +18,10 @@ export class MockServer {
     this.joinLinkJoinedConvos = new Map();
     this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
+    this.drafts = [];
+    this.draftCounter = 0;
+    this.deletedDraftIds = [];
+    this.draftLimitReached = false;
     this.interactionPayloads = [];
     this.blobCounter = 0;
     this.messageCounter = 0;
@@ -1196,6 +1200,68 @@ export class MockServer {
         this.bookmarks[idx].viewer.bookmarked = false;
         this.bookmarks.splice(idx, 1);
       }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.draft.getDrafts*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ drafts: this.drafts }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.draft.createDraft*", (route) => {
+      if (this.draftLimitReached) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "DraftLimitReached",
+            message: "Draft limit reached",
+          }),
+        });
+      }
+      const body = route.request().postDataJSON();
+      const id = `draft-${++this.draftCounter}`;
+      const now = new Date().toISOString();
+      this.drafts.unshift({
+        id,
+        createdAt: now,
+        updatedAt: now,
+        draft: body.draft,
+      });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.draft.updateDraft*", (route) => {
+      const body = route.request().postDataJSON();
+      const existing = this.drafts.find(
+        (draftView) => draftView.id === body.draft.id,
+      );
+      if (existing) {
+        existing.draft = body.draft.draft;
+        existing.updatedAt = new Date().toISOString();
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.draft.deleteDraft*", (route) => {
+      const body = route.request().postDataJSON();
+      this.deletedDraftIds.push(body.id);
+      this.drafts = this.drafts.filter((draftView) => draftView.id !== body.id);
       return route.fulfill({
         status: 200,
         contentType: "application/json",

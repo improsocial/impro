@@ -111,6 +111,7 @@ export class Derived extends ReactiveStore {
     preferencesProvider,
     pluginService,
     isAuthenticated,
+    draftMediaStore,
   ) {
     super("derived");
     this.dataStore = dataStore;
@@ -118,6 +119,7 @@ export class Derived extends ReactiveStore {
     this.preferencesProvider = preferencesProvider;
     this.pluginService = pluginService;
     this.isAuthenticated = isAuthenticated;
+    this.draftMediaStore = draftMediaStore;
     this.$showLessInteractions = new Signal.Computed(() =>
       this.dataStore.$showLessInteractions.get(),
     );
@@ -448,6 +450,22 @@ export class Derived extends ReactiveStore {
         cursor: data.cursor,
       });
     });
+    this.$hydratedDrafts = new Signal.Computed(() => {
+      const data = this.dataStore.$drafts.get();
+      if (!data) {
+        return null;
+      }
+      const media = this.draftMediaStore.$media.get();
+      return {
+        drafts: data.drafts.map((draftView) => ({
+          ...draftView,
+          posts: (draftView.draft.posts ?? []).map((draftPost) =>
+            this.hydrateDraftPost(draftPost, media),
+          ),
+        })),
+        cursor: data.cursor,
+      };
+    });
     this.$labelerSettings = new ComputedMap((labelerDid) => {
       const preferences = this.$preferences.get();
       if (!preferences) return null;
@@ -614,6 +632,47 @@ export class Derived extends ReactiveStore {
     this.$mentionNotificationCursor = new Signal.Computed(
       () => this.dataStore.$mentionNotifications.get()?.cursor ?? null,
     );
+  }
+
+  hydrateDraftImageItem(item, media) {
+    if (!item.localRef?.path) {
+      return item;
+    }
+    const entry = media[item.localRef.path];
+    return {
+      ...item,
+      exists: entry != null,
+      previewUrl: entry?.url ?? null,
+    };
+  }
+
+  // Decorates a draft post's media embeds with local state: `exists` on
+  // images and videos, plus `previewUrl` on images
+  hydrateDraftPost(draftPost, media) {
+    const hydrated = { ...draftPost };
+    if (draftPost.embedGallery) {
+      hydrated.embedGallery = {
+        ...draftPost.embedGallery,
+        items: (draftPost.embedGallery.items ?? []).map((item) =>
+          this.hydrateDraftImageItem(item, media),
+        ),
+      };
+    }
+    if (draftPost.embedImages) {
+      hydrated.embedImages = draftPost.embedImages.map((item) =>
+        this.hydrateDraftImageItem(item, media),
+      );
+    }
+    if (draftPost.embedVideos) {
+      hydrated.embedVideos = draftPost.embedVideos.map((videoEmbed) => {
+        if (!videoEmbed.localRef?.path) {
+          return videoEmbed;
+        }
+        const entry = media[videoEmbed.localRef.path];
+        return { ...videoEmbed, exists: entry != null };
+      });
+    }
+    return hydrated;
   }
 
   attachJoinLinkPreview(item) {

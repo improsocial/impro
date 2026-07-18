@@ -50,30 +50,29 @@ export class PostComposerService {
         this.currentPostComposer.initialCursor = composerInit.cursor;
       }
       this.currentPostComposer.addEventListener("send-post", async (e) => {
-        const {
-          postText,
-          external,
-          replyTo,
-          replyRoot,
-          quotedRecord,
-          images,
-          video,
-          successCallback,
-          errorCallback,
-        } = e.detail;
+        const { post, draft, successCallback, errorCallback } = e.detail;
         try {
-          const result = await this.onSend({
-            postText,
-            external,
-            replyTo,
-            replyRoot,
-            quotedRecord,
-            images,
-            video,
-          });
-          successCallback(result);
-          resolve(result);
+          const res = await this.dataLayer.mutations.createPost(post);
+          showToast(
+            html`<div class="toast-with-link">
+              ${post.replyTo ? "Your reply was sent" : "Your post was sent"}<a
+                href="${linkToPostFromUri(res.uri)}"
+                >View</a
+              >
+            </div>`,
+            { style: "success" },
+          );
+          // Publishing a saved/restored draft consumes it
+          if (draft) {
+            this.dataLayer.mutations.deleteDraft(draft).catch((error) => {
+              console.error("Failed to clean up published draft", error);
+            });
+          }
+          successCallback(res);
+          resolve(res);
         } catch (error) {
+          console.error(error);
+          showToast("Failed to send post", { style: "error" });
           errorCallback(error);
           reject(error);
         }
@@ -88,41 +87,5 @@ export class PostComposerService {
       document.body.appendChild(this.currentPostComposer);
       this.currentPostComposer.open();
     });
-  }
-
-  async onSend({
-    postText,
-    external,
-    replyTo,
-    replyRoot,
-    quotedRecord,
-    images,
-    video,
-  }) {
-    try {
-      const res = await this.dataLayer.mutations.createPost({
-        postText,
-        external,
-        replyTo,
-        replyRoot,
-        quotedRecord,
-        images,
-        video,
-      });
-      showToast(
-        html`<div class="toast-with-link">
-          ${replyTo ? "Your reply was sent" : "Your post was sent"}<a
-            href="${linkToPostFromUri(res.uri)}"
-            >View</a
-          >
-        </div>`,
-        { style: "success" },
-      );
-      return res;
-    } catch (error) {
-      console.error(error);
-      showToast("Failed to send post", { style: "error" });
-      throw error;
-    }
   }
 }
