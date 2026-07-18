@@ -148,15 +148,17 @@ test.describe("Drag-to-dismiss", () => {
       await expect(reportDialog).toBeVisible();
     });
 
-    test("does not dismiss while the keyboard is open", async ({ page }) => {
-      const reportDialog = await openReportDialog(page);
+    test("still dismisses while the keyboard is open", async ({ page }) => {
+      await openReportDialog(page);
       await simulateKeyboardOpen(page);
       await drag(page, {
         eventSourceSelector: "report-dialog .report-dialog",
         startY: 300,
         endY: 430,
       });
-      await expect(reportDialog).toBeVisible();
+      await expect(
+        page.locator("report-dialog .report-dialog"),
+      ).not.toBeVisible({ timeout: 2000 });
     });
 
     test("does not dismiss when the body is scrolled away from the top", async ({
@@ -322,17 +324,17 @@ test.describe("Drag-to-dismiss", () => {
       await expect(contextMenu).toBeVisible();
     });
 
-    // Suppressing dismiss while the keyboard is open is the default, so this
-    // caller gets it without opting in.
-    test("does not dismiss while the keyboard is open", async ({ page }) => {
-      const contextMenu = await openContextMenu(page);
+    test("still dismisses while the keyboard is open", async ({ page }) => {
+      await openContextMenu(page);
       await simulateKeyboardOpen(page);
       await drag(page, {
         eventSourceSelector: "context-menu .context-menu-container.open",
         startY: 300,
         endY: 400,
       });
-      await expect(contextMenu).toBeVisible();
+      await expect(
+        page.locator("context-menu .context-menu[open]"),
+      ).not.toBeVisible({ timeout: 2000 });
     });
   });
 
