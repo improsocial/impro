@@ -204,6 +204,46 @@ describe("rich-text-input", () => {
       assert.deepEqual(details[0].inputType, "insertFromPaste");
     });
 
+    it("falls back to text/uri-list when text/plain is empty on paste", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+
+      const details = [];
+      element.addEventListener("input", (event) => {
+        details.push(event.detail);
+      });
+
+      const originalExecCommand = document.execCommand;
+      document.execCommand = (name, _ui, value) => {
+        input.textContent = input.textContent + value;
+        input.dispatchEvent(new window.InputEvent("input"));
+        return true;
+      };
+      try {
+        const pasteEvent = new window.Event("paste", {
+          bubbles: true,
+          cancelable: true,
+        });
+        pasteEvent.clipboardData = {
+          getData: (type) =>
+            type === "text/uri-list"
+              ? "# copied from share sheet\r\nhttps://example.com/a\r\nhttps://example.com/b"
+              : "",
+        };
+        input.dispatchEvent(pasteEvent);
+      } finally {
+        document.execCommand = originalExecCommand;
+      }
+
+      assert.deepEqual(details.length, 1);
+      assert.deepEqual(
+        details[0].text,
+        "https://example.com/a\nhttps://example.com/b",
+      );
+      assert.deepEqual(details[0].inputType, "insertFromPaste");
+    });
+
     it("passes the native inputType through in the input detail", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);

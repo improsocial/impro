@@ -12,6 +12,13 @@ const FACET_TYPES = new Set([
   "app.bsky.richtext.facet#tag",
 ]);
 
+function parseUriList(uriList) {
+  return uriList
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .join("\n");
+}
+
 function facetsOverlap(a, b) {
   return (
     a.index.byteStart < b.index.byteEnd && a.index.byteEnd > b.index.byteStart
@@ -443,9 +450,12 @@ export class RichTextInput extends Component {
             @paste=${(e) => {
               e.preventDefault();
               // https://stackoverflow.com/a/58980415
-              const text = (e.clipboardData || window.clipboardData).getData(
-                "text/plain",
-              );
+              const clipboard = e.clipboardData || window.clipboardData;
+              // iOS share-sheet links arrive as text/uri-list with no
+              // text/plain representation
+              const text =
+                clipboard.getData("text/plain") ||
+                parseUriList(clipboard.getData("text/uri-list"));
               // execCommand fires the input event synchronously, so
               // handleInput runs while this flag is set
               this.isPasting = true;
