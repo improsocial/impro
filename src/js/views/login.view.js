@@ -162,18 +162,24 @@ class LoginView extends View {
       }
     }
 
-    function handleUseAnotherAccount() {
-      if (state.$pendingAccountDid.get() !== null) return;
-      state.$forceShowForm.set(true);
+    function focusHandleInput({ clearValue = false } = {}) {
       requestAnimationFrame(() => {
         requestAnimationFrame(() => {
           const input = root.querySelector('input[name="handle"]');
           if (input) {
-            input.value = "";
+            if (clearValue) {
+              input.value = "";
+            }
             input.focus();
           }
         });
       });
+    }
+
+    function handleUseAnotherAccount() {
+      if (state.$pendingAccountDid.get() !== null) return;
+      state.$forceShowForm.set(true);
+      focusHandleInput({ clearValue: true });
     }
 
     function handleBack() {
@@ -497,7 +503,14 @@ class LoginView extends View {
       if (params.get("addAccount") === "1") {
         state.$forceShowForm.set(true);
       }
-      loadSavedAccounts();
+      await loadSavedAccounts();
+      const listVisible =
+        !state.$forceShowForm.get() &&
+        supportsMultipleAccounts &&
+        state.$savedAccounts.get().length > 0;
+      if (!listVisible) {
+        focusHandleInput();
+      }
     });
 
     // Account actions navigate away with the pending spinner showing; if the

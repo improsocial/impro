@@ -20,6 +20,7 @@ test.describe("Login view", () => {
       "placeholder",
       "example.bsky.social",
     );
+    await expect(handleInput).toBeFocused();
 
     await expect(page.getByRole("button", { name: "Next" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Back" })).toBeVisible();
