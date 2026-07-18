@@ -1,5 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createConvo,
@@ -738,6 +739,44 @@ test.describe("Chat detail view", () => {
     await page.goto("/messages/convo-1");
 
     const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-chat-open-in-bsky"]'),
+    ).toBeVisible();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-group-chat-details"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should not offer group chat details when the session lacks the members scope", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    const scopeWithoutMembers = OAUTH_SCOPES.split(" ")
+      .filter((scope) => !scope.includes("chat.bsky.convo.getConvoMembers"))
+      .join(" ");
+    await login(page, { scope: scopeWithoutMembers });
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+    await expect(chatDetailView.locator(".header-title-link")).toHaveCount(0);
+
     await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
     await expect(
       chatDetailView.locator('[data-testid="menu-action-chat-open-in-bsky"]'),

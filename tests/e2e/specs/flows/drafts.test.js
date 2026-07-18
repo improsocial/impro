@@ -1,6 +1,7 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 
 async function openComposer(page) {
   const homeView = page.locator("#home-view");
@@ -78,6 +79,34 @@ test.describe("Post drafts flow", () => {
     await expect(
       page.locator('[data-testid="drafts-dialog"] [data-testid="empty-state"]'),
     ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("hides drafts and confirms discard when the session lacks the draft scopes", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    const scopeWithoutDrafts = OAUTH_SCOPES.split(" ")
+      .filter((scope) => !scope.includes("app.bsky.draft."))
+      .join(" ");
+    await login(page, { scope: scopeWithoutDrafts });
+    await page.goto("/");
+
+    const composer = await openComposer(page);
+    await composer.locator(".rich-text-input").click();
+    await composer.locator(".rich-text-input").type("Ephemeral thought");
+    await expect(
+      composer.locator('[data-testid="composer-drafts-button"]'),
+    ).toHaveCount(0);
+    await composer.locator(".post-composer-cancel-button").click();
+
+    // A plain discard confirmation replaces the save-draft choice prompt
+    const confirmModal = page.locator('[data-testid="confirm-modal"]');
+    await expect(confirmModal).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="choice-modal"]')).toHaveCount(0);
+    await confirmModal.locator('[data-testid="modal-confirm-button"]').click();
+    await expect(composer).not.toBeVisible({ timeout: 10000 });
   });
 
   test("delete a draft from the list with confirmation", async ({ page }) => {

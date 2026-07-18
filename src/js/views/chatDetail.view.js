@@ -68,6 +68,10 @@ class ChatDetailView extends View {
   }) {
     await auth.requireAuth();
 
+    const canViewGroupDetails = await auth.hasScope(
+      "rpc:chat.bsky.convo.getConvoMembers",
+    );
+
     const convoId = params.convoId;
 
     const state = new ReactiveStore("chatDetailView");
@@ -1392,7 +1396,10 @@ class ChatDetailView extends View {
             },
             title,
             subtitle,
-            titleHref: groupDetails ? linkToGroupChatDetails(convoId) : null,
+            titleHref:
+              groupDetails && canViewGroupDetails
+                ? linkToGroupChatDetails(convoId)
+                : null,
             backButtonFallbackRoute: "/messages",
             rightItemTemplate: () => html`
               <button
@@ -1406,7 +1413,7 @@ class ChatDetailView extends View {
                 <span>...</span>
               </button>
               <context-menu>
-                ${groupDetails
+                ${groupDetails && canViewGroupDetails
                   ? html`<context-menu-item
                       data-testid="menu-action-group-chat-details"
                       @click=${() => {

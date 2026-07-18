@@ -1,5 +1,5 @@
 import { execSync } from "child_process";
-import { OAUTH_SCOPES } from "./oauthScopes.js";
+import { OAUTH_SCOPES, OPTIONAL_OAUTH_SCOPES } from "./oauthScopes.js";
 import pkg from "../package.json" with { type: "json" };
 
 export default {
@@ -11,5 +11,6 @@ export default {
   environment: process.env.ENVIRONMENT ?? "development",
   playwright: process.env.PLAYWRIGHT ? "true" : "",
   oauthScopes: OAUTH_SCOPES,
+  oauthOptionalScopes: OPTIONAL_OAUTH_SCOPES,
   oatproxyClientId: process.env.OATPROXY_CLIENT_ID ?? "",
 };

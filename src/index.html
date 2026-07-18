@@ -184,6 +184,20 @@
       import { PluginService } from "/js/plugins/pluginService.js";
       import { MainLayout } from "/js/mainLayout.js";
 
+      const DRAFT_SCOPES = [
+        "rpc:app.bsky.draft.getDrafts",
+        "rpc:app.bsky.draft.createDraft",
+        "rpc:app.bsky.draft.updateDraft",
+        "rpc:app.bsky.draft.deleteDraft",
+      ];
+
+      async function checkDraftsEnabled() {
+        const results = await Promise.all(
+          DRAFT_SCOPES.map((scope) => auth.hasScope(scope)),
+        );
+        return results.every(Boolean);
+      }
+
       async function main() {
         // Body class for styling
         if (isNative()) {
@@ -227,7 +241,14 @@
           ? new ChatNotificationService(api)
           : null;
         const postComposerService = session
-          ? new PostComposerService(dataLayer, identityResolver, pluginService)
+          ? new PostComposerService(
+              dataLayer,
+              identityResolver,
+              pluginService,
+              {
+                draftsEnabled: await checkDraftsEnabled(),
+              },
+            )
           : null;
         const accountSwitcherService = session
           ? new AccountSwitcherService(dataLayer)

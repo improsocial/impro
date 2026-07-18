@@ -96,10 +96,6 @@ const BSKY_OAUTH_RPC_SCOPES = [
   "rpc:app.bsky.video.getJobStatus",
   "rpc:app.bsky.video.getUploadLimits",
   "rpc:app.bsky.video.uploadVideo",
-  "rpc:app.bsky.draft.getDrafts",
-  "rpc:app.bsky.draft.createDraft",
-  "rpc:app.bsky.draft.updateDraft",
-  "rpc:app.bsky.draft.deleteDraft",
 ];
 
 const BSKY_OAUTH_REPO_SCOPES = [
@@ -142,7 +138,6 @@ const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.updateRead",
   "rpc:chat.bsky.group.getJoinLinkPreviews",
   "rpc:chat.bsky.group.requestJoin",
-  "rpc:chat.bsky.convo.getConvoMembers",
 ];
 
 const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
@@ -152,21 +147,45 @@ const ATPROTO_OAUTH_RPC_SCOPES = [
   "rpc:com.atproto.repo.uploadBlob",
 ];
 
+const OPTIONAL_OAUTH_RPC_SCOPES = [
+  "rpc:chat.bsky.convo.getConvoMembers",
+  "rpc:app.bsky.draft.getDrafts",
+  "rpc:app.bsky.draft.createDraft",
+  "rpc:app.bsky.draft.updateDraft",
+  "rpc:app.bsky.draft.deleteDraft",
+];
+
+function expandScope(scope) {
+  if (scope.startsWith("rpc:")) {
+    return [scope + "?aud=*"];
+  }
+  if (scope.startsWith("repo:")) {
+    return ["create", "update", "delete"].map(
+      (action) => scope + "?action=" + action,
+    );
+  }
+  return [scope];
+}
+
+function expandScopes(scopes) {
+  return scopes.flatMap(expandScope);
+}
+
 function buildOauthScopesString() {
-  let scopesString = "atproto blob:*/*";
-  for (let scope of [
-    ...BSKY_OAUTH_RPC_SCOPES,
-    ...CHAT_OAUTH_RPC_SCOPES,
-    ...ATPROTO_OAUTH_RPC_SCOPES,
-  ]) {
-    scopesString += " " + scope + "?aud=*";
-  }
-  for (let scope of [...BSKY_OAUTH_REPO_SCOPES, ...CHAT_OAUTH_REPO_SCOPES]) {
-    for (let action of ["create", "update", "delete"]) {
-      scopesString += " " + scope + "?action=" + action;
-    }
-  }
-  return scopesString;
+  const scopes = [
+    "atproto",
+    "blob:*/*",
+    ...expandScopes(BSKY_OAUTH_RPC_SCOPES),
+    ...expandScopes(CHAT_OAUTH_RPC_SCOPES),
+    ...expandScopes(ATPROTO_OAUTH_RPC_SCOPES),
+    ...expandScopes(BSKY_OAUTH_REPO_SCOPES),
+    ...expandScopes(CHAT_OAUTH_REPO_SCOPES),
+    ...expandScopes(OPTIONAL_OAUTH_RPC_SCOPES),
+  ];
+  return scopes.join(" ");
 }
 
 export const OAUTH_SCOPES = buildOauthScopesString();
+export const OPTIONAL_OAUTH_SCOPES = expandScopes(
+  OPTIONAL_OAUTH_RPC_SCOPES,
+).join(" ");

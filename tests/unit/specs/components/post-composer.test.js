@@ -23,8 +23,9 @@ describe("post-composer", () => {
     document.body.appendChild(container);
   }
 
-  function createPostComposer() {
+  function createPostComposer({ draftsEnabled = true } = {}) {
     const element = document.createElement("post-composer");
+    element.draftsEnabled = draftsEnabled;
     element.currentUser = {
       did: "did:plc:test",
       handle: "test.bsky.social",
@@ -1038,6 +1039,58 @@ describe("post-composer", () => {
         element.querySelector('[data-testid="composer-drafts-button"]') !==
           null,
       );
+    });
+
+    it("does not render the Drafts button when drafts are disabled", () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-drafts-button"]'),
+        null,
+      );
+    });
+
+    it("shows the Drafts button when draftsEnabled is set after connect", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-drafts-button"]'),
+        null,
+      );
+      element.draftsEnabled = true;
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="composer-drafts-button"]') !==
+          null,
+      );
+    });
+
+    it("prompts a plain discard confirm instead of the save choice when drafts are disabled", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      let confirmationSeen = false;
+      globalThis.__testConfirmation = (resolve) => {
+        confirmationSeen = true;
+        resolve(true);
+      };
+      globalThis.__testChoice = () => {
+        throw new Error(
+          "choice prompt should not be shown when drafts are disabled",
+        );
+      };
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+      assert(confirmationSeen);
+    });
+
+    it("stays open when the discard confirm is declined with drafts disabled", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      const result = await element.confirmClose();
+      assert.deepEqual(result, false);
     });
 
     it("does not render the Drafts button for replies", () => {

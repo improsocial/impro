@@ -531,6 +531,30 @@ describe("Auth account management", () => {
     assert.deepEqual(byDid["did:plc:carol"].needsReauth, true);
   });
 
+  it("listAccounts does not flip needsReauth when only optional scopes are missing", async () => {
+    globalThis.window = {
+      ...originalWindow,
+      env: {
+        oauthScopes: "atproto rpc:a rpc:future",
+        oauthOptionalScopes: "rpc:future",
+      },
+    };
+    const provider = makeMultiAccountProvider({
+      accounts: [
+        {
+          did: "did:plc:alice",
+          handle: "alice.test",
+          scope: "atproto rpc:a",
+          needsReauth: false,
+        },
+      ],
+      currentDid: "did:plc:alice",
+    });
+    const manager = new Auth(provider);
+    const accounts = await manager.listAccounts();
+    assert.deepEqual(accounts[0].needsReauth, false);
+  });
+
   it("listAccounts leaves needsReauth alone for providers that don't expose scope", async () => {
     const provider = makeMultiAccountProvider({
       accounts: [
@@ -725,6 +749,83 @@ describe("getMissingScopes", () => {
     const result = getMissingScopes("rpc:a?aud=did:web:foo", "rpc:a?aud=*");
     assert.deepEqual(result, ["rpc:a?aud=*"]);
   });
+
+  it("does not report missing scopes that are optional", () => {
+    const result = getMissingScopes(
+      "atproto rpc:a",
+      "atproto rpc:a rpc:future",
+      "rpc:future",
+    );
+    assert.deepEqual(result.length, 0);
+  });
+
+  it("still reports missing required scopes alongside missing optional ones", () => {
+    const result = getMissingScopes(
+      "atproto rpc:a",
+      "atproto rpc:a rpc:b rpc:future",
+      "rpc:future",
+    );
+    assert.deepEqual(result, ["rpc:b"]);
+  });
+
+  it("optional scopes that are granted change nothing", () => {
+    const result = getMissingScopes(
+      "atproto rpc:a rpc:future",
+      "atproto rpc:a rpc:future",
+      "rpc:future",
+    );
+    assert.deepEqual(result.length, 0);
+  });
+});
+
+describe("Auth.hasScope", () => {
+  it("returns false when there is no session", async () => {
+    const manager = new Auth(makeMockProvider());
+    assert.deepEqual(await manager.hasScope("rpc:a"), false);
+  });
+
+  it("returns true when the session has no scope string (BasicAuth)", async () => {
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() => Promise.resolve({ scope: undefined }));
+    const manager = new Auth(provider);
+    assert.deepEqual(await manager.hasScope("rpc:a"), true);
+  });
+
+  it("returns true when the scope is granted exactly", async () => {
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() =>
+      Promise.resolve({ scope: "atproto rpc:a rpc:b" }),
+    );
+    const manager = new Auth(provider);
+    assert.deepEqual(await manager.hasScope("rpc:a"), true);
+  });
+
+  it("returns true when a param variant of the scope is granted", async () => {
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() =>
+      Promise.resolve({ scope: "atproto rpc:a?aud=*" }),
+    );
+    const manager = new Auth(provider);
+    assert.deepEqual(await manager.hasScope("rpc:a"), true);
+  });
+
+  it("returns false when the scope is not granted", async () => {
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() =>
+      Promise.resolve({ scope: "atproto rpc:a?aud=*" }),
+    );
+    const manager = new Auth(provider);
+    assert.deepEqual(await manager.hasScope("rpc:b"), false);
+  });
+
+  it("does not treat a scope as a prefix of a longer scope name", async () => {
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() =>
+      Promise.resolve({ scope: "rpc:abc?aud=*" }),
+    );
+    const manager = new Auth(provider);
+    assert.deepEqual(await manager.hasScope("rpc:a"), false);
+  });
 });
 
 describe("Auth.ensureCurrentScopes", () => {
@@ -762,6 +863,22 @@ describe("Auth.ensureCurrentScopes", () => {
     const provider = makeMockProvider();
     provider.getSession = mock.fn(() =>
       Promise.resolve({ scope: "atproto rpc:a rpc:b" }),
+    );
+    const manager = new Auth(provider);
+    await manager.ensureCurrentScopes();
+    assert.deepEqual(capturedHrefs.length, 0);
+    assert.deepEqual(provider.logout.mock.callCount(), 0);
+  });
+
+  it("does nothing when only optional scopes are missing", async () => {
+    const capturedHrefs = mockWindowLocation();
+    globalThis.window.env = {
+      oauthScopes: "atproto rpc:a rpc:future",
+      oauthOptionalScopes: "rpc:future",
+    };
+    const provider = makeMockProvider();
+    provider.getSession = mock.fn(() =>
+      Promise.resolve({ scope: "atproto rpc:a" }),
     );
     const manager = new Auth(provider);
     await manager.ensureCurrentScopes();
