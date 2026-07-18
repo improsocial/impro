@@ -208,8 +208,6 @@ class PostComposer extends Component {
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = new ScrollLock(this);
     this.innerHTML = "";
-    this.initialText = this.initialText ?? null;
-    this.initialCursor = this.initialCursor ?? null;
     this._unresolvedFacets = [];
     this._quotedRecordUrl = null;
     this._externalLinkUrl = null;
@@ -359,6 +357,7 @@ class PostComposer extends Component {
                         this.handlePaste(e);
                       }}
                       placeholder="${promptText}"
+                      autofocus
                     ></rich-text-input>
                   </div>
                 </div>
@@ -895,13 +894,6 @@ class PostComposer extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".post-composer");
     dialog.showModal();
-    const richTextInput = this.querySelector("rich-text-input");
-    if (richTextInput && this.initialText !== null) {
-      richTextInput.setText(this.initialText);
-    }
-    if (richTextInput && this.initialCursor !== null) {
-      richTextInput.setCursor(this.initialCursor);
-    }
 
     // Setup mobile swipe-to-dismiss
     enableDragToDismiss(dialog, {
@@ -915,17 +907,19 @@ class PostComposer extends Component {
         !!el.closest("[contenteditable]"),
     });
 
-    // focus on the textarea
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const richTextInput = this.querySelector("rich-text-input");
-        if (richTextInput) {
-          richTextInput.focus();
-        }
-      });
-    });
-
     resetScrollOnBlur(dialog, this.querySelector(".post-composer-scroll-area"));
+  }
+
+  applyComposerInit({ text, cursor }) {
+    if (this._isDirty) return;
+    const richTextInput = this.querySelector("rich-text-input");
+    if (!richTextInput) return;
+    if (text != null) {
+      richTextInput.setText(text);
+    }
+    if (cursor != null) {
+      richTextInput.setCursor(cursor);
+    }
   }
 
   close() {

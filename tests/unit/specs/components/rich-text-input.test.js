@@ -32,6 +32,31 @@ describe("rich-text-input", () => {
       assert.deepEqual(element.text, "");
     });
 
+    it("should reflect autofocus onto the contenteditable div", () => {
+      const element = document.createElement("rich-text-input");
+      element.setAttribute("autofocus", "");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+      assert(input.hasAttribute("autofocus"));
+    });
+
+    it("should not set autofocus on the contenteditable div by default", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+      assert(!input.hasAttribute("autofocus"));
+    });
+
+    it("should update the contenteditable autofocus when the attribute changes", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setAttribute("autofocus", "");
+      const input = element.querySelector(".rich-text-input");
+      assert(input.hasAttribute("autofocus"));
+      element.removeAttribute("autofocus");
+      assert(!input.hasAttribute("autofocus"));
+    });
+
     it("should render placeholder", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);

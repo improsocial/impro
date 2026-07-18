@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
-import { enableDragToDismiss, debounce, isTouchDevice } from "/js/utils.js";
+import { enableDragToDismiss, debounce } from "/js/utils.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -302,9 +302,7 @@ class NewChatDialog extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".new-chat-dialog");
     dialog.showModal();
-    if (!isTouchDevice()) {
-      this.querySelector(".new-chat-search-input")?.focus();
-    }
+    this.querySelector(".new-chat-search-input")?.focus();
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       scrollContainer: this.querySelector(".new-chat-results"),

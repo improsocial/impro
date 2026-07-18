@@ -187,6 +187,16 @@ describe("post-composer", () => {
       const dialog = element.querySelector(".post-composer");
       assert(dialog.open);
     });
+
+    it("should render the rich text input with autofocus so showModal focuses it", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const richTextInput = element.querySelector("rich-text-input");
+      assert(richTextInput.hasAttribute("autofocus"));
+      assert(
+        element.querySelector(".rich-text-input").hasAttribute("autofocus"),
+      );
+    });
   });
 
   describe("PostComposer - close method", () => {
@@ -457,47 +467,31 @@ describe("post-composer", () => {
     });
   });
 
-  describe("PostComposer - initial text/cursor", () => {
-    it("defaults initialText and initialCursor to null when not set", () => {
+  describe("PostComposer - applyComposerInit", () => {
+    it("seeds the rich-text-input with text", () => {
       const element = createPostComposer();
-      connectElement(element);
-      assert.deepEqual(element.initialText, null);
-      assert.deepEqual(element.initialCursor, null);
-    });
-
-    it("preserves initialText set before connectedCallback", () => {
-      const element = createPostComposer();
-      element.initialText = "Pre-seeded";
-      element.initialCursor = 0;
-      connectElement(element);
-      assert.deepEqual(element.initialText, "Pre-seeded");
-      assert.deepEqual(element.initialCursor, 0);
-    });
-
-    it("seeds the rich-text-input on open when initialText is set", () => {
-      const element = createPostComposer();
-      element.initialText = "Hello from a plugin";
       connectElement(element);
       element.open();
+      element.applyComposerInit({ text: "Hello from a plugin", cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "Hello from a plugin");
       assert.deepEqual(element.state.$postText.get(), "Hello from a plugin");
     });
 
-    it("does not seed text when initialText is null", () => {
+    it("does not seed text when text is null", () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
+      element.applyComposerInit({ text: null, cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "");
       assert.deepEqual(element.state.$postText.get(), "");
     });
 
-    it("calls setCursor on the rich-text-input when initialCursor is set", () => {
+    it("calls setCursor on the rich-text-input when cursor is set", () => {
       const element = createPostComposer();
-      element.initialText = "abcdef";
-      element.initialCursor = 3;
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       const calls = [];
@@ -507,14 +501,14 @@ describe("post-composer", () => {
         originalSetCursor(cursor);
       };
 
-      element.open();
+      element.applyComposerInit({ text: "abcdef", cursor: 3 });
       assert.deepEqual(calls, [3]);
     });
 
-    it("does not call setCursor when initialCursor is null", () => {
+    it("does not call setCursor when cursor is null", () => {
       const element = createPostComposer();
-      element.initialText = "abcdef";
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       let cursorCalled = false;
@@ -522,14 +516,14 @@ describe("post-composer", () => {
         cursorCalled = true;
       };
 
-      element.open();
+      element.applyComposerInit({ text: "abcdef", cursor: null });
       assert(!cursorCalled);
     });
 
-    it("allows setting only initialCursor without initialText", () => {
+    it("allows setting only cursor without text", () => {
       const element = createPostComposer();
-      element.initialCursor = 0;
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       const calls = [];
@@ -539,9 +533,20 @@ describe("post-composer", () => {
         setTextCalled = true;
       };
 
-      element.open();
+      element.applyComposerInit({ text: null, cursor: 0 });
       assert(!setTextCalled);
       assert.deepEqual(calls, [0]);
+    });
+
+    it("does not overwrite user edits made before the init arrives", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+
+      const richTextInput = element.querySelector("rich-text-input");
+      richTextInput.setText("User typed this");
+      element.applyComposerInit({ text: "Plugin text", cursor: null });
+      assert.deepEqual(richTextInput.text, "User typed this");
     });
   });
 

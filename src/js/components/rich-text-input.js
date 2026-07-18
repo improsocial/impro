@@ -326,7 +326,7 @@ function mentionSuggestionsTemplate({
 
 export class RichTextInput extends Component {
   static get observedAttributes() {
-    return ["disabled"];
+    return ["disabled", "autofocus"];
   }
 
   connectedCallback() {
@@ -362,6 +362,9 @@ export class RichTextInput extends Component {
     if (!this.initialized) return;
     if (name === "disabled") {
       this.disabled = this.getAttribute("disabled") !== null;
+      this.render();
+    }
+    if (name === "autofocus") {
       this.render();
     }
   }
@@ -419,6 +422,7 @@ export class RichTextInput extends Component {
             class="rich-text-input"
             data-testid="rich-text-input"
             contenteditable=${this.disabled ? "false" : "true"}
+            ?autofocus=${this.hasAttribute("autofocus")}
             @input=${(e) => {
               e.stopPropagation();
               this.handleInput(e);

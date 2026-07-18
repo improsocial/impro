@@ -28,12 +28,6 @@ export class PostComposerService {
       return;
     }
     hapticsImpactLight();
-    const composerInit = await this.pluginService.getPostComposerInit({
-      kind: replyTo ? "reply" : quotedPost ? "quote" : "post",
-      replyTo,
-      replyRoot,
-      quotedPost,
-    });
     return new Promise((resolve, reject) => {
       this.currentPostComposer = document.createElement("post-composer");
       this.currentPostComposer.dataLayer = this.dataLayer;
@@ -45,10 +39,6 @@ export class PostComposerService {
         ? createEmbedFromPost(quotedPost)
         : null;
       this.currentPostComposer.currentUser = currentUser;
-      if (composerInit) {
-        this.currentPostComposer.initialText = composerInit.text;
-        this.currentPostComposer.initialCursor = composerInit.cursor;
-      }
       this.currentPostComposer.addEventListener("send-post", async (e) => {
         const { post, draft, successCallback, errorCallback } = e.detail;
         try {
@@ -85,7 +75,26 @@ export class PostComposerService {
         }
       });
       document.body.appendChild(this.currentPostComposer);
+      // Open (and focus) synchronously: iOS Safari only honors programmatic
+      // focus while still inside the user-gesture handler, so the composer
+      // can't wait on plugin init before opening
       this.currentPostComposer.open();
+      const composer = this.currentPostComposer;
+      this.pluginService
+        .getPostComposerInit({
+          kind: replyTo ? "reply" : quotedPost ? "quote" : "post",
+          replyTo,
+          replyRoot,
+          quotedPost,
+        })
+        .then((composerInit) => {
+          if (composerInit && this.currentPostComposer === composer) {
+            composer.applyComposerInit(composerInit);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to get post composer init", error);
+        });
     });
   }
 }
