@@ -549,6 +549,9 @@ export class Derived extends ReactiveStore {
     this.$convoMembers = new ComputedMap((convoId) => {
       return this.dataStore.$convos.get(convoId)?.members ?? null;
     });
+    this.$groupConvoMemberList = new ComputedMap((convoId) => {
+      return this.dataStore.$convoMemberLists.get(convoId);
+    });
     this.$convoMessages = new ComputedMap((convoId) => {
       const messages = this.dataStore.$convoMessages.get(convoId);
       if (!messages) return null;

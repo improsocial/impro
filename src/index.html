@@ -127,6 +127,7 @@
       import chatView from "/js/views/chat.view.js";
       import chatRequestsView from "/js/views/chatRequests.view.js";
       import chatDetailView from "/js/views/chatDetail.view.js";
+      import groupChatDetailsView from "/js/views/groupChatDetails.view.js";
       import feedsView from "/js/views/feeds.view.js";
       import profileView from "/js/views/profile.view.js";
       import profileFollowersView from "/js/views/profileFollowers.view.js";
@@ -340,6 +341,13 @@
         router.addRoute("/messages/inbox", () => chatRequestsView, {
           layoutOptions: { activeNavItem: "chat" },
         });
+        router.addRoute(
+          "/messages/:convoId/settings",
+          () => groupChatDetailsView,
+          {
+            layoutOptions: { activeNavItem: "chat" },
+          },
+        );
         router.addRoute("/messages/:convoId", () => chatDetailView, {
           layoutOptions: { activeNavItem: "chat" },
         });

@@ -782,6 +782,21 @@ export class Api {
     return res.data;
   }
 
+  async getConvoMembers(convoId, { cursor, limit = 50, labelers = [] } = {}) {
+    const query = { convoId, limit };
+    if (cursor) {
+      query.cursor = cursor;
+    }
+    const res = await this.request("chat.bsky.convo.getConvoMembers", {
+      query,
+      headers: {
+        "atproto-accept-labelers": buildAcceptLabelersHeader(labelers),
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getMessages(convoId, { cursor, limit = 50, labelers = [] } = {}) {
     const query = { convoId, limit };
     if (cursor) {

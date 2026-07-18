@@ -5,7 +5,7 @@ import {
   profileListItemSkeletonTemplate,
   profileFeedTemplate,
 } from "/js/templates/profileFeed.template.js";
-import { render } from "/js/lib/lit-html.js";
+import { html, render } from "/js/lib/lit-html.js";
 
 const mockActor = {
   did: "did:plc:testuser",
@@ -188,6 +188,34 @@ describe("profileListItemTemplate - displayName sanitization", () => {
   });
 });
 
+describe("profileListItemTemplate - custom badge", () => {
+  it("should render the badge returned by badgeTemplate", () => {
+    const result = profileListItemTemplate({
+      actor: mockActor,
+      badgeTemplate: (actor) =>
+        html`<div data-testid="custom-badge">${actor.handle}</div>`,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badge = container.querySelector("[data-testid='custom-badge']");
+    assert(badge !== null);
+    assert(badge.textContent.includes(mockActor.handle));
+  });
+
+  it("should render nothing when badgeTemplate returns null", () => {
+    const result = profileListItemTemplate({
+      actor: mockActor,
+      badgeTemplate: () => null,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='custom-badge']"),
+      null,
+    );
+  });
+});
+
 describe("profileListItemSkeletonTemplate", () => {
   it("should render skeleton avatar", () => {
     const result = profileListItemSkeletonTemplate();
@@ -279,6 +307,16 @@ describe("profileFeedTemplate", () => {
     const msg = container.querySelector("[data-testid='feed-end-message']");
     assert(msg !== null);
     assert(msg.textContent.includes("End of feed"));
+  });
+
+  it("should pass badgeTemplate through to list items", () => {
+    const result = profileFeedTemplate({
+      profiles: [mockActor],
+      hasMore: false,
+      badgeTemplate: () => html`<div data-testid="custom-badge">Admin</div>`,
+    });
+    render(result, container);
+    assert(container.querySelector("[data-testid='custom-badge']") !== null);
   });
 
   it("should render loading indicator when hasMore is true", () => {

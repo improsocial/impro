@@ -982,6 +982,14 @@ header {
   min-width: 0;
 }
 
+.header .header-title-link {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+
 .header .header-title-container {
   display: flex;
   flex-direction: column;
@@ -3874,6 +3882,10 @@ image-carousel {
   height: var(--avatar-size-chat-info-panel);
 }
 
+.chat-info-panel-avatars {
+  height: var(--avatar-size-chat-info-panel);
+}
+
 .chat-info-panel-avatars .avatar-group {
   width: var(--avatar-size-chat-info-panel);
   height: var(--avatar-size-chat-info-panel);
@@ -3922,6 +3934,49 @@ image-carousel {
 .chat-info-panel .label-badge-image {
   width: 16px;
   height: 16px;
+}
+
+.group-chat-header-skeleton-avatar {
+  width: var(--avatar-size-chat-info-panel);
+  height: var(--avatar-size-chat-info-panel);
+}
+
+.group-chat-header-skeleton-handle-line {
+  display: inline-block;
+}
+
+.group-chat-members-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  font-weight: 600;
+  color: var(--text-color);
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+.group-chat-member-count {
+  font-weight: 400;
+  font-size: 14px;
+  color: var(--text-color-muted);
+}
+
+.group-chat-member-added-by {
+  align-self: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  text-align: right;
+  color: var(--text-color-muted);
+}
+
+.group-chat-admin-badge {
+  align-self: center;
+  padding: 3px 10px 4px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--highlight-color);
+  background: color-mix(in srgb, var(--highlight-color) 12%, transparent);
 }
 
 .message-day-title {

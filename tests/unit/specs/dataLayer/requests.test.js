@@ -1878,6 +1878,109 @@ describe("loadConvo", () => {
   });
 });
 
+describe("loadConvoMembers", () => {
+  const convoId = "convo1";
+
+  it("should store the first page with its cursor", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvoMembers: async () => ({
+        members: [{ did: "did:plc:alice" }, { did: "did:plc:bob" }],
+        cursor: "2",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice", "did:plc:bob"],
+    );
+    assert.deepEqual(stored.cursor, "2");
+  });
+
+  it("should append the next page using the stored cursor", async () => {
+    const dataStore = new DataStore();
+    const capturedCursors = [];
+    const pages = [
+      { members: [{ did: "did:plc:alice" }], cursor: "1" },
+      { members: [{ did: "did:plc:bob" }] },
+    ];
+    const mockApi = {
+      getConvoMembers: async (id, { cursor }) => {
+        capturedCursors.push(cursor);
+        return pages.shift();
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+    await requests.loadConvoMembers(convoId);
+
+    assert.deepEqual(capturedCursors, ["", "1"]);
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice", "did:plc:bob"],
+    );
+    assert.deepEqual(stored.cursor, null);
+  });
+
+  it("should overwrite the stored list on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoMemberLists.set(convoId, {
+      members: [{ did: "did:plc:stale" }],
+      cursor: "5",
+    });
+    const capturedCursors = [];
+    const mockApi = {
+      getConvoMembers: async (id, { cursor }) => {
+        capturedCursors.push(cursor);
+        return { members: [{ did: "did:plc:alice" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId, { reload: true });
+
+    assert.deepEqual(capturedCursors, [""]);
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice"],
+    );
+  });
+
+  it("should record an ApiError under the namespaced key without rethrowing", async () => {
+    const apiError = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "InvalidConvo" },
+      headers: {},
+      url: "/x",
+    });
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvoMembers: async () => {
+        throw apiError;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+
+    const status = requests.getStatus("loadConvoMembers-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert(
+      status.error === apiError,
+      "expected status.error to be the ApiError",
+    );
+    assert.deepEqual(dataStore.$convoMemberLists.get(convoId), null);
+  });
+});
+
 describe("loadConvoMessages", () => {
   const convoId = "convo1";
 

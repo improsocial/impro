@@ -37,6 +37,7 @@ export class DataStore extends ReactiveStore {
     this.$unavailablePosts = new SignalMap();
     this.$reposts = new SignalMap();
     this.$convos = new SignalMap();
+    this.$convoMemberLists = new SignalMap();
     this.$convoMessages = new SignalMap();
     this.$messages = new SignalMap();
     this.$postLikes = new SignalMap();

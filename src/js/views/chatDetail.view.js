@@ -39,7 +39,11 @@ import {
 } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
-import { getPermalinkForConvo, linkToProfile } from "/js/navigation.js";
+import {
+  getPermalinkForConvo,
+  linkToGroupChatDetails,
+  linkToProfile,
+} from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
@@ -1388,6 +1392,7 @@ class ChatDetailView extends View {
             },
             title,
             subtitle,
+            titleHref: groupDetails ? linkToGroupChatDetails(convoId) : null,
             backButtonFallbackRoute: "/messages",
             rightItemTemplate: () => html`
               <button
@@ -1401,6 +1406,16 @@ class ChatDetailView extends View {
                 <span>...</span>
               </button>
               <context-menu>
+                ${groupDetails
+                  ? html`<context-menu-item
+                      data-testid="menu-action-group-chat-details"
+                      @click=${() => {
+                        router.go(linkToGroupChatDetails(convoId));
+                      }}
+                    >
+                      Group chat settings
+                    </context-menu-item>`
+                  : ""}
                 <context-menu-item
                   data-testid="menu-action-chat-open-in-bsky"
                   @click=${() => {

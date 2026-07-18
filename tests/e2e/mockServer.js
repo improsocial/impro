@@ -13,6 +13,8 @@ export class MockServer {
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
+    this.convoMemberLists = new Map();
+    this.convoDelays = new Map();
     this.chatLogs = [];
     this.joinLinkPreviews = new Map();
     this.joinLinkJoinedConvos = new Map();
@@ -262,6 +264,18 @@ export class MockServer {
       }
     }
     this.convos.push(...convos);
+  }
+
+  addConvoMembers(convoId, members) {
+    this.convoMemberLists.set(convoId, members);
+  }
+
+  failConvoMembers({ status = 500, error = "InternalServerError", message }) {
+    this.convoMembersFailure = { status, error, message };
+  }
+
+  setConvoDelay(convoId, delayMs) {
+    this.convoDelays.set(convoId, delayMs);
   }
 
   // Queued logs are returned (and drained) by the next chat.bsky.convo.getLog
@@ -746,9 +760,13 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.getConvo*", (route) => {
+    await page.route("**/xrpc/chat.bsky.convo.getConvo*", async (route) => {
       const url = new URL(route.request().url());
       const convoId = url.searchParams.get("convoId");
+      const delayMs = this.convoDelays.get(convoId);
+      if (delayMs) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
       const convo = this.convos.find((c) => c.id === convoId);
       if (!convo) {
         return route.fulfill({
@@ -764,6 +782,45 @@ export class MockServer {
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({ convo }),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.convo.getConvoMembers*", (route) => {
+      if (this.convoMembersFailure) {
+        const { status, error, message } = this.convoMembersFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
+      const url = new URL(route.request().url());
+      const convoId = url.searchParams.get("convoId");
+      const convo = this.convos.find((c) => c.id === convoId);
+      if (!convo) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidConvo",
+            message: "Conversation not found",
+          }),
+        });
+      }
+      const allMembers = this.convoMemberLists.get(convoId) ?? convo.members;
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const members = allMembers.slice(offset, offset + limit);
+      const nextCursor =
+        offset + limit < allMembers.length ? String(offset + limit) : "";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          members,
+          ...(nextCursor ? { cursor: nextCursor } : {}),
+        }),
       });
     });
 

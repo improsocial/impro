@@ -95,6 +95,10 @@ export function getPermalinkForConvo(convoId) {
   return `${getPermalinkOrigin()}/messages/${encodePathSegment(convoId)}`;
 }
 
+export function linkToGroupChatDetails(convoId) {
+  return `/messages/${encodePathSegment(convoId)}/settings`;
+}
+
 export function linkToCommunityPlugin(pluginId) {
   return `/plugins/community/${encodePathSegment(pluginId)}`;
 }

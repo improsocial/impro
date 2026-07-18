@@ -142,6 +142,7 @@ const CHAT_OAUTH_RPC_SCOPES = [
   "rpc:chat.bsky.convo.updateRead",
   "rpc:chat.bsky.group.getJoinLinkPreviews",
   "rpc:chat.bsky.group.requestJoin",
+  "rpc:chat.bsky.convo.getConvoMembers",
 ];
 
 const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];

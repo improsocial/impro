@@ -178,6 +178,16 @@ function formatWithSuffix(value, suffix) {
   return formatted + suffix;
 }
 
+// E.g. September 29, 2025
+export function formatFullDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 // E.g. September 29, 2025 at 3:44 PM
 export function formatFullTimestamp(timestamp) {
   const date = new Date(timestamp);

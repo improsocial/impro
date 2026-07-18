@@ -1124,3 +1124,28 @@ describe("$hydratedDrafts", () => {
     assert.deepEqual(posts[1].embedRecords, undefined);
   });
 });
+
+describe("$groupConvoMemberList", () => {
+  const convoId = "convo1";
+
+  it("should return null when nothing is loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$groupConvoMemberList.get(convoId), null);
+  });
+
+  it("should pass through the stored members and cursor", () => {
+    const dataStore = new DataStore();
+    dataStore.$convoMemberLists.set(convoId, {
+      members: [{ did: "did:plc:alice" }, { did: "did:plc:bob" }],
+      cursor: "2",
+    });
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$groupConvoMemberList.get(convoId);
+    assert.deepEqual(
+      result.members.map((member) => member.did),
+      ["did:plc:alice", "did:plc:bob"],
+    );
+    assert.deepEqual(result.cursor, "2");
+  });
+});

@@ -213,6 +213,10 @@ export class Requests {
     this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
     this.enableStatus(this.loadConvo, (convoId) => "loadConvo-" + convoId);
     this.enableStatus(
+      this.loadConvoMembers,
+      (convoId) => "loadConvoMembers-" + convoId,
+    );
+    this.enableStatus(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
     );
@@ -865,6 +869,21 @@ export class Requests {
     const labelers = this.requireLabelers();
     const res = await this.api.getConvo(convoId, { labelers });
     this.dataStore.$convos.set(convoId, res.convo);
+  }
+
+  async loadConvoMembers(convoId, { reload = false } = {}) {
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$convoMemberLists, {
+          key: convoId,
+        });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getConvoMembers(convoId, { cursor, labelers });
+    writePageToCollection(this.dataStore.$convoMemberLists, "members", res, {
+      key: convoId,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async _loadPostDependencies(posts) {

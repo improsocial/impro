@@ -659,6 +659,94 @@ test.describe("Chat detail view", () => {
     expect(popup.url()).toBe("https://bsky.app/messages/convo-1");
   });
 
+  test("should navigate to group chat details from the chat menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView
+      .locator('[data-testid="menu-action-group-chat-details"]')
+      .click();
+
+    await expect(
+      page.locator('#group-chat-details-view [data-testid="group-name"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+  });
+
+  test("should navigate to group chat details when clicking the header title", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="header-title"]').click();
+
+    await expect(
+      page.locator('#group-chat-details-view [data-testid="group-name"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+  });
+
+  test("should not show group chat details menu item for direct chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-chat-open-in-bsky"]'),
+    ).toBeVisible();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-group-chat-details"]'),
+    ).toHaveCount(0);
+  });
+
   test("should add emoji reaction to a message", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({
