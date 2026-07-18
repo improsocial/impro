@@ -4572,13 +4572,13 @@ chat-input .rich-text-input-placeholder {
   align-items: center;
 }
 
-@media (max-width: 799px) {
+@media (max-width: 499px) {
   .message-input-emoji-wrapper {
     display: none;
   }
 }
 
-@media (min-width: 800px) {
+@media (min-width: 500px) {
   .message-input-field-wrapper .rich-text-input,
   .message-input-field-wrapper .rich-text-input-placeholder {
     padding-right: 46px;
@@ -6287,7 +6287,7 @@ emoji-picker-dialog emoji-picker,
   align-items: center;
 }
 
-@media (max-width: 799px) {
+@media (max-width: 499px) {
   .post-composer-emoji-wrapper {
     display: none;
   }
