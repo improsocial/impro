@@ -15,8 +15,10 @@ function formatArg(arg) {
   if (typeof arg === "string") {
     return arg;
   }
-  if (arg instanceof Error) {
-    return arg.stack ?? String(arg);
+  if (arg instanceof Error || arg?.message || arg?.stack) {
+    const message = arg.message ?? String(arg);
+    const stack = arg.stack ?? "";
+    return stack.includes(message) ? stack : `${message}\n${stack}`;
   }
   try {
     return JSON.stringify(arg);
@@ -65,6 +67,10 @@ export function enableErrorLogs() {
   }
 
   window.addEventListener("error", (event) => {
+    const file = event.filename || "";
+    if (!file.startsWith(location.origin)) {
+      return; // probably browser or extension code
+    }
     showMessage(`${event.message} at ${event.filename}:${event.lineno}`);
   });
   window.addEventListener("unhandledrejection", (event) => {
