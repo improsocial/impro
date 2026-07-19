@@ -130,6 +130,31 @@ describe("PluginCache.fetch", () => {
     const bucket = await cachesStub.caches.open("plugins-v1");
     assert.deepEqual((await bucket.keys()).length, 0);
   });
+
+  it("caches 404s with doCacheNotFound and skips refetching them", async () => {
+    fetchStub = stubFetch(async () =>
+      makeResponse("nope", { ok: false, status: 404 }),
+    );
+    const cache = new PluginCache();
+    const url = "https://example.test/styles.css";
+    await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /404/);
+    const error = await cache
+      .fetch(url, { doCacheNotFound: true })
+      .then(null, (thrown) => thrown);
+    assert.deepEqual(error.status, 404);
+    assert.deepEqual(fetchStub.calls.length, 1);
+  });
+
+  it("does not cache non-404 errors even with doCacheNotFound", async () => {
+    fetchStub = stubFetch(async () =>
+      makeResponse("boom", { ok: false, status: 500 }),
+    );
+    const cache = new PluginCache();
+    const url = "https://example.test/styles.css";
+    await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /500/);
+    await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /500/);
+    assert.deepEqual(fetchStub.calls.length, 2);
+  });
 });
 
 describe("PluginCache.reconcile", () => {

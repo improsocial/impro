@@ -96,7 +96,9 @@ export class SourceProvider {
     }
     const url = remoteAssetUrl({ repo, file: "styles.css", release: version });
     try {
-      const response = await this.pluginCache.fetch(url);
+      const response = await this.pluginCache.fetch(url, {
+        doCacheNotFound: true,
+      });
       return await response.text();
     } catch (error) {
       if (error?.status === 404) return null;
