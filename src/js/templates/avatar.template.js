@@ -1,5 +1,9 @@
 import { html, keyed } from "/js/lib/lit-html.js";
-import { avatarThumbnailUrl, isLabelerProfile } from "/js/dataHelpers.js";
+import {
+  avatarThumbnailUrl,
+  getDisplayName,
+  isLabelerProfile,
+} from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import "/js/components/lightbox-image-group.js";
@@ -68,7 +72,7 @@ export function avatarTemplate({
           <span class="hack-x">x</span>
           <img
             src="${avatarThumbnailUrl}"
-            alt="${author.displayName} profile picture"
+            alt="${getDisplayName(author)} profile picture"
             class=${classnames("avatar-image", {
               "labeler-avatar": isLabeler,
               "avatar-image--blurred": isBlurred,

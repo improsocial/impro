@@ -268,7 +268,7 @@ export function profileCardTemplate({
             <lightbox-image-group hide-alt-text="true">
               <img
                 src="${profile.banner}"
-                alt="${profile.displayName} banner"
+                alt="${getDisplayName(profile)} banner"
                 class=${classnames("profile-banner", {
                   "profile-banner--blurred": !!profile.blurLabel,
                 })}

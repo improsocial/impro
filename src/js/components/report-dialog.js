@@ -6,6 +6,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
 const BSKY_ONLY_REASON_TYPES = [
@@ -329,7 +330,7 @@ function reasonTypeCardTemplate({ reasonType, onClick }) {
 }
 
 function labelerCardTemplate({ labeler, onClick }) {
-  const title = labeler.creator.displayName || labeler.creator.handle;
+  const title = getDisplayName(labeler.creator);
   return html`
     <button class="report-option-card report-labeler-card" @click=${onClick}>
       <div class="report-labeler-avatar">
@@ -454,8 +455,7 @@ function labelerStepTemplate({
   onClearLabeler,
 }) {
   if (isCompleted) {
-    const labelerTitle =
-      selectedLabeler.creator.displayName || selectedLabeler.creator.handle;
+    const labelerTitle = getDisplayName(selectedLabeler.creator);
     return selectedItemTemplate({
       title: labelerTitle,
       onClear: onClearLabeler,
@@ -502,8 +502,9 @@ function submitStepTemplate({
   onDetailsInput,
   onSubmit,
 }) {
-  const labelerName =
-    selectedLabeler?.creator.displayName || selectedLabeler?.creator.handle;
+  const labelerName = selectedLabeler
+    ? getDisplayName(selectedLabeler.creator)
+    : null;
 
   return html`
     <div class="report-submit-section">

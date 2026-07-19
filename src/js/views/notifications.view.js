@@ -15,6 +15,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import {
+  getDisplayName,
   getImagesFromPost,
   getVideoFromPost,
   isEmptyPost,
@@ -244,8 +245,7 @@ class NotificationsView extends View {
     function notificationProfileNamesTemplate({ notificationGroup }) {
       const { notifications } = notificationGroup;
       const firstNotif = notifications[0];
-      const displayName =
-        firstNotif.author.displayName || firstNotif.author.handle;
+      const displayName = getDisplayName(firstNotif.author);
       const otherCount = notifications.length - 1;
       return html`<span
         ><strong>${displayName}</strong>${verificationBadgeTemplate({
@@ -306,7 +306,7 @@ class NotificationsView extends View {
             <div class="notification-text">
               New post from
               <a class="notification-profile-link" href="${profileLink}"
-                >${post.author.displayName ?? post.author.handle}</a
+                >${getDisplayName(post.author)}</a
               >${verificationBadgeTemplate({
                 profile: post.author,
               })}${automatedAccountBadgeTemplate({ profile: post.author })}
@@ -510,8 +510,7 @@ class NotificationsView extends View {
       const firstNotif = notifications[0];
       const timeAgo = displayRelativeTime(firstNotif.indexedAt);
       const isUnread = !firstNotif.isRead;
-      const displayName =
-        firstNotif.author.displayName || firstNotif.author.handle;
+      const displayName = getDisplayName(firstNotif.author);
       const profileLink = linkToProfile(firstNotif.author);
 
       return notificationItemTemplate({
