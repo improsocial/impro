@@ -56,6 +56,47 @@ test.describe("New chat from chat list flow", () => {
     ).toContainText("Alice", { timeout: 10000 });
   });
 
+  test("should show the new conversation in the chat list after navigating back", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createMessageableProfile();
+    mockServer.addProfile(alice);
+    mockServer.addTypeaheadProfiles([alice]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages");
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
+    );
+    await expect(chatView.locator(".convo-item")).toHaveCount(0);
+
+    await chatView.locator('[data-testid="new-chat-button"]').click();
+    const dialog = page.locator('[data-testid="new-chat-dialog"]');
+    await expect(dialog).toBeVisible({ timeout: 10000 });
+    await dialog.locator('[data-testid="new-chat-search-input"]').fill("ali");
+    const result = dialog.locator('[data-testid="new-chat-result"]');
+    await expect(result).toHaveCount(1, { timeout: 10000 });
+    await result.click();
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Alice", { timeout: 10000 });
+
+    // Back-navigation restores the chat list from memory without refetching,
+    // so the new conversation must already be in the in-memory convo list
+    await page.goBack();
+    await expect(page).toHaveURL(/\/messages$/);
+    await expect(chatView.locator(".convo-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(chatView.locator(".convo-name")).toContainText("Alice");
+  });
+
   test("should show suggested follows when the dialog opens and start a chat from one", async ({
     page,
   }) => {

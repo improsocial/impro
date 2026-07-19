@@ -74,6 +74,69 @@ test.describe("Chat request accept flow", () => {
     );
   });
 
+  test("should show the accepted conversation in the chat list after navigating back", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+
+    const requester = createProfile({
+      did: "did:plc:requester1",
+      handle: "requester.bsky.social",
+      displayName: "Requester One",
+    });
+    const requestConvo = createConvo({
+      id: "convo-req-1",
+      otherMember: requester,
+      status: "request",
+      lastMessage: createMessage({
+        id: "msg-req-1",
+        text: "Hey, can we chat?",
+        senderDid: requester.did,
+      }),
+    });
+    mockServer.addConvos([requestConvo]);
+    await mockServer.setup(page);
+
+    await login(page);
+
+    await page.goto("/messages");
+    const chatView = page.locator("#chat-view");
+    await expect(chatView.locator(".feed-end-message")).toContainText(
+      "No conversations yet!",
+      { timeout: 10000 },
+    );
+    await expect(chatView.locator(".convo-item")).toHaveCount(0);
+
+    await chatView.locator('[data-testid="inbox-button"]').click();
+    const requestsView = page.locator("#chat-requests-view");
+    await expect(requestsView.locator(".chat-request-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
+    await requestsView.locator(".chat-request-button.accept").click();
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Requester One", { timeout: 10000 });
+
+    // Back-navigation restores the cached pages from memory without
+    // refetching, so the accepted conversation must already have moved
+    // between the in-memory lists
+    await page.goBack();
+    await expect(requestsView.locator(".chat-request-item")).toHaveCount(0, {
+      timeout: 10000,
+    });
+
+    await page.goBack();
+    await expect(page).toHaveURL(/\/messages$/);
+    await expect(chatView.locator(".convo-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+    await expect(chatView.locator(".convo-name")).toContainText(
+      "Requester One",
+    );
+  });
+
   test("should accept a group invite and verify the group moves from requests to main chat list", async ({
     page,
   }) => {

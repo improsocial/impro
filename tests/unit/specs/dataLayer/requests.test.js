@@ -1858,6 +1858,31 @@ describe("loadConvoList", () => {
     assert.deepEqual(dataStore.$convoList.get().cursor, "page3");
   });
 
+  it("should drop convos already in the list when appending a page", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoList.set({
+      convos: [{ id: "c2", unreadCount: 1 }, { id: "c1" }],
+      cursor: "page2",
+    });
+
+    const mockApi = {
+      listConvos: async () => ({
+        convos: [{ id: "c2", unreadCount: 0 }, { id: "c3" }],
+        cursor: "page3",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoList();
+
+    const list = dataStore.$convoList.get();
+    assert.deepEqual(
+      list.convos.map((listConvo) => listConvo.id),
+      ["c2", "c1", "c3"],
+    );
+    assert.deepEqual(list.convos[0].unreadCount, 1);
+  });
+
   it("should reset cursor and replace on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$convoList.set({ convos: [{ id: "c1" }], cursor: "page2" });
@@ -1928,6 +1953,29 @@ describe("loadConvoRequestList", () => {
     assert.deepEqual(dataStore.$convoRequestList.get().cursor, "page3");
   });
 
+  it("should drop convos already in the list when appending a page", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoRequestList.set({
+      convos: [{ id: "r2" }, { id: "r1" }],
+      cursor: "page2",
+    });
+
+    const mockApi = {
+      listConvos: async () => ({
+        convos: [{ id: "r2" }, { id: "r3" }],
+        cursor: "page3",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoRequestList();
+
+    assert.deepEqual(
+      dataStore.$convoRequestList.get().convos.map((listConvo) => listConvo.id),
+      ["r2", "r1", "r3"],
+    );
+  });
+
   it("should reset cursor and replace on reload", async () => {
     const dataStore = new DataStore();
     dataStore.$convoRequestList.set({
@@ -1971,6 +2019,22 @@ describe("loadConvo", () => {
     assert.deepEqual(status.error, null);
   });
 
+  it("should add the convo to the loaded convo list", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoList.set({ convos: [{ id: "other" }], cursor: null });
+    const mockApi = {
+      getConvo: async () => ({ convo: { id: convoId, status: "accepted" } }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvo(convoId);
+
+    assert.deepEqual(
+      dataStore.$convoList.get().convos.map((listConvo) => listConvo.id),
+      [convoId, "other"],
+    );
+  });
+
   it("should record an ApiError under the namespaced key without rethrowing", async () => {
     const apiError = new ApiError({
       status: 400,
@@ -1996,6 +2060,27 @@ describe("loadConvo", () => {
       "expected status.error to be the ApiError",
     );
     assert.deepEqual(dataStore.$convos.get(convoId), null);
+  });
+});
+
+describe("loadConvoForProfile", () => {
+  it("should store the convo and add it to the loaded convo list", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoList.set({ convos: [{ id: "other" }], cursor: null });
+    const mockApi = {
+      getConvoForMembers: async () => ({
+        convo: { id: "c-new", status: "accepted" },
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoForProfile("did:plc:alice");
+
+    assert.deepEqual(dataStore.$convos.get("c-new").id, "c-new");
+    assert.deepEqual(
+      dataStore.$convoList.get().convos.map((listConvo) => listConvo.id),
+      ["c-new", "other"],
+    );
   });
 });
 

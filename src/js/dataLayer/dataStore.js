@@ -81,4 +81,42 @@ export class DataStore extends ReactiveStore {
       this.$profiles.set(profile.did, profile);
     }
   }
+
+  // Save the convo and sync convo lists if necessary
+  setConvo(convo) {
+    this.$convos.set(convo.id, convo);
+    const isRequest = convo.status === "request";
+    const destinationSignal = isRequest
+      ? this.$convoRequestList
+      : this.$convoList;
+    const destinationList = destinationSignal.get();
+    if (destinationList) {
+      const inList = destinationList.convos.some(
+        (listConvo) => listConvo.id === convo.id,
+      );
+      destinationSignal.set({
+        convos: inList
+          ? destinationList.convos.map((listConvo) =>
+              listConvo.id === convo.id ? convo : listConvo,
+            )
+          : [convo, ...destinationList.convos],
+        cursor: destinationList.cursor,
+      });
+    }
+    // Remove accepted convo from the request list if it's there
+    if (!isRequest) {
+      const requestList = this.$convoRequestList.get();
+      if (
+        requestList &&
+        requestList.convos.some((listConvo) => listConvo.id === convo.id)
+      ) {
+        this.$convoRequestList.set({
+          convos: requestList.convos.filter(
+            (listConvo) => listConvo.id !== convo.id,
+          ),
+          cursor: requestList.cursor,
+        });
+      }
+    }
+  }
 }

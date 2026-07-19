@@ -1100,7 +1100,7 @@ export class Mutations {
       this.dataStore.$joinLinkPreviewsByCode.set(code, updatedPreview);
     }
     if (res.status === "joined" && res.convo) {
-      this.dataStore.$convos.set(res.convo.id, res.convo);
+      this.dataStore.setConvo(res.convo);
     }
     return res;
   }
@@ -1114,34 +1114,7 @@ export class Mutations {
       status: "accepted",
     };
 
-    this.dataStore.$convos.set(convo.id, updatedConvo);
-
-    // Update the convo in the convo list, adding it if not present
-    const convoList = this.dataStore.$convoList.get();
-    if (convoList) {
-      const inList = convoList.convos.some(
-        (listConvo) => listConvo.id === convo.id,
-      );
-      this.dataStore.$convoList.set({
-        convos: inList
-          ? convoList.convos.map((listConvo) =>
-              listConvo.id === convo.id ? updatedConvo : listConvo,
-            )
-          : [updatedConvo, ...convoList.convos],
-        cursor: convoList.cursor,
-      });
-    }
-
-    // Remove from request list
-    const convoRequestList = this.dataStore.$convoRequestList.get();
-    if (convoRequestList) {
-      this.dataStore.$convoRequestList.set({
-        convos: convoRequestList.convos.filter(
-          (listConvo) => listConvo.id !== convo.id,
-        ),
-        cursor: convoRequestList.cursor,
-      });
-    }
+    this.dataStore.setConvo(updatedConvo);
 
     return updatedConvo;
   }

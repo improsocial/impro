@@ -50,7 +50,7 @@ function writePageToCollection(
   signal,
   itemsKey,
   page,
-  { key, requestCursor, overwrite = false },
+  { key, requestCursor, overwrite = false, dedupeBy },
 ) {
   const current = key === undefined ? signal.get() : signal.get(key);
   const currentCursor = current?.cursor ?? "";
@@ -64,7 +64,13 @@ function writePageToCollection(
     return false;
   }
   const append = !overwrite && Boolean(currentCursor);
-  const items = page[itemsKey] ?? [];
+  let items = page[itemsKey] ?? [];
+  if (append && dedupeBy) {
+    const existingIds = new Set(
+      current[itemsKey].map((item) => item[dedupeBy]),
+    );
+    items = items.filter((item) => !existingIds.has(item[dedupeBy]));
+  }
   const next = {
     [itemsKey]: append ? [...current[itemsKey], ...items] : items,
     cursor: page.cursor || null,
@@ -892,6 +898,7 @@ export class Requests {
     writePageToCollection(this.dataStore.$convoList, "convos", res, {
       requestCursor: cursor,
       overwrite: reload,
+      dedupeBy: "id", // skip convos that were bumped locally
     });
   }
 
@@ -913,13 +920,14 @@ export class Requests {
     writePageToCollection(this.dataStore.$convoRequestList, "convos", res, {
       requestCursor: cursor,
       overwrite: reload,
+      dedupeBy: "id", // skip convos that were bumped locally
     });
   }
 
   async loadConvo(convoId) {
     const labelers = this.requireLabelers();
     const res = await this.api.getConvo(convoId, { labelers });
-    this.dataStore.$convos.set(convoId, res.convo);
+    this.dataStore.setConvo(res.convo);
   }
 
   async loadConvoMembers(convoId, { reload = false } = {}) {
@@ -968,7 +976,7 @@ export class Requests {
   async loadConvoForProfile(profileDid) {
     const labelers = this.requireLabelers();
     const res = await this.api.getConvoForMembers([profileDid], { labelers });
-    this.dataStore.$convos.set(res.convo.id, res.convo);
+    this.dataStore.setConvo(res.convo);
   }
 
   async loadConvoMessages(convoId, { reload = false, limit = 50 } = {}) {
