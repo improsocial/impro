@@ -376,10 +376,10 @@ export class RichTextInput extends Component {
     }
   }
 
-  focus() {
+  focus(options) {
     const input = this.querySelector(".rich-text-input");
     if (input) {
-      input.focus();
+      input.focus(options);
     }
   }
 

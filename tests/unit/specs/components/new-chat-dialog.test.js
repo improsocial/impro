@@ -645,14 +645,26 @@ describe("new-chat-dialog", () => {
   });
 
   describe("NewChatDialog - autofocus", () => {
-    it("should focus the search input on open", () => {
+    it("should focus the search input without scrolling on open", () => {
       const { dataLayer } = createFakeDataLayer();
       const element = createDialog(dataLayer);
-      element.open();
       const input = element.querySelector(
         '[data-testid="new-chat-search-input"]',
       );
+      const focus = input.focus.bind(input);
+      let options;
+      input.focus = (nextOptions) => {
+        options = nextOptions;
+        focus(nextOptions);
+      };
+
+      element.open();
+
       assert.deepEqual(document.activeElement, input);
+      assert.deepEqual(options, { preventScroll: true });
+      assert(
+        element.querySelector(".new-chat-dialog").hasAttribute("autofocus"),
+      );
     });
   });
 

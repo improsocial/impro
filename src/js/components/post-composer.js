@@ -299,6 +299,7 @@ class PostComposer extends Component {
       html`
         <dialog
           class="post-composer"
+          autofocus
           @click=${async (e) => {
             if (e.target.tagName === "DIALOG") {
               if (await this.confirmClose()) {
@@ -375,7 +376,6 @@ class PostComposer extends Component {
                         this.handlePaste(e);
                       }}
                       placeholder="${promptText}"
-                      autofocus
                     ></rich-text-input>
                   </div>
                 </div>
@@ -912,6 +912,7 @@ class PostComposer extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".post-composer");
     dialog.showModal();
+    this.querySelector("rich-text-input")?.focus({ preventScroll: true });
 
     // Setup mobile swipe-to-dismiss
     enableDragToDismiss(dialog, {

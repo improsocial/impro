@@ -217,6 +217,7 @@ class NewChatDialog extends Component {
         <dialog
           class="bottom-sheet new-chat-dialog"
           data-testid="new-chat-dialog"
+          autofocus
           @click=${(event) => {
             if (event.target.tagName === "DIALOG") {
               this.close();
@@ -298,7 +299,9 @@ class NewChatDialog extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".new-chat-dialog");
     dialog.showModal();
-    this.querySelector(".new-chat-search-input")?.focus();
+    this.querySelector(".new-chat-search-input")?.focus({
+      preventScroll: true,
+    });
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       scrollContainer: this.querySelector(".new-chat-results"),

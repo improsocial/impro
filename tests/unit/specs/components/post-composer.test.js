@@ -189,14 +189,24 @@ describe("post-composer", () => {
       assert(dialog.open);
     });
 
-    it("should render the rich text input with autofocus so showModal focuses it", () => {
+    it("focuses the editor without scrolling when opened", () => {
       const element = createPostComposer();
       connectElement(element);
+      const editor = element.querySelector(".rich-text-input");
+      const focus = editor.focus.bind(editor);
+      let options;
+      editor.focus = (nextOptions) => {
+        options = nextOptions;
+        focus(nextOptions);
+      };
+
+      element.open();
+
       const richTextInput = element.querySelector("rich-text-input");
-      assert(richTextInput.hasAttribute("autofocus"));
-      assert(
-        element.querySelector(".rich-text-input").hasAttribute("autofocus"),
-      );
+      assert(!richTextInput.hasAttribute("autofocus"));
+      assert(!editor.hasAttribute("autofocus"));
+      assert(element.querySelector(".post-composer").hasAttribute("autofocus"));
+      assert.deepEqual(options, { preventScroll: true });
     });
   });
 
