@@ -496,6 +496,8 @@ export class Api {
     return res.data;
   }
 
+  // Returns the posts in request order. The result may still be a subset
+  // because the app view omits deleted and blocked posts
   async getPosts(postURIs, { labelers = [] } = {}) {
     const batches = batch(postURIs, 25);
     let posts = [];
@@ -509,6 +511,12 @@ export class Api {
       });
       posts.push(...res.data.posts);
     }
+    const orderByUri = new Map(postURIs.map((uri, index) => [uri, index]));
+    posts.sort(
+      (a, b) =>
+        (orderByUri.get(a.uri) ?? Infinity) -
+        (orderByUri.get(b.uri) ?? Infinity),
+    );
     return posts;
   }
 
@@ -1230,67 +1238,13 @@ export class Api {
     return res.data;
   }
 
-  async createPost({ text, facets, embed, reply, langs, labels = null }) {
-    const record = {
-      text,
-      facets,
-      createdAt: getCurrentTimestamp(),
-      langs,
-    };
-    if (embed) {
-      record.embed = embed;
-    }
-    if (reply) {
-      record.reply = reply;
-    }
-    if (labels) {
-      record.labels = labels;
-    }
-    const res = await this.request("com.atproto.repo.createRecord", {
+  async applyWrites(writes) {
+    const res = await this.request("com.atproto.repo.applyWrites", {
       method: "POST",
       body: {
         repo: this.session.did,
-        collection: "app.bsky.feed.post",
-        record,
-      },
-    });
-    return res.data;
-  }
-
-  // Threadgate and postgate records use the same rkey as the post they gate
-  async createThreadgate(postUri, allow) {
-    const { rkey } = parseUri(postUri);
-    const res = await this.request("com.atproto.repo.createRecord", {
-      method: "POST",
-      body: {
-        repo: this.session.did,
-        collection: "app.bsky.feed.threadgate",
-        rkey,
-        record: {
-          $type: "app.bsky.feed.threadgate",
-          post: postUri,
-          allow,
-          createdAt: getCurrentTimestamp(),
-        },
-      },
-    });
-    return res.data;
-  }
-
-  async createPostgate(postUri, embeddingRules) {
-    const { rkey } = parseUri(postUri);
-    const res = await this.request("com.atproto.repo.createRecord", {
-      method: "POST",
-      body: {
-        repo: this.session.did,
-        collection: "app.bsky.feed.postgate",
-        rkey,
-        record: {
-          $type: "app.bsky.feed.postgate",
-          post: postUri,
-          embeddingRules,
-          createdAt: getCurrentTimestamp(),
-        },
+        writes,
+        validate: true,
       },
     });
     return res.data;

@@ -40,6 +40,14 @@ describe("post-composer", () => {
     return element;
   }
 
+  function getFirstPost(element) {
+    return element.state.$posts.get()[0];
+  }
+
+  function patchFirstPost(element, patch) {
+    element._updatePost(getFirstPost(element).id, patch);
+  }
+
   describe("PostComposer - rendering", () => {
     it("should render dialog element", () => {
       const element = createPostComposer();
@@ -137,7 +145,7 @@ describe("post-composer", () => {
     it("should start with empty post text", () => {
       const element = createPostComposer();
       connectElement(element);
-      assert.deepEqual(element.state.$postText.get(), "");
+      assert.deepEqual(getFirstPost(element).text, "");
     });
 
     it("should not be sending initially", () => {
@@ -149,7 +157,7 @@ describe("post-composer", () => {
     it("should have no selected images initially", () => {
       const element = createPostComposer();
       connectElement(element);
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
     });
   });
 
@@ -164,7 +172,7 @@ describe("post-composer", () => {
     it("should add overflow class when over limit", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("x".repeat(301));
+      patchFirstPost(element, { text: "x".repeat(301) });
       await nextFrame();
       const wordCountContainer = element.querySelector(".word-count");
       assert(wordCountContainer.classList.contains("overflow"));
@@ -173,7 +181,7 @@ describe("post-composer", () => {
     it("should disable post button when over limit", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("x".repeat(301));
+      patchFirstPost(element, { text: "x".repeat(301) });
       await nextFrame();
       const postButton = element.querySelector(".rounded-button-primary");
       assert(postButton.disabled);
@@ -236,37 +244,37 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - send method", () => {
-    it("should set isSending to true when send() is called", () => {
+    it("should set isSending to true when send() is called", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
 
       // Listen for the event but don't do anything
       element.addEventListener("send-post", () => {});
 
-      element.send();
+      await element.send();
       assert.deepEqual(element.state.$isSending.get(), true);
     });
 
-    it("should dispatch send-post event with post data", () => {
+    it("should dispatch send-post event with post data", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
 
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
         receivedDetail = e.detail;
       });
 
-      element.send();
-      assert.deepEqual(receivedDetail.post.postText, "Hello world");
+      await element.send();
+      assert.deepEqual(receivedDetail.posts[0].postText, "Hello world");
       assert.deepEqual(receivedDetail.draft, null);
     });
 
-    it("carries draft passthrough fields in the send-post detail", () => {
+    it("carries draft passthrough fields in the send-post detail", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
       const labels = {
         $type: "com.atproto.label.defs#selfLabels",
         values: [{ val: "porn" }],
@@ -281,10 +289,10 @@ describe("post-composer", () => {
         receivedDetail = e.detail;
       });
 
-      element.send();
-      assert.deepEqual(receivedDetail.post.labels, labels);
-      assert.deepEqual(receivedDetail.post.threadgateAllow, threadgateAllow);
-      assert.deepEqual(receivedDetail.post.postgateEmbeddingRules, null);
+      await element.send();
+      assert.deepEqual(receivedDetail.posts[0].labels, labels);
+      assert.deepEqual(receivedDetail.threadgateAllow, threadgateAllow);
+      assert.deepEqual(receivedDetail.postgateEmbeddingRules, null);
     });
 
     it("should show loading spinner when sending", async () => {
@@ -307,10 +315,10 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - keyboard shortcuts", () => {
-    it("should send post on Cmd+Enter", () => {
+    it("should send post on Cmd+Enter", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
 
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
@@ -325,14 +333,15 @@ describe("post-composer", () => {
           bubbles: true,
         }),
       );
+      await nextFrame();
       assert(receivedDetail !== null);
-      assert.deepEqual(receivedDetail.post.postText, "Hello world");
+      assert.deepEqual(receivedDetail.posts[0].postText, "Hello world");
     });
 
-    it("should send post on Ctrl+Enter", () => {
+    it("should send post on Ctrl+Enter", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
 
       let fired = false;
       element.addEventListener("send-post", () => {
@@ -347,10 +356,11 @@ describe("post-composer", () => {
           bubbles: true,
         }),
       );
+      await nextFrame();
       assert(fired);
     });
 
-    it("should not send on Cmd+Enter when post text is empty", () => {
+    it("should not send on Cmd+Enter when post text is empty", async () => {
       const element = createPostComposer();
       connectElement(element);
 
@@ -367,13 +377,14 @@ describe("post-composer", () => {
           bubbles: true,
         }),
       );
+      await nextFrame();
       assert(!fired);
     });
 
-    it("should not send on Cmd+Enter when over character limit", () => {
+    it("should not send on Cmd+Enter when over character limit", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("x".repeat(301));
+      patchFirstPost(element, { text: "x".repeat(301) });
 
       let fired = false;
       element.addEventListener("send-post", () => {
@@ -388,13 +399,14 @@ describe("post-composer", () => {
           bubbles: true,
         }),
       );
+      await nextFrame();
       assert(!fired);
     });
 
-    it("should not send on Cmd+Enter when already sending", () => {
+    it("should not send on Cmd+Enter when already sending", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
       element.state.$isSending.set(true);
 
       let count = 0;
@@ -410,13 +422,14 @@ describe("post-composer", () => {
           bubbles: true,
         }),
       );
+      await nextFrame();
       assert.deepEqual(count, 0);
     });
 
-    it("should not send on plain Enter", () => {
+    it("should not send on plain Enter", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Hello world");
+      patchFirstPost(element, { text: "Hello world" });
 
       let fired = false;
       element.addEventListener("send-post", () => {
@@ -427,6 +440,7 @@ describe("post-composer", () => {
       dialog.dispatchEvent(
         new KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
       );
+      await nextFrame();
       assert(!fired);
     });
   });
@@ -444,12 +458,14 @@ describe("post-composer", () => {
     it("should disable image button when 4 images are selected", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$selectedImages.set([
-        { file: {}, dataUrl: "data:..." },
-        { file: {}, dataUrl: "data:..." },
-        { file: {}, dataUrl: "data:..." },
-        { file: {}, dataUrl: "data:..." },
-      ]);
+      patchFirstPost(element, {
+        images: [
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+        ],
+      });
       await nextFrame();
       const imageButton = element.querySelector(".image-picker-button");
       assert(imageButton.disabled);
@@ -460,7 +476,7 @@ describe("post-composer", () => {
     it("should return true when post text is empty", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("");
+      patchFirstPost(element, { text: "" });
       const result = await element.confirmClose();
       assert.deepEqual(result, true);
     });
@@ -470,11 +486,11 @@ describe("post-composer", () => {
     it("should not reinitialize when connectedCallback is called multiple times", () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$postText.set("Test content");
+      patchFirstPost(element, { text: "Test content" });
 
       element.connectedCallback();
 
-      assert.deepEqual(element.state.$postText.get(), "Test content");
+      assert.deepEqual(getFirstPost(element).text, "Test content");
     });
   });
 
@@ -486,7 +502,7 @@ describe("post-composer", () => {
       element.applyComposerInit({ text: "Hello from a plugin", cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "Hello from a plugin");
-      assert.deepEqual(element.state.$postText.get(), "Hello from a plugin");
+      assert.deepEqual(getFirstPost(element).text, "Hello from a plugin");
     });
 
     it("does not seed text when text is null", () => {
@@ -496,7 +512,7 @@ describe("post-composer", () => {
       element.applyComposerInit({ text: null, cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "");
-      assert.deepEqual(element.state.$postText.get(), "");
+      assert.deepEqual(getFirstPost(element).text, "");
     });
 
     it("calls setCursor on the rich-text-input when cursor is set", () => {
@@ -591,9 +607,9 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       const event = makePasteEvent([makeImageFile()]);
-      element.handlePaste(event);
-      await waitFor(() => element.state.$selectedImages.get().length === 1);
-      const selectedImages = element.state.$selectedImages.get();
+      element.handlePaste(getFirstPost(element).id, event);
+      await waitFor(() => getFirstPost(element).images.length === 1);
+      const selectedImages = getFirstPost(element).images;
       assert(selectedImages[0].dataUrl.startsWith("data:image/png"));
       assert(event.defaultPrevented);
     });
@@ -601,39 +617,41 @@ describe("post-composer", () => {
     it("adds multiple pasted images up to the 4-image cap", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$selectedImages.set([
-        { file: {}, dataUrl: "data:..." },
-        { file: {}, dataUrl: "data:..." },
-        { file: {}, dataUrl: "data:..." },
-      ]);
+      patchFirstPost(element, {
+        images: [
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+          { file: {}, dataUrl: "data:..." },
+        ],
+      });
       const event = makePasteEvent([
         makeImageFile("a.png"),
         makeImageFile("b.png"),
         makeImageFile("c.png"),
       ]);
-      element.handlePaste(event);
-      await waitFor(() => element.state.$selectedImages.get().length === 4);
+      element.handlePaste(getFirstPost(element).id, event);
+      await waitFor(() => getFirstPost(element).images.length === 4);
     });
 
     it("does not add pasted images when a video is already selected", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.state.$selectedVideo.set({ file: {}, status: "done" });
+      patchFirstPost(element, { video: { file: {}, status: "done" } });
       const event = makePasteEvent([makeImageFile()]);
-      element.handlePaste(event);
+      element.handlePaste(getFirstPost(element).id, event);
       await new Promise((resolve) => setTimeout(resolve, 20));
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
       assert(event.defaultPrevented);
     });
 
     it("ignores pastes with no files (and does not preventDefault)", () => {
       const element = createPostComposer();
       connectElement(element);
-      element._unresolvedFacets = [];
+      patchFirstPost(element, { unresolvedFacets: [] });
       const event = makePasteEvent([]);
-      element.handlePaste(event);
+      element.handlePaste(getFirstPost(element).id, event);
       assert(!event.defaultPrevented);
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
     });
   });
 
@@ -656,14 +674,17 @@ describe("post-composer", () => {
     it("attaches an external link embed immediately when a link is pasted", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element._unresolvedFacets = [
-        makeLinkFacet("https://example.com/article"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      patchFirstPost(element, {
+        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      assert.deepEqual(element._externalLinkUrl, "https://example.com/article");
       assert.deepEqual(
-        element.state.$externalLinkEmbedData.get().url,
+        getFirstPost(element).externalLinkUrl,
+        "https://example.com/article",
+      );
+      assert.deepEqual(
+        getFirstPost(element).external.url,
         "https://example.com/article",
       );
     });
@@ -671,26 +692,31 @@ describe("post-composer", () => {
     it("does not attach an external link embed for a rejected URL", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element._rejectedLinkEmbeds.add("https://example.com/article");
-      element._unresolvedFacets = [
-        makeLinkFacet("https://example.com/article"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      getFirstPost(element).rejectedLinkEmbeds.add(
+        "https://example.com/article",
+      );
+      patchFirstPost(element, {
+        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      assert.deepEqual(element._externalLinkUrl, null);
-      assert.deepEqual(element.state.$externalLinkEmbedData.get(), null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
+      assert.deepEqual(getFirstPost(element).external, null);
     });
 
     it("does not replace an existing external link embed", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element._externalLinkUrl = "https://existing.com/page";
-      element._unresolvedFacets = [
-        makeLinkFacet("https://example.com/article"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      patchFirstPost(element, { externalLinkUrl: "https://existing.com/page" });
+      patchFirstPost(element, {
+        unresolvedFacets: [makeLinkFacet("https://example.com/article")],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
-      assert.deepEqual(element._externalLinkUrl, "https://existing.com/page");
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
+        "https://existing.com/page",
+      );
     });
 
     it("attaches a quote post instead of an external link embed for post links", async () => {
@@ -698,18 +724,20 @@ describe("post-composer", () => {
       connectElement(element);
       let loadedQuoteUrl = null;
       element.loadQuotedRecordFromLink = () => {
-        loadedQuoteUrl = element._quotedRecordUrl;
+        loadedQuoteUrl = getFirstPost(element).quotedRecordUrl;
       };
-      element._unresolvedFacets = [
-        makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      patchFirstPost(element, {
+        unresolvedFacets: [
+          makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+        ],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         loadedQuoteUrl,
         "https://bsky.app/profile/alice.test/post/3abc",
       );
-      assert.deepEqual(element._externalLinkUrl, null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
     });
 
     it("does not attach a second quote post when one is already attached", async () => {
@@ -719,15 +747,19 @@ describe("post-composer", () => {
       element.loadQuotedRecordFromLink = () => {
         loadCalled = true;
       };
-      element._quotedRecordUrl = "https://bsky.app/profile/bob.test/post/3xyz";
-      element._unresolvedFacets = [
-        makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      patchFirstPost(element, {
+        quotedRecordUrl: "https://bsky.app/profile/bob.test/post/3xyz",
+      });
+      patchFirstPost(element, {
+        unresolvedFacets: [
+          makeLinkFacet("https://bsky.app/profile/alice.test/post/3abc"),
+        ],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert(!loadCalled);
       assert.deepEqual(
-        element._quotedRecordUrl,
+        getFirstPost(element).quotedRecordUrl,
         "https://bsky.app/profile/bob.test/post/3xyz",
       );
     });
@@ -790,8 +822,8 @@ describe("post-composer", () => {
 
     function inputLink(url) {
       const facet = makeLinkFacet(url);
-      element._unresolvedFacets = [facet];
-      element.handleInput({
+      patchFirstPost(element, { unresolvedFacets: [facet] });
+      element.handleInput(getFirstPost(element).id, {
         detail: { text: `check ${url} `, facets: [facet] },
       });
       // one tick for the record load to resolve, one for the render effect
@@ -866,7 +898,7 @@ describe("post-composer", () => {
           ".post-composer-embed-preview .feed-generator-embed",
         ) !== null,
       );
-      assert.deepEqual(element._externalLinkUrl, null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
     });
 
     it("attaches a list embed from a pasted list URL", async () => {
@@ -916,7 +948,7 @@ describe("post-composer", () => {
       await inputLink("https://bsky.app/profile/creator1.test/follows");
       assert.deepEqual(element.quotedRecord, null);
       assert.deepEqual(
-        element._externalLinkUrl,
+        getFirstPost(element).externalLinkUrl,
         "https://bsky.app/profile/creator1.test/follows",
       );
     });
@@ -929,7 +961,7 @@ describe("post-composer", () => {
         "app.bsky.feed.defs#generatorView",
       );
       assert.deepEqual(
-        element._quotedRecordUrl,
+        getFirstPost(element).quotedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
     });
@@ -950,7 +982,7 @@ describe("post-composer", () => {
       assert.deepEqual(feedLoadCount, 1);
       assert.deepEqual(listLoadCount, 0);
       assert.deepEqual(
-        element._quotedRecordUrl,
+        getFirstPost(element).quotedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
       assert.deepEqual(element.quotedRecord, null);
@@ -963,7 +995,7 @@ describe("post-composer", () => {
           resolveLoad = resolve;
         });
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
-      element.handleQuotedEmbedPreviewClose();
+      element.handleQuotedEmbedPreviewClose(getFirstPost(element).id);
       resolveLoad({
         uri: "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
         cid: "feedcid",
@@ -988,8 +1020,8 @@ describe("post-composer", () => {
         const url = "https://bsky.app/profile/creator1.test/feed/cool-feed";
         await inputLink(url);
         assert.deepEqual(element.quotedRecord, null);
-        assert.deepEqual(element._quotedRecordUrl, null);
-        assert(element._rejectedLinkEmbeds.has(url));
+        assert.deepEqual(getFirstPost(element).quotedRecordUrl, null);
+        assert(getFirstPost(element).rejectedLinkEmbeds.has(url));
       } finally {
         console.error = originalError;
       }
@@ -997,10 +1029,10 @@ describe("post-composer", () => {
 
     it("clears the record embed when the preview is closed", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
-      element.handleQuotedEmbedPreviewClose();
+      element.handleQuotedEmbedPreviewClose(getFirstPost(element).id);
       await nextFrame();
       assert.deepEqual(element.quotedRecord, null);
-      assert.deepEqual(element._quotedRecordUrl, null);
+      assert.deepEqual(getFirstPost(element).quotedRecordUrl, null);
       assert.deepEqual(
         element.querySelector(".post-composer-embed-preview"),
         null,
@@ -1009,30 +1041,37 @@ describe("post-composer", () => {
 
     it("sends the record embed as quotedRecord", async () => {
       await inputLink("https://bsky.app/profile/creator1.test/feed/cool-feed");
-      element.state.$postText.set("check this feed");
+      patchFirstPost(element, { text: "check this feed" });
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
         receivedDetail = e.detail;
       });
-      element.send();
-      assert.deepEqual(receivedDetail.post.quotedRecord, element.quotedRecord);
+      await element.send();
+      assert.deepEqual(
+        receivedDetail.posts[0].quotedRecord,
+        element.quotedRecord,
+      );
     });
 
     it("attaches a record embed instead of an external link when pasted", async () => {
       let loadedRecordUrl = null;
       element.loadQuotedRecordFromLink = () => {
-        loadedRecordUrl = element._quotedRecordUrl;
+        loadedRecordUrl = getFirstPost(element).quotedRecordUrl;
       };
-      element._unresolvedFacets = [
-        makeLinkFacet("https://bsky.app/profile/creator1.test/feed/cool-feed"),
-      ];
-      element.handlePaste(makePasteEvent([]));
+      patchFirstPost(element, {
+        unresolvedFacets: [
+          makeLinkFacet(
+            "https://bsky.app/profile/creator1.test/feed/cool-feed",
+          ),
+        ],
+      });
+      element.handlePaste(getFirstPost(element).id, makePasteEvent([]));
       await new Promise((resolve) => requestAnimationFrame(resolve));
       assert.deepEqual(
         loadedRecordUrl,
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
-      assert.deepEqual(element._externalLinkUrl, null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
     });
   });
 
@@ -1078,7 +1117,9 @@ describe("post-composer", () => {
     it("prompts a plain discard confirm instead of the save choice when drafts are disabled", async () => {
       const element = createPostComposer({ draftsEnabled: false });
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       let confirmationSeen = false;
       globalThis.__testConfirmation = (resolve) => {
         confirmationSeen = true;
@@ -1097,7 +1138,9 @@ describe("post-composer", () => {
     it("stays open when the discard confirm is declined with drafts disabled", async () => {
       const element = createPostComposer({ draftsEnabled: false });
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       globalThis.__testConfirmation = (resolve) => resolve(false);
       const result = await element.confirmClose();
       assert.deepEqual(result, false);
@@ -1121,7 +1164,9 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       assert.deepEqual(element._isDirty, false);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       assert.deepEqual(element._isDirty, true);
     });
 
@@ -1141,7 +1186,9 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       assert.deepEqual(await element.saveDraft(), true);
       const result = await element.confirmClose();
       assert.deepEqual(result, true);
@@ -1150,7 +1197,9 @@ describe("post-composer", () => {
     it("prompts with the save choice when there is unsaved content", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       globalThis.__testChoice = (resolve) => resolve("keep");
       const result = await element.confirmClose();
       assert.deepEqual(result, false);
@@ -1159,7 +1208,9 @@ describe("post-composer", () => {
     it("closes when the prompt choice is discard", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       globalThis.__testChoice = (resolve) => resolve("discard");
       const result = await element.confirmClose();
       assert.deepEqual(result, true);
@@ -1177,7 +1228,9 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       globalThis.__testChoice = (resolve) => resolve("save");
       const result = await element.confirmClose();
       assert.deepEqual(result, true);
@@ -1189,7 +1242,7 @@ describe("post-composer", () => {
     it("offers only discard when the text is over the draft limit", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.handleInput({
+      element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1001), facets: [] },
       });
       let confirmationSeen = false;
@@ -1219,7 +1272,9 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "edited", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "edited", facets: [] },
+      });
       element._draftId = "draft-1";
       element._originalLocalRefs = new Set(["image:old"]);
       const result = await element.saveDraft();
@@ -1237,7 +1292,9 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "x".repeat(1000), facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "x".repeat(1000), facets: [] },
+      });
       assert.deepEqual(await element.saveDraft(), true);
     });
 
@@ -1261,7 +1318,9 @@ describe("post-composer", () => {
           },
         };
         connectElement(element);
-        element.handleInput({ detail: { text: "hello", facets: [] } });
+        element.handleInput(getFirstPost(element).id, {
+          detail: { text: "hello", facets: [] },
+        });
         assert.deepEqual(await element.saveDraft(), false);
         await waitFor(() =>
           [...document.querySelectorAll(".toast")].some((toast) =>
@@ -1284,7 +1343,7 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({
+      element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1001), facets: [] },
       });
       const result = await element.saveDraft();
@@ -1305,7 +1364,9 @@ describe("post-composer", () => {
           },
         };
         connectElement(element);
-        element.handleInput({ detail: { text: "hello", facets: [] } });
+        element.handleInput(getFirstPost(element).id, {
+          detail: { text: "hello", facets: [] },
+        });
         const result = await element.saveDraft();
         assert.deepEqual(result, false);
         assert.deepEqual(element._draftId, null);
@@ -1323,11 +1384,13 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "with image", facets: [] } });
-      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:a" }]);
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "with image", facets: [] },
+      });
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
       const result = await element.saveDraft();
       assert.deepEqual(result, true);
-      const image = element.state.$selectedImages.get()[0];
+      const image = getFirstPost(element).images[0];
       assert(image.localRefPath.startsWith("image:"));
     });
 
@@ -1343,9 +1406,13 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       const savePromise = element.saveDraft();
-      element.handleInput({ detail: { text: "hello edited", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello edited", facets: [] },
+      });
       resolveCreate("draft-1");
       assert.deepEqual(await savePromise, true);
       assert.deepEqual(element._draftId, "draft-1");
@@ -1364,15 +1431,17 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "with image", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "with image", facets: [] },
+      });
       const originalImage = { file: {}, dataUrl: "data:a" };
-      element.state.$selectedImages.set([originalImage]);
+      patchFirstPost(element, { images: [originalImage] });
       const savePromise = element.saveDraft();
       const addedImage = { file: {}, dataUrl: "data:b" };
-      element.state.$selectedImages.set([addedImage, originalImage]);
+      patchFirstPost(element, { images: [addedImage, originalImage] });
       resolveCreate("draft-1");
       assert.deepEqual(await savePromise, true);
-      const [first, second] = element.state.$selectedImages.get();
+      const [first, second] = getFirstPost(element).images;
       assert.deepEqual(first.localRefPath, undefined);
       assert(second.localRefPath.startsWith("image:"));
     });
@@ -1392,7 +1461,9 @@ describe("post-composer", () => {
         },
       };
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       element.markSaved("draft-1", ["image:a"]);
       element._isDirty = false;
       element.handleDraftDeleted("draft-1");
@@ -1417,12 +1488,14 @@ describe("post-composer", () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
-      element.handleInput({ detail: { text: "hello", facets: [] } });
-      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:a" }]);
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
       element.markSaved("draft-1", ["image:a"]);
       element.clearComposer();
-      assert.deepEqual(element.state.$postText.get(), "");
-      assert.deepEqual(element.state.$selectedImages.get(), []);
+      assert.deepEqual(getFirstPost(element).text, "");
+      assert.deepEqual(getFirstPost(element).images, []);
       assert.deepEqual(element._draftId, null);
       assert.deepEqual(element._originalLocalRefs, null);
       assert.deepEqual(element._isDirty, false);
@@ -1474,13 +1547,13 @@ describe("post-composer", () => {
           },
         };
         await element.restoreFromDraft(draftView);
-        assert.deepEqual(element.state.$postText.get(), "restored text");
+        assert.deepEqual(getFirstPost(element).text, "restored text");
         assert.deepEqual(
           element.querySelector("rich-text-input").text,
           "restored text",
         );
         assert.deepEqual(
-          element.state.$externalLinkEmbedData.get().url,
+          getFirstPost(element).external.url,
           "https://example.com/article",
         );
         assert.deepEqual(
@@ -1539,7 +1612,7 @@ describe("post-composer", () => {
           ],
         },
       });
-      element.handleInput({
+      element.handleInput(getFirstPost(element).id, {
         detail: { text: "foreign media edited", facets: [] },
       });
       assert.deepEqual(await element.saveDraft(), true);
@@ -1580,7 +1653,7 @@ describe("post-composer", () => {
           posts: [{ text: "video draft", embedVideos: [videoEmbed] }],
         },
       });
-      element.handleInput({
+      element.handleInput(getFirstPost(element).id, {
         detail: { text: "video draft edited", facets: [] },
       });
       assert.deepEqual(await element.saveDraft(), true);
@@ -1623,7 +1696,7 @@ describe("post-composer", () => {
           ],
         },
       });
-      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:new" }]);
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:new" }] });
       assert.deepEqual(await element.saveDraft(), true);
       const items = savedArgs.draft.posts[0].embedGallery.items;
       assert.deepEqual(items.length, 1);
@@ -1631,16 +1704,18 @@ describe("post-composer", () => {
       assert.deepEqual(savedArgs.pruneLocalRefs, ["image:foreign"]);
     });
 
-    it("send includes the draft id and local refs for publish cleanup", () => {
+    it("send includes the draft id and local refs for publish cleanup", async () => {
       const element = createPostComposer();
       connectElement(element);
-      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
       element.markSaved("draft-1", ["image:a"]);
       let receivedDetail = null;
       element.addEventListener("send-post", (e) => {
         receivedDetail = e.detail;
       });
-      element.send();
+      await element.send();
       assert.deepEqual(receivedDetail.draft, {
         draftId: "draft-1",
         localRefs: ["image:a"],
@@ -1648,38 +1723,240 @@ describe("post-composer", () => {
     });
   });
 
+  describe("PostComposer - threads", () => {
+    afterEach(() => {
+      delete globalThis.__testConfirmation;
+    });
+
+    function getPosts(element) {
+      return element.state.$posts.get();
+    }
+
+    it("adds a new post after the active post and focuses it", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      const posts = getPosts(element);
+      assert.deepEqual(posts.length, 2);
+      assert.deepEqual(posts[1].text, "");
+      assert.deepEqual(element.state.$activePostIndex.get(), 1);
+      assert.deepEqual(element.querySelectorAll("rich-text-input").length, 2);
+    });
+
+    it("does not add a post while the active post is empty", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleAddPost();
+      assert.deepEqual(getPosts(element).length, 1);
+    });
+
+    it("hides the add button while the active post is empty", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-add-post-button"]'),
+        null,
+      );
+      patchFirstPost(element, { text: "content" });
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="composer-add-post-button"]') !==
+          null,
+      );
+    });
+
+    it("inserts after the active post rather than at the end", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first" });
+      element.handleAddPost();
+      const secondId = getPosts(element)[1].id;
+      element._updatePost(secondId, { text: "second" });
+      element.handleActivatePost(0);
+      element.handleAddPost();
+      const posts = getPosts(element);
+      assert.deepEqual(posts.length, 3);
+      assert.deepEqual(posts[0].text, "first");
+      assert.deepEqual(posts[1].text, "");
+      assert.deepEqual(posts[2].text, "second");
+      assert.deepEqual(element.state.$activePostIndex.get(), 1);
+    });
+
+    it("shows Post All and per-post state attributes for threads", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      await nextFrame();
+      const submitButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert(submitButton.textContent.includes("Post All"));
+      assert.deepEqual(submitButton.dataset.teststate, "post-all");
+      const postElements = element.querySelectorAll(
+        '[data-testid="composer-post"]',
+      );
+      assert.deepEqual(postElements[0].dataset.teststate, "inactive");
+      assert.deepEqual(postElements[1].dataset.teststate, "active");
+    });
+
+    it("removes an empty post without prompting", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      // a shown confirm would resolve false and cancel the removal
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      await element.handleRemovePost(getPosts(element)[1].id);
+      assert.deepEqual(getPosts(element).length, 1);
+      assert.deepEqual(element.state.$activePostIndex.get(), 0);
+    });
+
+    it("prompts before removing a post with content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      const secondId = getPosts(element)[1].id;
+      element._updatePost(secondId, { text: "second post" });
+
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      await element.handleRemovePost(secondId);
+      assert.deepEqual(getPosts(element).length, 2);
+
+      globalThis.__testConfirmation = (resolve) => resolve(true);
+      await element.handleRemovePost(secondId);
+      assert.deepEqual(getPosts(element).length, 1);
+      assert.deepEqual(getPosts(element)[0].text, "first post");
+      assert.deepEqual(element.state.$activePostIndex.get(), 0);
+    });
+
+    it("never removes the last remaining post", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "only post" });
+      await element.handleRemovePost(getFirstPost(element).id);
+      assert.deepEqual(getPosts(element).length, 1);
+    });
+
+    it("silently trims trailing empty posts on send", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      // a shown confirm would resolve false and block the send
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      await element.send();
+      assert.deepEqual(receivedDetail.posts.length, 1);
+      assert.deepEqual(receivedDetail.posts[0].postText, "first post");
+    });
+
+    it("prompts to skip a mid-thread empty post", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      element._updatePost(getPosts(element)[1].id, { text: "third post" });
+      element.handleActivatePost(0);
+      element.handleAddPost();
+      assert.deepEqual(getPosts(element).length, 3);
+
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      await element.send();
+      assert.deepEqual(receivedDetail, null);
+      assert.deepEqual(element.state.$isSending.get(), false);
+
+      globalThis.__testConfirmation = (resolve) => resolve(true);
+      await element.send();
+      assert.deepEqual(
+        receivedDetail.posts.map((post) => post.postText),
+        ["first post", "third post"],
+      );
+    });
+
+    it("blocks send while any non-empty post is over the limit", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      element._updatePost(getPosts(element)[1].id, { text: "x".repeat(301) });
+      let fired = false;
+      element.addEventListener("send-post", () => {
+        fired = true;
+      });
+      await element.send();
+      assert(!fired);
+      await nextFrame();
+      const submitButton = element.querySelector(
+        '[data-testid="composer-submit-button"]',
+      );
+      assert(submitButton.disabled);
+    });
+
+    it("keeps thread text in the inputs after a structural change", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      const posts = getPosts(element);
+      element._updatePost(posts[1].id, { text: "second post" });
+      element._syncInputsFromState();
+      element.handleActivatePost(0);
+      element.handleAddPost();
+      await nextFrame();
+      const latestPosts = getPosts(element);
+      const lastInput = element.querySelector(
+        `[data-post-id="${latestPosts[2].id}"] rich-text-input`,
+      );
+      assert.deepEqual(lastInput.text, "second post");
+    });
+  });
+
   describe("PostComposer - addMediaFiles", () => {
     it("routes image files to addImageFiles", async () => {
       const element = createPostComposer();
       connectElement(element);
-      await element.addMediaFiles([makeImageFile()]);
-      assert.deepEqual(element.state.$selectedImages.get().length, 1);
+      await element.addMediaFiles(getFirstPost(element).id, [makeImageFile()]);
+      assert.deepEqual(getFirstPost(element).images.length, 1);
     });
 
     it("rejects mixed image and video files", async () => {
       const element = createPostComposer();
       connectElement(element);
-      await element.addMediaFiles([makeImageFile(), makeVideoFile()]);
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
-      assert.deepEqual(element.state.$selectedVideo.get(), null);
+      await element.addMediaFiles(getFirstPost(element).id, [
+        makeImageFile(),
+        makeVideoFile(),
+      ]);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+      assert.deepEqual(getFirstPost(element).video, null);
     });
 
     it("rejects unsupported file types without adding anything", async () => {
       const element = createPostComposer();
       connectElement(element);
-      await element.addMediaFiles([
+      await element.addMediaFiles(getFirstPost(element).id, [
         makeImageFile(),
         { name: "note.txt", type: "text/plain" },
       ]);
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
     });
 
     it("returns early on empty input", async () => {
       const element = createPostComposer();
       connectElement(element);
-      await element.addMediaFiles([]);
-      assert.deepEqual(element.state.$selectedImages.get().length, 0);
-      assert.deepEqual(element.state.$selectedVideo.get(), null);
+      await element.addMediaFiles(getFirstPost(element).id, []);
+      assert.deepEqual(getFirstPost(element).images.length, 0);
+      assert.deepEqual(getFirstPost(element).video, null);
     });
   });
 });

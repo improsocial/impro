@@ -6344,6 +6344,73 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 12px;
 }
 
+.post-composer-post {
+  position: relative;
+  transition: opacity 0.15s;
+}
+
+.post-composer-post.is-inactive {
+  opacity: 0.5;
+}
+
+/* Threads stack several inputs, so each gets a shorter starting height */
+.post-composer-scroll-area-content:has(
+    .post-composer-post + .post-composer-post
+  )
+  .rich-text-input {
+  min-height: 60px;
+}
+
+.post-composer-remove-post-button {
+  z-index: 1;
+  position: absolute;
+  right: 8px;
+  top: 0;
+  border-radius: var(--circular-button-border-radius);
+  color: var(--text-color);
+  border: none;
+  background: none;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.post-composer-remove-post-button .close-icon {
+  width: 16px;
+  height: 16px;
+}
+
+.post-composer-bottom-bar-right {
+  display: flex;
+  align-items: center;
+}
+
+.post-composer-add-post-button {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+@media (hover: hover) {
+  .post-composer-add-post-button:hover {
+    background-color: var(--background-color-secondary);
+  }
+}
+
+.post-composer-add-post-button .icon {
+  width: 24px;
+  height: 24px;
+  color: var(--highlight-color);
+}
+
 .post-composer .rich-text-input {
   width: 100%;
   min-height: 120px;
@@ -6461,6 +6528,10 @@ emoji-picker-dialog emoji-picker,
 .word-count-text {
   font-size: 13px;
   color: var(--text-color-muted);
+  /* fixed width (fits "-999") so the layout doesn't shift while typing */
+  min-width: 4ch;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .word-count-indicator {

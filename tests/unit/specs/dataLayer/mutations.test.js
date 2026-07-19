@@ -2349,7 +2349,7 @@ describe("updatePostNotificationSubscription", () => {
   });
 });
 
-describe("createPost", () => {
+describe("createThread", () => {
   const currentUserDid = "did:plc:me";
   const newPostUri = `at://${currentUserDid}/app.bsky.feed.post/new`;
 
@@ -2373,10 +2373,9 @@ describe("createPost", () => {
       viewer: {},
     };
     mutations.postCreator = {
-      createPost: async () => ({
-        uri: fullPost.uri,
-        cid: fullPost.cid,
-        post: fullPost,
+      createThread: async () => ({
+        uris: [fullPost.uri],
+        posts: [fullPost],
       }),
     };
     if (replyPostThread) {
@@ -2393,8 +2392,10 @@ describe("createPost", () => {
 
   it("should store the new post and mark priorityReply", async () => {
     const { mutations, dataStore } = setup();
-    const result = await mutations.createPost({ postText: "hello" });
-    assert.deepEqual(result.uri, newPostUri);
+    const result = await mutations.createThread({
+      posts: [{ postText: "hello" }],
+    });
+    assert.deepEqual(result.uris, [newPostUri]);
     const stored = dataStore.$posts.get(newPostUri);
     assert.deepEqual(stored.uri, newPostUri);
     assert.deepEqual(stored.viewer.priorityReply, true);
@@ -2404,7 +2405,7 @@ describe("createPost", () => {
     const { mutations, dataStore } = setup({
       authorFeed: { feed: [], cursor: "c1" },
     });
-    await mutations.createPost({ postText: "hello" });
+    await mutations.createThread({ posts: [{ postText: "hello" }] });
     const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
     assert.deepEqual(feed.feed.length, 1);
     assert.deepEqual(feed.feed[0].post.uri, newPostUri);
@@ -2432,7 +2433,11 @@ describe("createPost", () => {
       replyAuthorFeed: { feed: [], cursor: "c1" },
     });
 
-    await mutations.createPost({ postText: "hi", replyTo, replyRoot });
+    await mutations.createThread({
+      posts: [{ postText: "hi" }],
+      replyTo,
+      replyRoot,
+    });
 
     const updatedThread = dataStore.$postThreads.get(replyTo.uri);
     assert.deepEqual(updatedThread.replies.length, 2);
@@ -2442,19 +2447,23 @@ describe("createPost", () => {
     assert.deepEqual(repliesFeed.feed[0].post.uri, newPostUri);
   });
 
-  it("still resolves with uri/cid when the app view fetch fails, without mutating stores", async () => {
+  it("still resolves with uris when the app view fetch fails, without mutating stores", async () => {
     const { mutations, dataStore } = setup({
       authorFeed: { feed: [], cursor: "c1" },
     });
     mutations.postCreator = {
-      createPost: async () => ({ uri: newPostUri, cid: "cid-new", post: null }),
+      createThread: async () => ({
+        uris: [newPostUri],
+        posts: null,
+      }),
     };
 
-    const result = await mutations.createPost({ postText: "hello" });
+    const result = await mutations.createThread({
+      posts: [{ postText: "hello" }],
+    });
 
-    assert.deepEqual(result.uri, newPostUri);
-    assert.deepEqual(result.cid, "cid-new");
-    assert.deepEqual(result.post, null);
+    assert.deepEqual(result.uris, [newPostUri]);
+    assert.deepEqual(result.posts, null);
     assert.deepEqual(dataStore.$posts.get(newPostUri), null);
     const feed = dataStore.$authorFeeds.get(`${currentUserDid}-posts`);
     assert.deepEqual(feed.feed.length, 0);

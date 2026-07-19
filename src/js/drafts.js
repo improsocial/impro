@@ -198,19 +198,18 @@ export class DraftMediaStore {
   }
 }
 
-export function buildDraftFromComposerSnapshot(snapshot) {
-  const media = [];
+function buildDraftPostFromSnapshot(postSnapshot, media) {
   const draftPost = {
     $type: "app.bsky.draft.defs#draftPost",
-    text: snapshot.postText,
+    text: postSnapshot.postText,
   };
-  if (snapshot.labels) {
-    draftPost.labels = snapshot.labels;
+  if (postSnapshot.labels) {
+    draftPost.labels = postSnapshot.labels;
   }
-  if (snapshot.images?.length > 0) {
+  if (postSnapshot.images?.length > 0) {
     draftPost.embedGallery = {
       $type: "app.bsky.draft.defs#draftEmbedGallery",
-      items: snapshot.images.map((image) => {
+      items: postSnapshot.images.map((image) => {
         const path =
           image.localRefPath ?? DraftMediaStore.createImageLocalRef();
         media.push({ path, source: image.file });
@@ -224,55 +223,62 @@ export function buildDraftFromComposerSnapshot(snapshot) {
         return item;
       }),
     };
-  } else if (snapshot.unrestoredImages?.length > 0) {
+  } else if (postSnapshot.unrestoredImages?.length > 0) {
     draftPost.embedGallery = {
       $type: "app.bsky.draft.defs#draftEmbedGallery",
-      items: snapshot.unrestoredImages,
+      items: postSnapshot.unrestoredImages,
     };
   }
-  if (snapshot.video) {
+  if (postSnapshot.video) {
     const path = DraftMediaStore.createVideoLocalRef(
-      snapshot.video.file?.type || "video/mp4",
+      postSnapshot.video.file?.type || "video/mp4",
     );
-    media.push({ path, source: snapshot.video.file });
+    media.push({ path, source: postSnapshot.video.file });
     const videoEmbed = {
       $type: "app.bsky.draft.defs#draftEmbedVideo",
       localRef: { $type: "app.bsky.draft.defs#draftEmbedLocalRef", path },
     };
-    if (snapshot.video.alt) {
-      videoEmbed.alt = snapshot.video.alt;
+    if (postSnapshot.video.alt) {
+      videoEmbed.alt = postSnapshot.video.alt;
     }
-    if (snapshot.video.captions?.length > 0) {
-      videoEmbed.captions = snapshot.video.captions;
+    if (postSnapshot.video.captions?.length > 0) {
+      videoEmbed.captions = postSnapshot.video.captions;
     }
     draftPost.embedVideos = [videoEmbed];
-  } else if (snapshot.unrestoredVideo) {
-    draftPost.embedVideos = [snapshot.unrestoredVideo];
+  } else if (postSnapshot.unrestoredVideo) {
+    draftPost.embedVideos = [postSnapshot.unrestoredVideo];
   }
-  if (snapshot.external) {
+  if (postSnapshot.external) {
     draftPost.embedExternals = [
       {
         $type: "app.bsky.draft.defs#draftEmbedExternal",
-        uri: snapshot.external.url,
+        uri: postSnapshot.external.url,
       },
     ];
   }
-  if (snapshot.quotedRecord) {
+  if (postSnapshot.quotedRecord) {
     draftPost.embedRecords = [
       {
         $type: "app.bsky.draft.defs#draftEmbedRecord",
         record: {
-          uri: snapshot.quotedRecord.uri,
-          cid: snapshot.quotedRecord.cid,
+          uri: postSnapshot.quotedRecord.uri,
+          cid: postSnapshot.quotedRecord.cid,
         },
       },
     ];
   }
+  return draftPost;
+}
+
+export function buildDraftFromComposerSnapshot(snapshot) {
+  const media = [];
   const draft = {
     $type: "app.bsky.draft.defs#draft",
     deviceId: getDraftDeviceId(),
     deviceName: "Web", // match social-app
-    posts: [draftPost],
+    posts: snapshot.posts.map((postSnapshot) =>
+      buildDraftPostFromSnapshot(postSnapshot, media),
+    ),
   };
   if (snapshot.threadgateAllow) {
     draft.threadgateAllow = snapshot.threadgateAllow;

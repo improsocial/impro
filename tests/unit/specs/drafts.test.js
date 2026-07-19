@@ -250,16 +250,25 @@ describe("DraftMediaStore", () => {
 
 describe("buildDraftFromComposerSnapshot", () => {
   function makeDraftSnapshot(overrides = {}) {
+    const {
+      threadgateAllow = null,
+      postgateEmbeddingRules = null,
+      ...postOverrides
+    } = overrides;
     return {
-      postText: "hello world",
-      images: [],
-      video: null,
-      external: null,
-      quotedRecord: null,
-      labels: null,
-      threadgateAllow: null,
-      postgateEmbeddingRules: null,
-      ...overrides,
+      posts: [
+        {
+          postText: "hello world",
+          images: [],
+          video: null,
+          external: null,
+          quotedRecord: null,
+          labels: null,
+          ...postOverrides,
+        },
+      ],
+      threadgateAllow,
+      postgateEmbeddingRules,
     };
   }
 

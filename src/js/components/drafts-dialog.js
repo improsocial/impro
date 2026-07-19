@@ -211,12 +211,6 @@ class DraftsDialog extends Component {
   }
 
   async _onSelect(draftView) {
-    if ((draftView.draft.posts ?? []).length > 1) {
-      showToast("This draft is a thread and can't be edited here yet", {
-        style: "warning",
-      });
-      return;
-    }
     // Close first, then restore (close-then-restore ordering)
     this.close();
     this.dispatchEvent(

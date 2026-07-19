@@ -20,6 +20,7 @@ export class MockServer {
     this.joinLinkJoinedConvos = new Map();
     this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
+    this.applyWritesCalls = [];
     this.drafts = [];
     this.draftCounter = 0;
     this.deletedDraftIds = [];
@@ -339,6 +340,151 @@ export class MockServer {
       }
       await route.fallback();
     });
+  }
+
+  // Turns a submitted app.bsky.feed.post record into a hydrated post view and
+  // threads it into the mock state (quote counts, reply threads, author
+  // feeds). Shared by the createRecord and applyWrites routes.
+  _ingestPostRecord(record, uri) {
+    let embed;
+    let quotedPostUri;
+    const recordEmbed = record?.embed;
+
+    if (recordEmbed?.$type === "app.bsky.embed.images") {
+      embed = {
+        $type: "app.bsky.embed.images#view",
+        images: recordEmbed.images.map((img) => ({
+          thumb: "",
+          fullsize: "",
+          alt: img.alt || "",
+          aspectRatio: img.aspectRatio,
+        })),
+      };
+    } else if (recordEmbed?.$type === "app.bsky.embed.video") {
+      embed = {
+        $type: "app.bsky.embed.video#view",
+        cid: recordEmbed.video.ref.$link,
+        playlist: "",
+        alt: recordEmbed.alt || "",
+        aspectRatio: recordEmbed.aspectRatio,
+      };
+    } else if (recordEmbed?.$type === "app.bsky.embed.external") {
+      embed = {
+        $type: "app.bsky.embed.external#view",
+        external: {
+          uri: recordEmbed.external.uri,
+          title: recordEmbed.external.title || "",
+          description: recordEmbed.external.description || "",
+        },
+      };
+    } else if (recordEmbed?.$type === "app.bsky.embed.record") {
+      const quotedRecordUri = recordEmbed.record.uri;
+      const allQuotePosts = [
+        ...this.timelinePosts,
+        ...this.bookmarks,
+        ...this.searchPosts,
+        ...this.posts,
+      ];
+      const quotedPost = allQuotePosts.find((p) => p.uri === quotedRecordUri);
+      const quotedGenerator = this.feedGenerators.find(
+        (g) => g.uri === quotedRecordUri,
+      );
+      const quotedList = this.lists.find((l) => l.uri === quotedRecordUri);
+      const quotedStarterPack = this.starterPacks.find(
+        (s) => s.uri === quotedRecordUri,
+      );
+      if (quotedPost) {
+        quotedPostUri = quotedRecordUri;
+        embed = {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.embed.record#viewRecord",
+            uri: quotedPost.uri,
+            cid: quotedPost.cid,
+            author: quotedPost.author,
+            value: quotedPost.record,
+            indexedAt: quotedPost.indexedAt,
+            labels: [],
+            embeds: [],
+          },
+        };
+        quotedPost.quoteCount = (quotedPost.quoteCount || 0) + 1;
+      } else if (quotedGenerator) {
+        embed = {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.feed.defs#generatorView",
+            ...quotedGenerator,
+          },
+        };
+      } else if (quotedList) {
+        embed = {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.graph.defs#listView",
+            ...quotedList,
+          },
+        };
+      } else if (quotedStarterPack) {
+        embed = {
+          $type: "app.bsky.embed.record#view",
+          record: {
+            $type: "app.bsky.graph.defs#starterPackViewBasic",
+            ...quotedStarterPack,
+          },
+        };
+      }
+    }
+
+    const post = createPost({
+      uri,
+      text: record?.text || "",
+      authorHandle: userProfile.handle,
+      authorDisplayName: userProfile.displayName,
+      embed,
+    });
+    this.posts.push(post);
+
+    if (quotedPostUri) {
+      const existingQuotes = this.postQuotes.get(quotedPostUri) || [];
+      existingQuotes.push(post);
+      this.postQuotes.set(quotedPostUri, existingQuotes);
+    }
+
+    const isReply = !!record?.reply;
+
+    if (isReply) {
+      const parentUri = record.reply.parent.uri;
+      const allReplyPosts = [
+        ...this.timelinePosts,
+        ...this.bookmarks,
+        ...this.searchPosts,
+        ...this.posts,
+      ];
+      const parentPost = allReplyPosts.find((p) => p.uri === parentUri);
+      if (parentPost) {
+        parentPost.replyCount = (parentPost.replyCount || 0) + 1;
+      }
+      const thread = this.postThreads.get(parentUri);
+      if (thread) {
+        thread.replies = thread.replies || [];
+        thread.replies.push({
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post,
+          replies: [],
+        });
+      }
+    }
+
+    const feedKey = `${userProfile.did}-posts_and_author_threads`;
+    const existing = this.authorFeeds.get(feedKey) || [];
+    this.authorFeeds.set(feedKey, [post, ...existing]);
+    if (!isReply) {
+      const noRepliesKey = `${userProfile.did}-posts_no_replies`;
+      const existingNoReplies = this.authorFeeds.get(noRepliesKey) || [];
+      this.authorFeeds.set(noRepliesKey, [post, ...existingNoReplies]);
+    }
+    return post;
   }
 
   async setup(page, { welcomeModalSeen = true } = {}) {
@@ -2014,6 +2160,22 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/com.atproto.repo.applyWrites*", (route) => {
+      const body = route.request().postDataJSON();
+      const writes = body?.writes ?? [];
+      this.applyWritesCalls.push(writes);
+      for (const write of writes) {
+        if (write.collection !== "app.bsky.feed.post") continue;
+        const uri = `at://${userProfile.did}/app.bsky.feed.post/${write.rkey}`;
+        this._ingestPostRecord(write.value, uri);
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ results: [] }),
+      });
+    });
+
     await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) => {
       const body = route.request().postDataJSON();
       const collection = body?.collection;
@@ -2031,147 +2193,7 @@ export class MockServer {
       }
 
       if (collection === "app.bsky.feed.post") {
-        const record = body?.record;
-        let embed;
-        let quotedPostUri;
-        const recordEmbed = record?.embed;
-
-        if (recordEmbed?.$type === "app.bsky.embed.images") {
-          embed = {
-            $type: "app.bsky.embed.images#view",
-            images: recordEmbed.images.map((img) => ({
-              thumb: "",
-              fullsize: "",
-              alt: img.alt || "",
-              aspectRatio: img.aspectRatio,
-            })),
-          };
-        } else if (recordEmbed?.$type === "app.bsky.embed.video") {
-          embed = {
-            $type: "app.bsky.embed.video#view",
-            cid: recordEmbed.video.ref.$link,
-            playlist: "",
-            alt: recordEmbed.alt || "",
-            aspectRatio: recordEmbed.aspectRatio,
-          };
-        } else if (recordEmbed?.$type === "app.bsky.embed.external") {
-          embed = {
-            $type: "app.bsky.embed.external#view",
-            external: {
-              uri: recordEmbed.external.uri,
-              title: recordEmbed.external.title || "",
-              description: recordEmbed.external.description || "",
-            },
-          };
-        } else if (recordEmbed?.$type === "app.bsky.embed.record") {
-          const quotedRecordUri = recordEmbed.record.uri;
-          const allQuotePosts = [
-            ...this.timelinePosts,
-            ...this.bookmarks,
-            ...this.searchPosts,
-            ...this.posts,
-          ];
-          const quotedPost = allQuotePosts.find(
-            (p) => p.uri === quotedRecordUri,
-          );
-          const quotedGenerator = this.feedGenerators.find(
-            (g) => g.uri === quotedRecordUri,
-          );
-          const quotedList = this.lists.find((l) => l.uri === quotedRecordUri);
-          const quotedStarterPack = this.starterPacks.find(
-            (s) => s.uri === quotedRecordUri,
-          );
-          if (quotedPost) {
-            quotedPostUri = quotedRecordUri;
-            embed = {
-              $type: "app.bsky.embed.record#view",
-              record: {
-                $type: "app.bsky.embed.record#viewRecord",
-                uri: quotedPost.uri,
-                cid: quotedPost.cid,
-                author: quotedPost.author,
-                value: quotedPost.record,
-                indexedAt: quotedPost.indexedAt,
-                labels: [],
-                embeds: [],
-              },
-            };
-            quotedPost.quoteCount = (quotedPost.quoteCount || 0) + 1;
-          } else if (quotedGenerator) {
-            embed = {
-              $type: "app.bsky.embed.record#view",
-              record: {
-                $type: "app.bsky.feed.defs#generatorView",
-                ...quotedGenerator,
-              },
-            };
-          } else if (quotedList) {
-            embed = {
-              $type: "app.bsky.embed.record#view",
-              record: {
-                $type: "app.bsky.graph.defs#listView",
-                ...quotedList,
-              },
-            };
-          } else if (quotedStarterPack) {
-            embed = {
-              $type: "app.bsky.embed.record#view",
-              record: {
-                $type: "app.bsky.graph.defs#starterPackViewBasic",
-                ...quotedStarterPack,
-              },
-            };
-          }
-        }
-
-        const post = createPost({
-          uri,
-          text: record?.text || "",
-          authorHandle: userProfile.handle,
-          authorDisplayName: userProfile.displayName,
-          embed,
-        });
-        this.posts.push(post);
-
-        if (quotedPostUri) {
-          const existingQuotes = this.postQuotes.get(quotedPostUri) || [];
-          existingQuotes.push(post);
-          this.postQuotes.set(quotedPostUri, existingQuotes);
-        }
-
-        const isReply = !!record?.reply;
-
-        if (isReply) {
-          const parentUri = record.reply.parent.uri;
-          const allReplyPosts = [
-            ...this.timelinePosts,
-            ...this.bookmarks,
-            ...this.searchPosts,
-            ...this.posts,
-          ];
-          const parentPost = allReplyPosts.find((p) => p.uri === parentUri);
-          if (parentPost) {
-            parentPost.replyCount = (parentPost.replyCount || 0) + 1;
-          }
-          const thread = this.postThreads.get(parentUri);
-          if (thread) {
-            thread.replies = thread.replies || [];
-            thread.replies.push({
-              $type: "app.bsky.feed.defs#threadViewPost",
-              post,
-              replies: [],
-            });
-          }
-        }
-
-        const feedKey = `${userProfile.did}-posts_and_author_threads`;
-        const existing = this.authorFeeds.get(feedKey) || [];
-        this.authorFeeds.set(feedKey, [post, ...existing]);
-        if (!isReply) {
-          const noRepliesKey = `${userProfile.did}-posts_no_replies`;
-          const existingNoReplies = this.authorFeeds.get(noRepliesKey) || [];
-          this.authorFeeds.set(noRepliesKey, [post, ...existingNoReplies]);
-        }
+        this._ingestPostRecord(body?.record, uri);
       }
 
       if (collection === "app.bsky.feed.like") {
@@ -2403,7 +2425,14 @@ export class MockServer {
         body: JSON.stringify({
           blob: {
             $type: "blob",
-            ref: { $link: `bafkreimockblob${++this.blobCounter}` },
+            // suffix must stay within the base32 alphabet (computeRecordCid
+            // rejects invalid CID characters like "0", "1", "8", "9")
+            ref: {
+              $link: `bafkreimockblob${String(++this.blobCounter)
+                .split("")
+                .map((digit) => "abcdefghij"[digit])
+                .join("")}`,
+            },
             mimeType: "image/jpeg",
             size: 50000,
           },

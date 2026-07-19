@@ -42,13 +42,33 @@ export class PostComposerService {
       this.currentPostComposer.currentUser = currentUser;
       this.currentPostComposer.draftsEnabled = this.draftsEnabled;
       this.currentPostComposer.addEventListener("send-post", async (e) => {
-        const { post, draft, successCallback, errorCallback } = e.detail;
+        const {
+          posts,
+          replyTo: sendReplyTo,
+          replyRoot: sendReplyRoot,
+          threadgateAllow,
+          postgateEmbeddingRules,
+          draft,
+          successCallback,
+          errorCallback,
+        } = e.detail;
         try {
-          const res = await this.dataLayer.mutations.createPost(post);
+          const res = await this.dataLayer.mutations.createThread({
+            posts,
+            replyTo: sendReplyTo,
+            replyRoot: sendReplyRoot,
+            threadgateAllow,
+            postgateEmbeddingRules,
+          });
+          let toastMessage = "Your post was sent";
+          if (posts.length > 1) {
+            toastMessage = "Your posts were sent";
+          } else if (sendReplyTo) {
+            toastMessage = "Your reply was sent";
+          }
           showToast(
             html`<div class="toast-with-link">
-              ${post.replyTo ? "Your reply was sent" : "Your post was sent"}<a
-                href="${linkToPostFromUri(res.uri)}"
+              ${toastMessage}<a href="${linkToPostFromUri(res.uris[0])}"
                 >View</a
               >
             </div>`,

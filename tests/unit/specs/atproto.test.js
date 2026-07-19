@@ -5,6 +5,7 @@ import {
   resolveIdentity,
   getServiceEndpointForHandle,
   IdentityResolver,
+  computeRecordCid,
 } from "/js/atproto.js";
 import { MockFetch } from "../testHelpers.js";
 
@@ -120,5 +121,146 @@ describe("atproto handle resolution", () => {
       assert.deepEqual(second, did);
       assert.deepEqual(globalThis.fetch.calls.length, callsAfterFirst);
     });
+  });
+});
+
+// Expected CIDs are known-answer vectors generated against the reference
+// @ipld/dag-cbor + multiformats implementations. Do not update them!
+describe("computeRecordCid", () => {
+  it("hashes a simple text post", async () => {
+    const cid = await computeRecordCid({
+      $type: "app.bsky.feed.post",
+      text: "Hello, world!",
+      createdAt: "2024-01-01T00:00:00.000Z",
+      langs: ["en"],
+    });
+    assert.deepEqual(
+      cid,
+      "bafyreibbyzcaqi3hqt4wtpnus47pkfdv2kblfrr56qhevkexp3ycvwgceq",
+    );
+  });
+
+  it("hashes a post with reply refs", async () => {
+    const cid = await computeRecordCid({
+      $type: "app.bsky.feed.post",
+      text: "a reply",
+      createdAt: "2024-06-15T12:34:56.789Z",
+      reply: {
+        root: {
+          uri: "at://did:plc:abc123/app.bsky.feed.post/3kabc123def45",
+          cid: "bafyreid27zk7lbis4zw5fz4podbvbs4fc5ivwji3dmrwa6zggnj4bnd57u",
+        },
+        parent: {
+          uri: "at://did:plc:abc123/app.bsky.feed.post/3kabc123def46",
+          cid: "bafyreid27zk7lbis4zw5fz4podbvbs4fc5ivwji3dmrwa6zggnj4bnd57u",
+        },
+      },
+    });
+    assert.deepEqual(
+      cid,
+      "bafyreifgyyds455cehqwbqwgcvoatcrlwfp44oh3t3awromwcfjcxdk26a",
+    );
+  });
+
+  it("hashes a post with an image blob ref as an IPLD link", async () => {
+    const cid = await computeRecordCid({
+      $type: "app.bsky.feed.post",
+      text: "with an image",
+      createdAt: "2024-06-15T12:34:56.789Z",
+      embed: {
+        $type: "app.bsky.embed.images",
+        images: [
+          {
+            $type: "app.bsky.embed.images#image",
+            alt: "alt text",
+            image: {
+              $type: "blob",
+              ref: {
+                $link:
+                  "bafkreibvjvcv745gig4mvqs4hctnzwjuzjcvgvsvzxcsw6mn3lzhhydkoe",
+              },
+              mimeType: "image/jpeg",
+              size: 123456,
+            },
+            aspectRatio: {
+              $type: "app.bsky.embed.defs#aspectRatio",
+              width: 1600,
+              height: 900,
+            },
+          },
+        ],
+      },
+    });
+    assert.deepEqual(
+      cid,
+      "bafyreicb4xajh3tgzxgrhw2i4vossmohwvf5zwxjlxb2nnkz7sdoojfzfi",
+    );
+  });
+
+  it("hashes multibyte text and facets with correct UTF-8 lengths", async () => {
+    const cid = await computeRecordCid({
+      $type: "app.bsky.feed.post",
+      text: "héllo 👋 @someone.bsky.social",
+      createdAt: "2024-06-15T12:34:56.789Z",
+      facets: [
+        {
+          index: { byteStart: 12, byteEnd: 34 },
+          features: [
+            {
+              $type: "app.bsky.richtext.facet#mention",
+              did: "did:plc:abc123",
+            },
+          ],
+        },
+      ],
+      langs: ["en", "fr"],
+    });
+    assert.deepEqual(
+      cid,
+      "bafyreiarwyjnuqd46hebznu7mc3oz65pelmloxhqjzacc5q2pvoe3hdimy",
+    );
+  });
+
+  it("strips undefined object values before hashing", async () => {
+    const cid = await computeRecordCid({
+      $type: "app.bsky.feed.post",
+      text: "stripped",
+      createdAt: "2024-06-15T12:34:56.789Z",
+      embed: undefined,
+      reply: undefined,
+    });
+    assert.deepEqual(
+      cid,
+      "bafyreighlda5ujgmug7xtlswcj7gehub6dltw32fm73ggt33uouqgvypem",
+    );
+  });
+
+  it("is insensitive to object key insertion order", async () => {
+    const first = await computeRecordCid({
+      text: "same",
+      $type: "app.bsky.feed.post",
+      createdAt: "2024-01-01T00:00:00.000Z",
+    });
+    const second = await computeRecordCid({
+      createdAt: "2024-01-01T00:00:00.000Z",
+      $type: "app.bsky.feed.post",
+      text: "same",
+    });
+    assert.deepEqual(first, second);
+  });
+
+  it("throws on values outside the supported record subset", async () => {
+    await assert.rejects(
+      () => computeRecordCid({ text: "x", ratio: 1.5 }),
+      /non-integer/,
+    );
+    await assert.rejects(
+      () => computeRecordCid({ text: "x", when: new Date(0) }),
+      /Cannot CBOR-encode/,
+    );
+    await assert.rejects(
+      () => computeRecordCid({ text: "x", items: [undefined] }),
+      /Cannot CBOR-encode/,
+    );
   });
 });

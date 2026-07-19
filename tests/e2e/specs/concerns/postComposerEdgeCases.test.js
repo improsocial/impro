@@ -239,8 +239,8 @@ test.describe("Post Composer Edge Cases", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
-    // Override createRecord to return a 500 error (LIFO — checked before mockServer's handler)
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+    // Override applyWrites to return a 500 error (LIFO — checked before mockServer's handler)
+    await page.route("**/xrpc/com.atproto.repo.applyWrites*", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",

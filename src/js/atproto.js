@@ -115,3 +115,173 @@ export function generateTid() {
   }
   return result;
 }
+
+// Note: the DAG-CBOR encoder was written fully by Claude.
+// Unit tested against reference implementation outputs
+// for additional confidence.
+
+const CID_BASE32_ALPHABET = "abcdefghijklmnopqrstuvwxyz234567";
+
+function base32Encode(bytes) {
+  let result = "";
+  let buffer = 0;
+  let bitCount = 0;
+  for (const byte of bytes) {
+    buffer = (buffer << 8) | byte;
+    bitCount += 8;
+    while (bitCount >= 5) {
+      result += CID_BASE32_ALPHABET[(buffer >>> (bitCount - 5)) & 31];
+      bitCount -= 5;
+    }
+  }
+  if (bitCount > 0) {
+    result += CID_BASE32_ALPHABET[(buffer << (5 - bitCount)) & 31];
+  }
+  return result;
+}
+
+function base32Decode(str) {
+  const bytes = [];
+  let buffer = 0;
+  let bitCount = 0;
+  for (const char of str) {
+    const index = CID_BASE32_ALPHABET.indexOf(char);
+    if (index === -1) {
+      throw new Error(`Invalid base32 character: ${char}`);
+    }
+    buffer = (buffer << 5) | index;
+    bitCount += 5;
+    if (bitCount >= 8) {
+      bytes.push((buffer >>> (bitCount - 8)) & 0xff);
+      bitCount -= 8;
+    }
+  }
+  return new Uint8Array(bytes);
+}
+
+function cborTypeAndArg(bytes, majorType, arg) {
+  const majorBits = majorType << 5;
+  if (arg < 24) {
+    bytes.push(majorBits | arg);
+  } else if (arg <= 0xff) {
+    bytes.push(majorBits | 24, arg);
+  } else if (arg <= 0xffff) {
+    bytes.push(majorBits | 25, arg >>> 8, arg & 0xff);
+  } else if (arg <= 0xffffffff) {
+    bytes.push(
+      majorBits | 26,
+      (arg >>> 24) & 0xff,
+      (arg >>> 16) & 0xff,
+      (arg >>> 8) & 0xff,
+      arg & 0xff,
+    );
+  } else {
+    const high = Math.floor(arg / 0x100000000);
+    const low = arg % 0x100000000;
+    bytes.push(
+      majorBits | 27,
+      (high >>> 24) & 0xff,
+      (high >>> 16) & 0xff,
+      (high >>> 8) & 0xff,
+      high & 0xff,
+      (low >>> 24) & 0xff,
+      (low >>> 16) & 0xff,
+      (low >>> 8) & 0xff,
+      low & 0xff,
+    );
+  }
+}
+
+function isPlainObject(value) {
+  if (typeof value !== "object" || value === null) {
+    return false;
+  }
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function isCidLink(value) {
+  return (
+    isPlainObject(value) &&
+    typeof value.$link === "string" &&
+    Object.keys(value).length === 1
+  );
+}
+
+// Covers only the value types that appear in atproto records
+// (strings, safe integers, booleans, null, arrays,
+// string-keyed plain objects, and CID references).
+function cborEncodeValue(bytes, value) {
+  if (typeof value === "string") {
+    const encoded = new TextEncoder().encode(value);
+    cborTypeAndArg(bytes, 3, encoded.length);
+    bytes.push(...encoded);
+  } else if (typeof value === "number") {
+    if (!Number.isSafeInteger(value)) {
+      throw new Error(`Cannot CBOR-encode non-integer number: ${value}`);
+    }
+    if (value >= 0) {
+      cborTypeAndArg(bytes, 0, value);
+    } else {
+      cborTypeAndArg(bytes, 1, -value - 1);
+    }
+  } else if (typeof value === "boolean") {
+    bytes.push(value ? 0xf5 : 0xf4);
+  } else if (value === null) {
+    bytes.push(0xf6);
+  } else if (Array.isArray(value)) {
+    cborTypeAndArg(bytes, 4, value.length);
+    for (const element of value) {
+      cborEncodeValue(bytes, element);
+    }
+  } else if (isCidLink(value)) {
+    if (!value.$link.startsWith("b")) {
+      throw new Error(
+        `Unsupported CID multibase (expected base32): ${value.$link}`,
+      );
+    }
+    const cidBytes = base32Decode(value.$link.slice(1));
+    bytes.push(0xd8, 42);
+    cborTypeAndArg(bytes, 2, cidBytes.length + 1);
+    bytes.push(0);
+    bytes.push(...cidBytes);
+  } else if (isPlainObject(value)) {
+    const textEncoder = new TextEncoder();
+    const entries = Object.entries(value)
+      .filter(([, entryValue]) => entryValue !== undefined)
+      .map(([key, entryValue]) => ({
+        keyBytes: textEncoder.encode(key),
+        value: entryValue,
+      }))
+      .sort((a, b) => {
+        if (a.keyBytes.length !== b.keyBytes.length) {
+          return a.keyBytes.length - b.keyBytes.length;
+        }
+        for (let i = 0; i < a.keyBytes.length; i++) {
+          if (a.keyBytes[i] !== b.keyBytes[i]) {
+            return a.keyBytes[i] - b.keyBytes[i];
+          }
+        }
+        return 0;
+      });
+    cborTypeAndArg(bytes, 5, entries.length);
+    for (const entry of entries) {
+      cborTypeAndArg(bytes, 3, entry.keyBytes.length);
+      bytes.push(...entry.keyBytes);
+      cborEncodeValue(bytes, entry.value);
+    }
+  } else {
+    throw new Error(`Cannot CBOR-encode value of type ${typeof value}`);
+  }
+}
+
+// CIDv1 (0x01), dag-cbor codec (0x71), sha-256 (0x12), 32-byte digest (0x20).
+const CID_HEADER = [0x01, 0x71, 0x12, 0x20];
+
+export async function computeRecordCid(record) {
+  const encoded = [];
+  cborEncodeValue(encoded, record);
+  const digest = await crypto.subtle.digest("SHA-256", new Uint8Array(encoded));
+  const cidBytes = new Uint8Array([...CID_HEADER, ...new Uint8Array(digest)]);
+  return "b" + base32Encode(cidBytes);
+}
