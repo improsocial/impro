@@ -7799,6 +7799,7 @@ img[data-lightbox] {
 @media (max-width: 799px) {
   .drafts-dialog {
     top: 32px;
+    max-height: none;
   }
 }
 
