@@ -196,6 +196,7 @@ export class Requests {
       (query) => "loadProfileSearch-" + query,
     );
     this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
+    this.enableStatus(this.loadSearchTypeahead, "loadSearchTypeahead");
     this.enableStatus(
       this.loadPostSearchTop,
       (query) => "loadPostSearchTop-" + query,
@@ -641,6 +642,29 @@ export class Requests {
     }
     this.dataStore.setProfiles(searchData.actors);
     this.dataStore.$chatRecipientSearchResults.set(searchData);
+  }
+
+  async loadSearchTypeahead(query, { limit = 8 } = {}) {
+    if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      this.dataStore.$latestSearchTypeaheadRequestTime.set(null);
+      this.dataStore.$searchTypeaheadResults.set(null);
+      return;
+    }
+    const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    this.dataStore.$latestSearchTypeaheadRequestTime.set(requestTime);
+    const searchData = await this.api.searchProfilesTypeahead(query, {
+      limit,
+      labelers,
+    });
+    if (
+      requestTime !== this.dataStore.$latestSearchTypeaheadRequestTime.get()
+    ) {
+      return;
+    }
+    this.dataStore.setProfiles(searchData.actors);
+    this.dataStore.$searchTypeaheadResults.set(searchData);
   }
 
   async loadPostSearchTop(query, { limit = 25, cursor = "" } = {}) {

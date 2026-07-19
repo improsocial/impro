@@ -243,18 +243,6 @@ export function deepClone(value) {
   return value;
 }
 
-export function debounce(fn, delay = 250) {
-  let timeoutId = null;
-  const debounced = (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-  debounced.cancel = () => {
-    clearTimeout(timeoutId);
-  };
-  return debounced;
-}
-
 export function throttle(fn, delay = 250) {
   let lastCall = 0;
   return (...args) => {

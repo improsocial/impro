@@ -24,7 +24,6 @@ import {
   enableLongPress,
   enableDragToDismiss,
   TimeoutError,
-  debounce,
   resetScrollOnBlur,
   pinScrollPosition,
 } from "/js/utils.js";
@@ -1204,47 +1203,6 @@ describe("enableDragToDismiss", () => {
       assert.deepEqual(closeCount, 0);
       assert.deepEqual(el.style.transform, "");
     });
-  });
-});
-
-describe("debounce", () => {
-  let originalSetTimeout;
-
-  beforeEach(() => {
-    originalSetTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
-  });
-
-  afterEach(() => {
-    globalThis.setTimeout = originalSetTimeout;
-  });
-
-  it("fires once with the latest arguments", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("first");
-    debounced("second");
-    await wait(10);
-    assert.deepEqual(calls, ["second"]);
-  });
-
-  it("does not fire a pending invocation after cancel", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("pending");
-    debounced.cancel();
-    await wait(10);
-    assert.deepEqual(calls, []);
-  });
-
-  it("fires again when invoked after cancel", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("cancelled");
-    debounced.cancel();
-    debounced("kept");
-    await wait(10);
-    assert.deepEqual(calls, ["kept"]);
   });
 });
 

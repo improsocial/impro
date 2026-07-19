@@ -64,7 +64,7 @@ describe("new-chat-dialog", () => {
         },
         // Mirrors enableStatus: record every failure in the status store,
         // clear it on success, swallow ApiErrors, reject with everything else.
-        // The dialog's debounced search is fire-and-forget, so the rejection is
+        // The dialog's search is fire-and-forget, so the rejection is
         // pre-handled here — node:test fails the running test on any unhandled
         // rejection, even when a process-level listener is attached.
         loadChatRecipientSearch: (query, options) => {
@@ -171,7 +171,7 @@ describe("new-chat-dialog", () => {
     );
     input.value = value;
     input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
-    // One tick for the debounce, one for the re-render.
+    // One tick for the search promise, one for the re-render.
     await nextFrame();
     await nextFrame();
   }
@@ -390,7 +390,7 @@ describe("new-chat-dialog", () => {
   });
 
   describe("NewChatDialog - searching", () => {
-    it("should call the debounced loader with the trimmed query", async () => {
+    it("should call the loader with the trimmed query", async () => {
       const { dataLayer, searchCalls } = createFakeDataLayer();
       const element = createDialog(dataLayer);
       await typeQuery(element, "  alice ");
@@ -462,7 +462,7 @@ describe("new-chat-dialog", () => {
       );
     });
 
-    it("should not fire a pending search after the query is cleared", async () => {
+    it("should search immediately and end with a clearing call when the query is emptied", async () => {
       const { dataLayer, searchCalls } = createFakeDataLayer();
       const element = createDialog(dataLayer);
       const input = element.querySelector(
@@ -474,8 +474,9 @@ describe("new-chat-dialog", () => {
       input.dispatchEvent(new window.InputEvent("input", { bubbles: true }));
       await nextFrame();
       await nextFrame();
-      assert.deepEqual(searchCalls.length, 1);
-      assert.deepEqual(searchCalls[0].query, "");
+      assert.deepEqual(searchCalls.length, 2);
+      assert.deepEqual(searchCalls[0].query, "al");
+      assert.deepEqual(searchCalls[1].query, "");
     });
   });
 

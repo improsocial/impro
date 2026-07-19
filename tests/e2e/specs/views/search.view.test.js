@@ -41,7 +41,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=ali");
+    await page.goto("/search?q=ali&tab=profiles");
 
     const view = page.locator("#search-view");
     await expect(view.locator(".profile-list-item")).toHaveCount(2, {
@@ -86,13 +86,14 @@ test.describe("Search view", () => {
     await expect(view).toContainText("Another search result");
   });
 
-  test("should show Profiles tab as active by default", async ({ page }) => {
+  test("should show Top tab as active by default", async ({ page }) => {
     const mockServer = new MockServer();
-    mockServer.addSearchProfiles([
-      createProfile({
-        did: "did:plc:profile1",
-        handle: "alice.bsky.social",
-        displayName: "Alice",
+    mockServer.addSearchPosts([
+      createPost({
+        uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+        text: "A matching post",
+        authorHandle: "author1.bsky.social",
+        authorDisplayName: "Author One",
       }),
     ]);
     await mockServer.setup(page);
@@ -101,9 +102,12 @@ test.describe("Search view", () => {
     await page.goto("/search?q=alice");
 
     const view = page.locator("#search-view");
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible({
+      timeout: 10000,
+    });
     await expect(
-      view.locator('[data-testid="tab-profiles"].active'),
-    ).toBeVisible({ timeout: 10000 });
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1, { timeout: 10000 });
   });
 
   test("should show empty state when no profiles match", async ({ page }) => {
@@ -111,7 +115,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=nonexistentuser");
+    await page.goto("/search?q=nonexistentuser&tab=profiles");
 
     const view = page.locator("#search-view");
     const profilesPanel = view.locator(
@@ -135,7 +139,7 @@ test.describe("Search view", () => {
     ).toBeVisible({ timeout: 10000 });
   });
 
-  test("should switch between Profiles, Top, Latest, and Feeds tabs", async ({
+  test("should switch between Top, Latest, People, and Feeds tabs", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -168,14 +172,10 @@ test.describe("Search view", () => {
 
     const view = page.locator("#search-view");
 
-    // Profiles tab is active by default
-    await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+    // Top tab is active by default
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible({
       timeout: 10000,
     });
-
-    // Switch to Top tab
-    await view.locator('[data-testid="tab-top"]').click();
-    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible();
     await expect(
       view.locator(".search-post-results-top [data-post-uri]"),
     ).toHaveCount(1, { timeout: 10000 });
@@ -190,6 +190,15 @@ test.describe("Search view", () => {
       view.locator(".search-post-results-latest [data-post-uri]"),
     ).toHaveCount(1, { timeout: 10000 });
 
+    // Switch to People tab
+    await view.locator('[data-testid="tab-profiles"]').click();
+    await expect(
+      view.locator('[data-testid="tab-profiles"].active'),
+    ).toBeVisible();
+    await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+      timeout: 10000,
+    });
+
     // Switch to Feeds tab
     await view.locator('[data-testid="tab-feeds"]').click();
     await expect(
@@ -200,12 +209,12 @@ test.describe("Search view", () => {
     });
     await expect(view).toContainText("My Custom Feed");
 
-    // Switch back to Profiles tab
-    await view.locator('[data-testid="tab-profiles"]').click();
+    // Switch back to Top tab
+    await view.locator('[data-testid="tab-top"]').click();
+    await expect(view.locator('[data-testid="tab-top"].active')).toBeVisible();
     await expect(
-      view.locator('[data-testid="tab-profiles"].active'),
-    ).toBeVisible();
-    await expect(view.locator(".profile-list-item")).toHaveCount(1);
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(1);
   });
 
   test("should display clear button when search has text and clear on click", async ({
@@ -246,7 +255,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=bob");
+    await page.goto("/search?q=bob&tab=profiles");
 
     const view = page.locator("#search-view");
     await expect(view.locator(".profile-list-item")).toHaveCount(1, {
@@ -270,7 +279,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=alice");
+    await page.goto("/search?q=alice&tab=profiles");
 
     const view = page.locator("#search-view");
     await expect(view.locator(".profile-list-item")).toHaveCount(1, {
@@ -389,7 +398,7 @@ test.describe("Search view", () => {
     await expect(topPanel).toContainText("A top ranked post");
   });
 
-  test("should render tabs in order: Profiles, Top, Latest, Feeds", async ({
+  test("should render tabs in order: Top, Latest, People, Feeds", async ({
     page,
   }) => {
     const mockServer = new MockServer();
@@ -401,9 +410,9 @@ test.describe("Search view", () => {
     const view = page.locator("#search-view");
     const tabs = view.locator("tab-bar [data-testid^='tab-']");
     await expect(tabs).toHaveCount(4, { timeout: 10000 });
-    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-profiles");
-    await expect(tabs.nth(1)).toHaveAttribute("data-testid", "tab-top");
-    await expect(tabs.nth(2)).toHaveAttribute("data-testid", "tab-latest");
+    await expect(tabs.nth(0)).toHaveAttribute("data-testid", "tab-top");
+    await expect(tabs.nth(1)).toHaveAttribute("data-testid", "tab-latest");
+    await expect(tabs.nth(2)).toHaveAttribute("data-testid", "tab-profiles");
     await expect(tabs.nth(3)).toHaveAttribute("data-testid", "tab-feeds");
   });
 
@@ -642,7 +651,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=test");
+    await page.goto("/search?q=test&tab=profiles");
 
     const view = page.locator("#search-view");
     const followsBackRow = view
@@ -697,7 +706,7 @@ test.describe("Search view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/search?q=target");
+    await page.goto("/search?q=target&tab=profiles");
 
     const view = page.locator("#search-view");
     const targetRow = view
@@ -712,6 +721,328 @@ test.describe("Search view", () => {
     await expect(followButton).toHaveAttribute("data-teststate", "following", {
       timeout: 10000,
     });
+  });
+
+  test.describe("Typeahead", () => {
+    test("should show typeahead results while typing without searching", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+        createProfile({
+          did: "did:plc:profile2",
+          handle: "alicia.bsky.social",
+          displayName: "Alicia",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("ali");
+
+      await expect(
+        view.locator('[data-testid="search-typeahead-search-row"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="search-typeahead-result"]'),
+      ).toHaveCount(2, { timeout: 10000 });
+      await expect(view).toContainText("@alice.bsky.social");
+
+      // No full search fired and no query committed to the URL
+      expect(mockServer.searchRequestCounts.profiles).toBe(0);
+      await expect(page).not.toHaveURL(/[?&]q=/);
+      await expect(view.locator("tab-bar")).toBeHidden();
+    });
+
+    test("should show a loading spinner until typeahead results arrive", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      mockServer.typeaheadDelayMs = 1000;
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("ali");
+
+      await expect(
+        view.locator(".search-typeahead-loading .loading-spinner"),
+      ).toBeVisible({ timeout: 10000 });
+
+      await expect(
+        view.locator('[data-testid="search-typeahead-result"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+      await expect(view.locator(".search-typeahead-loading")).not.toBeVisible();
+    });
+
+    test("should commit the search on Enter", async ({ page }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      mockServer.addSearchPosts([
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+          text: "A post about ali",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const input = view.locator(".search-input");
+      await input.fill("ali");
+      await expect(
+        view.locator('[data-testid="search-typeahead-search-row"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await input.press("Enter");
+
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+      await expect(view.locator("tab-bar")).toBeVisible();
+      await expect(page).toHaveURL(/[?&]q=ali/);
+      await expect(
+        view.locator('[data-testid="search-typeahead-search-row"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should commit the search when clicking the search row", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addSearchPosts([
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+          text: "A post about ali",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("ali");
+      await view.locator('[data-testid="search-typeahead-search-row"]').click();
+
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+      await expect(page).toHaveURL(/[?&]q=ali/);
+    });
+
+    test("should navigate to the profile when clicking a typeahead result", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view.locator(".search-input").fill("ali");
+      await expect(
+        view.locator('[data-testid="search-typeahead-result"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+
+      await view.locator('[data-testid="search-typeahead-result"]').click();
+
+      await expect(page).toHaveURL(/\/profile\/alice\.bsky\.social/, {
+        timeout: 10000,
+      });
+    });
+
+    test("should return to typeahead mode when editing a committed search", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alicia.bsky.social",
+          displayName: "Alicia",
+        }),
+      ]);
+      mockServer.addSearchPosts([
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+          text: "A post about alicia",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=alice");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator("tab-bar")).toBeVisible({ timeout: 10000 });
+
+      const input = view.locator(".search-input");
+      await input.fill("alicia");
+
+      await expect(
+        view.locator('[data-testid="search-typeahead-search-row"]'),
+      ).toBeVisible({ timeout: 10000 });
+      await expect(view.locator("tab-bar")).toBeHidden();
+      // The committed query only changes on the next commit
+      await expect(page).toHaveURL(/[?&]q=alice/);
+
+      await input.press("Enter");
+      await expect(page).toHaveURL(/[?&]q=alicia/);
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+    });
+
+    test("should show the placeholder when the input is cleared", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=alice");
+
+      const view = page.locator("#search-view");
+      const input = view.locator(".search-input");
+      await expect(input).toHaveValue("alice", { timeout: 10000 });
+
+      await input.fill("");
+
+      await expect(view.locator(".search-placeholder")).toBeVisible({
+        timeout: 10000,
+      });
+    });
+  });
+
+  test.describe("Lazy tab loading", () => {
+    test("should only load a tab's results when it is first activated", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addSearchProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      mockServer.addSearchPosts([
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+          text: "A matching post",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search?q=test");
+
+      const view = page.locator("#search-view");
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+
+      // Only the active (Top) tab has loaded
+      expect(mockServer.searchRequestCounts.top).toBe(1);
+      expect(mockServer.searchRequestCounts.profiles).toBe(0);
+      expect(mockServer.searchRequestCounts.latest).toBe(0);
+      expect(mockServer.searchRequestCounts.feeds).toBe(0);
+
+      await view.locator('[data-testid="tab-profiles"]').click();
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      expect(mockServer.searchRequestCounts.profiles).toBe(1);
+
+      // Switching back and forth doesn't refetch
+      await view.locator('[data-testid="tab-top"]').click();
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+      await view.locator('[data-testid="tab-profiles"]').click();
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      expect(mockServer.searchRequestCounts.profiles).toBe(1);
+      expect(mockServer.searchRequestCounts.top).toBe(1);
+    });
+  });
+
+  test("should scroll to top when clicking the active tab", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const posts = [];
+    for (let i = 0; i < 30; i++) {
+      posts.push(
+        createPost({
+          uri: `at://did:plc:author${i}/app.bsky.feed.post/post${i}`,
+          text: `Search result post ${i}`,
+          authorHandle: `author${i}.bsky.social`,
+          authorDisplayName: `Author ${i}`,
+        }),
+      );
+    }
+    mockServer.addSearchPosts(posts);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/search?q=result");
+
+    const view = page.locator("#search-view");
+    await expect(
+      view.locator(".search-post-results-top [data-post-uri]"),
+    ).toHaveCount(30, { timeout: 10000 });
+
+    await page.evaluate(() => window.scrollTo(0, 1000));
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(0);
+
+    await view.locator('[data-testid="tab-top"]').click();
+
+    await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
   });
 
   test.describe("Pagination", () => {
@@ -731,7 +1062,7 @@ test.describe("Search view", () => {
       await mockServer.setup(page);
 
       await login(page);
-      await page.goto("/search?q=user");
+      await page.goto("/search?q=user&tab=profiles");
 
       const view = page.locator("#search-view");
       // All 30 profiles should load across multiple pages
@@ -815,7 +1146,7 @@ test.describe("Search view", () => {
       await mockServer.setup(page);
 
       await login(page);
-      await page.goto("/search?q=user");
+      await page.goto("/search?q=user&tab=profiles");
 
       const view = page.locator("#search-view");
       await expect(view.locator(".profile-list-item")).toHaveCount(3, {
@@ -864,6 +1195,45 @@ test.describe("Search view", () => {
       await expect(view.locator('[data-testid="follow-button"]')).toHaveCount(
         0,
       );
+    });
+
+    test("should show typeahead and commit profile search when logged out", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addTypeaheadProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      mockServer.addSearchProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const input = view.locator(".search-input");
+      await input.fill("ali");
+
+      await expect(
+        view.locator('[data-testid="search-typeahead-result"]'),
+      ).toHaveCount(1, { timeout: 10000 });
+
+      await input.press("Enter");
+
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      await expect(view.locator("tab-bar")).toBeHidden();
+      expect(mockServer.searchRequestCounts.top).toBe(0);
     });
 
     test("should hide the tab bar entirely when logged out", async ({

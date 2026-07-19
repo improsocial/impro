@@ -31,6 +31,7 @@ export class MockServer {
     this.sendMessageFailure = null;
     this.convoForMembersError = null;
     this.typeaheadProfiles = [];
+    this.typeaheadDelayMs = 0;
     this.externalLinkCards = new Map();
     this.feedGenerators = [];
     this.feeds = new Map();
@@ -70,6 +71,13 @@ export class MockServer {
     this.searchPosts = [];
     this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
+    this.searchRequestCounts = {
+      profiles: 0,
+      top: 0,
+      latest: 0,
+      feeds: 0,
+      typeahead: 0,
+    };
     this.timelinePosts = [];
     this.timelineDelayMs = 0;
     this.pluginSettings = new Map();
@@ -1334,6 +1342,7 @@ export class MockServer {
     });
 
     await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) => {
+      this.searchRequestCounts.profiles += 1;
       const url = new URL(route.request().url());
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
@@ -1361,6 +1370,7 @@ export class MockServer {
     await page.route(
       "**/xrpc/app.bsky.unspecced.getPopularFeedGenerators*",
       (route) => {
+        this.searchRequestCounts.feeds += 1;
         const url = new URL(route.request().url());
         const cursor = url.searchParams.get("cursor") || "";
         const limit = parseInt(url.searchParams.get("limit") || "0", 10);
@@ -1417,6 +1427,7 @@ export class MockServer {
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
       const sort = url.searchParams.get("sort") || "top";
+      this.searchRequestCounts[sort] += 1;
       const sortedPosts = this.searchPostsBySort[sort] ?? this.searchPosts;
 
       let posts, nextCursor;
@@ -2514,7 +2525,13 @@ export class MockServer {
 
     await page.route(
       "**/xrpc/app.bsky.actor.searchActorsTypeahead*",
-      (route) => {
+      async (route) => {
+        this.searchRequestCounts.typeahead += 1;
+        if (this.typeaheadDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.typeaheadDelayMs),
+          );
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",

@@ -281,6 +281,11 @@ export class Derived extends ReactiveStore {
       if (!data) return null;
       return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
     });
+    this.$searchTypeaheadResults = new Signal.Computed(() => {
+      const data = this.dataStore.$searchTypeaheadResults.get();
+      if (!data) return null;
+      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    });
     this.$feedSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$feedSearchResults.get();
       if (!data) return null;

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
-import { enableDragToDismiss, debounce } from "/js/utils.js";
+import { enableDragToDismiss } from "/js/utils.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -147,9 +147,6 @@ class NewChatDialog extends Component {
     this.scrollLock = new ScrollLock(this);
     this.state = new ReactiveStore("new-chat-dialog");
     this.state.$query = new Signal.State("");
-    this._debouncedSearch = debounce((query) => {
-      this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
-    });
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
       this.render();
@@ -176,10 +173,9 @@ class NewChatDialog extends Component {
     this.state.$query.set(value);
     const query = value.trim();
     if (!query) {
-      this._debouncedSearch.cancel();
       this.dataLayer.requests.loadChatRecipientSearch("");
     } else {
-      this._debouncedSearch(query);
+      this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
     }
   }
 

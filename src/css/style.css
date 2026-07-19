@@ -5594,8 +5594,76 @@ emoji-picker-dialog emoji-picker,
   gap: 16px;
 }
 
-.search-tab-panel[hidden] {
-  display: none;
+.search-typeahead {
+  display: flex;
+  flex-direction: column;
+}
+
+.search-typeahead-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border: none;
+  background: none;
+  text-align: left;
+  font-size: 15px;
+  color: var(--text-color);
+  cursor: pointer;
+  border-bottom: var(--hair) solid var(--post-border-color);
+}
+
+@media (hover: hover) {
+  .search-typeahead-row:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--highlight-color) 6%,
+      transparent
+    );
+  }
+}
+
+.search-typeahead-loading {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+}
+
+.search-typeahead-icon {
+  width: var(--avatar-size-post);
+  height: var(--avatar-size-post);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--text-color-muted);
+}
+
+.search-typeahead-icon .search-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.search-typeahead-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-typeahead-name {
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-typeahead-handle {
+  color: var(--text-color-muted);
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search-results-panel {

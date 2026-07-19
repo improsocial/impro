@@ -3,9 +3,10 @@ import { View } from "/js/views/view.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { classnames, debounce } from "/js/utils.js";
+import { avatarTemplate } from "/js/templates/avatar.template.js";
+import { classnames } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { linkToFeed } from "/js/navigation.js";
+import { linkToFeed, linkToProfile } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -20,86 +21,147 @@ class SearchView extends View {
     context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
     const state = new ReactiveStore("searchView");
-    state.$activeTab = new Signal.State("profiles");
-    state.$searchQuery = new Signal.State("");
+    state.$activeTab = new Signal.State("top");
+    state.$inputValue = new Signal.State("");
+    state.$committedQuery = new Signal.State("");
+    state.$showTypeahead = new Signal.State(false);
 
     const tabScrollState = new Map();
+    const loadedTabs = new Set();
 
-    async function loadSearchResults() {
-      const searchQuery = state.$searchQuery.get();
-      const normalizedQuery = searchQuery.trim();
+    const TAB_LOADERS = {
+      profiles: (query) =>
+        dataLayer.requests.loadProfileSearch(query, { limit: 25 }),
+      top: (query) =>
+        dataLayer.requests.loadPostSearchTop(query, { limit: 25 }),
+      latest: (query) =>
+        dataLayer.requests.loadPostSearchLatest(query, { limit: 25 }),
+      feeds: (query) => dataLayer.requests.loadFeedSearch(query, { limit: 15 }),
+    };
 
-      // Update URL query parameter
+    const TAB_STATUS_PREFIXES = {
+      profiles: "loadProfileSearch-",
+      top: "loadPostSearchTop-",
+      latest: "loadPostSearchLatest-",
+      feeds: "loadFeedSearch-",
+    };
+
+    function loadTabIfNeeded(tab) {
+      const query = state.$committedQuery.get();
+      if (!query) return;
+      if (!isAuthenticated) {
+        tab = "profiles";
+      }
+      if (loadedTabs.has(tab)) return;
+      loadedTabs.add(tab);
+      TAB_LOADERS[tab](query)
+        .then(() => {
+          if (
+            dataLayer.requests.statusStore.getError(
+              TAB_STATUS_PREFIXES[tab] + query,
+            )
+          ) {
+            loadedTabs.delete(tab);
+          }
+        })
+        .catch((error) => {
+          loadedTabs.delete(tab);
+          console.error("Failed to load search results", error);
+        });
+    }
+
+    function loadTypeahead(query) {
+      dataLayer.requests
+        .loadSearchTypeahead(query, { limit: 8 })
+        .catch((error) => console.warn("Typeahead search failed", error));
+    }
+
+    function handleInput(value) {
+      state.$inputValue.set(value);
+      const trimmed = value.trim();
+      if (!trimmed) {
+        state.$showTypeahead.set(false);
+        dataLayer.requests.loadSearchTypeahead("");
+        return;
+      }
+      state.$showTypeahead.set(true);
+      loadTypeahead(trimmed);
+    }
+
+    function commitSearch() {
+      const query = state.$inputValue.get().trim();
+      if (!query) return;
+      state.$showTypeahead.set(false);
+      const queryChanged = query !== state.$committedQuery.get();
+      state.$committedQuery.set(query);
       const url = new URL(window.location);
-      if (searchQuery) {
-        url.searchParams.set("q", searchQuery);
-      } else {
-        url.searchParams.delete("q");
-      }
+      url.searchParams.set("q", query);
       window.history.replaceState({}, "", url);
+      if (queryChanged) {
+        loadedTabs.clear();
+        tabScrollState.clear();
+      }
+      loadTabIfNeeded(state.$activeTab.get());
+      root.querySelector(".search-input")?.blur();
+    }
 
-      const requests = [];
-
-      requests.push(
-        dataLayer.requests.loadProfileSearch(normalizedQuery, {
-          limit: 25,
-        }),
-      );
-
+    function handleClearSearch() {
+      state.$inputValue.set("");
+      state.$showTypeahead.set(false);
+      state.$committedQuery.set("");
+      loadedTabs.clear();
+      tabScrollState.clear();
+      const url = new URL(window.location);
+      url.searchParams.delete("q");
+      window.history.replaceState({}, "", url);
+      dataLayer.requests.loadSearchTypeahead("");
+      dataLayer.requests.loadProfileSearch("");
       if (isAuthenticated) {
-        requests.push(
-          dataLayer.requests.loadPostSearchTop(normalizedQuery, {
-            limit: 25,
-          }),
-        );
-        requests.push(
-          dataLayer.requests.loadPostSearchLatest(normalizedQuery, {
-            limit: 25,
-          }),
-        );
-        requests.push(
-          dataLayer.requests.loadFeedSearch(normalizedQuery, {
-            limit: 15,
-          }),
-        );
+        dataLayer.requests.loadPostSearchTop("");
+        dataLayer.requests.loadPostSearchLatest("");
+        dataLayer.requests.loadFeedSearch("");
       }
+      root.querySelector(".search-input")?.focus();
+    }
 
-      try {
-        await Promise.all(requests);
-      } catch (error) {
-        console.error("Failed to load search results", error);
+    function handleTabChange(tab) {
+      if (tab === state.$activeTab.get()) {
+        if (window.scrollY > 0) {
+          window.scrollTo({ top: -1, behavior: "smooth" });
+        }
+        return;
       }
+      tabScrollState.set(state.$activeTab.get(), window.scrollY);
+      state.$activeTab.set(tab);
+      loadTabIfNeeded(tab);
+      requestAnimationFrame(() => {
+        window.scrollTo(0, tabScrollState.get(tab) ?? 0);
+      });
     }
 
     async function loadMoreProfiles() {
       const cursor = dataLayer.derived.$profileSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadProfileSearch(
-        state.$searchQuery.get().trim(),
-        {
-          limit: 25,
-          cursor,
-        },
-      );
+      await dataLayer.requests.loadProfileSearch(state.$committedQuery.get(), {
+        limit: 25,
+        cursor,
+      });
     }
 
     async function loadMoreTopPosts() {
       const cursor = dataLayer.derived.$postSearchCursorTop.get();
       if (!cursor) return;
-      await dataLayer.requests.loadPostSearchTop(
-        state.$searchQuery.get().trim(),
-        {
-          limit: 25,
-          cursor,
-        },
-      );
+      await dataLayer.requests.loadPostSearchTop(state.$committedQuery.get(), {
+        limit: 25,
+        cursor,
+      });
     }
 
     async function loadMoreLatestPosts() {
       const cursor = dataLayer.derived.$postSearchCursorLatest.get();
       if (!cursor) return;
       await dataLayer.requests.loadPostSearchLatest(
-        state.$searchQuery.get().trim(),
+        state.$committedQuery.get(),
         {
           limit: 25,
           cursor,
@@ -110,7 +172,7 @@ class SearchView extends View {
     async function loadMoreFeeds() {
       const cursor = dataLayer.derived.$feedSearchCursor.get();
       if (!cursor) return;
-      await dataLayer.requests.loadFeedSearch(state.$searchQuery.get().trim(), {
+      await dataLayer.requests.loadFeedSearch(state.$committedQuery.get(), {
         limit: 15,
         cursor,
       });
@@ -122,25 +184,40 @@ class SearchView extends View {
       profileInteractionHandler,
     } = interactionHandlers;
 
-    const handleSearchInput = debounce((value) => {
-      state.$searchQuery.set(value);
-      loadSearchResults();
-    });
-
-    function handleClearSearch() {
-      handleSearchInput.cancel();
-      state.$searchQuery.set("");
-      loadSearchResults();
-    }
-
-    function handleTabChange(tab) {
-      tabScrollState.set(state.$activeTab.get(), window.scrollY);
-      state.$activeTab.set(tab);
-      if (tabScrollState.has(tab)) {
-        window.scrollTo(0, tabScrollState.get(tab));
-      } else {
-        window.scrollTo(0, 0);
-      }
+    function typeaheadTemplate({ query, profiles, onCommit }) {
+      return html`<div class="search-typeahead">
+        <button
+          class="search-typeahead-row search-typeahead-search-row"
+          data-testid="search-typeahead-search-row"
+          @click=${() => onCommit()}
+        >
+          <div class="search-typeahead-icon">${searchIconTemplate()}</div>
+          <div class="search-typeahead-text">Search for "${query}"</div>
+        </button>
+        ${profiles === null
+          ? html`<div class="search-typeahead-loading">
+              <div class="loading-spinner"></div>
+            </div>`
+          : profiles.map(
+              (profile) => html`
+                <container-link
+                  class="search-typeahead-row clickable"
+                  data-testid="search-typeahead-result"
+                  href=${linkToProfile(profile)}
+                >
+                  ${avatarTemplate({ author: profile, clickAction: "none" })}
+                  <div class="search-typeahead-text">
+                    <div class="search-typeahead-name">
+                      ${profile.displayName || profile.handle}
+                    </div>
+                    <div class="search-typeahead-handle">
+                      @${profile.handle}
+                    </div>
+                  </div>
+                </container-link>
+              `,
+            )}
+      </div>`;
     }
 
     function postSearchResultsTemplate({
@@ -335,183 +412,184 @@ class SearchView extends View {
       </infinite-scroll-container>`;
     }
 
-    pageEffect(root, () => {
-      const currentUser = dataLayer.derived.$currentUser.get();
-      const searchQuery = state.$searchQuery.get();
-      const activeTab = state.$activeTab.get();
-      const normalizedQuery = searchQuery.trim();
-      const showResults = normalizedQuery.length > 0;
-      const topPostStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadPostSearchTop-" + normalizedQuery,
+    function getActivePanelTemplate(activeTab, committedQuery, currentUser) {
+      const status = dataLayer.requests.statusStore.$statuses.get(
+        TAB_STATUS_PREFIXES[activeTab] + committedQuery,
       );
-      const latestPostStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadPostSearchLatest-" + normalizedQuery,
-      );
-      const topPostSearchResults =
-        dataLayer.derived.$postSearchResultsTop.get();
-      const latestPostSearchResults =
-        dataLayer.derived.$postSearchResultsLatest.get();
-      const topPostSearchHasMore =
-        !!dataLayer.derived.$postSearchCursorTop.get();
-      const latestPostSearchHasMore =
-        !!dataLayer.derived.$postSearchCursorLatest.get();
-      const profileStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadProfileSearch-" + normalizedQuery,
-      );
-      const feedStatus = dataLayer.requests.statusStore.$statuses.get(
-        "loadFeedSearch-" + normalizedQuery,
-      );
-      const profileSearchResults =
-        dataLayer.derived.$profileSearchResults.get();
-      const feedSearchResults = dataLayer.derived.$feedSearchResults.get();
-      const profileSearchHasMore =
-        !!dataLayer.derived.$profileSearchCursor.get();
-      const feedSearchHasMore = !!dataLayer.derived.$feedSearchCursor.get();
-      const preferences = dataLayer.derived.$preferences.get();
-
-      render(
-        html`<div id="search-view">
-          ${headerTemplate({
-            title: "Search",
-            leftButton: "menu",
-            onClickMenuButton: () => layout.openSidebar(),
-            bottomItemTemplate: () => html`
-              <div class="search-input-container">
-                ${searchIconTemplate()}
-                <input
-                  class="search-input"
-                  type="search"
-                  autocapitalize="none"
-                  autocomplete="off"
-                  autocorrect="off"
-                  placeholder=${isAuthenticated
-                    ? "Search for users, posts, and feeds"
-                    : "Search for users"}
-                  .value=${searchQuery}
-                  @input=${(event) => handleSearchInput(event.target.value)}
-                />
-                ${searchQuery.length > 0
-                  ? html`
-                      <button
-                        class="search-clear-button"
-                        @click=${() => handleClearSearch()}
-                      >
-                        ${closeIconTemplate()}
-                      </button>
-                    `
-                  : ""}
-                ${showResults && isAuthenticated
-                  ? html`
-                      <tab-bar
-                        .tabs=${[
-                          { value: "profiles", label: "Profiles" },
-                          { value: "top", label: "Top" },
-                          { value: "latest", label: "Latest" },
-                          { value: "feeds", label: "Feeds" },
-                        ]}
-                        active-tab=${activeTab}
-                        full-width
-                        @tab-click=${(event) => handleTabChange(event.detail)}
-                      ></tab-bar>
-                    `
-                  : ""}
-              </div>
-            `,
-          })}
-          <main>
-            <div class="search-results-container">
-              ${showResults
-                ? html`
-                    <div class="search-tab-panels">
-                      <div
-                        class="search-tab-panel"
-                        ?hidden=${activeTab !== "top"}
-                      >
-                        <div
-                          class="search-results-panel search-post-results search-post-results-top"
-                        >
-                          ${postSearchResultsTemplate({
-                            status: topPostStatus,
-                            postSearchResults: topPostSearchResults,
-                            postSearchHasMore: topPostSearchHasMore,
-                            onLoadMore: loadMoreTopPosts,
-                            currentUser,
-                          })}
-                        </div>
-                      </div>
-                      <div
-                        class="search-tab-panel"
-                        ?hidden=${activeTab !== "latest"}
-                      >
-                        <div
-                          class="search-results-panel search-post-results search-post-results-latest"
-                        >
-                          ${postSearchResultsTemplate({
-                            status: latestPostStatus,
-                            postSearchResults: latestPostSearchResults,
-                            postSearchHasMore: latestPostSearchHasMore,
-                            onLoadMore: loadMoreLatestPosts,
-                            currentUser,
-                          })}
-                        </div>
-                      </div>
-                      <div
-                        class="search-tab-panel"
-                        ?hidden=${activeTab !== "profiles"}
-                      >
-                        <div class="search-results-panel">
-                          ${profileSearchResultsTemplate({
-                            status: profileStatus,
-                            profileSearchResults,
-                            profileSearchHasMore,
-                            currentUser,
-                          })}
-                        </div>
-                      </div>
-                      <div
-                        class="search-tab-panel"
-                        ?hidden=${activeTab !== "feeds"}
-                      >
-                        <div class="search-results-panel">
-                          ${feedSearchResultsTemplate({
-                            status: feedStatus,
-                            feedSearchResults,
-                            feedSearchHasMore,
-                            preferences,
-                          })}
-                        </div>
-                      </div>
-                    </div>
-                  `
-                : html`<div class="search-placeholder">
-                    <div class="search-placeholder-icon">
-                      ${searchIconTemplate()}
-                    </div>
-                    <div class="search-placeholder-text">
-                      ${isAuthenticated
-                        ? "Start typing to search for users, posts, and feeds."
-                        : html`Start typing to search for users.<br />Sign in to
-                            search for posts.`}
-                    </div>
-                  </div>`}
-            </div>
-          </main>
-        </div>`,
-        root,
-      );
-    });
-
-    root.addEventListener("page-enter", async () => {
-      const query = new URLSearchParams(window.location.search);
-      if (query.get("q")) {
-        state.$searchQuery.set(query.get("q"));
+      switch (activeTab) {
+        case "top":
+          return html`<div
+            class="search-results-panel search-post-results search-post-results-top"
+          >
+            ${postSearchResultsTemplate({
+              status,
+              postSearchResults: dataLayer.derived.$postSearchResultsTop.get(),
+              postSearchHasMore: !!dataLayer.derived.$postSearchCursorTop.get(),
+              onLoadMore: loadMoreTopPosts,
+              currentUser,
+            })}
+          </div>`;
+        case "latest":
+          return html`<div
+            class="search-results-panel search-post-results search-post-results-latest"
+          >
+            ${postSearchResultsTemplate({
+              status,
+              postSearchResults:
+                dataLayer.derived.$postSearchResultsLatest.get(),
+              postSearchHasMore:
+                !!dataLayer.derived.$postSearchCursorLatest.get(),
+              onLoadMore: loadMoreLatestPosts,
+              currentUser,
+            })}
+          </div>`;
+        case "feeds":
+          return html`<div class="search-results-panel">
+            ${feedSearchResultsTemplate({
+              status,
+              feedSearchResults: dataLayer.derived.$feedSearchResults.get(),
+              feedSearchHasMore: !!dataLayer.derived.$feedSearchCursor.get(),
+              preferences: dataLayer.derived.$preferences.get(),
+            })}
+          </div>`;
+        default:
+          return html`<div class="search-results-panel">
+            ${profileSearchResultsTemplate({
+              status,
+              profileSearchResults:
+                dataLayer.derived.$profileSearchResults.get(),
+              profileSearchHasMore:
+                !!dataLayer.derived.$profileSearchCursor.get(),
+              currentUser,
+            })}
+          </div>`;
       }
+    }
+
+    pageEffect(
+      root,
+      () => {
+        const currentUser = dataLayer.derived.$currentUser.get();
+        const inputValue = state.$inputValue.get();
+        const showTypeahead = state.$showTypeahead.get();
+        const committedQuery = state.$committedQuery.get();
+        const activeTab = state.$activeTab.get();
+        const trimmedInput = inputValue.trim();
+        const mode = !trimmedInput
+          ? "placeholder"
+          : showTypeahead
+            ? "typeahead"
+            : "results";
+
+        let bodyTemplate;
+        if (mode === "typeahead") {
+          bodyTemplate = typeaheadTemplate({
+            query: trimmedInput,
+            profiles: dataLayer.derived.$searchTypeaheadResults.get(),
+            onCommit: commitSearch,
+          });
+        } else if (mode === "results") {
+          bodyTemplate = html`<div class="search-tab-panels">
+            <div class="search-tab-panel">
+              ${getActivePanelTemplate(
+                isAuthenticated ? activeTab : "profiles",
+                committedQuery,
+                currentUser,
+              )}
+            </div>
+          </div>`;
+        } else {
+          bodyTemplate = html`<div class="search-placeholder">
+            <div class="search-placeholder-icon">${searchIconTemplate()}</div>
+            <div class="search-placeholder-text">
+              ${isAuthenticated
+                ? "Start typing to search for users, posts, and feeds."
+                : html`Start typing to search for users.<br />Sign in to search
+                    for posts.`}
+            </div>
+          </div>`;
+        }
+
+        render(
+          html`<div id="search-view">
+            ${headerTemplate({
+              title: "Search",
+              leftButton: "menu",
+              onClickMenuButton: () => layout.openSidebar(),
+              bottomItemTemplate: () => html`
+                <div class="search-input-container">
+                  ${searchIconTemplate()}
+                  <input
+                    class="search-input"
+                    type="search"
+                    autocapitalize="none"
+                    autocomplete="off"
+                    autocorrect="off"
+                    enterkeyhint="search"
+                    placeholder=${isAuthenticated
+                      ? "Search for users, posts, and feeds"
+                      : "Search for users"}
+                    .value=${inputValue}
+                    @input=${(event) => handleInput(event.target.value)}
+                    @keydown=${(event) => {
+                      if (event.key === "Enter") {
+                        event.preventDefault();
+                        commitSearch();
+                      }
+                    }}
+                  />
+                  ${inputValue.length > 0
+                    ? html`
+                        <button
+                          class="search-clear-button"
+                          @click=${() => handleClearSearch()}
+                        >
+                          ${closeIconTemplate()}
+                        </button>
+                      `
+                    : ""}
+                  ${mode === "results" && isAuthenticated
+                    ? html`
+                        <tab-bar
+                          .tabs=${[
+                            { value: "top", label: "Top" },
+                            { value: "latest", label: "Latest" },
+                            { value: "profiles", label: "People" },
+                            { value: "feeds", label: "Feeds" },
+                          ]}
+                          active-tab=${activeTab}
+                          full-width
+                          @tab-click=${(event) => handleTabChange(event.detail)}
+                        ></tab-bar>
+                      `
+                    : ""}
+                </div>
+              `,
+            })}
+            <main>
+              <div class="search-results-container">${bodyTemplate}</div>
+            </main>
+          </div>`,
+          root,
+        );
+      },
+      { debugName: "searchView" },
+    );
+
+    root.addEventListener("page-enter", () => {
+      const query = new URLSearchParams(window.location.search);
       if (query.get("tab")) {
         const tab = query.get("tab");
         state.$activeTab.set(tab === "posts" ? "top" : tab);
       }
-      if (state.$searchQuery.get()) {
-        loadSearchResults();
+      const q = query.get("q");
+      if (q) {
+        state.$inputValue.set(q);
+        state.$showTypeahead.set(false);
+        state.$committedQuery.set(q.trim());
+        loadedTabs.clear();
+        tabScrollState.clear();
+        loadTabIfNeeded(state.$activeTab.get());
       }
     });
 
