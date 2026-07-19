@@ -215,7 +215,7 @@ class NewChatDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet new-chat-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen new-chat-dialog"
           data-testid="new-chat-dialog"
           autofocus
           @click=${(event) => {

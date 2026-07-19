@@ -37,7 +37,8 @@ class ImageAltTextDialog extends Component {
 
     render(
       html`<dialog
-        class="image-alt-text-dialog"
+        class="image-alt-text-dialog bottom-sheet-stacked"
+        autofocus
         @click=${(e) => {
           if (e.target.tagName === "DIALOG") {
             this.close();
@@ -114,21 +115,14 @@ class ImageAltTextDialog extends Component {
     this.scrollLock.lock();
     const dialog = this.querySelector(".image-alt-text-dialog");
     dialog.showModal();
+    this.querySelector(".image-alt-text-dialog-textarea")?.focus({
+      preventScroll: true,
+    });
 
     resetScrollOnBlur(
       dialog,
       this.querySelector(".image-alt-text-dialog-content"),
     );
-
-    // Focus on the textarea after a small delay
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const textarea = this.querySelector(".image-alt-text-dialog-textarea");
-        if (textarea) {
-          textarea.focus();
-        }
-      });
-    });
   }
 
   close() {

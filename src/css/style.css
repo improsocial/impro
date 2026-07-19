@@ -174,6 +174,9 @@ html {
   --pill-button-border-radius: 999px;
   --label-badge-border-radius: 999px;
 
+  --sheet-top: 16px;
+  --stacked-sheet-top: calc(var(--sheet-top) + 16px);
+
   /* z-index */
   --profile-header-z-index: 1;
   --context-menu-z-index: 2;
@@ -6038,9 +6041,7 @@ emoji-picker-dialog emoji-picker,
   left: 0;
   right: 0;
   bottom: 0;
-  top: 16px;
   height: auto;
-  max-height: calc(100vh - 16px);
   box-shadow: var(--shadow-color-heavy);
   animation: slide-up 0.15s ease-out;
   transform: none;
@@ -6189,6 +6190,20 @@ emoji-picker-dialog emoji-picker,
 .bottom-sheet::backdrop {
   background-color: var(--overlay-color-medium);
   animation: fade-in 0.2s ease-out;
+}
+
+@media (max-width: 799px) {
+  .bottom-sheet-fullscreen {
+    top: var(--sheet-top);
+    max-height: none;
+  }
+}
+
+@media (max-width: 799px) {
+  .bottom-sheet-stacked {
+    top: var(--stacked-sheet-top);
+    max-height: none;
+  }
 }
 
 .post-composer-top-bar {
@@ -6952,9 +6967,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   left: 0;
   right: 0;
   bottom: 0;
-  top: 16px;
   height: auto;
-  max-height: calc(100vh - 16px);
   box-shadow: var(--shadow-color-heavy);
   animation: slide-up 0.15s ease-out;
   transform: none;
@@ -7794,13 +7807,6 @@ img[data-lightbox] {
 
 .modal-dialog-buttons-stacked {
   flex-direction: column;
-}
-
-@media (max-width: 799px) {
-  .drafts-dialog {
-    top: 32px;
-    max-height: none;
-  }
 }
 
 @media (min-width: 800px) {
@@ -8697,15 +8703,11 @@ moderation-warning .toggle-content {
   cursor: not-allowed;
 }
 
-.report-dialog {
-  top: 16px;
-  max-height: calc(100vh - 16px);
-}
-
 @media (min-width: 800px) {
   .report-dialog {
     max-width: 480px;
     top: 50%;
+    max-height: calc(100vh - var(--sheet-top));
   }
 }
 
@@ -9350,8 +9352,6 @@ toggle-switch {
 
 @media (max-width: 799px) {
   .new-chat-dialog {
-    top: 16px;
-    max-height: calc(100vh - 16px);
     display: flex;
     flex-direction: column;
   }
@@ -9556,8 +9556,6 @@ tab-bar[full-width] .tab-bar-button {
 
 .edit-profile-dialog {
   background-color: var(--background-color);
-  top: 16px;
-  max-height: calc(100vh - 16px);
   overflow: visible;
   display: flex;
   flex-direction: column;

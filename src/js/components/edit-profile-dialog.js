@@ -108,7 +108,7 @@ class EditProfileDialog extends Component {
 
     render(
       html`<dialog
-        class="bottom-sheet no-handle edit-profile-dialog"
+        class="bottom-sheet bottom-sheet-fullscreen no-handle edit-profile-dialog"
         @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
             if (await this.confirmClose()) {

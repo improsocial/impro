@@ -298,7 +298,7 @@ class PostComposer extends Component {
     render(
       html`
         <dialog
-          class="post-composer"
+          class="post-composer bottom-sheet-fullscreen"
           autofocus
           @click=${async (e) => {
             if (e.target.tagName === "DIALOG") {
