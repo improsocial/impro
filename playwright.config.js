@@ -8,6 +8,7 @@ export default defineConfig({
   testDir: "./tests/e2e/specs",
   outputDir: "./tests/e2e/.results",
   fullyParallel: true,
+  workers: process.env.CI ? 4 : undefined,
   retries: 2,
   use: {
     baseURL: "http://localhost:8081",
