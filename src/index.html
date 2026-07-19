@@ -553,7 +553,10 @@
           ) {
             const relativePath = parsedUrl.pathname;
             // Only intercept in-app links if there's a match in the router
-            if (router.hasRoute(relativePath)) {
+            if (
+              router.hasRoute(relativePath) &&
+              !relativePath.startsWith("/messages/settings")
+            ) {
               e.preventDefault();
               router.go(parsedUrl.pathname + parsedUrl.search + parsedUrl.hash);
             }
