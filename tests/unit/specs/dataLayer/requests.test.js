@@ -2,6 +2,7 @@ import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { Requests } from "/js/dataLayer/requests.js";
 import { DataStore } from "/js/dataLayer/dataStore.js";
+import { DraftMediaStore } from "/js/drafts.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
 import { SignalMap } from "/js/signals.js";
@@ -13,9 +14,14 @@ const stubPluginService = {
 };
 
 function createRequests(api, dataStore, preferencesProvider) {
-  return new Requests(api, dataStore, preferencesProvider, stubPluginService, {
-    constellation: stubConstellation,
-  });
+  return new Requests(
+    api,
+    dataStore,
+    preferencesProvider,
+    stubPluginService,
+    new DraftMediaStore("test-media"),
+    { constellation: stubConstellation },
+  );
 }
 
 describe("loadPostThread", () => {
@@ -237,6 +243,7 @@ describe("loadNextFeedPage", () => {
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
       pluginService,
+      new DraftMediaStore("test-media"),
       { constellation: stubConstellation },
     );
 
@@ -345,6 +352,7 @@ describe("loadPluginFilteredFeedItems", () => {
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
       pluginService,
+      new DraftMediaStore("test-media"),
       { constellation: stubConstellation },
     );
   }
@@ -962,16 +970,25 @@ describe("loadNextAuthorFeedPage", () => {
   });
 });
 
-describe("loadPostSearch", () => {
-  it("should clear results when query is empty", async () => {
+describe("loadPostSearchTop / loadPostSearchLatest", () => {
+  it("should clear results for both sorts when query is empty", async () => {
     const dataStore = new DataStore();
-    dataStore.$postSearchResults.set({ posts: [{ uri: "p1" }], cursor: "c1" });
+    dataStore.$postSearchResultsTop.set({
+      posts: [{ uri: "p1" }],
+      cursor: "c1",
+    });
+    dataStore.$postSearchResultsLatest.set({
+      posts: [{ uri: "p2" }],
+      cursor: "c2",
+    });
     const mockApi = { searchPosts: async () => ({ posts: [], cursor: null }) };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("");
+    await requests.loadPostSearchTop("");
+    await requests.loadPostSearchLatest("");
 
-    assert.deepEqual(dataStore.$postSearchResults.get(), null);
+    assert.deepEqual(dataStore.$postSearchResultsTop.get(), null);
+    assert.deepEqual(dataStore.$postSearchResultsLatest.get(), null);
   });
 
   it("should store results from a fresh search", async () => {
@@ -984,11 +1001,67 @@ describe("loadPostSearch", () => {
     const dataStore = new DataStore();
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("hello");
+    await requests.loadPostSearchTop("hello");
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts.length, 1);
     assert.deepEqual(stored.cursor, "next");
+  });
+
+  it("should store each sort's results independently", async () => {
+    const mockApi = {
+      searchPosts: async (query, { sort }) => ({
+        posts: [{ uri: `post-${sort}`, record: {} }],
+        cursor: null,
+      }),
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPostSearchTop("hello");
+    await requests.loadPostSearchLatest("hello");
+
+    assert.deepEqual(
+      dataStore.$postSearchResultsTop.get().posts[0].uri,
+      "post-top",
+    );
+    assert.deepEqual(
+      dataStore.$postSearchResultsLatest.get().posts[0].uri,
+      "post-latest",
+    );
+  });
+
+  it("should not discard an in-flight sort when the other sort loads", async () => {
+    const dataStore = new DataStore();
+    let resolveTop;
+    const topPromise = new Promise((resolve) => {
+      resolveTop = resolve;
+    });
+    const mockApi = {
+      searchPosts: async (query, { sort }) => {
+        if (sort === "top") {
+          await topPromise;
+          return { posts: [{ uri: "top-post", record: {} }], cursor: "tc" };
+        }
+        return { posts: [{ uri: "latest-post", record: {} }], cursor: "lc" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const topCall = requests.loadPostSearchTop("query");
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadPostSearchLatest("query");
+    resolveTop();
+    await topCall;
+
+    assert.deepEqual(
+      dataStore.$postSearchResultsTop.get().posts[0].uri,
+      "top-post",
+    );
+    assert.deepEqual(
+      dataStore.$postSearchResultsLatest.get().posts[0].uri,
+      "latest-post",
+    );
   });
 
   it("should discard stale responses based on requestTime guard", async () => {
@@ -1010,20 +1083,64 @@ describe("loadPostSearch", () => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    const firstCall = requests.loadPostSearch("query");
+    const firstCall = requests.loadPostSearchTop("query");
     await new Promise((resolve) => setTimeout(resolve, 5));
-    await requests.loadPostSearch("query");
+    await requests.loadPostSearchTop("query");
     resolveFirst();
     await firstCall;
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts[0].uri, "fresh");
     assert.deepEqual(stored.cursor, "fresh");
   });
 
+  it("should discard a stale cursored response that finishes dependency loading after a re-search", async () => {
+    const dataStore = new DataStore();
+    const replyPost = (uri) => ({
+      uri,
+      record: { reply: { parent: { uri: `${uri}-parent` } } },
+    });
+    const page1 = { posts: [replyPost("p1")], cursor: "c1" };
+    const page2 = { posts: [replyPost("p2")], cursor: null };
+    let getPostsGate = null;
+    const mockApi = {
+      searchPosts: async (query, { cursor }) => (cursor ? page2 : page1),
+      getPosts: async () => {
+        if (getPostsGate) {
+          const gate = getPostsGate;
+          getPostsGate = null;
+          await gate;
+        }
+        return [];
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPostSearchTop("query");
+
+    // A load-more passes the requestTime guard, then stalls loading
+    // dependencies while a re-search and a fresh load-more complete
+    let releaseGate;
+    getPostsGate = new Promise((resolve) => {
+      releaseGate = resolve;
+    });
+    const staleLoadMore = requests.loadPostSearchTop("query", { cursor: "c1" });
+    await new Promise((resolve) => setTimeout(resolve, 5));
+    await requests.loadPostSearchTop("query");
+    await requests.loadPostSearchTop("query", { cursor: "c1" });
+    releaseGate();
+    await staleLoadMore;
+
+    const stored = dataStore.$postSearchResultsTop.get();
+    assert.deepEqual(
+      stored.posts.map((post) => post.uri),
+      ["p1", "p2"],
+    );
+  });
+
   it("should append when cursor is provided and existing results present", async () => {
     const dataStore = new DataStore();
-    dataStore.$postSearchResults.set({
+    dataStore.$postSearchResultsTop.set({
       posts: [{ uri: "p1", record: {} }],
       cursor: "c1",
     });
@@ -1035,9 +1152,9 @@ describe("loadPostSearch", () => {
     };
     const requests = makeRequests(mockApi, dataStore);
 
-    await requests.loadPostSearch("hello", { cursor: "c1" });
+    await requests.loadPostSearchTop("hello", { cursor: "c1" });
 
-    const stored = dataStore.$postSearchResults.get();
+    const stored = dataStore.$postSearchResultsTop.get();
     assert.deepEqual(stored.posts.length, 2);
     assert.deepEqual(stored.posts[1].uri, "p2");
     assert.deepEqual(stored.cursor, "c2");
@@ -1201,6 +1318,62 @@ describe("loadChatRecipientSearch", () => {
     await inFlight;
 
     assert.deepEqual(dataStore.$chatRecipientSearchResults.get(), null);
+  });
+});
+
+describe("loadSearchTypeahead", () => {
+  it("should store the search results and hydrate profiles", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({
+        actors: [{ did: "did:plc:a" }],
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSearchTypeahead("alice");
+
+    const stored = dataStore.$searchTypeaheadResults.get();
+    assert.deepEqual(stored.actors.length, 1);
+    assert.deepEqual(stored.actors[0].did, "did:plc:a");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
+      did: "did:plc:a",
+    });
+  });
+
+  it("should clear results when query is empty", async () => {
+    const dataStore = new DataStore();
+    dataStore.$searchTypeaheadResults.set({ actors: [{ did: "x" }] });
+    const mockApi = {
+      searchProfilesTypeahead: async () => ({ actors: [] }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadSearchTypeahead("");
+
+    assert.deepEqual(dataStore.$searchTypeaheadResults.get(), null);
+  });
+
+  it("should discard in-flight responses after the query is cleared", async () => {
+    const dataStore = new DataStore();
+    let resolveSearch;
+    const searchPromise = new Promise((resolve) => {
+      resolveSearch = resolve;
+    });
+    const mockApi = {
+      searchProfilesTypeahead: async () => {
+        await searchPromise;
+        return { actors: [{ did: "stale" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    const inFlight = requests.loadSearchTypeahead("query");
+    await requests.loadSearchTypeahead("");
+    resolveSearch();
+    await inFlight;
+
+    assert.deepEqual(dataStore.$searchTypeaheadResults.get(), null);
   });
 });
 
@@ -1777,6 +1950,155 @@ describe("loadConvoRequestList", () => {
     const stored = dataStore.$convoRequestList.get();
     assert.deepEqual(stored.convos.length, 1);
     assert.deepEqual(stored.convos[0].id, "r2");
+  });
+});
+
+describe("loadConvo", () => {
+  const convoId = "convo1";
+
+  it("should store the convo and track status under a namespaced key", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvo: async () => ({ convo: { id: convoId } }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvo(convoId);
+
+    assert.deepEqual(dataStore.$convos.get(convoId).id, convoId);
+    const status = requests.getStatus("loadConvo-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert.deepEqual(status.error, null);
+  });
+
+  it("should record an ApiError under the namespaced key without rethrowing", async () => {
+    const apiError = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "InvalidConvo" },
+      headers: {},
+      url: "/x",
+    });
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvo: async () => {
+        throw apiError;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvo(convoId);
+
+    const status = requests.getStatus("loadConvo-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert(
+      status.error === apiError,
+      "expected status.error to be the ApiError",
+    );
+    assert.deepEqual(dataStore.$convos.get(convoId), null);
+  });
+});
+
+describe("loadConvoMembers", () => {
+  const convoId = "convo1";
+
+  it("should store the first page with its cursor", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvoMembers: async () => ({
+        members: [{ did: "did:plc:alice" }, { did: "did:plc:bob" }],
+        cursor: "2",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice", "did:plc:bob"],
+    );
+    assert.deepEqual(stored.cursor, "2");
+  });
+
+  it("should append the next page using the stored cursor", async () => {
+    const dataStore = new DataStore();
+    const capturedCursors = [];
+    const pages = [
+      { members: [{ did: "did:plc:alice" }], cursor: "1" },
+      { members: [{ did: "did:plc:bob" }] },
+    ];
+    const mockApi = {
+      getConvoMembers: async (id, { cursor }) => {
+        capturedCursors.push(cursor);
+        return pages.shift();
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+    await requests.loadConvoMembers(convoId);
+
+    assert.deepEqual(capturedCursors, ["", "1"]);
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice", "did:plc:bob"],
+    );
+    assert.deepEqual(stored.cursor, null);
+  });
+
+  it("should overwrite the stored list on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$convoMemberLists.set(convoId, {
+      members: [{ did: "did:plc:stale" }],
+      cursor: "5",
+    });
+    const capturedCursors = [];
+    const mockApi = {
+      getConvoMembers: async (id, { cursor }) => {
+        capturedCursors.push(cursor);
+        return { members: [{ did: "did:plc:alice" }] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId, { reload: true });
+
+    assert.deepEqual(capturedCursors, [""]);
+    const stored = dataStore.$convoMemberLists.get(convoId);
+    assert.deepEqual(
+      stored.members.map((member) => member.did),
+      ["did:plc:alice"],
+    );
+  });
+
+  it("should record an ApiError under the namespaced key without rethrowing", async () => {
+    const apiError = new ApiError({
+      status: 400,
+      statusText: "Bad Request",
+      data: { error: "InvalidConvo" },
+      headers: {},
+      url: "/x",
+    });
+    const dataStore = new DataStore();
+    const mockApi = {
+      getConvoMembers: async () => {
+        throw apiError;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadConvoMembers(convoId);
+
+    const status = requests.getStatus("loadConvoMembers-" + convoId);
+    assert.deepEqual(status.loading, false);
+    assert(
+      status.error === apiError,
+      "expected status.error to be the ApiError",
+    );
+    assert.deepEqual(dataStore.$convoMemberLists.get(convoId), null);
   });
 });
 

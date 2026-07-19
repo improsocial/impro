@@ -31,6 +31,9 @@ export class PostCreator {
     quotedRecord,
     images,
     video,
+    labels = null,
+    threadgateAllow = null,
+    postgateEmbeddingRules = null,
   }) {
     const trimmedText = trimPostText(postText);
     const unresolvedFacets = getUnresolvedFacetsFromText(trimmedText);
@@ -88,7 +91,24 @@ export class PostCreator {
       embed,
       reply,
       langs: getPostLangs(),
+      labels,
     });
+
+    if (threadgateAllow) {
+      try {
+        await this.api.createThreadgate(res.uri, threadgateAllow);
+      } catch (error) {
+        console.error("Failed to create threadgate", error);
+      }
+    }
+
+    if (postgateEmbeddingRules?.length > 0) {
+      try {
+        await this.api.createPostgate(res.uri, postgateEmbeddingRules);
+      } catch (error) {
+        console.error("Failed to create postgate", error);
+      }
+    }
 
     // Attempt to get full post from the app view, return null on failure
     const maxRetries = 5;

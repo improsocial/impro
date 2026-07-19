@@ -38,7 +38,12 @@ import {
   pinScrollPosition,
 } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { getPermalinkForConvo, linkToProfile } from "/js/navigation.js";
+import { ApiError } from "/js/api.js";
+import {
+  getPermalinkForConvo,
+  linkToGroupChatDetails,
+  linkToProfile,
+} from "/js/navigation.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
@@ -62,6 +67,10 @@ class ChatDetailView extends View {
     },
   }) {
     await auth.requireAuth();
+
+    const canViewGroupDetails = await auth.hasScope(
+      "rpc:chat.bsky.convo.getConvoMembers",
+    );
 
     const convoId = params.convoId;
 
@@ -1293,8 +1302,15 @@ class ChatDetailView extends View {
     }
 
     function messagesErrorTemplate({ error }) {
+      if (error instanceof ApiError && error.data?.error === "InvalidConvo") {
+        return html`<div class="error-state" data-testid="convo-not-found">
+          <h3>Not Found</h3>
+          <div>Conversation not found</div>
+          <button @click=${() => window.location.reload()}>Try again</button>
+        </div>`;
+      }
       console.error(error);
-      return html`<div class="error-state">
+      return html`<div class="error-state" data-testid="messages-error">
         <div>There was an error loading messages.</div>
         <button @click=${() => window.location.reload()}>Try again</button>
       </div>`;
@@ -1329,10 +1345,15 @@ class ChatDetailView extends View {
       const messagesData =
         dataLayer.derived.$hydratedConvoMessages.get(convoId);
       const messages = messagesData?.messages ?? null;
+      const convoRequestStatus = dataLayer.requests.statusStore.$statuses.get(
+        "loadConvo-" + convoId,
+      );
       const messagesRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
           "loadConvoMessages-" + convoId,
         );
+      const requestError =
+        convoRequestStatus.error || messagesRequestStatus.error;
       const hasMore = !!messagesData?.cursor;
       const isSendingMessage = state.$isSendingMessage.get();
       const isLocked = !!groupDetails && groupDetails.lockStatus !== "unlocked";
@@ -1375,6 +1396,10 @@ class ChatDetailView extends View {
             },
             title,
             subtitle,
+            titleHref:
+              groupDetails && canViewGroupDetails
+                ? linkToGroupChatDetails(convoId)
+                : null,
             backButtonFallbackRoute: "/messages",
             rightItemTemplate: () => html`
               <button
@@ -1388,6 +1413,16 @@ class ChatDetailView extends View {
                 <span>...</span>
               </button>
               <context-menu>
+                ${groupDetails && canViewGroupDetails
+                  ? html`<context-menu-item
+                      data-testid="menu-action-group-chat-details"
+                      @click=${() => {
+                        router.go(linkToGroupChatDetails(convoId));
+                      }}
+                    >
+                      Group chat settings
+                    </context-menu-item>`
+                  : ""}
                 <context-menu-item
                   data-testid="menu-action-chat-open-in-bsky"
                   @click=${() => {
@@ -1400,30 +1435,26 @@ class ChatDetailView extends View {
             `,
           })}
           <main class="chat-detail-main">
-            ${(() => {
-              if (messagesRequestStatus.error) {
-                return messagesErrorTemplate({
-                  error: messagesRequestStatus.error,
-                });
-              } else if (messages) {
-                return messagesTemplate({
-                  loadingEnabled: state.$loadingEnabled.get(),
-                  messages,
-                  currentUserDid: currentUser?.did,
-                  convo,
-                  isGroup: !!groupDetails,
-                  hasMore,
-                  canReactNow,
-                });
-              } else {
-                return html`<div
-                  class="loading-spinner-container"
-                  style="padding-top: 16px;"
-                >
-                  <div class="loading-spinner"></div>
-                </div>`;
-              }
-            })()}
+            ${requestError
+              ? messagesErrorTemplate({
+                  error: requestError,
+                })
+              : messages
+                ? messagesTemplate({
+                    loadingEnabled: state.$loadingEnabled.get(),
+                    messages,
+                    currentUserDid: currentUser?.did,
+                    convo,
+                    isGroup: !!groupDetails,
+                    hasMore,
+                    canReactNow,
+                  })
+                : html`<div
+                    class="loading-spinner-container"
+                    style="padding-top: 16px;"
+                  >
+                    <div class="loading-spinner"></div>
+                  </div>`}
             <div class="message-input-wrapper">
               ${isLocked
                 ? html`<div

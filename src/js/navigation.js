@@ -73,7 +73,7 @@ export function linkToSearchPostsByProfile(profile) {
   const searchString = `from:@${profile.handle} `;
   const query = new URLSearchParams();
   query.set("q", searchString);
-  query.set("tab", "posts");
+  query.set("tab", "top");
   return `/search?${query.toString()}`;
 }
 
@@ -93,6 +93,10 @@ export function getPermalinkForProfile(profile) {
 
 export function getPermalinkForConvo(convoId) {
   return `${getPermalinkOrigin()}/messages/${encodePathSegment(convoId)}`;
+}
+
+export function linkToGroupChatDetails(convoId) {
+  return `/messages/${encodePathSegment(convoId)}/settings`;
 }
 
 export function linkToCommunityPlugin(pluginId) {

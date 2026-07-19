@@ -122,8 +122,6 @@ export function footerTemplate({
           </a>`;
         })}
       </nav>
-      <!-- This adds a background color to the bottom of the footer when it's raised -->
-      <div class="footer-nav-safe-area" data-testid="footer-safe-area"></div>
     </footer>
   `;
 }

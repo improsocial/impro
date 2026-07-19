@@ -111,6 +111,7 @@ export class Derived extends ReactiveStore {
     preferencesProvider,
     pluginService,
     isAuthenticated,
+    draftMediaStore,
   ) {
     super("derived");
     this.dataStore = dataStore;
@@ -118,6 +119,7 @@ export class Derived extends ReactiveStore {
     this.preferencesProvider = preferencesProvider;
     this.pluginService = pluginService;
     this.isAuthenticated = isAuthenticated;
+    this.draftMediaStore = draftMediaStore;
     this.$showLessInteractions = new Signal.Computed(() =>
       this.dataStore.$showLessInteractions.get(),
     );
@@ -279,6 +281,11 @@ export class Derived extends ReactiveStore {
       if (!data) return null;
       return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
     });
+    this.$searchTypeaheadResults = new Signal.Computed(() => {
+      const data = this.dataStore.$searchTypeaheadResults.get();
+      if (!data) return null;
+      return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    });
     this.$feedSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$feedSearchResults.get();
       if (!data) return null;
@@ -287,19 +294,17 @@ export class Derived extends ReactiveStore {
     this.$feedSearchCursor = new Signal.Computed(
       () => this.dataStore.$feedSearchResults.get()?.cursor ?? null,
     );
-    this.$postSearchResults = new Signal.Computed(() => {
-      const data = this.dataStore.$postSearchResults.get();
-      if (!data) return null;
-      const hydratedSearchResults = [];
-      for (const result of data.posts) {
-        const post = this.$hydratedPosts.get(result.uri);
-        if (!post) continue;
-        hydratedSearchResults.push(this.attachParentAuthor(post));
-      }
-      return hydratedSearchResults;
-    });
-    this.$postSearchCursor = new Signal.Computed(
-      () => this.dataStore.$postSearchResults.get()?.cursor ?? null,
+    this.$postSearchResultsTop = new Signal.Computed(() =>
+      this.hydratePostSearchResults(this.dataStore.$postSearchResultsTop),
+    );
+    this.$postSearchResultsLatest = new Signal.Computed(() =>
+      this.hydratePostSearchResults(this.dataStore.$postSearchResultsLatest),
+    );
+    this.$postSearchCursorTop = new Signal.Computed(
+      () => this.dataStore.$postSearchResultsTop.get()?.cursor ?? null,
+    );
+    this.$postSearchCursorLatest = new Signal.Computed(
+      () => this.dataStore.$postSearchResultsLatest.get()?.cursor ?? null,
     );
     this.$hydratedPostQuotes = new ComputedMap((postUri) => {
       const quotes = this.dataStore.$postQuotes.get(postUri);
@@ -448,6 +453,22 @@ export class Derived extends ReactiveStore {
         cursor: data.cursor,
       });
     });
+    this.$hydratedDrafts = new Signal.Computed(() => {
+      const data = this.dataStore.$drafts.get();
+      if (!data) {
+        return null;
+      }
+      const media = this.draftMediaStore.$media.get();
+      return {
+        drafts: data.drafts.map((draftView) => ({
+          ...draftView,
+          posts: (draftView.draft.posts ?? []).map((draftPost) =>
+            this.hydrateDraftPost(draftPost, media),
+          ),
+        })),
+        cursor: data.cursor,
+      };
+    });
     this.$labelerSettings = new ComputedMap((labelerDid) => {
       const preferences = this.$preferences.get();
       if (!preferences) return null;
@@ -530,6 +551,9 @@ export class Derived extends ReactiveStore {
     });
     this.$convoMembers = new ComputedMap((convoId) => {
       return this.dataStore.$convos.get(convoId)?.members ?? null;
+    });
+    this.$groupConvoMemberList = new ComputedMap((convoId) => {
+      return this.dataStore.$convoMemberLists.get(convoId);
     });
     this.$convoMessages = new ComputedMap((convoId) => {
       const messages = this.dataStore.$convoMessages.get(convoId);
@@ -616,6 +640,47 @@ export class Derived extends ReactiveStore {
     );
   }
 
+  hydrateDraftImageItem(item, media) {
+    if (!item.localRef?.path) {
+      return item;
+    }
+    const entry = media[item.localRef.path];
+    return {
+      ...item,
+      exists: entry != null,
+      previewUrl: entry?.url ?? null,
+    };
+  }
+
+  // Decorates a draft post's media embeds with local state: `exists` on
+  // images and videos, plus `previewUrl` on images
+  hydrateDraftPost(draftPost, media) {
+    const hydrated = { ...draftPost };
+    if (draftPost.embedGallery) {
+      hydrated.embedGallery = {
+        ...draftPost.embedGallery,
+        items: (draftPost.embedGallery.items ?? []).map((item) =>
+          this.hydrateDraftImageItem(item, media),
+        ),
+      };
+    }
+    if (draftPost.embedImages) {
+      hydrated.embedImages = draftPost.embedImages.map((item) =>
+        this.hydrateDraftImageItem(item, media),
+      );
+    }
+    if (draftPost.embedVideos) {
+      hydrated.embedVideos = draftPost.embedVideos.map((videoEmbed) => {
+        if (!videoEmbed.localRef?.path) {
+          return videoEmbed;
+        }
+        const entry = media[videoEmbed.localRef.path];
+        return { ...videoEmbed, exists: entry != null };
+      });
+    }
+    return hydrated;
+  }
+
   attachJoinLinkPreview(item) {
     const code = getJoinLinkCodeFromEmbed(item?.embed);
     if (!code) return item;
@@ -663,6 +728,18 @@ export class Derived extends ReactiveStore {
         },
       },
     };
+  }
+
+  hydratePostSearchResults($storedResults) {
+    const data = $storedResults.get();
+    if (!data) return null;
+    const hydratedSearchResults = [];
+    for (const result of data.posts) {
+      const post = this.$hydratedPosts.get(result.uri);
+      if (!post) continue;
+      hydratedSearchResults.push(this.attachParentAuthor(post));
+    }
+    return hydratedSearchResults;
   }
 
   hydrateNotification(notification) {

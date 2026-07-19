@@ -22,8 +22,8 @@ import {
   withTimeout,
   wait,
   enableLongPress,
+  enableDragToDismiss,
   TimeoutError,
-  debounce,
   resetScrollOnBlur,
   pinScrollPosition,
 } from "/js/utils.js";
@@ -1060,44 +1060,149 @@ describe("enableLongPress - context menu", () => {
   });
 });
 
-describe("debounce", () => {
-  let originalSetTimeout;
+describe("enableDragToDismiss", () => {
+  let el;
+  let closeCount;
+  let dragState;
+  let originalMatchMedia;
+  let originalVisualViewport;
+
+  const setKeyboardOpen = (open) => {
+    window.visualViewport = {
+      height: open ? window.innerHeight - 300 : window.innerHeight,
+    };
+  };
+
+  const drag = async (deltaY) => {
+    el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+    el.dispatchEvent(
+      pressEvent("touchmove", { touch: true, clientY: 100 + deltaY }),
+    );
+    el.dispatchEvent(pressEvent("touchend", { touch: true }));
+    await wait(0);
+  };
 
   beforeEach(() => {
-    originalSetTimeout = globalThis.setTimeout;
-    globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+    originalMatchMedia = window.matchMedia;
+    window.matchMedia = (query) => ({
+      matches: query === "(max-width: 799px)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    });
+    originalVisualViewport = window.visualViewport;
+    setKeyboardOpen(false);
+    el = document.createElement("div");
+    document.body.appendChild(el);
+    closeCount = 0;
+    dragState = null;
   });
 
   afterEach(() => {
-    globalThis.setTimeout = originalSetTimeout;
+    dragState?.cleanup();
+    el.remove();
+    window.matchMedia = originalMatchMedia;
+    window.visualViewport = originalVisualViewport;
   });
 
-  it("fires once with the latest arguments", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("first");
-    debounced("second");
-    await wait(10);
-    assert.deepEqual(calls, ["second"]);
+  it("returns null on non-mobile viewports", () => {
+    window.matchMedia = originalMatchMedia;
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    assert.deepEqual(dragState, null);
   });
 
-  it("does not fire a pending invocation after cancel", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("pending");
-    debounced.cancel();
-    await wait(10);
-    assert.deepEqual(calls, []);
+  it("dismisses on a downward drag past the threshold", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(closeCount, 1);
   });
 
-  it("fires again when invoked after cancel", async () => {
-    const calls = [];
-    const debounced = debounce((value) => calls.push(value));
-    debounced("cancelled");
-    debounced.cancel();
-    debounced("kept");
-    await wait(10);
-    assert.deepEqual(calls, ["kept"]);
+  it("does not dismiss on a drag below the threshold", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(50);
+    assert.deepEqual(closeCount, 0);
+  });
+
+  it("dismisses while the keyboard is open by default", async () => {
+    setKeyboardOpen(true);
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(closeCount, 1);
+  });
+
+  it("ignores drags while the keyboard is open when disableWhenKeyboardOpen is true", async () => {
+    setKeyboardOpen(true);
+    dragState = enableDragToDismiss(el, {
+      onClose: () => closeCount++,
+      disableWhenKeyboardOpen: true,
+    });
+    await drag(150);
+    assert.deepEqual(closeCount, 0);
+    assert.deepEqual(el.style.transform, "");
+  });
+
+  it("hides the caret while the sheet is displaced", () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+    el.dispatchEvent(pressEvent("touchmove", { touch: true, clientY: 150 }));
+    assert.deepEqual(el.style.caretColor, "transparent");
+  });
+
+  it("restores the caret only after the snap-back transition lands", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(50);
+    assert.deepEqual(el.style.caretColor, "transparent");
+    await wait(200);
+    assert.deepEqual(el.style.caretColor, "");
+  });
+
+  it("keeps the caret hidden through a dismiss", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    assert.deepEqual(el.style.caretColor, "transparent");
+  });
+
+  it("restores the caret on cleanup", async () => {
+    dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+    await drag(150);
+    dragState.cleanup();
+    assert.deepEqual(el.style.caretColor, "");
+  });
+
+  describe("with text selected", () => {
+    beforeEach(() => {
+      el.textContent = "some selectable text";
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      const selection = document.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+    });
+
+    afterEach(() => {
+      document.getSelection().removeAllRanges();
+    });
+
+    it("ignores drags that start while text is selected", async () => {
+      dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+      await drag(150);
+      assert.deepEqual(closeCount, 0);
+      assert.deepEqual(el.style.transform, "");
+    });
+
+    it("abandons a drag when a selection appears mid-gesture", async () => {
+      dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
+      document.getSelection().removeAllRanges();
+      el.dispatchEvent(pressEvent("touchstart", { touch: true, clientY: 100 }));
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      document.getSelection().addRange(range);
+      el.dispatchEvent(pressEvent("touchmove", { touch: true, clientY: 250 }));
+      el.dispatchEvent(pressEvent("touchend", { touch: true }));
+      await wait(0);
+      assert.deepEqual(closeCount, 0);
+      assert.deepEqual(el.style.transform, "");
+    });
   });
 });
 

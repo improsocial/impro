@@ -15,6 +15,7 @@ export function profileListItemTemplate({
   currentUserDid = null,
   profileInteractionHandler = null,
   showFollowButton = true,
+  badgeTemplate = null,
 }) {
   const displayName = getDisplayName(actor);
   const isCurrentUser = currentUserDid && actor.did === currentUserDid;
@@ -54,6 +55,7 @@ export function profileListItemTemplate({
           @${actor.handle}
         </div>
       </div>
+      ${badgeTemplate ? (badgeTemplate(actor) ?? "") : ""}
       ${showsFollowControl
         ? html`<button
             @click=${() => {
@@ -132,6 +134,7 @@ export function profileFeedTemplate({
   currentUserDid = null,
   profileInteractionHandler = null,
   showFollowButton = true,
+  badgeTemplate = null,
 }) {
   if (!profiles) {
     return html`<div class="profile-list">
@@ -162,6 +165,7 @@ export function profileFeedTemplate({
           currentUserDid,
           profileInteractionHandler,
           showFollowButton,
+          badgeTemplate,
         }),
       )}
     </div>

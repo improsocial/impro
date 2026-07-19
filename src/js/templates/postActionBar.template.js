@@ -7,6 +7,8 @@ import {
   groupBy,
   noop,
   classnames,
+  isAndroid,
+  isFirefox,
 } from "/js/utils.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
@@ -27,6 +29,22 @@ function getBlueskyLinkForPost(post) {
 
 function getFullPostText(post) {
   return richTextToString(post.record.text, post.record.facets);
+}
+
+// The Google Translate Android app claims translate.google.com links but drops
+// their query params, so on Android the text has to be delivered via a
+// PROCESS_TEXT intent instead. Firefox doesn't support intents so fallback to the web url
+function openTranslator(text, targetLang) {
+  const webUrl = `https://translate.google.com/?sl=auto&tl=${targetLang}&text=${encodeURIComponent(text)}`;
+  if (isAndroid() && !isFirefox()) {
+    window.location.href =
+      "intent:#Intent;action=android.intent.action.PROCESS_TEXT;type=text/plain;" +
+      `S.android.intent.extra.PROCESS_TEXT=${encodeURIComponent(text)};` +
+      "B.android.intent.extra.PROCESS_TEXT_READONLY=true;" +
+      `S.browser_fallback_url=${encodeURIComponent(webUrl)};end`;
+  } else {
+    window.open(webUrl, "_blank");
+  }
 }
 
 function postContextMenuTemplate({
@@ -73,8 +91,7 @@ function postContextMenuTemplate({
               @click=${() => {
                 const postText = getFullPostText(post);
                 const targetLang = getBrowserLanguageCodes()[0] || "en";
-                const url = `https://translate.google.com/?sl=auto&tl=${targetLang}&text=${encodeURIComponent(postText)}`;
-                window.open(url, "_blank");
+                openTranslator(postText, targetLang);
               }}
             >
               Translate

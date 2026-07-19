@@ -488,6 +488,7 @@ class EditProfileDialog extends Component {
           el.tagName === "INPUT" ||
           el.tagName === "TEXTAREA" ||
           !!el.closest("image-cropper"),
+        disableWhenKeyboardOpen: true,
       });
 
       resetScrollOnBlur(

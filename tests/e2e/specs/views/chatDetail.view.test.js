@@ -1,5 +1,6 @@
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
+import { OAUTH_SCOPES } from "../../../../src/oauthScopes.js";
 import { MockServer } from "../../mockServer.js";
 import {
   createConvo,
@@ -659,6 +660,132 @@ test.describe("Chat detail view", () => {
     expect(popup.url()).toBe("https://bsky.app/messages/convo-1");
   });
 
+  test("should navigate to group chat details from the chat menu", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await chatDetailView
+      .locator('[data-testid="menu-action-group-chat-details"]')
+      .click();
+
+    await expect(
+      page.locator('#group-chat-details-view [data-testid="group-name"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+  });
+
+  test("should navigate to group chat details when clicking the header title", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="header-title"]').click();
+
+    await expect(
+      page.locator('#group-chat-details-view [data-testid="group-name"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+  });
+
+  test("should not show group chat details menu item for direct chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-chat-open-in-bsky"]'),
+    ).toBeVisible();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-group-chat-details"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should not offer group chat details when the session lacks the members scope", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    const scopeWithoutMembers = OAUTH_SCOPES.split(" ")
+      .filter((scope) => !scope.includes("chat.bsky.convo.getConvoMembers"))
+      .join(" ");
+    await login(page, { scope: scopeWithoutMembers });
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="header-title"]'),
+    ).toContainText("Cool Group", { timeout: 10000 });
+    await expect(chatDetailView.locator(".header-title-link")).toHaveCount(0);
+
+    await chatDetailView.locator('[data-testid="chat-menu-button"]').click();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-chat-open-in-bsky"]'),
+    ).toBeVisible();
+    await expect(
+      chatDetailView.locator('[data-testid="menu-action-group-chat-details"]'),
+    ).toHaveCount(0);
+  });
+
   test("should add emoji reaction to a message", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({
@@ -1034,10 +1161,10 @@ test.describe("Chat detail view", () => {
     await expect(page.locator("emoji-picker")).toHaveCount(0);
   });
 
-  test("should hide the chat-input emoji button on mobile viewports", async ({
+  test("should show the chat-input emoji button on mobile viewports", async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 600, height: 800 });
+    await page.setViewportSize({ width: 375, height: 667 });
 
     const mockServer = new MockServer();
     const alice = createProfile({
@@ -1063,7 +1190,7 @@ test.describe("Chat detail view", () => {
     });
     await expect(
       chatDetailView.locator(".message-input-emoji-button"),
-    ).toBeHidden();
+    ).toBeVisible();
   });
 
   test.describe("Group conversations", () => {
@@ -2391,5 +2518,21 @@ test.describe("Chat detail view", () => {
         ),
       ).toBeVisible();
     });
+  });
+
+  test("shows a not-found error when the conversation doesn't exist", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-missing");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(
+      chatDetailView.locator('[data-testid="convo-not-found"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(0);
   });
 });

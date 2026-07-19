@@ -11,7 +11,7 @@ export async function longPress(page, locator) {
   await page.mouse.up();
 }
 
-export async function login(page) {
+export async function login(page, { scope = OAUTH_SCOPES } = {}) {
   const oauthSession = {
     did: userProfile.did,
     serviceEndpoint: "https://fake.bsky.social",
@@ -22,7 +22,7 @@ export async function login(page) {
     authServerMetadata: {
       token_endpoint: `https://fake.bsky.social/oauth/token`,
     },
-    scope: OAUTH_SCOPES,
+    scope,
   };
   await page.addInitScript((session) => {
     localStorage.setItem("oauth_session", JSON.stringify(session));

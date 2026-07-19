@@ -17,6 +17,7 @@ import {
   getPostsFromFeed,
 } from "/js/dataHelpers.js";
 import { Constellation } from "/js/constellation.js";
+import { getLocalRefsFromDraft } from "/js/dataHelpers.js";
 import { unique } from "/js/utils.js";
 import { SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
@@ -167,12 +168,14 @@ export class Requests {
     dataStore,
     preferencesProvider,
     pluginService,
+    draftMediaStore,
     { constellation } = {},
   ) {
     this.api = api;
     this.pluginService = pluginService;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
+    this.draftMediaStore = draftMediaStore;
     this.constellation = constellation ?? new Constellation();
     this.statusStore = new StatusStore();
     // Enable status tracking
@@ -193,9 +196,14 @@ export class Requests {
       (query) => "loadProfileSearch-" + query,
     );
     this.enableStatus(this.loadChatRecipientSearch, "loadChatRecipientSearch");
+    this.enableStatus(this.loadSearchTypeahead, "loadSearchTypeahead");
     this.enableStatus(
-      this.loadPostSearch,
-      (query, { sort = "top" } = {}) => `loadPostSearch-${query}-${sort}`,
+      this.loadPostSearchTop,
+      (query) => "loadPostSearchTop-" + query,
+    );
+    this.enableStatus(
+      this.loadPostSearchLatest,
+      (query) => "loadPostSearchLatest-" + query,
     );
     this.enableStatus(
       this.loadFeedSearch,
@@ -208,6 +216,11 @@ export class Requests {
     );
     this.enableStatus(this.loadConvoList, "loadConvoList");
     this.enableStatus(this.loadConvoRequestList, "loadConvoRequestList");
+    this.enableStatus(this.loadConvo, (convoId) => "loadConvo-" + convoId);
+    this.enableStatus(
+      this.loadConvoMembers,
+      (convoId) => "loadConvoMembers-" + convoId,
+    );
     this.enableStatus(
       this.loadConvoMessages,
       (convoId) => "loadConvoMessages-" + convoId,
@@ -236,6 +249,7 @@ export class Requests {
       this.loadKnownFollowers,
       (profileDid) => "loadKnownFollowers-" + profileDid,
     );
+    this.enableStatus(this.loadDrafts, "loadDrafts");
     this.enableStatus(this.loadBlockedProfiles, "loadBlockedProfiles");
     this.enableStatus(this.loadMutedProfiles, "loadMutedProfiles");
   }
@@ -630,26 +644,72 @@ export class Requests {
     this.dataStore.$chatRecipientSearchResults.set(searchData);
   }
 
-  async loadPostSearch(query, { limit = 25, sort = "top", cursor = "" } = {}) {
+  async loadSearchTypeahead(query, { limit = 8 } = {}) {
     if (!query) {
       // Invalidate in-flight searches so they can't repopulate cleared results
-      this.dataStore.$latestPostSearchRequestTime.set(null);
-      this.dataStore.$postSearchResults.set(null);
+      this.dataStore.$latestSearchTypeaheadRequestTime.set(null);
+      this.dataStore.$searchTypeaheadResults.set(null);
       return;
-    }
-    if (!cursor) {
-      this.dataStore.$postSearchResults.set(null);
     }
     const labelers = this.requireLabelers();
     const requestTime = Date.now();
-    this.dataStore.$latestPostSearchRequestTime.set(requestTime);
+    this.dataStore.$latestSearchTypeaheadRequestTime.set(requestTime);
+    const searchData = await this.api.searchProfilesTypeahead(query, {
+      limit,
+      labelers,
+    });
+    if (
+      requestTime !== this.dataStore.$latestSearchTypeaheadRequestTime.get()
+    ) {
+      return;
+    }
+    this.dataStore.setProfiles(searchData.actors);
+    this.dataStore.$searchTypeaheadResults.set(searchData);
+  }
+
+  async loadPostSearchTop(query, { limit = 25, cursor = "" } = {}) {
+    await this._loadPostSearch(query, {
+      limit,
+      cursor,
+      sort: "top",
+      $results: this.dataStore.$postSearchResultsTop,
+      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeTop,
+    });
+  }
+
+  async loadPostSearchLatest(query, { limit = 25, cursor = "" } = {}) {
+    await this._loadPostSearch(query, {
+      limit,
+      cursor,
+      sort: "latest",
+      $results: this.dataStore.$postSearchResultsLatest,
+      $latestRequestTime: this.dataStore.$latestPostSearchRequestTimeLatest,
+    });
+  }
+
+  async _loadPostSearch(
+    query,
+    { limit, cursor, sort, $results, $latestRequestTime },
+  ) {
+    if (!query) {
+      // Invalidate in-flight searches so they can't repopulate cleared results
+      $latestRequestTime.set(null);
+      $results.set(null);
+      return;
+    }
+    if (!cursor) {
+      $results.set(null);
+    }
+    const labelers = this.requireLabelers();
+    const requestTime = Date.now();
+    $latestRequestTime.set(requestTime);
     const searchData = await this.api.searchPosts(query, {
       limit,
       sort,
       cursor,
       labelers,
     });
-    if (requestTime !== this.dataStore.$latestPostSearchRequestTime.get()) {
+    if (requestTime !== $latestRequestTime.get()) {
       return;
     }
     const searchResults = searchData.posts || [];
@@ -666,14 +726,18 @@ export class Requests {
       await this._loadPostDependencies(searchResults);
       this.dataStore.setPosts([...searchResults, ...parentPosts]);
     }
-    const existingResults = this.dataStore.$postSearchResults.get();
+    // Re-check relevance after loading dependencies
+    if (requestTime !== $latestRequestTime.get()) {
+      return;
+    }
+    const existingResults = $results.get();
     if (existingResults && cursor) {
-      this.dataStore.$postSearchResults.set({
+      $results.set({
         posts: [...existingResults.posts, ...searchResults],
         cursor: searchData.cursor,
       });
     } else {
-      this.dataStore.$postSearchResults.set({
+      $results.set({
         posts: searchResults,
         cursor: searchData.cursor,
       });
@@ -856,6 +920,21 @@ export class Requests {
     const labelers = this.requireLabelers();
     const res = await this.api.getConvo(convoId, { labelers });
     this.dataStore.$convos.set(convoId, res.convo);
+  }
+
+  async loadConvoMembers(convoId, { reload = false } = {}) {
+    const cursor = reload
+      ? ""
+      : readCollectionCursor(this.dataStore.$convoMemberLists, {
+          key: convoId,
+        });
+    const labelers = this.requireLabelers();
+    const res = await this.api.getConvoMembers(convoId, { cursor, labelers });
+    writePageToCollection(this.dataStore.$convoMemberLists, "members", res, {
+      key: convoId,
+      requestCursor: cursor,
+      overwrite: reload,
+    });
   }
 
   async _loadPostDependencies(posts) {
@@ -1304,6 +1383,20 @@ export class Requests {
       requestCursor: cursor,
       overwrite: reload,
     });
+  }
+
+  async loadDrafts({ reload = false } = {}) {
+    const cursor = reload ? "" : readCollectionCursor(this.dataStore.$drafts);
+    const res = await this.api.getDrafts({ cursor });
+    writePageToCollection(this.dataStore.$drafts, "drafts", res, {
+      requestCursor: cursor,
+      overwrite: reload,
+    });
+    // Load media refs
+    const localRefs = res.drafts.flatMap((draftView) =>
+      getLocalRefsFromDraft(draftView.draft),
+    );
+    await this.draftMediaStore.load(localRefs);
   }
 
   async loadProfileFollowers(profileDid, { cursor } = {}) {

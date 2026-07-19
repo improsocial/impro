@@ -65,12 +65,7 @@ export function avatarTemplate({
             "labeler-avatar": isLabeler,
           })}
         >
-          <!-- 
-          This single character fixes a weird bug on iOS safari
-          where the chatDetail page would render extra slowly.
-          I don't know why it works, but it does. 
-          Since line height is zero, it shouldn't be visible on the page. -->
-          x
+          <span class="hack-x">x</span>
           <img
             src="${avatarThumbnailUrl}"
             alt="${author.displayName} profile picture"

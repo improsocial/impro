@@ -44,6 +44,8 @@ export const hasKeyboardInput = () =>
   window.matchMedia("(hover: hover) and (pointer: fine)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+export const isAndroid = () => /android/i.test(navigator.userAgent);
+export const isFirefox = () => /firefox/i.test(navigator.userAgent);
 
 export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   let fn = fnOrKey;
@@ -176,6 +178,16 @@ function formatWithSuffix(value, suffix) {
   return formatted + suffix;
 }
 
+// E.g. September 29, 2025
+export function formatFullDate(timestamp) {
+  const date = new Date(timestamp);
+  return date.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 // E.g. September 29, 2025 at 3:44 PM
 export function formatFullTimestamp(timestamp) {
   const date = new Date(timestamp);
@@ -229,18 +241,6 @@ export function deepClone(value) {
     );
   }
   return value;
-}
-
-export function debounce(fn, delay = 250) {
-  let timeoutId = null;
-  const debounced = (...args) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-  debounced.cancel = () => {
-    clearTimeout(timeoutId);
-  };
-  return debounced;
 }
 
 export function throttle(fn, delay = 250) {
@@ -368,7 +368,7 @@ export function enableDragToDismiss(
     allowUpwardStretch = false,
     ignoreTouchTarget = () => false,
     scrollContainer = null,
-    disableWhenKeyboardOpen = true,
+    disableWhenKeyboardOpen = false,
   } = {},
 ) {
   if (!isMobileViewport()) return null;
@@ -379,6 +379,8 @@ export function enableDragToDismiss(
 
   const DISMISS_THRESHOLD = 75;
   const RESISTANCE_FACTOR = 0.6;
+  const SNAP_BACK_MS = 150;
+  let caretRestoreTimer = null;
 
   const dragState = {
     startY: 0,
@@ -396,10 +398,17 @@ export function enableDragToDismiss(
     viewport &&
     window.innerHeight - viewport.height > KEYBOARD_THRESHOLD;
 
+  const hasTextSelection = () => {
+    const selection = document.getSelection();
+    return selection !== null && !selection.isCollapsed;
+  };
+
   const handleTouchStart = (e) => {
     if (isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
+    if (hasTextSelection()) return;
 
+    clearTimeout(caretRestoreTimer);
     dragState.startY = e.touches[0].clientY;
     dragState.currentY = dragState.startY;
     dragState.isDragging = true;
@@ -418,12 +427,22 @@ export function enableDragToDismiss(
   const handleTouchMove = (e) => {
     if (!dragState.isDragging) return;
 
+    // A selection that appears mid-gesture (long-press) switches to text selection.
+    if (hasTextSelection()) {
+      dragState.isDragging = false;
+      target.style.transform = "";
+      target.style.caretColor = "";
+      return;
+    }
+
     dragState.currentY = e.touches[0].clientY;
     const deltaY = dragState.currentY - dragState.startY;
 
     if (deltaY > 0 && dragState.canDismiss) {
       e.preventDefault();
       const adjustedDelta = deltaY * RESISTANCE_FACTOR;
+      // Hide caret while dragging
+      target.style.caretColor = "transparent";
       target.style.transform = `translateY(${adjustedDelta}px)`;
     } else if (deltaY < 0 && dragState.canStretch) {
       e.preventDefault();
@@ -432,6 +451,7 @@ export function enableDragToDismiss(
     } else if (scrollContainer && deltaY !== 0) {
       dragState.isDragging = false;
       target.style.transform = "";
+      target.style.caretColor = "";
     } else {
       e.preventDefault();
     }
@@ -442,8 +462,8 @@ export function enableDragToDismiss(
 
     const deltaY = dragState.currentY - dragState.startY;
     target.style.transition = allowUpwardStretch
-      ? "transform 0.15s ease-out, height 0.15s ease-out"
-      : "transform 0.15s ease-out";
+      ? `transform ${SNAP_BACK_MS}ms ease-out, height ${SNAP_BACK_MS}ms ease-out`
+      : `transform ${SNAP_BACK_MS}ms ease-out`;
 
     if (deltaY > DISMISS_THRESHOLD && (await confirmDismiss())) {
       target.style.transform = "translateY(100%)";
@@ -451,6 +471,9 @@ export function enableDragToDismiss(
     } else {
       target.style.transform = "";
       if (dragState.canStretch) target.style.height = "";
+      caretRestoreTimer = setTimeout(() => {
+        target.style.caretColor = "";
+      }, SNAP_BACK_MS);
     }
 
     dragState.isDragging = false;
@@ -465,6 +488,7 @@ export function enableDragToDismiss(
   eventSource.addEventListener("touchend", handleTouchEnd);
 
   dragState.cleanup = () => {
+    clearTimeout(caretRestoreTimer);
     delete target.__dragToDismiss;
     eventSource.removeEventListener("touchstart", handleTouchStart);
     eventSource.removeEventListener("touchmove", handleTouchMove);
@@ -472,6 +496,7 @@ export function enableDragToDismiss(
     target.style.transform = "";
     target.style.transition = "";
     target.style.height = "";
+    target.style.caretColor = "";
   };
 
   target.__dragToDismiss = dragState;

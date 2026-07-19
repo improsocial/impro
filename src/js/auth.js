@@ -301,12 +301,17 @@ export class OAuthProvider {
 
 const FORCE_LOGOUT_QUERY_PARAM = "force-logout";
 
-export function getMissingScopes(grantedScope, requiredScope) {
+export function getMissingScopes(
+  grantedScope,
+  requiredScope,
+  optionalScope = "",
+) {
   const granted = new Set(grantedScope.split(/\s+/).filter(Boolean));
+  const optional = new Set(optionalScope.split(/\s+/).filter(Boolean));
   return requiredScope
     .split(/\s+/)
     .filter(Boolean)
-    .filter((scope) => !granted.has(scope));
+    .filter((scope) => !granted.has(scope) && !optional.has(scope));
 }
 
 export class Auth {
@@ -340,10 +345,12 @@ export class Auth {
   async listAccounts() {
     const accounts = (await this.provider.listAccounts?.()) ?? [];
     const requiredScope = window.env?.oauthScopes ?? "";
+    const optionalScope = window.env?.oauthOptionalScopes ?? "";
     // Mark accounts with out-of-date scopes as "needsReauth"
     return accounts.map((account) => {
       const scopesOutOfDate =
-        getMissingScopes(account.scope ?? "", requiredScope).length > 0;
+        getMissingScopes(account.scope ?? "", requiredScope, optionalScope)
+          .length > 0;
       return {
         ...account,
         needsReauth: account.needsReauth || scopesOutOfDate,
@@ -410,10 +417,24 @@ export class Auth {
     return null;
   }
 
+  // Check for scope, ignoring query params
+  async hasScope(scope) {
+    const session = await this.provider.getSession();
+    if (!session) return false;
+    if (!session.scope) return true;
+    return session.scope
+      .split(/\s+/)
+      .some((granted) => granted === scope || granted.startsWith(scope + "?"));
+  }
+
   async ensureCurrentScopes() {
     const session = await this.provider.getSession();
     if (!session?.scope) return;
-    const missing = getMissingScopes(session.scope, window.env.oauthScopes);
+    const missing = getMissingScopes(
+      session.scope,
+      window.env.oauthScopes,
+      window.env.oauthOptionalScopes ?? "",
+    );
     if (missing.length === 0) return;
     console.warn("OAuth scopes are out of date, forcing re-auth:", missing);
     try {

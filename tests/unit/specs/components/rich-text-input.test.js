@@ -32,6 +32,31 @@ describe("rich-text-input", () => {
       assert.deepEqual(element.text, "");
     });
 
+    it("should reflect autofocus onto the contenteditable div", () => {
+      const element = document.createElement("rich-text-input");
+      element.setAttribute("autofocus", "");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+      assert(input.hasAttribute("autofocus"));
+    });
+
+    it("should not set autofocus on the contenteditable div by default", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+      assert(!input.hasAttribute("autofocus"));
+    });
+
+    it("should update the contenteditable autofocus when the attribute changes", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      element.setAttribute("autofocus", "");
+      const input = element.querySelector(".rich-text-input");
+      assert(input.hasAttribute("autofocus"));
+      element.removeAttribute("autofocus");
+      assert(!input.hasAttribute("autofocus"));
+    });
+
     it("should render placeholder", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
@@ -179,6 +204,46 @@ describe("rich-text-input", () => {
       assert.deepEqual(details[0].inputType, "insertFromPaste");
     });
 
+    it("falls back to text/uri-list when text/plain is empty on paste", () => {
+      const element = document.createElement("rich-text-input");
+      document.body.appendChild(element);
+      const input = element.querySelector(".rich-text-input");
+
+      const details = [];
+      element.addEventListener("input", (event) => {
+        details.push(event.detail);
+      });
+
+      const originalExecCommand = document.execCommand;
+      document.execCommand = (name, _ui, value) => {
+        input.textContent = input.textContent + value;
+        input.dispatchEvent(new window.InputEvent("input"));
+        return true;
+      };
+      try {
+        const pasteEvent = new window.Event("paste", {
+          bubbles: true,
+          cancelable: true,
+        });
+        pasteEvent.clipboardData = {
+          getData: (type) =>
+            type === "text/uri-list"
+              ? "# copied from share sheet\r\nhttps://example.com/a\r\nhttps://example.com/b"
+              : "",
+        };
+        input.dispatchEvent(pasteEvent);
+      } finally {
+        document.execCommand = originalExecCommand;
+      }
+
+      assert.deepEqual(details.length, 1);
+      assert.deepEqual(
+        details[0].text,
+        "https://example.com/a\nhttps://example.com/b",
+      );
+      assert.deepEqual(details[0].inputType, "insertFromPaste");
+    });
+
     it("passes the native inputType through in the input detail", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
@@ -200,36 +265,40 @@ describe("rich-text-input", () => {
       assert.deepEqual(details[1].inputType, null);
     });
 
-    it("skips updates while IME composition is in progress", () => {
+    it("updates text and dispatches input during IME composition without repainting facets", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
-      element.setText("hello");
 
-      let inputEvents = 0;
-      element.addEventListener("input", () => {
-        inputEvents++;
+      const details = [];
+      element.addEventListener("input", (event) => {
+        details.push(event.detail);
       });
 
       const input = element.querySelector(".rich-text-input");
       input.dispatchEvent(new window.CompositionEvent("compositionstart"));
-      input.textContent = "hello でも";
+      input.textContent = "https://example.com";
       input.dispatchEvent(new Event("input"));
 
-      assert.deepEqual(element.text, "hello");
-      assert.deepEqual(inputEvents, 0);
+      assert.deepEqual(element.text, "https://example.com");
+      assert.deepEqual(details.length, 1);
+      assert.deepEqual(details[0].text, "https://example.com");
+      const placeholder = element.querySelector(".rich-text-input-placeholder");
+      assert(placeholder.classList.contains("hidden"));
+      assert.deepEqual(input.querySelectorAll(".facet").length, 0);
     });
 
-    it("resumes updates after composition ends", () => {
+    it("paints facets when composition ends", () => {
       const element = document.createElement("rich-text-input");
       document.body.appendChild(element);
-      element.setText("hello");
 
       const input = element.querySelector(".rich-text-input");
       input.dispatchEvent(new window.CompositionEvent("compositionstart"));
-      input.textContent = "hello でも";
+      input.textContent = "https://example.com";
+      input.dispatchEvent(new Event("input"));
       input.dispatchEvent(new window.CompositionEvent("compositionend"));
 
-      assert.deepEqual(element.text, "hello でも");
+      assert.deepEqual(element.text, "https://example.com");
+      assert.deepEqual(input.querySelectorAll(".facet").length, 1);
     });
   });
 

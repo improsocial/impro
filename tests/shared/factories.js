@@ -81,6 +81,21 @@ export function createGroupConvo({
   };
 }
 
+export function createGroupConvoMember({
+  profile,
+  role = "standard",
+  addedBy,
+}) {
+  return {
+    ...profile,
+    kind: {
+      $type: "chat.bsky.actor.defs#groupConvoMember",
+      role,
+      ...(addedBy ? { addedBy } : {}),
+    },
+  };
+}
+
 export function createMessageLog({ convoId, message, relatedProfiles }) {
   return {
     $type: "chat.bsky.convo.defs#logCreateMessage",

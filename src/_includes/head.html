@@ -2,7 +2,10 @@
 <link rel="icon" href="/img/favicon.ico" />
 <link rel="apple-touch-icon" sizes="180x180" href="/img/apple-touch-icon.png" />
 <link rel="manifest" href="/manifest.json" />
-<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta
+  name="viewport"
+  content="width=device-width, initial-scale=1.0, viewport-fit=cover"
+/>
 <title>Impro</title>
 <link rel="stylesheet" href="/css/style.css" />
 <!-- SEO tags -->
@@ -30,6 +33,7 @@
     environment: "{{ environment }}",
     version: "{{ version }}",
     oauthScopes: "{{ oauthScopes }}",
+    oauthOptionalScopes: "{{ oauthOptionalScopes }}",
     playwright: "{{ playwright }}" === "true",
     oatproxyClientId: "{{ oatproxyClientId }}",
   };

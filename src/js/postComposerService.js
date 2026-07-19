@@ -6,11 +6,12 @@ import { linkToPostFromUri } from "/js/navigation.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 
 export class PostComposerService {
-  constructor(dataLayer, identityResolver, pluginService) {
+  constructor(dataLayer, identityResolver, pluginService, { draftsEnabled }) {
     this.dataLayer = dataLayer;
     this.identityResolver = identityResolver;
     this.pluginService = pluginService;
     this.currentPostComposer = null;
+    this.draftsEnabled = draftsEnabled;
   }
 
   async composePost({
@@ -28,12 +29,6 @@ export class PostComposerService {
       return;
     }
     hapticsImpactLight();
-    const composerInit = await this.pluginService.getPostComposerInit({
-      kind: replyTo ? "reply" : quotedPost ? "quote" : "post",
-      replyTo,
-      replyRoot,
-      quotedPost,
-    });
     return new Promise((resolve, reject) => {
       this.currentPostComposer = document.createElement("post-composer");
       this.currentPostComposer.dataLayer = this.dataLayer;
@@ -45,35 +40,31 @@ export class PostComposerService {
         ? createEmbedFromPost(quotedPost)
         : null;
       this.currentPostComposer.currentUser = currentUser;
-      if (composerInit) {
-        this.currentPostComposer.initialText = composerInit.text;
-        this.currentPostComposer.initialCursor = composerInit.cursor;
-      }
+      this.currentPostComposer.draftsEnabled = this.draftsEnabled;
       this.currentPostComposer.addEventListener("send-post", async (e) => {
-        const {
-          postText,
-          external,
-          replyTo,
-          replyRoot,
-          quotedRecord,
-          images,
-          video,
-          successCallback,
-          errorCallback,
-        } = e.detail;
+        const { post, draft, successCallback, errorCallback } = e.detail;
         try {
-          const result = await this.onSend({
-            postText,
-            external,
-            replyTo,
-            replyRoot,
-            quotedRecord,
-            images,
-            video,
-          });
-          successCallback(result);
-          resolve(result);
+          const res = await this.dataLayer.mutations.createPost(post);
+          showToast(
+            html`<div class="toast-with-link">
+              ${post.replyTo ? "Your reply was sent" : "Your post was sent"}<a
+                href="${linkToPostFromUri(res.uri)}"
+                >View</a
+              >
+            </div>`,
+            { style: "success" },
+          );
+          // Publishing a saved/restored draft consumes it
+          if (draft) {
+            this.dataLayer.mutations.deleteDraft(draft).catch((error) => {
+              console.error("Failed to clean up published draft", error);
+            });
+          }
+          successCallback(res);
+          resolve(res);
         } catch (error) {
+          console.error(error);
+          showToast("Failed to send post", { style: "error" });
           errorCallback(error);
           reject(error);
         }
@@ -86,43 +77,26 @@ export class PostComposerService {
         }
       });
       document.body.appendChild(this.currentPostComposer);
+      // Open (and focus) synchronously: iOS Safari only honors programmatic
+      // focus while still inside the user-gesture handler, so the composer
+      // can't wait on plugin init before opening
       this.currentPostComposer.open();
+      const composer = this.currentPostComposer;
+      this.pluginService
+        .getPostComposerInit({
+          kind: replyTo ? "reply" : quotedPost ? "quote" : "post",
+          replyTo,
+          replyRoot,
+          quotedPost,
+        })
+        .then((composerInit) => {
+          if (composerInit && this.currentPostComposer === composer) {
+            composer.applyComposerInit(composerInit);
+          }
+        })
+        .catch((error) => {
+          console.error("Failed to get post composer init", error);
+        });
     });
-  }
-
-  async onSend({
-    postText,
-    external,
-    replyTo,
-    replyRoot,
-    quotedRecord,
-    images,
-    video,
-  }) {
-    try {
-      const res = await this.dataLayer.mutations.createPost({
-        postText,
-        external,
-        replyTo,
-        replyRoot,
-        quotedRecord,
-        images,
-        video,
-      });
-      showToast(
-        html`<div class="toast-with-link">
-          ${replyTo ? "Your reply was sent" : "Your post was sent"}<a
-            href="${linkToPostFromUri(res.uri)}"
-            >View</a
-          >
-        </div>`,
-        { style: "success" },
-      );
-      return res;
-    } catch (error) {
-      console.error(error);
-      showToast("Failed to send post", { style: "error" });
-      throw error;
-    }
   }
 }

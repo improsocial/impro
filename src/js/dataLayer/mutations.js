@@ -4,11 +4,11 @@ import {
   addFeedItemToFeed,
   pinPostInFeed,
   unpinPostInFeed,
+  valueForPinnedItem,
 } from "/js/dataHelpers.js";
 import { getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
-import { valueForPinnedItem } from "/js/dataHelpers.js";
 
 // Handles mutations to the data, making optimistic updates if needed.
 export class Mutations {
@@ -18,11 +18,13 @@ export class Mutations {
     patchStore,
     preferencesProvider,
     identityResolver,
+    draftMediaStore,
   ) {
     this.api = api;
     this.dataStore = dataStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
+    this.draftMediaStore = draftMediaStore;
     this.postCreator = new PostCreator(api, identityResolver);
   }
 
@@ -988,6 +990,9 @@ export class Mutations {
     quotedRecord,
     images,
     video,
+    labels,
+    threadgateAllow,
+    postgateEmbeddingRules,
   }) {
     const { uri, cid, post } = await this.postCreator.createPost({
       postText,
@@ -997,6 +1002,9 @@ export class Mutations {
       quotedRecord,
       images,
       video,
+      labels,
+      threadgateAllow,
+      postgateEmbeddingRules,
     });
     // Update local data with new post, if present
     if (post) {
@@ -1236,6 +1244,61 @@ export class Mutations {
       throw error;
     } finally {
       this.patchStore.removeMessagePatch(messageId, patchId);
+    }
+  }
+
+  async createDraft({ draft, media }) {
+    const res = await this.api.createDraft(draft);
+    await this._saveDraftMedia(media);
+    this._invalidateCachedDrafts();
+    return res.id;
+  }
+
+  async updateDraft({ draftId, draft, media, pruneLocalRefs }) {
+    await this.api.updateDraft(draftId, draft);
+    await this._saveDraftMedia(media);
+    await this._deleteDraftMedia(pruneLocalRefs);
+    this._invalidateCachedDrafts();
+  }
+
+  async _saveDraftMedia(media) {
+    const storedMedia = this.draftMediaStore.$media.get();
+    for (const { path, source } of media) {
+      if (storedMedia[path]) continue;
+      try {
+        await this.draftMediaStore.save(path, source);
+      } catch (error) {
+        console.error("Failed to save draft media locally", error);
+      }
+    }
+  }
+
+  async _deleteDraftMedia(localRefs) {
+    for (const key of localRefs) {
+      try {
+        await this.draftMediaStore.delete(key);
+      } catch (error) {
+        console.error("Failed to delete draft media", error);
+      }
+    }
+  }
+
+  // Delete the cached drafts list so the next dialog open refetches it
+  _invalidateCachedDrafts() {
+    if (untrack(() => this.dataStore.$drafts.get()) !== null) {
+      this.dataStore.$drafts.set(null);
+    }
+  }
+
+  async deleteDraft({ draftId, localRefs }) {
+    await this.api.deleteDraft(draftId);
+    await this._deleteDraftMedia(localRefs);
+    const data = untrack(() => this.dataStore.$drafts.get());
+    if (data) {
+      this.dataStore.$drafts.set({
+        ...data,
+        drafts: data.drafts.filter((draftView) => draftView.id !== draftId),
+      });
     }
   }
 

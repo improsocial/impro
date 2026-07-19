@@ -1,6 +1,8 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { waitFor } from "../../testHelpers.js";
+import { ApiError } from "/js/api.js";
+import { getDraftDeviceId } from "/js/drafts.js";
 import "/js/components/post-composer.js";
 
 describe("post-composer", () => {
@@ -21,8 +23,9 @@ describe("post-composer", () => {
     document.body.appendChild(container);
   }
 
-  function createPostComposer() {
+  function createPostComposer({ draftsEnabled = true } = {}) {
     const element = document.createElement("post-composer");
+    element.draftsEnabled = draftsEnabled;
     element.currentUser = {
       did: "did:plc:test",
       handle: "test.bsky.social",
@@ -185,6 +188,26 @@ describe("post-composer", () => {
       const dialog = element.querySelector(".post-composer");
       assert(dialog.open);
     });
+
+    it("focuses the editor without scrolling when opened", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const editor = element.querySelector(".rich-text-input");
+      const focus = editor.focus.bind(editor);
+      let options;
+      editor.focus = (nextOptions) => {
+        options = nextOptions;
+        focus(nextOptions);
+      };
+
+      element.open();
+
+      const richTextInput = element.querySelector("rich-text-input");
+      assert(!richTextInput.hasAttribute("autofocus"));
+      assert(!editor.hasAttribute("autofocus"));
+      assert(element.querySelector(".post-composer").hasAttribute("autofocus"));
+      assert.deepEqual(options, { preventScroll: true });
+    });
   });
 
   describe("PostComposer - close method", () => {
@@ -236,7 +259,32 @@ describe("post-composer", () => {
       });
 
       element.send();
-      assert.deepEqual(receivedDetail.postText, "Hello world");
+      assert.deepEqual(receivedDetail.post.postText, "Hello world");
+      assert.deepEqual(receivedDetail.draft, null);
+    });
+
+    it("carries draft passthrough fields in the send-post detail", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.state.$postText.set("Hello world");
+      const labels = {
+        $type: "com.atproto.label.defs#selfLabels",
+        values: [{ val: "porn" }],
+      };
+      const threadgateAllow = [
+        { $type: "app.bsky.feed.threadgate#followingRule" },
+      ];
+      element._draftPassthrough = { labels, threadgateAllow };
+
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+
+      element.send();
+      assert.deepEqual(receivedDetail.post.labels, labels);
+      assert.deepEqual(receivedDetail.post.threadgateAllow, threadgateAllow);
+      assert.deepEqual(receivedDetail.post.postgateEmbeddingRules, null);
     });
 
     it("should show loading spinner when sending", async () => {
@@ -278,7 +326,7 @@ describe("post-composer", () => {
         }),
       );
       assert(receivedDetail !== null);
-      assert.deepEqual(receivedDetail.postText, "Hello world");
+      assert.deepEqual(receivedDetail.post.postText, "Hello world");
     });
 
     it("should send post on Ctrl+Enter", () => {
@@ -430,47 +478,31 @@ describe("post-composer", () => {
     });
   });
 
-  describe("PostComposer - initial text/cursor", () => {
-    it("defaults initialText and initialCursor to null when not set", () => {
+  describe("PostComposer - applyComposerInit", () => {
+    it("seeds the rich-text-input with text", () => {
       const element = createPostComposer();
-      connectElement(element);
-      assert.deepEqual(element.initialText, null);
-      assert.deepEqual(element.initialCursor, null);
-    });
-
-    it("preserves initialText set before connectedCallback", () => {
-      const element = createPostComposer();
-      element.initialText = "Pre-seeded";
-      element.initialCursor = 0;
-      connectElement(element);
-      assert.deepEqual(element.initialText, "Pre-seeded");
-      assert.deepEqual(element.initialCursor, 0);
-    });
-
-    it("seeds the rich-text-input on open when initialText is set", () => {
-      const element = createPostComposer();
-      element.initialText = "Hello from a plugin";
       connectElement(element);
       element.open();
+      element.applyComposerInit({ text: "Hello from a plugin", cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "Hello from a plugin");
       assert.deepEqual(element.state.$postText.get(), "Hello from a plugin");
     });
 
-    it("does not seed text when initialText is null", () => {
+    it("does not seed text when text is null", () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
+      element.applyComposerInit({ text: null, cursor: null });
       const richTextInput = element.querySelector("rich-text-input");
       assert.deepEqual(richTextInput.text, "");
       assert.deepEqual(element.state.$postText.get(), "");
     });
 
-    it("calls setCursor on the rich-text-input when initialCursor is set", () => {
+    it("calls setCursor on the rich-text-input when cursor is set", () => {
       const element = createPostComposer();
-      element.initialText = "abcdef";
-      element.initialCursor = 3;
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       const calls = [];
@@ -480,14 +512,14 @@ describe("post-composer", () => {
         originalSetCursor(cursor);
       };
 
-      element.open();
+      element.applyComposerInit({ text: "abcdef", cursor: 3 });
       assert.deepEqual(calls, [3]);
     });
 
-    it("does not call setCursor when initialCursor is null", () => {
+    it("does not call setCursor when cursor is null", () => {
       const element = createPostComposer();
-      element.initialText = "abcdef";
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       let cursorCalled = false;
@@ -495,14 +527,14 @@ describe("post-composer", () => {
         cursorCalled = true;
       };
 
-      element.open();
+      element.applyComposerInit({ text: "abcdef", cursor: null });
       assert(!cursorCalled);
     });
 
-    it("allows setting only initialCursor without initialText", () => {
+    it("allows setting only cursor without text", () => {
       const element = createPostComposer();
-      element.initialCursor = 0;
       connectElement(element);
+      element.open();
 
       const richTextInput = element.querySelector("rich-text-input");
       const calls = [];
@@ -512,9 +544,20 @@ describe("post-composer", () => {
         setTextCalled = true;
       };
 
-      element.open();
+      element.applyComposerInit({ text: null, cursor: 0 });
       assert(!setTextCalled);
       assert.deepEqual(calls, [0]);
+    });
+
+    it("does not overwrite user edits made before the init arrives", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+
+      const richTextInput = element.querySelector("rich-text-input");
+      richTextInput.setText("User typed this");
+      element.applyComposerInit({ text: "Plugin text", cursor: null });
+      assert.deepEqual(richTextInput.text, "User typed this");
     });
   });
 
@@ -972,7 +1015,7 @@ describe("post-composer", () => {
         receivedDetail = e.detail;
       });
       element.send();
-      assert.deepEqual(receivedDetail.quotedRecord, element.quotedRecord);
+      assert.deepEqual(receivedDetail.post.quotedRecord, element.quotedRecord);
     });
 
     it("attaches a record embed instead of an external link when pasted", async () => {
@@ -990,6 +1033,618 @@ describe("post-composer", () => {
         "https://bsky.app/profile/creator1.test/feed/cool-feed",
       );
       assert.deepEqual(element._externalLinkUrl, null);
+    });
+  });
+
+  describe("PostComposer - drafts", () => {
+    afterEach(() => {
+      delete globalThis.__testChoice;
+      delete globalThis.__testConfirmation;
+    });
+
+    it("renders the Drafts button for new posts", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert(
+        element.querySelector('[data-testid="composer-drafts-button"]') !==
+          null,
+      );
+    });
+
+    it("does not render the Drafts button when drafts are disabled", () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-drafts-button"]'),
+        null,
+      );
+    });
+
+    it("shows the Drafts button when draftsEnabled is set after connect", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-drafts-button"]'),
+        null,
+      );
+      element.draftsEnabled = true;
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="composer-drafts-button"]') !==
+          null,
+      );
+    });
+
+    it("prompts a plain discard confirm instead of the save choice when drafts are disabled", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      let confirmationSeen = false;
+      globalThis.__testConfirmation = (resolve) => {
+        confirmationSeen = true;
+        resolve(true);
+      };
+      globalThis.__testChoice = () => {
+        throw new Error(
+          "choice prompt should not be shown when drafts are disabled",
+        );
+      };
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+      assert(confirmationSeen);
+    });
+
+    it("stays open when the discard confirm is declined with drafts disabled", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      const result = await element.confirmClose();
+      assert.deepEqual(result, false);
+    });
+
+    it("does not render the Drafts button for replies", () => {
+      const element = createPostComposer();
+      element.replyTo = {
+        author: { handle: "user.bsky.social", displayName: "User" },
+        record: { text: "Original post", createdAt: new Date().toISOString() },
+        indexedAt: new Date().toISOString(),
+      };
+      connectElement(element);
+      assert.deepEqual(
+        element.querySelector('[data-testid="composer-drafts-button"]'),
+        null,
+      );
+    });
+
+    it("starts clean and marks dirty on input", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(element._isDirty, false);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      assert.deepEqual(element._isDirty, true);
+    });
+
+    it("markSaved records the draft id and key set", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.markSaved("draft-1", ["image:a"]);
+      assert.deepEqual(element._draftId, "draft-1");
+      assert.deepEqual([...element._originalLocalRefs], ["image:a"]);
+    });
+
+    it("closes without a prompt when a loaded draft is unmodified", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => "draft-1",
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      assert.deepEqual(await element.saveDraft(), true);
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+    });
+
+    it("prompts with the save choice when there is unsaved content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      globalThis.__testChoice = (resolve) => resolve("keep");
+      const result = await element.confirmClose();
+      assert.deepEqual(result, false);
+    });
+
+    it("closes when the prompt choice is discard", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      globalThis.__testChoice = (resolve) => resolve("discard");
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+    });
+
+    it("saves and closes when the prompt choice is save", async () => {
+      const element = createPostComposer();
+      let savedArgs = null;
+      element.dataLayer = {
+        mutations: {
+          createDraft: async (args) => {
+            savedArgs = args;
+            return "draft-9";
+          },
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      globalThis.__testChoice = (resolve) => resolve("save");
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+      assert.deepEqual(savedArgs.draft.posts[0].text, "hello");
+      assert.deepEqual(element._draftId, "draft-9");
+      assert.deepEqual(element._isDirty, false);
+    });
+
+    it("offers only discard when the text is over the draft limit", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleInput({
+        detail: { text: "x".repeat(1001), facets: [] },
+      });
+      let confirmationSeen = false;
+      globalThis.__testConfirmation = (resolve) => {
+        confirmationSeen = true;
+        resolve(true);
+      };
+      globalThis.__testChoice = () => {
+        throw new Error("choice prompt should not be shown over the limit");
+      };
+      const result = await element.confirmClose();
+      assert.deepEqual(result, true);
+      assert(confirmationSeen);
+    });
+
+    it("saveDraft updates in place when a draft id is set", async () => {
+      const element = createPostComposer();
+      let savedArgs = null;
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => {
+            throw new Error("createDraft should not be called for an update");
+          },
+          updateDraft: async (args) => {
+            savedArgs = args;
+          },
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "edited", facets: [] } });
+      element._draftId = "draft-1";
+      element._originalLocalRefs = new Set(["image:old"]);
+      const result = await element.saveDraft();
+      assert.deepEqual(result, true);
+      assert.deepEqual(savedArgs.draftId, "draft-1");
+      assert.deepEqual(savedArgs.pruneLocalRefs, ["image:old"]);
+      assert.deepEqual([...element._originalLocalRefs], []);
+    });
+
+    it("saveDraft allows text at exactly 1000 graphemes", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => "draft-1",
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "x".repeat(1000), facets: [] } });
+      assert.deepEqual(await element.saveDraft(), true);
+    });
+
+    it("saveDraft surfaces the specific draft-limit error copy", async () => {
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        document.querySelectorAll(".toast").forEach((toast) => toast.remove());
+        const element = createPostComposer();
+        element.dataLayer = {
+          mutations: {
+            createDraft: async () => {
+              throw new ApiError({
+                status: 400,
+                statusText: "Bad Request",
+                data: { error: "DraftLimitReached" },
+                headers: {},
+                url: "",
+              });
+            },
+          },
+        };
+        connectElement(element);
+        element.handleInput({ detail: { text: "hello", facets: [] } });
+        assert.deepEqual(await element.saveDraft(), false);
+        await waitFor(() =>
+          [...document.querySelectorAll(".toast")].some((toast) =>
+            toast.textContent.includes("maximum number of drafts"),
+          ),
+        );
+      } finally {
+        console.error = originalError;
+      }
+    });
+
+    it("saveDraft refuses over-limit text without calling the mutation", async () => {
+      const element = createPostComposer();
+      let called = false;
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => {
+            called = true;
+          },
+        },
+      };
+      connectElement(element);
+      element.handleInput({
+        detail: { text: "x".repeat(1001), facets: [] },
+      });
+      const result = await element.saveDraft();
+      assert.deepEqual(result, false);
+      assert(!called);
+    });
+
+    it("saveDraft surfaces failure and stays dirty", async () => {
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const element = createPostComposer();
+        element.dataLayer = {
+          mutations: {
+            createDraft: async () => {
+              throw new Error("boom");
+            },
+          },
+        };
+        connectElement(element);
+        element.handleInput({ detail: { text: "hello", facets: [] } });
+        const result = await element.saveDraft();
+        assert.deepEqual(result, false);
+        assert.deepEqual(element._draftId, null);
+        assert.deepEqual(element._isDirty, true);
+      } finally {
+        console.error = originalError;
+      }
+    });
+
+    it("saveDraft writes minted image keys back onto composer state", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => "draft-1",
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "with image", facets: [] } });
+      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:a" }]);
+      const result = await element.saveDraft();
+      assert.deepEqual(result, true);
+      const image = element.state.$selectedImages.get()[0];
+      assert(image.localRefPath.startsWith("image:"));
+    });
+
+    it("stays dirty when edits land while a save is in flight", async () => {
+      const element = createPostComposer();
+      let resolveCreate;
+      element.dataLayer = {
+        mutations: {
+          createDraft: () =>
+            new Promise((resolve) => {
+              resolveCreate = resolve;
+            }),
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      const savePromise = element.saveDraft();
+      element.handleInput({ detail: { text: "hello edited", facets: [] } });
+      resolveCreate("draft-1");
+      assert.deepEqual(await savePromise, true);
+      assert.deepEqual(element._draftId, "draft-1");
+      assert.deepEqual(element._isDirty, true);
+    });
+
+    it("does not misassign minted keys to images added during a save", async () => {
+      const element = createPostComposer();
+      let resolveCreate;
+      element.dataLayer = {
+        mutations: {
+          createDraft: () =>
+            new Promise((resolve) => {
+              resolveCreate = resolve;
+            }),
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "with image", facets: [] } });
+      const originalImage = { file: {}, dataUrl: "data:a" };
+      element.state.$selectedImages.set([originalImage]);
+      const savePromise = element.saveDraft();
+      const addedImage = { file: {}, dataUrl: "data:b" };
+      element.state.$selectedImages.set([addedImage, originalImage]);
+      resolveCreate("draft-1");
+      assert.deepEqual(await savePromise, true);
+      const [first, second] = element.state.$selectedImages.get();
+      assert.deepEqual(first.localRefPath, undefined);
+      assert(second.localRefPath.startsWith("image:"));
+    });
+
+    it("treats content as a new post after the loaded draft is deleted", async () => {
+      const element = createPostComposer();
+      let created = false;
+      element.dataLayer = {
+        mutations: {
+          createDraft: async () => {
+            created = true;
+            return "draft-2";
+          },
+          updateDraft: async () => {
+            throw new Error("updateDraft should not be called after deletion");
+          },
+        },
+      };
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.markSaved("draft-1", ["image:a"]);
+      element._isDirty = false;
+      element.handleDraftDeleted("draft-1");
+      assert.deepEqual(element._draftId, null);
+      assert.deepEqual(element._originalLocalRefs, null);
+      assert.deepEqual(element._isDirty, true);
+      assert.deepEqual(await element.saveDraft(), true);
+      assert(created);
+      assert.deepEqual(element._draftId, "draft-2");
+    });
+
+    it("ignores deletions of drafts other than the loaded one", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.markSaved("draft-1", ["image:a"]);
+      element.handleDraftDeleted("draft-2");
+      assert.deepEqual(element._draftId, "draft-1");
+      assert.deepEqual([...element._originalLocalRefs], ["image:a"]);
+    });
+
+    it("clearComposer resets content and draft state", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:a" }]);
+      element.markSaved("draft-1", ["image:a"]);
+      element.clearComposer();
+      assert.deepEqual(element.state.$postText.get(), "");
+      assert.deepEqual(element.state.$selectedImages.get(), []);
+      assert.deepEqual(element._draftId, null);
+      assert.deepEqual(element._originalLocalRefs, null);
+      assert.deepEqual(element._isDirty, false);
+      assert.deepEqual(element.querySelector("rich-text-input").text, "");
+    });
+
+    it("restoreFromDraft seeds text, external link, and quote, and ends clean", async () => {
+      globalThis.fetch = () => Promise.resolve({ ok: false });
+      try {
+        const element = createPostComposer();
+        element.dataLayer = {
+          declarative: {
+            ensurePost: async (uri) => ({
+              uri,
+              cid: "postcid",
+              author: {
+                did: "did:plc:creator1",
+                handle: "creator1.test",
+                displayName: "Creator One",
+                avatar: null,
+              },
+              record: { text: "Quoted", createdAt: "2025-01-01T00:00:00Z" },
+              indexedAt: "2025-01-01T00:00:00.000Z",
+              labels: [],
+            }),
+          },
+        };
+        connectElement(element);
+        element.open();
+        const draftView = {
+          id: "draft-1",
+          draft: {
+            deviceId: "another-device",
+            deviceName: "Web",
+            posts: [
+              {
+                text: "restored text",
+                embedExternals: [{ uri: "https://example.com/article" }],
+                embedRecords: [
+                  {
+                    record: {
+                      uri: "at://did:plc:creator1/app.bsky.feed.post/3abc",
+                      cid: "postcid",
+                    },
+                  },
+                ],
+              },
+            ],
+          },
+        };
+        await element.restoreFromDraft(draftView);
+        assert.deepEqual(element.state.$postText.get(), "restored text");
+        assert.deepEqual(
+          element.querySelector("rich-text-input").text,
+          "restored text",
+        );
+        assert.deepEqual(
+          element.state.$externalLinkEmbedData.get().url,
+          "https://example.com/article",
+        );
+        assert.deepEqual(
+          element.quotedRecord.uri,
+          "at://did:plc:creator1/app.bsky.feed.post/3abc",
+        );
+        assert.deepEqual(element._draftId, "draft-1");
+        assert.deepEqual(element._isDirty, false);
+      } finally {
+        delete globalThis.fetch;
+      }
+    });
+
+    it("re-saving a draft restored from another device keeps its media embeds", async () => {
+      const element = createPostComposer();
+      let savedArgs = null;
+      element.dataLayer = {
+        mutations: {
+          updateDraft: async (args) => {
+            savedArgs = args;
+          },
+        },
+      };
+      connectElement(element);
+      const galleryItems = [
+        {
+          $type: "app.bsky.draft.defs#draftEmbedImage",
+          alt: "an image",
+          localRef: {
+            $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+            path: "image:foreign",
+          },
+        },
+      ];
+      const videoEmbed = {
+        $type: "app.bsky.draft.defs#draftEmbedVideo",
+        localRef: {
+          $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+          path: "video:video/mp4:foreign.mp4",
+        },
+      };
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          deviceName: "Web",
+          posts: [
+            {
+              text: "foreign media",
+              embedGallery: {
+                $type: "app.bsky.draft.defs#draftEmbedGallery",
+                items: galleryItems,
+              },
+              embedVideos: [videoEmbed],
+            },
+          ],
+        },
+      });
+      element.handleInput({
+        detail: { text: "foreign media edited", facets: [] },
+      });
+      assert.deepEqual(await element.saveDraft(), true);
+      assert.deepEqual(
+        savedArgs.draft.posts[0].embedGallery.items,
+        galleryItems,
+      );
+      assert.deepEqual(savedArgs.draft.posts[0].embedVideos, [videoEmbed]);
+      assert.deepEqual(savedArgs.pruneLocalRefs, []);
+    });
+
+    it("re-saving keeps the video embed when its local bytes are missing", async () => {
+      const element = createPostComposer();
+      let savedArgs = null;
+      element.dataLayer = {
+        mutations: {
+          updateDraft: async (args) => {
+            savedArgs = args;
+          },
+        },
+        draftMediaStore: {
+          readBlob: async () => null,
+        },
+      };
+      connectElement(element);
+      const videoEmbed = {
+        $type: "app.bsky.draft.defs#draftEmbedVideo",
+        localRef: {
+          $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+          path: "video:video/mp4:evicted.mp4",
+        },
+      };
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          posts: [{ text: "video draft", embedVideos: [videoEmbed] }],
+        },
+      });
+      element.handleInput({
+        detail: { text: "video draft edited", facets: [] },
+      });
+      assert.deepEqual(await element.saveDraft(), true);
+      assert.deepEqual(savedArgs.draft.posts[0].embedVideos, [videoEmbed]);
+      assert.deepEqual(savedArgs.pruneLocalRefs, []);
+    });
+
+    it("composer media replaces unrestored media on save", async () => {
+      const element = createPostComposer();
+      let savedArgs = null;
+      element.dataLayer = {
+        mutations: {
+          updateDraft: async (args) => {
+            savedArgs = args;
+          },
+        },
+      };
+      connectElement(element);
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          deviceName: "Web",
+          posts: [
+            {
+              text: "foreign media",
+              embedGallery: {
+                $type: "app.bsky.draft.defs#draftEmbedGallery",
+                items: [
+                  {
+                    $type: "app.bsky.draft.defs#draftEmbedImage",
+                    localRef: {
+                      $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+                      path: "image:foreign",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      });
+      element.state.$selectedImages.set([{ file: {}, dataUrl: "data:new" }]);
+      assert.deepEqual(await element.saveDraft(), true);
+      const items = savedArgs.draft.posts[0].embedGallery.items;
+      assert.deepEqual(items.length, 1);
+      assert(items[0].localRef.path !== "image:foreign");
+      assert.deepEqual(savedArgs.pruneLocalRefs, ["image:foreign"]);
+    });
+
+    it("send includes the draft id and local refs for publish cleanup", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.handleInput({ detail: { text: "hello", facets: [] } });
+      element.markSaved("draft-1", ["image:a"]);
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      element.send();
+      assert.deepEqual(receivedDetail.draft, {
+        draftId: "draft-1",
+        localRefs: ["image:a"],
+      });
     });
   });
 

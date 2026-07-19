@@ -40,8 +40,8 @@ function fakePluginCache(handler) {
   const calls = [];
   return {
     calls,
-    async fetch(url) {
-      calls.push(url);
+    async fetch(url, options) {
+      calls.push({ url, options });
       return handler(url);
     },
   };
@@ -159,7 +159,7 @@ describe("SourceProvider with remote plugins", () => {
     const provider = new SourceProvider(pluginCache);
     const manifest = await provider.getManifest("alpha", "1.0.0", "ow/alpha");
     assert.deepEqual(
-      pluginCache.calls[0],
+      pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/manifest.json",
     );
     assert.deepEqual(manifest.id, "alpha");
@@ -176,7 +176,7 @@ describe("SourceProvider with remote plugins", () => {
     const provider = new SourceProvider(pluginCache);
     const source = await provider.getSource("alpha", "2.5.0", "ow/alpha");
     assert.deepEqual(
-      pluginCache.calls[0],
+      pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/2.5.0/main.js",
     );
     assert.deepEqual(source, "alert(1)");
@@ -236,9 +236,10 @@ describe("SourceProvider with remote plugins", () => {
     const provider = new SourceProvider(pluginCache);
     const styles = await provider.getStyles("alpha", "1.0.0", "ow/alpha");
     assert.deepEqual(
-      pluginCache.calls[0],
+      pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/styles.css",
     );
+    assert.deepEqual(pluginCache.calls[0].options, { doCacheNotFound: true });
     assert.deepEqual(styles, "body{color:blue}");
   });
 

@@ -13,11 +13,17 @@ export class MockServer {
     this.bookmarks = [];
     this.convos = [];
     this.convoMessages = new Map();
+    this.convoMemberLists = new Map();
+    this.convoDelays = new Map();
     this.chatLogs = [];
     this.joinLinkPreviews = new Map();
     this.joinLinkJoinedConvos = new Map();
     this.failJoinLinkCodes = new Set();
     this.createRecordCounter = 0;
+    this.drafts = [];
+    this.draftCounter = 0;
+    this.deletedDraftIds = [];
+    this.draftLimitReached = false;
     this.interactionPayloads = [];
     this.blobCounter = 0;
     this.messageCounter = 0;
@@ -25,6 +31,7 @@ export class MockServer {
     this.sendMessageFailure = null;
     this.convoForMembersError = null;
     this.typeaheadProfiles = [];
+    this.typeaheadDelayMs = 0;
     this.externalLinkCards = new Map();
     this.feedGenerators = [];
     this.feeds = new Map();
@@ -62,7 +69,15 @@ export class MockServer {
     this.actorLists = new Map();
     this.searchFeedGenerators = [];
     this.searchPosts = [];
+    this.searchPostsBySort = { top: [], latest: [] };
     this.searchProfiles = [];
+    this.searchRequestCounts = {
+      profiles: 0,
+      top: 0,
+      latest: 0,
+      feeds: 0,
+      typeahead: 0,
+    };
     this.timelinePosts = [];
     this.timelineDelayMs = 0;
     this.pluginSettings = new Map();
@@ -170,8 +185,14 @@ export class MockServer {
     this.notificationsDelayMs = delayMs;
   }
 
-  addSearchPosts(posts) {
+  addSearchPosts(posts, { sort } = {}) {
     this.searchPosts.push(...posts);
+    if (sort) {
+      this.searchPostsBySort[sort].push(...posts);
+    } else {
+      this.searchPostsBySort.top.push(...posts);
+      this.searchPostsBySort.latest.push(...posts);
+    }
   }
 
   addSearchProfiles(profiles) {
@@ -258,6 +279,18 @@ export class MockServer {
       }
     }
     this.convos.push(...convos);
+  }
+
+  addConvoMembers(convoId, members) {
+    this.convoMemberLists.set(convoId, members);
+  }
+
+  failConvoMembers({ status = 500, error = "InternalServerError", message }) {
+    this.convoMembersFailure = { status, error, message };
+  }
+
+  setConvoDelay(convoId, delayMs) {
+    this.convoDelays.set(convoId, delayMs);
   }
 
   // Queued logs are returned (and drained) by the next chat.bsky.convo.getLog
@@ -742,14 +775,67 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/chat.bsky.convo.getConvo*", (route) => {
+    await page.route("**/xrpc/chat.bsky.convo.getConvo*", async (route) => {
       const url = new URL(route.request().url());
       const convoId = url.searchParams.get("convoId");
+      const delayMs = this.convoDelays.get(convoId);
+      if (delayMs) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
       const convo = this.convos.find((c) => c.id === convoId);
+      if (!convo) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidConvo",
+            message: "Conversation not found",
+          }),
+        });
+      }
       return route.fulfill({
         status: 200,
         contentType: "application/json",
-        body: JSON.stringify({ convo: convo || {} }),
+        body: JSON.stringify({ convo }),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.convo.getConvoMembers*", (route) => {
+      if (this.convoMembersFailure) {
+        const { status, error, message } = this.convoMembersFailure;
+        return route.fulfill({
+          status,
+          contentType: "application/json",
+          body: JSON.stringify({ error, message }),
+        });
+      }
+      const url = new URL(route.request().url());
+      const convoId = url.searchParams.get("convoId");
+      const convo = this.convos.find((c) => c.id === convoId);
+      if (!convo) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "InvalidConvo",
+            message: "Conversation not found",
+          }),
+        });
+      }
+      const allMembers = this.convoMemberLists.get(convoId) ?? convo.members;
+      const cursor = url.searchParams.get("cursor") || "";
+      const limit = parseInt(url.searchParams.get("limit") || "50", 10);
+      const offset = cursor ? parseInt(cursor, 10) : 0;
+      const members = allMembers.slice(offset, offset + limit);
+      const nextCursor =
+        offset + limit < allMembers.length ? String(offset + limit) : "";
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          members,
+          ...(nextCursor ? { cursor: nextCursor } : {}),
+        }),
       });
     });
 
@@ -1193,7 +1279,70 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/app.bsky.draft.getDrafts*", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ drafts: this.drafts }),
+      }),
+    );
+
+    await page.route("**/xrpc/app.bsky.draft.createDraft*", (route) => {
+      if (this.draftLimitReached) {
+        return route.fulfill({
+          status: 400,
+          contentType: "application/json",
+          body: JSON.stringify({
+            error: "DraftLimitReached",
+            message: "Draft limit reached",
+          }),
+        });
+      }
+      const body = route.request().postDataJSON();
+      const id = `draft-${++this.draftCounter}`;
+      const now = new Date().toISOString();
+      this.drafts.unshift({
+        id,
+        createdAt: now,
+        updatedAt: now,
+        draft: body.draft,
+      });
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ id }),
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.draft.updateDraft*", (route) => {
+      const body = route.request().postDataJSON();
+      const existing = this.drafts.find(
+        (draftView) => draftView.id === body.draft.id,
+      );
+      if (existing) {
+        existing.draft = body.draft.draft;
+        existing.updatedAt = new Date().toISOString();
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
+    await page.route("**/xrpc/app.bsky.draft.deleteDraft*", (route) => {
+      const body = route.request().postDataJSON();
+      this.deletedDraftIds.push(body.id);
+      this.drafts = this.drafts.filter((draftView) => draftView.id !== body.id);
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: "{}",
+      });
+    });
+
     await page.route("**/xrpc/app.bsky.actor.searchActors*", (route) => {
+      this.searchRequestCounts.profiles += 1;
       const url = new URL(route.request().url());
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
@@ -1221,6 +1370,7 @@ export class MockServer {
     await page.route(
       "**/xrpc/app.bsky.unspecced.getPopularFeedGenerators*",
       (route) => {
+        this.searchRequestCounts.feeds += 1;
         const url = new URL(route.request().url());
         const cursor = url.searchParams.get("cursor") || "";
         const limit = parseInt(url.searchParams.get("limit") || "0", 10);
@@ -1276,16 +1426,17 @@ export class MockServer {
       const cursor = url.searchParams.get("cursor") || "";
       const limit = parseInt(url.searchParams.get("limit") || "0", 10);
       const offset = cursor ? parseInt(cursor, 10) : 0;
+      const sort = url.searchParams.get("sort") || "top";
+      this.searchRequestCounts[sort] += 1;
+      const sortedPosts = this.searchPostsBySort[sort] ?? this.searchPosts;
 
       let posts, nextCursor;
       if (limit) {
-        posts = this.searchPosts.slice(offset, offset + limit);
+        posts = sortedPosts.slice(offset, offset + limit);
         nextCursor =
-          offset + limit < this.searchPosts.length
-            ? String(offset + limit)
-            : "";
+          offset + limit < sortedPosts.length ? String(offset + limit) : "";
       } else {
-        posts = this.searchPosts;
+        posts = sortedPosts;
         nextCursor = "";
       }
 
@@ -2374,7 +2525,13 @@ export class MockServer {
 
     await page.route(
       "**/xrpc/app.bsky.actor.searchActorsTypeahead*",
-      (route) => {
+      async (route) => {
+        this.searchRequestCounts.typeahead += 1;
+        if (this.typeaheadDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.typeaheadDelayMs),
+          );
+        }
         return route.fulfill({
           status: 200,
           contentType: "application/json",

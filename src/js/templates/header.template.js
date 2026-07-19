@@ -2,10 +2,31 @@ import { html } from "/js/lib/lit-html.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
 import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
 import { classnames } from "/js/utils.js";
+import "/js/components/container-link.js";
+
+function avatarAndTitleTemplate({ title, subtitle, avatarTemplate }) {
+  return html`${avatarTemplate
+    ? html`<div class="header-avatar">${avatarTemplate()}</div>`
+    : ""}
+  ${title
+    ? html`<div
+        class="header-title-container"
+        data-testid="header-title-container"
+      >
+        <span class="header-title" data-testid="header-title">${title}</span>
+        ${subtitle
+          ? html`<span class="header-subtitle" data-testid="header-subtitle"
+              >${subtitle}</span
+            >`
+          : ""}
+      </div>`
+    : ""}`;
+}
 
 export function headerTemplate({
   title = null,
   subtitle = null,
+  titleHref = null,
   avatarTemplate = null,
   showLoadingSpinner = false,
   leftButton = "back",
@@ -38,24 +59,11 @@ export function headerTemplate({
           >
             ${arrowLeftIconTemplate()}
           </button>`}
-      ${avatarTemplate
-        ? html`<div class="header-avatar">${avatarTemplate()}</div>`
-        : ""}
-      ${title
-        ? html`<div
-            class="header-title-container"
-            data-testid="header-title-container"
-          >
-            <span class="header-title" data-testid="header-title"
-              >${title}</span
-            >
-            ${subtitle
-              ? html`<span class="header-subtitle" data-testid="header-subtitle"
-                  >${subtitle}</span
-                >`
-              : ""}
-          </div>`
-        : ""}
+      ${titleHref
+        ? html`<container-link class="header-title-link" href=${titleHref}>
+            ${avatarAndTitleTemplate({ title, subtitle, avatarTemplate })}
+          </container-link>`
+        : avatarAndTitleTemplate({ title, subtitle, avatarTemplate })}
       ${showLoadingSpinner
         ? html`<div class="header-spacer"></div>
             <div class="loading-spinner" data-testid="loading-spinner"></div>`

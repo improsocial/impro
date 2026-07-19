@@ -6,10 +6,17 @@ import { Declarative } from "/js/dataLayer/declarative.js";
 import { Derived } from "/js/dataLayer/derived.js";
 
 export class DataLayer {
-  constructor(api, pluginService, preferencesProvider, identityResolver) {
+  constructor(
+    api,
+    pluginService,
+    preferencesProvider,
+    identityResolver,
+    draftMediaStore,
+  ) {
     this.api = api;
     this.pluginService = pluginService;
     this.identityResolver = identityResolver;
+    this.draftMediaStore = draftMediaStore;
     this.isAuthenticated = api.isAuthenticated;
     this.dataStore = new DataStore();
     this.patchStore = new PatchStore(this.dataStore);
@@ -19,6 +26,7 @@ export class DataLayer {
       this.dataStore,
       this.preferencesProvider,
       this.pluginService,
+      this.draftMediaStore,
     );
     this.pluginService?.on("feedFiltersRefresh", async ({ feedURI }) => {
       const feedURIs = feedURI
@@ -40,6 +48,7 @@ export class DataLayer {
       this.patchStore,
       this.preferencesProvider,
       this.identityResolver,
+      this.draftMediaStore,
     );
     this.derived = new Derived(
       this.dataStore,
@@ -47,6 +56,7 @@ export class DataLayer {
       this.preferencesProvider,
       this.pluginService,
       this.isAuthenticated,
+      this.draftMediaStore,
     );
     this.declarative = new Declarative(this.derived, this.requests);
     this.subscribers = [];

@@ -127,6 +127,7 @@
       import chatView from "/js/views/chat.view.js";
       import chatRequestsView from "/js/views/chatRequests.view.js";
       import chatDetailView from "/js/views/chatDetail.view.js";
+      import groupChatDetailsView from "/js/views/groupChatDetails.view.js";
       import feedsView from "/js/views/feeds.view.js";
       import profileView from "/js/views/profile.view.js";
       import profileFollowersView from "/js/views/profileFollowers.view.js";
@@ -149,6 +150,7 @@
       import listDetailView from "/js/views/listDetail.view.js";
       import bookmarksView from "/js/views/bookmarks.view.js";
       import { DataLayer } from "/js/dataLayer/dataLayer.js";
+      import { DraftMediaStore } from "/js/drafts.js";
       import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
@@ -182,6 +184,20 @@
       import { PluginService } from "/js/plugins/pluginService.js";
       import { MainLayout } from "/js/mainLayout.js";
 
+      const DRAFT_SCOPES = [
+        "rpc:app.bsky.draft.getDrafts",
+        "rpc:app.bsky.draft.createDraft",
+        "rpc:app.bsky.draft.updateDraft",
+        "rpc:app.bsky.draft.deleteDraft",
+      ];
+
+      async function checkDraftsEnabled() {
+        const results = await Promise.all(
+          DRAFT_SCOPES.map((scope) => auth.hasScope(scope)),
+        );
+        return results.every(Boolean);
+      }
+
       async function main() {
         // Body class for styling
         if (isNative()) {
@@ -207,11 +223,13 @@
         window.disablePlugin = pluginService.disablePlugin.bind(pluginService);
 
         const identityResolver = new IdentityResolver();
+        const draftMediaStore = new DraftMediaStore();
         const dataLayer = new DataLayer(
           api,
           pluginService,
           preferencesProvider,
           identityResolver,
+          draftMediaStore,
         );
         pluginService.setDataLayer(dataLayer);
         // put dataLayer on window for easy access in dev tools
@@ -223,7 +241,14 @@
           ? new ChatNotificationService(api)
           : null;
         const postComposerService = session
-          ? new PostComposerService(dataLayer, identityResolver, pluginService)
+          ? new PostComposerService(
+              dataLayer,
+              identityResolver,
+              pluginService,
+              {
+                draftsEnabled: await checkDraftsEnabled(),
+              },
+            )
           : null;
         const accountSwitcherService = session
           ? new AccountSwitcherService(dataLayer)
@@ -337,6 +362,13 @@
         router.addRoute("/messages/inbox", () => chatRequestsView, {
           layoutOptions: { activeNavItem: "chat" },
         });
+        router.addRoute(
+          "/messages/:convoId/settings",
+          () => groupChatDetailsView,
+          {
+            layoutOptions: { activeNavItem: "chat" },
+          },
+        );
         router.addRoute("/messages/:convoId", () => chatDetailView, {
           layoutOptions: { activeNavItem: "chat" },
         });

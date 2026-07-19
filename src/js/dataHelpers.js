@@ -1056,3 +1056,23 @@ export function getPostsFromFeed(feed) {
   }
   return unique(posts, { by: "uri" });
 }
+
+export function getImagesFromDraftPost(draftPost) {
+  const items = draftPost.embedGallery?.items ?? draftPost.embedImages ?? [];
+  return items.filter((item) => item.localRef?.path);
+}
+
+export function getLocalRefsFromDraft(draft) {
+  const refs = [];
+  for (const draftPost of draft.posts ?? []) {
+    for (const image of getImagesFromDraftPost(draftPost)) {
+      refs.push(image.localRef.path);
+    }
+    for (const video of draftPost.embedVideos ?? []) {
+      if (video.localRef?.path) {
+        refs.push(video.localRef.path);
+      }
+    }
+  }
+  return refs;
+}

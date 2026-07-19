@@ -12,6 +12,13 @@ const FACET_TYPES = new Set([
   "app.bsky.richtext.facet#tag",
 ]);
 
+function parseUriList(uriList) {
+  return uriList
+    .split(/\r?\n/)
+    .filter((line) => line.length > 0 && !line.startsWith("#"))
+    .join("\n");
+}
+
 function facetsOverlap(a, b) {
   return (
     a.index.byteStart < b.index.byteEnd && a.index.byteEnd > b.index.byteStart
@@ -326,7 +333,7 @@ function mentionSuggestionsTemplate({
 
 export class RichTextInput extends Component {
   static get observedAttributes() {
-    return ["disabled"];
+    return ["disabled", "autofocus"];
   }
 
   connectedCallback() {
@@ -364,12 +371,15 @@ export class RichTextInput extends Component {
       this.disabled = this.getAttribute("disabled") !== null;
       this.render();
     }
+    if (name === "autofocus") {
+      this.render();
+    }
   }
 
-  focus() {
+  focus(options) {
     const input = this.querySelector(".rich-text-input");
     if (input) {
-      input.focus();
+      input.focus(options);
     }
   }
 
@@ -419,6 +429,7 @@ export class RichTextInput extends Component {
             class="rich-text-input"
             data-testid="rich-text-input"
             contenteditable=${this.disabled ? "false" : "true"}
+            ?autofocus=${this.hasAttribute("autofocus")}
             @input=${(e) => {
               e.stopPropagation();
               this.handleInput(e);
@@ -439,9 +450,12 @@ export class RichTextInput extends Component {
             @paste=${(e) => {
               e.preventDefault();
               // https://stackoverflow.com/a/58980415
-              const text = (e.clipboardData || window.clipboardData).getData(
-                "text/plain",
-              );
+              const clipboard = e.clipboardData || window.clipboardData;
+              // iOS share-sheet links arrive as text/uri-list with no
+              // text/plain representation
+              const text =
+                clipboard.getData("text/plain") ||
+                parseUriList(clipboard.getData("text/uri-list"));
               // execCommand fires the input event synchronously, so
               // handleInput runs while this flag is set
               this.isPasting = true;
@@ -688,13 +702,15 @@ export class RichTextInput extends Component {
   }
 
   handleInput(e) {
-    if (this.isComposing) return;
-
     this.text = getContentEditableText(e.target);
 
     this.facets = getUnresolvedFacetsFromText(this.text);
 
-    this.paintFacets();
+    // Rewriting the editable's DOM mid-composition cancels the IME, so facet
+    // painting waits for compositionend
+    if (!this.isComposing) {
+      this.paintFacets();
+    }
     this.render();
 
     this.updateMentionSuggestions();
