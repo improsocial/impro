@@ -211,6 +211,17 @@ class HomeView extends View {
       );
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+      // Map of feed items -> feedContexts for postSeenObserver
+      const feedContextsByFeedUri = new Map(
+        pinnedItems.map((item) => [
+          item.uri,
+          new Map(
+            (dataLayer.derived.$hydratedFeeds.get(item.uri)?.feed ?? []).map(
+              (feedItem) => [feedItem.post.uri, feedItem.feedContext ?? null],
+            ),
+          ),
+        ]),
+      );
       const currentFeedUri = state.$currentFeedUri.get();
       const currentFeedRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
@@ -291,10 +302,12 @@ class HomeView extends View {
       );
       const feedItems = document.querySelectorAll(".feed-item");
       feedItems.forEach((feedItem) => {
-        const { feedGeneratorUri, feedContext, postUri } = feedItem.dataset;
+        const { feedGeneratorUri, postUri } = feedItem.dataset;
         if (feedGeneratorUri) {
           const postSeenObserver = postSeenObservers.get(feedGeneratorUri);
           if (postSeenObserver) {
+            const feedContext =
+              feedContextsByFeedUri.get(feedGeneratorUri)?.get(postUri) ?? null;
             postSeenObserver.register(feedItem, postUri, feedContext);
           }
         }

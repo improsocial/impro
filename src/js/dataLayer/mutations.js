@@ -333,7 +333,7 @@ export class Mutations {
     const showLessInteraction = {
       item: postURI,
       event: "app.bsky.feed.defs#requestLess",
-      ...(feedContext ? { feedContext } : {}),
+      ...(feedContext != null ? { feedContext } : {}),
     };
     this.dataStore.$showLessInteractions.set([
       ...this.dataStore.$showLessInteractions.get(),
@@ -351,7 +351,7 @@ export class Mutations {
     const showMoreInteraction = {
       item: postURI,
       event: "app.bsky.feed.defs#requestMore",
-      ...(feedContext ? { feedContext } : {}),
+      ...(feedContext != null ? { feedContext } : {}),
     };
     // Note, we don't really need to store this interaction because we don't use it in the UI (yet).
     // But, let's do it anyway for consistency.

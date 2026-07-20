@@ -3054,6 +3054,37 @@ describe("sendShowLessInteraction", () => {
     assert.deepEqual(stored.length, 2);
     assert.deepEqual(stored[1].item, postURI);
   });
+
+  it("should omit feedContext when null but keep an empty string", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const sentInteractions = [];
+    const mutations = makeMutations(
+      {
+        sendInteractions: async (interactions) => {
+          sentInteractions.push(...interactions);
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowLessInteraction(postURI, null, feedProxyUrl);
+    await mutations.sendShowLessInteraction(postURI, "", feedProxyUrl);
+
+    assert.deepEqual(sentInteractions, [
+      { item: postURI, event: "app.bsky.feed.defs#requestLess" },
+      {
+        item: postURI,
+        event: "app.bsky.feed.defs#requestLess",
+        feedContext: "",
+      },
+    ]);
+  });
 });
 
 describe("sendShowMoreInteraction", () => {

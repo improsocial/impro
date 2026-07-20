@@ -115,6 +115,16 @@ describe("PostSeenObserver - seen tracking", () => {
     assert(observer.seenPosts.has(postUriA));
   });
 
+  it("omits feedContext from the interaction when it is null", async () => {
+    const { element } = createTrackedElement();
+    observer.register(element, postUriA, null);
+    await flushTimers();
+    assert.deepEqual(sendInteractions.mock.callCount(), 1);
+    assert.deepEqual(sendInteractions.mock.calls[0].arguments[0], [
+      { item: postUriA, event: "app.bsky.feed.defs#interactionSeen" },
+    ]);
+  });
+
   it("does not send an interaction for an off-screen post", async () => {
     const { element } = createTrackedElement({ top: 2000, bottom: 2100 });
     observer.register(element, postUriA, null);
