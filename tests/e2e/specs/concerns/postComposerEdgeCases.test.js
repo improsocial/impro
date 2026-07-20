@@ -264,12 +264,18 @@ test.describe("Post Composer Edge Cases", () => {
     // Click Post
     await composer.locator('[data-testid="composer-submit-button"]').click();
 
-    // Verify error toast appears
-    const errorToast = page.locator('[data-testid="toast"].error');
-    await expect(errorToast).toBeVisible({ timeout: 10000 });
+    // Verify inline error banner appears
+    const errorBanner = composer.locator(
+      '[data-testid="composer-error-banner"]',
+    );
+    await expect(errorBanner).toBeVisible({ timeout: 10000 });
 
     // Verify composer remains open (not closed on error)
     await expect(composer).toBeVisible();
+
+    // Dismissing the banner hides it
+    await composer.locator('[data-testid="composer-error-dismiss"]').click();
+    await expect(errorBanner).not.toBeVisible();
   });
 
   test("typeahead in post composer — mention suggestions appear and can be selected", async ({
