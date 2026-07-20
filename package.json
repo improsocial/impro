@@ -46,5 +46,8 @@
     "@capacitor/ios": "^7.0.0",
     "@capacitor/status-bar": "^7.0.0",
     "lit-html": "3.3.3"
+  },
+  "allowScripts": {
+    "canvas@3.2.3": true
   }
 }
