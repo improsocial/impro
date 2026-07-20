@@ -38,6 +38,8 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Add custom feed filters
 - Transform rich text in posts
 - Make whitelisted network requests (requires permissions)
+- Read a detailed profile (including whether the viewer follows/is followed by the account, and known/mutual followers) via `app.data.getDetailedProfile(did)`
+- Mute, block, or send feed feedback ("show more/less like this") on the user's behalf via `app.moderation`, gated behind explicit `permissions.moderation` scopes (`mute`, `block`, `feedback`) the user must grant at install time
 
 ### Plugins CANNOT:
 

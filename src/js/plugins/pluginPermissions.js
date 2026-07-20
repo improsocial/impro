@@ -1,5 +1,7 @@
 import { unique } from "/js/utils.js";
 
+const MODERATION_ACTIONS = ["mute", "block", "feedback"];
+
 export function getPermissionsFromManifest(manifest) {
   return parsePermissions(manifest.permissions ?? {});
 }
@@ -15,7 +17,22 @@ export function parsePermissions(permissions) {
     );
     if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
   }
+  if (permissions.moderation) {
+    const moderationArray = Array.isArray(permissions.moderation)
+      ? permissions.moderation
+      : [permissions.moderation];
+    const moderationScopes = unique(
+      moderationArray.filter((entry) => MODERATION_ACTIONS.includes(entry)),
+    );
+    if (moderationScopes.length > 0) parsed.moderation = moderationScopes;
+  }
   return parsed;
+}
+
+// action is one of "mute", "block", "feedback" (the "show fewer/more like
+// this" feed-interaction signal)
+export function isModerationActionAllowed(action, permissions) {
+  return (permissions.moderation ?? []).includes(action);
 }
 
 export function diffPermissions(current, next) {

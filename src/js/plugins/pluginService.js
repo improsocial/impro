@@ -21,6 +21,7 @@ import {
   getPermissionsFromManifest,
   diffPermissions,
   isEmptyPermissions,
+  isModerationActionAllowed,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import {
@@ -373,8 +374,35 @@ export class PluginService extends ReactiveStore {
       return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
     });
 
+    this.pluginBridge.addHostMethod(
+      "getDetailedProfile",
+      async (plugin, { did }) => {
+        if (!this._dataLayer) return null;
+        let profile =
+          this._dataLayer.derived.$hydratedDetailedProfiles.get(did);
+        if (!profile) {
+          await this._dataLayer.requests.loadDetailedProfile(did);
+          profile = this._dataLayer.derived.$hydratedDetailedProfiles.get(did);
+        }
+        return profile ?? null;
+      },
+    );
+
     this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
       this.slingshot.getRecord(args),
+    );
+
+    // Full known-followers list for did (the profile.viewer.knownFollowers
+    // included on getProfile/getDetailedProfile is capped to a handful).
+    // The AppView doesn't currently paginate this endpoint in practice, so
+    // this is a single round-trip, not a cursor loop.
+    this.pluginBridge.addHostMethod(
+      "getKnownFollowers",
+      async (plugin, { did }) => {
+        if (!this._dataLayer) return null;
+        await this._dataLayer.requests.loadKnownFollowers(did);
+        return this._dataLayer.derived.$knownFollowers.get(did) ?? null;
+      },
     );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
@@ -384,6 +412,55 @@ export class PluginService extends ReactiveStore {
         handle: this.session.handle,
       };
     });
+
+    this.pluginBridge.addHostMethod(
+      "muteActor",
+      async (plugin, { did, mute = true }) => {
+        this._requireModerationPermission(plugin, "mute");
+        const profile = this._resolveProfileForMutation(did);
+        if (mute) await this._dataLayer.mutations.muteProfile(profile);
+        else await this._dataLayer.mutations.unmuteProfile(profile);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "blockActor",
+      async (plugin, { did, block = true }) => {
+        this._requireModerationPermission(plugin, "block");
+        const profile = this._resolveProfileForMutation(did);
+        if (block) await this._dataLayer.mutations.blockProfile(profile);
+        else await this._dataLayer.mutations.unblockProfile(profile);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "sendShowLessInteraction",
+      async (plugin, { postUri, feedContext = null, feedProxyUrl = null }) => {
+        this._requireModerationPermission(plugin, "feedback");
+        await this._dataLayer.mutations.sendShowLessInteraction(
+          postUri,
+          feedContext,
+          feedProxyUrl,
+        );
+      },
+    );
+  }
+
+  _requireModerationPermission(plugin, action) {
+    if (!isModerationActionAllowed(action, plugin.permissions)) {
+      throw new Error(
+        `"${plugin.pluginId}" does not have "${action}" moderation permission`,
+      );
+    }
+    if (!this._dataLayer) throw new Error("Not signed in");
+  }
+
+  _resolveProfileForMutation(did) {
+    if (!this._dataLayer) return { did };
+    return (
+      this._dataLayer.derived.$hydratedDetailedProfiles.get(did) ??
+      this._dataLayer.derived.$hydratedProfiles.get(did) ?? { did }
+    );
   }
 
   async loadEnabledPlugins() {
@@ -807,8 +884,8 @@ export class PluginService extends ReactiveStore {
     return this.$settingTabs.get(pluginId);
   }
 
-  async getPostContextMenuItems(post) {
-    return this._collectContextMenuItems("post-context-menu", post);
+  async getPostContextMenuItems(post, meta = null) {
+    return this._collectContextMenuItems("post-context-menu", post, meta);
   }
 
   async getProfileContextMenuItems(profile) {
@@ -853,13 +930,14 @@ export class PluginService extends ReactiveStore {
     return { text, cursor };
   }
 
-  async _collectContextMenuItems(event, target) {
+  async _collectContextMenuItems(event, target, meta = null) {
     const listeners = this.registries.eventListeners.get(event);
     if (!listeners || listeners.size === 0) return [];
     const results = await Promise.all(
       [...listeners].map(async ([pluginId, handler]) => {
         try {
-          const items = await handler(target);
+          const items =
+            meta != null ? await handler(target, meta) : await handler(target);
           return (items ?? []).map((item) => ({
             pluginId,
             icon: item.icon,

@@ -71,6 +71,13 @@ export function hidePluginModal({ pluginId, modalId }) {
   }
 }
 
+const MODERATION_ACTION_LABELS = {
+  mute: "Mute and unmute accounts on your behalf",
+  block: "Block and unblock accounts on your behalf",
+  feedback:
+    'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
+};
+
 function permissionsListTemplate({ permissions }) {
   const sections = [];
   const fetchPatterns = permissions.fetch ?? [];
@@ -81,6 +88,19 @@ function permissionsListTemplate({ permissions }) {
         <ul class="permission-prompt-list">
           ${fetchPatterns.map(
             (pattern) => html`<li><code>${pattern}</code></li>`,
+          )}
+        </ul>
+      </div>
+    `);
+  }
+  const moderationScopes = permissions.moderation ?? [];
+  if (moderationScopes.length > 0) {
+    sections.push(html`
+      <div class="permission-prompt-section">
+        <ul class="permission-prompt-list">
+          ${moderationScopes.map(
+            (scope) =>
+              html`<li>${MODERATION_ACTION_LABELS[scope] ?? scope}</li>`,
           )}
         </ul>
       </div>

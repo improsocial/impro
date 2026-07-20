@@ -147,8 +147,47 @@ class PluginData {
   getProfile(did) {
     return hostCall("getProfile", { did });
   }
+  // Like getProfile, but includes viewer relationship details not present
+  // on the basic profile view: viewer.following, viewer.followedBy, and
+  // viewer.knownFollowers (a summary of mutual followers). Requires no
+  // extra permission, but does a network round-trip if not already cached.
+  getDetailedProfile(did) {
+    return hostCall("getDetailedProfile", { did });
+  }
+  // The full known-followers list for did (the summary on
+  // getDetailedProfile's viewer.knownFollowers is capped to a handful).
+  getKnownFollowers(did) {
+    return hostCall("getKnownFollowers", { did });
+  }
   getRecord(repo, collection, rkey) {
     return hostCall("getRecord", { repo, collection, rkey });
+  }
+}
+
+// Moderation actions on behalf of the signed-in user. Each method requires
+// the corresponding scope ("mute", "block", "feedback") to be declared in
+// the plugin manifest's `permissions.moderation` array, which the user must
+// grant at install time.
+class PluginModeration {
+  muteActor(did, mute = true) {
+    return hostCall("muteActor", { did, mute });
+  }
+  blockActor(did, block = true) {
+    return hostCall("blockActor", { did, block });
+  }
+  // feedContext/feedProxyUrl are optional and let the signal be attributed
+  // back to the specific feed generator that served the post, matching
+  // app.bsky.feed.sendInteractions semantics; omit them to just send a
+  // general requestLess signal.
+  sendShowLessInteraction(
+    postUri,
+    { feedContext = null, feedProxyUrl = null } = {},
+  ) {
+    return hostCall("sendShowLessInteraction", {
+      postUri,
+      feedContext,
+      feedProxyUrl,
+    });
   }
 }
 
@@ -156,6 +195,7 @@ class App {
   constructor() {
     this.currentUser = null;
     this.data = new PluginData();
+    this.moderation = new PluginModeration();
   }
   on(event, listener) {
     addEventListener(event, listener);
