@@ -20,6 +20,7 @@ export class PluginCache {
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status} ${url}`);
       error.status = response.status;
+      error.body = await response.text().catch(() => null);
       throw error;
     }
     return response;

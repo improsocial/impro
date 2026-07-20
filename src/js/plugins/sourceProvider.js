@@ -39,14 +39,31 @@ export function repoWebUrl(repo) {
 }
 
 // GitHub's raw content host returns a clean 404 for a missing file.
-// tangled.sh's blob-fetch backend instead returns 500 with a JSON error
-// body ({"error":"InternalServerError","message":"failed to get blob"}) —
-// verified against a real repo, since it has no dedicated "not found"
-// status. Treat both as "file doesn't exist" for optional files
-// (styles.css, README.md) rather than a real fetch failure.
-function isMissingFileStatus(repo, status) {
+// tangled.sh's blob-fetch backend instead returns 500 with this exact JSON
+// error body for a missing blob — verified against a real repo, since it
+// has no dedicated "not found" status. Match on the body too (not just the
+// 500), so an actual tangled.sh outage still surfaces as a real error
+// instead of being silently swallowed as "file doesn't exist".
+function isTangledMissingBlobBody(body) {
+  if (typeof body !== "string") return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return false;
+  }
+  return (
+    parsed?.error === "InternalServerError" &&
+    parsed?.message === "failed to get blob"
+  );
+}
+
+function isMissingFileStatus(repo, status, body) {
   if (status === 404) return true;
-  return parseRepoSpec(repo).host === "tangled" && status === 500;
+  if (status !== 500) return false;
+  return (
+    parseRepoSpec(repo).host === "tangled" && isTangledMissingBlobBody(body)
+  );
 }
 
 function remoteAssetUrl({ repo, file, release = null }) {
@@ -143,7 +160,7 @@ export class SourceProvider {
       });
       return await response.text();
     } catch (error) {
-      if (isMissingFileStatus(repo, error?.status)) return null;
+      if (isMissingFileStatus(repo, error?.status, error?.body)) return null;
       throw error;
     }
   }
@@ -161,9 +178,12 @@ export class SourceProvider {
     // Fetch from main branch so we show the latest README
     const url = remoteAssetUrl({ repo, file: "README.md" });
     const response = await fetch(url, { cache: "no-store" });
-    if (isMissingFileStatus(repo, response.status)) return null;
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
+    const body = await response.text();
+    if (!response.ok) {
+      if (isMissingFileStatus(repo, response.status, body)) return null;
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return body;
   }
 
   // URLs that should be retained in the cache

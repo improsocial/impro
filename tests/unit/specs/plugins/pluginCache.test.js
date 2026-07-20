@@ -155,6 +155,27 @@ describe("PluginCache.fetch", () => {
     await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /500/);
     assert.deepEqual(fetchStub.calls.length, 2);
   });
+
+  it("attaches the response body text to errors on non-OK responses", async () => {
+    fetchStub = stubFetch(async () =>
+      makeResponse(
+        '{"error":"InternalServerError","message":"failed to get blob"}',
+        {
+          ok: false,
+          status: 500,
+        },
+      ),
+    );
+    const cache = new PluginCache();
+    const error = await cache
+      .fetch("https://example.test/styles.css")
+      .then(null, (thrown) => thrown);
+    assert.deepEqual(error.status, 500);
+    assert.deepEqual(
+      error.body,
+      '{"error":"InternalServerError","message":"failed to get blob"}',
+    );
+  });
 });
 
 describe("PluginCache.reconcile", () => {

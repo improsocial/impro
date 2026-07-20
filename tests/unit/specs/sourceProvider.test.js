@@ -378,10 +378,16 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
 
   // tangled.sh's blob backend returns 500 (not 404) for a missing file, so
   // "optional file absent" detection has to special-case it per host.
-  it("getStyles treats a tangled 500 as a missing styles.css, not an error", async () => {
+  const TANGLED_MISSING_BLOB_BODY = JSON.stringify({
+    error: "InternalServerError",
+    message: "failed to get blob",
+  });
+
+  it("getStyles treats tangled's missing-blob 500 as a missing styles.css, not an error", async () => {
     const pluginCache = fakePluginCache(async () => {
       const error = new Error("HTTP 500");
       error.status = 500;
+      error.body = TANGLED_MISSING_BLOB_BODY;
       throw error;
     });
     const provider = new SourceProvider(pluginCache);
@@ -393,10 +399,45 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
     assert.deepEqual(styles, null);
   });
 
-  it("getStyles still throws a tangled 500 as an error for local plugins/other hosts", async () => {
+  it("getStyles still throws a tangled 500 with an unrelated body", async () => {
     const pluginCache = fakePluginCache(async () => {
       const error = new Error("HTTP 500");
       error.status = 500;
+      error.body = JSON.stringify({ error: "InternalServerError" });
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getStyles still throws a tangled 500 with a non-JSON body", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = "<html>gateway error</html>";
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getStyles still throws a matching-body 500 for non-tangled repos", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = TANGLED_MISSING_BLOB_BODY;
       throw error;
     });
     const provider = new SourceProvider(pluginCache);
@@ -409,12 +450,32 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
     assert.deepEqual(caught?.status, 500);
   });
 
-  it("getReadme treats a tangled 500 as a missing README, not an error", async () => {
-    const stub = stubFetch(async () => ({ ok: false, status: 500 }));
+  it("getReadme treats tangled's missing-blob 500 as a missing README, not an error", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse(TANGLED_MISSING_BLOB_BODY, { ok: false, status: 500 }),
+    );
     try {
       const provider = new SourceProvider(null);
       const readme = await provider.getReadme("alpha", "tangled:ow/alpha");
       assert.deepEqual(readme, null);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getReadme still throws a tangled 500 with an unrelated body", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse("server exploded", { ok: false, status: 500 }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      let caught = null;
+      try {
+        await provider.getReadme("alpha", "tangled:ow/alpha");
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught?.message.includes("500"));
     } finally {
       stub.restore();
     }
