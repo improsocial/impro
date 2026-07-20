@@ -1,7 +1,15 @@
 import { test as baseTest, expect } from "@playwright/test";
+import fs from "node:fs";
+import path from "node:path";
+
+const cssCoverageDir = process.env.CSS_COVERAGE_DIR;
 
 export const test = baseTest.extend({
-  page: async ({ page }, use) => {
+  page: async ({ page, browserName }, use, testInfo) => {
+    const collectCssCoverage = cssCoverageDir && browserName === "chromium";
+    if (collectCssCoverage) {
+      await page.coverage.startCSSCoverage({ resetOnNavigation: false });
+    }
     // Fail on any request not explicitly mocked
     await page.route("**/*", (route) => {
       const url = route.request().url();
@@ -14,6 +22,21 @@ export const test = baseTest.extend({
     });
 
     await use(page);
+
+    if (collectCssCoverage) {
+      const entries = await page.coverage.stopCSSCoverage();
+      const styleEntries = entries.filter((entry) =>
+        entry.url.includes("/css/style."),
+      );
+      if (styleEntries.length > 0) {
+        const fileName = `${testInfo.testId}-${testInfo.retry}.json`;
+        fs.mkdirSync(cssCoverageDir, { recursive: true });
+        fs.writeFileSync(
+          path.join(cssCoverageDir, fileName),
+          JSON.stringify(styleEntries),
+        );
+      }
+    }
   },
 });
 

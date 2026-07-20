@@ -305,10 +305,6 @@ video {
   height: auto;
 }
 
-.no-overscroll-y {
-  overscroll-behavior-y: none;
-}
-
 .page {
   width: 100%;
   min-height: 100%;
@@ -772,17 +768,6 @@ input[type="color"]::-moz-color-swatch {
   }
 }
 
-.loading-post {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 80px;
-}
-
-.loading-area.loading {
-  opacity: 0.5;
-}
-
 .skeleton-animate {
   background: linear-gradient(
     90deg,
@@ -827,14 +812,6 @@ input[type="color"]::-moz-color-swatch {
   height: var(--avatar-size-post);
   border-radius: var(--avatar-border-radius);
   background-color: var(--skeleton-color);
-}
-
-.skeleton-content-container {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-  gap: 10px;
 }
 
 .skeleton-content {
@@ -1436,12 +1413,6 @@ button.sidebar-plugin-nav-item {
 .sidebar-footer .sidebar-text-link {
   display: block;
   margin-bottom: 8px;
-}
-
-@media (hover: hover) {
-  .sidebar-footer-link:hover {
-    text-decoration: underline;
-  }
 }
 
 .sidebar-content {
@@ -2272,10 +2243,6 @@ container-link {
 .post-actions .text-button-text {
   position: relative;
   top: -2px;
-}
-
-.post-action-spacer {
-  flex: 1;
 }
 
 .post-action {
@@ -4443,13 +4410,6 @@ image-carousel {
   pointer-events: none;
 }
 
-.message-skeleton-bubble {
-  width: 200px;
-  height: 40px;
-  border-radius: var(--message-bubble-border-radius);
-  margin-left: 40px;
-}
-
 .message-input-wrapper {
   display: flex;
   flex-direction: column;
@@ -4575,17 +4535,6 @@ image-carousel {
 
 chat-input {
   flex: 1;
-}
-
-.message-input-avatar {
-  flex-shrink: 0;
-  width: var(--avatar-size-message-input);
-  height: var(--avatar-size-message-input);
-}
-
-.message-input-avatar .avatar-image-frame {
-  width: var(--avatar-size-message-input);
-  height: var(--avatar-size-message-input);
 }
 
 chat-input rich-text-input {
@@ -5368,10 +5317,6 @@ emoji-picker-dialog emoji-picker,
   line-height: 1.3;
 }
 
-.profile-description .text-with-links {
-  white-space: pre-wrap;
-}
-
 .profile-description a {
   color: var(--text-link-color);
 }
@@ -5380,41 +5325,6 @@ emoji-picker-dialog emoji-picker,
   .profile-description a:hover {
     text-decoration: underline;
   }
-}
-
-.profile-description-line {
-  margin-bottom: 2px;
-}
-
-.profile-description-symbols {
-  color: var(--text-color-muted);
-  margin-right: 8px;
-}
-
-.profile-followed-by {
-  padding: 16px;
-  border-top: var(--hair) solid var(--post-border-color);
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.profile-followed-by-avatars {
-  display: flex;
-  margin-left: -4px;
-}
-
-.profile-followed-by-avatar {
-  width: var(--avatar-size-followed-by);
-  height: var(--avatar-size-followed-by);
-  border-radius: var(--avatar-border-radius);
-  border: 2px solid var(--background-color);
-  margin-left: -4px;
-}
-
-.profile-followed-by-text {
-  color: var(--text-color-muted);
-  font-size: 14px;
 }
 
 .profile-skeleton {
@@ -5519,12 +5429,6 @@ emoji-picker-dialog emoji-picker,
   -webkit-box-orient: vertical;
 }
 
-.profile-search-follow-button {
-  align-self: center;
-  white-space: nowrap;
-  padding: 6px 16px;
-}
-
 .search-input-container {
   position: relative;
   display: flex;
@@ -5585,10 +5489,6 @@ emoji-picker-dialog emoji-picker,
 .search-results-container {
   margin: 0 0 24px 0;
   padding-bottom: 48px;
-}
-
-.search-results-tabs {
-  margin-bottom: 12px;
 }
 
 .search-tab-panels {
@@ -6249,24 +6149,6 @@ emoji-picker-dialog emoji-picker,
   cursor: default;
 }
 
-.post-composer-send-button {
-  background-color: var(--primary-button-color);
-  color: var(--off-white);
-  border: none;
-  border-radius: var(--pill-button-border-radius);
-  font-size: 15px;
-  font-weight: 600;
-  padding: 10px 20px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-}
-
-@media (hover: hover) {
-  .post-composer-send-button:hover {
-    background-color: var(--primary-button-hover-color);
-  }
-}
-
 .post-composer-body {
   display: flex;
   gap: 13px;
@@ -6285,22 +6167,6 @@ emoji-picker-dialog emoji-picker,
 .post-composer-body-right {
   flex: 1;
   min-width: 0;
-}
-
-.post-composer-textarea {
-  width: 100%;
-  min-height: 120px;
-  border: none;
-  background: transparent;
-  color: var(--text-color);
-  font-size: 16px;
-  font-family: inherit;
-  resize: none;
-  outline: none;
-}
-
-.post-composer-textarea:focus {
-  border-color: var(--highlight-color);
 }
 
 .post-composer-bottom-bar {
@@ -6338,10 +6204,6 @@ emoji-picker-dialog emoji-picker,
 .post-composer-bottom-bar-left {
   display: flex;
   align-items: center;
-}
-
-.post-composer-quoted-post-container {
-  margin-bottom: 12px;
 }
 
 .post-composer-post {
@@ -7270,13 +7132,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   margin-left: 2px;
 }
 
-.lightbox-container {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: var(--lightbox-container-z-index);
-}
-
 .lightbox {
   position: fixed;
   top: 0;
@@ -7313,10 +7168,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   padding: 1em;
   max-height: 20vh;
   overflow-y: auto;
-}
-
-img[data-lightbox] {
-  cursor: pointer;
 }
 
 .lightbox-close {
@@ -7698,21 +7549,6 @@ img[data-lightbox] {
   border-bottom: var(--hair) solid var(--post-border-color);
 }
 
-.blocked-account-list {
-  display: flex;
-  flex-direction: column;
-}
-
-.empty-state-message {
-  padding-left: 16px;
-  padding-right: 16px;
-  padding-top: 32px;
-  padding-bottom: 100px;
-  color: var(--text-color-muted);
-  font-size: 14px;
-  text-align: center;
-}
-
 .vertical-nav {
   display: flex;
   flex-direction: column;
@@ -7834,10 +7670,6 @@ img[data-lightbox] {
    `gap` between the ellipsis trigger and the right edge of the row. */
 .settings-account-row > context-menu {
   position: absolute;
-}
-
-.settings-switch-account-placeholder {
-  height: 50px;
 }
 
 .settings-account-ellipsis {
@@ -8471,29 +8303,13 @@ moderation-warning .toggle-content {
   color: var(--warning-color);
 }
 
-.info-area {
-  margin-top: 12px;
-  padding: 12px;
-  background-color: color-mix(in srgb, var(--highlight-color) 12%, transparent);
-  color: color-mix(in srgb, var(--highlight-color) 60%, var(--text-color));
-  font-size: 14px;
-  line-height: 1.5;
-  border-radius: var(--text-input-border-radius);
-}
-
-.info-area h4 {
-  color: var(--highlight-color);
-}
-
-.warning-area h4,
-.info-area h4 {
+.warning-area h4 {
   display: flex;
   align-items: center;
   gap: 6px;
 }
 
-.warning-area h4 .icon,
-.info-area h4 .icon {
+.warning-area h4 .icon {
   width: 18px;
   height: 18px;
 }
@@ -8510,13 +8326,6 @@ moderation-warning .toggle-content {
   font-size: 20px;
   font-weight: 600;
   margin-bottom: 4px;
-}
-
-.login-title {
-  color: var(--text-color);
-  font-size: 24px;
-  font-weight: 600;
-  margin: 18px;
 }
 
 #not-found-view main {
@@ -8613,36 +8422,6 @@ moderation-warning .toggle-content {
   border-top-color: var(--highlight-color);
 }
 
-.list-item {
-  border-bottom: var(--hair) solid var(--post-border-color);
-  padding: 12px 16px;
-  display: flex;
-  gap: 12px;
-  transition: background-color 0.2s;
-}
-
-.pull-to-refresh {
-  height: 0;
-  overflow: hidden;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.refresh-progress-indicator {
-  position: relative;
-}
-
-.refresh-progress-indicator > * {
-  position: absolute;
-  bottom: 0;
-  left: -9px;
-}
-
-.refresh-progress-indicator .loading-spinner {
-  left: -8px;
-}
-
 .version-info {
   margin-top: 20px;
   color: var(--text-color-muted);
@@ -8684,12 +8463,6 @@ moderation-warning .toggle-content {
 .labeler-settings-container {
   padding: 16px;
   padding-bottom: 80px;
-}
-
-.labeler-settings-loading {
-  color: var(--text-color-muted);
-  text-align: center;
-  padding: 32px 16px;
 }
 
 .labeler-settings-header {
@@ -8933,11 +8706,6 @@ moderation-warning .toggle-content {
   flex-shrink: 0;
 }
 
-.report-labeler-avatar avatar-element .avatar-image-frame {
-  width: var(--avatar-size-post);
-  height: var(--avatar-size-post);
-}
-
 .report-labeler-info {
   display: flex;
   flex-direction: column;
@@ -9059,7 +8827,6 @@ moderation-warning .toggle-content {
   cursor: not-allowed;
 }
 
-.report-loading,
 .report-no-labelers {
   font-size: 14px;
   color: var(--text-color-secondary);
@@ -10050,13 +9817,6 @@ image-cropper {
   padding: 32px 20px;
 }
 
-.plugin-error-detail {
-  font-size: 13px;
-  color: var(--error-color);
-  word-break: break-word;
-  max-width: 40em;
-}
-
 .plugin-list-item {
   display: flex;
   align-items: center;
@@ -10422,7 +10182,6 @@ p.setting-item-desc {
   gap: 8px;
 }
 
-.setting-item-text-input,
 .setting-item-dropdown,
 .plugin-settings-tab textarea {
   font-size: 16px;
@@ -10436,16 +10195,6 @@ p.setting-item-desc {
 .plugin-settings-tab textarea {
   font-family: inherit;
   resize: vertical;
-}
-
-.setting-item-text-input {
-  min-width: 180px;
-}
-
-@media (max-width: 600px) {
-  .setting-item-text-input {
-    min-width: 0;
-  }
 }
 
 .installed-plugins-header {
