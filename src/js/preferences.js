@@ -491,7 +491,6 @@ export class Preferences {
     return false;
   }
 
-  // Todo - memoize this?
   postHasMutedWord(post) {
     const text = post?.record?.text ?? null;
     const facets = post?.record?.facets ?? null;

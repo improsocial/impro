@@ -1,13 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { isMobileViewport } from "/js/utils.js";
 
 class AnimatedSidebar extends Component {
   connectedCallback() {
     if (!this._initialized) {
       this.setAttribute("data-dialog-wrapper", "");
-      this.scrollLock = new ScrollLock(this);
+      this.scrollLock = null;
       this.isOpen = false;
       this._children = getChildrenFragment(this);
       this.innerHTML = "";
@@ -59,7 +59,7 @@ class AnimatedSidebar extends Component {
       return;
     }
     this.isOpen = true;
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     this.querySelector("dialog.sidebar").showModal();
   }
 
@@ -68,7 +68,8 @@ class AnimatedSidebar extends Component {
       return;
     }
     this.isOpen = false;
-    this.scrollLock.unlock({ restoreScroll });
+    this.scrollLock?.release({ restoreScroll });
+    this.scrollLock = null;
     const dialog = this.querySelector("dialog.sidebar");
     if (dialog.hasAttribute("open")) {
       dialog.close();

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import {
   enableDragToDismiss,
   kebabCase,
@@ -632,7 +632,7 @@ class ReportDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.innerHTML = "";
     this._stepIndex = 0;
     this._selectedCategory = null;
@@ -808,7 +808,7 @@ class ReportDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".report-dialog");
     dialog.showModal();
 
@@ -823,7 +823,8 @@ class ReportDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".report-dialog");
     dialog.close();
     this.dispatchEvent(new CustomEvent("report-dialog-closed"));

@@ -267,7 +267,6 @@ class PostThreadView extends View {
                 <div class="post-thread-reply-chains">
                   ${replyChains.map((replyChain, i) =>
                     // there can be a lot of images in a reply chain, so lazy load them after the first few
-                    // TODO: infinite scroll for reply chains? or use v2 endpoint?
                     replyChainTemplate({
                       replyChain,
                       currentUser,

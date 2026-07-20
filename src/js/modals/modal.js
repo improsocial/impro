@@ -1,5 +1,5 @@
 import { render } from "/js/lib/lit-html.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 
 export class Modal {
@@ -44,12 +44,12 @@ export class Modal {
         dialog.setAttribute(key, value);
       }
 
-      const scrollLock = new ScrollLock(dialog);
+      let scrollLock = null;
       let resolved = false;
       const dismiss = (value) => {
         if (resolved) return;
         resolved = true;
-        scrollLock.unlock();
+        scrollLock?.release();
         dialog.close();
         dialog.remove();
         resolve(value);
@@ -72,7 +72,7 @@ export class Modal {
       });
 
       document.body.appendChild(dialog);
-      scrollLock.lock();
+      scrollLock = scrollLocks.acquire({ target: dialog });
       dialog.showModal();
 
       if (this.dragToDismiss) {

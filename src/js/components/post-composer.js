@@ -13,7 +13,7 @@ import {
 } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -359,7 +359,7 @@ class PostComposer extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.innerHTML = "";
     this._draftId = null;
     this._isDirty = false;
@@ -1234,7 +1234,7 @@ class PostComposer extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".post-composer");
     dialog.showModal();
     this.querySelector("rich-text-input")?.focus({ preventScroll: true });
@@ -1269,7 +1269,8 @@ class PostComposer extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".post-composer");
     dialog.close();
     this.dispatchEvent(new CustomEvent("post-composer-closed"));

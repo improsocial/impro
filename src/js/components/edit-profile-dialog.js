@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import {
   classnames,
@@ -26,7 +26,7 @@ class EditProfileDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this._displayName = "";
     this._description = "";
     this._currentAvatar = null;
@@ -475,7 +475,7 @@ class EditProfileDialog extends Component {
 
   open() {
     this._isOpen = true;
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".edit-profile-dialog");
     if (dialog) {
       dialog.showModal();
@@ -510,7 +510,8 @@ class EditProfileDialog extends Component {
 
   close() {
     this._isOpen = false;
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".edit-profile-dialog");
     if (dialog) {
       dialog.close();

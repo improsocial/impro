@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { displayRelativeTime, enableDragToDismiss } from "/js/utils.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
@@ -165,7 +165,7 @@ class DraftsDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.state = new ReactiveStore("drafts-dialog");
     this.state.$loadError = new Signal.State(false);
     this.state.$isLoadingMore = new Signal.State(false);
@@ -323,7 +323,7 @@ class DraftsDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
     dialog.showModal();
     enableDragToDismiss(dialog, {
@@ -335,7 +335,8 @@ class DraftsDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector("dialog");
     if (dialog?.open) {
       dialog.close();

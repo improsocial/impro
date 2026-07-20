@@ -302,7 +302,9 @@ class ProfileView extends View {
           <p>
             This account has requested that users sign in to view their profile.
           </p>
-          <button @click=${() => window.router.back()}>Go back</button>
+          <button class="rounded-button" @click=${() => window.router.back()}>
+            Go back
+          </button>
         </div>
       `;
     }

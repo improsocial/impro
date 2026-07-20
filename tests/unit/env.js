@@ -111,6 +111,11 @@ globalThis.localStorage = new LocalStorageStub();
 
 globalThis.Element = globalThis.window.Element;
 
+// Components exercise scroll locking without the app bootstrap, so supply the
+// same active-page boundary through the test fixture.
+const { scrollLocks } = await import("/js/scrollLocks.js");
+scrollLocks.setContainerProvider(() => document.querySelector(".page-visible"));
+
 class HighlightStub {
   constructor(...ranges) {
     this._ranges = new Set(ranges);

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
@@ -19,7 +19,7 @@ class AccountSwitcherDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.state = new ReactiveStore("account-switcher-dialog");
     this.state.$currentDid = new Signal.State(null);
     this.state.$accounts = new Signal.State(null);
@@ -278,7 +278,7 @@ class AccountSwitcherDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
     dialog.showModal();
     enableDragToDismiss(dialog, {
@@ -290,7 +290,8 @@ class AccountSwitcherDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector("dialog");
     if (dialog?.open) {
       dialog.close();

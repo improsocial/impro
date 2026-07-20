@@ -90,61 +90,59 @@ function findScrollableAncestor(element) {
   return null;
 }
 
-// Locks are tracked as a stack of holders: the first holder locks the
-// page and only the last holder to unlock restores it.
-let __scrollLockHolders = [];
-let __lockedContainer = null;
+class ScrollLockManager {
+  #getContainer = null;
+  #leases = new Set();
+  #lockedContainer = null;
 
-export class ScrollLock {
-  constructor(target) {
-    this.target = target ?? null;
-    this.locked = false;
-    this._lockedAncestor = null;
-    this._previousAncestorOverflow = "";
+  setContainerProvider(getContainer) {
+    this.#getContainer = getContainer;
   }
 
-  lock() {
-    if (this.locked) {
-      return;
-    }
-    const container = document.querySelector(".page-visible"); // todo find better way to get container
-    if (!container) {
-      console.warn(
-        "ScrollLock: no .page-visible container found; skipping lock",
-      );
-      return;
-    }
-    if (__scrollLockHolders.length === 0) {
+  acquire({ target = null } = {}) {
+    let released = false;
+    let lockedAncestor = null;
+    let previousAncestorOverflow = "";
+    const release = ({ restoreScroll = true } = {}) => {
+      if (released) return;
+      released = true;
+
+      if (lockedAncestor) {
+        lockedAncestor.style.overflow = previousAncestorOverflow;
+        lockedAncestor = null;
+        previousAncestorOverflow = "";
+      }
+
+      this.#leases.delete(release);
+      if (this.#leases.size === 0 && this.#lockedContainer) {
+        unlockScroll(this.#lockedContainer, { restoreScroll });
+        this.#lockedContainer = null;
+      }
+    };
+
+    if (this.#leases.size === 0) {
+      const container = this.#getContainer?.();
+      if (!container) {
+        console.warn(
+          "ScrollLock: no current page container found; skipping lock",
+        );
+        return { release };
+      }
       lockScroll(container);
-      __lockedContainer = container;
+      this.#lockedContainer = container;
     }
-    __scrollLockHolders.push(this);
-    // If target is passed, lock the nearest scrollable ancestor of that target in addition to the outer page
-    const ancestor = this.target ? findScrollableAncestor(this.target) : null;
+
+    this.#leases.add(release);
+    // Also prevent scroll in the nearest scrollable ancestor of the trigger.
+    const ancestor = target ? findScrollableAncestor(target) : null;
     if (ancestor) {
-      this._lockedAncestor = ancestor;
-      this._previousAncestorOverflow = ancestor.style.overflow;
+      lockedAncestor = ancestor;
+      previousAncestorOverflow = ancestor.style.overflow;
       ancestor.style.overflow = "hidden";
     }
-    this.locked = true;
-  }
 
-  unlock({ restoreScroll = true } = {}) {
-    if (!this.locked) {
-      return;
-    }
-    if (this._lockedAncestor) {
-      this._lockedAncestor.style.overflow = this._previousAncestorOverflow;
-      this._lockedAncestor = null;
-      this._previousAncestorOverflow = "";
-    }
-    __scrollLockHolders = __scrollLockHolders.filter(
-      (holder) => holder !== this,
-    );
-    if (__scrollLockHolders.length === 0) {
-      unlockScroll(__lockedContainer, { restoreScroll });
-      __lockedContainer = null;
-    }
-    this.locked = false;
+    return { release };
   }
 }
+
+export const scrollLocks = new ScrollLockManager();

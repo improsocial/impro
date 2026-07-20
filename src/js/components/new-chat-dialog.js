@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
@@ -144,7 +144,7 @@ class NewChatDialog extends Component {
     }
     this.dataLayer = this.dataLayer ?? null;
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.state = new ReactiveStore("new-chat-dialog");
     this.state.$query = new Signal.State("");
     this.innerHTML = "";
@@ -296,7 +296,7 @@ class NewChatDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".new-chat-dialog");
     dialog.showModal();
     this.querySelector(".new-chat-search-input")?.focus({
@@ -310,7 +310,8 @@ class NewChatDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".new-chat-dialog");
     if (dialog?.open) {
       dialog.close();

@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { isModerationList } from "/js/dataHelpers.js";
@@ -13,7 +13,7 @@ class AddToListsDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.state = new ReactiveStore("add-to-lists-dialog");
     this.state.$pendingByListUri = new SignalSet();
     this.state.$loadError = new Signal.State(null);
@@ -230,7 +230,7 @@ class AddToListsDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".add-to-lists-dialog");
     dialog.showModal();
     enableDragToDismiss(dialog, {
@@ -241,7 +241,8 @@ class AddToListsDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".add-to-lists-dialog");
     if (dialog?.open) {
       dialog.close();

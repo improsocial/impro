@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import "/js/components/toggle-switch.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -11,7 +11,7 @@ class PostNotificationsDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this._postEnabled = this.activitySubscription?.post ?? false;
     this._replyEnabled = this.activitySubscription?.reply ?? false;
     this._isSaving = false;
@@ -146,7 +146,7 @@ class PostNotificationsDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".post-notifications-dialog");
     dialog.showModal();
 
@@ -158,7 +158,8 @@ class PostNotificationsDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".post-notifications-dialog");
     if (dialog?.open) {
       dialog.close();

@@ -1,7 +1,7 @@
 import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { enableDragToDismiss } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
@@ -13,7 +13,7 @@ class ReactionsDialog extends Component {
     this._initialized = true;
     this.setAttribute("data-dialog-wrapper", "");
     this._activeFilter = "all";
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this._dispose = effect(() => {
       this.render();
     });
@@ -21,7 +21,7 @@ class ReactionsDialog extends Component {
       const dialog = this.querySelector(".reactions-dialog");
       if (dialog && !dialog.open) {
         dialog.showModal();
-        this.scrollLock.lock();
+        this.scrollLock ??= scrollLocks.acquire({ target: this });
         enableDragToDismiss(dialog, {
           onClose: () => this._close(),
           scrollContainer: this.querySelector(".reactions-list"),
@@ -33,7 +33,8 @@ class ReactionsDialog extends Component {
 
   disconnectedCallback() {
     if (this._dispose) this._dispose();
-    this.scrollLock?.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
   }
 
   _close() {
