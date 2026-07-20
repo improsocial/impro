@@ -364,7 +364,7 @@ class SearchView extends View {
                         class="feed-avatar"
                       />`
                     : html`<img
-                        src="/img/list-avatar-fallback.svg"
+                        src="/img/feed-avatar-fallback.svg"
                         alt=${feedGenerator.displayName}
                         class="feed-avatar"
                       />`}

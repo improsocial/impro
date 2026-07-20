@@ -559,7 +559,7 @@ function starterPackTemplate({ starterPack }) {
 }
 
 function feedGeneratorTemplate({ feedGenerator }) {
-  const avatarUrl = feedGenerator.avatar ?? "/img/list-avatar-fallback.svg"; // todo - is there a different fallback for feed generators?
+  const avatarUrl = feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg";
   return html`<div class="feed-generator-embed embed-card">
     <a href="${linkToFeed(feedGenerator)}">
       <div class="feed-generator-embed-content">

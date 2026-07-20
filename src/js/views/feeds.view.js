@@ -161,7 +161,7 @@ class FeedsView extends View {
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${feedGenerator.avatar ?? "/img/list-avatar-fallback.svg"}
+            src=${feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg"}
             alt=${feedGenerator.displayName}
             class="feed-avatar"
           />
