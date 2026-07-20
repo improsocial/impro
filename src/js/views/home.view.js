@@ -194,7 +194,12 @@ class HomeView extends View {
                   >View profile</a
                 ><br />`
             : ""}
-          <button @click=${() => window.location.reload()}>Try again</button>
+          <button
+            class="rounded-button"
+            @click=${() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>
       </div>`;
     }
@@ -229,7 +234,7 @@ class HomeView extends View {
             onClickMenuButton: () => handleMenuClick(),
             rightItemTemplate: () => html`
               <a
-                class="header-icon-button feeds-button"
+                class="icon-button feeds-button"
                 href="/feeds"
                 aria-label="Feeds"
                 data-testid="feeds-button"

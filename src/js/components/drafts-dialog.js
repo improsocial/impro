@@ -144,7 +144,7 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
       </div>
       <div class="draft-item-side">
         <button
-          class="draft-item-delete"
+          class="icon-button draft-item-delete"
           data-testid="draft-item-delete"
           aria-label="Delete draft"
           @click=${(e) => {
@@ -268,7 +268,7 @@ class DraftsDialog extends Component {
           <div class="drafts-dialog-content">
             <div class="drafts-dialog-header">
               <button
-                class="drafts-dialog-back"
+                class="text-pill-button drafts-dialog-back"
                 data-testid="drafts-dialog-back"
                 @click=${() => this.close()}
               >

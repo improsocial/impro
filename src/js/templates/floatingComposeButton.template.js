@@ -3,7 +3,7 @@ import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 
 export function floatingComposeButtonTemplate({ onClick }) {
   return html`<button
-    class="floating-compose-button"
+    class="fab floating-compose-button"
     data-testid="floating-compose-button"
     @click=${() => onClick()}
   >

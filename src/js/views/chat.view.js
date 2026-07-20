@@ -136,7 +136,7 @@ class ChatView extends View {
     function inboxButtonTemplate({ hasUnreadRequests }) {
       return html`
         <a
-          class="header-icon-button inbox-button"
+          class="icon-button inbox-button"
           href="/messages/inbox"
           aria-label=${hasUnreadRequests ? "Requests (unread)" : "Requests"}
           data-testid="inbox-button"
@@ -183,7 +183,9 @@ class ChatView extends View {
       console.error(error);
       return html`<div class="error-state">
         <div>There was an error loading conversations.</div>
-        <button @click=${() => window.location.reload()}>Try again</button>
+        <button class="rounded-button" @click=${() => window.location.reload()}>
+          Try again
+        </button>
       </div>`;
     }
 
@@ -244,7 +246,7 @@ class ChatView extends View {
             })()}
           </main>
           <button
-            class="new-chat-fab"
+            class="fab new-chat-fab"
             aria-label="New chat"
             data-testid="new-chat-fab"
             @click=${() => handleNewChatClick()}

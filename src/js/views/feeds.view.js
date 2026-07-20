@@ -240,7 +240,7 @@ class FeedsView extends View {
                 </div>`;
               }
               return html`<button
-                class="header-icon-button header-edit-button"
+                class="icon-button header-edit-button"
                 data-testid="feeds-edit-button"
                 aria-label="Edit feeds"
                 @click=${() => state.$isEditing.set(true)}

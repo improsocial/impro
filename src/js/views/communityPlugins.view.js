@@ -33,7 +33,9 @@ class CommunityPluginsView extends View {
             ${error
               ? html`<div class="error-state">
                   <div>Failed to load plugins</div>
-                  <button @click=${() => loadListings()}>Try again</button>
+                  <button class="rounded-button" @click=${() => loadListings()}>
+                    Try again
+                  </button>
                 </div>`
               : !listings
                 ? html`<div

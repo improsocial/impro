@@ -3,6 +3,7 @@ build
 .env
 .context
 tests/e2e/.results
+tests/.artifacts/visual
 CLAUDE.md
 .claude
 plugins-local/*

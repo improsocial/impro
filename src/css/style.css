@@ -11,6 +11,7 @@
 
 button {
   color: inherit;
+  font-family: inherit;
 }
 
 html,
@@ -187,7 +188,7 @@ html {
   --message-input-z-index: 4;
   --reaction-palette-z-index: 5;
   --toast-z-index: 5;
-  --floating-compose-button-z-index: 6;
+  --fab-z-index: 6;
   --sidebar-z-index: 8;
   --lightbox-container-z-index: 9;
   --lightbox-z-index: 10;
@@ -493,19 +494,55 @@ plugin-rich-text {
   font-size: 15px;
 }
 
-.back-button {
-  display: flex;
+.text-pill-button {
+  background: none;
+  border: none;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 8px 12px;
+  transition: color 0.2s;
+  border-radius: var(--pill-button-border-radius);
+  color: var(--highlight-color);
+}
+
+.text-pill-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.icon-button {
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  text-decoration: none;
-  border: none;
+  padding: 0;
   background: none;
-  cursor: pointer;
+  border: none;
   color: var(--icon-button-color);
+  cursor: pointer;
+  text-decoration: none;
   border-radius: var(--icon-button-border-radius);
+  transition: background-color 0.2s;
+}
+
+.icon-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.icon-button .icon {
+  width: 24px;
+  height: 24px;
+}
+
+@media (hover: hover) {
+  .icon-button:not(:disabled):hover {
+    background-color: var(--back-button-hover-color);
+  }
+}
+
+.back-button {
   height: 30px;
   width: 30px;
-  transition: background-color 0.2s;
 }
 
 .floating-back-button {
@@ -531,61 +568,16 @@ plugin-rich-text {
   height: 20px;
 }
 
-@media (hover: hover) {
-  .back-button:hover {
-    background-color: var(--back-button-hover-color);
-  }
-}
-
 .menu-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: none;
-  cursor: pointer;
-  color: var(--text-color-muted);
   font-size: 24px;
   height: 30px;
   width: 30px;
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
-}
-
-@media (hover: hover) {
-  .menu-button:hover {
-    background-color: var(--back-button-hover-color);
-  }
 }
 
 @media (min-width: 800px) {
   .menu-button {
     display: none;
   }
-}
-
-.header-icon-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: var(--text-color-muted);
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
-}
-
-@media (hover: hover) {
-  .header-icon-button:not(:disabled):hover {
-    background-color: var(--back-button-hover-color);
-  }
-}
-
-.header-icon-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .inbox-button {
@@ -661,51 +653,15 @@ form label {
   color: var(--text-color-muted);
 }
 
-form button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 10px 20px;
-  font-size: 15px;
-  border-radius: var(--pill-button-border-radius);
-  border: var(--hair) solid var(--post-border-color);
-  background: var(--background-color);
-  cursor: pointer;
-}
-
-form button.rounded-button {
+#login-form .rounded-button {
   padding: 10px 20px;
 }
 
-form button[type="submit"] {
-  font-weight: normal;
-  background: var(--primary-button-color);
-  color: var(--primary-button-text-color);
-}
-
-form button[type="submit"] .loading-spinner {
+#login-form .rounded-button-primary .loading-spinner {
   border-top-color: var(--primary-button-text-color);
   border-left-color: transparent;
   border-right-color: transparent;
   border-bottom-color: transparent;
-}
-
-@media (hover: hover) {
-  form button[type="submit"]:hover {
-    background: var(--primary-button-hover-color);
-  }
-}
-
-form button:disabled {
-  opacity: 0.5;
-}
-
-@media (hover: hover) {
-  form button:hover {
-    background: var(--post-hover-color);
-  }
 }
 
 input,
@@ -1361,23 +1317,8 @@ plugin-blob-image .blob-image-fallback {
   margin-left: 10px;
   width: fit-content;
   padding: 12px 20px;
-  background-color: var(--primary-button-color);
-  color: var(--off-white);
-  border: none;
-  border-radius: var(--pill-button-border-radius);
   font-size: 16px;
   font-weight: 600;
-  cursor: pointer;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  transition: background-color 0.2s;
-}
-
-@media (hover: hover) {
-  .sidebar-compose-button:hover {
-    background-color: var(--primary-button-hover-color);
-  }
 }
 
 .sidebar-compose-button .icon {
@@ -1812,7 +1753,6 @@ container-link {
   color: var(--text-color-muted);
   font-size: 13px;
   cursor: pointer;
-  font-family: inherit;
   margin-left: 2px;
 }
 .who-can-reply-badge .icon {
@@ -3459,7 +3399,7 @@ image-carousel {
   width: 32px;
   height: 32px;
   background-color: var(--overlay-color-medium);
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
 }
 
 .video-preview-play-button::after {
@@ -4321,24 +4261,13 @@ image-carousel {
 }
 
 .chat-join-link-action {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
   padding: 8px 14px;
-  border-radius: var(--pill-button-border-radius);
-  border: none;
-  cursor: pointer;
-  font-size: 14px;
   font-weight: 600;
-  background: var(--primary-button-color);
-  color: var(--primary-button-text-color);
   width: 100%;
 }
 
 .chat-join-link-action[disabled] {
-  opacity: 0.6;
-  cursor: default;
   background: var(--secondary-button-color);
   color: var(--text-color);
 }
@@ -4594,7 +4523,7 @@ chat-input .rich-text-input-placeholder {
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   background: transparent;
   border: none;
   display: flex;
@@ -4631,7 +4560,7 @@ chat-input .rich-text-input-placeholder {
   height: 40px;
   border-radius: var(--circular-button-border-radius);
   color: var(--primary-button-text-color);
-  background-color: var(--highlight-color);
+  background-color: var(--primary-button-color);
   border: none;
   display: flex;
   align-items: center;
@@ -6165,33 +6094,9 @@ emoji-picker-dialog emoji-picker,
   }
 }
 
-.post-composer-cancel-button {
-  background: none;
-  border: none;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 8px 12px;
-  transition: color 0.2s;
-  border-radius: var(--pill-button-border-radius);
-  color: var(--highlight-color);
-}
-
 .post-composer-drafts-button {
-  background: none;
-  border: none;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 8px 12px;
-  transition: color 0.2s;
-  border-radius: var(--pill-button-border-radius);
-  color: var(--highlight-color);
   margin-left: auto;
   margin-right: 8px;
-}
-
-.post-composer-drafts-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .post-composer-body {
@@ -6295,19 +6200,11 @@ emoji-picker-dialog emoji-picker,
 }
 
 .post-composer-add-post-button {
-  background: none;
-  border: none;
   padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
 }
 
 @media (hover: hover) {
-  .post-composer-add-post-button:hover {
+  .post-composer-add-post-button:not(:disabled):hover {
     background-color: var(--background-color-secondary);
   }
 }
@@ -6363,31 +6260,12 @@ emoji-picker-dialog emoji-picker,
 }
 
 .image-picker-button {
-  background: none;
-  border: none;
   padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
 }
 
 @media (hover: hover) {
-  .image-picker-button:hover {
+  .image-picker-button:not(:disabled):hover {
     background-color: var(--background-color-secondary);
-  }
-}
-
-.image-picker-button:disabled {
-  opacity: 0.4;
-  cursor: default;
-}
-
-@media (hover: hover) {
-  .image-picker-button:disabled:hover {
-    background-color: transparent;
   }
 }
 
@@ -6403,20 +6281,12 @@ emoji-picker-dialog emoji-picker,
 }
 
 .post-composer-emoji-button {
-  background: none;
-  border: none;
   padding: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: var(--icon-button-border-radius);
   color: var(--highlight-color);
-  transition: background-color 0.2s;
 }
 
 @media (hover: hover) {
-  .post-composer-emoji-button:hover {
+  .post-composer-emoji-button:not(:disabled):hover {
     background-color: var(--background-color-secondary);
   }
 }
@@ -6474,7 +6344,7 @@ emoji-picker-dialog emoji-picker,
   color: var(--error-color);
 }
 
-.floating-compose-button {
+.fab {
   display: flex;
   position: fixed;
   bottom: calc(70px + var(--safe-area-inset-bottom));
@@ -6483,11 +6353,11 @@ emoji-picker-dialog emoji-picker,
   height: 60px;
   border-radius: var(--circular-button-border-radius);
   background-color: var(--primary-button-color);
-  color: var(--off-white);
+  color: var(--primary-button-text-color);
   border: none;
   cursor: pointer;
   box-shadow: var(--shadow-color-light);
-  z-index: var(--floating-compose-button-z-index);
+  z-index: var(--fab-z-index);
   align-items: center;
   justify-content: center;
   transition:
@@ -6496,13 +6366,13 @@ emoji-picker-dialog emoji-picker,
 }
 
 @media (hover: hover) {
-  .floating-compose-button:hover {
+  .fab:hover {
     transform: scale(1.05);
     box-shadow: var(--shadow-color-hover);
   }
 }
 
-.floating-compose-button:active {
+.fab:active {
   transform: scale(0.95);
 }
 
@@ -6886,23 +6756,23 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .modal-dialog-button.cancel-button {
-  background-color: light-dark(var(--lightest-gray), var(--light-gray));
+  background-color: var(--secondary-button-color);
 }
 
 @media (hover: hover) {
   .modal-dialog-button.cancel-button:hover {
-    background-color: light-dark(var(--lighter-gray), var(--light-gray));
+    background-color: var(--secondary-button-hover-color);
   }
 }
 
 .modal-dialog-button.primary-button {
   background-color: var(--primary-button-color);
-  color: var(--off-white);
+  color: var(--primary-button-text-color);
 }
 
 .modal-dialog-button.danger-button {
   background-color: var(--error-color);
-  color: var(--off-white);
+  color: var(--primary-button-text-color);
 }
 
 .modal-dialog-button.danger-subtle-button {
@@ -7431,24 +7301,10 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .settings-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   gap: 6px;
   width: 100%;
   padding: 10px;
-  border-radius: var(--pill-button-border-radius);
-  border: none;
-  background: var(--highlight-color);
-  color: white;
   font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.settings-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .settings-button .plus-icon {
@@ -7457,8 +7313,12 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .settings-button .loading-spinner {
-  border-color: rgba(255, 255, 255, 0.3);
-  border-top-color: white;
+  border-color: color-mix(
+    in srgb,
+    var(--primary-button-text-color) 30%,
+    transparent
+  );
+  border-top-color: var(--primary-button-text-color);
 }
 
 .muted-word-delete-button .loading-spinner {
@@ -7539,7 +7399,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   border-radius: var(--pill-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: none;
-  color: var(--link-color);
+  color: var(--text-link-color);
   cursor: pointer;
   font-size: 12px;
   font-weight: 600;
@@ -7555,7 +7415,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   flex-shrink: 0;
   width: 28px;
   height: 28px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   border: var(--hair) solid var(--post-border-color);
   background: none;
   color: var(--text-color-muted);
@@ -7791,14 +7651,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 .drafts-dialog-back {
   position: absolute;
   left: 0;
-  background: none;
-  border: none;
-  font-size: 15px;
-  cursor: pointer;
-  padding: 8px 12px;
-  transition: color 0.2s;
-  border-radius: var(--pill-button-border-radius);
-  color: var(--highlight-color);
 }
 
 .drafts-dialog-list {
@@ -7909,24 +7761,9 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   margin-bottom: 4px;
 }
 
-.draft-item-delete {
-  background: none;
-  border: none;
-  color: var(--text-color-muted);
-  cursor: pointer;
-  border-radius: var(--icon-button-border-radius);
-  transition: background-color 0.2s;
-}
-
 .draft-item-delete .icon {
   width: 18px;
   height: 18px;
-}
-
-@media (hover: hover) {
-  .draft-item-delete:hover {
-    background-color: var(--back-button-hover-color);
-  }
 }
 
 .account-switcher-content {
@@ -8427,10 +8264,6 @@ moderation-warning .toggle-content {
 }
 
 .error-state button {
-  border: none;
-  border-radius: var(--pill-button-border-radius);
-  cursor: pointer;
-  padding: 8px 16px;
   margin-top: 16px;
 }
 
@@ -9178,7 +9011,7 @@ toggle-switch {
   color: var(--primary-button-text-color);
   height: 33px;
   width: 33px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   transition: background-color 0.2s;
 }
 
@@ -9197,29 +9030,6 @@ toggle-switch {
 .new-chat-button .icon {
   width: 16px;
   height: 16px;
-}
-
-.new-chat-fab {
-  display: flex;
-  position: fixed;
-  bottom: calc(70px + var(--safe-area-inset-bottom));
-  right: 20px;
-  width: 60px;
-  height: 60px;
-  border-radius: var(--circular-button-border-radius);
-  background-color: var(--primary-button-color);
-  color: var(--off-white);
-  border: none;
-  cursor: pointer;
-  box-shadow: var(--shadow-color-light);
-  z-index: var(--floating-compose-button-z-index);
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s;
-}
-
-.new-chat-fab:active {
-  transform: scale(0.95);
 }
 
 .new-chat-fab .icon {
@@ -9487,7 +9297,7 @@ tab-bar[full-width] .tab-bar-button {
   border: none;
   font-size: 16px;
   cursor: pointer;
-  color: var(--link-color);
+  color: var(--text-link-color);
   padding: 4px 0;
 }
 
@@ -9572,7 +9382,7 @@ tab-bar[full-width] .tab-bar-button {
   position: absolute;
   width: 24px;
   height: 24px;
-  border-radius: 50%;
+  border-radius: var(--circular-button-border-radius);
   background-color: light-dark(var(--lightest-gray), var(--dark-gray));
   border: 1px solid light-dark(var(--lighter-gray), var(--light-gray));
   display: flex;
@@ -9905,28 +9715,6 @@ image-cropper {
   display: flex;
   align-items: center;
   gap: 12px;
-}
-
-.icon-button {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  background: none;
-  border: none;
-  color: inherit;
-  cursor: pointer;
-  text-decoration: none;
-}
-
-.icon-button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.icon-button .icon {
-  width: 24px;
-  height: 24px;
 }
 
 .plugin-list-item.uninstalling {
@@ -10458,7 +10246,7 @@ p.setting-item-desc {
   flex: 0 0 auto;
   padding: 8px 14px;
   border: 1px solid color-mix(in srgb, var(--highlight-color) 35%, transparent);
-  border-radius: 999px;
+  border-radius: var(--pill-button-border-radius);
   background: transparent;
   color: var(--highlight-color);
   font-size: 13px;

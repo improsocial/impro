@@ -558,7 +558,7 @@ class PostComposer extends Component {
           <div class="post-composer-content">
             <div class="post-composer-top-bar">
               <button
-                class="post-composer-cancel-button"
+                class="text-pill-button post-composer-cancel-button"
                 @click=${async () => {
                   if (await this.confirmClose()) {
                     this.close();
@@ -569,7 +569,7 @@ class PostComposer extends Component {
               </button>
               ${!this.replyTo && draftsEnabled
                 ? html`<button
-                    class="post-composer-drafts-button"
+                    class="text-pill-button post-composer-drafts-button"
                     data-testid="composer-drafts-button"
                     .disabled=${isSavingDraft}
                     @click=${() => this.handleDraftsButtonClick()}
@@ -644,7 +644,7 @@ class PostComposer extends Component {
                     }}
                   />
                   <button
-                    class="image-picker-button"
+                    class="icon-button image-picker-button"
                     @click=${() => this.handleMediaButtonClick()}
                     .disabled=${hasVideo || activePost.images.length >= 4}
                   >
@@ -653,7 +653,7 @@ class PostComposer extends Component {
                   <div class="post-composer-emoji-wrapper">
                     <button
                       type="button"
-                      class="post-composer-emoji-button"
+                      class="icon-button post-composer-emoji-button"
                       aria-label="Open emoji picker"
                       @click=${(e) => this.handleEmojiButtonClick(e)}
                     >
@@ -670,7 +670,7 @@ class PostComposer extends Component {
                 <div class="post-composer-bottom-bar-right">
                   ${canAddPost
                     ? html`<button
-                        class="post-composer-add-post-button"
+                        class="icon-button post-composer-add-post-button"
                         data-testid="composer-add-post-button"
                         aria-label="Add another post"
                         @click=${() => this.handleAddPost()}

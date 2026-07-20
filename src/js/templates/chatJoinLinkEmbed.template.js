@@ -110,7 +110,7 @@ function actionButtonTemplate({ action, preview }) {
   const iconFn = ACTION_ICONS[action.icon];
   const icon = iconFn ? iconFn() : null;
   return html`<button
-    class="chat-join-link-action chat-join-link-action-${action.type}"
+    class="rounded-button rounded-button-primary chat-join-link-action chat-join-link-action-${action.type}"
     data-testid="join-link-embed-action"
     data-teststate=${action.type}
     ?disabled=${action.disabled}

@@ -3,6 +3,21 @@ import fs from "node:fs";
 import path from "node:path";
 
 const cssCoverageDir = process.env.CSS_COVERAGE_DIR;
+const visualCaptureDir = process.env.VISUAL_CAPTURE_DIR;
+
+function visualCapturePath(testInfo) {
+  const fileName = path.basename(testInfo.file, ".test.js");
+  const title = testInfo.title
+    .replace(/[^a-z0-9]+/gi, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120);
+  return path.join(
+    visualCaptureDir,
+    testInfo.project.name,
+    fileName,
+    `${title || testInfo.testId}.png`,
+  );
+}
 
 export const test = baseTest.extend({
   page: async ({ page, browserName }, use, testInfo) => {
@@ -22,6 +37,16 @@ export const test = baseTest.extend({
     });
 
     await use(page);
+
+    if (visualCaptureDir) {
+      const screenshotPath = visualCapturePath(testInfo);
+      fs.mkdirSync(path.dirname(screenshotPath), { recursive: true });
+      await page.screenshot({
+        path: screenshotPath,
+        fullPage: true,
+        animations: "disabled",
+      });
+    }
 
     if (collectCssCoverage) {
       const entries = await page.coverage.stopCSSCoverage();
