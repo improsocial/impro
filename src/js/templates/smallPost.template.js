@@ -7,7 +7,7 @@ import {
   doHideAuthorOnUnauthenticated,
 } from "/js/dataHelpers.js";
 import { noop } from "/js/utils.js";
-import { linkToPost } from "/js/navigation.js";
+import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
@@ -78,6 +78,8 @@ export function smallPostTemplate({
   ignoreContentWarning = false,
   ignoreMuteWarning = false,
   isPinned = false,
+  feedContext = null,
+  feedGenerator = null,
   onClickShowLess = noop,
   onClickShowMore = noop,
   enableFeedFeedback = false,
@@ -129,7 +131,10 @@ export function smallPostTemplate({
                 ${repostIconTemplate()}
                 ${repostAuthor.did === currentUser?.did
                   ? "Reposted by you"
-                  : "Reposted by " + getDisplayName(repostAuthor)}
+                  : html`Reposted by
+                      <a href="${linkToProfile(repostAuthor)}"
+                        >${getDisplayName(repostAuthor)}</a
+                      >`}
               </div>`
             : ""}
           ${postHeaderTextTemplate({
@@ -145,7 +150,9 @@ export function smallPostTemplate({
                 ${replyToAuthor
                   ? replyToAuthor.did === currentUser?.did
                     ? " you"
-                    : html` ${getDisplayName(replyToAuthor)}`
+                    : html` <a href="${linkToProfile(replyToAuthor)}"
+                        >${getDisplayName(replyToAuthor)}</a
+                      >`
                   : " user"}
               </div>`
             : ""}
@@ -191,6 +198,8 @@ export function smallPostTemplate({
             isUserPost,
             isAuthenticated,
             currentUser,
+            feedContext,
+            feedGenerator,
             onClickReply: () => {
               window.router.go(linkToPost(post));
             },

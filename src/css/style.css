@@ -1864,6 +1864,13 @@ container-link {
   gap: 4px;
 }
 
+@media (hover: hover) {
+  .small-post .repost-label a:hover,
+  .reply-to-author a:hover {
+    text-decoration: underline;
+  }
+}
+
 .small-post .repost-label .icon {
   height: 17px;
   width: 17px;
@@ -3305,6 +3312,22 @@ image-carousel {
 
 .notification-text strong {
   font-weight: 600;
+}
+
+.notification-others-button {
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  .notification-others-button:hover {
+    text-decoration: underline;
+  }
 }
 
 .notification-time {
@@ -10101,6 +10124,12 @@ p.setting-item-desc {
     padding-bottom: 16px;
     padding-left: 24px;
   }
+}
+
+.bottom-sheet.profile-list-modal .profile-list-modal-body {
+  max-height: 60vh;
+  overflow-y: auto;
+  margin: 0 -24px;
 }
 
 .bottom-sheet.welcome-modal {

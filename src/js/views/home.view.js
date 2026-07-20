@@ -16,6 +16,7 @@ import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
+import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
 class HomeView extends View {
   async render({
@@ -74,13 +75,6 @@ class HomeView extends View {
       });
     }
 
-    function getProxyUrl(feedGenerator) {
-      if (!feedGenerator.did) {
-        return null;
-      }
-      return `${feedGenerator.did}#bsky_fg`;
-    }
-
     const postSeenObservers = new Map();
 
     // Initialize post seen observers for feeds with proxy URLs
@@ -96,7 +90,7 @@ class HomeView extends View {
       }
       postSeenObservers.clear();
       for (const item of interactableItems) {
-        const proxyUrl = getProxyUrl(item);
+        const proxyUrl = getFeedGeneratorProxyUrl(item);
         if (proxyUrl) {
           postSeenObservers.set(item.uri, new PostSeenObserver(api, proxyUrl));
         }
@@ -123,7 +117,7 @@ class HomeView extends View {
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
         feedContext,
-        getProxyUrl(feedGenerator),
+        getFeedGeneratorProxyUrl(feedGenerator),
       );
       // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
       const feedFeedbackMessageElement = document.querySelector(
@@ -138,7 +132,7 @@ class HomeView extends View {
       dataLayer.mutations.sendShowMoreInteraction(
         post.uri,
         feedContext,
-        getProxyUrl(feedGenerator),
+        getFeedGeneratorProxyUrl(feedGenerator),
       );
       showToast("Feedback sent to feed operator");
     }

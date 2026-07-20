@@ -632,11 +632,14 @@ export class Api {
   }
 
   async sendInteractions(interactions, feedProxyUrl) {
+    // Without an explicit feed generator to proxy to (e.g. a manual
+    // moderation action with no feed context), fall back to the main
+    // AppView, which implements sendInteractions; the PDS itself doesn't.
     await this.request(`app.bsky.feed.sendInteractions`, {
       method: "POST",
       body: { interactions },
       headers: {
-        "atproto-proxy": feedProxyUrl,
+        "atproto-proxy": feedProxyUrl || this.bskyAppViewServiceDid,
       },
       parseJson: false, // third-party feed might not return JSON
     });
