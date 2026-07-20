@@ -399,6 +399,7 @@ export function postActionBarTemplate({
         <div class="post-action">
           <button
             class="post-action-button text-button"
+            data-testid="post-action-more"
             @click=${(e) => {
               e.stopPropagation();
               openPostContextMenu(e, {

@@ -145,9 +145,7 @@ test.describe("Post Composer Edge Cases", () => {
     await altDialog
       .locator(".image-alt-text-dialog-textarea")
       .fill("A sunset photo");
-    await altDialog
-      .locator(".rounded-button-primary", { hasText: "Save" })
-      .click();
+    await altDialog.locator('[data-testid="alt-text-save"]').click();
 
     // Verify has-alt indicator
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();
@@ -169,9 +167,7 @@ test.describe("Post Composer Edge Cases", () => {
     await altDialog2
       .locator(".image-alt-text-dialog-textarea")
       .fill("A beautiful sunset over the ocean");
-    await altDialog2
-      .locator(".rounded-button-primary", { hasText: "Save" })
-      .click();
+    await altDialog2.locator('[data-testid="alt-text-save"]').click();
 
     // Verify still has-alt
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();

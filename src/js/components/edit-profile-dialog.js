@@ -134,6 +134,7 @@ class EditProfileDialog extends Component {
               <div class="edit-profile-dialog-header">
                 <button
                   class="edit-profile-dialog-header-button"
+                  data-testid="edit-profile-crop-cancel-button"
                   @click=${() => {
                     this._croppingTarget = null;
                     this._croppingImageSrc = null;

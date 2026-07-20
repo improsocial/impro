@@ -2,6 +2,10 @@ import { Capacitor } from "/js/lib/capacitor.js";
 
 export function noop() {}
 
+export function kebabCase(str) {
+  return str.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
+}
+
 export function unique(array, { by: keyOrFn } = {}) {
   let getKey = (i) => i;
   if (keyOrFn) {

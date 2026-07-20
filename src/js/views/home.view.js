@@ -189,7 +189,9 @@ class HomeView extends View {
           An issue occurred when contacting the feed server.<br />
           Please let the feed owner know about this issue.<br />
           ${feedGenerator.creator
-            ? html`<a href=${linkToProfile(feedGenerator.creator)}
+            ? html`<a
+                  href=${linkToProfile(feedGenerator.creator)}
+                  data-testid="feed-error-view-profile"
                   >View profile</a
                 ><br />`
             : ""}

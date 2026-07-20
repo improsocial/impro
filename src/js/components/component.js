@@ -1,6 +1,4 @@
-function kebabCase(str) {
-  return str.replace(/([a-z])([A-Z])/g, "$1-$2").toLowerCase();
-}
+import { kebabCase } from "/js/utils.js";
 
 export class Component extends HTMLElement {
   static register() {

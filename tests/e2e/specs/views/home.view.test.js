@@ -461,7 +461,7 @@ test.describe("Home view", () => {
       { timeout: 10000 },
     );
     await expect(
-      errorState.locator("a", { hasText: "View profile" }),
+      errorState.locator('[data-testid="feed-error-view-profile"]'),
     ).toHaveAttribute("href", "/profile/creator1.bsky.social");
   });
 

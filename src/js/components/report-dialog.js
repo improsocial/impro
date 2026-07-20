@@ -1,7 +1,11 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { ScrollLock } from "/js/scrollLock.js";
-import { enableDragToDismiss, resetScrollOnBlur } from "/js/utils.js";
+import {
+  enableDragToDismiss,
+  kebabCase,
+  resetScrollOnBlur,
+} from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -314,7 +318,11 @@ const REASON_TYPES_BY_CATEGORY = {
 
 function categoryCardTemplate({ category, onClick }) {
   return html`
-    <button class="report-option-card" @click=${onClick}>
+    <button
+      class="report-option-card"
+      data-testid="report-category-${kebabCase(category.key)}"
+      @click=${onClick}
+    >
       <div class="report-option-title">${category.title}</div>
       <div class="report-option-description">${category.description}</div>
     </button>
@@ -322,8 +330,13 @@ function categoryCardTemplate({ category, onClick }) {
 }
 
 function reasonTypeCardTemplate({ reasonType, onClick }) {
+  const reasonSlug = kebabCase(reasonType.reasonType.split("#reason")[1]);
   return html`
-    <button class="report-option-card" @click=${onClick}>
+    <button
+      class="report-option-card"
+      data-testid="report-reason-${reasonSlug}"
+      @click=${onClick}
+    >
       <div class="report-option-title">${reasonType.title}</div>
     </button>
   `;

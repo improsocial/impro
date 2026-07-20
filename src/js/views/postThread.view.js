@@ -402,7 +402,9 @@ class PostThreadView extends View {
                   <div class="load-more-spacer">
                     <div class="reply-context-ellipsis"></div>
                   </div>
-                  <a href=${linkToPostFromUri(replyParent.uri)}
+                  <a
+                    href=${linkToPostFromUri(replyParent.uri)}
+                    data-testid="post-thread-load-parent"
                     >Load parent post</a
                   >
                 </div>`
