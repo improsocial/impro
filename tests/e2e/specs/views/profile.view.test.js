@@ -1672,6 +1672,55 @@ test.describe("Profile view", () => {
       ).toBeVisible({ timeout: 10000 });
     });
 
+    test("should not prefetch the media feed on a labeler profile", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addProfile(labelerUser);
+      await mockServer.setup(page);
+
+      await page.route("**/xrpc/app.bsky.labeler.getServices*", (route) => {
+        const url = new URL(route.request().url());
+        const dids = url.searchParams.getAll("dids");
+        if (dids.includes("did:plc:labeler123")) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({ views: [labelerView] }),
+          });
+        }
+        return route.fallback();
+      });
+
+      const authorFeedFilters = [];
+      page.on("request", (request) => {
+        if (request.url().includes("app.bsky.feed.getAuthorFeed")) {
+          authorFeedFilters.push(
+            new URL(request.url()).searchParams.get("filter"),
+          );
+        }
+      });
+
+      await login(page);
+      await page.goto(`/profile/${labelerUser.did}`);
+
+      const view = page.locator("#profile-view");
+      await expect(
+        view.locator(
+          '[data-testid="subscribe-button"][data-teststate="not-subscribed"]',
+        ),
+      ).toBeVisible({ timeout: 10000 });
+
+      await expect
+        .poll(() => authorFeedFilters)
+        .toContain("posts_and_author_threads");
+      await expect
+        .poll(() => authorFeedFilters)
+        .toContain("posts_with_replies");
+      await page.waitForLoadState("networkidle");
+      expect(authorFeedFilters).not.toContain("posts_with_media");
+    });
+
     test("should show 'Labels' tab and 'Subscribed' button when subscribed to a labeler", async ({
       page,
     }) => {

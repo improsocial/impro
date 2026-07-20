@@ -39,30 +39,14 @@ class ProfileView extends View {
       interactionHandlers,
     },
   }) {
-    const defaultAuthorFeeds = [
-      {
-        feedType: "posts",
-        name: "Posts",
-      },
-      isAuthenticated
-        ? {
-            feedType: "replies",
-            name: "Replies",
-          }
-        : null,
-      {
-        feedType: "media",
-        name: "Media",
-      },
-    ].filter(Boolean);
-
-    const currentUserAuthorFeeds = [
-      ...defaultAuthorFeeds,
-      {
-        feedType: "likes",
-        name: "Likes",
-      },
-    ];
+    function getAuthorFeeds({ isCurrentUser, isLabeler }) {
+      return [
+        { feedType: "posts", name: "Posts" },
+        isAuthenticated ? { feedType: "replies", name: "Replies" } : null,
+        isLabeler ? null : { feedType: "media", name: "Media" },
+        isCurrentUser ? { feedType: "likes", name: "Likes" } : null,
+      ].filter(Boolean);
+    }
 
     const state = new ReactiveStore("profileView");
     state.$activeTab = new Signal.State("posts");
@@ -333,15 +317,7 @@ class ProfileView extends View {
           profile.did,
         );
         const isCurrentUser = currentUser?.did === profile.did;
-        let authorFeedsToShow = isCurrentUser
-          ? currentUserAuthorFeeds
-          : defaultAuthorFeeds;
-        // Hide media feed for labelers. TODO: prevent prefetching
-        if (isLabeler) {
-          authorFeedsToShow = authorFeedsToShow.filter(
-            (feed) => feed.feedType !== "media",
-          );
-        }
+        let authorFeedsToShow = getAuthorFeeds({ isCurrentUser, isLabeler });
         const feedGenCount = profile.associated?.feedgens || 0;
         if (feedGenCount > 0) {
           authorFeedsToShow = [
@@ -410,7 +386,7 @@ class ProfileView extends View {
                   // We could do some fancier logic here but this is a good enough solution for now.
                   await wait(2000);
                   loadAuthorFeed();
-                  preloadHiddenFeeds();
+                  preloadHiddenFeeds({ isCurrentUser, isLabeler });
                 }
               },
               onClickSubscribe: (profile, doSubscribe, labelerInfo) =>
@@ -613,11 +589,12 @@ class ProfileView extends View {
       await loadActorLists({ reload: true });
     }
 
-    async function preloadHiddenFeeds() {
+    async function preloadHiddenFeeds({ isCurrentUser, isLabeler }) {
       const activeTab = state.$activeTab.get();
-      const feedsToPreload = defaultAuthorFeeds.filter(
-        (feed) => feed.feedType !== activeTab,
-      );
+      const feedsToPreload = getAuthorFeeds({
+        isCurrentUser,
+        isLabeler,
+      }).filter((feed) => feed.feedType !== activeTab);
       for (const feed of feedsToPreload) {
         await dataLayer.requests.loadNextAuthorFeedPage(
           profileDid,
@@ -649,8 +626,10 @@ class ProfileView extends View {
       }
 
       if (!profile.viewer?.blocking && !profile.viewer?.blockedBy) {
+        const isCurrentUser =
+          profile.did === dataLayer.derived.$currentUser.get()?.did;
         loadAuthorFeed();
-        preloadHiddenFeeds();
+        preloadHiddenFeeds({ isCurrentUser, isLabeler });
       }
       // Load chat status
       if (
