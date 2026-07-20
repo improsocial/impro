@@ -39,12 +39,12 @@ test.describe("Report post flow", () => {
 
     // Step 1: Select category "Misleading"
     await reportDialog
-      .locator(".report-option-card", { hasText: "Misleading" })
+      .locator('[data-testid="report-category-misleading"]')
       .click();
 
     // Step 2: Select reason "Spam"
     await reportDialog
-      .locator(".report-option-card", { hasText: "Spam" })
+      .locator('[data-testid="report-reason-misleading-spam"]')
       .click();
 
     // Step 3: Select labeler "Bluesky Moderation"

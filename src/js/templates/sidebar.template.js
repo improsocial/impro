@@ -302,7 +302,7 @@ export function sidebarTemplate({
       })}
       ${onClickComposeButton
         ? html`<button
-            class="sidebar-compose-button"
+            class="rounded-button rounded-button-primary sidebar-compose-button"
             data-testid="sidebar-compose-button"
             @click=${() => onClickComposeButton()}
           >

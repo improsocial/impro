@@ -171,7 +171,10 @@ class CommunityPluginListingView extends View {
               if (loadError) {
                 return html`<div class="error-state">
                   <div>Failed to load plugin</div>
-                  <button @click=${() => window.location.reload()}>
+                  <button
+                    class="rounded-button"
+                    @click=${() => window.location.reload()}
+                  >
                     Try again
                   </button>
                 </div>`;

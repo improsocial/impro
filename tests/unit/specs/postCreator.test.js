@@ -1,6 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { PostCreator } from "/js/postCreator.js";
+import { computeRecordCid } from "/js/atproto.js";
 
 const mockIdentityResolver = {
   resolveHandle: async () => null,
@@ -8,40 +9,51 @@ const mockIdentityResolver = {
 
 function makeApi() {
   const api = {
+    session: { did: "did:plc:user" },
+    lastWrites: null,
     lastEmbed: null,
+    lastLangs: null,
+    lastLabels: null,
     uploadBlob: async () => ({
       ref: { $link: "bafyimg" },
       mimeType: "image/jpeg",
       size: 100,
     }),
-    createPost: async ({ embed, langs, labels }) => {
-      api.lastEmbed = embed;
-      api.lastLangs = langs;
-      api.lastLabels = labels;
-      return {
-        uri: "at://did:plc:user/app.bsky.feed.post/abc",
-        cid: "cid1",
-      };
+    applyWrites: async function (writes) {
+      this.lastWrites = writes;
+      const postWrite = writes.find(
+        (write) => write.collection === "app.bsky.feed.post",
+      );
+      this.lastEmbed = postWrite.value.embed ?? null;
+      this.lastLangs = postWrite.value.langs;
+      this.lastLabels = postWrite.value.labels ?? null;
+      return {};
     },
-    threadgateCalls: [],
-    createThreadgate: async (postUri, allow) => {
-      api.threadgateCalls.push({ postUri, allow });
-    },
-    postgateCalls: [],
-    createPostgate: async (postUri, embeddingRules) => {
-      api.postgateCalls.push({ postUri, embeddingRules });
-    },
-    getPostCalls: 0,
-    getPost: async function () {
-      this.getPostCalls++;
-      return {
-        uri: "at://did:plc:user/app.bsky.feed.post/abc",
-        cid: "cid1",
-        record: { text: "hi" },
-      };
+    getPostsCalls: 0,
+    getPosts: async function (uris) {
+      this.getPostsCalls++;
+      return uris.map((uri) => ({ uri, cid: "cid1", record: { text: "hi" } }));
     },
   };
   return api;
+}
+
+// Publishes a single post through the unified thread path.
+function createSinglePost(pc, options = {}) {
+  const {
+    replyTo,
+    replyRoot,
+    threadgateAllow = null,
+    postgateEmbeddingRules = null,
+    ...postFields
+  } = options;
+  return pc.createThread({
+    posts: [postFields],
+    replyTo,
+    replyRoot,
+    threadgateAllow,
+    postgateEmbeddingRules,
+  });
 }
 
 function makeImageCompressor() {
@@ -74,20 +86,20 @@ describe("video embed preparation", () => {
   it("produces no embed when video is missing", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi" });
+    await createSinglePost(pc, { postText: "hi" });
     assert.deepEqual(api.lastEmbed, null);
 
-    await pc.createPost({ postText: "hi", video: null });
+    await createSinglePost(pc, { postText: "hi", video: null });
     assert.deepEqual(api.lastEmbed, null);
 
-    await pc.createPost({ postText: "hi", video: {} });
+    await createSinglePost(pc, { postText: "hi", video: {} });
     assert.deepEqual(api.lastEmbed, null);
   });
 
   it("builds an embed.video record with alt and aspectRatio", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi", video: videoFixture() });
+    await createSinglePost(pc, { postText: "hi", video: videoFixture() });
     const embed = api.lastEmbed;
     assert.deepEqual(embed.$type, "app.bsky.embed.video");
     assert.deepEqual(embed.alt, "a clip");
@@ -102,7 +114,7 @@ describe("video embed preparation", () => {
   it("omits aspectRatio when missing", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: null },
     });
@@ -112,13 +124,13 @@ describe("video embed preparation", () => {
   it("omits aspectRatio when width or height is zero", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 0, height: 9 } },
     });
     assert(!("aspectRatio" in api.lastEmbed));
 
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 16, height: 0 } },
     });
@@ -128,7 +140,7 @@ describe("video embed preparation", () => {
   it("preserves raw (unclamped) dimensions", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: { ...videoFixture(), aspectRatio: { width: 1080, height: 100 } },
     });
@@ -139,7 +151,7 @@ describe("video embed preparation", () => {
   it("omits alt when empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: { ...videoFixture(), alt: "" },
     });
@@ -149,7 +161,7 @@ describe("video embed preparation", () => {
   it("forwards langs to api.createPost", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi" });
+    await createSinglePost(pc, { postText: "hi" });
     assert(Array.isArray(api.lastLangs));
     assert(api.lastLangs.length > 0);
   });
@@ -159,7 +171,7 @@ describe("createPost embed selection", () => {
   it("uses video embed when video is provided", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi", video: videoFixture() });
+    await createSinglePost(pc, { postText: "hi", video: videoFixture() });
     assert.deepEqual(api.lastEmbed.$type, "app.bsky.embed.video");
   });
 
@@ -170,7 +182,7 @@ describe("createPost embed selection", () => {
       mockIdentityResolver,
       makeImageCompressor(),
     );
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: videoFixture(),
       images: [{ dataUrl: "data:image/jpeg;base64,AAAA", alt: "" }],
@@ -181,7 +193,7 @@ describe("createPost embed selection", () => {
   it("builds a bare record embed from any quoted record's uri and cid", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       quotedRecord: {
         uri: "at://did:plc:creator/app.bsky.feed.generator/cool-feed",
@@ -199,7 +211,7 @@ describe("createPost embed selection", () => {
   it("wraps video in recordWithMedia when there is a quoted record", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       video: videoFixture(),
       quotedRecord: { uri: "at://x", cid: "c" },
@@ -214,10 +226,10 @@ describe("images embed preparation", () => {
   it("produces no embed when images is missing or empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi", images: [] });
+    await createSinglePost(pc, { postText: "hi", images: [] });
     assert.deepEqual(api.lastEmbed, null);
 
-    await pc.createPost({ postText: "hi", images: null });
+    await createSinglePost(pc, { postText: "hi", images: null });
     assert.deepEqual(api.lastEmbed, null);
   });
 
@@ -227,14 +239,14 @@ describe("images embed preparation", () => {
     api.uploadBlob = async (blob) => {
       uploaded.push(blob);
       return {
-        ref: { $link: `bafyimg${uploaded.length}` },
+        ref: { $link: `bafyimg${uploaded.length + 1}` },
         mimeType: "image/jpeg",
         size: 100 + uploaded.length,
       };
     };
     const imageCompressor = makeImageCompressor();
     const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       images: [
         { dataUrl: "data:image/jpeg;base64,AAAA", alt: "first" },
@@ -247,11 +259,11 @@ describe("images embed preparation", () => {
     assert.deepEqual(embed.$type, "app.bsky.embed.images");
     assert.deepEqual(embed.images.length, 2);
     assert.deepEqual(embed.images[0].alt, "first");
-    assert.deepEqual(embed.images[0].image.ref.$link, "bafyimg1");
+    assert.deepEqual(embed.images[0].image.ref.$link, "bafyimg2");
     assert.deepEqual(embed.images[0].aspectRatio.width, 10);
     assert.deepEqual(embed.images[0].aspectRatio.height, 10);
     assert.deepEqual(embed.images[1].alt, "");
-    assert.deepEqual(embed.images[1].image.ref.$link, "bafyimg2");
+    assert.deepEqual(embed.images[1].image.ref.$link, "bafyimg3");
   });
 });
 
@@ -259,14 +271,14 @@ describe("external embed preparation", () => {
   it("produces no embed when external is missing", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({ postText: "hi" });
+    await createSinglePost(pc, { postText: "hi" });
     assert.deepEqual(api.lastEmbed, null);
   });
 
   it("builds an embed.external record and renames url to uri", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       external: {
         title: "Example",
@@ -299,7 +311,7 @@ describe("external embed preparation", () => {
         mockIdentityResolver,
         makeImageCompressor(),
       );
-      await pc.createPost({
+      await createSinglePost(pc, {
         postText: "hi",
         external: {
           title: "Example",
@@ -336,7 +348,7 @@ describe("external embed preparation", () => {
       };
       const imageCompressor = makeImageCompressor();
       const pc = new PostCreator(api, mockIdentityResolver, imageCompressor);
-      await pc.createPost({
+      await createSinglePost(pc, {
         postText: "hi",
         external: {
           title: "Example",
@@ -364,7 +376,7 @@ describe("external embed preparation", () => {
     try {
       const api = makeApi();
       const pc = new PostCreator(api, mockIdentityResolver);
-      await pc.createPost({
+      await createSinglePost(pc, {
         postText: "hi",
         external: {
           title: "Example",
@@ -385,22 +397,22 @@ describe("external embed preparation", () => {
 describe("post text trimming", () => {
   function makeCapturingApi() {
     const api = makeApi();
-    api.sent = null;
-    api.createPost = async (record) => {
-      api.sent = record;
-      return { uri: "at://did:plc:user/app.bsky.feed.post/abc", cid: "cid1" };
-    };
+    Object.defineProperty(api, "sent", {
+      get() {
+        return this.lastWrites?.[0]?.value ?? null;
+      },
+    });
     return api;
   }
 
   it("leaves well-formed text unchanged", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "hello world",
     });
     assert.deepEqual(api.sent.text, "hello world");
 
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "line one\n\nline two",
     });
     assert.deepEqual(api.sent.text, "line one\n\nline two");
@@ -408,7 +420,7 @@ describe("post text trimming", () => {
 
   it("strips leading whitespace-only lines", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "\n\n  \nhello",
     });
     assert.deepEqual(api.sent.text, "hello");
@@ -416,7 +428,7 @@ describe("post text trimming", () => {
 
   it("preserves leading spaces on the first content line (ASCII art)", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "   /\\_/\\\n  ( o.o )",
     });
     assert.deepEqual(api.sent.text, "   /\\_/\\\n  ( o.o )");
@@ -424,7 +436,7 @@ describe("post text trimming", () => {
 
   it("trims trailing whitespace", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "hello   \n\n  ",
     });
     assert.deepEqual(api.sent.text, "hello");
@@ -432,17 +444,17 @@ describe("post text trimming", () => {
 
   it("collapses runs of 3+ newlines to 2", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "a\n\n\nb",
     });
     assert.deepEqual(api.sent.text, "a\n\nb");
 
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "a\n\n\n\n\nb",
     });
     assert.deepEqual(api.sent.text, "a\n\nb");
 
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "a\n \n \nb",
     });
     assert.deepEqual(api.sent.text, "a\n\nb");
@@ -450,7 +462,7 @@ describe("post text trimming", () => {
 
   it("handles empty text", async () => {
     const api = makeCapturingApi();
-    await new PostCreator(api, mockIdentityResolver).createPost({
+    await createSinglePost(new PostCreator(api, mockIdentityResolver), {
       postText: "",
     });
     assert.deepEqual(api.sent.text, "");
@@ -458,29 +470,29 @@ describe("post text trimming", () => {
 });
 
 describe("app view hydration", () => {
-  it("returns uri, cid, and the hydrated post on success", async () => {
+  it("returns uris and the hydrated posts on success", async () => {
     const api = makeApi();
     const pc = new PostCreator(api, mockIdentityResolver);
-    const result = await pc.createPost({ postText: "hi" });
-    assert.deepEqual(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
-    assert.deepEqual(result.cid, "cid1");
-    assert.deepEqual(result.post.cid, "cid1");
-    assert.deepEqual(api.getPostCalls, 1);
+    const result = await createSinglePost(pc, { postText: "hi" });
+    assert.deepEqual(result.uris, [
+      `at://did:plc:user/app.bsky.feed.post/${api.lastWrites[0].rkey}`,
+    ]);
+    assert.deepEqual(result.posts[0].cid, "cid1");
+    assert.deepEqual(api.getPostsCalls, 1);
   });
 
-  it("returns post: null when app view never returns the post", async () => {
+  it("returns posts: null when the app view never returns the posts", async () => {
     const originalWait = globalThis.setTimeout;
     globalThis.setTimeout = (fn) => originalWait(fn, 0);
     try {
       const api = makeApi();
-      api.getPost = async () => {
+      api.getPosts = async () => {
         throw new Error("not found yet");
       };
       const pc = new PostCreator(api, mockIdentityResolver);
-      const result = await pc.createPost({ postText: "hi" });
-      assert.deepEqual(result.uri, "at://did:plc:user/app.bsky.feed.post/abc");
-      assert.deepEqual(result.cid, "cid1");
-      assert.deepEqual(result.post, null);
+      const result = await createSinglePost(pc, { postText: "hi" });
+      assert.deepEqual(result.uris.length, 1);
+      assert.deepEqual(result.posts, null);
     } finally {
       globalThis.setTimeout = originalWait;
     }
@@ -492,12 +504,12 @@ describe("app view hydration", () => {
     try {
       const api = makeApi();
       let calls = 0;
-      api.getPost = async () => {
+      api.getPosts = async () => {
         calls++;
         throw new Error("nope");
       };
       const pc = new PostCreator(api, mockIdentityResolver);
-      await pc.createPost({ postText: "hi" });
+      await createSinglePost(pc, { postText: "hi" });
       assert.deepEqual(calls, 5);
     } finally {
       globalThis.setTimeout = originalWait;
@@ -518,7 +530,7 @@ describe("draft passthrough fields", () => {
       mockIdentityResolver,
       makeImageCompressor(),
     );
-    await pc.createPost({ postText: "hi", labels });
+    await createSinglePost(pc, { postText: "hi", labels });
     assert.deepEqual(api.lastLabels, labels);
   });
 
@@ -529,11 +541,11 @@ describe("draft passthrough fields", () => {
       mockIdentityResolver,
       makeImageCompressor(),
     );
-    await pc.createPost({ postText: "hi" });
+    await createSinglePost(pc, { postText: "hi" });
     assert.deepEqual(api.lastLabels, null);
   });
 
-  it("creates threadgate and postgate records against the new post", async () => {
+  it("writes threadgate and postgate records in the same batch as the post", async () => {
     const api = makeApi();
     const pc = new PostCreator(
       api,
@@ -546,57 +558,209 @@ describe("draft passthrough fields", () => {
     const postgateEmbeddingRules = [
       { $type: "app.bsky.feed.postgate#disableRule" },
     ];
-    await pc.createPost({
+    await createSinglePost(pc, {
       postText: "hi",
       threadgateAllow,
       postgateEmbeddingRules,
     });
-    assert.deepEqual(api.threadgateCalls, [
-      {
-        postUri: "at://did:plc:user/app.bsky.feed.post/abc",
-        allow: threadgateAllow,
-      },
-    ]);
-    assert.deepEqual(api.postgateCalls, [
-      {
-        postUri: "at://did:plc:user/app.bsky.feed.post/abc",
-        embeddingRules: postgateEmbeddingRules,
-      },
-    ]);
+    const writes = api.lastWrites;
+    assert.deepEqual(
+      writes.map((write) => write.collection),
+      [
+        "app.bsky.feed.post",
+        "app.bsky.feed.threadgate",
+        "app.bsky.feed.postgate",
+      ],
+    );
+    const postUri = `at://did:plc:user/app.bsky.feed.post/${writes[0].rkey}`;
+    assert.deepEqual(writes[1].rkey, writes[0].rkey);
+    assert.deepEqual(writes[1].value.post, postUri);
+    assert.deepEqual(writes[1].value.allow, threadgateAllow);
+    assert.deepEqual(writes[2].rkey, writes[0].rkey);
+    assert.deepEqual(writes[2].value.post, postUri);
+    assert.deepEqual(writes[2].value.embeddingRules, postgateEmbeddingRules);
   });
 
-  it("creates no gate records when the fields are absent or empty", async () => {
+  it("writes no gate records when the fields are absent or empty", async () => {
     const api = makeApi();
     const pc = new PostCreator(
       api,
       mockIdentityResolver,
       makeImageCompressor(),
     );
-    await pc.createPost({ postText: "hi", postgateEmbeddingRules: [] });
-    assert.deepEqual(api.threadgateCalls, []);
-    assert.deepEqual(api.postgateCalls, []);
+    await createSinglePost(pc, { postText: "hi", postgateEmbeddingRules: [] });
+    assert.deepEqual(api.lastWrites.length, 1);
+    assert.deepEqual(api.lastWrites[0].collection, "app.bsky.feed.post");
+  });
+});
+
+describe("createThread", () => {
+  function makeThreadApi() {
+    const api = {
+      session: { did: "did:plc:user" },
+      applyWritesCalls: [],
+      applyWrites: async function (writes) {
+        this.applyWritesCalls.push(writes);
+        return {};
+      },
+      uploadBlob: async () => ({
+        ref: { $link: "bafyimg" },
+        mimeType: "image/jpeg",
+        size: 100,
+      }),
+      getPostsCalls: [],
+      getPosts: async function (uris) {
+        this.getPostsCalls.push(uris);
+        return uris.map((uri) => ({ uri, record: { text: "hi" } }));
+      },
+    };
+    return api;
+  }
+
+  it("publishes a single post as one applyWrites create", async () => {
+    const api = makeThreadApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const res = await pc.createThread({ posts: [{ postText: "solo post" }] });
+    assert.deepEqual(api.applyWritesCalls.length, 1);
+    const writes = api.applyWritesCalls[0];
+    assert.deepEqual(writes.length, 1);
+    assert.deepEqual(writes[0].$type, "com.atproto.repo.applyWrites#create");
+    assert.deepEqual(writes[0].collection, "app.bsky.feed.post");
+    assert.deepEqual(writes[0].rkey.length, 13);
+    assert.deepEqual(writes[0].value.$type, "app.bsky.feed.post");
+    assert.deepEqual(writes[0].value.text, "solo post");
+    assert.deepEqual(writes[0].value.reply, undefined);
+    assert.deepEqual(res.uris, [
+      `at://did:plc:user/app.bsky.feed.post/${writes[0].rkey}`,
+    ]);
+    assert.deepEqual(res.posts.length, 1);
   });
 
-  it("still resolves the post when gate creation fails", async () => {
-    const originalError = console.error;
-    console.error = () => {};
+  it("chains a 3-post thread with sticky root and bumped createdAt", async () => {
+    const api = makeThreadApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const res = await pc.createThread({
+      posts: [{ postText: "one" }, { postText: "two" }, { postText: "three" }],
+    });
+    const writes = api.applyWritesCalls[0];
+    assert.deepEqual(writes.length, 3);
+    const uris = writes.map(
+      (write) => `at://did:plc:user/app.bsky.feed.post/${write.rkey}`,
+    );
+    assert.deepEqual(res.uris, uris);
+
+    assert.deepEqual(writes[0].value.reply, undefined);
+    assert.deepEqual(writes[1].value.reply.root.uri, uris[0]);
+    assert.deepEqual(writes[1].value.reply.parent.uri, uris[0]);
+    assert.deepEqual(writes[2].value.reply.root.uri, uris[0]);
+    assert.deepEqual(writes[2].value.reply.parent.uri, uris[1]);
+
+    // reply refs carry the client-computed CIDs of the referenced records
+    assert.deepEqual(
+      writes[1].value.reply.parent.cid,
+      await computeRecordCid(writes[0].value),
+    );
+    assert.deepEqual(
+      writes[2].value.reply.parent.cid,
+      await computeRecordCid(writes[1].value),
+    );
+
+    // rkeys strictly increasing, createdAt bumped +1ms per post
+    assert(writes[0].rkey < writes[1].rkey);
+    assert(writes[1].rkey < writes[2].rkey);
+    const times = writes.map((write) => Date.parse(write.value.createdAt));
+    assert.deepEqual(times[1] - times[0], 1);
+    assert.deepEqual(times[2] - times[1], 1);
+  });
+
+  it("inherits the reply root for a thread posted as a reply", async () => {
+    const api = makeThreadApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const replyRoot = {
+      uri: "at://did:plc:other/app.bsky.feed.post/root1",
+      cid: "rootcid",
+    };
+    const replyTo = {
+      uri: "at://did:plc:other/app.bsky.feed.post/leaf1",
+      cid: "leafcid",
+    };
+    await pc.createThread({
+      posts: [{ postText: "one" }, { postText: "two" }],
+      replyTo,
+      replyRoot,
+    });
+    const writes = api.applyWritesCalls[0];
+    assert.deepEqual(writes[0].value.reply.root, replyRoot);
+    assert.deepEqual(writes[0].value.reply.parent, replyTo);
+    // sticky root: later posts keep the original thread root, not post 0
+    assert.deepEqual(writes[1].value.reply.root, replyRoot);
+    assert.deepEqual(
+      writes[1].value.reply.parent.uri,
+      `at://did:plc:user/app.bsky.feed.post/${writes[0].rkey}`,
+    );
+  });
+
+  it("writes the threadgate only at the root and postgates on every post", async () => {
+    const api = makeThreadApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    const allow = [{ $type: "app.bsky.feed.threadgate#followingRule" }];
+    const embeddingRules = [{ $type: "app.bsky.feed.postgate#disableRule" }];
+    await pc.createThread({
+      posts: [{ postText: "one" }, { postText: "two" }],
+      threadgateAllow: allow,
+      postgateEmbeddingRules: embeddingRules,
+    });
+    const writes = api.applyWritesCalls[0];
+    assert.deepEqual(
+      writes.map((write) => write.collection),
+      [
+        "app.bsky.feed.post",
+        "app.bsky.feed.threadgate",
+        "app.bsky.feed.postgate",
+        "app.bsky.feed.post",
+        "app.bsky.feed.postgate",
+      ],
+    );
+    // gates share their post's rkey and point at its uri
+    assert.deepEqual(writes[1].rkey, writes[0].rkey);
+    assert.deepEqual(writes[1].value.allow, allow);
+    assert.deepEqual(
+      writes[1].value.post,
+      `at://did:plc:user/app.bsky.feed.post/${writes[0].rkey}`,
+    );
+    assert.deepEqual(writes[2].rkey, writes[0].rkey);
+    assert.deepEqual(writes[2].value.embeddingRules, embeddingRules);
+    assert.deepEqual(writes[4].rkey, writes[3].rkey);
+    assert.deepEqual(
+      writes[4].value.post,
+      `at://did:plc:user/app.bsky.feed.post/${writes[3].rkey}`,
+    );
+  });
+
+  it("returns posts: null when the app view returns only a subset", async () => {
+    const originalWait = globalThis.setTimeout;
+    globalThis.setTimeout = (fn) => originalWait(fn, 0);
     try {
-      const api = makeApi();
-      api.createThreadgate = async () => {
-        throw new Error("gate failed");
+      const api = makeThreadApi();
+      api.getPosts = async function (uris) {
+        this.getPostsCalls.push(uris);
+        return uris.slice(1).map((uri) => ({ uri, record: {} }));
       };
-      const pc = new PostCreator(
-        api,
-        mockIdentityResolver,
-        makeImageCompressor(),
-      );
-      const res = await pc.createPost({
-        postText: "hi",
-        threadgateAllow: [{ $type: "app.bsky.feed.threadgate#followingRule" }],
+      const pc = new PostCreator(api, mockIdentityResolver);
+      const res = await pc.createThread({
+        posts: [{ postText: "one" }, { postText: "two" }],
       });
-      assert.deepEqual(res.uri, "at://did:plc:user/app.bsky.feed.post/abc");
+      assert.deepEqual(res.posts, null);
+      assert.deepEqual(api.getPostsCalls.length, 5);
+      assert.deepEqual(api.getPostsCalls[0], res.uris);
     } finally {
-      console.error = originalError;
+      globalThis.setTimeout = originalWait;
     }
+  });
+
+  it("throws when no posts are given", async () => {
+    const api = makeThreadApi();
+    const pc = new PostCreator(api, mockIdentityResolver);
+    await assert.rejects(() => pc.createThread({ posts: [] }), /at least one/);
   });
 });

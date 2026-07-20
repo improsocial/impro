@@ -982,35 +982,27 @@ export class Mutations {
     }
   }
 
-  async createPost({
-    postText,
-    external,
+  async createThread({
+    posts,
     replyTo,
     replyRoot,
-    quotedRecord,
-    images,
-    video,
-    labels,
     threadgateAllow,
     postgateEmbeddingRules,
   }) {
-    const { uri, cid, post } = await this.postCreator.createPost({
-      postText,
-      external,
+    const { uris, posts: hydratedPosts } = await this.postCreator.createThread({
+      posts,
       replyTo,
       replyRoot,
-      quotedRecord,
-      images,
-      video,
-      labels,
       threadgateAllow,
       postgateEmbeddingRules,
     });
-    // Update local data with new post, if present
-    if (post) {
-      // NOTE: LEXICON DEVIATION
-      post.viewer.priorityReply = true;
-      this.dataStore.$posts.set(post.uri, post);
+    if (hydratedPosts) {
+      for (const post of hydratedPosts) {
+        // NOTE: LEXICON DEVIATION
+        post.viewer.priorityReply = true;
+      }
+      this.dataStore.setPosts(hydratedPosts);
+      const rootPost = hydratedPosts[0];
       // If it's a reply, update the reply post thread in the store
       if (replyTo) {
         const replyPostThread = this.dataStore.$postThreads.get(replyTo.uri);
@@ -1020,7 +1012,7 @@ export class Mutations {
             replies: [
               {
                 $type: "app.bsky.feed.defs#threadViewPost",
-                post: post,
+                post: rootPost,
                 replies: [],
               },
               ...replyPostThread.replies,
@@ -1028,18 +1020,28 @@ export class Mutations {
           });
         }
       }
-      // If the author feed is loaded, add the new post to it
-      const { repo: did } = parseUri(post.uri);
-      const authorFeedURI = replyTo ? `${did}-replies` : `${did}-posts`; // TODO - handle media tab too?
-      const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-      if (authorFeed) {
-        this.dataStore.$authorFeeds.set(authorFeedURI, {
-          feed: addFeedItemToFeed({ post }, authorFeed.feed),
-          cursor: authorFeed.cursor,
+      const { repo: did } = parseUri(rootPost.uri);
+      const rootFeedURI = replyTo ? `${did}-replies` : `${did}-posts`;
+      const rootFeed = this.dataStore.$authorFeeds.get(rootFeedURI);
+      if (rootFeed) {
+        this.dataStore.$authorFeeds.set(rootFeedURI, {
+          feed: addFeedItemToFeed({ post: rootPost }, rootFeed.feed),
+          cursor: rootFeed.cursor,
         });
       }
+      // Later thread posts are self-replies, so they go in the replies tab
+      const repliesFeedURI = `${did}-replies`;
+      for (const post of hydratedPosts.slice(1)) {
+        const repliesFeed = this.dataStore.$authorFeeds.get(repliesFeedURI);
+        if (repliesFeed) {
+          this.dataStore.$authorFeeds.set(repliesFeedURI, {
+            feed: addFeedItemToFeed({ post }, repliesFeed.feed),
+            cursor: repliesFeed.cursor,
+          });
+        }
+      }
     }
-    return { uri, cid, post };
+    return { uris, posts: hydratedPosts };
   }
 
   async deletePost(post) {
@@ -1100,7 +1102,7 @@ export class Mutations {
       this.dataStore.$joinLinkPreviewsByCode.set(code, updatedPreview);
     }
     if (res.status === "joined" && res.convo) {
-      this.dataStore.$convos.set(res.convo.id, res.convo);
+      this.dataStore.setConvo(res.convo);
     }
     return res;
   }
@@ -1114,34 +1116,7 @@ export class Mutations {
       status: "accepted",
     };
 
-    this.dataStore.$convos.set(convo.id, updatedConvo);
-
-    // Update the convo in the convo list, adding it if not present
-    const convoList = this.dataStore.$convoList.get();
-    if (convoList) {
-      const inList = convoList.convos.some(
-        (listConvo) => listConvo.id === convo.id,
-      );
-      this.dataStore.$convoList.set({
-        convos: inList
-          ? convoList.convos.map((listConvo) =>
-              listConvo.id === convo.id ? updatedConvo : listConvo,
-            )
-          : [updatedConvo, ...convoList.convos],
-        cursor: convoList.cursor,
-      });
-    }
-
-    // Remove from request list
-    const convoRequestList = this.dataStore.$convoRequestList.get();
-    if (convoRequestList) {
-      this.dataStore.$convoRequestList.set({
-        convos: convoRequestList.convos.filter(
-          (listConvo) => listConvo.id !== convo.id,
-        ),
-        cursor: convoRequestList.cursor,
-      });
-    }
+    this.dataStore.setConvo(updatedConvo);
 
     return updatedConvo;
   }

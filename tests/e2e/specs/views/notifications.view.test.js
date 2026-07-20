@@ -370,6 +370,49 @@ test.describe("Notifications view", () => {
     await expect(view).toContainText("Great point!", { timeout: 10000 });
   });
 
+  test("should fall back to the handle in a subscribed post notification when the author has no display name", async ({
+    page,
+  }) => {
+    const postUri = "at://did:plc:dana1/app.bsky.feed.post/subscribed1";
+    const subscribedPost = createPost({
+      uri: postUri,
+      text: "Fresh off the press",
+      authorHandle: "dana.bsky.social",
+      authorDisplayName: "",
+    });
+
+    const dana = createProfile({
+      did: "did:plc:dana1",
+      handle: "dana.bsky.social",
+      displayName: "",
+    });
+
+    const mockServer = new MockServer();
+    mockServer.addPosts([subscribedPost]);
+    mockServer.addNotifications([
+      createNotification({
+        reason: "subscribed-post",
+        author: dana,
+        uri: postUri,
+        indexedAt: new Date().toISOString(),
+      }),
+    ]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const item = view.locator(".notification-item");
+    await expect(item).toHaveCount(1, { timeout: 10000 });
+    await expect(item.locator(".notification-profile-link")).toHaveText(
+      "dana.bsky.social",
+    );
+    await expect(view.locator(".notification-preview-text")).toContainText(
+      "Fresh off the press",
+    );
+  });
+
   test("should show unread indicator on unread notifications", async ({
     page,
   }) => {

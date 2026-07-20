@@ -145,9 +145,7 @@ test.describe("Post Composer Edge Cases", () => {
     await altDialog
       .locator(".image-alt-text-dialog-textarea")
       .fill("A sunset photo");
-    await altDialog
-      .locator(".rounded-button-primary", { hasText: "Save" })
-      .click();
+    await altDialog.locator('[data-testid="alt-text-save"]').click();
 
     // Verify has-alt indicator
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();
@@ -169,9 +167,7 @@ test.describe("Post Composer Edge Cases", () => {
     await altDialog2
       .locator(".image-alt-text-dialog-textarea")
       .fill("A beautiful sunset over the ocean");
-    await altDialog2
-      .locator(".rounded-button-primary", { hasText: "Save" })
-      .click();
+    await altDialog2.locator('[data-testid="alt-text-save"]').click();
 
     // Verify still has-alt
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();
@@ -239,8 +235,8 @@ test.describe("Post Composer Edge Cases", () => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
 
-    // Override createRecord to return a 500 error (LIFO — checked before mockServer's handler)
-    await page.route("**/xrpc/com.atproto.repo.createRecord*", (route) =>
+    // Override applyWrites to return a 500 error (LIFO — checked before mockServer's handler)
+    await page.route("**/xrpc/com.atproto.repo.applyWrites*", (route) =>
       route.fulfill({
         status: 500,
         contentType: "application/json",
@@ -268,12 +264,18 @@ test.describe("Post Composer Edge Cases", () => {
     // Click Post
     await composer.locator('[data-testid="composer-submit-button"]').click();
 
-    // Verify error toast appears
-    const errorToast = page.locator('[data-testid="toast"].error');
-    await expect(errorToast).toBeVisible({ timeout: 10000 });
+    // Verify inline error banner appears
+    const errorBanner = composer.locator(
+      '[data-testid="composer-error-banner"]',
+    );
+    await expect(errorBanner).toBeVisible({ timeout: 10000 });
 
     // Verify composer remains open (not closed on error)
     await expect(composer).toBeVisible();
+
+    // Dismissing the banner hides it
+    await composer.locator('[data-testid="composer-error-dismiss"]').click();
+    await expect(errorBanner).not.toBeVisible();
   });
 
   test("typeahead in post composer — mention suggestions appear and can be selected", async ({

@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { classnames, graphemeCount, resetScrollOnBlur } from "/js/utils.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 
 class ImageAltTextDialog extends Component {
   connectedCallback() {
@@ -9,7 +9,7 @@ class ImageAltTextDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.innerHTML = "";
     this.render();
     this.initialized = true;
@@ -37,7 +37,8 @@ class ImageAltTextDialog extends Component {
 
     render(
       html`<dialog
-        class="image-alt-text-dialog"
+        class="image-alt-text-dialog bottom-sheet-stacked"
+        autofocus
         @click=${(e) => {
           if (e.target.tagName === "DIALOG") {
             this.close();
@@ -111,28 +112,22 @@ class ImageAltTextDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".image-alt-text-dialog");
     dialog.showModal();
+    this.querySelector(".image-alt-text-dialog-textarea")?.focus({
+      preventScroll: true,
+    });
 
     resetScrollOnBlur(
       dialog,
       this.querySelector(".image-alt-text-dialog-content"),
     );
-
-    // Focus on the textarea after a small delay
-    requestAnimationFrame(() => {
-      requestAnimationFrame(() => {
-        const textarea = this.querySelector(".image-alt-text-dialog-textarea");
-        if (textarea) {
-          textarea.focus();
-        }
-      });
-    });
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".image-alt-text-dialog");
     dialog.close();
     this.dispatchEvent(new CustomEvent("alt-text-dialog-closed"));

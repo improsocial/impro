@@ -108,9 +108,7 @@ test.describe("Create post flow", () => {
       .fill("A beautiful sunset over the mountains");
 
     // Save alt text
-    await altDialog
-      .locator(".rounded-button-primary", { hasText: "Save" })
-      .click();
+    await altDialog.locator('[data-testid="alt-text-save"]').click();
 
     // Verify alt indicator now shows has-alt
     await expect(composer.locator(".alt-indicator.has-alt")).toBeVisible();

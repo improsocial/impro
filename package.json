@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.18.16",
+  "version": "0.18.29",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
@@ -14,6 +14,7 @@
     "test:unit": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --test 'tests/unit/specs/**/*.test.js'",
     "test:unit:coverage": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --experimental-test-coverage --test-coverage-include='src/js/**' --test 'tests/unit/specs/**/*.test.js'",
     "test:e2e": "npx playwright test",
+    "test:visual": "VISUAL_CAPTURE_DIR=tests/.artifacts/visual npx playwright test tests/e2e/specs/views",
     "serve:static": "node scripts/serve-static.js",
     "prepare": "husky"
   },

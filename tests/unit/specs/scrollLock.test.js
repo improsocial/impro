@@ -1,31 +1,32 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 
-// scrollLock.js tracks lock holders in module-global state
-const { ScrollLock } = await import("/js/scrollLock.js?fresh-for-test");
+// scrollLocks.js coordinates holders through a module-level manager.
+const { scrollLocks } = await import("/js/scrollLocks.js?fresh-for-test");
 
 describe("ScrollLock", () => {
   let container;
   let createdLocks;
 
   const createLock = (target) => {
-    const lock = new ScrollLock(target);
+    const lock = scrollLocks.acquire({ target });
     createdLocks.push(lock);
     return lock;
   };
 
   beforeEach(() => {
     container = document.createElement("div");
-    container.className = "page-visible";
+    container.className = "current-page";
     container.innerHTML = "<header></header><main></main>";
     document.body.appendChild(container);
+    scrollLocks.setContainerProvider(() => container);
     createdLocks = [];
     document.body.style.position = "";
   });
 
   afterEach(() => {
     for (const lock of createdLocks) {
-      lock.unlock();
+      lock.release();
     }
     container.remove();
     document.body.style.position = "";
@@ -37,55 +38,53 @@ describe("ScrollLock", () => {
 
   it("locks and unlocks page scroll", () => {
     const lock = createLock();
-    lock.lock();
     assert.deepEqual(document.body.style.position, "fixed");
-    lock.unlock();
+    lock.release();
     assert.deepEqual(document.body.style.position, "");
   });
 
   it("keeps the page locked when the first holder unlocks before the second", () => {
     const menuLock = createLock();
     const dialogLock = createLock();
-    menuLock.lock();
-    dialogLock.lock();
 
-    menuLock.unlock();
+    menuLock.release();
     assert.deepEqual(document.body.style.position, "fixed");
 
-    dialogLock.unlock();
+    dialogLock.release();
     assert.deepEqual(document.body.style.position, "");
   });
 
   it("keeps the page locked when a stacked dialog unlocks first", () => {
     const composerLock = createLock();
     const nestedDialogLock = createLock();
-    composerLock.lock();
-    nestedDialogLock.lock();
 
-    nestedDialogLock.unlock();
+    nestedDialogLock.release();
     assert.deepEqual(document.body.style.position, "fixed");
 
-    composerLock.unlock();
+    composerLock.release();
     assert.deepEqual(document.body.style.position, "");
   });
 
-  it("ignores unlock without a prior lock", () => {
-    const heldLock = createLock();
-    heldLock.lock();
+  it("returns a harmless release when no page container is available", () => {
+    scrollLocks.setContainerProvider(() => null);
 
-    const idleLock = createLock();
-    idleLock.unlock();
-    assert.deepEqual(document.body.style.position, "fixed");
+    const warn = console.warn;
+    console.warn = () => {};
+    try {
+      const lock = createLock();
+      assert.deepEqual(document.body.style.position, "");
 
-    heldLock.unlock();
-    assert.deepEqual(document.body.style.position, "");
+      lock.release();
+      assert.deepEqual(document.body.style.position, "");
+    } finally {
+      console.warn = warn;
+    }
   });
 
-  it("ignores repeated lock calls from the same holder", () => {
+  it("ignores repeated releases from the same lease", () => {
     const lock = createLock();
-    lock.lock();
-    lock.lock();
-    lock.unlock();
+    lock.release();
+    lock.release();
     assert.deepEqual(document.body.style.position, "");
   });
 
@@ -99,9 +98,8 @@ describe("ScrollLock", () => {
     container.appendChild(scrollable);
 
     const lock = createLock(target);
-    lock.lock();
     assert.deepEqual(scrollable.style.overflow, "hidden");
-    lock.unlock();
+    lock.release();
     assert.deepEqual(scrollable.style.overflow, "");
   });
 });

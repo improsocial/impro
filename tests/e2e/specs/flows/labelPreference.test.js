@@ -102,15 +102,15 @@ test.describe("Label preference flow", () => {
     await expect(labelRow).toBeVisible();
 
     // The default is "Warn", so the Warn button should be active
-    const warnButton = labelRow
-      .locator('[data-testid="label-pref-button"]')
-      .filter({ hasText: "Warn" });
+    const warnButton = labelRow.locator(
+      '[data-testid="label-pref-button"][data-teststate="warn"]',
+    );
     await expect(warnButton).toHaveClass(/active/);
 
     // Change from "Warn" to "Hide"
-    const hideButton = labelRow
-      .locator('[data-testid="label-pref-button"]')
-      .filter({ hasText: "Hide" });
+    const hideButton = labelRow.locator(
+      '[data-testid="label-pref-button"][data-teststate="hide"]',
+    );
     await hideButton.click();
     await expect(hideButton).toHaveClass(/active/);
 
@@ -134,9 +134,9 @@ test.describe("Label preference flow", () => {
       '[data-testid="label-preference-row"]',
       { hasText: "Custom Warning" },
     );
-    const offButton = labelRow2
-      .locator('[data-testid="label-pref-button"]')
-      .filter({ hasText: "Off" });
+    const offButton = labelRow2.locator(
+      '[data-testid="label-pref-button"][data-teststate="off"]',
+    );
     await offButton.click();
     await expect(offButton).toHaveClass(/active/);
 

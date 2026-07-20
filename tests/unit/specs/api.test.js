@@ -644,6 +644,23 @@ describe("getPosts", () => {
     assert(url.includes("app.bsky.feed.getPosts"));
     assert.deepEqual(result.length, 2);
   });
+
+  it("returns posts in request order regardless of response order", async () => {
+    const uriA = "at://did:plc:a/app.bsky.feed.post/1";
+    const uriB = "at://did:plc:b/app.bsky.feed.post/2";
+    const uriC = "at://did:plc:c/app.bsky.feed.post/3";
+    const session = createMockSession({
+      posts: [{ uri: uriC }, { uri: uriA }, { uri: uriB }],
+    });
+    const api = new Api(session);
+
+    const result = await api.getPosts([uriA, uriB, uriC]);
+
+    assert.deepEqual(
+      result.map((post) => post.uri),
+      [uriA, uriB, uriC],
+    );
+  });
 });
 
 describe("getPost", () => {
@@ -1456,55 +1473,28 @@ describe("unblockActor", () => {
   });
 });
 
-describe("createPost", () => {
-  it("should create post with text", async () => {
-    const session = createMockSession({
-      uri: "at://did:plc:testuser/app.bsky.feed.post/abc",
-      cid: "cid123",
-    });
+describe("applyWrites", () => {
+  it("posts the writes batch with validate: true", async () => {
+    const session = createMockSession({});
     const api = new Api(session);
+    const writes = [
+      {
+        $type: "com.atproto.repo.applyWrites#create",
+        collection: "app.bsky.feed.post",
+        rkey: "3kabc123def45",
+        value: { $type: "app.bsky.feed.post", text: "Hello world" },
+      },
+    ];
 
-    await api.createPost({ text: "Hello world", facets: [] });
+    await api.applyWrites(writes);
 
     const { url, options } = session.getLastFetchOptions();
-    assert(url.includes("com.atproto.repo.createRecord"));
+    assert(url.includes("com.atproto.repo.applyWrites"));
     assert.deepEqual(options.method, "POST");
     const body = JSON.parse(options.body);
-    assert.deepEqual(body.collection, "app.bsky.feed.post");
-    assert.deepEqual(body.record.text, "Hello world");
-  });
-
-  it("should include embed when provided", async () => {
-    const session = createMockSession({
-      uri: "at://did:plc:testuser/app.bsky.feed.post/abc",
-      cid: "cid123",
-    });
-    const api = new Api(session);
-    const embed = { $type: "app.bsky.embed.images", images: [] };
-
-    await api.createPost({ text: "Hello", facets: [], embed });
-
-    const { options } = session.getLastFetchOptions();
-    const body = JSON.parse(options.body);
-    assert.deepEqual(body.record.embed, embed);
-  });
-
-  it("should include reply when provided", async () => {
-    const session = createMockSession({
-      uri: "at://did:plc:testuser/app.bsky.feed.post/abc",
-      cid: "cid123",
-    });
-    const api = new Api(session);
-    const reply = {
-      root: { uri: "rooturi", cid: "rootcid" },
-      parent: { uri: "parenturi", cid: "parentcid" },
-    };
-
-    await api.createPost({ text: "Reply", facets: [], reply });
-
-    const { options } = session.getLastFetchOptions();
-    const body = JSON.parse(options.body);
-    assert.deepEqual(body.record.reply, reply);
+    assert.deepEqual(body.repo, session.did);
+    assert.deepEqual(body.writes, writes);
+    assert.deepEqual(body.validate, true);
   });
 });
 

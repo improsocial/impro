@@ -183,9 +183,7 @@ test.describe("Edit profile flow", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Click Cancel
-    await dialog
-      .locator(".edit-profile-dialog-header-button", { hasText: "Cancel" })
-      .click();
+    await dialog.locator('[data-testid="edit-profile-cancel-button"]').click();
 
     // Dialog should be closed
     await expect(dialog.locator(".edit-profile-dialog[open]")).toHaveCount(0, {
@@ -446,7 +444,7 @@ test.describe("Edit profile flow", () => {
 
     // Click Cancel on the cropper
     await dialog
-      .locator(".edit-profile-dialog-header-button", { hasText: "Cancel" })
+      .locator('[data-testid="edit-profile-crop-cancel-button"]')
       .click();
 
     // The edit dialog should still be visible with the original fields

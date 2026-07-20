@@ -42,12 +42,12 @@ test.describe("Report profile flow", () => {
 
     // Step 1: Select category "Harassment or hate"
     await reportDialog
-      .locator(".report-option-card", { hasText: "Harassment or hate" })
+      .locator('[data-testid="report-category-harassment-hate"]')
       .click();
 
     // Step 2: Select reason "Trolling"
     await reportDialog
-      .locator(".report-option-card", { hasText: "Trolling" })
+      .locator('[data-testid="report-reason-harassment-troll"]')
       .click();
 
     // Step 3: Select labeler "Bluesky Moderation"

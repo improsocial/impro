@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { displayRelativeTime, enableDragToDismiss } from "/js/utils.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
@@ -144,7 +144,7 @@ function draftItemTemplate({ draftView, onSelect, onDelete }) {
       </div>
       <div class="draft-item-side">
         <button
-          class="draft-item-delete"
+          class="icon-button draft-item-delete"
           data-testid="draft-item-delete"
           aria-label="Delete draft"
           @click=${(e) => {
@@ -165,7 +165,7 @@ class DraftsDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.state = new ReactiveStore("drafts-dialog");
     this.state.$loadError = new Signal.State(false);
     this.state.$isLoadingMore = new Signal.State(false);
@@ -211,12 +211,6 @@ class DraftsDialog extends Component {
   }
 
   async _onSelect(draftView) {
-    if ((draftView.draft.posts ?? []).length > 1) {
-      showToast("This draft is a thread and can't be edited here yet", {
-        style: "warning",
-      });
-      return;
-    }
     // Close first, then restore (close-then-restore ordering)
     this.close();
     this.dispatchEvent(
@@ -259,7 +253,7 @@ class DraftsDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet drafts-dialog"
+          class="bottom-sheet bottom-sheet-stacked drafts-dialog"
           data-testid="drafts-dialog"
           @click=${(event) => {
             if (event.target.tagName === "DIALOG") {
@@ -274,7 +268,7 @@ class DraftsDialog extends Component {
           <div class="drafts-dialog-content">
             <div class="drafts-dialog-header">
               <button
-                class="drafts-dialog-back"
+                class="text-pill-button drafts-dialog-back"
                 data-testid="drafts-dialog-back"
                 @click=${() => this.close()}
               >
@@ -329,7 +323,7 @@ class DraftsDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
     dialog.showModal();
     enableDragToDismiss(dialog, {
@@ -341,7 +335,8 @@ class DraftsDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector("dialog");
     if (dialog?.open) {
       dialog.close();

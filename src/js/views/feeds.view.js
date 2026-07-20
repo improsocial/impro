@@ -161,7 +161,7 @@ class FeedsView extends View {
       >
         <div class="feeds-list-item-avatar">
           <img
-            src=${feedGenerator.avatar ?? "/img/list-avatar-fallback.svg"}
+            src=${feedGenerator.avatar ?? "/img/feed-avatar-fallback.svg"}
             alt=${feedGenerator.displayName}
             class="feed-avatar"
           />
@@ -240,7 +240,7 @@ class FeedsView extends View {
                 </div>`;
               }
               return html`<button
-                class="header-icon-button header-edit-button"
+                class="icon-button header-edit-button"
                 data-testid="feeds-edit-button"
                 aria-label="Edit feeds"
                 @click=${() => state.$isEditing.set(true)}

@@ -26,7 +26,9 @@
         appRoot.innerHTML = /* html */ `
           <div class="error-state app-error-state">
             <div>There was an error loading the app.</div>
-            <button onclick="window.location.reload()">Try again</button>
+            <button class="rounded-button" onclick="window.location.reload()">
+              Try again
+            </button>
           </div>
         `;
       }
@@ -154,6 +156,7 @@
       import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
+      import { scrollLocks } from "/js/scrollLocks.js";
       import { Api } from "/js/api.js";
       import { auth } from "/js/auth.js";
       import { NotificationService } from "/js/notificationService.js";
@@ -352,6 +355,9 @@
         };
 
         const router = new Router();
+
+        scrollLocks.setContainerProvider(() => router.currentPage);
+
         router.addRoute(["/", "/intent/compose"], () => homeView, {
           layoutOptions: { activeNavItem: "home" },
         });

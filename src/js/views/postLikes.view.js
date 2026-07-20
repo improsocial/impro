@@ -31,7 +31,9 @@ class PostLikesView extends View {
       console.error(error);
       return html`<div class="error-state">
         <div>Error loading likes</div>
-        <button @click=${() => window.location.reload()}>Try again</button>
+        <button class="rounded-button" @click=${() => window.location.reload()}>
+          Try again
+        </button>
       </div>`;
     }
 

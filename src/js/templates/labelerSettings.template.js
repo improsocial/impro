@@ -46,6 +46,7 @@ function labelPreferenceRowTemplate({
                   active: value === "ignore",
                 })}
                 data-testid="label-pref-button"
+                data-teststate="off"
                 @click=${() => onClick("ignore")}
               >
                 Off
@@ -57,6 +58,7 @@ function labelPreferenceRowTemplate({
                         active: value === "warn",
                       })}
                       data-testid="label-pref-button"
+                      data-teststate="warn"
                       @click=${() => onClick("warn")}
                     >
                       ${getWarnLabel(labelDefinition)}
@@ -68,6 +70,7 @@ function labelPreferenceRowTemplate({
                   active: value === "hide",
                 })}
                 data-testid="label-pref-button"
+                data-teststate="hide"
                 @click=${() => onClick("hide")}
               >
                 Hide

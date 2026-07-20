@@ -3,6 +3,7 @@ import { displayRelativeTime } from "/js/utils.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 export function postHeaderTextTemplate({
   author,
@@ -17,10 +18,10 @@ export function postHeaderTextTemplate({
           href="${linkToProfile(author)}"
           class="post-name"
           data-testid="post-author-name"
-          >${author.displayName || author.handle}</a
+          >${getDisplayName(author)}</a
         >`
       : html`<span class="post-name" data-testid="post-author-name"
-          >${author.displayName || author.handle}</span
+          >${getDisplayName(author)}</span
         >`}${verificationBadgeTemplate({
       profile: author,
     })}${automatedAccountBadgeTemplate({ profile: author })}

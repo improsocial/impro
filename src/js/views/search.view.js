@@ -5,6 +5,7 @@ import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { classnames } from "/js/utils.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToFeed, linkToProfile } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -208,7 +209,7 @@ class SearchView extends View {
                   ${avatarTemplate({ author: profile, clickAction: "none" })}
                   <div class="search-typeahead-text">
                     <div class="search-typeahead-name">
-                      ${profile.displayName || profile.handle}
+                      ${getDisplayName(profile)}
                     </div>
                     <div class="search-typeahead-handle">
                       @${profile.handle}
@@ -363,7 +364,7 @@ class SearchView extends View {
                         class="feed-avatar"
                       />`
                     : html`<img
-                        src="/img/list-avatar-fallback.svg"
+                        src="/img/feed-avatar-fallback.svg"
                         alt=${feedGenerator.displayName}
                         class="feed-avatar"
                       />`}

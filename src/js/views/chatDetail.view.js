@@ -1306,13 +1306,20 @@ class ChatDetailView extends View {
         return html`<div class="error-state" data-testid="convo-not-found">
           <h3>Not Found</h3>
           <div>Conversation not found</div>
-          <button @click=${() => window.location.reload()}>Try again</button>
+          <button
+            class="rounded-button"
+            @click=${() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>`;
       }
       console.error(error);
       return html`<div class="error-state" data-testid="messages-error">
         <div>There was an error loading messages.</div>
-        <button @click=${() => window.location.reload()}>Try again</button>
+        <button class="rounded-button" @click=${() => window.location.reload()}>
+          Try again
+        </button>
       </div>`;
     }
 

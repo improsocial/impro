@@ -120,6 +120,25 @@ describe("image-alt-text-dialog", () => {
       const dialog = element.querySelector(".image-alt-text-dialog");
       assert(dialog.open);
     });
+
+    it("focuses the textarea without scrolling when opened", (t) => {
+      const element = document.createElement("image-alt-text-dialog");
+      connectElement(element);
+      const textarea = element.querySelector(".image-alt-text-dialog-textarea");
+      const focusMock = t.mock.method(textarea, "focus");
+
+      element.open();
+
+      assert.equal(document.activeElement, textarea);
+      assert.deepEqual(focusMock.mock.calls[0].arguments, [
+        { preventScroll: true },
+      ]);
+      assert(
+        element
+          .querySelector(".image-alt-text-dialog")
+          .hasAttribute("autofocus"),
+      );
+    });
   });
 
   describe("ImageAltTextDialog - close method", () => {

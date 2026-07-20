@@ -1,5 +1,5 @@
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import "/js/lib/emoji-picker-element.js";
 
 class EmojiPickerDialog extends Component {
@@ -7,7 +7,7 @@ class EmojiPickerDialog extends Component {
     if (this._initialized) {
       return;
     }
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.isOpen = false;
     this._initialized = true;
   }
@@ -35,7 +35,7 @@ class EmojiPickerDialog extends Component {
     });
     document.body.appendChild(dialog);
     dialog.showModal();
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     this.isOpen = true;
     this._dialog = dialog;
     this._picker = picker;
@@ -57,7 +57,8 @@ class EmojiPickerDialog extends Component {
     this._dialog?.remove();
     this._dialog = null;
     this._anchor = null;
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     this.isOpen = false;
   }
 

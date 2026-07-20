@@ -51,16 +51,5 @@ class ConfirmModal extends Modal {
 }
 
 export async function confirmModal(message, options = {}) {
-  return new Promise((resolveOuter) => {
-    let resolved = false;
-    const resolveOnce = (value) => {
-      if (resolved) return;
-      resolved = true;
-      resolveOuter(value);
-    };
-    globalThis.__testConfirmation?.(resolveOnce);
-    ConfirmModal.open({ message, ...options }).then((value) =>
-      resolveOnce(value ?? false),
-    );
-  });
+  return (await ConfirmModal.open({ message, ...options })) ?? false;
 }

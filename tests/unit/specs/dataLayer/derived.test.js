@@ -6,6 +6,13 @@ import { DraftMediaStore, getDraftDeviceId } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal, SignalMap } from "/js/signals.js";
+import {
+  createConvo,
+  createMessage,
+  createNotification,
+  createPost,
+  createProfile,
+} from "../../../shared/factories.js";
 
 function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
   const patchStore = new PatchStore(dataStore);
@@ -37,6 +44,8 @@ function fakePreferences(overrides = {}) {
     getContentLabel: () => null,
     getMediaLabel: () => null,
     getProfileBlurLabel: () => null,
+    getBadgeLabelsForProfile: () => [],
+    getFollowingFeedPreference: () => null,
     clone() {
       return this;
     },
@@ -1123,6 +1132,34 @@ describe("$hydratedDrafts", () => {
     ]);
     assert.deepEqual(posts[1].embedRecords, undefined);
   });
+
+  it("leaves gallery items without a localRef path untouched", () => {
+    const posts = hydrateDraftPosts([
+      makeDraftView({
+        posts: [
+          {
+            text: "",
+            embedGallery: { items: [{ alt: "remote-only" }] },
+          },
+        ],
+      }),
+    ]);
+    assert.deepEqual(posts[0].embedGallery.items, [{ alt: "remote-only" }]);
+  });
+
+  it("leaves video embeds without a localRef path untouched", () => {
+    const posts = hydrateDraftPosts([
+      makeDraftView({
+        posts: [
+          {
+            text: "",
+            embedVideos: [{ captions: [] }],
+          },
+        ],
+      }),
+    ]);
+    assert.deepEqual(posts[0].embedVideos, [{ captions: [] }]);
+  });
 });
 
 describe("$groupConvoMemberList", () => {
@@ -1147,5 +1184,840 @@ describe("$groupConvoMemberList", () => {
       ["did:plc:alice", "did:plc:bob"],
     );
     assert.deepEqual(result.cursor, "2");
+  });
+});
+
+describe("$hydratedPosts (nested quotes and author labels)", () => {
+  const postURI = "at://did:test/app.bsky.feed.post/x";
+  const quotedUri = "at://did:quoted/app.bsky.feed.post/q";
+
+  function makeQuotePost() {
+    return {
+      uri: postURI,
+      record: { text: "quoting post" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewRecord",
+          uri: quotedUri,
+          author: { did: "did:quoted" },
+          value: { text: "quoted text" },
+        },
+      },
+    };
+  }
+
+  it("should mark a quoted post that contains a muted word", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        quotedPostHasMutedWord: (quotedPost) => quotedPost.uri === quotedUri,
+      }),
+    });
+    dataStore.$posts.set(postURI, makeQuotePost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.hasMutedWord, true);
+    assert.deepEqual(result.viewer, undefined);
+  });
+
+  it("should mark a quoted post that is hidden", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        isPostHidden: (uri) => uri === quotedUri,
+      }),
+    });
+    dataStore.$posts.set(postURI, makeQuotePost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.record.isHidden, true);
+    assert.deepEqual(result.viewer, undefined);
+  });
+
+  it("should attach a blur label to the post author", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getProfileBlurLabel: (author) =>
+          author?.did === "did:author" ? "adult" : null,
+      }),
+    });
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      author: { did: "did:author" },
+      record: { text: "hello" },
+    });
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.author.blurLabel, "adult");
+  });
+
+  it("should keep a third-party-blocked quote blocked when the quoted post is not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      record: { text: "quoting post" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: {
+          $type: "app.bsky.embed.record#viewBlocked",
+          uri: "at://did:blocked/app.bsky.feed.post/q",
+          blocked: true,
+          author: { did: "did:blocked", viewer: {} },
+        },
+      },
+    });
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(
+      result.embed.record.$type,
+      "app.bsky.embed.record#viewBlocked",
+    );
+  });
+});
+
+describe("$hydratedPosts (join link previews)", () => {
+  const postURI = "at://did:test/app.bsky.feed.post/x";
+
+  function makeInviteLinkPost() {
+    return {
+      uri: postURI,
+      record: { text: "join us" },
+      embed: {
+        $type: "app.bsky.embed.external#view",
+        external: { uri: "https://bsky.app/chat/abc1234" },
+      },
+    };
+  }
+
+  it("should attach a loaded join link preview to an invite link embed", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const preview = {
+      $type: "chat.bsky.group.defs#joinLinkPreviewView",
+      code: "abc1234",
+      groupName: "The Group",
+    };
+    dataStore.$joinLinkPreviewsByCode.set("abc1234", preview);
+    dataStore.$posts.set(postURI, makeInviteLinkPost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.$type, "chat.bsky.embed.joinLink#view");
+    assert.deepEqual(result.embed.joinLinkPreview, preview);
+  });
+
+  it("should leave the embed unchanged when no preview is loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set(postURI, makeInviteLinkPost());
+    const result = derived.$hydratedPosts.get(postURI);
+    assert.deepEqual(result.embed.$type, "app.bsky.embed.external#view");
+  });
+});
+
+describe("$hydratedFeeds (reason, replies, following feed)", () => {
+  const feedURI = "at://did:test/app.bsky.feed.generator/test";
+
+  it("should preserve the feed item reason", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const reason = {
+      $type: "app.bsky.feed.defs#reasonRepost",
+      by: { did: "did:plc:reposter", handle: "reposter.test" },
+    };
+    dataStore.$posts.set("post1", { uri: "post1", record: { text: "hi" } });
+    dataStore.$feeds.set(feedURI, {
+      feed: [{ post: { uri: "post1" }, reason }],
+      cursor: null,
+    });
+    const result = derived.$hydratedFeeds.get(feedURI);
+    assert.deepEqual(result.feed[0].reason, reason);
+  });
+
+  it("should hydrate reply root and parent post views and pass through other reply nodes", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const rootPost = { uri: "root1", record: { text: "r" }, likeCount: 7 };
+    const parentPost = { uri: "parent1", record: { text: "p" }, likeCount: 3 };
+    const unknownNode = { $type: "custom#unknownNode", uri: "gone" };
+    dataStore.$posts.set("root1", rootPost);
+    dataStore.$posts.set("parent1", parentPost);
+    dataStore.$posts.set("reply1", { uri: "reply1", record: { text: "a" } });
+    dataStore.$posts.set("reply2", { uri: "reply2", record: { text: "b" } });
+    dataStore.$feeds.set(feedURI, {
+      feed: [
+        {
+          post: { uri: "reply1" },
+          reply: {
+            root: { $type: "app.bsky.feed.defs#postView", uri: "root1" },
+            parent: { $type: "app.bsky.feed.defs#postView", uri: "parent1" },
+          },
+        },
+        {
+          post: { uri: "reply2" },
+          reply: { root: unknownNode, parent: unknownNode },
+        },
+      ],
+      cursor: null,
+    });
+    const result = derived.$hydratedFeeds.get(feedURI);
+    assert.deepEqual(result.feed[0].reply.root.likeCount, 7);
+    assert.deepEqual(result.feed[0].reply.parent.likeCount, 3);
+    assert.deepEqual(result.feed[1].reply.root, unknownNode);
+    assert.deepEqual(result.feed[1].reply.parent, unknownNode);
+  });
+
+  it("should run the following feed through the following filter pipeline", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const post = createPost({
+      uri: "at://did:plc:author/app.bsky.feed.post/1",
+      text: "hello",
+      authorHandle: "author.test",
+    });
+    dataStore.$posts.set(post.uri, post);
+    dataStore.$feeds.set("following", {
+      feed: [{ post: { uri: post.uri } }],
+      cursor: "fc",
+    });
+    const result = derived.$hydratedFeeds.get("following");
+    assert.deepEqual(result.feed.length, 1);
+    assert.deepEqual(result.feed[0].post.uri, post.uri);
+    assert.deepEqual(result.cursor, "fc");
+  });
+});
+
+describe("$notifications", () => {
+  const author = createProfile({ did: "did:plc:actor", handle: "actor.test" });
+
+  function seedNotifications(dataStore, notifications, cursor = null) {
+    dataStore.$notifications.set({ notifications, cursor });
+  }
+
+  it("should return null when notifications are not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$notifications.get(), null);
+  });
+
+  it("should attach the liked post as subject when it is loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("post1", { uri: "post1", record: { text: "hi" } });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "like", author, reasonSubject: "post1" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].subject.uri, "post1");
+    assert.deepEqual(result[0].subject.record.text, "hi");
+  });
+
+  it("should attach an unavailable subject when the liked post is missing", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    seedNotifications(dataStore, [
+      createNotification({ reason: "repost", author, reasonSubject: "gone" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].subject, {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: "gone",
+    });
+  });
+
+  it("should resolve via-repost notifications from the record subject", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("post1", { uri: "post1", record: { text: "hi" } });
+    seedNotifications(dataStore, [
+      createNotification({
+        reason: "like-via-repost",
+        author,
+        record: { subject: { uri: "post1" } },
+      }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].subject.uri, "post1");
+  });
+
+  it("should attach post and parent for reply notifications", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("reply1", { uri: "reply1", record: { text: "r" } });
+    dataStore.$posts.set("parent1", { uri: "parent1", record: { text: "p" } });
+    seedNotifications(dataStore, [
+      createNotification({
+        reason: "reply",
+        author,
+        uri: "reply1",
+        record: { reply: { parent: { uri: "parent1" } } },
+      }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].post.uri, "reply1");
+    assert.deepEqual(result[0].parentPost.uri, "parent1");
+  });
+
+  it("should leave parentPost null for mentions without a reply parent", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("m1", { uri: "m1", record: { text: "m" } });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "mention", author, uri: "m1", record: {} }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].post.uri, "m1");
+    assert.deepEqual(result[0].parentPost, null);
+  });
+
+  it("should attach the post as reasonSubject for subscribed-post notifications", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("s1", { uri: "s1", record: { text: "s" } });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "subscribed-post", author, uri: "s1" }),
+    ]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].reasonSubject.uri, "s1");
+  });
+
+  it("should pass through notifications with other reasons unchanged", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const notification = createNotification({ reason: "follow", author });
+    seedNotifications(dataStore, [notification]);
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0], notification);
+  });
+});
+
+describe("$mentionNotifications", () => {
+  it("should return null when mention notifications are not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$mentionNotifications.get(), null);
+  });
+
+  it("should hydrate mention notifications", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const author = createProfile({ did: "did:plc:a", handle: "a.test" });
+    dataStore.$posts.set("m1", { uri: "m1", record: { text: "m" } });
+    dataStore.$mentionNotifications.set({
+      notifications: [
+        createNotification({
+          reason: "mention",
+          author,
+          uri: "m1",
+          record: {},
+        }),
+      ],
+      cursor: "mc",
+    });
+    const result = derived.$mentionNotifications.get();
+    assert.deepEqual(result[0].post.uri, "m1");
+    assert.deepEqual(derived.$mentionNotificationCursor.get(), "mc");
+  });
+});
+
+describe("$hydratedPostThreads", () => {
+  const threadUri = "post1";
+
+  it("should return null when the thread or its hidden replies are not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), null);
+    dataStore.$postThreads.set(threadUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: threadUri },
+    });
+    // Still null without $postThreadOthers
+    assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), null);
+  });
+
+  it("should pass through an empty (not found) thread", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const notFound = {
+      $type: "app.bsky.feed.defs#notFoundPost",
+      uri: threadUri,
+    };
+    dataStore.$postThreads.set(threadUri, notFound);
+    dataStore.$postThreadOthers.set(threadUri, []);
+    assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), notFound);
+  });
+
+  it("should return null when the thread root post is not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$postThreads.set(threadUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: threadUri },
+    });
+    dataStore.$postThreadOthers.set(threadUri, []);
+    assert.deepEqual(derived.$hydratedPostThreads.get(threadUri), null);
+  });
+
+  it("should hydrate replies, marking hidden ones and passing through non-post replies", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const blockedReply = {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: "blocked1",
+      blocked: true,
+    };
+    dataStore.$posts.set(threadUri, {
+      uri: threadUri,
+      record: { text: "root" },
+    });
+    dataStore.$posts.set("reply1", { uri: "reply1", record: { text: "r1" } });
+    dataStore.$postThreads.set(threadUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: threadUri },
+      replies: [
+        {
+          $type: "app.bsky.feed.defs#threadViewPost",
+          post: { uri: "reply1" },
+        },
+        blockedReply,
+      ],
+    });
+    dataStore.$postThreadOthers.set(threadUri, [{ uri: "reply1" }]);
+    const result = derived.$hydratedPostThreads.get(threadUri);
+    assert.deepEqual(result.post.uri, threadUri);
+    assert.deepEqual(result.replies[0].post.uri, "reply1");
+    assert.deepEqual(result.replies[0].post.isHidden, true);
+    assert.deepEqual(result.replies[1], blockedReply);
+  });
+
+  function seedThreadWithParent(dataStore, parent) {
+    dataStore.$posts.set(threadUri, {
+      uri: threadUri,
+      record: { text: "root" },
+    });
+    dataStore.$postThreads.set(threadUri, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: threadUri },
+      parent,
+    });
+    dataStore.$postThreadOthers.set(threadUri, []);
+  }
+
+  it("should hydrate a parent chain recursively", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const grandparent = { $type: "app.bsky.feed.defs#notFoundPost", uri: "gp" };
+    dataStore.$posts.set("pp", { uri: "pp", record: { text: "parent" } });
+    seedThreadWithParent(dataStore, {
+      $type: "app.bsky.feed.defs#threadViewPost",
+      post: { uri: "pp" },
+      parent: grandparent,
+    });
+    const result = derived.$hydratedPostThreads.get(threadUri);
+    assert.deepEqual(result.parent.post.uri, "pp");
+    assert.deepEqual(result.parent.post.record.text, "parent");
+    assert.deepEqual(result.parent.parent, grandparent);
+  });
+
+  it("should replace a confirmed-unavailable parent with an unavailable post", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$unavailablePosts.set("pp", {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: "pp",
+    });
+    seedThreadWithParent(dataStore, {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: "pp",
+      blocked: true,
+      author: { did: "did:blocked", viewer: {} },
+    });
+    const result = derived.$hydratedPostThreads.get(threadUri);
+    assert.deepEqual(result.parent, {
+      $type: "social.impro.feed.defs#unavailablePost",
+      uri: "pp",
+    });
+  });
+
+  it("should keep a blocked parent as-is when the parent author blocks the viewer", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const blockedParent = {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: "pp",
+      blocked: true,
+      author: { did: "did:blocked", viewer: { blockedBy: true } },
+    };
+    seedThreadWithParent(dataStore, blockedParent);
+    const result = derived.$hydratedPostThreads.get(threadUri);
+    assert.deepEqual(result.parent, blockedParent);
+  });
+});
+
+describe("actor search results", () => {
+  const did = "did:plc:found";
+
+  function seedProfile(dataStore) {
+    dataStore.setProfiles([createProfile({ did, handle: "found.test" })]);
+  }
+
+  it("$profileSearchResults should be null before a search and hydrate after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$profileSearchResults.get(), null);
+    assert.deepEqual(derived.$profileSearchCursor.get(), null);
+    seedProfile(dataStore);
+    dataStore.$profileSearchResults.set({
+      actors: [{ did }],
+      cursor: "pc",
+    });
+    const result = derived.$profileSearchResults.get();
+    assert.deepEqual(result.length, 1);
+    assert.deepEqual(result[0].handle, "found.test");
+    assert.deepEqual(derived.$profileSearchCursor.get(), "pc");
+  });
+
+  it("$chatRecipientSearchResults should be null before a search and hydrate after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$chatRecipientSearchResults.get(), null);
+    seedProfile(dataStore);
+    dataStore.$chatRecipientSearchResults.set({ actors: [{ did }] });
+    const result = derived.$chatRecipientSearchResults.get();
+    assert.deepEqual(result[0].handle, "found.test");
+  });
+
+  it("$searchTypeaheadResults should be null before a search and hydrate after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$searchTypeaheadResults.get(), null);
+    seedProfile(dataStore);
+    dataStore.$searchTypeaheadResults.set({ actors: [{ did }] });
+    const result = derived.$searchTypeaheadResults.get();
+    assert.deepEqual(result[0].handle, "found.test");
+  });
+});
+
+describe("$feedSearchResults", () => {
+  it("should be null before a search and pass feeds through after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$feedSearchResults.get(), null);
+    assert.deepEqual(derived.$feedSearchCursor.get(), null);
+    const feeds = [{ uri: "feed-1", displayName: "Feed One" }];
+    dataStore.$feedSearchResults.set({ feeds, cursor: "fc" });
+    assert.deepEqual(derived.$feedSearchResults.get(), feeds);
+    assert.deepEqual(derived.$feedSearchCursor.get(), "fc");
+  });
+});
+
+describe("post search results", () => {
+  it("should be null before a search and hydrate loaded posts after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$postSearchResultsTop.get(), null);
+    assert.deepEqual(derived.$postSearchResultsLatest.get(), null);
+    assert.deepEqual(derived.$postSearchCursorTop.get(), null);
+    assert.deepEqual(derived.$postSearchCursorLatest.get(), null);
+    dataStore.$posts.set("post1", { uri: "post1", record: { text: "hit" } });
+    dataStore.$postSearchResultsTop.set({
+      posts: [{ uri: "post1" }, { uri: "missing" }],
+      cursor: "tc",
+    });
+    dataStore.$postSearchResultsLatest.set({
+      posts: [{ uri: "post1" }],
+      cursor: "lc",
+    });
+    const top = derived.$postSearchResultsTop.get();
+    assert.deepEqual(top.length, 1);
+    assert.deepEqual(top[0].uri, "post1");
+    const latest = derived.$postSearchResultsLatest.get();
+    assert.deepEqual(latest.length, 1);
+    assert.deepEqual(derived.$postSearchCursorTop.get(), "tc");
+    assert.deepEqual(derived.$postSearchCursorLatest.get(), "lc");
+  });
+});
+
+describe("$hydratedPostQuotes", () => {
+  const postUri = "post1";
+
+  it("should return null when quotes are not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$hydratedPostQuotes.get(postUri), null);
+  });
+
+  it("should hydrate loaded quote posts and skip missing ones", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    dataStore.$posts.set("quote1", { uri: "quote1", record: { text: "q" } });
+    dataStore.$postQuotes.set(postUri, {
+      posts: [{ uri: "quote1" }, { uri: "missing" }],
+      cursor: "qc",
+    });
+    const result = derived.$hydratedPostQuotes.get(postUri);
+    assert.deepEqual(result.posts.length, 1);
+    assert.deepEqual(result.posts[0].uri, "quote1");
+    assert.deepEqual(result.cursor, "qc");
+  });
+});
+
+describe("$listMembers", () => {
+  const listUri = "at://did:plc:owner/app.bsky.graph.list/1";
+
+  it("should return null when list members are not loaded", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$listMembers.get(listUri), null);
+  });
+
+  it("should hydrate member profiles and carry the cursor", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const did = "did:plc:member";
+    dataStore.setProfiles([createProfile({ did, handle: "member.test" })]);
+    dataStore.$listMembers.set(listUri, {
+      items: [{ subject: { did } }],
+      cursor: "lc",
+    });
+    const result = derived.$listMembers.get(listUri);
+    assert.deepEqual(result.members.length, 1);
+    assert.deepEqual(result.members[0].handle, "member.test");
+    assert.deepEqual(result.cursor, "lc");
+  });
+});
+
+describe("$hydratedProfiles (blur labels)", () => {
+  it("should attach a blur label from preferences", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({ getProfileBlurLabel: () => "adult" }),
+    });
+    const did = "did:plc:user";
+    dataStore.setProfiles([createProfile({ did, handle: "user.test" })]);
+    const result = derived.$hydratedProfiles.get(did);
+    assert.deepEqual(result.blurLabel, "adult");
+  });
+});
+
+describe("$hydratedDetailedProfiles", () => {
+  const did = "did:plc:user";
+
+  it("should return null when the detailed profile does not exist", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$hydratedDetailedProfiles.get(did), null);
+  });
+
+  it("should return the profile unchanged when no labels apply", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.$detailedProfiles.set(
+      did,
+      createProfile({ did, handle: "user.test" }),
+    );
+    const result = derived.$hydratedDetailedProfiles.get(did);
+    assert.deepEqual(result.handle, "user.test");
+    assert.deepEqual(result.blurLabel, undefined);
+    assert.deepEqual(result.badgeLabels, undefined);
+  });
+
+  it("should attach blur and badge labels from preferences", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getProfileBlurLabel: () => "adult",
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    dataStore.$detailedProfiles.set(
+      did,
+      createProfile({ did, handle: "user.test" }),
+    );
+    const result = derived.$hydratedDetailedProfiles.get(did);
+    assert.deepEqual(result.blurLabel, "adult");
+    assert.deepEqual(result.badgeLabels, ["verified"]);
+  });
+});
+
+describe("$convoList and $convoRequestList", () => {
+  function seedConvos(dataStore, convos) {
+    for (const convo of convos) {
+      dataStore.$convos.set(convo.id, convo);
+    }
+  }
+
+  function makeConvoWithMessage(id, sentAt, status = "accepted") {
+    return createConvo({
+      id,
+      status,
+      otherMember: createProfile({
+        did: `did:plc:${id}`,
+        handle: `${id}.test`,
+      }),
+      lastMessage: createMessage({
+        id: `msg-${id}`,
+        text: "hello",
+        senderDid: `did:plc:${id}`,
+        sentAt,
+      }),
+    });
+  }
+
+  it("$convoList should be null before loading", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$convoList.get(), null);
+    assert.deepEqual(derived.$convoListCursor.get(), null);
+  });
+
+  it("$convoList should sort convos by last interaction, newest first", () => {
+    const dataStore = new DataStore();
+    const older = makeConvoWithMessage("older", "2026-01-01T00:00:00.000Z");
+    const newer = makeConvoWithMessage("newer", "2026-01-05T00:00:00.000Z");
+    seedConvos(dataStore, [older, newer]);
+    dataStore.$convoList.set({
+      convos: [older, newer],
+      cursor: "cc",
+    });
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$convoList.get();
+    assert.deepEqual(
+      result.map((convo) => convo.id),
+      ["newer", "older"],
+    );
+    assert.deepEqual(derived.$convoListCursor.get(), "cc");
+  });
+
+  it("$convoRequestList should be null before loading", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$convoRequestList.get(), null);
+    assert.deepEqual(derived.$convoRequestListCursor.get(), null);
+  });
+
+  it("$convoRequestList should drop unknown convos and sort the rest", () => {
+    const dataStore = new DataStore();
+    const older = makeConvoWithMessage(
+      "older",
+      "2026-01-01T00:00:00.000Z",
+      "request",
+    );
+    const newer = makeConvoWithMessage(
+      "newer",
+      "2026-01-05T00:00:00.000Z",
+      "request",
+    );
+    seedConvos(dataStore, [older, newer]);
+    dataStore.$convoRequestList.set({
+      convos: [older, newer, { id: "not-in-store" }],
+      cursor: "rc",
+    });
+    const { derived } = makeDerived(dataStore);
+    const result = derived.$convoRequestList.get();
+    assert.deepEqual(
+      result.map((convo) => convo.id),
+      ["newer", "older"],
+    );
+    assert.deepEqual(derived.$convoRequestListCursor.get(), "rc");
+  });
+});
+
+describe("$convoProfiles (badge labels)", () => {
+  it("should attach badge labels to convo members", () => {
+    const dataStore = new DataStore();
+    dataStore.$convos.set("convo1", {
+      id: "convo1",
+      members: [{ did: "did:plc:member", handle: "member.test" }],
+    });
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    const profiles = derived.$convoProfiles.get("convo1");
+    assert.deepEqual(profiles[0].badgeLabels, ["verified"]);
+  });
+});
+
+describe("interaction and graph list hydration", () => {
+  const actorDid = "did:plc:actor";
+
+  function seedActor(dataStore) {
+    dataStore.setProfiles([
+      createProfile({ did: actorDid, handle: "actor.test" }),
+    ]);
+  }
+
+  it("$postLikes should be null before loading and hydrate actors after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$postLikes.get("post1"), null);
+    seedActor(dataStore);
+    dataStore.$postLikes.set("post1", {
+      likes: [{ actor: { did: actorDid }, createdAt: "2026-01-01T00:00:00Z" }],
+      cursor: "lc",
+    });
+    const result = derived.$postLikes.get("post1");
+    assert.deepEqual(result.likes[0].actor.handle, "actor.test");
+    assert.deepEqual(result.likes[0].createdAt, "2026-01-01T00:00:00Z");
+    assert.deepEqual(result.cursor, "lc");
+  });
+
+  it("$postReposts should be null before loading and hydrate actors after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$postReposts.get("post1"), null);
+    seedActor(dataStore);
+    dataStore.$postReposts.set("post1", {
+      repostedBy: [{ did: actorDid }],
+      cursor: "rc",
+    });
+    const result = derived.$postReposts.get("post1");
+    assert.deepEqual(result.repostedBy[0].handle, "actor.test");
+    assert.deepEqual(result.cursor, "rc");
+  });
+
+  it("$profileFollows should be null before loading and hydrate actors after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$profileFollows.get("did:plc:subject"), null);
+    seedActor(dataStore);
+    dataStore.$profileFollows.set("did:plc:subject", {
+      follows: [{ did: actorDid }],
+      cursor: "fc",
+    });
+    const result = derived.$profileFollows.get("did:plc:subject");
+    assert.deepEqual(result.follows[0].handle, "actor.test");
+    assert.deepEqual(result.cursor, "fc");
+  });
+
+  it("$profileFollowers should be null before loading and hydrate actors after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$profileFollowers.get("did:plc:subject"), null);
+    seedActor(dataStore);
+    dataStore.$profileFollowers.set("did:plc:subject", {
+      followers: [{ did: actorDid }],
+      cursor: "fc",
+    });
+    const result = derived.$profileFollowers.get("did:plc:subject");
+    assert.deepEqual(result.followers[0].handle, "actor.test");
+    assert.deepEqual(result.cursor, "fc");
+  });
+
+  it("$knownFollowers should be null before loading and hydrate actors after", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    assert.deepEqual(derived.$knownFollowers.get("did:plc:subject"), null);
+    seedActor(dataStore);
+    dataStore.$knownFollowers.set("did:plc:subject", {
+      followers: [{ did: actorDid }],
+      count: 3,
+    });
+    const result = derived.$knownFollowers.get("did:plc:subject");
+    assert.deepEqual(result.followers[0].handle, "actor.test");
+    assert.deepEqual(result.count, 3);
   });
 });

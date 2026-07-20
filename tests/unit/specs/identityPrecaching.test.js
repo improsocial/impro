@@ -50,3 +50,46 @@ describe("notifications precaching", () => {
     assert.deepEqual(resolvedHandles.get("carol.test"), "did:plc:carol");
   });
 });
+
+describe("post precaching", () => {
+  it("should cache identities for posts normalized from nested quotes", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    const nestedQuote = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: "at://did:plc:nested/app.bsky.feed.post/1",
+      author: { handle: "nested.test", did: "did:plc:nested" },
+      value: { text: "nested quote" },
+    };
+    const quote = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: "at://did:plc:quote/app.bsky.feed.post/1",
+      author: { handle: "quote.test", did: "did:plc:quote" },
+      value: { text: "quote" },
+      embeds: [
+        {
+          $type: "app.bsky.embed.record#view",
+          record: nestedQuote,
+        },
+      ],
+    };
+
+    dataStore.setPosts([
+      {
+        uri: "at://did:plc:root/app.bsky.feed.post/1",
+        author: { handle: "root.test", did: "did:plc:root" },
+        record: { text: "root" },
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: quote,
+        },
+      },
+    ]);
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("root.test"), "did:plc:root");
+    assert.deepEqual(resolvedHandles.get("quote.test"), "did:plc:quote");
+    assert.deepEqual(resolvedHandles.get("nested.test"), "did:plc:nested");
+  });
+});

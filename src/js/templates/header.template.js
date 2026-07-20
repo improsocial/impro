@@ -44,14 +44,14 @@ export function headerTemplate({
     >
       ${leftButton === "menu"
         ? html`<button
-            class="menu-button"
+            class="icon-button menu-button"
             data-testid="menu-button"
             @click=${onClickMenuButton}
           >
             ${menuIconTemplate()}
           </button>`
         : html`<button
-            class="back-button"
+            class="icon-button back-button"
             data-testid="back-button"
             @click=${onClickBackButton
               ? () => onClickBackButton()

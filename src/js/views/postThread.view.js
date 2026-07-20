@@ -60,13 +60,23 @@ class PostThreadView extends View {
       ) {
         return html`<div class="error-state" data-testid="post-not-found">
           <div>Post not found</div>
-          <button @click=${() => window.location.reload()}>Try again</button>
+          <button
+            class="rounded-button"
+            @click=${() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>`;
       } else {
         console.error(error);
         return html`<div class="error-state" data-testid="thread-error">
           <div>Error loading thread</div>
-          <button @click=${() => window.location.reload()}>Try again</button>
+          <button
+            class="rounded-button"
+            @click=${() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>`;
       }
     }
@@ -257,7 +267,6 @@ class PostThreadView extends View {
                 <div class="post-thread-reply-chains">
                   ${replyChains.map((replyChain, i) =>
                     // there can be a lot of images in a reply chain, so lazy load them after the first few
-                    // TODO: infinite scroll for reply chains? or use v2 endpoint?
                     replyChainTemplate({
                       replyChain,
                       currentUser,
@@ -402,7 +411,9 @@ class PostThreadView extends View {
                   <div class="load-more-spacer">
                     <div class="reply-context-ellipsis"></div>
                   </div>
-                  <a href=${linkToPostFromUri(replyParent.uri)}
+                  <a
+                    href=${linkToPostFromUri(replyParent.uri)}
+                    data-testid="post-thread-load-parent"
                     >Load parent post</a
                   >
                 </div>`

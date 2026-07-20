@@ -1,11 +1,16 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
-import { enableDragToDismiss, resetScrollOnBlur } from "/js/utils.js";
+import { scrollLocks } from "/js/scrollLocks.js";
+import {
+  enableDragToDismiss,
+  kebabCase,
+  resetScrollOnBlur,
+} from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { BSKY_LABELER_DID } from "/js/config.js";
+import { getDisplayName } from "/js/dataHelpers.js";
 
 const BSKY_ONLY_CATEGORIES = ["childSafety"];
 const BSKY_ONLY_REASON_TYPES = [
@@ -313,7 +318,11 @@ const REASON_TYPES_BY_CATEGORY = {
 
 function categoryCardTemplate({ category, onClick }) {
   return html`
-    <button class="report-option-card" @click=${onClick}>
+    <button
+      class="report-option-card"
+      data-testid="report-category-${kebabCase(category.key)}"
+      @click=${onClick}
+    >
       <div class="report-option-title">${category.title}</div>
       <div class="report-option-description">${category.description}</div>
     </button>
@@ -321,15 +330,20 @@ function categoryCardTemplate({ category, onClick }) {
 }
 
 function reasonTypeCardTemplate({ reasonType, onClick }) {
+  const reasonSlug = kebabCase(reasonType.reasonType.split("#reason")[1]);
   return html`
-    <button class="report-option-card" @click=${onClick}>
+    <button
+      class="report-option-card"
+      data-testid="report-reason-${reasonSlug}"
+      @click=${onClick}
+    >
       <div class="report-option-title">${reasonType.title}</div>
     </button>
   `;
 }
 
 function labelerCardTemplate({ labeler, onClick }) {
-  const title = labeler.creator.displayName || labeler.creator.handle;
+  const title = getDisplayName(labeler.creator);
   return html`
     <button class="report-option-card report-labeler-card" @click=${onClick}>
       <div class="report-labeler-avatar">
@@ -454,8 +468,7 @@ function labelerStepTemplate({
   onClearLabeler,
 }) {
   if (isCompleted) {
-    const labelerTitle =
-      selectedLabeler.creator.displayName || selectedLabeler.creator.handle;
+    const labelerTitle = getDisplayName(selectedLabeler.creator);
     return selectedItemTemplate({
       title: labelerTitle,
       onClear: onClearLabeler,
@@ -502,8 +515,9 @@ function submitStepTemplate({
   onDetailsInput,
   onSubmit,
 }) {
-  const labelerName =
-    selectedLabeler?.creator.displayName || selectedLabeler?.creator.handle;
+  const labelerName = selectedLabeler
+    ? getDisplayName(selectedLabeler.creator)
+    : null;
 
   return html`
     <div class="report-submit-section">
@@ -618,7 +632,7 @@ class ReportDialog extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.innerHTML = "";
     this._stepIndex = 0;
     this._selectedCategory = null;
@@ -637,7 +651,7 @@ class ReportDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet report-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen report-dialog"
           @click=${(e) => {
             if (e.target.tagName === "DIALOG") {
               this.close();
@@ -794,7 +808,7 @@ class ReportDialog extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".report-dialog");
     dialog.showModal();
 
@@ -809,7 +823,8 @@ class ReportDialog extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".report-dialog");
     dialog.close();
     this.dispatchEvent(new CustomEvent("report-dialog-closed"));

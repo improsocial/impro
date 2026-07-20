@@ -149,7 +149,6 @@ class HomeView extends View {
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
-      // TODO - add setting to prevent reload?
       state.$isReloadingFeed.set(true);
       try {
         await loadCurrentFeed({ reload: true });
@@ -189,11 +188,18 @@ class HomeView extends View {
           An issue occurred when contacting the feed server.<br />
           Please let the feed owner know about this issue.<br />
           ${feedGenerator.creator
-            ? html`<a href=${linkToProfile(feedGenerator.creator)}
+            ? html`<a
+                  href=${linkToProfile(feedGenerator.creator)}
+                  data-testid="feed-error-view-profile"
                   >View profile</a
                 ><br />`
             : ""}
-          <button @click=${() => window.location.reload()}>Try again</button>
+          <button
+            class="rounded-button"
+            @click=${() => window.location.reload()}
+          >
+            Try again
+          </button>
         </div>
       </div>`;
     }
@@ -228,7 +234,7 @@ class HomeView extends View {
             onClickMenuButton: () => handleMenuClick(),
             rightItemTemplate: () => html`
               <a
-                class="header-icon-button feeds-button"
+                class="icon-button feeds-button"
                 href="/feeds"
                 aria-label="Feeds"
                 data-testid="feeds-button"

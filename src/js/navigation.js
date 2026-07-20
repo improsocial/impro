@@ -78,8 +78,6 @@ export function linkToSearchPostsByProfile(profile) {
 }
 
 function getPermalinkOrigin() {
-  // return window.location.origin;
-  // TODO: make configurable
   return "https://bsky.app";
 }
 

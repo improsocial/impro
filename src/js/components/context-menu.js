@@ -5,7 +5,7 @@ import {
   isMobileViewport,
 } from "/js/utils.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { hapticsImpactLight } from "/js/haptics.js";
 
 class ContextMenu extends Component {
@@ -14,7 +14,7 @@ class ContextMenu extends Component {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this._childNodes = [...this.childNodes];
     this.innerHTML = "";
     this.isOpen = false;
@@ -29,7 +29,8 @@ class ContextMenu extends Component {
 
   disconnectedCallback() {
     // If scroll is still prevented, restore it
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     if (this._observer) {
       this._observer.disconnect();
     }
@@ -85,7 +86,7 @@ class ContextMenu extends Component {
 
   open(x, y) {
     hapticsImpactLight();
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
 
     const dialog = this.querySelector(".context-menu");
     dialog.showModal();
@@ -124,7 +125,8 @@ class ContextMenu extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".context-menu");
     dialog.close();
     this.isOpen = false;

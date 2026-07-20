@@ -1,4 +1,5 @@
 import { getPostLangs, readFileAsDataUrl, wait } from "/js/utils.js";
+import { computeRecordCid, generateTid } from "/js/atproto.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import {
   getUnresolvedFacetsFromText,
@@ -23,41 +24,126 @@ export class PostCreator {
     this.imageCompressor = imageCompressor;
   }
 
-  async createPost({
-    postText,
-    external,
+  async createThread({
+    posts,
     replyTo,
     replyRoot,
-    quotedRecord,
-    images,
-    video,
-    labels = null,
     threadgateAllow = null,
     postgateEmbeddingRules = null,
   }) {
+    if (!posts || posts.length === 0) {
+      throw new Error("createThread requires at least one post");
+    }
+    let reply = null;
+    if (replyTo) {
+      if (!replyRoot) {
+        throw new Error("replyRoot is required when replyTo is provided");
+      }
+      reply = {
+        root: { uri: replyRoot.uri, cid: replyRoot.cid },
+        parent: { uri: replyTo.uri, cid: replyTo.cid },
+      };
+    }
+
+    const did = this.api.session.did;
+    const langs = getPostLangs();
+    const writes = [];
+    const uris = [];
+    // Sort order for posts sharing a createdAt is undefined, so each post
+    // gets a +1ms bump like social-app does.
+    const baseTime = Date.now();
+
+    for (let i = 0; i < posts.length; i++) {
+      const { text, facets, embed } = await this._buildPostContent(posts[i]);
+      const rkey = generateTid();
+      const uri = `at://${did}/app.bsky.feed.post/${rkey}`;
+      const createdAt = new Date(baseTime + i).toISOString();
+      const record = {
+        $type: "app.bsky.feed.post",
+        text,
+        facets,
+        createdAt,
+        langs,
+      };
+      if (embed) {
+        record.embed = embed;
+      }
+      if (reply) {
+        record.reply = reply;
+      }
+      if (posts[i].labels) {
+        record.labels = posts[i].labels;
+      }
+
+      writes.push({
+        $type: "com.atproto.repo.applyWrites#create",
+        collection: "app.bsky.feed.post",
+        rkey,
+        value: record,
+      });
+      uris.push(uri);
+
+      if (i === 0 && threadgateAllow) {
+        writes.push({
+          $type: "com.atproto.repo.applyWrites#create",
+          collection: "app.bsky.feed.threadgate",
+          rkey,
+          value: {
+            $type: "app.bsky.feed.threadgate",
+            post: uri,
+            allow: threadgateAllow,
+            createdAt,
+          },
+        });
+      }
+      if (postgateEmbeddingRules?.length > 0) {
+        writes.push({
+          $type: "com.atproto.repo.applyWrites#create",
+          collection: "app.bsky.feed.postgate",
+          rkey,
+          value: {
+            $type: "app.bsky.feed.postgate",
+            post: uri,
+            embeddingRules: postgateEmbeddingRules,
+            createdAt,
+          },
+        });
+      }
+
+      if (i < posts.length - 1) {
+        const ref = { uri, cid: await computeRecordCid(record) };
+        reply = { root: reply?.root ?? ref, parent: ref };
+      }
+    }
+
+    await this.api.applyWrites(writes);
+
+    // Attempt to get the full posts from the app view, null on failure.
+    const maxRetries = 5;
+    let fullPosts = null;
+    for (let tries = 0; tries < maxRetries; tries++) {
+      try {
+        const fetched = await this.api.getPosts(uris);
+        if (fetched.length === uris.length) {
+          fullPosts = fetched;
+          break;
+        }
+      } catch (e) {}
+      if (tries < maxRetries - 1) {
+        await wait(1000);
+      }
+    }
+
+    return { uris, posts: fullPosts };
+  }
+
+  async _buildPostContent({ postText, external, quotedRecord, images, video }) {
     const trimmedText = trimPostText(postText);
     const unresolvedFacets = getUnresolvedFacetsFromText(trimmedText);
     const facets = await resolveFacets(unresolvedFacets, this.identityResolver);
     const externalEmbed = await this._prepareExternalEmbed(external);
     const imagesEmbed = await this._prepareImagesEmbed(images);
     const videoEmbed = this._prepareVideoEmbed(video);
-    let reply = null;
-    // Add reply reference if provided
-    if (replyTo) {
-      if (!replyRoot) {
-        throw new Error("replyRoot is required when replyTo is provided");
-      }
-      reply = {
-        root: {
-          uri: replyRoot.uri,
-          cid: replyRoot.cid,
-        },
-        parent: { uri: replyTo.uri, cid: replyTo.cid },
-      };
-    }
-
-    // Build embed(s)
-    let embed = null;
 
     let quotedRecordEmbed = null;
     if (quotedRecord) {
@@ -73,6 +159,7 @@ export class PostCreator {
     // Prioritize video > images > external link (these are mutually exclusive)
     const mediaEmbed = videoEmbed || imagesEmbed || externalEmbed;
 
+    let embed = null;
     if (mediaEmbed && quotedRecordEmbed) {
       embed = {
         $type: "app.bsky.embed.recordWithMedia",
@@ -85,45 +172,7 @@ export class PostCreator {
       embed = quotedRecordEmbed;
     }
 
-    const res = await this.api.createPost({
-      text: trimmedText,
-      facets,
-      embed,
-      reply,
-      langs: getPostLangs(),
-      labels,
-    });
-
-    if (threadgateAllow) {
-      try {
-        await this.api.createThreadgate(res.uri, threadgateAllow);
-      } catch (error) {
-        console.error("Failed to create threadgate", error);
-      }
-    }
-
-    if (postgateEmbeddingRules?.length > 0) {
-      try {
-        await this.api.createPostgate(res.uri, postgateEmbeddingRules);
-      } catch (error) {
-        console.error("Failed to create postgate", error);
-      }
-    }
-
-    // Attempt to get full post from the app view, return null on failure
-    const maxRetries = 5;
-    let fullPost = null;
-    for (let tries = 0; tries < maxRetries; tries++) {
-      try {
-        fullPost = await this.api.getPost(res.uri);
-        if (fullPost) break;
-      } catch (e) {}
-      if (tries < maxRetries - 1) {
-        await wait(1000);
-      }
-    }
-
-    return { uri: res.uri, cid: res.cid, post: fullPost };
+    return { text: trimmedText, facets, embed };
   }
 
   async _prepareImagesEmbed(images) {

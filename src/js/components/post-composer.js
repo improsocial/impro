@@ -1,4 +1,4 @@
-import { html, render } from "/js/lib/lit-html.js";
+import { html, render, keyed } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
@@ -13,10 +13,11 @@ import {
 } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
-import { ScrollLock } from "/js/scrollLock.js";
+import { scrollLocks } from "/js/scrollLocks.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { showToast } from "/js/toasts.js";
@@ -56,6 +57,60 @@ function isDraftTextSavable(text) {
 
 function isDraftLimitError(error) {
   return error instanceof ApiError && error.data?.error === "DraftLimitReached";
+}
+
+function hasPostStateContent(postState) {
+  return (
+    postState.text.length > 0 ||
+    postState.images.length > 0 ||
+    postState.video !== null ||
+    postState.external !== null ||
+    postState.quotedRecord !== null
+  );
+}
+
+function getSendErrorMessage(error) {
+  if (error instanceof ApiError) {
+    if (error.status >= 500) {
+      return "The server appears to be experiencing issues. Please try again in a few moments.";
+    }
+    const message = error.data?.message;
+    if (message?.includes("not locate record")) {
+      return "The post you are replying to has been deleted.";
+    }
+    if (message) {
+      return message;
+    }
+  }
+  if (error instanceof TypeError) {
+    return "Unable to connect. Please check your internet connection and try again.";
+  }
+  return "Failed to send post. Please try again.";
+}
+
+function errorMessageBannerTemplate({ message, onDismiss }) {
+  return html`<div
+    class="composer-error-banner"
+    data-testid="composer-error-banner"
+    role="alert"
+  >
+    ${alertIconTemplate()}
+    <span class="composer-error-banner-message">${message}</span>
+    <button
+      class="composer-error-banner-dismiss"
+      data-testid="composer-error-dismiss"
+      aria-label="Dismiss error"
+      @click=${onDismiss}
+    >
+      ${closeIconTemplate()}
+    </button>
+  </div>`;
+}
+
+function isVideoUploadPending(video) {
+  return (
+    !!video && (video.status === "uploading" || video.status === "processing")
+  );
 }
 
 function replyToTemplate({ post }) {
@@ -200,36 +255,127 @@ function imagePreviewTemplate({ images, onRemove, onEditAltText }) {
   `;
 }
 
+function composerPostTemplate({
+  postState,
+  isActive,
+  canRemove,
+  promptText,
+  currentUser,
+  pluginService,
+  onActivate,
+  onRemovePost,
+  onInput,
+  onPaste,
+  onRemoveImage,
+  onEditAltText,
+  onRemoveVideo,
+  onEditVideoAltText,
+  onCloseExternal,
+  onCloseQuote,
+}) {
+  return html`
+    <div
+      class=${classnames("post-composer-post", { "is-inactive": !isActive })}
+      data-testid="composer-post"
+      data-teststate=${isActive ? "active" : "inactive"}
+      data-post-id=${postState.id}
+      @focusin=${() => onActivate()}
+      @click=${() => onActivate()}
+    >
+      ${canRemove
+        ? html`<button
+            class="post-composer-remove-post-button"
+            data-testid="composer-remove-post-button"
+            aria-label="Remove post from thread"
+            @click=${(e) => {
+              e.stopPropagation();
+              onRemovePost();
+            }}
+          >
+            ${closeIconTemplate()}
+          </button>`
+        : ""}
+      <div class="post-composer-body">
+        <div class="post-composer-body-left">
+          ${avatarTemplate({
+            author: currentUser,
+            clickAction: "none",
+          })}
+        </div>
+        <div class="post-composer-body-right">
+          <rich-text-input
+            @input=${(e) => onInput(e)}
+            @paste=${(e) => onPaste(e)}
+            placeholder="${promptText}"
+          ></rich-text-input>
+        </div>
+      </div>
+      ${postState.external
+        ? externalLinkEmbedPreviewTemplate({
+            data: postState.external,
+            onClose: () => onCloseExternal(),
+          })
+        : ""}
+      ${postState.images.length > 0
+        ? imagePreviewTemplate({
+            images: postState.images,
+            onRemove: (index) => onRemoveImage(index),
+            onEditAltText: (index) => onEditAltText(index),
+          })
+        : ""}
+      ${postState.video
+        ? videoPreviewTemplate({
+            video: postState.video,
+            onRemove: () => onRemoveVideo(),
+            onEditAltText: () => onEditVideoAltText(),
+          })
+        : ""}
+      ${postState.quotedRecord
+        ? html`<div class="post-composer-embed-preview">
+            <button
+              class="embed-preview-close-button"
+              @click=${() => {
+                onCloseQuote();
+              }}
+            >
+              ${closeIconTemplate()}
+            </button>
+            <div inert>
+              ${recordEmbedTemplate({
+                record: postState.quotedRecord,
+                isAuthenticated: true,
+                pluginService,
+              })}
+            </div>
+          </div>`
+        : ""}
+    </div>
+  `;
+}
+
 class PostComposer extends Component {
   connectedCallback() {
     if (this.initialized) {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
-    this.scrollLock = new ScrollLock(this);
+    this.scrollLock = null;
     this.innerHTML = "";
-    this._unresolvedFacets = [];
-    this._quotedRecordUrl = null;
-    this._externalLinkUrl = null;
-    this._rejectedLinkEmbeds = new Set();
-    this._videoToken = null;
     this._draftId = null;
     this._isDirty = false;
     this._originalLocalRefs = null;
     // Pass through unsupported fields on drafts
     this._draftPassthrough = null;
-    this._draftVideoCaptions = null;
-    this._draftUnrestoredMedia = null;
     this.state = new ReactiveStore("postComposer");
-    this.state.$postText = new Signal.State("");
+    this.state.$posts = new Signal.State([
+      this._createPostState({
+        quotedRecord: this._pendingQuotedRecord ?? null,
+      }),
+    ]);
+    this.state.$activePostIndex = new Signal.State(0);
     this.state.$isSending = new Signal.State(false);
+    this.state.$errorMessage = new Signal.State(null);
     this.state.$isSavingDraft = new Signal.State(false);
-    this.state.$externalLinkEmbedData = new Signal.State(null);
-    this.state.$selectedImages = new Signal.State([]);
-    this.state.$selectedVideo = new Signal.State(null);
-    this.state.$quotedRecord = new Signal.State(
-      this._pendingQuotedRecord ?? null,
-    );
     this._pendingQuotedRecord = null;
     this.state.$draftsEnabled = new Signal.State(
       this._pendingDraftsEnabled ?? false,
@@ -249,9 +395,72 @@ class PostComposer extends Component {
     this._disposers = null;
   }
 
+  // State helpers
+
+  _createPostState(overrides = {}) {
+    return {
+      id: crypto.randomUUID(),
+      text: "",
+      unresolvedFacets: [],
+      images: [],
+      video: null,
+      external: null,
+      externalLinkUrl: null,
+      quotedRecord: null,
+      quotedRecordUrl: null,
+      rejectedLinkEmbeds: new Set(),
+      videoToken: null,
+      draftVideoCaptions: null,
+      labels: null,
+      unrestoredImages: null,
+      unrestoredVideo: null,
+      ...overrides,
+    };
+  }
+
+  _getPosts() {
+    return untrack(() => this.state.$posts.get());
+  }
+
+  _getPost(postId) {
+    return this._getPosts().find((postState) => postState.id === postId);
+  }
+
+  _getActivePost() {
+    const posts = this._getPosts();
+    const activeIndex = untrack(() => this.state.$activePostIndex.get());
+    return posts[Math.min(activeIndex, posts.length - 1)];
+  }
+
+  _updatePost(postId, patch) {
+    const posts = this._getPosts();
+    const index = posts.findIndex((postState) => postState.id === postId);
+    if (index === -1) return null;
+    const updated = { ...posts[index], ...patch };
+    this.state.$posts.set(
+      posts.map((postState, postIndex) =>
+        postIndex === index ? updated : postState,
+      ),
+    );
+    return updated;
+  }
+
+  _getInputForPost(postId) {
+    return this.querySelector(`[data-post-id="${postId}"] rich-text-input`);
+  }
+
+  _syncInputsFromState() {
+    for (const postState of this._getPosts()) {
+      const input = this._getInputForPost(postState.id);
+      if (input && input.text !== postState.text) {
+        input.setText(postState.text);
+      }
+    }
+  }
+
   get quotedRecord() {
     if (!this.state) return this._pendingQuotedRecord ?? null;
-    return untrack(() => this.state.$quotedRecord.get());
+    return this._getPosts()[0].quotedRecord;
   }
 
   set quotedRecord(value) {
@@ -259,7 +468,7 @@ class PostComposer extends Component {
       this._pendingQuotedRecord = value;
       return;
     }
-    this.state.$quotedRecord.set(value);
+    this._updatePost(this._getPosts()[0].id, { quotedRecord: value });
   }
 
   get draftsEnabled() {
@@ -276,29 +485,54 @@ class PostComposer extends Component {
   }
 
   render() {
-    const promptText = this.replyTo ? "Write your reply" : "What's up?";
     const isSending = this.state.$isSending.get();
+    const sendError = this.state.$errorMessage.get();
     const isSavingDraft = this.state.$isSavingDraft.get();
     const draftsEnabled = this.state.$draftsEnabled.get();
-    const externalLinkEmbedData = this.state.$externalLinkEmbedData.get();
-    const selectedImages = this.state.$selectedImages.get();
-    const selectedVideo = this.state.$selectedVideo.get();
-    const quotedRecord = this.state.$quotedRecord.get();
-    const currentCharCount = graphemeCount(this.state.$postText.get());
+    const posts = this.state.$posts.get();
+    const activePostIndex = Math.min(
+      this.state.$activePostIndex.get(),
+      posts.length - 1,
+    );
+    const activePost = posts[activePostIndex];
+    const isThread = posts.length > 1;
+
+    const currentCharCount = graphemeCount(activePost.text);
     const charCountPercentage = Math.min(
       Math.round((currentCharCount / 300) * 100),
       100,
     );
     const isAboveCharLimit = currentCharCount > 300;
-    const isVideoUploading =
-      selectedVideo &&
-      (selectedVideo.status === "uploading" ||
-        selectedVideo.status === "processing");
-    const hasVideo = !!selectedVideo;
+    const isAnyPostAboveCharLimit = posts.some(
+      (postState) =>
+        hasPostStateContent(postState) && graphemeCount(postState.text) > 300,
+    );
+    const isAnyVideoBlocking = posts.some(
+      (postState) =>
+        isVideoUploadPending(postState.video) ||
+        postState.video?.status === "error",
+    );
+    const hasVideo = !!activePost.video;
+    const nextPost = posts[activePostIndex + 1] ?? null;
+    const canAddPost =
+      hasPostStateContent(activePost) &&
+      (!nextPost || hasPostStateContent(nextPost));
+
+    let submitLabel = "Post";
+    let submitTestState = "post";
+    if (this.replyTo) {
+      submitLabel = "Reply";
+      submitTestState = "reply";
+    }
+    if (isThread) {
+      submitLabel = "Post All";
+      submitTestState = "post-all";
+    }
+
     render(
       html`
         <dialog
-          class="post-composer"
+          class="post-composer bottom-sheet-fullscreen"
           autofocus
           @click=${async (e) => {
             if (e.target.tagName === "DIALOG") {
@@ -315,8 +549,7 @@ class PostComposer extends Component {
           @keydown=${(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
               e.preventDefault();
-              const postText = untrack(() => this.state.$postText.get());
-              if (postText.length > 0) {
+              if (this.hasContent()) {
                 this.send();
               }
             }
@@ -325,7 +558,7 @@ class PostComposer extends Component {
           <div class="post-composer-content">
             <div class="post-composer-top-bar">
               <button
-                class="post-composer-cancel-button"
+                class="text-pill-button post-composer-cancel-button"
                 @click=${async () => {
                   if (await this.confirmClose()) {
                     this.close();
@@ -336,7 +569,7 @@ class PostComposer extends Component {
               </button>
               ${!this.replyTo && draftsEnabled
                 ? html`<button
-                    class="post-composer-drafts-button"
+                    class="text-pill-button post-composer-drafts-button"
                     data-testid="composer-drafts-button"
                     .disabled=${isSavingDraft}
                     @click=${() => this.handleDraftsButtonClick()}
@@ -347,79 +580,55 @@ class PostComposer extends Component {
               <button
                 class="rounded-button rounded-button-primary"
                 data-testid="composer-submit-button"
-                data-teststate=${this.replyTo ? "reply" : "post"}
+                data-teststate=${submitTestState}
                 @click=${() => this.send()}
-                .disabled=${isSending || isAboveCharLimit || isVideoUploading}
+                .disabled=${isSending ||
+                isAnyPostAboveCharLimit ||
+                isAnyVideoBlocking}
               >
                 ${isSending
                   ? html`Sending... <span>&nbsp;&nbsp;</span>
                       <div class="loading-spinner"></div>`
-                  : html`<span>${this.replyTo ? "Reply" : "Post"}</span>`}
+                  : html`<span>${submitLabel}</span>`}
               </button>
             </div>
+            ${sendError
+              ? errorMessageBannerTemplate({
+                  message: sendError,
+                  onDismiss: () => this.state.$errorMessage.set(null),
+                })
+              : ""}
             <div class="post-composer-scroll-area">
               <div class="post-composer-scroll-area-content">
                 ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
-                <div class="post-composer-body">
-                  <div class="post-composer-body-left">
-                    ${avatarTemplate({
-                      author: this.currentUser,
-                      clickAction: "none",
-                    })}
-                  </div>
-                  <div class="post-composer-body-right">
-                    <rich-text-input
-                      @input=${(e) => {
-                        this.handleInput(e);
-                      }}
-                      @paste=${(e) => {
-                        this.handlePaste(e);
-                      }}
-                      placeholder="${promptText}"
-                    ></rich-text-input>
-                  </div>
-                </div>
-                ${externalLinkEmbedData
-                  ? externalLinkEmbedPreviewTemplate({
-                      data: externalLinkEmbedData,
-                      onClose: () => {
-                        this.handleExternalLinkEmbedPreviewClose();
-                      },
-                    })
-                  : ""}
-                ${selectedImages.length > 0
-                  ? imagePreviewTemplate({
-                      images: selectedImages,
-                      onRemove: (index) => this.handleRemoveImage(index),
-                      onEditAltText: (index) => this.handleEditAltText(index),
-                    })
-                  : ""}
-                ${selectedVideo
-                  ? videoPreviewTemplate({
-                      video: selectedVideo,
-                      onRemove: () => this.handleRemoveVideo(),
-                      onEditAltText: () => this.handleEditVideoAltText(),
-                    })
-                  : ""}
-                ${quotedRecord
-                  ? html`<div class="post-composer-embed-preview">
-                      <button
-                        class="embed-preview-close-button"
-                        @click=${() => {
-                          this.handleQuotedEmbedPreviewClose();
-                        }}
-                      >
-                        ${closeIconTemplate()}
-                      </button>
-                      <div inert>
-                        ${recordEmbedTemplate({
-                          record: quotedRecord,
-                          isAuthenticated: true,
-                          pluginService: this.pluginService,
-                        })}
-                      </div>
-                    </div>`
-                  : ""}
+                ${posts.map((postState, index) =>
+                  keyed(
+                    postState.id,
+                    composerPostTemplate({
+                      postState,
+                      isActive: index === activePostIndex,
+                      canRemove: isThread && index === activePostIndex,
+                      promptText: this._getPromptText(index),
+                      currentUser: this.currentUser,
+                      pluginService: this.pluginService,
+                      onActivate: () => this.handleActivatePost(index),
+                      onRemovePost: () => this.handleRemovePost(postState.id),
+                      onInput: (e) => this.handleInput(postState.id, e),
+                      onPaste: (e) => this.handlePaste(postState.id, e),
+                      onRemoveImage: (imageIndex) =>
+                        this.handleRemoveImage(postState.id, imageIndex),
+                      onEditAltText: (imageIndex) =>
+                        this.handleEditAltText(postState.id, imageIndex),
+                      onRemoveVideo: () => this.handleRemoveVideo(postState.id),
+                      onEditVideoAltText: () =>
+                        this.handleEditVideoAltText(postState.id),
+                      onCloseExternal: () =>
+                        this.handleExternalLinkEmbedPreviewClose(postState.id),
+                      onCloseQuote: () =>
+                        this.handleQuotedEmbedPreviewClose(postState.id),
+                    }),
+                  ),
+                )}
               </div>
               <div class="post-composer-bottom-bar">
                 <div class="post-composer-bottom-bar-left">
@@ -435,16 +644,16 @@ class PostComposer extends Component {
                     }}
                   />
                   <button
-                    class="image-picker-button"
+                    class="icon-button image-picker-button"
                     @click=${() => this.handleMediaButtonClick()}
-                    .disabled=${hasVideo || selectedImages.length >= 4}
+                    .disabled=${hasVideo || activePost.images.length >= 4}
                   >
                     ${imageIconTemplate()}
                   </button>
                   <div class="post-composer-emoji-wrapper">
                     <button
                       type="button"
-                      class="post-composer-emoji-button"
+                      class="icon-button post-composer-emoji-button"
                       aria-label="Open emoji picker"
                       @click=${(e) => this.handleEmojiButtonClick(e)}
                     >
@@ -458,17 +667,31 @@ class PostComposer extends Component {
                     ></emoji-picker-dialog>
                   </div>
                 </div>
-                <div
-                  class=${classnames("word-count", {
-                    overflow: isAboveCharLimit,
-                  })}
-                >
-                  <span class="word-count-text">${300 - currentCharCount}</span>
-                  <div class="word-count-indicator">
-                    <div
-                      class="word-count-indicator-bar"
-                      style="height: ${charCountPercentage}%"
-                    ></div>
+                <div class="post-composer-bottom-bar-right">
+                  ${canAddPost
+                    ? html`<button
+                        class="icon-button post-composer-add-post-button"
+                        data-testid="composer-add-post-button"
+                        aria-label="Add another post"
+                        @click=${() => this.handleAddPost()}
+                      >
+                        ${plusIconTemplate()}
+                      </button>`
+                    : ""}
+                  <div
+                    class=${classnames("word-count", {
+                      overflow: isAboveCharLimit,
+                    })}
+                  >
+                    <span class="word-count-text"
+                      >${300 - currentCharCount}</span
+                    >
+                    <div class="word-count-indicator">
+                      <div
+                        class="word-count-indicator-bar"
+                        style="height: ${charCountPercentage}%"
+                      ></div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -480,15 +703,91 @@ class PostComposer extends Component {
     );
   }
 
+  _getPromptText(index) {
+    if (index > 0) {
+      return "Write another post";
+    }
+    return this.replyTo ? "Write your reply" : "What's up?";
+  }
+
   isSendBlocked() {
     const isSending = untrack(() => this.state.$isSending.get());
-    const postText = untrack(() => this.state.$postText.get());
-    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
-    const isVideoUploading =
-      !!selectedVideo &&
-      (selectedVideo.status === "uploading" ||
-        selectedVideo.status === "processing");
-    return isSending || graphemeCount(postText) > 300 || isVideoUploading;
+    const posts = this._getPosts();
+    const isAnyPostAboveCharLimit = posts.some(
+      (postState) =>
+        hasPostStateContent(postState) && graphemeCount(postState.text) > 300,
+    );
+    const isAnyVideoBlocking = posts.some(
+      (postState) =>
+        isVideoUploadPending(postState.video) ||
+        postState.video?.status === "error",
+    );
+    return isSending || isAnyPostAboveCharLimit || isAnyVideoBlocking;
+  }
+
+  handleActivatePost(index) {
+    if (untrack(() => this.state.$activePostIndex.get()) !== index) {
+      this.state.$activePostIndex.set(index);
+    }
+  }
+
+  handleAddPost() {
+    const posts = this._getPosts();
+    const activeIndex = untrack(() => this.state.$activePostIndex.get());
+    const activePost = posts[activeIndex];
+    const nextPost = posts[activeIndex + 1] ?? null;
+    if (
+      !hasPostStateContent(activePost) ||
+      (nextPost && !hasPostStateContent(nextPost))
+    ) {
+      return;
+    }
+    const newPost = this._createPostState();
+    const updated = [...posts];
+    updated.splice(activeIndex + 1, 0, newPost);
+    this.state.$posts.set(updated);
+    this.state.$activePostIndex.set(activeIndex + 1);
+    this._isDirty = true;
+    // Render + focus synchronously so iOS keeps the keyboard open (focus only
+    // works inside the user-gesture call stack)
+    this.render();
+    this._syncInputsFromState();
+    this._getInputForPost(newPost.id)?.focus({ preventScroll: false });
+  }
+
+  async handleRemovePost(postId) {
+    const posts = this._getPosts();
+    if (posts.length < 2) return;
+    const index = posts.findIndex((postState) => postState.id === postId);
+    if (index === -1) return;
+    const postState = posts[index];
+    if (hasPostStateContent(postState)) {
+      const confirmed = await confirmModal(
+        "Are you sure you'd like to delete this post from the thread?",
+        {
+          title: "Delete post?",
+          confirmButtonStyle: "danger-subtle",
+          confirmButtonText: "Delete",
+        },
+      );
+      if (!confirmed) return;
+    }
+    if (postState.video?.previewUrl) {
+      URL.revokeObjectURL(postState.video.previewUrl);
+    }
+    const latestPosts = this._getPosts().filter(
+      (latestPost) => latestPost.id !== postId,
+    );
+    if (latestPosts.length === 0) return;
+    const newActiveIndex = Math.max(0, index - 1);
+    this.state.$posts.set(latestPosts);
+    this.state.$activePostIndex.set(newActiveIndex);
+    this._isDirty = true;
+    this.render();
+    this._syncInputsFromState();
+    this._getInputForPost(latestPosts[newActiveIndex].id)?.focus({
+      preventScroll: true,
+    });
   }
 
   handleEmojiButtonClick(event) {
@@ -498,47 +797,52 @@ class PostComposer extends Component {
       dialog.close();
       return;
     }
-    const richTextInput = this.querySelector("rich-text-input");
+    const activePost = this._getActivePost();
+    const richTextInput = this._getInputForPost(activePost.id);
     this._savedEmojiCursor = richTextInput?.getCursor() ?? null;
     dialog.open(event.currentTarget);
   }
 
   handleEmojiSelect(emoji) {
-    const richTextInput = this.querySelector("rich-text-input");
+    const activePost = this._getActivePost();
+    const richTextInput = this._getInputForPost(activePost.id);
     if (!richTextInput) return;
     richTextInput.insertText(emoji, this._savedEmojiCursor);
     richTextInput.focus();
     this._savedEmojiCursor = null;
   }
 
-  handleExternalLinkEmbedPreviewClose() {
-    this._rejectedLinkEmbeds.add(this._externalLinkUrl);
-    this._externalLinkUrl = null;
-    this.state.$externalLinkEmbedData.set(null);
+  handleExternalLinkEmbedPreviewClose(postId) {
+    const postState = this._getPost(postId);
+    if (!postState) return;
+    postState.rejectedLinkEmbeds.add(postState.externalLinkUrl);
+    this._updatePost(postId, { externalLinkUrl: null, external: null });
     this._isDirty = true;
   }
 
-  handleQuotedEmbedPreviewClose() {
-    this._quotedRecordUrl = null;
-    this.state.$quotedRecord.set(null);
+  handleQuotedEmbedPreviewClose(postId) {
+    this._updatePost(postId, { quotedRecordUrl: null, quotedRecord: null });
     this._isDirty = true;
   }
 
-  async loadQuotedRecordFromLink() {
-    const url = this._quotedRecordUrl;
+  async loadQuotedRecordFromLink(postId) {
+    const url = this._getPost(postId)?.quotedRecordUrl;
+    if (!url) return;
     try {
       const record = await resolveRecordFromLink(url, {
         identityResolver: this.identityResolver,
         dataLayer: this.dataLayer,
       });
       // the embed may have been closed or replaced while the record was loading
-      if (this._quotedRecordUrl !== url) return;
-      this.state.$quotedRecord.set(record);
+      if (this._getPost(postId)?.quotedRecordUrl !== url) return;
+      this._updatePost(postId, { quotedRecord: record });
     } catch (error) {
       console.error("Error loading record embed from link: ", error);
-      this._rejectedLinkEmbeds.add(url);
-      if (this._quotedRecordUrl === url) {
-        this._quotedRecordUrl = null;
+      const postState = this._getPost(postId);
+      if (!postState) return;
+      postState.rejectedLinkEmbeds.add(url);
+      if (postState.quotedRecordUrl === url) {
+        this._updatePost(postId, { quotedRecordUrl: null });
       }
     }
   }
@@ -553,10 +857,10 @@ class PostComposer extends Component {
   async handleMediaSelect(e) {
     const files = Array.from(e.target.files);
     e.target.value = "";
-    await this.addMediaFiles(files);
+    await this.addMediaFiles(this._getActivePost().id, files);
   }
 
-  async addMediaFiles(files) {
+  async addMediaFiles(postId, files) {
     if (files.length === 0) return;
 
     const imageFiles = files.filter((file) => file.type.startsWith("image/"));
@@ -575,8 +879,9 @@ class PostComposer extends Component {
     }
 
     if (videoFiles.length > 0) {
-      const selectedImages = untrack(() => this.state.$selectedImages.get());
-      if (selectedImages.length > 0) {
+      const postState = this._getPost(postId);
+      if (!postState) return;
+      if (postState.images.length > 0) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
@@ -588,25 +893,27 @@ class PostComposer extends Component {
         });
       }
       this._isDirty = true;
-      await this.processVideoFile(videoFiles[0]);
+      await this.processVideoFile(postId, videoFiles[0]);
       return;
     }
 
     if (imageFiles.length > 0) {
-      const selectedVideo = untrack(() => this.state.$selectedVideo.get());
-      if (selectedVideo) {
+      const postState = this._getPost(postId);
+      if (!postState) return;
+      if (postState.video) {
         showToast("Selecting multiple media types is not supported", {
           style: "warning",
         });
         return;
       }
-      await this.addImageFiles(imageFiles);
+      await this.addImageFiles(postId, imageFiles);
     }
   }
 
-  async addImageFiles(files) {
+  async addImageFiles(postId, files) {
     const maxImages = 4;
-    const currentImages = untrack(() => this.state.$selectedImages.get());
+    const currentImages = this._getPost(postId)?.images;
+    if (!currentImages) return;
     const remainingSlots = maxImages - currentImages.length;
 
     if (files.length > remainingSlots) {
@@ -622,44 +929,51 @@ class PostComposer extends Component {
         dataUrl,
       });
     }
-    const latestImages = untrack(() => this.state.$selectedImages.get());
-    const selectedImages = [...latestImages, ...newImages];
-    this.state.$selectedImages.set(selectedImages);
-    this._isDirty = true;
-
+    const postState = this._getPost(postId);
+    if (!postState) return;
+    const selectedImages = [...postState.images, ...newImages];
+    const patch = { images: selectedImages };
     // Reject external link embed if images are added
-    if (selectedImages.length > 0 && this._externalLinkUrl) {
-      this._rejectedLinkEmbeds.add(this._externalLinkUrl);
-      this._externalLinkUrl = null;
-      this.state.$externalLinkEmbedData.set(null);
+    if (selectedImages.length > 0 && postState.externalLinkUrl) {
+      postState.rejectedLinkEmbeds.add(postState.externalLinkUrl);
+      patch.externalLinkUrl = null;
+      patch.external = null;
     }
-  }
-
-  handleRemoveImage(index) {
-    const selectedImages = untrack(() => this.state.$selectedImages.get());
-    this.state.$selectedImages.set(
-      selectedImages.filter((image, imageIndex) => imageIndex !== index),
-    );
+    this._updatePost(postId, patch);
     this._isDirty = true;
   }
 
-  handleEditAltText(index) {
-    const selectedImages = untrack(() => this.state.$selectedImages.get());
-    const image = selectedImages[index];
+  handleRemoveImage(postId, index) {
+    const postState = this._getPost(postId);
+    if (!postState) return;
+    this._updatePost(postId, {
+      images: postState.images.filter(
+        (image, imageIndex) => imageIndex !== index,
+      ),
+    });
+    this._isDirty = true;
+  }
+
+  handleEditAltText(postId, index) {
+    const postState = this._getPost(postId);
+    if (!postState) return;
+    const image = postState.images[index];
     const dialog = document.createElement("image-alt-text-dialog");
     dialog.imageUrl = image.dataUrl;
     dialog.value = image.alt || "";
 
     dialog.addEventListener("alt-text-saved", (e) => {
-      const latestImages = untrack(() => this.state.$selectedImages.get());
-      this.state.$selectedImages.set(
-        latestImages.map((selectedImage, imageIndex) =>
-          imageIndex === index
-            ? { ...selectedImage, alt: e.detail.altText }
-            : selectedImage,
-        ),
-      );
-      this._isDirty = true;
+      const latestPost = this._getPost(postId);
+      if (latestPost) {
+        this._updatePost(postId, {
+          images: latestPost.images.map((selectedImage, imageIndex) =>
+            imageIndex === index
+              ? { ...selectedImage, alt: e.detail.altText }
+              : selectedImage,
+          ),
+        });
+        this._isDirty = true;
+      }
       dialog.remove();
     });
 
@@ -671,7 +985,7 @@ class PostComposer extends Component {
     dialog.open();
   }
 
-  async processVideoFile(file) {
+  async processVideoFile(postId, file) {
     try {
       validateVideoFile(file);
     } catch (error) {
@@ -694,52 +1008,55 @@ class PostComposer extends Component {
       return;
     }
     const token = Symbol();
-    this._videoToken = token;
-    this._draftVideoCaptions = null;
-    this.state.$selectedVideo.set({
-      file,
-      previewUrl: URL.createObjectURL(file),
-      alt: "",
-      aspectRatio: metadata.aspectRatio,
-      status: "uploading",
-      progress: 0,
-      jobId: null,
-      blob: null,
-      error: null,
+    const updated = this._updatePost(postId, {
+      videoToken: token,
+      draftVideoCaptions: null,
+      video: {
+        file,
+        previewUrl: URL.createObjectURL(file),
+        alt: "",
+        aspectRatio: metadata.aspectRatio,
+        status: "uploading",
+        progress: 0,
+        jobId: null,
+        blob: null,
+        error: null,
+      },
     });
-    this.uploadSelectedVideo(token);
+    if (!updated) return;
+    this.uploadSelectedVideo(postId, token);
   }
 
-  // Applies a partial update to the selected video, unless it has been removed
+  // Applies a partial update to the post's video, unless it has been removed
   // or replaced since `token` was issued.
-  patchSelectedVideo(token, patch) {
-    if (this._videoToken !== token) return null;
-    const selectedVideo = untrack(() => this.state.$selectedVideo.get());
-    const video = { ...selectedVideo, ...patch };
-    this.state.$selectedVideo.set(video);
+  patchSelectedVideo(postId, token, patch) {
+    const postState = this._getPost(postId);
+    if (!postState || postState.videoToken !== token) return null;
+    const video = { ...postState.video, ...patch };
+    this._updatePost(postId, { video });
     return video;
   }
 
-  async uploadSelectedVideo(token) {
-    const video = untrack(() => this.state.$selectedVideo.get());
+  async uploadSelectedVideo(postId, token) {
+    const video = this._getPost(postId)?.video;
     if (!video) return;
     try {
       const uploader = new VideoUploader(this.dataLayer.api);
       const blob = await uploader.upload(video.file, {
         onJobStart: (job) => {
-          this.patchSelectedVideo(token, {
+          this.patchSelectedVideo(postId, token, {
             jobId: job.jobId,
             status: "processing",
           });
         },
         onProgress: (_state, progress) => {
-          this.patchSelectedVideo(token, { progress });
+          this.patchSelectedVideo(postId, token, { progress });
         },
       });
-      this.patchSelectedVideo(token, { blob, status: "done" });
+      this.patchSelectedVideo(postId, token, { blob, status: "done" });
     } catch (error) {
       console.error("Video upload error: ", error);
-      const failedVideo = this.patchSelectedVideo(token, {
+      const failedVideo = this.patchSelectedVideo(postId, token, {
         status: "error",
         error: error.message || "Upload failed",
       });
@@ -749,26 +1066,29 @@ class PostComposer extends Component {
     }
   }
 
-  handleRemoveVideo() {
-    const video = untrack(() => this.state.$selectedVideo.get());
-    if (video?.previewUrl) {
-      URL.revokeObjectURL(video.previewUrl);
+  handleRemoveVideo(postId) {
+    const postState = this._getPost(postId);
+    if (!postState) return;
+    if (postState.video?.previewUrl) {
+      URL.revokeObjectURL(postState.video.previewUrl);
     }
-    this._videoToken = null;
-    this.state.$selectedVideo.set(null);
-    this._draftVideoCaptions = null;
+    this._updatePost(postId, {
+      videoToken: null,
+      video: null,
+      draftVideoCaptions: null,
+    });
     this._isDirty = true;
   }
 
-  handleEditVideoAltText() {
-    const video = untrack(() => this.state.$selectedVideo.get());
-    if (!video) return;
-    const token = this._videoToken;
+  handleEditVideoAltText(postId) {
+    const postState = this._getPost(postId);
+    if (!postState?.video) return;
+    const token = postState.videoToken;
     const dialog = document.createElement("image-alt-text-dialog");
-    dialog.value = video.alt || "";
+    dialog.value = postState.video.alt || "";
 
     dialog.addEventListener("alt-text-saved", (e) => {
-      this.patchSelectedVideo(token, { alt: e.detail.altText });
+      this.patchSelectedVideo(postId, token, { alt: e.detail.altText });
       this._isDirty = true;
       dialog.remove();
     });
@@ -781,34 +1101,37 @@ class PostComposer extends Component {
     dialog.open();
   }
 
-  handleInput(e) {
+  handleInput(postId, e) {
+    const postState = this._getPost(postId);
+    if (!postState) return;
     this._isDirty = true;
-    const previousFacets = this._unresolvedFacets;
-    this.state.$postText.set(e.detail.text);
-    this._unresolvedFacets = e.detail.facets;
+    const previousFacets = postState.unresolvedFacets;
+    const unresolvedFacets = e.detail.facets;
+    this._updatePost(postId, { text: e.detail.text, unresolvedFacets });
     // If the facets *haven't* changed, and the latest change was a space or newline, check for possible link embeds
     if (
-      JSON.stringify(previousFacets) ===
-        JSON.stringify(this._unresolvedFacets) &&
+      JSON.stringify(previousFacets) === JSON.stringify(unresolvedFacets) &&
       (e.detail.text.endsWith(" ") || e.detail.text.endsWith("\n"))
     ) {
-      for (const facet of this._unresolvedFacets) {
+      for (const facet of unresolvedFacets) {
         // Only handle one feature for now
         const feature = facet.features[0];
         if (feature.$type === "app.bsky.richtext.facet#link") {
           const url = feature.uri;
-          if (this._externalLinkUrl) {
+          const latestPost = this._getPost(postId);
+          if (!latestPost) return;
+          if (latestPost.externalLinkUrl) {
             // automatically reject links if there's an existing link embed
-            this._rejectedLinkEmbeds.add(url);
-          } else if (!this._rejectedLinkEmbeds.has(url)) {
+            latestPost.rejectedLinkEmbeds.add(url);
+          } else if (!latestPost.rejectedLinkEmbeds.has(url)) {
             if (parseRecordLink(url)) {
-              if (!this.quotedRecord && !this._quotedRecordUrl) {
-                this._quotedRecordUrl = url;
-                this.loadQuotedRecordFromLink();
+              if (!latestPost.quotedRecord && !latestPost.quotedRecordUrl) {
+                this._updatePost(postId, { quotedRecordUrl: url });
+                this.loadQuotedRecordFromLink(postId);
               }
             } else {
-              this._externalLinkUrl = url;
-              this.loadExternalLinkEmbedPreview();
+              this._updatePost(postId, { externalLinkUrl: url });
+              this.loadExternalLinkEmbedPreview(postId);
             }
           }
         }
@@ -816,59 +1139,62 @@ class PostComposer extends Component {
     }
     // If the facets have changed, check to see if links have been removed.
     // This will allow links to be re-added after being rejected.
-    if (
-      JSON.stringify(previousFacets) !== JSON.stringify(this._unresolvedFacets)
-    ) {
-      const linkFacetUrls = this._unresolvedFacets
+    if (JSON.stringify(previousFacets) !== JSON.stringify(unresolvedFacets)) {
+      const linkFacetUrls = unresolvedFacets
         .filter(
           (facet) => facet.features[0].$type === "app.bsky.richtext.facet#link",
         )
         .map((facet) => facet.features[0].uri);
-      for (const rejectedLinkEmbed of this._rejectedLinkEmbeds) {
+      for (const rejectedLinkEmbed of postState.rejectedLinkEmbeds) {
         if (!linkFacetUrls.includes(rejectedLinkEmbed)) {
-          this._rejectedLinkEmbeds.delete(rejectedLinkEmbed);
+          postState.rejectedLinkEmbeds.delete(rejectedLinkEmbed);
         }
       }
     }
   }
 
-  handlePaste(e) {
+  handlePaste(postId, e) {
     const pastedFiles = Array.from(e.clipboardData?.files ?? []);
     if (pastedFiles.length > 0) {
       e.preventDefault();
-      this.addMediaFiles(pastedFiles);
+      this.addMediaFiles(postId, pastedFiles);
       return;
     }
     // Attach link embeds immediately if a link is pasted
     // Wait a tick so handleInput runs first
     requestAnimationFrame(() => {
-      for (const facet of this._unresolvedFacets) {
+      const postState = this._getPost(postId);
+      if (!postState) return;
+      for (const facet of postState.unresolvedFacets) {
         const feature = facet.features[0];
         if (feature.$type === "app.bsky.richtext.facet#link") {
           const url = feature.uri;
-          if (this._rejectedLinkEmbeds.has(url)) continue;
+          if (postState.rejectedLinkEmbeds.has(url)) continue;
           if (parseRecordLink(url)) {
-            if (!this.quotedRecord && !this._quotedRecordUrl) {
-              this._quotedRecordUrl = url;
-              this.loadQuotedRecordFromLink();
+            if (!postState.quotedRecord && !postState.quotedRecordUrl) {
+              this._updatePost(postId, { quotedRecordUrl: url });
+              this.loadQuotedRecordFromLink(postId);
             }
-          } else if (!this._externalLinkUrl) {
-            this._externalLinkUrl = url;
-            this.loadExternalLinkEmbedPreview();
+          } else if (!postState.externalLinkUrl) {
+            this._updatePost(postId, { externalLinkUrl: url });
+            this.loadExternalLinkEmbedPreview(postId);
           }
         }
       }
     });
   }
 
-  async loadExternalLinkEmbedPreview() {
-    const url = this._externalLinkUrl;
+  async loadExternalLinkEmbedPreview(postId) {
+    const url = this._getPost(postId)?.externalLinkUrl;
+    if (!url) return;
     // preliminary data
-    this.state.$externalLinkEmbedData.set({
-      url,
-      title: url,
-      description: "",
-      image: "",
+    this._updatePost(postId, {
+      external: {
+        url,
+        title: url,
+        description: "",
+        image: "",
+      },
     });
     let res = null;
     try {
@@ -880,7 +1206,7 @@ class PostComposer extends Component {
     if (res && res.ok) {
       const data = await res.json();
       // preview may have been closed or replaced while metadata was loading
-      const current = this.state.$externalLinkEmbedData.get();
+      const current = this._getPost(postId)?.external;
       if (!current || current.url !== url) return;
       const updated = { ...current };
       if (data.title) {
@@ -889,7 +1215,7 @@ class PostComposer extends Component {
       if (data.description) {
         updated.description = data.description;
       }
-      this.state.$externalLinkEmbedData.set(updated);
+      this._updatePost(postId, { external: updated });
       if (data.image) {
         // only show image if it can be loaded
         let imageRes = null;
@@ -897,11 +1223,10 @@ class PostComposer extends Component {
           imageRes = await fetch(sanitizeUri(data.image));
         } catch (error) {}
         // preview may have been closed or replaced while the image was loading
-        const latest = this.state.$externalLinkEmbedData.get();
+        const latest = this._getPost(postId)?.external;
         if (imageRes && imageRes.ok && latest && latest.url === url) {
-          this.state.$externalLinkEmbedData.set({
-            ...latest,
-            image: data.image,
+          this._updatePost(postId, {
+            external: { ...latest, image: data.image },
           });
         }
       }
@@ -909,7 +1234,7 @@ class PostComposer extends Component {
   }
 
   open() {
-    this.scrollLock.lock();
+    this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".post-composer");
     dialog.showModal();
     this.querySelector("rich-text-input")?.focus({ preventScroll: true });
@@ -932,7 +1257,8 @@ class PostComposer extends Component {
 
   applyComposerInit({ text, cursor }) {
     if (this._isDirty) return;
-    const richTextInput = this.querySelector("rich-text-input");
+    const activePost = this._getActivePost();
+    const richTextInput = this._getInputForPost(activePost.id);
     if (!richTextInput) return;
     if (text != null) {
       richTextInput.setText(text);
@@ -943,34 +1269,72 @@ class PostComposer extends Component {
   }
 
   close() {
-    this.scrollLock.unlock();
+    this.scrollLock?.release();
+    this.scrollLock = null;
     const dialog = this.querySelector(".post-composer");
     dialog.close();
     this.dispatchEvent(new CustomEvent("post-composer-closed"));
   }
 
-  send() {
+  // Drop trailing empty posts and confirm mid-thread empty posts
+  async _buildPostsForSend() {
+    const posts = this._getPosts();
+    let lastNonEmptyIndex = -1;
+    for (let i = posts.length - 1; i >= 0; i--) {
+      if (hasPostStateContent(posts[i])) {
+        lastNonEmptyIndex = i;
+        break;
+      }
+    }
+    if (lastNonEmptyIndex === -1) {
+      return [posts[0]];
+    }
+    const trimmed = posts.slice(0, lastNonEmptyIndex + 1);
+    const nonEmpty = trimmed.filter((postState) =>
+      hasPostStateContent(postState),
+    );
+    if (nonEmpty.length < trimmed.length) {
+      const confirmed = await confirmModal(
+        "Some posts in your thread are empty. Would you like to skip them and post the rest?",
+        {
+          title: "Skip empty posts?",
+          confirmButtonText: "Skip and post",
+        },
+      );
+      if (!confirmed) return null;
+    }
+    return nonEmpty;
+  }
+
+  async send() {
     if (this.isSendBlocked()) return;
+    const postsToSend = await this._buildPostsForSend();
+    if (!postsToSend) return;
+    this.state.$errorMessage.set(null);
     this.state.$isSending.set(true);
     const successCallback = () => {
       this.close();
     };
-    const errorCallback = () => {
+    const errorCallback = (error) => {
       this.state.$isSending.set(false);
-      // todo: show error message
+      this.state.$errorMessage.set(getSendErrorMessage(error));
     };
     this.dispatchEvent(
       new CustomEvent("send-post", {
         detail: {
-          post: {
-            ...this.readComposerState(),
-            replyTo: this.replyTo,
-            replyRoot: this.replyRoot,
-            labels: this._draftPassthrough?.labels ?? null,
-            threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
-            postgateEmbeddingRules:
-              this._draftPassthrough?.postgateEmbeddingRules ?? null,
-          },
+          posts: postsToSend.map((postState) => ({
+            postText: postState.text,
+            images: postState.images,
+            video: postState.video,
+            external: postState.external,
+            quotedRecord: postState.quotedRecord,
+            labels: postState.labels ?? this._draftPassthrough?.labels ?? null,
+          })),
+          replyTo: this.replyTo,
+          replyRoot: this.replyRoot,
+          threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
+          postgateEmbeddingRules:
+            this._draftPassthrough?.postgateEmbeddingRules ?? null,
           // Publishing a saved/restored draft consumes it
           draft: this._draftId
             ? {
@@ -985,51 +1349,38 @@ class PostComposer extends Component {
     );
   }
 
-  readComposerState() {
-    return untrack(() => ({
-      postText: this.state.$postText.get(),
-      images: this.state.$selectedImages.get(),
-      video: this.state.$selectedVideo.get(),
-      external: this.state.$externalLinkEmbedData.get(),
-      quotedRecord: this.state.$quotedRecord.get(),
-    }));
-  }
-
   hasContent() {
-    const { postText, images, video, external, quotedRecord } =
-      this.readComposerState();
-    return (
-      postText.length > 0 ||
-      images.length > 0 ||
-      video !== null ||
-      external !== null ||
-      quotedRecord !== null
-    );
+    return this._getPosts().some((postState) => hasPostStateContent(postState));
   }
 
   buildDraftSnapshot() {
-    const composerState = this.readComposerState();
+    const posts = this._getPosts();
     return {
-      ...composerState,
-      video: composerState.video
-        ? {
-            file: composerState.video.file,
-            alt: composerState.video.alt,
-            captions: this._draftVideoCaptions,
-          }
-        : null,
-      labels: this._draftPassthrough?.labels ?? null,
+      posts: posts.map((postState) => ({
+        postText: postState.text,
+        images: postState.images,
+        video: postState.video
+          ? {
+              file: postState.video.file,
+              alt: postState.video.alt,
+              captions: postState.draftVideoCaptions,
+            }
+          : null,
+        external: postState.external,
+        quotedRecord: postState.quotedRecord,
+        labels: postState.labels,
+        unrestoredImages: postState.unrestoredImages,
+        unrestoredVideo: postState.unrestoredVideo,
+      })),
       threadgateAllow: this._draftPassthrough?.threadgateAllow ?? null,
       postgateEmbeddingRules:
         this._draftPassthrough?.postgateEmbeddingRules ?? null,
-      unrestoredImages: this._draftUnrestoredMedia?.images ?? null,
-      unrestoredVideo: this._draftUnrestoredMedia?.video ?? null,
     };
   }
 
   async saveDraft() {
-    const postText = untrack(() => this.state.$postText.get());
-    if (!isDraftTextSavable(postText)) {
+    const posts = this._getPosts();
+    if (!posts.every((postState) => isDraftTextSavable(postState.text))) {
       showToast(
         `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters`,
         { style: "warning" },
@@ -1059,16 +1410,22 @@ class PostComposer extends Component {
         });
       }
       // Add new image keys back onto composer state so they can be reused.
-      const draftImages = draft.posts[0].embedGallery?.items ?? [];
-      const currentImages = untrack(() => this.state.$selectedImages.get());
-      this.state.$selectedImages.set(
-        currentImages.map((image) => {
-          if (image.localRefPath) return image;
-          const snapshotIndex = snapshot.images.indexOf(image);
-          if (snapshotIndex === -1) return image;
+      const currentPosts = this._getPosts();
+      this.state.$posts.set(
+        currentPosts.map((postState, postIndex) => {
+          const draftImages = draft.posts[postIndex]?.embedGallery?.items ?? [];
+          const snapshotImages = snapshot.posts[postIndex]?.images ?? [];
           return {
-            ...image,
-            localRefPath: draftImages[snapshotIndex].localRef.path,
+            ...postState,
+            images: postState.images.map((image) => {
+              if (image.localRefPath) return image;
+              const snapshotIndex = snapshotImages.indexOf(image);
+              if (snapshotIndex === -1) return image;
+              return {
+                ...image,
+                localRefPath: draftImages[snapshotIndex].localRef.path,
+              };
+            }),
           };
         }),
       );
@@ -1095,22 +1452,18 @@ class PostComposer extends Component {
   }
 
   clearComposer() {
-    const richTextInput = this.querySelector("rich-text-input");
-    richTextInput?.setText("");
-    this.state.$postText.set("");
-    this._unresolvedFacets = [];
-    this._rejectedLinkEmbeds = new Set();
-    this.state.$selectedImages.set([]);
-    this.handleRemoveVideo();
-    this._externalLinkUrl = null;
-    this.state.$externalLinkEmbedData.set(null);
-    this._quotedRecordUrl = null;
-    this.state.$quotedRecord.set(null);
+    for (const postState of this._getPosts()) {
+      if (postState.video?.previewUrl) {
+        URL.revokeObjectURL(postState.video.previewUrl);
+      }
+    }
+    this.state.$posts.set([this._createPostState()]);
+    this.state.$activePostIndex.set(0);
     this._draftId = null;
     this._originalLocalRefs = null;
     this._draftPassthrough = null;
-    this._draftVideoCaptions = null;
-    this._draftUnrestoredMedia = null;
+    this.render();
+    this._syncInputsFromState();
     this._isDirty = false;
   }
 
@@ -1121,13 +1474,13 @@ class PostComposer extends Component {
       this.openDraftsDialog();
       return;
     }
-    const postText = untrack(() => this.state.$postText.get());
-    if (!isDraftTextSavable(postText)) {
+    const posts = this._getPosts();
+    if (!posts.every((postState) => isDraftTextSavable(postState.text))) {
       const discard = await confirmModal(
         `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
         {
           title: "Discard post?",
-          confirmButtonStyle: "danger",
+          confirmButtonStyle: "danger-subtle",
           confirmButtonText: "Discard",
         },
       );
@@ -1196,82 +1549,94 @@ class PostComposer extends Component {
     if (draftId === null || draftId !== this._draftId) return;
     this._draftId = null;
     this._originalLocalRefs = null;
-    this._draftUnrestoredMedia = null;
     this._isDirty = true;
   }
 
   async restoreFromDraft(draftView) {
     const draft = draftView.draft;
-    const draftPost = draft.posts?.[0] ?? { text: "" };
+    const draftPosts = draft.posts?.length > 0 ? draft.posts : [{ text: "" }];
     const isOriginatingDevice = draft.deviceId === getDraftDeviceId();
     this.clearComposer();
-    const richTextInput = this.querySelector("rich-text-input");
-    richTextInput?.setText(draftPost.text ?? "");
     this._draftPassthrough = {
-      labels: draftPost.labels ?? null,
       threadgateAllow: draft.threadgateAllow ?? null,
       postgateEmbeddingRules: draft.postgateEmbeddingRules ?? null,
     };
     this._draftId = draftView.id;
     this._originalLocalRefs = new Set(getLocalRefsFromDraft(draft));
+
+    const postStates = draftPosts.map((draftPost) =>
+      this._createPostState({
+        text: draftPost.text ?? "",
+        labels: draftPost.labels ?? null,
+      }),
+    );
+    this.state.$posts.set(postStates);
+    this.state.$activePostIndex.set(0);
+    this.render();
+    this._syncInputsFromState();
     this._isDirty = false;
-    const unrestoredImages = [];
-    if (isOriginatingDevice) {
-      const restoredImages = [];
-      for (const item of getImagesFromDraftPost(draftPost)) {
-        try {
-          const blob = await this.dataLayer.draftMediaStore.readBlob(
-            item.localRef.path,
-          );
-          if (!blob) {
+
+    for (let i = 0; i < draftPosts.length; i++) {
+      const draftPost = draftPosts[i];
+      const postId = postStates[i].id;
+      const unrestoredImages = [];
+      if (isOriginatingDevice) {
+        const restoredImages = [];
+        for (const item of getImagesFromDraftPost(draftPost)) {
+          try {
+            const blob = await this.dataLayer.draftMediaStore.readBlob(
+              item.localRef.path,
+            );
+            if (!blob) {
+              unrestoredImages.push(item);
+              continue;
+            }
+            const file = new File([blob], "draft-image", {
+              type: blob.type || "image/jpeg",
+            });
+            const image = {
+              file,
+              dataUrl: await readFileAsDataUrl(blob),
+              localRefPath: item.localRef.path,
+            };
+            if (item.alt) {
+              image.alt = item.alt;
+            }
+            restoredImages.push(image);
+          } catch (error) {
+            console.warn("Failed to restore draft image", error);
             unrestoredImages.push(item);
-            continue;
           }
-          const file = new File([blob], "draft-image", {
-            type: blob.type || "image/jpeg",
-          });
-          const image = {
-            file,
-            dataUrl: await readFileAsDataUrl(blob),
-            localRefPath: item.localRef.path,
-          };
-          if (item.alt) {
-            image.alt = item.alt;
-          }
-          restoredImages.push(image);
-        } catch (error) {
-          console.warn("Failed to restore draft image", error);
-          unrestoredImages.push(item);
         }
+        if (restoredImages.length > 0) {
+          this._updatePost(postId, { images: restoredImages });
+        }
+      } else {
+        unrestoredImages.push(...getImagesFromDraftPost(draftPost));
       }
-      if (restoredImages.length > 0) {
-        this.state.$selectedImages.set(restoredImages);
+      const externalUri = draftPost.embedExternals?.[0]?.uri ?? null;
+      if (externalUri) {
+        this._updatePost(postId, { externalLinkUrl: externalUri });
+        this.loadExternalLinkEmbedPreview(postId);
       }
-    } else {
-      unrestoredImages.push(...getImagesFromDraftPost(draftPost));
+      const quoteRef = draftPost.embedRecords?.[0]?.record ?? null;
+      if (quoteRef) {
+        await this.restoreQuotedRecord(postId, quoteRef);
+      }
+      const videoEmbed = draftPost.embedVideos?.[0] ?? null;
+      let videoRestored = false;
+      if (videoEmbed?.localRef?.path && isOriginatingDevice) {
+        videoRestored = await this.restoreDraftVideo(postId, videoEmbed);
+      }
+      const unrestoredVideo = videoEmbed && !videoRestored ? videoEmbed : null;
+      this._updatePost(postId, {
+        unrestoredImages: unrestoredImages.length > 0 ? unrestoredImages : null,
+        unrestoredVideo,
+      });
     }
-    const externalUri = draftPost.embedExternals?.[0]?.uri ?? null;
-    if (externalUri) {
-      this._externalLinkUrl = externalUri;
-      this.loadExternalLinkEmbedPreview();
-    }
-    const quoteRef = draftPost.embedRecords?.[0]?.record ?? null;
-    if (quoteRef) {
-      await this.restoreQuotedRecord(quoteRef);
-    }
-    const videoEmbed = draftPost.embedVideos?.[0] ?? null;
-    let videoRestored = false;
-    if (videoEmbed?.localRef?.path && isOriginatingDevice) {
-      videoRestored = await this.restoreDraftVideo(videoEmbed);
-    }
-    const unrestoredVideo = videoEmbed && !videoRestored ? videoEmbed : null;
-    this._draftUnrestoredMedia =
-      unrestoredImages.length > 0 || unrestoredVideo
-        ? { images: unrestoredImages, video: unrestoredVideo }
-        : null;
   }
 
-  async restoreQuotedRecord(recordRef) {
+  async restoreQuotedRecord(postId, recordRef) {
     try {
       const { collection } = parseUri(recordRef.uri);
       let record = null;
@@ -1292,7 +1657,7 @@ class PostComposer extends Component {
         const post = await this.dataLayer.declarative.ensurePost(recordRef.uri);
         record = createEmbedFromPost(post);
       }
-      this.state.$quotedRecord.set(record);
+      this._updatePost(postId, { quotedRecord: record });
     } catch (error) {
       console.warn("Failed to restore draft quote", error);
       showToast("Couldn't load this draft's quoted record", {
@@ -1301,7 +1666,7 @@ class PostComposer extends Component {
     }
   }
 
-  async restoreDraftVideo(videoEmbed) {
+  async restoreDraftVideo(postId, videoEmbed) {
     try {
       const path = videoEmbed.localRef.path;
       const blob = await this.dataLayer.draftMediaStore.readBlob(path);
@@ -1315,14 +1680,19 @@ class PostComposer extends Component {
       const file = new File([blob], `draft-video.${extension}`, {
         type: blob.type || DraftMediaStore.parseVideoMimeType(path),
       });
-      await this.processVideoFile(file);
-      if (!untrack(() => this.state.$selectedVideo.get())) {
+      await this.processVideoFile(postId, file);
+      const postState = this._getPost(postId);
+      if (!postState?.video) {
         return false;
       }
       if (videoEmbed.alt) {
-        this.patchSelectedVideo(this._videoToken, { alt: videoEmbed.alt });
+        this.patchSelectedVideo(postId, postState.videoToken, {
+          alt: videoEmbed.alt,
+        });
       }
-      this._draftVideoCaptions = videoEmbed.captions ?? null;
+      this._updatePost(postId, {
+        draftVideoCaptions: videoEmbed.captions ?? null,
+      });
       return true;
     } catch (error) {
       console.warn("Failed to restore draft video", error);
@@ -1333,19 +1703,12 @@ class PostComposer extends Component {
 
   async confirmClose() {
     if (this.replyTo) {
-      const postText = untrack(() => this.state.$postText.get());
-      const selectedImages = untrack(() => this.state.$selectedImages.get());
-      const selectedVideo = untrack(() => this.state.$selectedVideo.get());
-      if (
-        postText.length === 0 &&
-        selectedImages.length === 0 &&
-        !selectedVideo
-      ) {
+      if (!this.hasContent()) {
         return true;
       }
       return confirmModal("Are you sure you'd like to discard this reply?", {
         title: "Discard reply?",
-        confirmButtonStyle: "danger",
+        confirmButtonStyle: "danger-subtle",
         confirmButtonText: "Discard",
       });
     }
@@ -1355,20 +1718,20 @@ class PostComposer extends Component {
     if (!this.draftsEnabled) {
       return confirmModal("Are you sure you'd like to discard this post?", {
         title: "Discard post?",
-        confirmButtonStyle: "danger",
+        confirmButtonStyle: "danger-subtle",
         confirmButtonText: "Discard",
       });
     }
     if (this._draftId && !this._isDirty) {
       return true;
     }
-    const postText = untrack(() => this.state.$postText.get());
-    if (!isDraftTextSavable(postText)) {
+    const posts = this._getPosts();
+    if (!posts.every((postState) => isDraftTextSavable(postState.text))) {
       return confirmModal(
         `You can only save drafts up to ${MAX_DRAFT_GRAPHEME_LENGTH} characters. Your post will be discarded.`,
         {
           title: "Discard post?",
-          confirmButtonStyle: "danger",
+          confirmButtonStyle: "danger-subtle",
           confirmButtonText: "Discard",
         },
       );

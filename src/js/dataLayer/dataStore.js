@@ -64,21 +64,70 @@ export class DataStore extends ReactiveStore {
   }
 
   setPosts(posts) {
+    const seenQuotedPostUris = new Set();
+    const setQuotedPost = (quotedPost) => {
+      if (
+        quotedPost?.$type !== "app.bsky.embed.record#viewRecord" ||
+        seenQuotedPostUris.has(quotedPost.uri)
+      ) {
+        return;
+      }
+      seenQuotedPostUris.add(quotedPost.uri);
+
+      const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
+      if (this.$posts.get(quotedPost.uri) == null) {
+        this.$posts.set(quotedPost.uri, normalizedQuotedPost);
+      }
+      setQuotedPost(getQuotedPost(normalizedQuotedPost));
+    };
+
     for (const post of posts) {
       this.$posts.set(post.uri, post);
-      const quotedPost = getQuotedPost(post);
-      if (
-        quotedPost?.$type === "app.bsky.embed.record#viewRecord" &&
-        this.$posts.get(quotedPost.uri) == null
-      ) {
-        this.$posts.set(quotedPost.uri, embedViewRecordToPostView(quotedPost));
-      }
+      setQuotedPost(getQuotedPost(post));
     }
   }
 
   setProfiles(profiles) {
     for (const profile of profiles) {
       this.$profiles.set(profile.did, profile);
+    }
+  }
+
+  // Save the convo and sync convo lists if necessary
+  setConvo(convo) {
+    this.$convos.set(convo.id, convo);
+    const isRequest = convo.status === "request";
+    const destinationSignal = isRequest
+      ? this.$convoRequestList
+      : this.$convoList;
+    const destinationList = destinationSignal.get();
+    if (destinationList) {
+      const inList = destinationList.convos.some(
+        (listConvo) => listConvo.id === convo.id,
+      );
+      destinationSignal.set({
+        convos: inList
+          ? destinationList.convos.map((listConvo) =>
+              listConvo.id === convo.id ? convo : listConvo,
+            )
+          : [convo, ...destinationList.convos],
+        cursor: destinationList.cursor,
+      });
+    }
+    // Remove accepted convo from the request list if it's there
+    if (!isRequest) {
+      const requestList = this.$convoRequestList.get();
+      if (
+        requestList &&
+        requestList.convos.some((listConvo) => listConvo.id === convo.id)
+      ) {
+        this.$convoRequestList.set({
+          convos: requestList.convos.filter(
+            (listConvo) => listConvo.id !== convo.id,
+          ),
+          cursor: requestList.cursor,
+        });
+      }
     }
   }
 }
