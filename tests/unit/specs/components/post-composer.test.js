@@ -1,8 +1,9 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { waitFor } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
+import { LINK_CARD_SERVICE_URL } from "/js/config.js";
 import "/js/components/post-composer.js";
 
 describe("post-composer", () => {
@@ -1957,6 +1958,1318 @@ describe("post-composer", () => {
       await element.addMediaFiles(getFirstPost(element).id, []);
       assert.deepEqual(getFirstPost(element).images.length, 0);
       assert.deepEqual(getFirstPost(element).video, null);
+    });
+  });
+
+  function toastText() {
+    return [...document.querySelectorAll(".toast")]
+      .map((toast) => toast.textContent)
+      .join(" ");
+  }
+
+  function makeGeneratorRecord() {
+    return {
+      $type: "app.bsky.feed.defs#generatorView",
+      uri: "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+      cid: "feedcid",
+      displayName: "Cool Feed",
+      creator: { did: "did:plc:creator1", handle: "creator1.test" },
+    };
+  }
+
+  // JSDOM can't decode video files: mint fake object URLs and fire
+  // loadedmetadata (or error) on any <video> created by readVideoMetadata.
+  function installVideoEnvStubs() {
+    const originalCreateObjectURL = URL.createObjectURL;
+    const originalRevokeObjectURL = URL.revokeObjectURL;
+    const originalCreateElement = document.createElement;
+    const controls = {
+      metadataShouldFail: false,
+      revokedUrls: [],
+    };
+    URL.createObjectURL = () => "blob:mock";
+    URL.revokeObjectURL = (url) => controls.revokedUrls.push(url);
+    document.createElement = function (tagName, ...args) {
+      const created = originalCreateElement.call(this, tagName, ...args);
+      if (String(tagName).toLowerCase() === "video") {
+        setTimeout(() => {
+          if (controls.metadataShouldFail) {
+            created.onerror?.();
+          } else {
+            created.onloadedmetadata?.();
+          }
+        }, 0);
+      }
+      return created;
+    };
+    controls.restore = () => {
+      URL.createObjectURL = originalCreateObjectURL;
+      URL.revokeObjectURL = originalRevokeObjectURL;
+      document.createElement = originalCreateElement;
+    };
+    return controls;
+  }
+
+  function makeVideoDataLayer({
+    statuses = [
+      {
+        state: "JOB_STATE_COMPLETED",
+        progress: 100,
+        blob: { $type: "blob", ref: "blobref" },
+      },
+    ],
+    limits = { canUpload: true },
+  } = {}) {
+    let statusIndex = 0;
+    const statusCalls = [];
+    return {
+      statusCalls,
+      api: {
+        getVideoUploadLimits: async () => limits,
+        uploadVideoBlob: async () => ({ jobId: "job-1" }),
+        getVideoJobStatus: async () => {
+          const status = statuses[Math.min(statusIndex++, statuses.length - 1)];
+          statusCalls.push(status);
+          return status;
+        },
+      },
+    };
+  }
+
+  describe("PostComposer - media preview actions", () => {
+    let originalRevokeObjectURL;
+    let revokedUrls;
+
+    beforeEach(() => {
+      originalRevokeObjectURL = URL.revokeObjectURL;
+      revokedUrls = [];
+      URL.revokeObjectURL = (url) => revokedUrls.push(url);
+    });
+
+    afterEach(() => {
+      URL.revokeObjectURL = originalRevokeObjectURL;
+      delete globalThis.__testConfirmation;
+    });
+
+    it("shows upload progress overlays on the video preview", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "uploading", progress: 0 },
+      });
+      await nextFrame();
+      let overlay = element.querySelector(".video-preview-overlay");
+      assert(overlay.textContent.includes("Uploading..."));
+      assert(overlay.querySelector(".loading-spinner") !== null);
+
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "processing", progress: 0 },
+      });
+      await nextFrame();
+      overlay = element.querySelector(".video-preview-overlay");
+      assert(overlay.textContent.includes("Processing..."));
+      assert(!overlay.textContent.includes("%"));
+
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "processing", progress: 40 },
+      });
+      await nextFrame();
+      overlay = element.querySelector(".video-preview-overlay");
+      assert(overlay.textContent.includes("Processing... 40%"));
+    });
+
+    it("shows the error overlay without a spinner and no overlay when done", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "error", error: "Too big" },
+      });
+      await nextFrame();
+      let overlay = element.querySelector(".video-preview-overlay");
+      assert(overlay.textContent.includes("Too big"));
+      assert.deepEqual(overlay.querySelector(".loading-spinner"), null);
+
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "error", error: null },
+      });
+      await nextFrame();
+      overlay = element.querySelector(".video-preview-overlay");
+      assert(overlay.textContent.includes("Upload failed"));
+
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "done" },
+      });
+      await nextFrame();
+      assert.deepEqual(element.querySelector(".video-preview-overlay"), null);
+    });
+
+    it("removes the video via the preview remove button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "done", alt: "" },
+        videoToken: Symbol("token"),
+        draftVideoCaptions: [{ lang: "en" }],
+      });
+      await nextFrame();
+      element
+        .querySelector(".video-preview-item .image-preview-remove-button")
+        .click();
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert.deepEqual(getFirstPost(element).videoToken, null);
+      assert.deepEqual(getFirstPost(element).draftVideoCaptions, null);
+      assert.deepEqual(revokedUrls, ["blob:x"]);
+      assert.deepEqual(element._isDirty, true);
+      await nextFrame();
+      assert.deepEqual(
+        element.querySelector(".post-composer-video-preview"),
+        null,
+      );
+    });
+
+    it("removes an image via the preview remove button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        images: [
+          { file: {}, dataUrl: "data:a" },
+          { file: {}, dataUrl: "data:b" },
+        ],
+      });
+      await nextFrame();
+      element
+        .querySelector(".image-preview-item .image-preview-remove-button")
+        .click();
+      const images = getFirstPost(element).images;
+      assert.deepEqual(images.length, 1);
+      assert.deepEqual(images[0].dataUrl, "data:b");
+      assert.deepEqual(element._isDirty, true);
+    });
+
+    it("closes the external link preview and rejects the URL", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const url = "https://example.com/article";
+      patchFirstPost(element, {
+        externalLinkUrl: url,
+        external: { url, title: url, description: "", image: "" },
+      });
+      await nextFrame();
+      element
+        .querySelector(
+          ".post-composer-embed-preview .embed-preview-close-button",
+        )
+        .click();
+      assert.deepEqual(getFirstPost(element).external, null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
+      assert(getFirstPost(element).rejectedLinkEmbeds.has(url));
+      assert.deepEqual(element._isDirty, true);
+    });
+
+    it("closes the quoted record preview via its close button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { quotedRecord: makeGeneratorRecord() });
+      await nextFrame();
+      element
+        .querySelector(
+          ".post-composer-embed-preview .embed-preview-close-button",
+        )
+        .click();
+      assert.deepEqual(getFirstPost(element).quotedRecord, null);
+      assert.deepEqual(element._isDirty, true);
+    });
+
+    it("removes the active thread post via its remove button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      await nextFrame();
+      // a shown confirm would resolve false and cancel the removal
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      element
+        .querySelector(
+          '[data-testid="composer-post"][data-teststate="active"] [data-testid="composer-remove-post-button"]',
+        )
+        .click();
+      await waitFor(() => element.state.$posts.get().length === 1);
+      assert.deepEqual(getFirstPost(element).text, "first post");
+    });
+  });
+
+  describe("PostComposer - quotedRecord property", () => {
+    it("setting quotedRecord after connect renders the preview", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.quotedRecord = makeGeneratorRecord();
+      await nextFrame();
+      assert.deepEqual(
+        getFirstPost(element).quotedRecord.$type,
+        "app.bsky.feed.defs#generatorView",
+      );
+      assert(
+        element.querySelector(
+          ".post-composer-embed-preview .feed-generator-embed",
+        ) !== null,
+      );
+    });
+  });
+
+  describe("PostComposer - dialog chrome", () => {
+    afterEach(() => {
+      delete globalThis.__testChoice;
+      delete globalThis.__testConfirmation;
+    });
+
+    it("closes when the backdrop is clicked with no content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(
+        new globalThis.window.MouseEvent("click", { bubbles: true }),
+      );
+      await waitFor(() => !dialog.open);
+    });
+
+    it("closes on the dialog cancel event with no content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const dialog = element.querySelector(".post-composer");
+      dialog.dispatchEvent(new globalThis.window.Event("cancel"));
+      await waitFor(() => !dialog.open);
+    });
+
+    it("closes from the Cancel button with no content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      const dialog = element.querySelector(".post-composer");
+      element.querySelector(".post-composer-cancel-button").click();
+      await waitFor(() => !dialog.open);
+    });
+
+    it("stays open when Keep editing is chosen from the Cancel button", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      globalThis.__testChoice = (resolve) => resolve("keep");
+      element.querySelector(".post-composer-cancel-button").click();
+      await nextFrame();
+      await nextFrame();
+      assert(element.querySelector(".post-composer").open);
+    });
+
+    it("stays open when the file picker dispatches a cancel event", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      element
+        .querySelector(".media-picker-input")
+        .dispatchEvent(
+          new globalThis.window.Event("cancel", { bubbles: true }),
+        );
+      await nextFrame();
+      assert(element.querySelector(".post-composer").open);
+    });
+  });
+
+  describe("PostComposer - confirmClose for replies", () => {
+    afterEach(() => {
+      delete globalThis.__testConfirmation;
+    });
+
+    function createReplyComposer() {
+      const element = createPostComposer();
+      element.replyTo = {
+        author: { handle: "user.bsky.social", displayName: "User" },
+        record: { text: "Original post", createdAt: new Date().toISOString() },
+        indexedAt: new Date().toISOString(),
+      };
+      connectElement(element);
+      return element;
+    }
+
+    it("closes an empty reply without a prompt", async () => {
+      const element = createReplyComposer();
+      globalThis.__testConfirmation = () => {
+        throw new Error("confirm should not be shown for an empty reply");
+      };
+      assert.deepEqual(await element.confirmClose(), true);
+    });
+
+    it("confirms discarding a reply with content", async () => {
+      const element = createReplyComposer();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "my reply", facets: [] },
+      });
+      globalThis.__testConfirmation = (resolve) => resolve(true);
+      assert.deepEqual(await element.confirmClose(), true);
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      assert.deepEqual(await element.confirmClose(), false);
+    });
+  });
+
+  describe("PostComposer - emoji picker", () => {
+    it("opens the emoji picker from the button and toggles it closed", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const button = element.querySelector(".post-composer-emoji-button");
+      const picker = element.querySelector("emoji-picker-dialog");
+      button.click();
+      assert.deepEqual(picker.isOpen, true);
+      button.click();
+      assert.deepEqual(picker.isOpen, false);
+    });
+
+    it("inserts the selected emoji into the active input", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const richTextInput = element.querySelector("rich-text-input");
+      richTextInput.setText("ab");
+      element.querySelector(".post-composer-emoji-button").click();
+      const picker = element.querySelector("emoji-picker-dialog");
+      picker.dispatchEvent(
+        new CustomEvent("select", { detail: { emoji: "😀" } }),
+      );
+      assert(richTextInput.text.includes("😀"));
+      assert.deepEqual(getFirstPost(element).text, richTextInput.text);
+      assert.deepEqual(element._savedEmojiCursor, null);
+      assert.deepEqual(picker.isOpen, false);
+    });
+  });
+
+  describe("PostComposer - media picker", () => {
+    it("clicks the hidden file input from the media button", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const input = element.querySelector(".media-picker-input");
+      const clickSpy = mock.fn();
+      input.click = clickSpy;
+      element.handleMediaButtonClick();
+      assert.deepEqual(clickSpy.mock.callCount(), 1);
+    });
+
+    it("adds files from the file input change flow and clears the input", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const target = {
+        files: [makeImageFile()],
+        value: "C:\\fake\\pasted.png",
+      };
+      await element.handleMediaSelect({ target });
+      assert.deepEqual(target.value, "");
+      assert.deepEqual(getFirstPost(element).images.length, 1);
+    });
+
+    it("adding images rejects an attached external link embed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const url = "https://example.com/article";
+      patchFirstPost(element, {
+        externalLinkUrl: url,
+        external: { url, title: url, description: "", image: "" },
+      });
+      await element.addMediaFiles(getFirstPost(element).id, [makeImageFile()]);
+      assert.deepEqual(getFirstPost(element).images.length, 1);
+      assert.deepEqual(getFirstPost(element).external, null);
+      assert.deepEqual(getFirstPost(element).externalLinkUrl, null);
+      assert(getFirstPost(element).rejectedLinkEmbeds.has(url));
+    });
+  });
+
+  describe("PostComposer - alt text dialogs", () => {
+    it("edits image alt text through the alt-text dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      await nextFrame();
+      element.querySelector(".image-preview-item img").click();
+      const dialog = document.body.querySelector("image-alt-text-dialog");
+      assert(dialog !== null);
+      const textarea = dialog.querySelector(".image-alt-text-dialog-textarea");
+      textarea.value = "a description";
+      textarea.dispatchEvent(
+        new globalThis.window.InputEvent("input", { bubbles: true }),
+      );
+      dialog.querySelector('[data-testid="alt-text-save"]').click();
+      assert.deepEqual(getFirstPost(element).images[0].alt, "a description");
+      assert.deepEqual(element._isDirty, true);
+      assert.deepEqual(
+        document.body.querySelector("image-alt-text-dialog"),
+        null,
+      );
+      await nextFrame();
+      assert(
+        element.querySelector(".alt-indicator").classList.contains("has-alt"),
+      );
+    });
+
+    it("closes the image alt-text dialog without saving on cancel", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      await nextFrame();
+      element.querySelector(".image-preview-item img").click();
+      const dialog = document.body.querySelector("image-alt-text-dialog");
+      dialog.querySelector('[data-testid="alt-text-cancel"]').click();
+      assert.deepEqual(getFirstPost(element).images[0].alt, undefined);
+      assert.deepEqual(
+        document.body.querySelector("image-alt-text-dialog"),
+        null,
+      );
+    });
+
+    it("edits video alt text through the alt-text dialog", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        video: { previewUrl: "blob:x", status: "done", alt: "" },
+      });
+      await nextFrame();
+      element.querySelector(".video-preview-item .alt-indicator").click();
+      const dialog = document.body.querySelector("image-alt-text-dialog");
+      assert(dialog !== null);
+      const textarea = dialog.querySelector(".image-alt-text-dialog-textarea");
+      textarea.value = "video description";
+      textarea.dispatchEvent(
+        new globalThis.window.InputEvent("input", { bubbles: true }),
+      );
+      dialog.querySelector('[data-testid="alt-text-save"]').click();
+      assert.deepEqual(getFirstPost(element).video.alt, "video description");
+      assert.deepEqual(element._isDirty, true);
+      assert.deepEqual(
+        document.body.querySelector("image-alt-text-dialog"),
+        null,
+      );
+    });
+  });
+
+  describe("PostComposer - link embed edge cases", () => {
+    it("auto-rejects new links while an external embed is attached", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, {
+        externalLinkUrl: "https://a.com/x",
+        external: { url: "https://a.com/x" },
+      });
+      const facet = makeLinkFacet("https://b.com/y");
+      patchFirstPost(element, { unresolvedFacets: [facet] });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "see https://b.com/y ", facets: [facet] },
+      });
+      assert(getFirstPost(element).rejectedLinkEmbeds.has("https://b.com/y"));
+      assert.deepEqual(
+        getFirstPost(element).externalLinkUrl,
+        "https://a.com/x",
+      );
+    });
+
+    it("clears rejected links once they are removed from the text", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const url = "https://a.com/x";
+      getFirstPost(element).rejectedLinkEmbeds.add(url);
+      patchFirstPost(element, { unresolvedFacets: [makeLinkFacet(url)] });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "no links", facets: [] },
+      });
+      assert(!getFirstPost(element).rejectedLinkEmbeds.has(url));
+    });
+  });
+
+  describe("PostComposer - external link preview loading", () => {
+    afterEach(() => {
+      delete globalThis.fetch;
+    });
+
+    function setupPreview(element, url) {
+      connectElement(element);
+      patchFirstPost(element, { externalLinkUrl: url });
+    }
+
+    it("fills the preview from the link card service including the image", async () => {
+      globalThis.fetch = async (url) => {
+        if (url.startsWith(LINK_CARD_SERVICE_URL)) {
+          return {
+            ok: true,
+            json: async () => ({
+              title: "Title",
+              description: "Desc",
+              image: "https://img.example/pic.png",
+            }),
+          };
+        }
+        return { ok: true };
+      };
+      const element = createPostComposer();
+      const url = "https://example.com/article";
+      setupPreview(element, url);
+      await element.loadExternalLinkEmbedPreview(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).external, {
+        url,
+        title: "Title",
+        description: "Desc",
+        image: "https://img.example/pic.png",
+      });
+    });
+
+    it("keeps the preview without an image when the image fails to load", async () => {
+      globalThis.fetch = async (url) => {
+        if (url.startsWith(LINK_CARD_SERVICE_URL)) {
+          return {
+            ok: true,
+            json: async () => ({
+              title: "Title",
+              description: "Desc",
+              image: "https://img.example/pic.png",
+            }),
+          };
+        }
+        throw new TypeError("network error");
+      };
+      const element = createPostComposer();
+      const url = "https://example.com/article";
+      setupPreview(element, url);
+      await element.loadExternalLinkEmbedPreview(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).external, {
+        url,
+        title: "Title",
+        description: "Desc",
+        image: "",
+      });
+    });
+
+    it("falls back to the bare URL when metadata is missing", async () => {
+      globalThis.fetch = async () => ({ ok: true, json: async () => ({}) });
+      const element = createPostComposer();
+      const url = "https://example.com/article";
+      setupPreview(element, url);
+      await element.loadExternalLinkEmbedPreview(getFirstPost(element).id);
+      assert.deepEqual(getFirstPost(element).external, {
+        url,
+        title: url,
+        description: "",
+        image: "",
+      });
+    });
+
+    it("discards metadata that resolves after the preview is closed", async () => {
+      let resolveFetch = null;
+      globalThis.fetch = () =>
+        new Promise((resolve) => {
+          resolveFetch = resolve;
+        });
+      const element = createPostComposer();
+      const url = "https://example.com/article";
+      setupPreview(element, url);
+      const loadPromise = element.loadExternalLinkEmbedPreview(
+        getFirstPost(element).id,
+      );
+      element.handleExternalLinkEmbedPreviewClose(getFirstPost(element).id);
+      resolveFetch({ ok: true, json: async () => ({ title: "Late" }) });
+      await loadPromise;
+      assert.deepEqual(getFirstPost(element).external, null);
+    });
+  });
+
+  describe("PostComposer - send lifecycle", () => {
+    it("dispatches a single empty post when nothing has content", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      await element.send();
+      assert.deepEqual(receivedDetail.posts.length, 1);
+      assert.deepEqual(receivedDetail.posts[0].postText, "");
+    });
+
+    it("re-enables sending when the errorCallback fires", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "hello" });
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      await element.send();
+      assert.deepEqual(element.state.$isSending.get(), true);
+      receivedDetail.errorCallback();
+      assert.deepEqual(element.state.$isSending.get(), false);
+    });
+
+    it("closes the composer when the successCallback fires", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      element.open();
+      patchFirstPost(element, { text: "hello" });
+      let receivedDetail = null;
+      element.addEventListener("send-post", (e) => {
+        receivedDetail = e.detail;
+      });
+      let closedEventFired = false;
+      element.addEventListener("post-composer-closed", () => {
+        closedEventFired = true;
+      });
+      await element.send();
+      receivedDetail.successCallback();
+      assert(!element.querySelector(".post-composer").open);
+      assert(closedEventFired);
+    });
+  });
+
+  describe("PostComposer - draft snapshot", () => {
+    it("serializes video file, alt, and captions into the snapshot", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const file = makeVideoFile();
+      patchFirstPost(element, {
+        video: { file, alt: "v alt", previewUrl: "blob:x", status: "done" },
+        draftVideoCaptions: [{ lang: "en" }],
+      });
+      const snapshot = element.buildDraftSnapshot();
+      assert.deepEqual(snapshot.posts[0].video, {
+        file,
+        alt: "v alt",
+        captions: [{ lang: "en" }],
+      });
+    });
+  });
+
+  describe("PostComposer - drafts button", () => {
+    afterEach(() => {
+      delete globalThis.__testChoice;
+      delete globalThis.__testConfirmation;
+    });
+
+    function createWithDialogSpy(dataLayer = null) {
+      const element = createPostComposer();
+      if (dataLayer) {
+        element.dataLayer = dataLayer;
+      }
+      element.openDraftsDialog = mock.fn();
+      connectElement(element);
+      return element;
+    }
+
+    it("opens the drafts dialog directly when there is no content", async () => {
+      const element = createWithDialogSpy();
+      globalThis.__testChoice = () => {
+        throw new Error("choice prompt should not be shown without content");
+      };
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
+    });
+
+    it("opens directly when the loaded draft has no unsaved changes", async () => {
+      const element = createWithDialogSpy();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      element.markSaved("draft-1", []);
+      element._isDirty = false;
+      globalThis.__testChoice = () => {
+        throw new Error("choice prompt should not be shown for a clean draft");
+      };
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
+    });
+
+    it("saves then opens when Save is chosen", async () => {
+      const createDraft = mock.fn(async () => "draft-1");
+      const element = createWithDialogSpy({ mutations: { createDraft } });
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      globalThis.__testChoice = (resolve) => resolve("save");
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(createDraft.mock.callCount(), 1);
+      assert.deepEqual(element._draftId, "draft-1");
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
+    });
+
+    it("does not open the drafts dialog when the save fails", async () => {
+      const originalError = console.error;
+      console.error = () => {};
+      try {
+        const element = createWithDialogSpy({
+          mutations: {
+            createDraft: async () => {
+              throw new Error("boom");
+            },
+          },
+        });
+        element.handleInput(getFirstPost(element).id, {
+          detail: { text: "hello", facets: [] },
+        });
+        globalThis.__testChoice = (resolve) => resolve("save");
+        await element.handleDraftsButtonClick();
+        assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
+        assert.deepEqual(element._isDirty, true);
+      } finally {
+        console.error = originalError;
+      }
+    });
+
+    it("discards content then opens when Discard is chosen", async () => {
+      const element = createWithDialogSpy();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      globalThis.__testChoice = (resolve) => resolve("discard");
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(getFirstPost(element).text, "");
+      assert.deepEqual(element._isDirty, false);
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
+    });
+
+    it("keeps editing without opening when Keep editing is chosen", async () => {
+      const element = createWithDialogSpy();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      globalThis.__testChoice = (resolve) => resolve("keep");
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(getFirstPost(element).text, "hello");
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
+    });
+
+    it("confirms discarding over-limit text before opening", async () => {
+      const element = createWithDialogSpy();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "x".repeat(1001), facets: [] },
+      });
+      globalThis.__testChoice = () => {
+        throw new Error("choice prompt should not be shown over the limit");
+      };
+      globalThis.__testConfirmation = (resolve) => resolve(false);
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
+      assert.deepEqual(getFirstPost(element).text, "x".repeat(1001));
+
+      globalThis.__testConfirmation = (resolve) => resolve(true);
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
+      assert.deepEqual(getFirstPost(element).text, "");
+    });
+
+    it("ignores clicks while a draft save is in flight", async () => {
+      const element = createWithDialogSpy();
+      element.handleInput(getFirstPost(element).id, {
+        detail: { text: "hello", facets: [] },
+      });
+      element.state.$isSavingDraft.set(true);
+      globalThis.__testChoice = () => {
+        throw new Error("choice prompt should not be shown while saving");
+      };
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
+    });
+
+    it("does nothing when drafts are disabled", async () => {
+      const element = createPostComposer({ draftsEnabled: false });
+      element.openDraftsDialog = mock.fn();
+      connectElement(element);
+      await element.handleDraftsButtonClick();
+      assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
+    });
+  });
+
+  describe("PostComposer - drafts dialog wiring", () => {
+    function makeDraftsDataLayer() {
+      return {
+        derived: {
+          $hydratedDrafts: { get: () => ({ drafts: [], cursor: null }) },
+        },
+      };
+    }
+
+    it("opens the drafts dialog and handles delete and close events", () => {
+      const element = createPostComposer();
+      element.dataLayer = makeDraftsDataLayer();
+      connectElement(element);
+      element.markSaved("draft-1", []);
+      element.openDraftsDialog();
+      const dialog = document.querySelector("drafts-dialog");
+      assert(dialog !== null);
+      assert.deepEqual(dialog.dataLayer, element.dataLayer);
+      assert(dialog.querySelector("dialog").open);
+      dialog.dispatchEvent(
+        new CustomEvent("draft-deleted", { detail: { draftId: "draft-1" } }),
+      );
+      assert.deepEqual(element._draftId, null);
+      dialog.dispatchEvent(new CustomEvent("dialog-closed"));
+      assert.deepEqual(document.querySelector("drafts-dialog"), null);
+    });
+
+    it("restores the draft chosen from the drafts dialog", () => {
+      const element = createPostComposer();
+      element.dataLayer = makeDraftsDataLayer();
+      connectElement(element);
+      element.restoreFromDraft = mock.fn();
+      element.openDraftsDialog();
+      const dialog = document.querySelector("drafts-dialog");
+      const draftView = { id: "draft-1", draft: { posts: [] } };
+      dialog.dispatchEvent(
+        new CustomEvent("draft-selected", { detail: { draftView } }),
+      );
+      assert.deepEqual(element.restoreFromDraft.mock.callCount(), 1);
+      assert.deepEqual(
+        element.restoreFromDraft.mock.calls[0].arguments[0],
+        draftView,
+      );
+    });
+  });
+
+  describe("PostComposer - restoring draft media", () => {
+    let originalWarn;
+
+    beforeEach(() => {
+      originalWarn = console.warn;
+      console.warn = () => {};
+    });
+
+    afterEach(() => {
+      console.warn = originalWarn;
+    });
+
+    function makeImageDraftView() {
+      return {
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          posts: [
+            {
+              text: "with image",
+              embedGallery: {
+                $type: "app.bsky.draft.defs#draftEmbedGallery",
+                items: [
+                  {
+                    $type: "app.bsky.draft.defs#draftEmbedImage",
+                    alt: "pic alt",
+                    localRef: {
+                      $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+                      path: "image:abc",
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        },
+      };
+    }
+
+    it("restores draft images from the local media store", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        draftMediaStore: {
+          readBlob: async () =>
+            new globalThis.window.Blob(["img"], { type: "image/png" }),
+        },
+      };
+      connectElement(element);
+      await element.restoreFromDraft(makeImageDraftView());
+      const image = getFirstPost(element).images[0];
+      assert(image.dataUrl.startsWith("data:image/png"));
+      assert.deepEqual(image.alt, "pic alt");
+      assert.deepEqual(image.localRefPath, "image:abc");
+      assert.deepEqual(image.file.name, "draft-image");
+      assert.deepEqual(getFirstPost(element).unrestoredImages, null);
+    });
+
+    it("marks images unrestored when the local bytes are missing", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        draftMediaStore: { readBlob: async () => null },
+      };
+      connectElement(element);
+      const draftView = makeImageDraftView();
+      await element.restoreFromDraft(draftView);
+      assert.deepEqual(getFirstPost(element).images, []);
+      assert.deepEqual(
+        getFirstPost(element).unrestoredImages,
+        draftView.draft.posts[0].embedGallery.items,
+      );
+    });
+
+    it("marks images unrestored when the read fails", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        draftMediaStore: {
+          readBlob: async () => {
+            throw new Error("idb broken");
+          },
+        },
+      };
+      connectElement(element);
+      const draftView = makeImageDraftView();
+      await element.restoreFromDraft(draftView);
+      assert.deepEqual(getFirstPost(element).images, []);
+      assert.deepEqual(
+        getFirstPost(element).unrestoredImages,
+        draftView.draft.posts[0].embedGallery.items,
+      );
+    });
+  });
+
+  describe("PostComposer - restoring draft quotes", () => {
+    let originalWarn;
+
+    beforeEach(() => {
+      originalWarn = console.warn;
+      console.warn = () => {};
+    });
+
+    afterEach(() => {
+      console.warn = originalWarn;
+    });
+
+    function makeRecordDraftView(uri) {
+      return {
+        id: "draft-1",
+        draft: {
+          deviceId: "another-device",
+          deviceName: "Web",
+          posts: [
+            {
+              text: "quoting",
+              embedRecords: [{ record: { uri, cid: "cid1" } }],
+            },
+          ],
+        },
+      };
+    }
+
+    function createComposerWithDeclarative(overrides = {}) {
+      const element = createPostComposer();
+      element.dataLayer = {
+        declarative: {
+          ensureFeedGenerator: async (uri) => ({
+            uri,
+            cid: "feedcid",
+            displayName: "Cool Feed",
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ensureList: async (uri) => ({
+            uri,
+            cid: "listcid",
+            name: "Cool List",
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ensureStarterPack: async (uri) => ({
+            uri,
+            cid: "packcid",
+            record: { name: "Cool Pack" },
+            creator: { did: "did:plc:creator1", handle: "creator1.test" },
+          }),
+          ...overrides,
+        },
+      };
+      connectElement(element);
+      return element;
+    }
+
+    it("restores a feed generator quote", async () => {
+      const element = createComposerWithDeclarative();
+      await element.restoreFromDraft(
+        makeRecordDraftView(
+          "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+        ),
+      );
+      assert.deepEqual(
+        getFirstPost(element).quotedRecord.$type,
+        "app.bsky.feed.defs#generatorView",
+      );
+    });
+
+    it("restores a list quote", async () => {
+      const element = createComposerWithDeclarative();
+      await element.restoreFromDraft(
+        makeRecordDraftView(
+          "at://did:plc:creator1/app.bsky.graph.list/cool-list",
+        ),
+      );
+      assert.deepEqual(
+        getFirstPost(element).quotedRecord.$type,
+        "app.bsky.graph.defs#listView",
+      );
+    });
+
+    it("restores a starter pack quote", async () => {
+      const element = createComposerWithDeclarative();
+      await element.restoreFromDraft(
+        makeRecordDraftView(
+          "at://did:plc:creator1/app.bsky.graph.starterpack/cool-pack",
+        ),
+      );
+      assert.deepEqual(
+        getFirstPost(element).quotedRecord.$type,
+        "app.bsky.graph.defs#starterPackViewBasic",
+      );
+    });
+
+    it("warns with a toast when the quoted record fails to load", async () => {
+      const element = createComposerWithDeclarative({
+        ensureFeedGenerator: async () => {
+          throw new Error("not found");
+        },
+      });
+      await element.restoreFromDraft(
+        makeRecordDraftView(
+          "at://did:plc:creator1/app.bsky.feed.generator/cool-feed",
+        ),
+      );
+      assert.deepEqual(getFirstPost(element).quotedRecord, null);
+      await waitFor(() =>
+        toastText().includes("Couldn't load this draft's quoted record"),
+      );
+    });
+  });
+
+  describe("PostComposer - video selection and upload", () => {
+    let videoEnv;
+    let originalError;
+    let originalWarn;
+
+    beforeEach(() => {
+      videoEnv = installVideoEnvStubs();
+      originalError = console.error;
+      originalWarn = console.warn;
+      console.error = () => {};
+      console.warn = () => {};
+    });
+
+    afterEach(() => {
+      videoEnv.restore();
+      console.error = originalError;
+      console.warn = originalWarn;
+      delete globalThis.__testConfirmation;
+    });
+
+    it("uploads a selected video to done", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      assert.deepEqual(element._isDirty, true);
+      await waitFor(() => getFirstPost(element).video?.status === "done");
+      const video = getFirstPost(element).video;
+      assert.deepEqual(video.jobId, "job-1");
+      assert.deepEqual(video.blob, { $type: "blob", ref: "blobref" });
+      assert.deepEqual(video.previewUrl, "blob:mock");
+      assert.deepEqual(video.error, null);
+    });
+
+    describe("with zero-delay timers", () => {
+      const originalSetTimeout = globalThis.setTimeout;
+
+      beforeEach(() => {
+        globalThis.setTimeout = (fn) => originalSetTimeout(fn, 0);
+      });
+
+      afterEach(() => {
+        globalThis.setTimeout = originalSetTimeout;
+      });
+
+      it("polls the processing job until completion", async () => {
+        const element = createPostComposer();
+        const dataLayer = makeVideoDataLayer({
+          statuses: [
+            { state: "JOB_STATE_PROCESSING", progress: 40 },
+            {
+              state: "JOB_STATE_COMPLETED",
+              progress: 100,
+              blob: { $type: "blob", ref: "blobref" },
+            },
+          ],
+        });
+        element.dataLayer = dataLayer;
+        connectElement(element);
+        await element.addMediaFiles(getFirstPost(element).id, [
+          makeVideoFile(),
+        ]);
+        await waitFor(() => getFirstPost(element).video?.status === "done");
+        assert.deepEqual(dataLayer.statusCalls.length, 2);
+        assert.deepEqual(getFirstPost(element).video.progress, 100);
+      });
+    });
+
+    it("marks the video errored and blocks send when the upload fails", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer({
+        limits: { canUpload: false, message: "No uploads allowed" },
+      });
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      await waitFor(() => getFirstPost(element).video?.status === "error");
+      assert.deepEqual(getFirstPost(element).video.error, "No uploads allowed");
+      assert(toastText().includes("No uploads allowed"));
+      assert.deepEqual(element.isSendBlocked(), true);
+      await nextFrame();
+      assert(
+        element.querySelector('[data-testid="composer-submit-button"]')
+          .disabled,
+      );
+    });
+
+    it("rejects a video when images are already selected", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert(toastText().includes("multiple media types"));
+      assert.deepEqual(element._isDirty, false);
+    });
+
+    it("keeps only the first of multiple selected videos", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [
+        makeVideoFile("a.mp4"),
+        makeVideoFile("b.mp4"),
+      ]);
+      assert(toastText().includes("one video at a time"));
+      await waitFor(() => getFirstPost(element).video?.status === "done");
+      assert.deepEqual(getFirstPost(element).video.file.name, "a.mp4");
+    });
+
+    it("rejects unsupported video formats", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      const file = new globalThis.window.File(["avi-bytes"], "clip.avi", {
+        type: "video/avi",
+      });
+      await element.addMediaFiles(getFirstPost(element).id, [file]);
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert(toastText().includes("Unsupported video format"));
+    });
+
+    it("surfaces metadata read failures", async () => {
+      videoEnv.metadataShouldFail = true;
+      const element = createPostComposer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert(toastText().includes("Could not read video file."));
+    });
+
+    it("patchSelectedVideo ignores stale tokens", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      await waitFor(() => getFirstPost(element).video?.status === "done");
+      const result = element.patchSelectedVideo(
+        getFirstPost(element).id,
+        Symbol("stale"),
+        { alt: "stale alt" },
+      );
+      assert.deepEqual(result, null);
+      assert.deepEqual(getFirstPost(element).video.alt, "");
+    });
+
+    it("clearComposer revokes the video preview URL", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      await element.addMediaFiles(getFirstPost(element).id, [makeVideoFile()]);
+      await waitFor(() => getFirstPost(element).video?.status === "done");
+      element.clearComposer();
+      assert(videoEnv.revokedUrls.includes("blob:mock"));
+      assert.deepEqual(getFirstPost(element).video, null);
+    });
+
+    it("removing a thread post revokes its video preview URL", async () => {
+      const element = createPostComposer();
+      element.dataLayer = makeVideoDataLayer();
+      connectElement(element);
+      patchFirstPost(element, { text: "first post" });
+      element.handleAddPost();
+      const secondId = element.state.$posts.get()[1].id;
+      await element.addMediaFiles(secondId, [makeVideoFile()]);
+      await waitFor(() => element._getPost(secondId).video?.status === "done");
+      globalThis.__testConfirmation = (resolve) => resolve(true);
+      await element.handleRemovePost(secondId);
+      assert.deepEqual(element.state.$posts.get().length, 1);
+      assert(videoEnv.revokedUrls.includes("blob:mock"));
+    });
+
+    it("restores a draft video with alt text and captions", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        ...makeVideoDataLayer(),
+        draftMediaStore: {
+          readBlob: async () =>
+            new globalThis.window.Blob(["vid"], { type: "video/mp4" }),
+        },
+      };
+      connectElement(element);
+      const videoEmbed = {
+        $type: "app.bsky.draft.defs#draftEmbedVideo",
+        alt: "vid alt",
+        captions: [{ lang: "en" }],
+        localRef: {
+          $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+          path: "video:video/mp4:abc.mp4",
+        },
+      };
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          posts: [{ text: "video draft", embedVideos: [videoEmbed] }],
+        },
+      });
+      const postState = getFirstPost(element);
+      assert(postState.video !== null);
+      assert.deepEqual(postState.video.alt, "vid alt");
+      assert.deepEqual(postState.video.file.name, "draft-video.mp4");
+      assert.deepEqual(postState.draftVideoCaptions, [{ lang: "en" }]);
+      assert.deepEqual(postState.unrestoredVideo, null);
+    });
+
+    it("marks the video unrestored when the local read fails", async () => {
+      const element = createPostComposer();
+      element.dataLayer = {
+        draftMediaStore: {
+          readBlob: async () => {
+            throw new Error("idb broken");
+          },
+        },
+      };
+      connectElement(element);
+      const videoEmbed = {
+        $type: "app.bsky.draft.defs#draftEmbedVideo",
+        localRef: {
+          $type: "app.bsky.draft.defs#draftEmbedLocalRef",
+          path: "video:video/mp4:abc.mp4",
+        },
+      };
+      await element.restoreFromDraft({
+        id: "draft-1",
+        draft: {
+          deviceId: getDraftDeviceId(),
+          deviceName: "Web",
+          posts: [{ text: "video draft", embedVideos: [videoEmbed] }],
+        },
+      });
+      assert.deepEqual(getFirstPost(element).video, null);
+      assert.deepEqual(getFirstPost(element).unrestoredVideo, videoEmbed);
+      await waitFor(() =>
+        toastText().includes("Couldn't restore this draft's video"),
+      );
     });
   });
 });

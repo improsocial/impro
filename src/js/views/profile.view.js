@@ -131,7 +131,6 @@ class ProfileView extends View {
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
-      // TODO - add setting to prevent reload?
       await loadAuthorFeed({ reload: true });
     }
 

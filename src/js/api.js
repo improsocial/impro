@@ -521,7 +521,6 @@ export class Api {
   }
 
   async getPost(postUri, { labelers = [] } = {}) {
-    // todo - individual API call?
     const posts = await this.getPosts([postUri], { labelers });
     if (posts.length === 0) {
       throw new Error(`Post not found: ${postUri}`);

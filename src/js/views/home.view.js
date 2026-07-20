@@ -149,7 +149,6 @@ class HomeView extends View {
       if (window.scrollY > 0) {
         window.scrollTo({ top: -1, behavior: "smooth" });
       }
-      // TODO - add setting to prevent reload?
       state.$isReloadingFeed.set(true);
       try {
         await loadCurrentFeed({ reload: true });

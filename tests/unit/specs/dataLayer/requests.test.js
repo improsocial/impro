@@ -2524,6 +2524,67 @@ describe("pollConvoMessages", () => {
 
     assert.deepEqual(dataStore.$convoMessages.get(convoId).messages.length, 0);
   });
+
+  it("should replace the stored message when an add-reaction log arrives", async () => {
+    dataStore.$convoMessages.set(convoId, {
+      messages: [{ id: "m1", text: "hi", reactions: [] }],
+      cursor: "keep",
+    });
+    const requests = makeRequestsWithLogs([
+      {
+        $type: "chat.bsky.convo.defs#logAddReaction",
+        rev: "rev1",
+        convoId,
+        message: {
+          id: "m1",
+          text: "hi",
+          reactions: [{ value: "👍", sender: { did: otherDid } }],
+        },
+        reaction: { value: "👍", sender: { did: otherDid } },
+        relatedProfiles: [{ did: otherDid, handle: "other.test" }],
+      },
+    ]);
+
+    const cursor = await requests.pollConvoMessages(convoId);
+
+    assert.deepEqual(cursor, "next");
+    const stored = dataStore.$convoMessages.get(convoId);
+    assert.deepEqual(stored.messages.length, 1);
+    assert.deepEqual(stored.messages[0].reactions.length, 1);
+    assert.deepEqual(stored.cursor, "keep");
+    assert.deepEqual(dataStore.$messages.get("m1").reactions.length, 1);
+    assert.deepEqual(dataStore.$profiles.get(otherDid).handle, "other.test");
+  });
+
+  it("should update only the message store when a remove-reaction log arrives for an unloaded convo", async () => {
+    dataStore.$convoMessages.delete(convoId);
+    const requests = makeRequestsWithLogs([
+      {
+        $type: "chat.bsky.convo.defs#logRemoveReaction",
+        rev: "rev1",
+        convoId,
+        message: { id: "m1", text: "hi", reactions: [] },
+        reaction: { value: "👍", sender: { did: otherDid } },
+      },
+    ]);
+
+    const cursor = await requests.pollConvoMessages(convoId);
+
+    assert.deepEqual(cursor, "next");
+    assert.deepEqual(dataStore.$messages.get("m1").reactions, []);
+    assert.deepEqual(dataStore.$convoMessages.get(convoId), null);
+  });
+
+  it("should stop and return the cursor when no messages data exists for the convo", async () => {
+    dataStore.$convoMessages.delete(convoId);
+    const requests = makeRequestsWithLogs([makeMessageLog("m1", otherDid)]);
+
+    const cursor = await requests.pollConvoMessages(convoId);
+
+    assert.deepEqual(cursor, "next");
+    assert.deepEqual(dataStore.$messages.get("m1"), null);
+    assert.deepEqual(dataStore.$convoMessages.get(convoId), null);
+  });
 });
 
 describe("loadPostLikes", () => {
@@ -3170,5 +3231,969 @@ describe("_loadBlockedPosts", () => {
     await requests._loadBlockedPosts([existingUri]);
     assert.deepEqual(dataStore.$posts.get(existingUri).record.text, "hi");
     assert.deepEqual(dataStore.$unavailablePosts.get(existingUri), null);
+  });
+});
+
+function makeRequestsWithConstellation(api, dataStore, constellation) {
+  return new Requests(
+    api,
+    dataStore,
+    { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+    stubPluginService,
+    new DraftMediaStore("test-media"),
+    { constellation },
+  );
+}
+
+describe("statusStore.$statuses", () => {
+  it("should expose combined loading and error state per request id", async () => {
+    const apiError = new ApiError({
+      status: 500,
+      statusText: "Server Error",
+      data: null,
+      headers: {},
+      url: "/x",
+    });
+    const mockApi = {
+      getMutes: async () => {
+        throw apiError;
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+
+    assert.deepEqual(requests.statusStore.$statuses.get("loadMutedProfiles"), {
+      loading: false,
+      error: null,
+    });
+
+    const promise = requests.loadMutedProfiles();
+    assert.deepEqual(
+      requests.statusStore.$statuses.get("loadMutedProfiles").loading,
+      true,
+    );
+    await promise;
+
+    const status = requests.statusStore.$statuses.get("loadMutedProfiles");
+    assert.deepEqual(status.loading, false);
+    assert(status.error === apiError, "expected the recorded ApiError");
+  });
+});
+
+describe("loadCurrentUser", () => {
+  it("should resolve the session did and store the profile", async () => {
+    const profile = { did: "did:plc:me", handle: "me.test" };
+    let requestedDid = null;
+    const mockApi = {
+      getSession: async () => ({ did: "did:plc:me" }),
+      getProfile: async (did) => {
+        requestedDid = did;
+        return profile;
+      },
+    };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadCurrentUser();
+
+    assert.deepEqual(requestedDid, "did:plc:me");
+    assert.deepEqual(dataStore.$currentUser.get(), profile);
+  });
+});
+
+describe("loadPost", () => {
+  it("should load and store a single post", async () => {
+    const post = { uri: "at://did:plc:a/app.bsky.feed.post/1", record: {} };
+    const mockApi = { getPost: async () => post };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadPost(post.uri);
+
+    assert.deepEqual(dataStore.$posts.get(post.uri), post);
+  });
+});
+
+describe("loadPostThread with a blocked parent", () => {
+  const rootUri = "at://did:plc:root/app.bsky.feed.post/root";
+  const parentUri = "at://did:plc:blockedauthor/app.bsky.feed.post/parent";
+  const postURI = "at://did:plc:viewer/app.bsky.feed.post/main";
+
+  function makeMainPost() {
+    return {
+      uri: postURI,
+      replyCount: 0,
+      record: {
+        reply: { root: { uri: rootUri }, parent: { uri: parentUri } },
+      },
+    };
+  }
+
+  function makeBlockedParent(viewer = {}) {
+    return {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: parentUri,
+      blocked: true,
+      author: { did: "did:plc:blockedauthor", viewer },
+    };
+  }
+
+  const parentPost = {
+    uri: parentUri,
+    author: { did: "did:plc:blockedauthor" },
+    record: { reply: { root: { uri: rootUri }, parent: { uri: rootUri } } },
+  };
+  const rootPost = {
+    uri: rootUri,
+    author: { did: "did:plc:root" },
+    record: {},
+  };
+
+  function makeApiWithPosts() {
+    const postsByUri = new Map([
+      [parentUri, parentPost],
+      [rootUri, rootPost],
+    ]);
+    return {
+      getPostThread: async () => ({
+        post: makeMainPost(),
+        parent: makeBlockedParent(),
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+      getPosts: async (uris) =>
+        uris.map((uri) => postsByUri.get(uri)).filter(Boolean),
+    };
+  }
+
+  it("should rebuild the parent chain from backlinks across blocked authors", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => [
+        {
+          did: "did:plc:blockedauthor",
+          collection: "app.bsky.feed.post",
+          rkey: "parent",
+        },
+      ],
+    };
+    const requests = makeRequestsWithConstellation(
+      makeApiWithPosts(),
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    const thread = dataStore.$postThreads.get(postURI);
+    assert.deepEqual(thread.parent.$type, "app.bsky.feed.defs#threadViewPost");
+    assert.deepEqual(thread.parent.post.uri, parentUri);
+    assert.deepEqual(thread.parent.parent.post.uri, rootUri);
+    assert.deepEqual(thread.parent.parent.parent, null);
+    assert.deepEqual(dataStore.$posts.get(parentUri), parentPost);
+    assert.deepEqual(dataStore.$posts.get(rootUri), rootPost);
+  });
+
+  it("should walk through multiple loaded posts by the same blocked author", async () => {
+    const grandparentUri =
+      "at://did:plc:blockedauthor/app.bsky.feed.post/grandparent";
+    const nearParentPost = {
+      uri: parentUri,
+      author: { did: "did:plc:blockedauthor" },
+      record: {
+        reply: { root: { uri: rootUri }, parent: { uri: grandparentUri } },
+      },
+    };
+    const grandparentPost = {
+      uri: grandparentUri,
+      author: { did: "did:plc:blockedauthor" },
+      record: { reply: { root: { uri: rootUri }, parent: { uri: rootUri } } },
+    };
+    const postsByUri = new Map([
+      [parentUri, nearParentPost],
+      [grandparentUri, grandparentPost],
+      [rootUri, rootPost],
+    ]);
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => [
+        {
+          did: "did:plc:blockedauthor",
+          collection: "app.bsky.feed.post",
+          rkey: "parent",
+        },
+        {
+          did: "did:plc:blockedauthor",
+          collection: "app.bsky.feed.post",
+          rkey: "grandparent",
+        },
+      ],
+    };
+    const mockApi = {
+      getPostThread: async () => ({
+        post: makeMainPost(),
+        parent: makeBlockedParent(),
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+      getPosts: async (uris) =>
+        uris.map((uri) => postsByUri.get(uri)).filter(Boolean),
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    const thread = dataStore.$postThreads.get(postURI);
+    assert.deepEqual(thread.parent.post.uri, parentUri);
+    assert.deepEqual(thread.parent.parent.post.uri, grandparentUri);
+    assert.deepEqual(thread.parent.parent.parent.post.uri, rootUri);
+  });
+
+  it("should rethrow non-abort backlink failures", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => {
+        throw new TypeError("network down");
+      },
+    };
+    const mockApi = {
+      getPostThread: async () => ({
+        post: makeMainPost(),
+        parent: makeBlockedParent(),
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await assert.rejects(requests.loadPostThread(postURI), /network down/);
+  });
+
+  it("should fall back to loading the blocked parent thread when the viewer is involved in the block", async () => {
+    const dataStore = new DataStore();
+    let constellationCalled = false;
+    const constellation = {
+      getLinks: async () => {
+        constellationCalled = true;
+        return [];
+      },
+    };
+    const parentThread = {
+      post: { uri: parentUri, replyCount: 0 },
+      replies: [],
+    };
+    const mockApi = {
+      getPostThread: async (uri) => {
+        if (uri === parentUri) return parentThread;
+        return {
+          post: makeMainPost(),
+          parent: makeBlockedParent({ blocking: "at://block" }),
+          replies: [],
+        };
+      },
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    assert.deepEqual(constellationCalled, false);
+    const thread = dataStore.$postThreads.get(postURI);
+    assert.deepEqual(thread.parent.post.uri, parentUri);
+  });
+
+  it("should fall back to loading the blocked parent thread when backlinks time out", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => {
+        throw Object.assign(new Error("timed out"), { name: "AbortError" });
+      },
+    };
+    const parentThread = {
+      post: { uri: parentUri, replyCount: 0 },
+      replies: [],
+    };
+    const mockApi = {
+      getPostThread: async (uri) => {
+        if (uri === parentUri) return parentThread;
+        return {
+          post: makeMainPost(),
+          parent: makeBlockedParent(),
+          replies: [],
+        };
+      },
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    const thread = dataStore.$postThreads.get(postURI);
+    assert.deepEqual(thread.parent.post.uri, parentUri);
+  });
+
+  it("should fall back to loading the blocked parent thread when backlinks yield no posts", async () => {
+    const dataStore = new DataStore();
+    // No backlinks by the blocked author — only the root gets appended
+    const constellation = { getLinks: async () => [] };
+    const parentThread = {
+      post: { uri: parentUri, replyCount: 0 },
+      replies: [],
+    };
+    const mockApi = {
+      getPostThread: async (uri) => {
+        if (uri === parentUri) return parentThread;
+        return {
+          post: makeMainPost(),
+          parent: makeBlockedParent(),
+          replies: [],
+        };
+      },
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    const thread = dataStore.$postThreads.get(postURI);
+    assert.deepEqual(thread.parent.post.uri, parentUri);
+  });
+});
+
+describe("_loadBlockedReplies", () => {
+  const postURI = "at://did:plc:op/app.bsky.feed.post/main";
+  const replyUri = "at://did:plc:replier/app.bsky.feed.post/r1";
+  const blockedReplyUri = "at://did:plc:blocker/app.bsky.feed.post/r2";
+
+  it("should return an empty list when the thread has no post", async () => {
+    const requests = makeRequests({}, new DataStore());
+
+    const replies = await requests._loadBlockedReplies({});
+
+    assert.deepEqual(replies, []);
+  });
+
+  it("should keep the loaded replies when backlinks time out", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => {
+        throw Object.assign(new Error("timed out"), { name: "AbortError" });
+      },
+    };
+    const mockApi = {
+      getPostThread: async () => ({
+        post: { uri: postURI, replyCount: 1, record: {} },
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    assert.deepEqual(dataStore.$postThreads.get(postURI).replies, []);
+  });
+
+  it("should rethrow non-abort backlink failures", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => {
+        throw new TypeError("network down");
+      },
+    };
+    const mockApi = {
+      getPostThread: async () => ({
+        post: { uri: postURI, replyCount: 1, record: {} },
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await assert.rejects(requests.loadPostThread(postURI), /network down/);
+  });
+
+  it("should load missing replies from backlinks and mark them as blocked replies", async () => {
+    const dataStore = new DataStore();
+    const constellation = {
+      getLinks: async () => [
+        {
+          did: "did:plc:replier",
+          collection: "app.bsky.feed.post",
+          rkey: "r1",
+        },
+        {
+          did: "did:plc:blocker",
+          collection: "app.bsky.feed.post",
+          rkey: "r2",
+        },
+      ],
+    };
+    const replyPost = {
+      uri: replyUri,
+      author: { did: "did:plc:replier", viewer: {} },
+      record: {},
+    };
+    const blockingReplyPost = {
+      uri: blockedReplyUri,
+      author: { did: "did:plc:blocker", viewer: { blockedBy: true } },
+      record: {},
+    };
+    let requestedUris = null;
+    const mockApi = {
+      getPostThread: async () => ({
+        post: { uri: postURI, replyCount: 2, record: {} },
+        replies: [],
+      }),
+      getPostThreadOther: async () => [],
+      getPosts: async (uris) => {
+        requestedUris = uris;
+        return [replyPost, blockingReplyPost];
+      },
+    };
+    const requests = makeRequestsWithConstellation(
+      mockApi,
+      dataStore,
+      constellation,
+    );
+
+    await requests.loadPostThread(postURI);
+
+    assert.deepEqual(requestedUris, [replyUri, blockedReplyUri]);
+    const thread = dataStore.$postThreads.get(postURI);
+    // The reply from the author blocking the viewer is filtered out
+    assert.deepEqual(thread.replies.length, 1);
+    assert.deepEqual(thread.replies[0].post.uri, replyUri);
+    assert.deepEqual(thread.replies[0].post.isBlockedReply, true);
+    assert.deepEqual(dataStore.$posts.get(replyUri).isBlockedReply, true);
+  });
+});
+
+describe("loadNextFeedPage feed types", () => {
+  it("should use getFollowingFeed for the timeline type", async () => {
+    const dataStore = new DataStore();
+    let called = false;
+    const mockApi = {
+      getFollowingFeed: async () => {
+        called = true;
+        return { feed: [{ post: { uri: "t1" } }], cursor: "c1" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextFeedPage({ type: "timeline", uri: "following" });
+
+    assert.deepEqual(called, true);
+    assert.deepEqual(dataStore.$feeds.get("following").feed.length, 1);
+  });
+
+  it("should use getListFeed for the list type", async () => {
+    const dataStore = new DataStore();
+    const listUri = "at://did/app.bsky.graph.list/1";
+    let requestedUri = null;
+    const mockApi = {
+      getListFeed: async (uri) => {
+        requestedUri = uri;
+        return { feed: [{ post: { uri: "l1" } }], cursor: "c1" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNextFeedPage({ type: "list", uri: listUri });
+
+    assert.deepEqual(requestedUri, listUri);
+    assert.deepEqual(dataStore.$feeds.get(listUri).feed.length, 1);
+  });
+
+  it("should reject on an unknown feed type", async () => {
+    const requests = makeRequests({}, new DataStore());
+
+    await assert.rejects(
+      requests.loadNextFeedPage({ type: "bogus", uri: "x" }),
+      /Unknown pinned item type/,
+    );
+  });
+});
+
+describe("loadDetailedProfiles", () => {
+  it("should store each profile in both profile maps", async () => {
+    const profiles = [
+      { did: "did:plc:a", handle: "a.test" },
+      { did: "did:plc:b", handle: "b.test" },
+    ];
+    const mockApi = { getProfiles: async () => profiles };
+    const dataStore = new DataStore();
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadDetailedProfiles(["did:plc:a", "did:plc:b"]);
+
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), profiles[0]);
+    assert.deepEqual(dataStore.$detailedProfiles.get("did:plc:b"), profiles[1]);
+  });
+
+  it("should not call the api when dids is empty", async () => {
+    let called = false;
+    const mockApi = {
+      getProfiles: async () => {
+        called = true;
+        return [];
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+
+    await requests.loadDetailedProfiles([]);
+
+    assert.deepEqual(called, false);
+  });
+});
+
+describe("_loadJoinLinkPreviews", () => {
+  it("should fetch distinct codes and store previews by code", async () => {
+    const dataStore = new DataStore();
+    let requestedCodes = null;
+    const mockApi = {
+      isAuthenticated: true,
+      getJoinLinkPreviews: async (codes) => {
+        requestedCodes = codes;
+        return {
+          joinLinkPreviews: [
+            { code: "abc", name: "Group" },
+            { name: "no code" },
+          ],
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests._loadJoinLinkPreviews(["abc", "abc", null, "def"]);
+
+    assert.deepEqual(requestedCodes, ["abc", "def"]);
+    assert.deepEqual(
+      dataStore.$joinLinkPreviewsByCode.get("abc").name,
+      "Group",
+    );
+    assert.deepEqual(dataStore.$joinLinkPreviewsByCode.get("def"), null);
+  });
+
+  it("should not fetch when unauthenticated or when there are no codes", async () => {
+    let called = false;
+    const mockApi = {
+      isAuthenticated: false,
+      getJoinLinkPreviews: async () => {
+        called = true;
+        return { joinLinkPreviews: [] };
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+
+    await requests._loadJoinLinkPreviews(["abc"]);
+    assert.deepEqual(called, false);
+
+    mockApi.isAuthenticated = true;
+    await requests._loadJoinLinkPreviews([null, undefined]);
+    assert.deepEqual(called, false);
+  });
+
+  it("should swallow fetch failures", async () => {
+    const mockApi = {
+      isAuthenticated: true,
+      getJoinLinkPreviews: async () => {
+        throw new Error("boom");
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+
+    await requests._loadJoinLinkPreviews(["abc"]);
+  });
+});
+
+describe("_loadPostDependencies", () => {
+  it("should not reject when a dependency loader fails", async () => {
+    const mockApi = {
+      getPosts: async () => {
+        throw new Error("network down");
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+    const blockedPost = {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: "at://did:plc:x/app.bsky.feed.post/1",
+    };
+
+    await requests._loadPostDependencies([blockedPost]);
+  });
+});
+
+describe("loadFeedGenerator / loadList / loadStarterPack", () => {
+  it("should store the feed generator by uri", async () => {
+    const dataStore = new DataStore();
+    const feedGenerator = { uri: "at://did/feed/1", displayName: "Feed" };
+    const mockApi = { getFeedGenerator: async () => feedGenerator };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadFeedGenerator(feedGenerator.uri);
+
+    assert.deepEqual(
+      dataStore.$feedGenerators.get(feedGenerator.uri),
+      feedGenerator,
+    );
+  });
+
+  it("should store the list view by uri", async () => {
+    const dataStore = new DataStore();
+    const listUri = "at://did/app.bsky.graph.list/1";
+    let capturedOptions = null;
+    const mockApi = {
+      getList: async (_uri, options) => {
+        capturedOptions = options;
+        return { list: { uri: listUri, name: "L1" }, items: [] };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadList(listUri);
+
+    assert.deepEqual(capturedOptions, { limit: 1 });
+    assert.deepEqual(dataStore.$lists.get(listUri).name, "L1");
+  });
+
+  it("should store the starter pack by uri", async () => {
+    const dataStore = new DataStore();
+    const starterPack = { uri: "at://did/starterpack/1", record: {} };
+    const mockApi = { getStarterPack: async () => starterPack };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadStarterPack(starterPack.uri);
+
+    assert.deepEqual(dataStore.$starterPacks.get(starterPack.uri), starterPack);
+  });
+});
+
+describe("loadListMembers", () => {
+  const listUri = "at://did/app.bsky.graph.list/1";
+
+  it("should store the first page and hydrate member profiles", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getList: async () => ({
+        list: { uri: listUri },
+        items: [{ uri: "li1", subject: { did: "did:plc:a", handle: "a" } }],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListMembers(listUri);
+
+    const stored = dataStore.$listMembers.get(listUri);
+    assert.deepEqual(stored.items.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a").handle, "a");
+  });
+
+  it("should short-circuit when fully loaded", async () => {
+    const dataStore = new DataStore();
+    dataStore.$listMembers.set(listUri, { items: [], cursor: null });
+    let called = false;
+    const mockApi = {
+      getList: async () => {
+        called = true;
+        return { items: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListMembers(listUri);
+
+    assert.deepEqual(called, false);
+  });
+
+  it("should refetch from scratch on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$listMembers.set(listUri, {
+      items: [{ uri: "li1", subject: { did: "did:plc:a" } }],
+      cursor: null,
+    });
+    let capturedCursor;
+    const mockApi = {
+      getList: async (_uri, { cursor }) => {
+        capturedCursor = cursor;
+        return {
+          items: [{ uri: "li2", subject: { did: "did:plc:b" } }],
+          cursor: "next",
+        };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadListMembers(listUri, { reload: true });
+
+    assert.deepEqual(capturedCursor, "");
+    const stored = dataStore.$listMembers.get(listUri);
+    assert.deepEqual(stored.items.length, 1);
+    assert.deepEqual(stored.items[0].uri, "li2");
+  });
+});
+
+describe("loadActorLists", () => {
+  const did = "did:plc:author";
+
+  it("should store actor lists and cache each list view", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getActorLists: async () => ({
+        lists: [{ uri: "at://did/app.bsky.graph.list/1", name: "L1" }],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadActorLists(did);
+
+    const stored = dataStore.$actorLists.get(did);
+    assert.deepEqual(stored.lists.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+    assert.deepEqual(
+      dataStore.$lists.get("at://did/app.bsky.graph.list/1").name,
+      "L1",
+    );
+  });
+
+  it("should short-circuit when there is no remaining cursor", async () => {
+    const dataStore = new DataStore();
+    dataStore.$actorLists.set(did, { lists: [], cursor: null });
+    let called = false;
+    const mockApi = {
+      getActorLists: async () => {
+        called = true;
+        return { lists: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadActorLists(did);
+
+    assert.deepEqual(called, false);
+  });
+
+  it("should refetch from scratch on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$actorLists.set(did, {
+      lists: [{ uri: "old" }],
+      cursor: null,
+    });
+    let capturedCursor;
+    const mockApi = {
+      getActorLists: async (_did, { cursor }) => {
+        capturedCursor = cursor;
+        return { lists: [{ uri: "new" }], cursor: "next" };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadActorLists(did, { reload: true });
+
+    assert.deepEqual(capturedCursor, "");
+    const stored = dataStore.$actorLists.get(did);
+    assert.deepEqual(stored.lists.length, 1);
+    assert.deepEqual(stored.lists[0].uri, "new");
+  });
+});
+
+describe("loadCurrentUserLists", () => {
+  it("should do nothing when there is no current user", async () => {
+    let called = false;
+    const mockApi = {
+      getActorLists: async () => {
+        called = true;
+        return { lists: [], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi, new DataStore());
+
+    await requests.loadCurrentUserLists();
+
+    assert.deepEqual(called, false);
+  });
+
+  it("should load the current user's lists", async () => {
+    const dataStore = new DataStore();
+    dataStore.$currentUser.set({ did: "did:plc:me" });
+    let requestedDid = null;
+    const mockApi = {
+      getActorLists: async (did) => {
+        requestedDid = did;
+        return { lists: [{ uri: "l1" }], cursor: null };
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadCurrentUserLists();
+
+    assert.deepEqual(requestedDid, "did:plc:me");
+    assert.deepEqual(dataStore.$actorLists.get("did:plc:me").lists.length, 1);
+  });
+});
+
+describe("loadDrafts", () => {
+  function makeRequestsWithDraftStore(api, dataStore, draftMediaStore) {
+    return new Requests(
+      api,
+      dataStore,
+      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
+      stubPluginService,
+      draftMediaStore,
+      { constellation: stubConstellation },
+    );
+  }
+
+  it("should store the drafts page and load local media refs", async () => {
+    const dataStore = new DataStore();
+    const draftView = {
+      draft: {
+        posts: [
+          {
+            embedImages: [{ localRef: { path: "media/1" } }],
+            embedVideos: [{ localRef: { path: "media/2" } }],
+          },
+        ],
+      },
+    };
+    const mockApi = {
+      getDrafts: async () => ({ drafts: [draftView], cursor: "next" }),
+    };
+    let loadedRefs = null;
+    const draftMediaStore = {
+      load: async (refs) => {
+        loadedRefs = refs;
+      },
+    };
+    const requests = makeRequestsWithDraftStore(
+      mockApi,
+      dataStore,
+      draftMediaStore,
+    );
+
+    await requests.loadDrafts();
+
+    assert.deepEqual(loadedRefs, ["media/1", "media/2"]);
+    const stored = dataStore.$drafts.get();
+    assert.deepEqual(stored.drafts.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+  });
+
+  it("should refetch from scratch on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$drafts.set({ drafts: [{ draft: {} }], cursor: "c1" });
+    let capturedCursor;
+    const mockApi = {
+      getDrafts: async ({ cursor }) => {
+        capturedCursor = cursor;
+        return { drafts: [{ draft: { posts: [] } }], cursor: null };
+      },
+    };
+    const requests = makeRequestsWithDraftStore(mockApi, dataStore, {
+      load: async () => {},
+    });
+
+    await requests.loadDrafts({ reload: true });
+
+    assert.deepEqual(capturedCursor, "");
+    const stored = dataStore.$drafts.get();
+    assert.deepEqual(stored.drafts.length, 1);
+    assert.deepEqual(stored.cursor, null);
+  });
+});
+
+describe("loadKnownFollowers", () => {
+  const profileDid = "did:plc:target";
+
+  it("should store known followers and hydrate profiles on first load", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getKnownFollowers: async () => ({
+        followers: [{ did: "did:plc:a", handle: "a" }],
+        cursor: "next",
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadKnownFollowers(profileDid);
+
+    const stored = dataStore.$knownFollowers.get(profileDid);
+    assert.deepEqual(stored.followers.length, 1);
+    assert.deepEqual(stored.cursor, "next");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a").handle, "a");
+  });
+
+  it("should append when cursor is provided", async () => {
+    const dataStore = new DataStore();
+    dataStore.$knownFollowers.set(profileDid, {
+      followers: [{ did: "did:plc:a" }],
+      cursor: "c1",
+    });
+    const mockApi = {
+      getKnownFollowers: async () => ({
+        followers: [{ did: "did:plc:b" }],
+        cursor: null,
+      }),
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadKnownFollowers(profileDid, { cursor: "c1" });
+
+    const stored = dataStore.$knownFollowers.get(profileDid);
+    assert.deepEqual(stored.followers.length, 2);
+    assert.deepEqual(stored.cursor, null);
+  });
+});
+
+describe("loadProfileChatStatus", () => {
+  it("should store the availability response keyed by profile did", async () => {
+    const dataStore = new DataStore();
+    let requestedDids = null;
+    const availability = { canChat: true };
+    const mockApi = {
+      getConvoAvailability: async (dids) => {
+        requestedDids = dids;
+        return availability;
+      },
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadProfileChatStatus("did:plc:a");
+
+    assert.deepEqual(requestedDids, ["did:plc:a"]);
+    assert.deepEqual(
+      dataStore.$profileChatStatus.get("did:plc:a"),
+      availability,
+    );
   });
 });
