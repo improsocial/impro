@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { waitFor } from "../../testHelpers.js";
+import { chooseModal, respondToConfirm, waitFor } from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
@@ -1208,11 +1208,6 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - drafts", () => {
-    afterEach(() => {
-      delete globalThis.__testChoice;
-      delete globalThis.__testConfirmation;
-    });
-
     it("renders the Drafts button for new posts", () => {
       const element = createPostComposer();
       connectElement(element);
@@ -1252,19 +1247,10 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      let confirmationSeen = false;
-      globalThis.__testConfirmation = (resolve) => {
-        confirmationSeen = true;
-        resolve(true);
-      };
-      globalThis.__testChoice = () => {
-        throw new Error(
-          "choice prompt should not be shown when drafts are disabled",
-        );
-      };
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await respondToConfirm(true);
+      const result = await closing;
       assert.deepEqual(result, true);
-      assert(confirmationSeen);
     });
 
     it("stays open when the discard confirm is declined with drafts disabled", async () => {
@@ -1273,8 +1259,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testConfirmation = (resolve) => resolve(false);
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await respondToConfirm(false);
+      const result = await closing;
       assert.deepEqual(result, false);
     });
 
@@ -1332,8 +1319,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("keep");
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await chooseModal("keep");
+      const result = await closing;
       assert.deepEqual(result, false);
     });
 
@@ -1343,8 +1331,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("discard");
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await chooseModal("discard");
+      const result = await closing;
       assert.deepEqual(result, true);
     });
 
@@ -1363,8 +1352,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("save");
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await chooseModal("save");
+      const result = await closing;
       assert.deepEqual(result, true);
       assert.deepEqual(savedArgs.draft.posts[0].text, "hello");
       assert.deepEqual(element._draftId, "draft-9");
@@ -1377,17 +1367,10 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1001), facets: [] },
       });
-      let confirmationSeen = false;
-      globalThis.__testConfirmation = (resolve) => {
-        confirmationSeen = true;
-        resolve(true);
-      };
-      globalThis.__testChoice = () => {
-        throw new Error("choice prompt should not be shown over the limit");
-      };
-      const result = await element.confirmClose();
+      const closing = element.confirmClose();
+      await respondToConfirm(true);
+      const result = await closing;
       assert.deepEqual(result, true);
-      assert(confirmationSeen);
     });
 
     it("saveDraft updates in place when a draft id is set", async () => {
@@ -1856,10 +1839,6 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - threads", () => {
-    afterEach(() => {
-      delete globalThis.__testConfirmation;
-    });
-
     function getPosts(element) {
       return element.state.$posts.get();
     }
@@ -1938,8 +1917,6 @@ describe("post-composer", () => {
       connectElement(element);
       patchFirstPost(element, { text: "first post" });
       element.handleAddPost();
-      // a shown confirm would resolve false and cancel the removal
-      globalThis.__testConfirmation = (resolve) => resolve(false);
       await element.handleRemovePost(getPosts(element)[1].id);
       assert.deepEqual(getPosts(element).length, 1);
       assert.deepEqual(element.state.$activePostIndex.get(), 0);
@@ -1953,12 +1930,14 @@ describe("post-composer", () => {
       const secondId = getPosts(element)[1].id;
       element._updatePost(secondId, { text: "second post" });
 
-      globalThis.__testConfirmation = (resolve) => resolve(false);
-      await element.handleRemovePost(secondId);
+      const declinedRemoval = element.handleRemovePost(secondId);
+      await respondToConfirm(false);
+      await declinedRemoval;
       assert.deepEqual(getPosts(element).length, 2);
 
-      globalThis.__testConfirmation = (resolve) => resolve(true);
-      await element.handleRemovePost(secondId);
+      const confirmedRemoval = element.handleRemovePost(secondId);
+      await respondToConfirm(true);
+      await confirmedRemoval;
       assert.deepEqual(getPosts(element).length, 1);
       assert.deepEqual(getPosts(element)[0].text, "first post");
       assert.deepEqual(element.state.$activePostIndex.get(), 0);
@@ -1981,8 +1960,6 @@ describe("post-composer", () => {
       element.addEventListener("send-post", (e) => {
         receivedDetail = e.detail;
       });
-      // a shown confirm would resolve false and block the send
-      globalThis.__testConfirmation = (resolve) => resolve(false);
       await element.send();
       assert.deepEqual(receivedDetail.posts.length, 1);
       assert.deepEqual(receivedDetail.posts[0].postText, "first post");
@@ -2003,13 +1980,15 @@ describe("post-composer", () => {
         receivedDetail = e.detail;
       });
 
-      globalThis.__testConfirmation = (resolve) => resolve(false);
-      await element.send();
+      const declinedSend = element.send();
+      await respondToConfirm(false);
+      await declinedSend;
       assert.deepEqual(receivedDetail, null);
       assert.deepEqual(element.state.$isSending.get(), false);
 
-      globalThis.__testConfirmation = (resolve) => resolve(true);
-      await element.send();
+      const confirmedSend = element.send();
+      await respondToConfirm(true);
+      await confirmedSend;
       assert.deepEqual(
         receivedDetail.posts.map((post) => post.postText),
         ["first post", "third post"],
@@ -2179,7 +2158,6 @@ describe("post-composer", () => {
 
     afterEach(() => {
       URL.revokeObjectURL = originalRevokeObjectURL;
-      delete globalThis.__testConfirmation;
     });
 
     it("shows upload progress overlays on the video preview", async () => {
@@ -2317,8 +2295,6 @@ describe("post-composer", () => {
       patchFirstPost(element, { text: "first post" });
       element.handleAddPost();
       await nextFrame();
-      // a shown confirm would resolve false and cancel the removal
-      globalThis.__testConfirmation = (resolve) => resolve(false);
       element
         .querySelector(
           '[data-testid="composer-post"][data-teststate="active"] [data-testid="composer-remove-post-button"]',
@@ -2348,11 +2324,6 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - dialog chrome", () => {
-    afterEach(() => {
-      delete globalThis.__testChoice;
-      delete globalThis.__testConfirmation;
-    });
-
     it("closes when the backdrop is clicked with no content", async () => {
       const element = createPostComposer();
       connectElement(element);
@@ -2389,8 +2360,8 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("keep");
       element.querySelector(".post-composer-cancel-button").click();
+      await chooseModal("keep");
       await nextFrame();
       await nextFrame();
       assert(element.querySelector(".post-composer").open);
@@ -2411,10 +2382,6 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - confirmClose for replies", () => {
-    afterEach(() => {
-      delete globalThis.__testConfirmation;
-    });
-
     function createReplyComposer() {
       const element = createPostComposer();
       element.replyTo = {
@@ -2428,9 +2395,6 @@ describe("post-composer", () => {
 
     it("closes an empty reply without a prompt", async () => {
       const element = createReplyComposer();
-      globalThis.__testConfirmation = () => {
-        throw new Error("confirm should not be shown for an empty reply");
-      };
       assert.deepEqual(await element.confirmClose(), true);
     });
 
@@ -2439,10 +2403,12 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "my reply", facets: [] },
       });
-      globalThis.__testConfirmation = (resolve) => resolve(true);
-      assert.deepEqual(await element.confirmClose(), true);
-      globalThis.__testConfirmation = (resolve) => resolve(false);
-      assert.deepEqual(await element.confirmClose(), false);
+      const confirmedClose = element.confirmClose();
+      await respondToConfirm(true);
+      assert.deepEqual(await confirmedClose, true);
+      const declinedClose = element.confirmClose();
+      await respondToConfirm(false);
+      assert.deepEqual(await declinedClose, false);
     });
   });
 
@@ -2775,11 +2741,6 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - drafts button", () => {
-    afterEach(() => {
-      delete globalThis.__testChoice;
-      delete globalThis.__testConfirmation;
-    });
-
     function createWithDialogSpy(dataLayer = null) {
       const element = createPostComposer();
       if (dataLayer) {
@@ -2792,9 +2753,6 @@ describe("post-composer", () => {
 
     it("opens the drafts dialog directly when there is no content", async () => {
       const element = createWithDialogSpy();
-      globalThis.__testChoice = () => {
-        throw new Error("choice prompt should not be shown without content");
-      };
       await element.handleDraftsButtonClick();
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
     });
@@ -2806,9 +2764,6 @@ describe("post-composer", () => {
       });
       element.markSaved("draft-1", []);
       element._isDirty = false;
-      globalThis.__testChoice = () => {
-        throw new Error("choice prompt should not be shown for a clean draft");
-      };
       await element.handleDraftsButtonClick();
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
     });
@@ -2819,8 +2774,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("save");
-      await element.handleDraftsButtonClick();
+      const opening = element.handleDraftsButtonClick();
+      await chooseModal("save");
+      await opening;
       assert.deepEqual(createDraft.mock.callCount(), 1);
       assert.deepEqual(element._draftId, "draft-1");
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
@@ -2840,8 +2796,9 @@ describe("post-composer", () => {
         element.handleInput(getFirstPost(element).id, {
           detail: { text: "hello", facets: [] },
         });
-        globalThis.__testChoice = (resolve) => resolve("save");
-        await element.handleDraftsButtonClick();
+        const opening = element.handleDraftsButtonClick();
+        await chooseModal("save");
+        await opening;
         assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
         assert.deepEqual(element._isDirty, true);
       } finally {
@@ -2854,8 +2811,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("discard");
-      await element.handleDraftsButtonClick();
+      const opening = element.handleDraftsButtonClick();
+      await chooseModal("discard");
+      await opening;
       assert.deepEqual(getFirstPost(element).text, "");
       assert.deepEqual(element._isDirty, false);
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
@@ -2866,8 +2824,9 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
-      globalThis.__testChoice = (resolve) => resolve("keep");
-      await element.handleDraftsButtonClick();
+      const opening = element.handleDraftsButtonClick();
+      await chooseModal("keep");
+      await opening;
       assert.deepEqual(getFirstPost(element).text, "hello");
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
     });
@@ -2877,16 +2836,15 @@ describe("post-composer", () => {
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1001), facets: [] },
       });
-      globalThis.__testChoice = () => {
-        throw new Error("choice prompt should not be shown over the limit");
-      };
-      globalThis.__testConfirmation = (resolve) => resolve(false);
-      await element.handleDraftsButtonClick();
+      const declinedOpening = element.handleDraftsButtonClick();
+      await respondToConfirm(false);
+      await declinedOpening;
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
       assert.deepEqual(getFirstPost(element).text, "x".repeat(1001));
 
-      globalThis.__testConfirmation = (resolve) => resolve(true);
-      await element.handleDraftsButtonClick();
+      const confirmedOpening = element.handleDraftsButtonClick();
+      await respondToConfirm(true);
+      await confirmedOpening;
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 1);
       assert.deepEqual(getFirstPost(element).text, "");
     });
@@ -2897,9 +2855,6 @@ describe("post-composer", () => {
         detail: { text: "hello", facets: [] },
       });
       element.state.$isSavingDraft.set(true);
-      globalThis.__testChoice = () => {
-        throw new Error("choice prompt should not be shown while saving");
-      };
       await element.handleDraftsButtonClick();
       assert.deepEqual(element.openDraftsDialog.mock.callCount(), 0);
     });
@@ -3183,7 +3138,6 @@ describe("post-composer", () => {
       videoEnv.restore();
       console.error = originalError;
       console.warn = originalWarn;
-      delete globalThis.__testConfirmation;
     });
 
     it("uploads a selected video to done", async () => {
@@ -3330,8 +3284,9 @@ describe("post-composer", () => {
       const secondId = element.state.$posts.get()[1].id;
       await element.addMediaFiles(secondId, [makeVideoFile()]);
       await waitFor(() => element._getPost(secondId).video?.status === "done");
-      globalThis.__testConfirmation = (resolve) => resolve(true);
-      await element.handleRemovePost(secondId);
+      const removal = element.handleRemovePost(secondId);
+      await respondToConfirm(true);
+      await removal;
       assert.deepEqual(element.state.$posts.get().length, 1);
       assert(videoEnv.revokedUrls.includes("blob:mock"));
     });

@@ -1,5 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { respondToConfirm } from "../../testHelpers.js";
 import { Signal } from "/js/signals.js";
 import { getDraftDeviceId } from "/js/drafts.js";
 import "/js/components/drafts-dialog.js";
@@ -14,7 +15,6 @@ describe("drafts-dialog", () => {
 
   afterEach(() => {
     globalThis.setTimeout = originalSetTimeout;
-    delete globalThis.__testConfirmation;
   });
 
   async function nextFrame() {
@@ -364,12 +364,12 @@ describe("drafts-dialog", () => {
         }),
       ]);
       const element = createDialog(dataLayer);
-      globalThis.__testConfirmation = (resolve) => resolve(true);
       let deletedDetail = null;
       element.addEventListener("draft-deleted", (event) => {
         deletedDetail = event.detail;
       });
       element.querySelector('[data-testid="draft-item-delete"]').click();
+      await respondToConfirm(true);
       await flushMicrotasks();
       assert.deepEqual(deleteCalls, [
         { draftId: "draft-9", localRefs: ["images/a", "videos/b"] },
@@ -381,12 +381,12 @@ describe("drafts-dialog", () => {
       const { dataLayer, $hydratedDrafts, deleteCalls } = createFakeDataLayer();
       seedDrafts($hydratedDrafts, [createDraftView()]);
       const element = createDialog(dataLayer);
-      globalThis.__testConfirmation = (resolve) => resolve(false);
       let deleted = false;
       element.addEventListener("draft-deleted", () => {
         deleted = true;
       });
       element.querySelector('[data-testid="draft-item-delete"]').click();
+      await respondToConfirm(false);
       await flushMicrotasks();
       assert.deepEqual(deleteCalls.length, 0);
       assert.deepEqual(deleted, false);
@@ -399,12 +399,12 @@ describe("drafts-dialog", () => {
       });
       seedDrafts($hydratedDrafts, [createDraftView()]);
       const element = createDialog(dataLayer);
-      globalThis.__testConfirmation = (resolve) => resolve(true);
       let deleted = false;
       element.addEventListener("draft-deleted", () => {
         deleted = true;
       });
       element.querySelector('[data-testid="draft-item-delete"]').click();
+      await respondToConfirm(true);
       await flushMicrotasks();
       assert.deepEqual(deleted, false);
       const toast = document.body.querySelector('[data-testid="toast"]');
@@ -416,12 +416,12 @@ describe("drafts-dialog", () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       seedDrafts($hydratedDrafts, [createDraftView()]);
       const element = createDialog(dataLayer);
-      globalThis.__testConfirmation = (resolve) => resolve(false);
       let selected = false;
       element.addEventListener("draft-selected", () => {
         selected = true;
       });
       element.querySelector('[data-testid="draft-item-delete"]').click();
+      await respondToConfirm(false);
       await flushMicrotasks();
       assert.deepEqual(selected, false);
     });

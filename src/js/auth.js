@@ -84,7 +84,6 @@ export class BasicAuthSession {
   }
 
   get handle() {
-    // TODO: persist handle on login so plugins can read it under basic auth
     return null;
   }
 

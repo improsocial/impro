@@ -1,10 +1,11 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
 import { Signal } from "/js/signals.js";
+import { respondToConfirm } from "../../testHelpers.js";
 
 class FakePreferences {
   constructor(state) {
@@ -124,10 +125,6 @@ function makeService({
 }
 
 describe("installPlugin", () => {
-  afterEach(() => {
-    delete globalThis.__testConfirmation;
-  });
-
   it("persists manifest metadata and loads the plugin", async () => {
     const { service, state, loadCalls } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
@@ -225,10 +222,11 @@ describe("installPlugin", () => {
         },
       },
     });
-    globalThis.__testConfirmation = (resolve) => resolve(false);
+    const installing = service.installPlugin("alpha");
+    await respondToConfirm(false);
     let caught = null;
     try {
-      await service.installPlugin("alpha");
+      await installing;
     } catch (e) {
       caught = e;
     }
@@ -244,24 +242,12 @@ describe("installPlugin", () => {
         alpha: { id: "alpha", name: "Alpha", version: "1.0.0" },
       },
     });
-    // If the prompt were called, this would force a decline. A successful
-    // install proves the prompt was skipped.
-    globalThis.__testConfirmation = (resolve) => resolve(false);
     await service.installPlugin("alpha");
     assert.deepEqual(state.installedPlugins.length, 1);
   });
 });
 
 describe("updatePlugin", () => {
-  // Several tests here seed state via installPlugin() with permissions, then
-  // exercise update. Auto-accept by default; tests override for decline.
-  beforeEach(() => {
-    globalThis.__testConfirmation = (resolve) => resolve(true);
-  });
-  afterEach(() => {
-    delete globalThis.__testConfirmation;
-  });
-
   it("refreshes name/description/author/version from the live manifest", async () => {
     const { service, state, reloadCalls } = makeService({
       remoteListings: [{ id: "alpha", repo: "ow/alpha" }],
@@ -329,7 +315,9 @@ describe("updatePlugin", () => {
         },
       },
     });
-    await service.installPlugin("alpha");
+    const installing = service.installPlugin("alpha");
+    await respondToConfirm(true);
+    await installing;
     service.sourceProvider.getLiveManifest = async () => ({
       id: "alpha",
       name: "Alpha",
@@ -337,9 +325,6 @@ describe("updatePlugin", () => {
       permissions: { fetch: ["https://api.example.com/*"] },
     });
 
-    // A force-decline that still permits the update proves the prompt was
-    // skipped (no new permissions => no prompt).
-    globalThis.__testConfirmation = (resolve) => resolve(false);
     const result = await service.updatePlugin("alpha");
     assert.deepEqual(result, { updated: true, version: "1.1.0" });
   });
@@ -356,7 +341,9 @@ describe("updatePlugin", () => {
         },
       },
     });
-    await service.installPlugin("alpha");
+    const installing = service.installPlugin("alpha");
+    await respondToConfirm(true);
+    await installing;
     service.sourceProvider.getLiveManifest = async () => ({
       id: "alpha",
       name: "Alpha",
@@ -366,10 +353,11 @@ describe("updatePlugin", () => {
       },
     });
 
-    globalThis.__testConfirmation = (resolve) => resolve(false);
+    const updating = service.updatePlugin("alpha");
+    await respondToConfirm(false);
     let caught = null;
     try {
-      await service.updatePlugin("alpha");
+      await updating;
     } catch (e) {
       caught = e;
     }
@@ -393,7 +381,9 @@ describe("updatePlugin", () => {
         },
       },
     });
-    await service.installPlugin("alpha");
+    const installing = service.installPlugin("alpha");
+    await respondToConfirm(true);
+    await installing;
     service.sourceProvider.getLiveManifest = async () => ({
       id: "alpha",
       name: "Alpha",
@@ -403,7 +393,9 @@ describe("updatePlugin", () => {
       },
     });
 
-    await service.updatePlugin("alpha");
+    const updating = service.updatePlugin("alpha");
+    await respondToConfirm(true);
+    await updating;
     assert.deepEqual(state.installedPlugins[0].permissions, {
       fetch: ["https://api.example.com/*", "https://newhost.com/*"],
     });

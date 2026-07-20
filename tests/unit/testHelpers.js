@@ -52,6 +52,18 @@ export async function waitFor(predicate, { timeout = 2000 } = {}) {
   }
 }
 
+export async function respondToConfirm(confirmed) {
+  const testId = confirmed ? "modal-confirm-button" : "modal-cancel-button";
+  await waitFor(() => document.querySelector(`[data-testid="${testId}"]`));
+  document.querySelector(`[data-testid="${testId}"]`).click();
+}
+
+export async function chooseModal(value) {
+  const testId = `modal-choice-${value}`;
+  await waitFor(() => document.querySelector(`[data-testid="${testId}"]`));
+  document.querySelector(`[data-testid="${testId}"]`).click();
+}
+
 // A callable fetch replacement. Assign to globalThis.fetch, register routes
 // with __intercept(matcher, handler), and inspect captured requests on `calls`.
 // Matchers are strings (matched by URL prefix) or regex (matched with .test).

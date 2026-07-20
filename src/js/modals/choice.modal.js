@@ -40,18 +40,7 @@ class ChoiceModal extends Modal {
 }
 
 // Presents a stacked list of choices; resolves with the chosen value, or null
-// when dismissed without choosing (backdrop click, escape, swipe).
+// when dismissed without choosing a value
 export async function choiceModal(message, options = {}) {
-  return new Promise((resolveOuter) => {
-    let resolved = false;
-    const resolveOnce = (value) => {
-      if (resolved) return;
-      resolved = true;
-      resolveOuter(value);
-    };
-    globalThis.__testChoice?.(resolveOnce);
-    ChoiceModal.open({ message, ...options }).then((value) =>
-      resolveOnce(value ?? null),
-    );
-  });
+  return (await ChoiceModal.open({ message, ...options })) ?? null;
 }
