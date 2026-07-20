@@ -1,4 +1,3 @@
-import { getQuotedPost } from "/js/dataHelpers.js";
 import { effect, untrack } from "/js/signals.js";
 
 export function setUpIdentityPrecaching(dataLayer, identityResolver) {
@@ -20,20 +19,6 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
         setDid(post.author);
       } catch (error) {
         console.error("error when setting DID from post", post);
-        console.error(error);
-      }
-      try {
-        const quotedPost = getQuotedPost(post);
-        if (quotedPost) {
-          setDid(quotedPost.author);
-          // TODO - normalize quoted posts?
-          const nestedQuotedPost = getQuotedPost(quotedPost);
-          if (nestedQuotedPost) {
-            setDid(nestedQuotedPost.author);
-          }
-        }
-      } catch (error) {
-        console.error("error when setting DID from quoted post", post);
         console.error(error);
       }
     }

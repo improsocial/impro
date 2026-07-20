@@ -1000,8 +1000,8 @@ export class Mutations {
       for (const post of hydratedPosts) {
         // NOTE: LEXICON DEVIATION
         post.viewer.priorityReply = true;
-        this.dataStore.$posts.set(post.uri, post);
       }
+      this.dataStore.setPosts(hydratedPosts);
       const rootPost = hydratedPosts[0];
       // If it's a reply, update the reply post thread in the store
       if (replyTo) {

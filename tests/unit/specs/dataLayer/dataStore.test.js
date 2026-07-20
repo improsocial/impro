@@ -30,6 +30,69 @@ describe("setPosts", () => {
       dataStoreB.$posts.get(post.uri),
     );
   });
+
+  it("should normalize nested quoted posts", () => {
+    const dataStore = new DataStore();
+    const nestedQuotedPost = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: "at://did:test/app.bsky.feed.post/nested",
+      cid: "nested-cid",
+      author: { did: "did:test", handle: "nested.test" },
+      value: { text: "nested" },
+      indexedAt: "2026-07-19T00:00:00Z",
+    };
+    const quotedPost = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: "at://did:test/app.bsky.feed.post/quoted",
+      cid: "quoted-cid",
+      author: { did: "did:test", handle: "quoted.test" },
+      value: { text: "quoted" },
+      embeds: [
+        {
+          $type: "app.bsky.embed.record#view",
+          record: nestedQuotedPost,
+        },
+      ],
+      indexedAt: "2026-07-19T00:00:00Z",
+    };
+    const post = {
+      uri: "at://did:test/app.bsky.feed.post/root",
+      record: { text: "root" },
+      embed: {
+        $type: "app.bsky.embed.record#view",
+        record: quotedPost,
+      },
+    };
+
+    dataStore.setPosts([post]);
+
+    assert.deepEqual(dataStore.$posts.get(quotedPost.uri), {
+      uri: quotedPost.uri,
+      cid: quotedPost.cid,
+      author: quotedPost.author,
+      record: quotedPost.value,
+      embed: quotedPost.embeds[0],
+      labels: undefined,
+      likeCount: undefined,
+      replyCount: undefined,
+      repostCount: undefined,
+      quoteCount: undefined,
+      indexedAt: quotedPost.indexedAt,
+    });
+    assert.deepEqual(dataStore.$posts.get(nestedQuotedPost.uri), {
+      uri: nestedQuotedPost.uri,
+      cid: nestedQuotedPost.cid,
+      author: nestedQuotedPost.author,
+      record: nestedQuotedPost.value,
+      embed: undefined,
+      labels: undefined,
+      likeCount: undefined,
+      replyCount: undefined,
+      repostCount: undefined,
+      quoteCount: undefined,
+      indexedAt: nestedQuotedPost.indexedAt,
+    });
+  });
 });
 
 describe("setConvo", () => {

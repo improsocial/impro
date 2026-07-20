@@ -64,15 +64,26 @@ export class DataStore extends ReactiveStore {
   }
 
   setPosts(posts) {
+    const seenQuotedPostUris = new Set();
+    const setQuotedPost = (quotedPost) => {
+      if (
+        quotedPost?.$type !== "app.bsky.embed.record#viewRecord" ||
+        seenQuotedPostUris.has(quotedPost.uri)
+      ) {
+        return;
+      }
+      seenQuotedPostUris.add(quotedPost.uri);
+
+      const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
+      if (this.$posts.get(quotedPost.uri) == null) {
+        this.$posts.set(quotedPost.uri, normalizedQuotedPost);
+      }
+      setQuotedPost(getQuotedPost(normalizedQuotedPost));
+    };
+
     for (const post of posts) {
       this.$posts.set(post.uri, post);
-      const quotedPost = getQuotedPost(post);
-      if (
-        quotedPost?.$type === "app.bsky.embed.record#viewRecord" &&
-        this.$posts.get(quotedPost.uri) == null
-      ) {
-        this.$posts.set(quotedPost.uri, embedViewRecordToPostView(quotedPost));
-      }
+      setQuotedPost(getQuotedPost(post));
     }
   }
 
