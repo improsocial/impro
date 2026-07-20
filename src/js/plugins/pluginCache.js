@@ -8,18 +8,30 @@ export class PluginCache {
     return await caches.open(CACHE_NAME);
   }
 
-  async fetch(url, { doCacheNotFound = false } = {}) {
+  async fetch(
+    url,
+    { doCacheNotFound = false, isNotFound = (status) => status === 404 } = {},
+  ) {
     const cache = await this._getCache();
     let response = await cache.match(url);
     if (!response) {
       response = await fetch(url, { redirect: "follow" });
-      if (response.ok || (doCacheNotFound && response.status === 404)) {
+      if (response.ok) {
         await cache.put(url, response.clone());
+      } else if (doCacheNotFound) {
+        const body = await response
+          .clone()
+          .text()
+          .catch(() => null);
+        if (isNotFound(response.status, body)) {
+          await cache.put(url, response.clone());
+        }
       }
     }
     if (!response.ok) {
       const error = new Error(`HTTP ${response.status} ${url}`);
       error.status = response.status;
+      error.body = await response.text().catch(() => null);
       throw error;
     }
     return response;

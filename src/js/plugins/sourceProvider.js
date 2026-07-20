@@ -14,9 +14,70 @@ function parsePluginManifest(pluginId, manifest) {
   return manifest;
 }
 
+// A plugin listing's `repo` field is normally a bare "owner/repo" GitHub
+// path. It may also be prefixed with a host name ("host:owner/repo"):
+// "github:" spells out the default explicitly, and "tangled:" sources from
+// tangled.sh. GitHub owner/repo names can't contain ":", so this is
+// unambiguous.
+export function parseRepoSpec(repo) {
+  const colonIndex = repo.indexOf(":");
+  if (colonIndex === -1) return { host: "github", path: repo };
+  const host = repo.slice(0, colonIndex);
+  const path = repo.slice(colonIndex + 1);
+  if (host !== "github" && host !== "tangled") {
+    throw new Error(`Unsupported plugin repo host "${host}"`);
+  }
+  return { host, path };
+}
+
+// The human-facing "view source" URL for a plugin's repo field.
+export function repoWebUrl(repo) {
+  const { host, path } = parseRepoSpec(repo);
+  if (host === "tangled") {
+    return `https://tangled.org/${path}`;
+  }
+  return `https://github.com/${path}`;
+}
+
+// GitHub's raw content host returns a clean 404 for a missing file.
+// tangled.sh's blob-fetch backend instead returns 500 with this exact JSON
+// error body for a missing blob — verified against a real repo, since it
+// has no dedicated "not found" status. Match on the body too (not just the
+// 500), so an actual tangled.sh outage still surfaces as a real error
+// instead of being silently swallowed as "file doesn't exist".
+function isTangledMissingBlobBody(body) {
+  if (typeof body !== "string") return false;
+  let parsed;
+  try {
+    parsed = JSON.parse(body);
+  } catch {
+    return false;
+  }
+  return (
+    parsed?.error === "InternalServerError" &&
+    parsed?.message === "failed to get blob"
+  );
+}
+
+function isMissingFileResponse(repo, status, body) {
+  if (status === 404) return true;
+  return (
+    parseRepoSpec(repo).host === "tangled" &&
+    status === 500 &&
+    isTangledMissingBlobBody(body)
+  );
+}
+
 function remoteAssetUrl({ repo, file, release = null }) {
+  const { host, path } = parseRepoSpec(repo);
+  if (host === "tangled") {
+    // tangled.sh serves raw blobs at /raw/<ref>/<path> for both branches
+    // and tags; there's no separate "refs/tags/..." form like GitHub's.
+    const ref = release ?? "main";
+    return `https://tangled.org/${path}/raw/${ref}/${file}`;
+  }
   const ref = release ? `refs/tags/${release}` : "refs/heads/main";
-  return `https://raw.githubusercontent.com/${repo}/${ref}/${file}`;
+  return `https://raw.githubusercontent.com/${path}/${ref}/${file}`;
 }
 
 export class SourceProvider {
@@ -98,10 +159,11 @@ export class SourceProvider {
     try {
       const response = await this.pluginCache.fetch(url, {
         doCacheNotFound: true,
+        isNotFound: (status, body) => isMissingFileResponse(repo, status, body),
       });
       return await response.text();
     } catch (error) {
-      if (error?.status === 404) return null;
+      if (isMissingFileResponse(repo, error?.status, error?.body)) return null;
       throw error;
     }
   }
@@ -119,9 +181,12 @@ export class SourceProvider {
     // Fetch from main branch so we show the latest README
     const url = remoteAssetUrl({ repo, file: "README.md" });
     const response = await fetch(url, { cache: "no-store" });
-    if (response.status === 404) return null;
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    return await response.text();
+    const body = await response.text();
+    if (!response.ok) {
+      if (isMissingFileResponse(repo, response.status, body)) return null;
+      throw new Error(`HTTP ${response.status}`);
+    }
+    return body;
   }
 
   // URLs that should be retained in the cache

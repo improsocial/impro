@@ -239,7 +239,10 @@ describe("SourceProvider with remote plugins", () => {
       pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/styles.css",
     );
-    assert.deepEqual(pluginCache.calls[0].options, { doCacheNotFound: true });
+    const { doCacheNotFound, isNotFound } = pluginCache.calls[0].options;
+    assert.deepEqual(doCacheNotFound, true);
+    assert.deepEqual(isNotFound(404, null), true);
+    assert.deepEqual(isNotFound(500, "boom"), false);
     assert.deepEqual(styles, "body{color:blue}");
   });
 
@@ -278,6 +281,37 @@ describe("SourceProvider with remote plugins", () => {
     }
   });
 
+  it("accepts an explicit github: prefix on the repo", async () => {
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    const provider = new SourceProvider(pluginCache);
+    const manifest = await provider.getManifest(
+      "alpha",
+      "1.0.0",
+      "github:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/manifest.json",
+    );
+    assert.deepEqual(manifest.id, "alpha");
+  });
+
+  it("getCacheUrls strips the github: prefix from URLs", async () => {
+    const provider = new SourceProvider(null);
+    const urls = await provider.getCacheUrls(
+      "alpha",
+      "1.2.3",
+      "github:ow/alpha",
+    );
+    assert.deepEqual(urls, [
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/manifest.json",
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/main.js",
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/styles.css",
+    ]);
+  });
+
   it("getStyles returns null when remote styles.css 404s", async () => {
     const pluginCache = fakePluginCache(async () => {
       const error = new Error(
@@ -289,5 +323,199 @@ describe("SourceProvider with remote plugins", () => {
     const provider = new SourceProvider(pluginCache);
     const styles = await provider.getStyles("alpha", "1.0.0", "ow/alpha");
     assert.deepEqual(styles, null);
+  });
+});
+
+describe("SourceProvider with tangled.sh-hosted plugins", () => {
+  it("fetches a versioned manifest from tangled.org via plugin cache", async () => {
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    const provider = new SourceProvider(pluginCache);
+    const manifest = await provider.getManifest(
+      "alpha",
+      "1.0.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://tangled.org/ow/alpha/raw/1.0.0/manifest.json",
+    );
+    assert.deepEqual(manifest.id, "alpha");
+  });
+
+  it("fetches source from the version that was passed in", async () => {
+    const pluginCache = fakePluginCache(async () => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return "alert(1)";
+      },
+    }));
+    const provider = new SourceProvider(pluginCache);
+    const source = await provider.getSource(
+      "alpha",
+      "2.5.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://tangled.org/ow/alpha/raw/2.5.0/main.js",
+    );
+    assert.deepEqual(source, "alert(1)");
+  });
+
+  it("getLiveManifest fetches from the main branch", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "9.9.9" }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      const manifest = await provider.getLiveManifest(
+        "alpha",
+        "tangled:ow/alpha",
+      );
+      assert.deepEqual(
+        stub.calls[0].url,
+        "https://tangled.org/ow/alpha/raw/main/manifest.json",
+      );
+      assert.deepEqual(manifest.version, "9.9.9");
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getCacheUrls includes manifest, main.js, and styles.css URLs", async () => {
+    const provider = new SourceProvider(null);
+    const urls = await provider.getCacheUrls(
+      "alpha",
+      "1.2.3",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(urls, [
+      "https://tangled.org/ow/alpha/raw/1.2.3/manifest.json",
+      "https://tangled.org/ow/alpha/raw/1.2.3/main.js",
+      "https://tangled.org/ow/alpha/raw/1.2.3/styles.css",
+    ]);
+  });
+
+  it("throws for an unrecognized repo host prefix", async () => {
+    const provider = new SourceProvider(fakePluginCache(async () => null));
+    let caught = null;
+    try {
+      await provider.getManifest("alpha", "1.0.0", "gitlab:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes('Unsupported plugin repo host "gitlab"'));
+  });
+
+  // tangled.sh's blob backend returns 500 (not 404) for a missing file, so
+  // "optional file absent" detection has to special-case it per host.
+  const TANGLED_MISSING_BLOB_BODY = JSON.stringify({
+    error: "InternalServerError",
+    message: "failed to get blob",
+  });
+
+  it("getStyles treats tangled's missing-blob 500 as a missing styles.css, not an error", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = TANGLED_MISSING_BLOB_BODY;
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    const styles = await provider.getStyles(
+      "alpha",
+      "1.0.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(styles, null);
+    const { isNotFound } = pluginCache.calls[0].options;
+    assert.deepEqual(isNotFound(500, TANGLED_MISSING_BLOB_BODY), true);
+    assert.deepEqual(isNotFound(500, "boom"), false);
+    assert.deepEqual(isNotFound(404, null), true);
+  });
+
+  it("getStyles still throws a tangled 500 with an unrelated body", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = JSON.stringify({ error: "InternalServerError" });
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getStyles still throws a tangled 500 with a non-JSON body", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = "<html>gateway error</html>";
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getStyles still throws a matching-body 500 for non-tangled repos", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      error.body = TANGLED_MISSING_BLOB_BODY;
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getReadme treats tangled's missing-blob 500 as a missing README, not an error", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse(TANGLED_MISSING_BLOB_BODY, { ok: false, status: 500 }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      const readme = await provider.getReadme("alpha", "tangled:ow/alpha");
+      assert.deepEqual(readme, null);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getReadme still throws a tangled 500 with an unrelated body", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse("server exploded", { ok: false, status: 500 }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      let caught = null;
+      try {
+        await provider.getReadme("alpha", "tangled:ow/alpha");
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught?.message.includes("500"));
+    } finally {
+      stub.restore();
+    }
   });
 });

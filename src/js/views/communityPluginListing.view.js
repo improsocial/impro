@@ -7,6 +7,7 @@ import { showToast } from "/js/toasts.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
+import { repoWebUrl } from "/js/plugins/sourceProvider.js";
 import "/js/components/rendered-markdown.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -225,11 +226,11 @@ class CommunityPluginListingView extends View {
                       ? html`<div class="plugin-listing-repo">
                           Repository:
                           <a
-                            href="https://github.com/${listing.repo}"
+                            href="${repoWebUrl(listing.repo)}"
                             target="_blank"
                             rel="noopener noreferrer"
                             data-external
-                            >https://github.com/${listing.repo}</a
+                            >${repoWebUrl(listing.repo)}</a
                           >
                         </div>`
                       : ""}
