@@ -1361,6 +1361,235 @@ describe("app.data host methods", () => {
   });
 });
 
+describe("feed feedback host methods", () => {
+  const feedbackPlugin = {
+    pluginId: "test-plugin",
+    permissions: { moderation: ["feedback"] },
+  };
+  const postUri = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool-feed";
+
+  function makeService({ feedItem = null, feedGenerator = null } = {}) {
+    const { provider } = makeProvider();
+    const service = new PluginService(provider, null);
+    const calls = { showLess: [], showMore: [], sendInteractions: [] };
+    service.setDataLayer({
+      dataStore: {
+        $feeds: {
+          get: (uri) =>
+            uri === feedUri && feedItem ? { feed: [feedItem] } : null,
+        },
+      },
+      derived: {
+        $feedGenerators: {
+          get: (uri) => (uri === feedUri ? feedGenerator : null),
+        },
+      },
+      mutations: {
+        sendShowLessInteraction: async (...args) => calls.showLess.push(args),
+        sendShowMoreInteraction: async (...args) => calls.showMore.push(args),
+      },
+      api: {
+        sendInteractions: async (...args) => calls.sendInteractions.push(args),
+      },
+    });
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("showLessLikeThis resolves feedContext and proxy from the feed", async () => {
+    const { service, calls } = makeService({
+      feedItem: { post: { uri: postUri }, feedContext: "ctx" },
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showLessLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showLess, [
+      [postUri, feedUri, "ctx", "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("showLessLikeThis and showMoreLikeThis reject when feedUri is missing", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "showLessLikeThis")(feedbackPlugin, { postUri }),
+      /requires a feedUri/,
+    );
+    await assert.rejects(
+      getHandler(service, "showMoreLikeThis")(feedbackPlugin, { postUri }),
+      /requires a feedUri/,
+    );
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+  });
+
+  it("all three methods reject when postUri is missing", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "showLessLikeThis")(feedbackPlugin, { feedUri }),
+      /requires a postUri/,
+    );
+    await assert.rejects(
+      getHandler(service, "showMoreLikeThis")(feedbackPlugin, { feedUri }),
+      /requires a postUri/,
+    );
+    await assert.rejects(
+      getHandler(service, "sendInteraction")(feedbackPlugin, {
+        event: "app.bsky.feed.defs#interactionSeen",
+        feedProxyUrl: "did:web:feed.example#bsky_fg",
+      }),
+      /requires a postUri/,
+    );
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+    assert.deepEqual(calls.sendInteractions, []);
+  });
+
+  it("muteActor and blockActor reject when did is missing", async () => {
+    const { service } = makeService();
+    await assert.rejects(
+      getHandler(service, "muteActor")(
+        { pluginId: "test-plugin", permissions: { moderation: ["mute"] } },
+        {},
+      ),
+      /muteActor requires a did/,
+    );
+    await assert.rejects(
+      getHandler(service, "blockActor")(
+        { pluginId: "test-plugin", permissions: { moderation: ["block"] } },
+        {},
+      ),
+      /blockActor requires a did/,
+    );
+  });
+
+  it("showLessLikeThis with an uncached feed still resolves the generator proxy", async () => {
+    const { service, calls } = makeService({
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showLessLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showLess, [
+      [postUri, feedUri, null, "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("showMoreLikeThis resolves attribution the same way", async () => {
+    const { service, calls } = makeService({
+      feedItem: { post: { uri: postUri }, feedContext: "ctx" },
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showMoreLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showMore, [
+      [postUri, feedUri, "ctx", "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("sendInteraction sends a known event with caller-supplied routing and context", async () => {
+    const { service, calls } = makeService();
+    await getHandler(service, "sendInteraction")(feedbackPlugin, {
+      postUri,
+      event: "app.bsky.feed.defs#interactionSeen",
+      feedProxyUrl: "did:web:feed.example#bsky_fg",
+      feedContext: "plugin-ctx",
+    });
+    assert.deepEqual(calls.sendInteractions, [
+      [
+        [
+          {
+            item: postUri,
+            event: "app.bsky.feed.defs#interactionSeen",
+            feedContext: "plugin-ctx",
+          },
+        ],
+        "did:web:feed.example#bsky_fg",
+      ],
+    ]);
+  });
+
+  it("sendInteraction omits feedContext when the caller does not supply one", async () => {
+    const { service, calls } = makeService();
+    await getHandler(service, "sendInteraction")(feedbackPlugin, {
+      postUri,
+      event: "app.bsky.feed.defs#interactionShare",
+      feedProxyUrl: "did:web:feed.example#bsky_fg",
+    });
+    assert.deepEqual(calls.sendInteractions, [
+      [
+        [{ item: postUri, event: "app.bsky.feed.defs#interactionShare" }],
+        "did:web:feed.example#bsky_fg",
+      ],
+    ]);
+  });
+
+  it("sendInteraction rejects when feedProxyUrl is missing", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "sendInteraction")(feedbackPlugin, {
+        postUri,
+        event: "app.bsky.feed.defs#interactionSeen",
+      }),
+      /requires a feedProxyUrl/,
+    );
+    assert.deepEqual(calls.sendInteractions, []);
+  });
+
+  it("sendInteraction rejects unknown and disallowed events", async () => {
+    const { service, calls } = makeService();
+    for (const event of [
+      "app.bsky.feed.defs#madeUp",
+      "app.bsky.feed.defs#clickthroughItem",
+      "app.bsky.feed.defs#clickthroughAuthor",
+      "app.bsky.feed.defs#clickthroughReposter",
+      "app.bsky.feed.defs#clickthroughEmbed",
+    ]) {
+      await assert.rejects(
+        getHandler(service, "sendInteraction")(feedbackPlugin, {
+          postUri,
+          event,
+          feedProxyUrl: "did:web:feed.example#bsky_fg",
+        }),
+        /Unsupported feed interaction event/,
+      );
+    }
+    assert.deepEqual(calls.sendInteractions, []);
+  });
+
+  it("all three methods require the feedback moderation permission", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = {
+      pluginId: "test-plugin",
+      permissions: { moderation: ["mute"] },
+    };
+    for (const name of [
+      "showLessLikeThis",
+      "showMoreLikeThis",
+      "sendInteraction",
+    ]) {
+      await assert.rejects(
+        getHandler(service, name)(noPermissionPlugin, {
+          postUri,
+          event: "app.bsky.feed.defs#interactionSeen",
+        }),
+        /"feedback" moderation permission/,
+      );
+    }
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+    assert.deepEqual(calls.sendInteractions, []);
+  });
+});
+
 describe("getRecord host method", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();

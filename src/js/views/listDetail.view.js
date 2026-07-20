@@ -101,7 +101,7 @@ class ListDetailView extends View {
 
     pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.derived.$showLessInteractions.get() ?? [];
+        dataLayer.derived.$showLessInteractions.get(listUri);
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );

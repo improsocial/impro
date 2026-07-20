@@ -329,16 +329,19 @@ export class Mutations {
     }
   }
 
-  async sendShowLessInteraction(postURI, feedContext, feedProxyUrl) {
+  async sendShowLessInteraction(postURI, feedUri, feedContext, feedProxyUrl) {
     const showLessInteraction = {
       item: postURI,
       event: "app.bsky.feed.defs#requestLess",
       ...(feedContext != null ? { feedContext } : {}),
     };
-    this.dataStore.$showLessInteractions.set([
-      ...this.dataStore.$showLessInteractions.get(),
+    this.dataStore.$showLessInteractions.set(feedUri, [
+      ...(this.dataStore.$showLessInteractions.get(feedUri) ?? []),
       showLessInteraction,
     ]);
+    if (feedProxyUrl == null) {
+      return;
+    }
     try {
       await this.api.sendInteractions([showLessInteraction], feedProxyUrl);
     } catch (error) {
@@ -347,7 +350,7 @@ export class Mutations {
     }
   }
 
-  async sendShowMoreInteraction(postURI, feedContext, feedProxyUrl) {
+  async sendShowMoreInteraction(postURI, feedUri, feedContext, feedProxyUrl) {
     const showMoreInteraction = {
       item: postURI,
       event: "app.bsky.feed.defs#requestMore",
@@ -355,10 +358,13 @@ export class Mutations {
     };
     // Note, we don't really need to store this interaction because we don't use it in the UI (yet).
     // But, let's do it anyway for consistency.
-    this.dataStore.$showMoreInteractions.set([
-      ...this.dataStore.$showMoreInteractions.get(),
+    this.dataStore.$showMoreInteractions.set(feedUri, [
+      ...(this.dataStore.$showMoreInteractions.get(feedUri) ?? []),
       showMoreInteraction,
     ]);
+    if (feedProxyUrl == null) {
+      return;
+    }
     try {
       await this.api.sendInteractions([showMoreInteraction], feedProxyUrl);
     } catch (error) {

@@ -149,8 +149,7 @@ class PluginData {
   }
   // Like getProfile, but includes viewer relationship details not present
   // on the basic profile view: viewer.following, viewer.followedBy, and
-  // viewer.knownFollowers (a summary of mutual followers). Requires no
-  // extra permission, but does a network round-trip if not already cached.
+  // viewer.knownFollowers (a summary of mutual followers).
   getDetailedProfile(did) {
     return hostCall("getDetailedProfile", { did });
   }
@@ -175,18 +174,24 @@ class PluginModeration {
   blockActor(did, block = true) {
     return hostCall("blockActor", { did, block });
   }
-  // feedContext/feedProxyUrl are optional and let the signal be attributed
-  // back to the specific feed generator that served the post, matching
-  // app.bsky.feed.sendInteractions semantics; omit them to just send a
-  // general requestLess signal.
-  sendShowLessInteraction(
-    postUri,
-    { feedContext = null, feedProxyUrl = null } = {},
-  ) {
-    return hostCall("sendShowLessInteraction", {
+  // Acts like the user clicking "Show less like this": sends the requestLess
+  // feedback signal to the feed that served the post and collapses the post
+  // behind a feedback message in feeds.
+  showLessLikeThis(postUri, feedUri) {
+    return hostCall("showLessLikeThis", { postUri, feedUri });
+  }
+  showMoreLikeThis(postUri, feedUri) {
+    return hostCall("showMoreLikeThis", { postUri, feedUri });
+  }
+  // Low-level app.bsky.feed.sendInteractions with no UI side effects. event
+  // must be an allowed app.bsky.feed.defs#interaction value (e.g.
+  // "app.bsky.feed.defs#interactionSeen")
+  sendInteraction(postUri, event, feedProxyUrl, { feedContext = null } = {}) {
+    return hostCall("sendInteraction", {
       postUri,
-      feedContext,
+      event,
       feedProxyUrl,
+      feedContext,
     });
   }
 }

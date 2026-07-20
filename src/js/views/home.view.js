@@ -116,6 +116,7 @@ class HomeView extends View {
     async function handleShowLess(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
+        feedGenerator.uri,
         feedContext,
         getFeedGeneratorProxyUrl(feedGenerator),
       );
@@ -131,6 +132,7 @@ class HomeView extends View {
     async function handleShowMore(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowMoreInteraction(
         post.uri,
+        feedGenerator.uri,
         feedContext,
         getFeedGeneratorProxyUrl(feedGenerator),
       );
@@ -204,11 +206,6 @@ class HomeView extends View {
     });
 
     pageEffect(root, () => {
-      const showLessInteractions =
-        dataLayer.derived.$showLessInteractions.get() ?? [];
-      const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item,
-      );
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
       // Map of feed items -> feedContexts for postSeenObserver
@@ -262,6 +259,9 @@ class HomeView extends View {
             ${pinnedItems.map((item) => {
               const acceptsInteractions =
                 item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI;
+              const hiddenPostUris = dataLayer.derived.$showLessInteractions
+                .get(item.uri)
+                .map((interaction) => interaction.item);
               const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
               const feedRequestStatus =
                 dataLayer.requests.statusStore.$statuses.get(

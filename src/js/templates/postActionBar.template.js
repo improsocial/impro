@@ -233,6 +233,7 @@ async function openPostContextMenu(event, props) {
   const pluginItems = await props.pluginService.getPostContextMenuItems(
     props.post,
     {
+      feedGenerator: props.feedGenerator ?? null,
       feedContext: props.feedContext ?? null,
       feedProxyUrl: getFeedGeneratorProxyUrl(props.feedGenerator),
     },

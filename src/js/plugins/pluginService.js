@@ -31,8 +31,28 @@ import {
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
+import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
 const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
+
+function requireHostMethodArg(method, name, value) {
+  if (!value) {
+    throw new Error(`${method} requires a ${name}`);
+  }
+}
+
+// The app.bsky.feed.defs#interaction events plugins may send. Mirrors
+// social-app's third-party feed policy for now - can expand later if needed
+const FEED_INTERACTION_EVENTS = new Set([
+  "app.bsky.feed.defs#requestLess",
+  "app.bsky.feed.defs#requestMore",
+  "app.bsky.feed.defs#interactionSeen",
+  "app.bsky.feed.defs#interactionLike",
+  "app.bsky.feed.defs#interactionRepost",
+  "app.bsky.feed.defs#interactionReply",
+  "app.bsky.feed.defs#interactionQuote",
+  "app.bsky.feed.defs#interactionShare",
+]);
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
 
 export function arePluginsDisabledByQueryParam() {
@@ -417,6 +437,7 @@ export class PluginService extends ReactiveStore {
       "muteActor",
       async (plugin, { did, mute = true }) => {
         this._requireModerationPermission(plugin, "mute");
+        requireHostMethodArg("muteActor", "did", did);
         const profile = this._resolveProfileForMutation(did);
         if (mute) await this._dataLayer.mutations.muteProfile(profile);
         else await this._dataLayer.mutations.unmuteProfile(profile);
@@ -427,6 +448,7 @@ export class PluginService extends ReactiveStore {
       "blockActor",
       async (plugin, { did, block = true }) => {
         this._requireModerationPermission(plugin, "block");
+        requireHostMethodArg("blockActor", "did", did);
         const profile = this._resolveProfileForMutation(did);
         if (block) await this._dataLayer.mutations.blockProfile(profile);
         else await this._dataLayer.mutations.unblockProfile(profile);
@@ -434,16 +456,80 @@ export class PluginService extends ReactiveStore {
     );
 
     this.pluginBridge.addHostMethod(
-      "sendShowLessInteraction",
-      async (plugin, { postUri, feedContext = null, feedProxyUrl = null }) => {
+      "showLessLikeThis",
+      async (plugin, { postUri, feedUri = null }) => {
         this._requireModerationPermission(plugin, "feedback");
+        requireHostMethodArg("showLessLikeThis", "postUri", postUri);
+        requireHostMethodArg("showLessLikeThis", "feedUri", feedUri);
+        const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
+          postUri,
+          feedUri,
+        );
         await this._dataLayer.mutations.sendShowLessInteraction(
           postUri,
+          feedUri,
           feedContext,
           feedProxyUrl,
         );
       },
     );
+
+    this.pluginBridge.addHostMethod(
+      "showMoreLikeThis",
+      async (plugin, { postUri, feedUri = null }) => {
+        this._requireModerationPermission(plugin, "feedback");
+        requireHostMethodArg("showMoreLikeThis", "postUri", postUri);
+        requireHostMethodArg("showMoreLikeThis", "feedUri", feedUri);
+        const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
+          postUri,
+          feedUri,
+        );
+        await this._dataLayer.mutations.sendShowMoreInteraction(
+          postUri,
+          feedUri,
+          feedContext,
+          feedProxyUrl,
+        );
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "sendInteraction",
+      async (
+        plugin,
+        { postUri, event, feedProxyUrl = null, feedContext = null },
+      ) => {
+        this._requireModerationPermission(plugin, "feedback");
+        requireHostMethodArg("sendInteraction", "postUri", postUri);
+        requireHostMethodArg("sendInteraction", "feedProxyUrl", feedProxyUrl);
+        if (!FEED_INTERACTION_EVENTS.has(event)) {
+          throw new Error(`Unsupported feed interaction event "${event}"`);
+        }
+        await this._dataLayer.api.sendInteractions(
+          [
+            {
+              item: postUri,
+              event,
+              ...(feedContext != null ? { feedContext } : {}),
+            },
+          ],
+          feedProxyUrl,
+        );
+      },
+    );
+  }
+
+  _resolveFeedAttribution(postUri, feedUri) {
+    if (!feedUri || !this._dataLayer) {
+      return { feedContext: null, feedProxyUrl: null };
+    }
+    const feed = this._dataLayer.dataStore.$feeds.get(feedUri);
+    const feedItem = feed?.feed.find((item) => item.post.uri === postUri);
+    const feedGenerator = this._dataLayer.derived.$feedGenerators.get(feedUri);
+    return {
+      feedContext: feedItem?.feedContext ?? null,
+      feedProxyUrl: getFeedGeneratorProxyUrl(feedGenerator),
+    };
   }
 
   _requireModerationPermission(plugin, action) {

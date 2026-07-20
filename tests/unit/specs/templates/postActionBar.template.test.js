@@ -410,6 +410,67 @@ describe("postActionBarTemplate - plugin context menu items", () => {
     return document.body.querySelector("context-menu.post-context-menu");
   }
 
+  it("should pass the post and feed meta to getPostContextMenuItems", async () => {
+    const menuCalls = [];
+    const pluginService = {
+      getPostContextMenuItems: async (...args) => {
+        menuCalls.push(args);
+        return [];
+      },
+    };
+    const feedGenerator = {
+      uri: "at://did:plc:feedgen/app.bsky.feed.generator/cool",
+      did: "did:web:feed.example",
+    };
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      feedContext: "ctx",
+      feedGenerator,
+      pluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    await openPostContextMenu(container);
+    assert.deepEqual(menuCalls, [
+      [
+        post,
+        {
+          feedGenerator,
+          feedContext: "ctx",
+          feedProxyUrl: "did:web:feed.example#bsky_fg",
+        },
+      ],
+    ]);
+    container.remove();
+  });
+
+  it("should pass null feed meta when the post is not in a feed", async () => {
+    const menuCalls = [];
+    const pluginService = {
+      getPostContextMenuItems: async (...args) => {
+        menuCalls.push(args);
+        return [];
+      },
+    };
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    await openPostContextMenu(container);
+    assert.deepEqual(menuCalls, [
+      [post, { feedGenerator: null, feedContext: null, feedProxyUrl: null }],
+    ]);
+    container.remove();
+  });
+
   it("should render one context-menu-item-group per plugin", async () => {
     const pluginService = makePluginService([
       { pluginId: "plugin-a", title: "A1", invoke: () => {} },

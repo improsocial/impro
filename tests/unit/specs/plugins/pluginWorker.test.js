@@ -335,6 +335,35 @@ describe("hostCall round-trip", () => {
     assert.deepEqual(sent.args[0], "at://example/feed");
   });
 
+  it("app.moderation feedback methods post hostCalls with postUri and feedUri", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const postUri = "at://example/post/1";
+    const feedUri = "at://example/feed/cool";
+
+    plugin.app.moderation.showLessLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showLessLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+
+    plugin.app.moderation.showMoreLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showMoreLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+
+    plugin.app.moderation.sendInteraction(
+      postUri,
+      "app.bsky.feed.defs#interactionSeen",
+      "did:web:feed.example#bsky_fg",
+      { feedContext: "ctx" },
+    );
+    assert.deepEqual(lastMessage().method, "sendInteraction");
+    assert.deepEqual(lastMessage().args[0], {
+      postUri,
+      event: "app.bsky.feed.defs#interactionSeen",
+      feedProxyUrl: "did:web:feed.example#bsky_fg",
+      feedContext: "ctx",
+    });
+  });
+
   it("app.data.getPost posts a hostCall and resolves with the host result", async () => {
     clearMessages();
     const plugin = new Plugin();
