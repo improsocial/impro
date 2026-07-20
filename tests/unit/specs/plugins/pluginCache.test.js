@@ -145,7 +145,27 @@ describe("PluginCache.fetch", () => {
     assert.deepEqual(fetchStub.calls.length, 1);
   });
 
-  it("does not cache non-404 errors even with doCacheNotFound", async () => {
+  it("caches errors a custom isNotFound predicate matches on the body", async () => {
+    fetchStub = stubFetch(async () =>
+      makeResponse("failed to get blob", { ok: false, status: 500 }),
+    );
+    const cache = new PluginCache();
+    const url = "https://example.test/styles.css";
+    const options = {
+      doCacheNotFound: true,
+      isNotFound: (status, body) =>
+        status === 500 && body === "failed to get blob",
+    };
+    const error = await cache
+      .fetch(url, options)
+      .then(null, (thrown) => thrown);
+    assert.deepEqual(error.status, 500);
+    assert.deepEqual(error.body, "failed to get blob");
+    await assert.rejects(cache.fetch(url, options), /500/);
+    assert.deepEqual(fetchStub.calls.length, 1);
+  });
+
+  it("does not cache non-404 errors with the default isNotFound", async () => {
     fetchStub = stubFetch(async () =>
       makeResponse("boom", { ok: false, status: 500 }),
     );
@@ -153,6 +173,23 @@ describe("PluginCache.fetch", () => {
     const url = "https://example.test/styles.css";
     await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /500/);
     await assert.rejects(cache.fetch(url, { doCacheNotFound: true }), /500/);
+    assert.deepEqual(fetchStub.calls.length, 2);
+  });
+
+  it("does not cache not-found responses without doCacheNotFound", async () => {
+    fetchStub = stubFetch(async () =>
+      makeResponse("nope", { ok: false, status: 404 }),
+    );
+    const cache = new PluginCache();
+    const url = "https://example.test/styles.css";
+    await assert.rejects(
+      cache.fetch(url, { isNotFound: (status) => status === 404 }),
+      /404/,
+    );
+    await assert.rejects(
+      cache.fetch(url, { isNotFound: (status) => status === 404 }),
+      /404/,
+    );
     assert.deepEqual(fetchStub.calls.length, 2);
   });
 

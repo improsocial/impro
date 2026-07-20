@@ -239,7 +239,10 @@ describe("SourceProvider with remote plugins", () => {
       pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/styles.css",
     );
-    assert.deepEqual(pluginCache.calls[0].options, { doCacheNotFound: true });
+    const { doCacheNotFound, isNotFound } = pluginCache.calls[0].options;
+    assert.deepEqual(doCacheNotFound, true);
+    assert.deepEqual(isNotFound(404, null), true);
+    assert.deepEqual(isNotFound(500, "boom"), false);
     assert.deepEqual(styles, "body{color:blue}");
   });
 
@@ -276,6 +279,37 @@ describe("SourceProvider with remote plugins", () => {
     } finally {
       stub.restore();
     }
+  });
+
+  it("accepts an explicit github: prefix on the repo", async () => {
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    const provider = new SourceProvider(pluginCache);
+    const manifest = await provider.getManifest(
+      "alpha",
+      "1.0.0",
+      "github:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/manifest.json",
+    );
+    assert.deepEqual(manifest.id, "alpha");
+  });
+
+  it("getCacheUrls strips the github: prefix from URLs", async () => {
+    const provider = new SourceProvider(null);
+    const urls = await provider.getCacheUrls(
+      "alpha",
+      "1.2.3",
+      "github:ow/alpha",
+    );
+    assert.deepEqual(urls, [
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/manifest.json",
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/main.js",
+      "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.2.3/styles.css",
+    ]);
   });
 
   it("getStyles returns null when remote styles.css 404s", async () => {
@@ -397,6 +431,10 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
       "tangled:ow/alpha",
     );
     assert.deepEqual(styles, null);
+    const { isNotFound } = pluginCache.calls[0].options;
+    assert.deepEqual(isNotFound(500, TANGLED_MISSING_BLOB_BODY), true);
+    assert.deepEqual(isNotFound(500, "boom"), false);
+    assert.deepEqual(isNotFound(404, null), true);
   });
 
   it("getStyles still throws a tangled 500 with an unrelated body", async () => {

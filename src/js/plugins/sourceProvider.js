@@ -15,9 +15,10 @@ function parsePluginManifest(pluginId, manifest) {
 }
 
 // A plugin listing's `repo` field is normally a bare "owner/repo" GitHub
-// path. It may also be prefixed with a host name ("host:owner/repo") to
-// source from somewhere else — currently just "tangled:" for tangled.sh
-// repos. GitHub owner/repo names can't contain ":", so this is unambiguous.
+// path. It may also be prefixed with a host name ("host:owner/repo"):
+// "github:" spells out the default explicitly, and "tangled:" sources from
+// tangled.sh. GitHub owner/repo names can't contain ":", so this is
+// unambiguous.
 export function parseRepoSpec(repo) {
   const colonIndex = repo.indexOf(":");
   if (colonIndex === -1) return { host: "github", path: repo };
@@ -58,11 +59,12 @@ function isTangledMissingBlobBody(body) {
   );
 }
 
-function isMissingFileStatus(repo, status, body) {
+function isMissingFileResponse(repo, status, body) {
   if (status === 404) return true;
-  if (status !== 500) return false;
   return (
-    parseRepoSpec(repo).host === "tangled" && isTangledMissingBlobBody(body)
+    parseRepoSpec(repo).host === "tangled" &&
+    status === 500 &&
+    isTangledMissingBlobBody(body)
   );
 }
 
@@ -75,7 +77,7 @@ function remoteAssetUrl({ repo, file, release = null }) {
     return `https://tangled.org/${path}/raw/${ref}/${file}`;
   }
   const ref = release ? `refs/tags/${release}` : "refs/heads/main";
-  return `https://raw.githubusercontent.com/${repo}/${ref}/${file}`;
+  return `https://raw.githubusercontent.com/${path}/${ref}/${file}`;
 }
 
 export class SourceProvider {
@@ -157,10 +159,11 @@ export class SourceProvider {
     try {
       const response = await this.pluginCache.fetch(url, {
         doCacheNotFound: true,
+        isNotFound: (status, body) => isMissingFileResponse(repo, status, body),
       });
       return await response.text();
     } catch (error) {
-      if (isMissingFileStatus(repo, error?.status, error?.body)) return null;
+      if (isMissingFileResponse(repo, error?.status, error?.body)) return null;
       throw error;
     }
   }
@@ -180,7 +183,7 @@ export class SourceProvider {
     const response = await fetch(url, { cache: "no-store" });
     const body = await response.text();
     if (!response.ok) {
-      if (isMissingFileStatus(repo, response.status, body)) return null;
+      if (isMissingFileResponse(repo, response.status, body)) return null;
       throw new Error(`HTTP ${response.status}`);
     }
     return body;
