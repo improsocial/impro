@@ -291,3 +291,88 @@ describe("SourceProvider with remote plugins", () => {
     assert.deepEqual(styles, null);
   });
 });
+
+describe("SourceProvider with tangled.sh-hosted plugins", () => {
+  it("fetches a versioned manifest from tangled.org via plugin cache", async () => {
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    const provider = new SourceProvider(pluginCache);
+    const manifest = await provider.getManifest(
+      "alpha",
+      "1.0.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://tangled.org/ow/alpha/raw/1.0.0/manifest.json",
+    );
+    assert.deepEqual(manifest.id, "alpha");
+  });
+
+  it("fetches source from the version that was passed in", async () => {
+    const pluginCache = fakePluginCache(async () => ({
+      ok: true,
+      status: 200,
+      async text() {
+        return "alert(1)";
+      },
+    }));
+    const provider = new SourceProvider(pluginCache);
+    const source = await provider.getSource(
+      "alpha",
+      "2.5.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(
+      pluginCache.calls[0].url,
+      "https://tangled.org/ow/alpha/raw/2.5.0/main.js",
+    );
+    assert.deepEqual(source, "alert(1)");
+  });
+
+  it("getLiveManifest fetches from the main branch", async () => {
+    const stub = stubFetch(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "9.9.9" }),
+    );
+    try {
+      const provider = new SourceProvider(null);
+      const manifest = await provider.getLiveManifest(
+        "alpha",
+        "tangled:ow/alpha",
+      );
+      assert.deepEqual(
+        stub.calls[0].url,
+        "https://tangled.org/ow/alpha/raw/main/manifest.json",
+      );
+      assert.deepEqual(manifest.version, "9.9.9");
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getCacheUrls includes manifest, main.js, and styles.css URLs", async () => {
+    const provider = new SourceProvider(null);
+    const urls = await provider.getCacheUrls(
+      "alpha",
+      "1.2.3",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(urls, [
+      "https://tangled.org/ow/alpha/raw/1.2.3/manifest.json",
+      "https://tangled.org/ow/alpha/raw/1.2.3/main.js",
+      "https://tangled.org/ow/alpha/raw/1.2.3/styles.css",
+    ]);
+  });
+
+  it("throws for an unrecognized repo host prefix", async () => {
+    const provider = new SourceProvider(fakePluginCache(async () => null));
+    let caught = null;
+    try {
+      await provider.getManifest("alpha", "1.0.0", "gitlab:ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert(caught?.message.includes('Unsupported plugin repo host "gitlab"'));
+  });
+});

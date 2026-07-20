@@ -14,7 +14,38 @@ function parsePluginManifest(pluginId, manifest) {
   return manifest;
 }
 
+// A plugin listing's `repo` field is normally a bare "owner/repo" GitHub
+// path. It may also be prefixed with a host name ("host:owner/repo") to
+// source from somewhere else — currently just "tangled:" for tangled.sh
+// repos. GitHub owner/repo names can't contain ":", so this is unambiguous.
+export function parseRepoSpec(repo) {
+  const colonIndex = repo.indexOf(":");
+  if (colonIndex === -1) return { host: "github", path: repo };
+  const host = repo.slice(0, colonIndex);
+  const path = repo.slice(colonIndex + 1);
+  if (host !== "github" && host !== "tangled") {
+    throw new Error(`Unsupported plugin repo host "${host}"`);
+  }
+  return { host, path };
+}
+
+// The human-facing "view source" URL for a plugin's repo field.
+export function repoWebUrl(repo) {
+  const { host, path } = parseRepoSpec(repo);
+  if (host === "tangled") {
+    return `https://tangled.org/${path}`;
+  }
+  return `https://github.com/${path}`;
+}
+
 function remoteAssetUrl({ repo, file, release = null }) {
+  const { host, path } = parseRepoSpec(repo);
+  if (host === "tangled") {
+    // tangled.sh serves raw blobs at /raw/<ref>/<path> for both branches
+    // and tags; there's no separate "refs/tags/..." form like GitHub's.
+    const ref = release ?? "main";
+    return `https://tangled.org/${path}/raw/${ref}/${file}`;
+  }
   const ref = release ? `refs/tags/${release}` : "refs/heads/main";
   return `https://raw.githubusercontent.com/${repo}/${ref}/${file}`;
 }
