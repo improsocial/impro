@@ -38,6 +38,17 @@ export function repoWebUrl(repo) {
   return `https://github.com/${path}`;
 }
 
+// GitHub's raw content host returns a clean 404 for a missing file.
+// tangled.sh's blob-fetch backend instead returns 500 with a JSON error
+// body ({"error":"InternalServerError","message":"failed to get blob"}) —
+// verified against a real repo, since it has no dedicated "not found"
+// status. Treat both as "file doesn't exist" for optional files
+// (styles.css, README.md) rather than a real fetch failure.
+function isMissingFileStatus(repo, status) {
+  if (status === 404) return true;
+  return parseRepoSpec(repo).host === "tangled" && status === 500;
+}
+
 function remoteAssetUrl({ repo, file, release = null }) {
   const { host, path } = parseRepoSpec(repo);
   if (host === "tangled") {
@@ -132,7 +143,7 @@ export class SourceProvider {
       });
       return await response.text();
     } catch (error) {
-      if (error?.status === 404) return null;
+      if (isMissingFileStatus(repo, error?.status)) return null;
       throw error;
     }
   }
@@ -150,7 +161,7 @@ export class SourceProvider {
     // Fetch from main branch so we show the latest README
     const url = remoteAssetUrl({ repo, file: "README.md" });
     const response = await fetch(url, { cache: "no-store" });
-    if (response.status === 404) return null;
+    if (isMissingFileStatus(repo, response.status)) return null;
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return await response.text();
   }

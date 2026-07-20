@@ -375,4 +375,48 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
     }
     assert(caught?.message.includes('Unsupported plugin repo host "gitlab"'));
   });
+
+  // tangled.sh's blob backend returns 500 (not 404) for a missing file, so
+  // "optional file absent" detection has to special-case it per host.
+  it("getStyles treats a tangled 500 as a missing styles.css, not an error", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    const styles = await provider.getStyles(
+      "alpha",
+      "1.0.0",
+      "tangled:ow/alpha",
+    );
+    assert.deepEqual(styles, null);
+  });
+
+  it("getStyles still throws a tangled 500 as an error for local plugins/other hosts", async () => {
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 500");
+      error.status = 500;
+      throw error;
+    });
+    const provider = new SourceProvider(pluginCache);
+    let caught = null;
+    try {
+      await provider.getStyles("alpha", "1.0.0", "ow/alpha");
+    } catch (error) {
+      caught = error;
+    }
+    assert.deepEqual(caught?.status, 500);
+  });
+
+  it("getReadme treats a tangled 500 as a missing README, not an error", async () => {
+    const stub = stubFetch(async () => ({ ok: false, status: 500 }));
+    try {
+      const provider = new SourceProvider(null);
+      const readme = await provider.getReadme("alpha", "tangled:ow/alpha");
+      assert.deepEqual(readme, null);
+    } finally {
+      stub.restore();
+    }
+  });
 });
