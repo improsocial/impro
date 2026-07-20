@@ -17,6 +17,7 @@ import { ScrollLock } from "/js/scrollLock.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { showToast } from "/js/toasts.js";
@@ -66,6 +67,44 @@ function hasPostStateContent(postState) {
     postState.external !== null ||
     postState.quotedRecord !== null
   );
+}
+
+function getSendErrorMessage(error) {
+  if (error instanceof ApiError) {
+    if (error.status >= 500) {
+      return "The server appears to be experiencing issues. Please try again in a few moments.";
+    }
+    const message = error.data?.message;
+    if (message?.includes("not locate record")) {
+      return "The post you are replying to has been deleted.";
+    }
+    if (message) {
+      return message;
+    }
+  }
+  if (error instanceof TypeError) {
+    return "Unable to connect. Please check your internet connection and try again.";
+  }
+  return "Failed to send post. Please try again.";
+}
+
+function errorMessageBannerTemplate({ message, onDismiss }) {
+  return html`<div
+    class="composer-error-banner"
+    data-testid="composer-error-banner"
+    role="alert"
+  >
+    ${alertIconTemplate()}
+    <span class="composer-error-banner-message">${message}</span>
+    <button
+      class="composer-error-banner-dismiss"
+      data-testid="composer-error-dismiss"
+      aria-label="Dismiss error"
+      @click=${onDismiss}
+    >
+      ${closeIconTemplate()}
+    </button>
+  </div>`;
 }
 
 function isVideoUploadPending(video) {
@@ -335,6 +374,7 @@ class PostComposer extends Component {
     ]);
     this.state.$activePostIndex = new Signal.State(0);
     this.state.$isSending = new Signal.State(false);
+    this.state.$errorMessage = new Signal.State(null);
     this.state.$isSavingDraft = new Signal.State(false);
     this._pendingQuotedRecord = null;
     this.state.$draftsEnabled = new Signal.State(
@@ -446,6 +486,7 @@ class PostComposer extends Component {
 
   render() {
     const isSending = this.state.$isSending.get();
+    const sendError = this.state.$errorMessage.get();
     const isSavingDraft = this.state.$isSavingDraft.get();
     const draftsEnabled = this.state.$draftsEnabled.get();
     const posts = this.state.$posts.get();
@@ -551,6 +592,12 @@ class PostComposer extends Component {
                   : html`<span>${submitLabel}</span>`}
               </button>
             </div>
+            ${sendError
+              ? errorMessageBannerTemplate({
+                  message: sendError,
+                  onDismiss: () => this.state.$errorMessage.set(null),
+                })
+              : ""}
             <div class="post-composer-scroll-area">
               <div class="post-composer-scroll-area-content">
                 ${this.replyTo ? replyToTemplate({ post: this.replyTo }) : ""}
@@ -1262,13 +1309,14 @@ class PostComposer extends Component {
     if (this.isSendBlocked()) return;
     const postsToSend = await this._buildPostsForSend();
     if (!postsToSend) return;
+    this.state.$errorMessage.set(null);
     this.state.$isSending.set(true);
     const successCallback = () => {
       this.close();
     };
-    const errorCallback = () => {
+    const errorCallback = (error) => {
       this.state.$isSending.set(false);
-      // todo: show error message
+      this.state.$errorMessage.set(getSendErrorMessage(error));
     };
     this.dispatchEvent(
       new CustomEvent("send-post", {

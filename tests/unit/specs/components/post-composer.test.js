@@ -315,6 +315,137 @@ describe("post-composer", () => {
     });
   });
 
+  describe("PostComposer - send error banner", () => {
+    function getBanner(element) {
+      return element.querySelector('[data-testid="composer-error-banner"]');
+    }
+
+    async function sendWithError(element, error) {
+      element.addEventListener("send-post", (e) => {
+        e.detail.errorCallback(error);
+      });
+      await element.send();
+      await nextFrame();
+    }
+
+    it("shows the banner and resets isSending when the send fails", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      await sendWithError(element, new Error("boom"));
+
+      assert.deepEqual(element.state.$isSending.get(), false);
+      const banner = getBanner(element);
+      assert(banner !== null);
+      assert(
+        banner.textContent.includes("Failed to send post. Please try again."),
+      );
+    });
+
+    it("does not render the banner before any failure", () => {
+      const element = createPostComposer();
+      connectElement(element);
+      assert.deepEqual(getBanner(element), null);
+    });
+
+    it("hides the banner when dismissed", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      await sendWithError(element, new Error("boom"));
+
+      element
+        .querySelector('[data-testid="composer-error-dismiss"]')
+        .dispatchEvent(new window.MouseEvent("click", { bubbles: true }));
+      await nextFrame();
+      assert.deepEqual(getBanner(element), null);
+    });
+
+    it("clears the previous error when a new send starts", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      let failNext = true;
+      element.addEventListener("send-post", (e) => {
+        if (failNext) e.detail.errorCallback(new Error("boom"));
+      });
+      await element.send();
+      await nextFrame();
+      assert(getBanner(element) !== null);
+
+      failNext = false;
+      await element.send();
+      await nextFrame();
+      assert.deepEqual(getBanner(element), null);
+    });
+
+    it("maps network failures to a connection message", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      await sendWithError(element, new TypeError("Failed to fetch"));
+
+      assert(
+        getBanner(element).textContent.includes(
+          "Unable to connect. Please check your internet connection and try again.",
+        ),
+      );
+    });
+
+    it("maps server errors to a server-issues message", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      await sendWithError(
+        element,
+        new ApiError({
+          status: 502,
+          statusText: "Bad Gateway",
+          data: null,
+          headers: null,
+          url: "",
+        }),
+      );
+
+      assert(
+        getBanner(element).textContent.includes(
+          "The server appears to be experiencing issues. Please try again in a few moments.",
+        ),
+      );
+    });
+
+    it("shows the API error message for typed 4xx errors", async () => {
+      const element = createPostComposer();
+      connectElement(element);
+      patchFirstPost(element, { text: "Hello world" });
+
+      await sendWithError(
+        element,
+        new ApiError({
+          status: 400,
+          statusText: "Bad Request",
+          data: {
+            error: "InvalidRequest",
+            message: "could not locate record after deletion",
+          },
+          headers: null,
+          url: "",
+        }),
+      );
+
+      assert(
+        getBanner(element).textContent.includes(
+          "The post you are replying to has been deleted.",
+        ),
+      );
+    });
+  });
+
   describe("PostComposer - keyboard shortcuts", () => {
     it("should send post on Cmd+Enter", async () => {
       const element = createPostComposer();

@@ -5986,6 +5986,51 @@ emoji-picker-dialog emoji-picker,
   padding: 0 16px;
 }
 
+.composer-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0 16px 8px;
+  padding: 10px 12px;
+  border-radius: var(--text-input-border-radius);
+  background-color: var(--error-subtle-color);
+}
+
+.composer-error-banner .alert-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: var(--error-color);
+}
+
+.composer-error-banner-message {
+  flex: 1;
+  align-self: center;
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.composer-error-banner-dismiss {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 2px;
+  cursor: pointer;
+  border-radius: var(--icon-button-border-radius);
+  color: var(--text-color-muted);
+}
+
+.composer-error-banner-dismiss .icon {
+  width: 16px;
+  height: 16px;
+}
+
+@media (hover: hover) {
+  .composer-error-banner-dismiss:hover {
+    color: var(--text-color);
+  }
+}
+
 .post-composer-scroll-area {
   flex: 1;
   min-height: 0;

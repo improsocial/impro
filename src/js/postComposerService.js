@@ -84,7 +84,6 @@ export class PostComposerService {
           resolve(res);
         } catch (error) {
           console.error(error);
-          showToast("Failed to send post", { style: "error" });
           errorCallback(error);
           reject(error);
         }
