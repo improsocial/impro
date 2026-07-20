@@ -300,6 +300,7 @@ export class TokenRefreshError extends Error {
 export class Session {
   static refreshBackoffMs = 500;
   static concurrentRefreshRecoveryMs = 1000;
+  static refreshTimeoutMs = 30000;
 
   constructor(sessionData, dpopRequests) {
     this.sessionData = sessionData;
@@ -344,7 +345,9 @@ export class Session {
 
     let response;
     try {
-      response = await authServer.refresh(params);
+      response = await authServer.refresh(params, {
+        signal: AbortSignal.timeout(Session.refreshTimeoutMs),
+      });
     } catch (error) {
       if (retryCount < maxRetries) {
         await new Promise((resolve) => setTimeout(resolve, backoffMs));
@@ -448,7 +451,7 @@ class AuthServer {
     this.dpopRequests = dpopRequests;
   }
 
-  async refresh(params) {
+  async refresh(params, { signal = null } = {}) {
     const tokenEndpoint = this.authServerMetadata.token_endpoint;
     return this.dpopRequests.fetch(tokenEndpoint, {
       method: "POST",
@@ -456,6 +459,7 @@ class AuthServer {
         "Content-Type": "application/x-www-form-urlencoded",
       },
       body: new URLSearchParams(params).toString(),
+      signal,
     });
   }
 

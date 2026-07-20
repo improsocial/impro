@@ -388,6 +388,22 @@ describe("oauth", () => {
       assert.deepEqual(stored.refreshToken, "new-rt");
     });
 
+    it("should pass a timeout signal to the refresh request", async () => {
+      const session = await getLoadedSession({ expiresAt: Date.now() + 30000 });
+      globalThis.fetch.__interceptJson(TOKEN_URL, {
+        access_token: "new-at",
+        refresh_token: "new-rt",
+        expires_in: 3600,
+      });
+      globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+      await session.fetch("https://pds.example.com/xrpc/foo");
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      assert(tokenCall.options.signal instanceof AbortSignal);
+      assert(!tokenCall.options.signal.aborted);
+    });
+
     it("should not refresh when token has plenty of time left", async () => {
       const session = await getLoadedSession({
         expiresAt: Date.now() + 3600000,
