@@ -1301,27 +1301,6 @@ describe("app.data host methods", () => {
     return { map, calls };
   }
 
-  it("getPost host method returns the hydrated post from derived", async () => {
-    const service = makeServiceWithRealBridge();
-    const posts = makeStubComputedMap((uri) => ({
-      uri,
-      record: { text: "cached" },
-    }));
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: posts.map,
-        $hydratedProfiles: makeStubComputedMap(() => null).map,
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
-    const result = await handler(null, { uri: "at://example/post/1" });
-    assert.deepEqual(posts.calls, ["at://example/post/1"]);
-    assert.deepEqual(result, {
-      uri: "at://example/post/1",
-      record: { text: "cached" },
-    });
-  });
-
   it("getProfile host method returns the hydrated profile from derived", async () => {
     const service = makeServiceWithRealBridge();
     const profiles = makeStubComputedMap((did) => ({
@@ -1347,12 +1326,118 @@ describe("app.data host methods", () => {
     assert.deepEqual(result, null);
   });
 
-  it("getProfile returns null when the hydrated profile signal is empty", async () => {
+  it("getPost fetches the post on a cache miss", async () => {
+    const service = makeServiceWithRealBridge();
+    const ensureCalls = [];
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
+      },
+      declarative: {
+        ensurePost: async (uri) => {
+          ensureCalls.push(uri);
+          return { uri, record: { text: "fetched" } };
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/1" });
+    assert.deepEqual(ensureCalls, ["at://example/post/1"]);
+    assert.deepEqual(result, {
+      uri: "at://example/post/1",
+      record: { text: "fetched" },
+    });
+  });
+
+  it("getPost returns null when the post cannot be loaded", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
       derived: {
         $hydratedPosts: makeStubComputedMap(() => null).map,
         $hydratedProfiles: makeStubComputedMap(() => null).map,
+      },
+      declarative: {
+        ensurePost: async () => {
+          throw new Error("Post not found");
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/gone" });
+    assert.deepEqual(result, null);
+  });
+
+  it("getProfile fetches on a cache miss and returns the basic hydrated profile", async () => {
+    const service = makeServiceWithRealBridge();
+    let loaded = false;
+    const profiles = makeStubComputedMap((did) =>
+      loaded ? { did, handle: "alice.test" } : null,
+    );
+    const ensureCalls = [];
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: profiles.map,
+      },
+      declarative: {
+        ensureDetailedProfile: async (did) => {
+          ensureCalls.push(did);
+          loaded = true;
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
+    assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
+  });
+
+  it("getKnownFollowers resolves via the declarative layer", async () => {
+    const service = makeServiceWithRealBridge();
+    const knownFollowers = { followers: [{ did: "did:plc:follower" }] };
+    const ensureCalls = [];
+    service.setDataLayer({
+      declarative: {
+        ensureKnownFollowers: async (did) => {
+          ensureCalls.push(did);
+          return knownFollowers;
+        },
+      },
+    });
+    const handler =
+      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
+    assert.deepEqual(result, knownFollowers);
+  });
+
+  it("getKnownFollowers returns null when the list cannot be loaded", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      declarative: {
+        ensureKnownFollowers: async () => {
+          throw new Error("Known followers not found");
+        },
+      },
+    });
+    const handler =
+      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
+    const result = await handler(null, { did: "did:plc:missing" });
+    assert.deepEqual(result, null);
+  });
+
+  it("getProfile returns null when the profile cannot be loaded", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
+      },
+      declarative: {
+        ensureDetailedProfile: async () => {
+          throw new Error("Profile not found");
+        },
       },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");

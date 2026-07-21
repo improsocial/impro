@@ -10,6 +10,7 @@ function createMockDerived(data = {}) {
   return {
     $currentUser: sig(() => data.currentUser ?? null),
     $hydratedDetailedProfiles: mapSig((did) => data.profiles?.[did] ?? null),
+    $knownFollowers: mapSig((did) => data.knownFollowers?.[did] ?? null),
     $hydratedPostThreads: mapSig((uri) => data.postThreads?.[uri] ?? null),
     $hydratedPosts: mapSig((uri) => data.posts?.[uri] ?? null),
     $feedGenerators: mapSig((uri) => data.feedGenerators?.[uri] ?? null),
@@ -25,6 +26,7 @@ function createMockRequests(loadResults = {}) {
     loadCurrentUser: async () => loadResults.currentUser,
     loadDetailedProfile: async (did) => loadResults.profiles?.[did],
     loadDetailedProfiles: async () => {},
+    loadKnownFollowers: async () => {},
     loadPostThread: async (uri) => loadResults.postThreads?.[uri],
     loadPost: async (uri) => loadResults.posts?.[uri],
     loadPosts: async () => {},
@@ -150,6 +152,67 @@ describe("ensureDetailedProfile", () => {
 
     assert(error !== null);
     assert.deepEqual(error.message, "Profile not found");
+  });
+});
+
+describe("ensureKnownFollowers", () => {
+  it("should return existing known followers without loading", async () => {
+    const profileDid = "did:test:profile";
+    const knownFollowers = { followers: [{ did: "did:test:follower" }] };
+    let loadCalled = false;
+
+    const derived = createMockDerived({
+      knownFollowers: { [profileDid]: knownFollowers },
+    });
+    const requests = {
+      loadKnownFollowers: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureKnownFollowers(profileDid);
+
+    assert.deepEqual(result, knownFollowers);
+    assert.deepEqual(loadCalled, false);
+  });
+
+  it("should load known followers when not in cache", async () => {
+    const profileDid = "did:test:profile";
+    const knownFollowers = { followers: [{ did: "did:test:follower" }] };
+    let callCount = 0;
+
+    const derived = {
+      $knownFollowers: mapSig(() => {
+        callCount++;
+        return callCount > 1 ? knownFollowers : null;
+      }),
+    };
+    const requests = {
+      loadKnownFollowers: async () => {},
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureKnownFollowers(profileDid);
+
+    assert.deepEqual(result, knownFollowers);
+  });
+
+  it("should throw when known followers not found after loading", async () => {
+    const derived = createMockDerived({});
+    const requests = createMockRequests({});
+
+    const declarative = new Declarative(derived, requests);
+
+    let error = null;
+    try {
+      await declarative.ensureKnownFollowers("did:nonexistent");
+    } catch (e) {
+      error = e;
+    }
+
+    assert(error !== null);
+    assert.deepEqual(error.message, "Known followers not found");
   });
 });
 

@@ -386,30 +386,37 @@ export class PluginService extends ReactiveStore {
       return pluginFetch(plugin, url, init);
     });
 
-    this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
-      return this._dataLayer?.derived.$hydratedPosts.get(uri) ?? null;
+    this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
+      if (!this._dataLayer) return null;
+      try {
+        return await this._dataLayer.declarative.ensurePost(uri);
+      } catch {
+        return null;
+      }
     });
 
-    this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
+    this.pluginBridge.addHostMethod("getProfile", async (plugin, { did }) => {
+      if (!this._dataLayer) return null;
+      const profile = this._dataLayer.derived.$hydratedProfiles.get(did);
+      if (profile) return profile;
+      try {
+        await this._dataLayer.declarative.ensureDetailedProfile(did);
+      } catch {
+        return null;
+      }
+      return this._dataLayer.derived.$hydratedProfiles.get(did) ?? null;
     });
 
     this.pluginBridge.addHostMethod(
       "getDetailedProfile",
       async (plugin, { did }) => {
         if (!this._dataLayer) return null;
-        let profile =
-          this._dataLayer.derived.$hydratedDetailedProfiles.get(did);
-        if (!profile) {
-          await this._dataLayer.requests.loadDetailedProfile(did);
-          profile = this._dataLayer.derived.$hydratedDetailedProfiles.get(did);
+        try {
+          return await this._dataLayer.declarative.ensureDetailedProfile(did);
+        } catch {
+          return null;
         }
-        return profile ?? null;
       },
-    );
-
-    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
-      this.slingshot.getRecord(args),
     );
 
     // Full known-followers list for did (the profile.viewer.knownFollowers
@@ -420,9 +427,16 @@ export class PluginService extends ReactiveStore {
       "getKnownFollowers",
       async (plugin, { did }) => {
         if (!this._dataLayer) return null;
-        await this._dataLayer.requests.loadKnownFollowers(did);
-        return this._dataLayer.derived.$knownFollowers.get(did) ?? null;
+        try {
+          return await this._dataLayer.declarative.ensureKnownFollowers(did);
+        } catch {
+          return null;
+        }
       },
+    );
+
+    this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
+      this.slingshot.getRecord(args),
     );
 
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
