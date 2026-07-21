@@ -1,5 +1,8 @@
 import { ExternalLinkWarningModal } from "/js/modals/externalLinkWarning.modal.js";
-import { assertSafeInlineStyleValue } from "/js/plugins/pluginStylesLoader.js";
+import {
+  assertSafeInlineStyleValue,
+  assertSafeSvgValue,
+} from "/js/plugins/pluginStylesLoader.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
@@ -49,8 +52,68 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_EVENTS = ["click", "change", "input"];
 
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+// Case-sensitive
+const SVG_ALLOWED_TAGS = new Set([
+  "svg",
+  "g",
+  "path",
+  "rect",
+  "circle",
+  "ellipse",
+  "line",
+  "polyline",
+  "polygon",
+  "title",
+  "desc",
+]);
+
+const SVG_ALLOWED_ATTRS = new Set([
+  "viewBox",
+  "preserveAspectRatio",
+  "width",
+  "height",
+  "x",
+  "y",
+  "x1",
+  "y1",
+  "x2",
+  "y2",
+  "cx",
+  "cy",
+  "r",
+  "rx",
+  "ry",
+  "d",
+  "points",
+  "transform",
+  "class",
+  "role",
+  "fill",
+  "fill-rule",
+  "fill-opacity",
+  "stroke",
+  "stroke-width",
+  "stroke-linecap",
+  "stroke-linejoin",
+  "stroke-dasharray",
+  "stroke-opacity",
+  "opacity",
+  "color",
+]);
+
+const SVG_MAX_PATH_LENGTH = 32 * 1024;
+
 function isAllowedTag(tag) {
   return ALLOWED_TAGS.includes(tag);
+}
+
+function isAllowedSvgAttr(name) {
+  if (SVG_ALLOWED_ATTRS.has(name)) return true;
+  if (name.startsWith("data-") || name.startsWith("aria-")) return true;
+  return false;
 }
 
 const ALLOWED_ATTRS = [
@@ -288,6 +351,26 @@ function resolveTag(node, pluginId) {
   return tag;
 }
 
+function resolveSvgTag(node, pluginId) {
+  const tag = typeof node.tag === "string" ? node.tag : "";
+  if (SVG_ALLOWED_TAGS.has(tag)) return tag;
+  if (pluginId !== undefined) {
+    console.warn(
+      `[plugins] "${pluginId}" tried to render disallowed SVG tag <${tag}>`,
+    );
+  }
+  return "g";
+}
+
+// Namespace is HTML by default, SVG once we enter an <svg>
+function resolveChildNamespace(parentNs, node) {
+  if (parentNs === SVG_NS) return SVG_NS;
+  if (typeof node.tag === "string" && node.tag.toLowerCase() === "svg") {
+    return SVG_NS;
+  }
+  return HTML_NS;
+}
+
 // Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
   constructor(pluginBridge, pluginId, renderContext) {
@@ -303,10 +386,10 @@ export class PluginRenderer {
       el: null,
       render(rawNode) {
         const node = renderer._normalize(rawNode);
-        if (this.el && renderer._sameKind(this.tree, node)) {
-          renderer._patch(this.el, this.tree, node);
+        if (this.el && renderer._sameKind(this.tree, node, HTML_NS)) {
+          renderer._patch(this.el, this.tree, node, HTML_NS);
         } else {
-          this.el = renderer._create(node);
+          this.el = renderer._create(node, HTML_NS);
         }
         this.tree = node;
         return this.el;
@@ -340,21 +423,28 @@ export class PluginRenderer {
     console.warn(`[plugins] "${this.pluginId}" had ${summary}`);
   }
 
-  _sameKind(oldNode, newNode) {
+  _sameKind(oldNode, newNode, parentNs = HTML_NS) {
     if (!oldNode || !newNode) return false;
     if (oldNode.type === "text" && newNode.type === "text") return true;
     if (oldNode.type === "element" && newNode.type === "element") {
+      const oldNs = resolveChildNamespace(parentNs, oldNode);
+      const newNs = resolveChildNamespace(parentNs, newNode);
+      if (oldNs !== newNs) return false;
+      if (oldNs === SVG_NS) {
+        return resolveSvgTag(oldNode) === resolveSvgTag(newNode);
+      }
       return resolveTag(oldNode) === resolveTag(newNode);
     }
     return false;
   }
 
-  _create(node) {
+  _create(node, parentNs = HTML_NS) {
     if (node.type === "text") {
       return document.createTextNode(node.value);
     }
-    const pluginId = this.pluginId;
-    const tag = resolveTag(node, pluginId);
+    const ns = resolveChildNamespace(parentNs, node);
+    if (ns === SVG_NS) return this._createSvg(node);
+    const tag = resolveTag(node, this.pluginId);
     const element = document.createElement(tag);
     if (tag === "a") {
       element.setAttribute("target", "_blank");
@@ -393,13 +483,13 @@ export class PluginRenderer {
       for (const [name, value] of Object.entries(node.attrs)) {
         if (!isAllowedAttr(name, tag)) {
           console.warn(
-            `[plugins] "${pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
+            `[plugins] "${this.pluginId}" tried to set disallowed attribute "${name}" on <${tag}>`,
           );
           continue;
         }
         if (name === "href" && !isSafeHref(value)) {
           console.warn(
-            `[plugins] "${pluginId}" tried to set unsafe href "${value}"`,
+            `[plugins] "${this.pluginId}" tried to set unsafe href "${value}"`,
           );
           continue;
         }
@@ -413,17 +503,79 @@ export class PluginRenderer {
     }
     this._patchEvents(element, null, node.events);
     for (const child of node.children) {
-      element.appendChild(this._create(child));
+      element.appendChild(this._create(child, HTML_NS));
     }
     return element;
   }
 
-  _patch(node, oldNode, newNode) {
+  _createSvg(node) {
+    const tag = resolveSvgTag(node, this.pluginId);
+    const element = document.createElementNS(SVG_NS, tag);
+    if (node.attrs) {
+      for (const [name, value] of Object.entries(node.attrs)) {
+        this._setSvgAttr(element, tag, name, value);
+      }
+    }
+    if (node.styles) {
+      for (const [name, value] of Object.entries(node.styles)) {
+        applyStyle(element, name, value);
+      }
+    }
+    for (const child of node.children) {
+      if (child.type === "text") {
+        element.appendChild(document.createTextNode(child.value));
+        continue;
+      }
+      element.appendChild(this._create(child, SVG_NS));
+    }
+    return element;
+  }
+
+  _setSvgAttr(element, tag, name, value) {
+    const pluginId = this.pluginId;
+    if (!isAllowedSvgAttr(name)) {
+      if (pluginId !== undefined) {
+        console.warn(
+          `[plugins] "${pluginId}" tried to set disallowed SVG attribute "${name}" on <${tag}>`,
+        );
+      }
+      return;
+    }
+    const stringValue = String(value);
+    if (
+      (name === "d" || name === "points") &&
+      stringValue.length > SVG_MAX_PATH_LENGTH
+    ) {
+      if (pluginId !== undefined) {
+        console.warn(
+          `[plugins] "${pluginId}" SVG "${name}" attribute exceeds max length; dropped`,
+        );
+      }
+      return;
+    }
+    try {
+      assertSafeSvgValue(name, stringValue);
+    } catch {
+      if (pluginId !== undefined) {
+        console.warn(
+          `[plugins] "${pluginId}" tried to set unsafe SVG "${name}" value`,
+        );
+      }
+      return;
+    }
+    element.setAttribute(name, stringValue);
+  }
+
+  _patch(node, oldNode, newNode, parentNs = HTML_NS) {
     if (newNode.type === "text") {
       if (node.nodeValue !== newNode.value) node.nodeValue = newNode.value;
       return;
     }
-    const pluginId = this.pluginId;
+    const ns = resolveChildNamespace(parentNs, newNode);
+    if (ns === SVG_NS) {
+      this._patchSvg(node, oldNode, newNode);
+      return;
+    }
     const element = node;
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
@@ -431,14 +583,12 @@ export class PluginRenderer {
     const tag = element.localName;
 
     for (const name of Object.keys(oldAttrs)) {
-      if (!(name in newAttrs) && isAllowedAttr(name, tag)) {
-        element.removeAttribute(name);
-      }
+      if (!(name in newAttrs)) element.removeAttribute(name);
     }
     for (const [name, value] of Object.entries(newAttrs)) {
       if (!isAllowedAttr(name, tag)) {
         console.warn(
-          `[plugins] "${pluginId}" tried to set disallowed attribute "${name}"`,
+          `[plugins] "${this.pluginId}" tried to set disallowed attribute "${name}"`,
         );
         continue;
       }
@@ -446,7 +596,7 @@ export class PluginRenderer {
       if (isFocused && (name === "value" || name === "checked")) continue;
       if (name === "href" && !isSafeHref(value)) {
         console.warn(
-          `[plugins] "${pluginId}" tried to set unsafe href "${value}"`,
+          `[plugins] "${this.pluginId}" tried to set unsafe href "${value}"`,
         );
         element.removeAttribute("href");
         continue;
@@ -472,8 +622,15 @@ export class PluginRenderer {
       element.refresh();
     }
 
-    const oldChildren = oldNode.children ?? [];
-    const newChildren = newNode.children ?? [];
+    this._patchChildren(
+      element,
+      oldNode.children ?? [],
+      newNode.children ?? [],
+      HTML_NS,
+    );
+  }
+
+  _patchChildren(element, oldChildren, newChildren, parentNs) {
     const domChildren = Array.from(element.childNodes);
     const max = Math.max(oldChildren.length, newChildren.length);
     for (let index = 0; index < max; index++) {
@@ -481,15 +638,42 @@ export class PluginRenderer {
       const newChild = newChildren[index];
       const domChild = domChildren[index];
       if (!oldChild && newChild) {
-        element.appendChild(this._create(newChild));
+        element.appendChild(this._create(newChild, parentNs));
       } else if (oldChild && !newChild) {
         if (domChild) element.removeChild(domChild);
-      } else if (this._sameKind(oldChild, newChild)) {
-        this._patch(domChild, oldChild, newChild);
+      } else if (this._sameKind(oldChild, newChild, parentNs)) {
+        this._patch(domChild, oldChild, newChild, parentNs);
       } else {
-        element.replaceChild(this._create(newChild), domChild);
+        element.replaceChild(this._create(newChild, parentNs), domChild);
       }
     }
+  }
+
+  _patchSvg(element, oldNode, newNode) {
+    const tag = element.localName;
+    const oldAttrs = oldNode.attrs ?? {};
+    const newAttrs = newNode.attrs ?? {};
+    for (const name of Object.keys(oldAttrs)) {
+      if (!(name in newAttrs)) element.removeAttribute(name);
+    }
+    for (const [name, value] of Object.entries(newAttrs)) {
+      if (oldAttrs[name] === value) continue;
+      this._setSvgAttr(element, tag, name, value);
+    }
+    const oldStyles = oldNode.styles ?? {};
+    const newStyles = newNode.styles ?? {};
+    for (const name of Object.keys(oldStyles)) {
+      if (!(name in newStyles)) element.style.removeProperty(name);
+    }
+    for (const [name, value] of Object.entries(newStyles)) {
+      if (oldStyles[name] !== value) applyStyle(element, name, value);
+    }
+    this._patchChildren(
+      element,
+      oldNode.children ?? [],
+      newNode.children ?? [],
+      SVG_NS,
+    );
   }
 
   _patchEvents(element, oldEvents, newEvents) {

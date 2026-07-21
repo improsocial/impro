@@ -7,6 +7,17 @@ export function assertSafeCssValue(property, value) {
   }
 }
 
+// Rejects all url()/image-set()/etc, matching the stylesheet rule
+export function assertSafeSvgValue(attribute, value) {
+  if (typeof value !== "string") return;
+  if (URL_FUNC_RE.test(value)) {
+    throw new Error(`disallowed url() in ${attribute}`);
+  }
+  if (value.includes("\\")) {
+    throw new Error(`disallowed escape in ${attribute}`);
+  }
+}
+
 export function assertSafeInlineStyleValue(property, value) {
   // Reject any backslash so a CSS-escape-encoded identifier (e.g. `\75rl(...)`)
   // can't slip past URL_FUNC_RE

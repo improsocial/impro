@@ -1119,3 +1119,181 @@ describe("PluginRenderer:malformed and oversized nodes", () => {
     assert.deepEqual(warn.mock.callCount(), 0);
   });
 });
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+
+function svgTree(pathAttrs = { d: "M0 0 L10 10" }) {
+  return {
+    type: "element",
+    tag: "svg",
+    attrs: { viewBox: "0 0 10 10", width: "10", height: "10" },
+    children: [
+      { type: "element", tag: "path", attrs: pathAttrs, children: [] },
+    ],
+  };
+}
+
+describe("PluginRenderer:svg", () => {
+  it("renders <svg><path> with the SVG namespace", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render(svgTree());
+    assert.deepEqual(element.namespaceURI, SVG_NS);
+    assert.deepEqual(element.tagName, "svg");
+    const path = element.firstChild;
+    assert.deepEqual(path.namespaceURI, SVG_NS);
+    assert.deepEqual(path.getAttribute("d"), "M0 0 L10 10");
+  });
+
+  it("preserves camelCase attributes like viewBox", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render(svgTree());
+    assert.deepEqual(element.getAttribute("viewBox"), "0 0 10 10");
+    assert(!element.hasAttribute("viewbox"));
+  });
+
+  it("replaces disallowed SVG tags with an inert <g>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        { type: "element", tag: "script", attrs: {}, children: [] },
+        { type: "element", tag: "foreignObject", attrs: {}, children: [] },
+        { type: "element", tag: "path", attrs: { d: "M0 0" }, children: [] },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 3);
+    const [first, second, third] = element.childNodes;
+    assert.deepEqual(first.namespaceURI, SVG_NS);
+    assert.deepEqual(first.tagName, "g");
+    assert.deepEqual(second.tagName, "g");
+    assert.deepEqual(third.tagName, "path");
+  });
+
+  it("drops disallowed SVG attributes and on* handlers", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: { onclick: "alert(1)", xmlns: "http://evil", id: "grad" },
+      children: [],
+    });
+    assert(!element.hasAttribute("onclick"));
+    assert(!element.hasAttribute("xmlns"));
+    assert(!element.hasAttribute("id"));
+  });
+
+  it("rejects url() in SVG attribute values", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        {
+          type: "element",
+          tag: "path",
+          attrs: { d: "M0 0", fill: "url(https://evil.example/x.svg)" },
+          children: [],
+        },
+      ],
+    });
+    const path = element.firstChild;
+    assert(!path.hasAttribute("fill"));
+    assert.deepEqual(path.getAttribute("d"), "M0 0");
+  });
+
+  it("caps oversized d and points attributes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const huge = "M" + "0 ".repeat(20000);
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        { type: "element", tag: "path", attrs: { d: huge }, children: [] },
+      ],
+    });
+    assert(!element.firstChild.hasAttribute("d"));
+  });
+
+  it("patches attribute updates on an SVG subtree", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render(svgTree({ d: "M0 0" }));
+    const second = root.render(svgTree({ d: "M1 1" }));
+    assert(first === second);
+    assert.deepEqual(first.firstChild.getAttribute("d"), "M1 1");
+  });
+
+  it("removes attributes that are no longer present on patch", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({
+      type: "element",
+      tag: "svg",
+      attrs: { viewBox: "0 0 10 10", width: "10" },
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "svg",
+      attrs: { viewBox: "0 0 10 10" },
+      children: [],
+    });
+    assert(!first.hasAttribute("width"));
+  });
+
+  it("allows <title>, <desc>, and role/aria attributes for a11y", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: { role: "img", "aria-label": "square root" },
+      children: [
+        {
+          type: "element",
+          tag: "title",
+          attrs: {},
+          children: [{ type: "text", value: "sqrt" }],
+        },
+        {
+          type: "element",
+          tag: "desc",
+          attrs: {},
+          children: [{ type: "text", value: "a radical" }],
+        },
+      ],
+    });
+    assert.deepEqual(element.getAttribute("role"), "img");
+    assert.deepEqual(element.getAttribute("aria-label"), "square root");
+    const [title, desc] = element.childNodes;
+    assert.deepEqual(title.namespaceURI, SVG_NS);
+    assert.deepEqual(title.tagName, "title");
+    assert.deepEqual(title.textContent, "sqrt");
+    assert.deepEqual(desc.textContent, "a radical");
+  });
+
+  it("leaves existing HTML rendering unaffected", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "div",
+      attrs: { class: "x" },
+      children: [{ type: "text", value: "hello" }],
+    });
+    assert.deepEqual(element.namespaceURI, HTML_NS);
+    assert.deepEqual(element.textContent, "hello");
+  });
+});
