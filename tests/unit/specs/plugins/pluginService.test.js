@@ -917,7 +917,53 @@ describe("installUnregisteredPlugin", () => {
     assert.deepEqual(state.installedPlugins[0].repo, "ow/alpha");
   });
 
-  it("rejects non-GitHub URLs", async () => {
+  it("installs from a tangled.org URL using a tangled repo spec", async () => {
+    const { service, state, loadCalls } = makeService({
+      liveManifestsByRepo: {
+        "tangled:@ow.example.com/alpha": {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+        },
+      },
+    });
+    const result = await service.installUnregisteredPlugin(
+      "https://tangled.org/@ow.example.com/alpha",
+    );
+    assert.deepEqual(result, { id: "alpha", name: "Alpha" });
+    assert.deepEqual(
+      state.installedPlugins[0].repo,
+      "tangled:@ow.example.com/alpha",
+    );
+    assert.deepEqual(loadCalls, [
+      {
+        id: "alpha",
+        version: "1.0.0",
+        repo: "tangled:@ow.example.com/alpha",
+      },
+    ]);
+  });
+
+  it("accepts tangled.sh URLs", async () => {
+    const { service, state } = makeService({
+      liveManifestsByRepo: {
+        "tangled:@ow.example.com/alpha": {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+        },
+      },
+    });
+    await service.installUnregisteredPlugin(
+      "https://tangled.sh/@ow.example.com/alpha",
+    );
+    assert.deepEqual(
+      state.installedPlugins[0].repo,
+      "tangled:@ow.example.com/alpha",
+    );
+  });
+
+  it("rejects URLs from unsupported hosts", async () => {
     const { service, state } = makeService();
     let caught = null;
     try {
@@ -925,7 +971,7 @@ describe("installUnregisteredPlugin", () => {
     } catch (error) {
       caught = error;
     }
-    assert(caught?.message.includes("Invalid GitHub URL"));
+    assert(caught?.message.includes("Invalid repo URL"));
     assert.deepEqual(state.installedPlugins, []);
   });
 
@@ -937,7 +983,7 @@ describe("installUnregisteredPlugin", () => {
     } catch (error) {
       caught = error;
     }
-    assert(caught?.message.includes("Invalid GitHub URL"));
+    assert(caught?.message.includes("Invalid repo URL"));
   });
 
   it("throws when manifest is missing required fields", async () => {

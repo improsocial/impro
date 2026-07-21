@@ -232,8 +232,9 @@ class SettingsAdvancedView extends View {
               <section class="settings-section">
                 <h2>Install plugin from URL</h2>
                 <p>
-                  Install a plugin directly from a public GitHub repository. The
-                  repo must contain a valid manifest.json on its main branch.
+                  Install a plugin directly from a public GitHub or Tangled
+                  repository. The repo must contain a valid manifest.json on its
+                  main branch.
                 </p>
                 <div class="warning-area">
                   <h4>${alertIconTemplate()} Warning</h4>
@@ -241,7 +242,7 @@ class SettingsAdvancedView extends View {
                   plugins from sources you trust.
                 </div>
                 <div class="form-group">
-                  <label for="pluginUrl">GitHub repo URL</label>
+                  <label for="pluginUrl">Repo URL</label>
                   <input
                     id="pluginUrl"
                     name="pluginUrl"

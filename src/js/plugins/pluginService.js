@@ -49,7 +49,15 @@ export function getPluginPreviewIdsFromQueryParam() {
   return [...new Set(ids)];
 }
 
-export function parseGithubRepoUrl(input) {
+const REPO_URL_HOSTS = {
+  "github.com": "github",
+  "www.github.com": "github",
+  "tangled.org": "tangled",
+  "www.tangled.org": "tangled",
+  "tangled.sh": "tangled",
+};
+
+export function parseRepoUrl(input) {
   if (typeof input !== "string") return null;
   const trimmed = input.trim();
   if (!trimmed) return null;
@@ -62,15 +70,15 @@ export function parseGithubRepoUrl(input) {
   if (url.protocol !== "https:" && url.protocol !== "http:") {
     return null;
   }
-  if (url.hostname !== "github.com" && url.hostname !== "www.github.com") {
-    return null;
-  }
+  const host = REPO_URL_HOSTS[url.hostname];
+  if (!host) return null;
   const segments = url.pathname.split("/").filter(Boolean);
   if (segments.length < 2) return null;
   const owner = segments[0];
   const repo = segments[1].replace(/\.git$/, "");
   if (!owner || !repo) return null;
-  return `${owner}/${repo}`;
+  const path = `${owner}/${repo}`;
+  return host === "github" ? path : `${host}:${path}`;
 }
 
 // Stamps node tokens (inline/block) with the pluginId that created them, so
@@ -615,9 +623,9 @@ export class PluginService extends ReactiveStore {
   }
 
   async installUnregisteredPlugin(url) {
-    const repo = parseGithubRepoUrl(url);
+    const repo = parseRepoUrl(url);
     if (!repo) {
-      throw new Error("Invalid GitHub URL");
+      throw new Error("Invalid repo URL: must be a GitHub or Tangled repo");
     }
     let manifest = null;
     try {
