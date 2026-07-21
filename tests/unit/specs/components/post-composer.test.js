@@ -2507,14 +2507,14 @@ describe("post-composer", () => {
       );
     });
 
-    it("closes the image alt-text dialog without saving on cancel", async () => {
+    it("closes the image alt-text dialog without saving on close", async () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
       await nextFrame();
       element.querySelector(".image-preview-item img").click();
       const dialog = document.body.querySelector("image-alt-text-dialog");
-      dialog.querySelector('[data-testid="alt-text-cancel"]').click();
+      dialog.querySelector('[data-testid="alt-text-close"]').click();
       assert.deepEqual(getFirstPost(element).images[0].alt, undefined);
       assert.deepEqual(
         document.body.querySelector("image-alt-text-dialog"),

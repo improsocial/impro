@@ -5857,24 +5857,8 @@ emoji-picker-dialog emoji-picker,
   background-color: var(--skeleton-color);
 }
 
-.post-composer {
-  border: var(--hair) solid var(--post-border-color);
-  border-bottom: none;
-  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-  background-color: light-dark(var(--white), var(--mid-gray));
-  color: var(--text-color);
-  padding: 0;
-  max-width: 100%;
-  width: 100%;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: auto;
-  box-shadow: var(--shadow-color-heavy);
-  animation: slide-up 0.15s ease-out;
-  transform: none;
-  margin: 0;
+.post-composer.bottom-sheet {
+  padding-bottom: 0;
   overflow: visible;
   touch-action: pan-y;
   display: flex;
@@ -5882,22 +5866,10 @@ emoji-picker-dialog emoji-picker,
 }
 
 @media (min-width: 800px) {
-  .post-composer {
+  .post-composer.bottom-sheet {
     max-width: 600px;
-    width: 90%;
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    height: auto;
     max-height: calc(100vh - 64px);
-    border-bottom: var(--hair) solid var(--post-border-color);
-    border-radius: var(--dialog-border-radius);
-    box-shadow: none;
-    animation: none;
-    transform: translate(-50%, -50%);
     touch-action: auto;
-    display: flex;
     overflow: hidden;
   }
 }
@@ -6059,6 +6031,10 @@ emoji-picker-dialog emoji-picker,
   .bottom-sheet::before {
     display: none;
   }
+}
+
+.bottom-sheet.no-handle::before {
+  display: none;
 }
 
 .bottom-sheet::backdrop {
@@ -6804,48 +6780,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   flex-direction: column-reverse;
 }
 
-.image-alt-text-dialog {
-  border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--sheet-border-radius) var(--sheet-border-radius) 0 0;
-  background-color: light-dark(var(--white), var(--mid-gray));
-  color: var(--text-color);
-  max-width: 100%;
-  width: 100%;
-  position: fixed;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  height: auto;
-  box-shadow: var(--shadow-color-heavy);
-  animation: slide-up 0.15s ease-out;
-  transform: none;
-  margin: 0;
-  overflow: visible;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
 @media (min-width: 800px) {
-  .image-alt-text-dialog {
+  .image-alt-text-dialog.bottom-sheet {
     max-width: 600px;
-    width: 90%;
-    top: 50%;
-    left: 50%;
-    right: auto;
-    bottom: auto;
-    height: auto;
     max-height: none;
-    border-radius: var(--dialog-border-radius);
-    box-shadow: none;
-    animation: none;
-    transform: translate(-50%, -50%);
   }
-}
-
-.image-alt-text-dialog::backdrop {
-  background-color: var(--overlay-color-medium);
-  animation: fade-in 0.2s ease-out;
 }
 
 .image-alt-text-dialog-content {
@@ -6867,6 +6806,29 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   margin: 0;
   font-size: 18px;
   font-weight: 600;
+}
+
+.image-alt-text-dialog-close {
+  display: none;
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-color);
+  padding: 0 8px;
+  opacity: 0.6;
+}
+
+@media (min-width: 800px) {
+  .image-alt-text-dialog-close {
+    display: inline-flex;
+    align-items: center;
+  }
+}
+
+@media (hover: hover) {
+  .image-alt-text-dialog-close:hover {
+    opacity: 1;
+  }
 }
 
 .image-alt-text-dialog-body {
@@ -7621,10 +7583,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   .drafts-dialog {
     max-width: 500px;
   }
-}
-
-.drafts-dialog::before {
-  display: none;
 }
 
 .drafts-dialog-content {
@@ -9241,10 +9199,6 @@ tab-bar[full-width] {
 
 tab-bar[full-width] .tab-bar-button {
   flex: 1;
-}
-
-.bottom-sheet.no-handle::before {
-  display: none;
 }
 
 .edit-profile-dialog {

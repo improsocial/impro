@@ -248,9 +248,9 @@ describe("largePostTemplate - plugin context menu items", () => {
 
   async function openPostContextMenu(container) {
     ensurePageVisible();
-    const moreButton = Array.from(
-      container.querySelectorAll(".post-action-button.text-button"),
-    ).find((button) => button.textContent.trim() === "...");
+    const moreButton = container.querySelector(
+      '[data-testid="post-action-more"]',
+    );
     moreButton.click();
     await flushMicrotasks();
     return document.body.querySelector("context-menu.post-context-menu");

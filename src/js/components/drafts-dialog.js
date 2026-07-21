@@ -253,7 +253,7 @@ class DraftsDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-stacked drafts-dialog"
+          class="bottom-sheet bottom-sheet-stacked no-handle drafts-dialog"
           data-testid="drafts-dialog"
           @click=${(event) => {
             if (event.target.tagName === "DIALOG") {

@@ -1,7 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { classnames, graphemeCount, resetScrollOnBlur } from "/js/utils.js";
+import {
+  classnames,
+  enableDragToDismiss,
+  graphemeCount,
+  resetScrollOnBlur,
+} from "/js/utils.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class ImageAltTextDialog extends Component {
   connectedCallback() {
@@ -37,7 +43,7 @@ class ImageAltTextDialog extends Component {
 
     render(
       html`<dialog
-        class="image-alt-text-dialog bottom-sheet-stacked"
+        class="image-alt-text-dialog bottom-sheet bottom-sheet-stacked"
         autofocus
         @click=${(e) => {
           if (e.target.tagName === "DIALOG") {
@@ -51,6 +57,14 @@ class ImageAltTextDialog extends Component {
         <div class="image-alt-text-dialog-content">
           <div class="image-alt-text-dialog-header">
             <h2>Add alt text</h2>
+            <button
+              class="image-alt-text-dialog-close"
+              aria-label="Close"
+              data-testid="alt-text-close"
+              @click=${() => this.close()}
+            >
+              ${closeIconTemplate()}
+            </button>
           </div>
           <div class="image-alt-text-dialog-body">
             ${this.imageUrl
@@ -89,13 +103,6 @@ class ImageAltTextDialog extends Component {
             </div>
             <div class="image-alt-text-dialog-footer-buttons">
               <button
-                class="rounded-button rounded-button-secondary"
-                data-testid="alt-text-cancel"
-                @click=${() => this.close()}
-              >
-                Cancel
-              </button>
-              <button
                 class="rounded-button rounded-button-primary"
                 data-testid="alt-text-save"
                 @click=${() => this.save()}
@@ -117,6 +124,12 @@ class ImageAltTextDialog extends Component {
     dialog.showModal();
     this.querySelector(".image-alt-text-dialog-textarea")?.focus({
       preventScroll: true,
+    });
+
+    enableDragToDismiss(dialog, {
+      onClose: () => this.close(),
+      ignoreTouchTarget: (element) =>
+        element.closest("button, textarea") !== null,
     });
 
     resetScrollOnBlur(
