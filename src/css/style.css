@@ -10188,7 +10188,7 @@ p.setting-item-desc {
   bottom: auto;
   max-height: 80vh;
   border: var(--hair) solid var(--post-border-color);
-  border-radius: var(--dialog-border-radius);
+  border-radius: 22px;
   box-shadow: none;
   animation: none;
   transform: translate(-50%, -50%);
