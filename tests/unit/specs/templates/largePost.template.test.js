@@ -84,6 +84,18 @@ describe("largePostTemplate", () => {
     container.remove();
   });
 
+  it("should omit actions when rendering a prefill", () => {
+    const result = largePostTemplate({
+      post,
+      ...baseProps,
+      showActions: false,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(container.querySelector(".post-action-counts"), null);
+    assert.deepEqual(container.querySelector(".post-actions"), null);
+  });
+
   it("should render with reply context line when replyContext is parent", () => {
     const result = largePostTemplate({
       post,

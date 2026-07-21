@@ -33,6 +33,7 @@ export class DataStore extends ReactiveStore {
     // Keyed signals
     this.$feeds = new SignalMap();
     this.$posts = new SignalMap();
+    this.$embeddedPosts = new SignalMap();
     this.$postThreads = new SignalMap();
     this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
@@ -75,14 +76,16 @@ export class DataStore extends ReactiveStore {
       seenQuotedPostUris.add(quotedPost.uri);
 
       const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
-      if (this.$posts.get(quotedPost.uri) == null) {
-        this.$posts.set(quotedPost.uri, normalizedQuotedPost);
+      if (!this.$posts.has(quotedPost.uri)) {
+        this.$embeddedPosts.set(quotedPost.uri, normalizedQuotedPost);
       }
       setQuotedPost(getQuotedPost(normalizedQuotedPost));
     };
 
     for (const post of posts) {
       this.$posts.set(post.uri, post);
+      // Delete matching embedded post, since they're only used as previews
+      this.$embeddedPosts.delete(post.uri);
       setQuotedPost(getQuotedPost(post));
     }
   }

@@ -446,6 +446,7 @@ class PostThreadView extends View {
                       await handleClickReply(mainPost, root, currentUser);
                     },
                     replyContext: hasParent ? "reply" : null,
+                    showActions: !postThread.__isEmbeddedPrefill,
                   })}
               <plugin-slot
                 name="post-thread-view:after-main"
@@ -453,7 +454,10 @@ class PostThreadView extends View {
                 .pluginService=${pluginService}
                 .interactionHandlers=${interactionHandlers}
               ></plugin-slot>
-              ${isAuthenticated && currentUser && canReplyToPost(mainPost)
+              ${!postThread.__isEmbeddedPrefill &&
+              isAuthenticated &&
+              currentUser &&
+              canReplyToPost(mainPost)
                 ? html`
                     <div
                       class="post-thread-reply-prompt"
@@ -520,6 +524,17 @@ class PostThreadView extends View {
         return {
           __isPrefill: true,
           post,
+          parent: null,
+          replies: null,
+        };
+      }
+      const embeddedPost =
+        dataLayer.derived.$hydratedEmbeddedPosts.get(postUri);
+      if (embeddedPost) {
+        return {
+          __isPrefill: true,
+          __isEmbeddedPrefill: true,
+          post: embeddedPost,
           parent: null,
           replies: null,
         };

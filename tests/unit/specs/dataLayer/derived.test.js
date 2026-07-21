@@ -112,6 +112,25 @@ describe("$hydratedFeeds", () => {
   });
 });
 
+describe("$hydratedEmbeddedPosts", () => {
+  it("hydrates embedded posts without exposing them as full posts", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const post = {
+      uri: "at://did:test/app.bsky.feed.post/quoted",
+      cid: "quoted-cid",
+      author: { did: "did:test", handle: "quoted.test" },
+      record: { text: "quoted" },
+      indexedAt: "2026-07-20T00:00:00Z",
+    };
+
+    dataStore.$embeddedPosts.set(post.uri, post);
+
+    assert.deepEqual(derived.$hydratedPosts.get(post.uri), null);
+    assert.deepEqual(derived.$hydratedEmbeddedPosts.get(post.uri), post);
+  });
+});
+
 describe("$hydratedHashtagFeeds", () => {
   const hashtagKey = "javascript-top";
 

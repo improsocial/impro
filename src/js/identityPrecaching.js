@@ -9,17 +9,22 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
 
   const seenPostUris = new Set();
   effect(() => {
-    const uris = [...dataLayer.dataStore.$posts.keys()];
-    for (const uri of uris) {
-      if (seenPostUris.has(uri)) continue;
-      seenPostUris.add(uri);
-      const post = untrack(() => dataLayer.dataStore.$posts.get(uri));
-      if (!post) continue;
-      try {
-        setDid(post.author);
-      } catch (error) {
-        console.error("error when setting DID from post", post);
-        console.error(error);
+    const postStores = [
+      dataLayer.dataStore.$posts,
+      dataLayer.dataStore.$embeddedPosts,
+    ];
+    for (const postStore of postStores) {
+      for (const uri of postStore.keys()) {
+        if (seenPostUris.has(uri)) continue;
+        seenPostUris.add(uri);
+        const post = untrack(() => postStore.get(uri));
+        if (!post) continue;
+        try {
+          setDid(post.author);
+        } catch (error) {
+          console.error("error when setting DID from post", post);
+          console.error(error);
+        }
       }
     }
   });
