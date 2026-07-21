@@ -11,6 +11,10 @@ class ProfileListModal extends Modal {
     return { "data-testid": "profile-list-modal" };
   }
 
+  get scrollContainerSelector() {
+    return ".profile-list-modal-body";
+  }
+
   render({
     props: {
       title,

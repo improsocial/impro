@@ -32,6 +32,10 @@ export class Modal {
     return element.closest("button") !== null;
   }
 
+  get scrollContainerSelector() {
+    return null;
+  }
+
   render() {
     throw new Error(`${this.constructor.name} must implement render()`);
   }
@@ -83,10 +87,12 @@ export class Modal {
       });
 
       if (this.dragToDismiss) {
+        const selector = this.scrollContainerSelector;
         enableDragToDismiss(dialog, {
           onClose: () => dismiss(),
           confirmDismiss: () => this.canDismiss(),
           ignoreTouchTarget: (element) => this.ignoreTouchTarget(element),
+          scrollContainer: selector ? dialog.querySelector(selector) : null,
           disableWhenKeyboardOpen: true,
         });
       }

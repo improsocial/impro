@@ -242,6 +242,7 @@ class AddToListsDialog extends Component {
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       allowUpwardStretch: true,
+      scrollContainer: this.querySelector(".add-to-lists-dialog-rows"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }
