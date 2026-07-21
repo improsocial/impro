@@ -5,6 +5,7 @@ import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = [
   "blue.poll.post.facet#option",
+  "blue.poll.post.facet#question",
   "blue.moji.richtext.facet",
 ];
 
