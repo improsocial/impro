@@ -163,16 +163,34 @@ class PluginData {
   }
 }
 
-// Moderation actions on behalf of the signed-in user. Each method requires
-// the corresponding scope ("mute", "block", "feedback") to be declared in
-// the plugin manifest's `permissions.moderation` array, which the user must
-// grant at install time.
-class PluginModeration {
-  muteActor(did, mute = true) {
-    return hostCall("muteActor", { did, mute });
+class App {
+  constructor() {
+    this.currentUser = null;
+    this.data = new PluginData();
   }
-  blockActor(did, block = true) {
-    return hostCall("blockActor", { did, block });
+  on(event, listener) {
+    addEventListener(event, listener);
+  }
+
+  refreshFeedFilters(feedURI = null) {
+    return hostCall("refreshFeedFilters", feedURI);
+  }
+
+  // Actions on behalf of the signed-in user. Each method requires the
+  // corresponding scope ("mute", "block", "feedFeedback") to be declared in
+  // the plugin manifest's `permissions.actions` array, which the user must
+  // grant at install time.
+  muteActor(did) {
+    return hostCall("muteActor", { did, mute: true });
+  }
+  unmuteActor(did) {
+    return hostCall("muteActor", { did, mute: false });
+  }
+  blockActor(did) {
+    return hostCall("blockActor", { did, block: true });
+  }
+  unblockActor(did) {
+    return hostCall("blockActor", { did, block: false });
   }
   // Acts like the user clicking "Show less like this": sends the requestLess
   // feedback signal to the feed that served the post and collapses the post
@@ -182,32 +200,6 @@ class PluginModeration {
   }
   showMoreLikeThis(postUri, feedUri) {
     return hostCall("showMoreLikeThis", { postUri, feedUri });
-  }
-  // Low-level app.bsky.feed.sendInteractions with no UI side effects. event
-  // must be an allowed app.bsky.feed.defs#interaction value (e.g.
-  // "app.bsky.feed.defs#interactionSeen")
-  sendInteraction(postUri, event, feedProxyUrl, { feedContext = null } = {}) {
-    return hostCall("sendInteraction", {
-      postUri,
-      event,
-      feedProxyUrl,
-      feedContext,
-    });
-  }
-}
-
-class App {
-  constructor() {
-    this.currentUser = null;
-    this.data = new PluginData();
-    this.moderation = new PluginModeration();
-  }
-  on(event, listener) {
-    addEventListener(event, listener);
-  }
-
-  refreshFeedFilters(feedURI = null) {
-    return hostCall("refreshFeedFilters", feedURI);
   }
 }
 

@@ -1446,18 +1446,29 @@ describe("app.data host methods", () => {
   });
 });
 
-describe("feed feedback host methods", () => {
+describe("action host methods", () => {
   const feedbackPlugin = {
     pluginId: "test-plugin",
-    permissions: { moderation: ["feedback"] },
+    permissions: { actions: ["feedFeedback"] },
   };
   const postUri = "at://did:plc:author/app.bsky.feed.post/1";
   const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool-feed";
 
-  function makeService({ feedItem = null, feedGenerator = null } = {}) {
+  function makeService({
+    feedItem = null,
+    feedGenerator = null,
+    hydratedProfiles = {},
+  } = {}) {
     const { provider } = makeProvider();
     const service = new PluginService(provider, null);
-    const calls = { showLess: [], showMore: [], sendInteractions: [] };
+    const calls = {
+      showLess: [],
+      showMore: [],
+      mute: [],
+      unmute: [],
+      block: [],
+      unblock: [],
+    };
     service.setDataLayer({
       dataStore: {
         $feeds: {
@@ -1469,13 +1480,16 @@ describe("feed feedback host methods", () => {
         $feedGenerators: {
           get: (uri) => (uri === feedUri ? feedGenerator : null),
         },
+        $hydratedDetailedProfiles: { get: () => null },
+        $hydratedProfiles: { get: (did) => hydratedProfiles[did] ?? null },
       },
       mutations: {
         sendShowLessInteraction: async (...args) => calls.showLess.push(args),
         sendShowMoreInteraction: async (...args) => calls.showMore.push(args),
-      },
-      api: {
-        sendInteractions: async (...args) => calls.sendInteractions.push(args),
+        muteProfile: async (profile) => calls.mute.push(profile),
+        unmuteProfile: async (profile) => calls.unmute.push(profile),
+        blockProfile: async (profile) => calls.block.push(profile),
+        unblockProfile: async (profile) => calls.unblock.push(profile),
       },
     });
     return { service, calls };
@@ -1513,7 +1527,7 @@ describe("feed feedback host methods", () => {
     assert.deepEqual(calls.showMore, []);
   });
 
-  it("all three methods reject when postUri is missing", async () => {
+  it("both methods reject when postUri is missing", async () => {
     const { service, calls } = makeService();
     await assert.rejects(
       getHandler(service, "showLessLikeThis")(feedbackPlugin, { feedUri }),
@@ -1523,30 +1537,22 @@ describe("feed feedback host methods", () => {
       getHandler(service, "showMoreLikeThis")(feedbackPlugin, { feedUri }),
       /requires a postUri/,
     );
-    await assert.rejects(
-      getHandler(service, "sendInteraction")(feedbackPlugin, {
-        event: "app.bsky.feed.defs#interactionSeen",
-        feedProxyUrl: "did:web:feed.example#bsky_fg",
-      }),
-      /requires a postUri/,
-    );
     assert.deepEqual(calls.showLess, []);
     assert.deepEqual(calls.showMore, []);
-    assert.deepEqual(calls.sendInteractions, []);
   });
 
   it("muteActor and blockActor reject when did is missing", async () => {
     const { service } = makeService();
     await assert.rejects(
       getHandler(service, "muteActor")(
-        { pluginId: "test-plugin", permissions: { moderation: ["mute"] } },
+        { pluginId: "test-plugin", permissions: { actions: ["mute"] } },
         {},
       ),
       /muteActor requires a did/,
     );
     await assert.rejects(
       getHandler(service, "blockActor")(
-        { pluginId: "test-plugin", permissions: { moderation: ["block"] } },
+        { pluginId: "test-plugin", permissions: { actions: ["block"] } },
         {},
       ),
       /blockActor requires a did/,
@@ -1580,98 +1586,89 @@ describe("feed feedback host methods", () => {
     ]);
   });
 
-  it("sendInteraction sends a known event with caller-supplied routing and context", async () => {
-    const { service, calls } = makeService();
-    await getHandler(service, "sendInteraction")(feedbackPlugin, {
-      postUri,
-      event: "app.bsky.feed.defs#interactionSeen",
-      feedProxyUrl: "did:web:feed.example#bsky_fg",
-      feedContext: "plugin-ctx",
-    });
-    assert.deepEqual(calls.sendInteractions, [
-      [
-        [
-          {
-            item: postUri,
-            event: "app.bsky.feed.defs#interactionSeen",
-            feedContext: "plugin-ctx",
-          },
-        ],
-        "did:web:feed.example#bsky_fg",
-      ],
-    ]);
-  });
-
-  it("sendInteraction omits feedContext when the caller does not supply one", async () => {
-    const { service, calls } = makeService();
-    await getHandler(service, "sendInteraction")(feedbackPlugin, {
-      postUri,
-      event: "app.bsky.feed.defs#interactionShare",
-      feedProxyUrl: "did:web:feed.example#bsky_fg",
-    });
-    assert.deepEqual(calls.sendInteractions, [
-      [
-        [{ item: postUri, event: "app.bsky.feed.defs#interactionShare" }],
-        "did:web:feed.example#bsky_fg",
-      ],
-    ]);
-  });
-
-  it("sendInteraction rejects when feedProxyUrl is missing", async () => {
-    const { service, calls } = makeService();
-    await assert.rejects(
-      getHandler(service, "sendInteraction")(feedbackPlugin, {
-        postUri,
-        event: "app.bsky.feed.defs#interactionSeen",
-      }),
-      /requires a feedProxyUrl/,
-    );
-    assert.deepEqual(calls.sendInteractions, []);
-  });
-
-  it("sendInteraction rejects unknown and disallowed events", async () => {
-    const { service, calls } = makeService();
-    for (const event of [
-      "app.bsky.feed.defs#madeUp",
-      "app.bsky.feed.defs#clickthroughItem",
-      "app.bsky.feed.defs#clickthroughAuthor",
-      "app.bsky.feed.defs#clickthroughReposter",
-      "app.bsky.feed.defs#clickthroughEmbed",
-    ]) {
-      await assert.rejects(
-        getHandler(service, "sendInteraction")(feedbackPlugin, {
-          postUri,
-          event,
-          feedProxyUrl: "did:web:feed.example#bsky_fg",
-        }),
-        /Unsupported feed interaction event/,
-      );
-    }
-    assert.deepEqual(calls.sendInteractions, []);
-  });
-
-  it("all three methods require the feedback moderation permission", async () => {
+  it("both methods require the feedFeedback action permission", async () => {
     const { service, calls } = makeService();
     const noPermissionPlugin = {
       pluginId: "test-plugin",
-      permissions: { moderation: ["mute"] },
+      permissions: { actions: ["mute"] },
     };
-    for (const name of [
-      "showLessLikeThis",
-      "showMoreLikeThis",
-      "sendInteraction",
-    ]) {
+    for (const name of ["showLessLikeThis", "showMoreLikeThis"]) {
       await assert.rejects(
-        getHandler(service, name)(noPermissionPlugin, {
-          postUri,
-          event: "app.bsky.feed.defs#interactionSeen",
-        }),
-        /"feedback" moderation permission/,
+        getHandler(service, name)(noPermissionPlugin, { postUri, feedUri }),
+        /"feedFeedback" action permission/,
       );
     }
     assert.deepEqual(calls.showLess, []);
     assert.deepEqual(calls.showMore, []);
-    assert.deepEqual(calls.sendInteractions, []);
+  });
+
+  it("muteActor routes the mute flag to muteProfile and unmuteProfile", async () => {
+    const did = "did:plc:target";
+    const profile = { did, handle: "target.example" };
+    const { service, calls } = makeService({
+      hydratedProfiles: { [did]: profile },
+    });
+    const mutePlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["mute"] },
+    };
+    await getHandler(service, "muteActor")(mutePlugin, { did, mute: true });
+    await getHandler(service, "muteActor")(mutePlugin, { did, mute: false });
+    assert.deepEqual(calls.mute, [profile]);
+    assert.deepEqual(calls.unmute, [profile]);
+  });
+
+  it("blockActor routes the block flag to blockProfile and unblockProfile", async () => {
+    const did = "did:plc:target";
+    const { service, calls } = makeService();
+    const blockPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["block"] },
+    };
+    await getHandler(service, "blockActor")(blockPlugin, { did, block: true });
+    await getHandler(service, "blockActor")(blockPlugin, { did, block: false });
+    assert.deepEqual(calls.block, [{ did }]);
+    assert.deepEqual(calls.unblock, [{ did }]);
+  });
+
+  it("muteActor and blockActor require their action permissions", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["feedFeedback"] },
+    };
+    const did = "did:plc:target";
+    await assert.rejects(
+      getHandler(service, "muteActor")(noPermissionPlugin, { did }),
+      /"mute" action permission/,
+    );
+    await assert.rejects(
+      getHandler(service, "blockActor")(noPermissionPlugin, { did }),
+      /"block" action permission/,
+    );
+    assert.deepEqual(calls.mute, []);
+    assert.deepEqual(calls.block, []);
+  });
+
+  it("all action methods reject when signed out", async () => {
+    const { provider } = makeProvider();
+    const service = new PluginService(provider, null);
+    const allActionsPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["mute", "block", "feedFeedback"] },
+    };
+    const argsByMethod = {
+      muteActor: { did: "did:plc:target" },
+      blockActor: { did: "did:plc:target" },
+      showLessLikeThis: { postUri, feedUri },
+      showMoreLikeThis: { postUri, feedUri },
+    };
+    for (const [name, args] of Object.entries(argsByMethod)) {
+      await assert.rejects(
+        getHandler(service, name)(allActionsPlugin, args),
+        /Not signed in/,
+      );
+    }
   });
 });
 

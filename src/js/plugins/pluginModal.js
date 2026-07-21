@@ -71,10 +71,10 @@ export function hidePluginModal({ pluginId, modalId }) {
   }
 }
 
-const MODERATION_ACTION_LABELS = {
+const ACTION_LABELS = {
   mute: "Mute and unmute accounts on your behalf",
   block: "Block and unblock accounts on your behalf",
-  feedback:
+  feedFeedback:
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
@@ -93,14 +93,13 @@ function permissionsListTemplate({ permissions }) {
       </div>
     `);
   }
-  const moderationScopes = permissions.moderation ?? [];
-  if (moderationScopes.length > 0) {
+  const actionScopes = permissions.actions ?? [];
+  if (actionScopes.length > 0) {
     sections.push(html`
       <div class="permission-prompt-section">
         <ul class="permission-prompt-list">
-          ${moderationScopes.map(
-            (scope) =>
-              html`<li>${MODERATION_ACTION_LABELS[scope] ?? scope}</li>`,
+          ${actionScopes.map(
+            (scope) => html`<li>${ACTION_LABELS[scope] ?? scope}</li>`,
           )}
         </ul>
       </div>

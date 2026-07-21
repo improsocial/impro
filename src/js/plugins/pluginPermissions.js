@@ -1,6 +1,6 @@
 import { unique } from "/js/utils.js";
 
-const MODERATION_ACTIONS = ["mute", "block", "feedback"];
+const ACTION_SCOPES = ["mute", "block", "feedFeedback"];
 
 export function getPermissionsFromManifest(manifest) {
   return parsePermissions(manifest.permissions ?? {});
@@ -17,22 +17,22 @@ export function parsePermissions(permissions) {
     );
     if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
   }
-  if (permissions.moderation) {
-    const moderationArray = Array.isArray(permissions.moderation)
-      ? permissions.moderation
-      : [permissions.moderation];
-    const moderationScopes = unique(
-      moderationArray.filter((entry) => MODERATION_ACTIONS.includes(entry)),
+  if (permissions.actions) {
+    const actionsArray = Array.isArray(permissions.actions)
+      ? permissions.actions
+      : [permissions.actions];
+    const actionScopes = unique(
+      actionsArray.filter((entry) => ACTION_SCOPES.includes(entry)),
     );
-    if (moderationScopes.length > 0) parsed.moderation = moderationScopes;
+    if (actionScopes.length > 0) parsed.actions = actionScopes;
   }
   return parsed;
 }
 
-// action is one of "mute", "block", "feedback" (the "show fewer/more like
-// this" feed-interaction signal)
-export function isModerationActionAllowed(action, permissions) {
-  return (permissions.moderation ?? []).includes(action);
+// action is one of "mute", "block", "feedFeedback" (the "show fewer/more
+// like this" feed-interaction signal)
+export function isActionAllowed(action, permissions) {
+  return (permissions.actions ?? []).includes(action);
 }
 
 export function diffPermissions(current, next) {
