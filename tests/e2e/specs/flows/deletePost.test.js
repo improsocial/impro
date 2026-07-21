@@ -151,6 +151,7 @@ test.describe("Delete post flow", () => {
     const confirmButton = page.locator("button.confirm-button");
     await expect(confirmButton).toBeVisible({ timeout: 5000 });
     await confirmButton.click();
+    await expect(feedItem).toHaveCount(0, { timeout: 10000 });
 
     // Notification should now be hidden because the post is a notFoundPost
     await page.goto("/notifications");
