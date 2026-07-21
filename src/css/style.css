@@ -6012,9 +6012,14 @@ emoji-picker-dialog emoji-picker,
 @keyframes slide-up {
   from {
     transform: translateY(100%);
+    caret-color: transparent;
+  }
+  99% {
+    caret-color: transparent;
   }
   to {
     transform: translateY(0);
+    caret-color: auto;
   }
 }
 
@@ -6030,9 +6035,11 @@ emoji-picker-dialog emoji-picker,
 @keyframes slide-down {
   from {
     transform: translateY(0);
+    caret-color: transparent;
   }
   to {
     transform: translateY(100%);
+    caret-color: transparent;
   }
 }
 
