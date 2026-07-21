@@ -28,7 +28,7 @@ function waitForExitMotion(dialog) {
     const onMotionEnd = (event) => {
       if (event.target === dialog) finish();
     };
-    const timeoutId = setTimeout(finish, 500);
+    const timeoutId = setTimeout(finish, 400);
 
     dialog.addEventListener("animationend", onMotionEnd);
     dialog.addEventListener("transitionend", onMotionEnd);
@@ -83,7 +83,8 @@ export function enableDragToDismiss(
 
   const DISMISS_THRESHOLD = 75;
   const RESISTANCE_FACTOR = 0.6;
-  const SNAP_BACK_MS = 150;
+  const SNAP_BACK_MS = 200;
+  const SNAP_BACK_EASING = "cubic-bezier(0.32, 0.72, 0, 1)";
   let caretRestoreTimer = null;
 
   const dragState = {
@@ -166,8 +167,8 @@ export function enableDragToDismiss(
 
     const deltaY = dragState.currentY - dragState.startY;
     target.style.transition = allowUpwardStretch
-      ? `transform ${SNAP_BACK_MS}ms ease-out, height ${SNAP_BACK_MS}ms ease-out`
-      : `transform ${SNAP_BACK_MS}ms ease-out`;
+      ? `transform ${SNAP_BACK_MS}ms ${SNAP_BACK_EASING}, height ${SNAP_BACK_MS}ms ${SNAP_BACK_EASING}`
+      : `transform ${SNAP_BACK_MS}ms ${SNAP_BACK_EASING}`;
 
     if (deltaY > DISMISS_THRESHOLD && (await confirmDismiss())) {
       target.style.transform = "translateY(100%)";

@@ -229,7 +229,7 @@ describe("enableDragToDismiss", () => {
     dragState = enableDragToDismiss(el, { onClose: () => closeCount++ });
     await drag(50);
     assert.deepEqual(el.style.caretColor, "transparent");
-    await wait(200);
+    await wait(300);
     assert.deepEqual(el.style.caretColor, "");
   });
 

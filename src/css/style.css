@@ -1045,7 +1045,7 @@ tab-bar:not([full-width]) {
 .sidebar::backdrop {
   background: var(--overlay-color);
   opacity: 0;
-  transition: opacity 0.3s ease;
+  transition: opacity 0.3s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .sidebar {
@@ -1065,7 +1065,7 @@ tab-bar:not([full-width]) {
   border-right: var(--hair) solid var(--post-border-color);
   z-index: var(--sidebar-z-index);
   transform: translateX(-100%);
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   overflow-y: auto;
 }
 
@@ -1140,10 +1140,18 @@ tab-bar:not([full-width]) {
 .sidebar[open][data-closing] {
   pointer-events: none;
   transform: translateX(-100%);
+  transition: transform 0.2s cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 .sidebar[open][data-closing]::backdrop {
   opacity: 0;
+  transition: opacity 0.2s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar {
+    transition: none;
+  }
 }
 
 .sidebar-profile {
@@ -5981,11 +5989,9 @@ emoji-picker-dialog emoji-picker,
 @keyframes slide-up {
   from {
     transform: translateY(100%);
-    opacity: 0;
   }
   to {
     transform: translateY(0);
-    opacity: 1;
   }
 }
 
@@ -6001,11 +6007,9 @@ emoji-picker-dialog emoji-picker,
 @keyframes slide-down {
   from {
     transform: translateY(0);
-    opacity: 1;
   }
   to {
     transform: translateY(100%);
-    opacity: 0;
   }
 }
 
@@ -6024,7 +6028,7 @@ emoji-picker-dialog emoji-picker,
   top: auto;
   height: auto;
   box-shadow: var(--shadow-color-heavy);
-  animation: slide-up 0.15s ease-out;
+  animation: slide-up 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   transform: none;
   margin: 0;
   overflow: hidden;
@@ -6048,7 +6052,7 @@ emoji-picker-dialog emoji-picker,
 /* Only mobile bottom sheets animate out; on desktop they close instantly. */
 @media (max-width: 799px) {
   .bottom-sheet[data-closing] {
-    animation: slide-down 0.15s ease-in forwards;
+    animation: slide-down 0.2s cubic-bezier(0.32, 0.72, 0, 1) forwards;
   }
 }
 
@@ -6099,6 +6103,22 @@ emoji-picker-dialog emoji-picker,
 
 .bottom-sheet[data-closing]::backdrop {
   animation: fade-out 0.15s ease-in forwards;
+}
+
+@media (max-width: 799px) {
+  .bottom-sheet::backdrop {
+    animation-duration: 0.3s;
+  }
+
+  .bottom-sheet[data-closing]::backdrop {
+    animation-duration: 0.2s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bottom-sheet {
+    animation: none;
+  }
 }
 
 @media (max-width: 799px) {
