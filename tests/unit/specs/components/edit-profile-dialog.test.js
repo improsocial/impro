@@ -421,6 +421,7 @@ describe("edit-profile-dialog", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
+      element.open();
 
       let closedEventFired = false;
       element.addEventListener("edit-profile-closed", () => {
@@ -465,6 +466,7 @@ describe("edit-profile-dialog", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
+      element.open();
 
       const displayNameInput = element.querySelector(
         "[data-testid='edit-profile-display-name']",

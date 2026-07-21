@@ -150,16 +150,16 @@ describe("image-alt-text-dialog", () => {
   });
 
   describe("ImageAltTextDialog - close method", () => {
-    it("should close the dialog when close() is called", () => {
+    it("should close the dialog when close() is called", async () => {
       const element = document.createElement("image-alt-text-dialog");
       connectElement(element);
       element.open();
-      element.close();
+      await element.close();
       const dialog = element.querySelector(".image-alt-text-dialog");
       assert(!dialog.open);
     });
 
-    it("should dispatch alt-text-dialog-closed event when close() is called", () => {
+    it("should dispatch alt-text-dialog-closed event when close() is called", async () => {
       const element = document.createElement("image-alt-text-dialog");
       connectElement(element);
       element.open();
@@ -169,7 +169,7 @@ describe("image-alt-text-dialog", () => {
         eventFired = true;
       });
 
-      element.close();
+      await element.close();
       assert(eventFired);
     });
   });

@@ -1,12 +1,12 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import {
-  classnames,
-  enableDragToDismiss,
-  graphemeCount,
-  resetScrollOnBlur,
-} from "/js/utils.js";
+import { classnames, graphemeCount } from "/js/utils.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import {
+  closeWithAnimation,
+  enableDragToDismiss,
+  resetScrollOnBlur,
+} from "/js/dialogHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class ImageAltTextDialog extends Component {
@@ -50,8 +50,14 @@ class ImageAltTextDialog extends Component {
             this.close();
           }
         }}
-        @cancel=${() => {
+        @cancel=${(event) => {
+          event.preventDefault();
           this.close();
+        }}
+        @close=${() => {
+          this.scrollLock?.release();
+          this.scrollLock = null;
+          this.dispatchEvent(new CustomEvent("alt-text-dialog-closed"));
         }}
       >
         <div class="image-alt-text-dialog-content">
@@ -66,7 +72,7 @@ class ImageAltTextDialog extends Component {
               ${closeIconTemplate()}
             </button>
           </div>
-          <div class="image-alt-text-dialog-body">
+          <div class="image-alt-text-dialog-body sheet-scroll-region">
             ${this.imageUrl
               ? html`<div class="image-alt-text-dialog-image-container">
                   <img src="${this.imageUrl}" alt="Preview" />
@@ -121,6 +127,7 @@ class ImageAltTextDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".image-alt-text-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     this.querySelector(".image-alt-text-dialog-textarea")?.focus({
       preventScroll: true,
@@ -134,16 +141,12 @@ class ImageAltTextDialog extends Component {
 
     resetScrollOnBlur(
       dialog,
-      this.querySelector(".image-alt-text-dialog-content"),
+      this.querySelector(".image-alt-text-dialog-body"),
     );
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".image-alt-text-dialog");
-    dialog.close();
-    this.dispatchEvent(new CustomEvent("alt-text-dialog-closed"));
+    return closeWithAnimation(this.querySelector(".image-alt-text-dialog"));
   }
 
   save() {

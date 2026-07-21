@@ -1,5 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 
 const pluginModals = new Map();
 
@@ -13,6 +14,17 @@ export function showPluginModal({
 }) {
   let modal = pluginModals.get(`${pluginId}:${modalId}`);
   if (modal?.isOpen) return;
+  if (modal?.isDismissing) {
+    modal.nextOpen = {
+      pluginRenderer,
+      pluginId,
+      modalId,
+      title,
+      content,
+      onDismiss,
+    };
+    return;
+  }
 
   if (!modal) {
     const dialog = document.createElement("dialog");
@@ -23,13 +35,35 @@ export function showPluginModal({
     contentEl.classList.add("modal-dialog-content");
     dialog.appendChild(contentEl);
 
-    modal = { dialog, contentEl, isOpen: false };
+    modal = {
+      dialog,
+      contentEl,
+      isOpen: false,
+      isDismissing: false,
+      nextOpen: null,
+    };
+    let userDismissed = false;
+    // Teardown runs on every close — including the router closing it on
+    // navigation, which bypasses the dismiss() wrapper below. This dialog is
+    // created once and reused across opens, so the listener stays attached.
+    dialog.addEventListener("close", () => {
+      modal.isOpen = false;
+      modal.isDismissing = false;
+      if (userDismissed) {
+        userDismissed = false;
+        modal.onDismiss();
+      }
+      const nextOpen = modal.nextOpen;
+      modal.nextOpen = null;
+      if (nextOpen) showPluginModal(nextOpen);
+    });
+    modal.dismiss = () => closeWithAnimation(dialog);
 
     function dismiss() {
       if (!modal.isOpen) return;
-      modal.isOpen = false;
-      dialog.close();
-      onDismiss();
+      userDismissed = true;
+      modal.isDismissing = true;
+      return modal.dismiss();
     }
 
     dialog.addEventListener("click", (event) => {
@@ -44,6 +78,7 @@ export function showPluginModal({
     document.body.appendChild(dialog);
   }
 
+  modal.onDismiss = onDismiss;
   modal.contentEl.replaceChildren();
   if (!pluginRenderer.isEmptyNode(title)) {
     const titleEl = pluginRenderer.createRoot().render(title);
@@ -66,8 +101,8 @@ export function showPluginModal({
 export function hidePluginModal({ pluginId, modalId }) {
   const modal = pluginModals.get(`${pluginId}:${modalId}`);
   if (modal && modal.isOpen) {
-    modal.isOpen = false;
-    modal.dialog.close();
+    modal.isDismissing = true;
+    modal.dismiss();
   }
 }
 

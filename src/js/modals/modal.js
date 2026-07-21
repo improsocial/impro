@@ -1,6 +1,6 @@
 import { render } from "/js/lib/lit-html.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 
 export class Modal {
   static async open(...args) {
@@ -46,13 +46,20 @@ export class Modal {
 
       let scrollLock = null;
       let resolved = false;
+      let dismissValue;
+      let cleanedUp = false;
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        scrollLock?.release();
+        dialog.remove();
+        resolve(dismissValue);
+      };
       const dismiss = (value) => {
         if (resolved) return;
         resolved = true;
-        scrollLock?.release();
-        dialog.close();
-        dialog.remove();
-        resolve(value);
+        dismissValue = value;
+        return closeWithAnimation(dialog);
       };
       const dismissIfAllowed = () => {
         if (this.canDismiss()) dismiss();
@@ -66,14 +73,14 @@ export class Modal {
       dialog.addEventListener("click", (event) => {
         if (event.target.tagName === "DIALOG") dismissIfAllowed();
       });
+      document.body.appendChild(dialog);
+      scrollLock = scrollLocks.acquire({ target: dialog });
+      dialog.showModal();
+      dialog.addEventListener("close", cleanup);
       dialog.addEventListener("cancel", (event) => {
         event.preventDefault();
         dismissIfAllowed();
       });
-
-      document.body.appendChild(dialog);
-      scrollLock = scrollLocks.acquire({ target: dialog });
-      dialog.showModal();
 
       if (this.dragToDismiss) {
         enableDragToDismiss(dialog, {

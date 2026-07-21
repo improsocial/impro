@@ -2,6 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { isMobileViewport } from "/js/utils.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 
 class AnimatedSidebar extends Component {
   connectedCallback() {
@@ -41,7 +42,18 @@ class AnimatedSidebar extends Component {
             this.close();
           }
         }}
-        @cancel=${() => this.close()}
+        @cancel=${(event) => {
+          event.preventDefault();
+          this.close();
+        }}
+        @close=${() => {
+          this.isOpen = false;
+          this.scrollLock?.release({
+            restoreScroll: this._restoreScroll ?? true,
+          });
+          this.scrollLock = null;
+          this._restoreScroll = null;
+        }}
       >
         <div class="sidebar-content"></div>
       </dialog>`,
@@ -60,20 +72,16 @@ class AnimatedSidebar extends Component {
     }
     this.isOpen = true;
     this.scrollLock ??= scrollLocks.acquire({ target: this });
-    this.querySelector("dialog.sidebar").showModal();
+    const dialog = this.querySelector("dialog.sidebar");
+    dialog.showModal();
   }
 
   close({ restoreScroll = true } = {}) {
     if (!this.isOpen) {
       return;
     }
-    this.isOpen = false;
-    this.scrollLock?.release({ restoreScroll });
-    this.scrollLock = null;
-    const dialog = this.querySelector("dialog.sidebar");
-    if (dialog.hasAttribute("open")) {
-      dialog.close();
-    }
+    this._restoreScroll = restoreScroll;
+    return closeWithAnimation(this.querySelector("dialog.sidebar"));
   }
 }
 

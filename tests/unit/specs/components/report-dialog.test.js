@@ -237,16 +237,16 @@ describe("report-dialog", () => {
   });
 
   describe("ReportDialog - close method", () => {
-    it("should close the dialog when close() is called", () => {
+    it("should close the dialog when close() is called", async () => {
       const element = createReportDialog();
       connectElement(element);
       element.open();
-      element.close();
+      await element.close();
       const dialog = element.querySelector(".report-dialog");
       assert(!dialog.open);
     });
 
-    it("should dispatch report-dialog-closed event when close() is called", () => {
+    it("should dispatch report-dialog-closed event when close() is called", async () => {
       const element = createReportDialog();
       connectElement(element);
       element.open();
@@ -256,7 +256,7 @@ describe("report-dialog", () => {
         eventFired = true;
       });
 
-      element.close();
+      await element.close();
       assert(eventFired);
     });
   });

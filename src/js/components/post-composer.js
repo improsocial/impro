@@ -5,15 +5,18 @@ import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import {
   classnames,
-  enableDragToDismiss,
   graphemeCount,
   readFileAsDataUrl,
-  resetScrollOnBlur,
   sanitizeUri,
 } from "/js/utils.js";
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import {
+  closeWithAnimation,
+  enableDragToDismiss,
+  resetScrollOnBlur,
+} from "/js/dialogHelpers.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -541,10 +544,16 @@ class PostComposer extends Component {
               }
             }
           }}
-          @cancel=${async () => {
+          @cancel=${async (event) => {
+            event.preventDefault();
             if (await this.confirmClose()) {
               this.close();
             }
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("post-composer-closed"));
           }}
           @keydown=${(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
@@ -1236,6 +1245,7 @@ class PostComposer extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".post-composer");
+    if (dialog?.open) return;
     dialog.showModal();
     this.querySelector("rich-text-input")?.focus({ preventScroll: true });
 
@@ -1269,11 +1279,7 @@ class PostComposer extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".post-composer");
-    dialog.close();
-    this.dispatchEvent(new CustomEvent("post-composer-closed"));
+    return closeWithAnimation(this.querySelector(".post-composer"));
   }
 
   // Drop trailing empty posts and confirm mid-thread empty posts

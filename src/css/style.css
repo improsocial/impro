@@ -1044,6 +1044,8 @@ tab-bar:not([full-width]) {
 
 .sidebar::backdrop {
   background: var(--overlay-color);
+  opacity: 0;
+  transition: opacity 0.3s ease;
 }
 
 .sidebar {
@@ -1129,6 +1131,19 @@ tab-bar:not([full-width]) {
 
 .sidebar[open] {
   transform: translateX(0);
+}
+
+.sidebar[open]::backdrop {
+  opacity: 1;
+}
+
+.sidebar[open][data-closing] {
+  pointer-events: none;
+  transform: translateX(-100%);
+}
+
+.sidebar[open][data-closing]::backdrop {
+  opacity: 0;
 }
 
 .sidebar-profile {
@@ -5974,6 +5989,26 @@ emoji-picker-dialog emoji-picker,
   }
 }
 
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-down {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+}
+
 .bottom-sheet {
   border: var(--hair) solid var(--post-border-color);
   border-bottom: none;
@@ -5995,6 +6030,26 @@ emoji-picker-dialog emoji-picker,
   overflow: hidden;
   padding: 0;
   padding-bottom: var(--safe-area-inset-bottom);
+}
+
+/* Shared scroll region for a bottom sheet's flex-fill body: fills the space
+   between a fixed header/footer and scrolls its own overflow. Requires a
+   flex-column ancestor (the dialog or content wrapper) to give it height. */
+.sheet-scroll-region {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.bottom-sheet[data-closing] {
+  pointer-events: none;
+}
+
+/* Only mobile bottom sheets animate out; on desktop they close instantly. */
+@media (max-width: 799px) {
+  .bottom-sheet[data-closing] {
+    animation: slide-down 0.15s ease-in forwards;
+  }
 }
 
 @media (min-width: 800px) {
@@ -6040,6 +6095,10 @@ emoji-picker-dialog emoji-picker,
 .bottom-sheet::backdrop {
   background-color: var(--overlay-color-medium);
   animation: fade-in 0.2s ease-out;
+}
+
+.bottom-sheet[data-closing]::backdrop {
+  animation: fade-out 0.15s ease-in forwards;
 }
 
 @media (max-width: 799px) {
@@ -6668,6 +6727,10 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   animation: fade-in 0.2s ease-out;
 }
 
+.modal-dialog[data-closing] {
+  pointer-events: none;
+}
+
 .modal-dialog-title {
   font-size: 24px;
   font-weight: 600;
@@ -6787,6 +6850,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   }
 }
 
+.image-alt-text-dialog {
+  display: flex;
+  flex-direction: column;
+}
+
 .image-alt-text-dialog-content {
   padding: 20px;
   display: flex;
@@ -6794,6 +6862,12 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   gap: 16px;
   flex: 1 1 auto;
   min-height: 0;
+}
+
+@media (min-width: 800px) {
+  .image-alt-text-dialog-content {
+    max-height: 80vh;
+  }
 }
 
 .image-alt-text-dialog-header {
@@ -7657,6 +7731,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   word-break: break-word;
   display: -webkit-box;
   -webkit-line-clamp: 8;
+  line-clamp: 8;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -9221,9 +9296,6 @@ tab-bar[full-width] .tab-bar-button {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex: 1 1 auto;
-  min-height: 0;
-  overflow-y: auto;
 }
 
 @media (min-width: 800px) {

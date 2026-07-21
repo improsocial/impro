@@ -42,11 +42,11 @@ describe("emoji-picker-dialog", () => {
       assert.deepEqual(element.querySelector("emoji-picker"), null);
     });
 
-    it("should remove the host dialog and flip isOpen on close()", () => {
+    it("should remove the host dialog and flip isOpen on close()", async () => {
       const element = document.createElement("emoji-picker-dialog");
       connectElement(element);
       element.open();
-      element.close();
+      await element.close();
       assert.deepEqual(element.isOpen, false);
       assert.deepEqual(getHostDialog(), null);
     });
@@ -89,13 +89,14 @@ describe("emoji-picker-dialog", () => {
   });
 
   describe("EmojiPickerDialog - backdrop click", () => {
-    it("should close when the host dialog itself is clicked (backdrop)", () => {
+    it("should close when the host dialog itself is clicked (backdrop)", async () => {
       const element = document.createElement("emoji-picker-dialog");
       connectElement(element);
       element.open();
 
       const host = getHostDialog();
       host.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      await Promise.resolve();
 
       assert.deepEqual(element.isOpen, false);
       assert.deepEqual(getHostDialog(), null);
@@ -115,13 +116,14 @@ describe("emoji-picker-dialog", () => {
   });
 
   describe("EmojiPickerDialog - disconnection cleanup", () => {
-    it("should close (remove host dialog, clear isOpen) when removed from the DOM", () => {
+    it("should close (remove host dialog, clear isOpen) when removed from the DOM", async () => {
       const element = document.createElement("emoji-picker-dialog");
       const container = connectElement(element);
       element.open();
       assert.deepEqual(element.isOpen, true);
 
       container.removeChild(element);
+      await Promise.resolve();
 
       assert.deepEqual(element.isOpen, false);
       assert.deepEqual(getHostDialog(), null);

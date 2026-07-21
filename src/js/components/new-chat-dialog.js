@@ -1,7 +1,11 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import {
+  closeWithAnimation,
+  enableDragToDismiss,
+  resetScrollOnBlur,
+} from "/js/dialogHelpers.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
@@ -227,6 +231,11 @@ class NewChatDialog extends Component {
             event.preventDefault();
             this.close();
           }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("dialog-closed"));
+          }}
         >
           <div class="new-chat-dialog-content">
             <div class="new-chat-dialog-header">
@@ -298,6 +307,7 @@ class NewChatDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".new-chat-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     this.querySelector(".new-chat-search-input")?.focus({
       preventScroll: true,
@@ -307,16 +317,11 @@ class NewChatDialog extends Component {
       scrollContainer: this.querySelector(".new-chat-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });
+    resetScrollOnBlur(dialog, this.querySelector(".new-chat-results"));
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".new-chat-dialog");
-    if (dialog?.open) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("dialog-closed"));
+    return closeWithAnimation(this.querySelector(".new-chat-dialog"));
   }
 }
 

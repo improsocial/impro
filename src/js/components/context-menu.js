@@ -1,12 +1,9 @@
 import { html, render } from "/js/lib/lit-html.js";
-import {
-  classnames,
-  enableDragToDismiss,
-  isMobileViewport,
-} from "/js/utils.js";
+import { classnames, isMobileViewport } from "/js/utils.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { hapticsImpactLight } from "/js/haptics.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 
 class ContextMenu extends Component {
   connectedCallback() {
@@ -70,8 +67,15 @@ class ContextMenu extends Component {
                 this.close();
               }
             }}
-            @cancel=${() => {
+            @cancel=${(event) => {
+              event.preventDefault();
               this.close();
+            }}
+            @close=${() => {
+              this.scrollLock?.release();
+              this.scrollLock = null;
+              this.isOpen = false;
+              this.render();
             }}
           >
             ${this._childNodes}
@@ -89,6 +93,7 @@ class ContextMenu extends Component {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
 
     const dialog = this.querySelector(".context-menu");
+    if (dialog?.open) return;
     dialog.showModal();
 
     // On desktop, position the dialog at the mouse cursor - claude wrote this
@@ -125,12 +130,7 @@ class ContextMenu extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".context-menu");
-    dialog.close();
-    this.isOpen = false;
-    this.render();
+    return closeWithAnimation(this.querySelector(".context-menu"));
   }
 }
 

@@ -1,6 +1,6 @@
 {
   "name": "impro",
-  "version": "0.18.33",
+  "version": "0.18.34",
   "type": "module",
   "scripts": {
     "start": "rm -rf \"${BUILD_DIR:-build}\" && NODE_ENV=development eleventy --serve",
@@ -10,6 +10,7 @@
     "ios": "npm run build && cap sync && NODE_ENV=development cap run ios",
     "bundle:lit-html": "esbuild ./clientLibs/litHtml.js --bundle --format=esm --outfile=src/js/lib/lit-html.js",
     "format": "pretty-quick --staged",
+    "format:all": "prettier --write .",
     "test": "npm run test:unit",
     "test:unit": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --test 'tests/unit/specs/**/*.test.js'",
     "test:unit:coverage": "node --import ./tests/unit/env.js --test-isolation=none --test-force-exit --experimental-test-coverage --test-coverage-include='src/js/**' --test 'tests/unit/specs/**/*.test.js'",

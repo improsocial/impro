@@ -157,6 +157,7 @@
       import { IdentityResolver } from "/js/atproto.js";
       import { Router } from "/js/router.js";
       import { scrollLocks } from "/js/scrollLocks.js";
+      import { closeWithAnimation } from "/js/dialogHelpers.js";
       import { Api } from "/js/api.js";
       import { auth } from "/js/auth.js";
       import { NotificationService } from "/js/notificationService.js";
@@ -514,7 +515,7 @@
             if (wrapper && typeof wrapper.close === "function") {
               wrapper.close();
             } else {
-              dialog.close();
+              closeWithAnimation(dialog);
             }
           });
         });

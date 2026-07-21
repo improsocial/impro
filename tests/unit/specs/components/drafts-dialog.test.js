@@ -314,25 +314,28 @@ describe("drafts-dialog", () => {
   });
 
   describe("DraftsDialog - selecting a draft", () => {
-    it("should close and dispatch draft-selected with the draft on click", () => {
+    it("should close and dispatch draft-selected with the draft on click", async () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       const draftView = createDraftView();
       seedDrafts($hydratedDrafts, [draftView]);
       const element = createDialog(dataLayer);
+      element.open();
       const events = [];
       element.addEventListener("dialog-closed", () => events.push("closed"));
       element.addEventListener("draft-selected", (event) =>
         events.push(event.detail.draftView),
       );
       element.querySelector('[data-testid="draft-item"]').click();
+      await flushMicrotasks();
       assert.deepEqual(events, ["closed", draftView]);
     });
 
-    it("should select the draft on Enter", () => {
+    it("should select the draft on Enter", async () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       const draftView = createDraftView();
       seedDrafts($hydratedDrafts, [draftView]);
       const element = createDialog(dataLayer);
+      element.open();
       let selected = null;
       element.addEventListener("draft-selected", (event) => {
         selected = event.detail.draftView;
@@ -342,6 +345,7 @@ describe("drafts-dialog", () => {
         .dispatchEvent(
           new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true }),
         );
+      await flushMicrotasks();
       assert.deepEqual(selected, draftView);
     });
   });
@@ -499,7 +503,7 @@ describe("drafts-dialog", () => {
   });
 
   describe("DraftsDialog - dismissal", () => {
-    it("should open the dialog as a modal and close on the back button", () => {
+    it("should open the dialog as a modal and close on the back button", async () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       seedDrafts($hydratedDrafts, []);
       const element = createDialog(dataLayer);
@@ -511,11 +515,12 @@ describe("drafts-dialog", () => {
         closed = true;
       });
       element.querySelector('[data-testid="drafts-dialog-back"]').click();
+      await flushMicrotasks();
       assert(closed);
       assert.deepEqual(dialog.open, false);
     });
 
-    it("should close on cancel (Escape)", () => {
+    it("should close on cancel (Escape)", async () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       seedDrafts($hydratedDrafts, []);
       const element = createDialog(dataLayer);
@@ -526,11 +531,12 @@ describe("drafts-dialog", () => {
       });
       const dialog = element.querySelector("dialog");
       dialog.dispatchEvent(new window.Event("cancel", { bubbles: false }));
+      await flushMicrotasks();
       assert(closed);
       assert.deepEqual(dialog.open, false);
     });
 
-    it("should close on a backdrop click but not on a click inside the sheet", () => {
+    it("should close on a backdrop click but not on a click inside the sheet", async () => {
       const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
       seedDrafts($hydratedDrafts, []);
       const element = createDialog(dataLayer);
@@ -543,6 +549,7 @@ describe("drafts-dialog", () => {
       assert.deepEqual(closedCount, 0);
       const dialog = element.querySelector("dialog");
       dialog.dispatchEvent(new window.MouseEvent("click", { bubbles: false }));
+      await flushMicrotasks();
       assert.deepEqual(closedCount, 1);
       assert.deepEqual(dialog.open, false);
     });
