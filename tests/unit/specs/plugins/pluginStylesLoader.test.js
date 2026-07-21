@@ -411,6 +411,108 @@ describe("PluginStylesLoader.unmountSnippet", () => {
   });
 });
 
+describe("PluginStylesLoader.mountFonts", () => {
+  let env;
+  let createdUrls;
+  let revokedUrls;
+  let originalCreate;
+  let originalRevoke;
+  beforeEach(() => {
+    env = stubCssEnv();
+    createdUrls = [];
+    revokedUrls = [];
+    originalCreate = URL.createObjectURL;
+    originalRevoke = URL.revokeObjectURL;
+    let counter = 0;
+    URL.createObjectURL = () => {
+      const url = `blob:mock/${++counter}`;
+      createdUrls.push(url);
+      return url;
+    };
+    URL.revokeObjectURL = (url) => {
+      revokedUrls.push(url);
+    };
+  });
+  afterEach(() => {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    env.restore();
+  });
+
+  const desc = (overrides = {}) => ({
+    family: "MyFont",
+    weight: "400",
+    style: "normal",
+    file: "fonts/myfont.woff2",
+    blob: { size: 0, type: "font/woff2" },
+    ...overrides,
+  });
+
+  it("adopts a font sheet and creates one object URL per descriptor", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [
+      desc(),
+      desc({ weight: "700", file: "fonts/myfont-bold.woff2" }),
+    ]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+    assert.deepEqual(createdUrls.length, 2);
+  });
+
+  it("is a no-op for an empty or missing descriptor list", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", []);
+    loader.mountFonts("plugin-a", null);
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+    assert.deepEqual(createdUrls.length, 0);
+  });
+
+  it("unmount removes the font sheet and revokes every object URL", () => {
+    const loader = new PluginStylesLoader();
+    loader.mount("plugin-a", ".a { color: red; }");
+    loader.mountFonts("plugin-a", [desc(), desc({ file: "fonts/b.woff2" })]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 2);
+    loader.unmount("plugin-a");
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+    assert.deepEqual(revokedUrls.sort(), createdUrls.sort());
+  });
+
+  it("defaults weight to 400 and style to normal when omitted", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [
+      { family: "MyFont", file: "fonts/f.woff2", blob: { size: 0 } },
+    ]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+  });
+
+  it("throws (without leaking object URLs) on invalid weight/style", () => {
+    const loader = new PluginStylesLoader();
+    for (const bad of [
+      { weight: "1200" },
+      { weight: "500 200" },
+      { style: "backwards" },
+    ]) {
+      let caught = null;
+      try {
+        loader.mountFonts("plugin-a", [desc(bad)]);
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught, `expected mountFonts(${JSON.stringify(bad)}) to throw`);
+    }
+    assert.deepEqual(createdUrls.length, 0);
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+  });
+
+  it("remounting fonts revokes the prior URLs", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [desc()]);
+    const first = [...createdUrls];
+    loader.mountFonts("plugin-a", [desc({ file: "fonts/b.woff2" })]);
+    assert.deepEqual(revokedUrls, first);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+  });
+});
+
 describe("PluginStylesLoader.unmount with snippets", () => {
   let env;
   beforeEach(() => {

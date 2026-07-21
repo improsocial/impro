@@ -1,5 +1,35 @@
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
 
+function isRelativePath(file) {
+  if (typeof file !== "string" || file.length === 0) return false;
+  if (file.startsWith("/")) return false;
+  if (file.includes("://")) return false;
+  for (const segment of file.split("/")) {
+    if (segment === "" || segment === "." || segment === "..") return false;
+  }
+  return true;
+}
+
+function parseFontEntry(entry, index) {
+  if (!entry || typeof entry !== "object") {
+    throw new Error(`fonts[${index}] must be an object`);
+  }
+  const { family, file } = entry;
+  if (typeof family !== "string" || family.length === 0) {
+    throw new Error(`fonts[${index}] missing required field "family"`);
+  }
+  if (typeof file !== "string" || file.length === 0) {
+    throw new Error(`fonts[${index}] missing required field "file"`);
+  }
+  if (!/\.(woff2?|woff)$/i.test(file)) {
+    throw new Error(`fonts[${index}] file must end in .woff2 or .woff`);
+  }
+  if (!isRelativePath(file)) {
+    throw new Error(`fonts[${index}] file must be a relative path`);
+  }
+  return { ...entry, family, file };
+}
+
 function parsePluginManifest(pluginId, manifest) {
   for (const field of REQUIRED_MANIFEST_FIELDS) {
     if (typeof manifest[field] !== "string") {
@@ -10,6 +40,12 @@ function parsePluginManifest(pluginId, manifest) {
     throw new Error(
       `manifest id "${manifest.id}" does not match plugin id "${pluginId}"`,
     );
+  }
+  if (manifest.fonts !== undefined) {
+    if (!Array.isArray(manifest.fonts)) {
+      throw new Error(`fonts must be an array`);
+    }
+    manifest.fonts = manifest.fonts.map((entry, i) => parseFontEntry(entry, i));
   }
   return manifest;
 }
@@ -66,6 +102,24 @@ function isMissingFileResponse(repo, status, body) {
     status === 500 &&
     isTangledMissingBlobBody(body)
   );
+}
+
+function assertFontMagicBytes(file, bytes) {
+  const view = new Uint8Array(bytes, 0, 4);
+  const isWoff2 =
+    view[0] === 0x77 &&
+    view[1] === 0x4f &&
+    view[2] === 0x46 &&
+    view[3] === 0x32;
+  const isWoff =
+    view[0] === 0x77 &&
+    view[1] === 0x4f &&
+    view[2] === 0x46 &&
+    view[3] === 0x46;
+  const wantWoff2 = /\.woff2$/i.test(file);
+  if (wantWoff2 ? !isWoff2 : !isWoff) {
+    throw new Error(`font "${file}" has invalid magic bytes`);
+  }
 }
 
 function remoteAssetUrl({ repo, file, release = null }) {
@@ -168,6 +222,25 @@ export class SourceProvider {
     }
   }
 
+  async getFont(pluginId, version, repo, file) {
+    let bytes;
+    if (pluginId.endsWith("__LOCAL")) {
+      const response = await fetch(`/plugins-local/${pluginId}/${file}`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      bytes = await response.arrayBuffer();
+    } else {
+      if (!version || !repo) {
+        throw new Error("Version and repo are required");
+      }
+      const url = remoteAssetUrl({ repo, file, release: version });
+      const response = await this.pluginCache.fetch(url);
+      bytes = await response.arrayBuffer();
+    }
+    assertFontMagicBytes(file, bytes);
+    const mime = /\.woff2$/i.test(file) ? "font/woff2" : "font/woff";
+    return new Blob([bytes], { type: mime });
+  }
+
   async getReadme(pluginId, repo) {
     if (pluginId.endsWith("__LOCAL")) {
       const response = await fetch(`/plugins-local/${pluginId}/README.md`);
@@ -195,10 +268,20 @@ export class SourceProvider {
     if (pluginId.endsWith("__LOCAL")) {
       return [];
     }
-    return [
+    const urls = [
       remoteAssetUrl({ repo, file: "manifest.json", release: version }),
       remoteAssetUrl({ repo, file: "main.js", release: version }),
       remoteAssetUrl({ repo, file: "styles.css", release: version }),
     ];
+    try {
+      const manifest = await this.getManifest(pluginId, version, repo);
+      for (const font of manifest.fonts ?? []) {
+        urls.push(remoteAssetUrl({ repo, file: font.file, release: version }));
+      }
+    } catch {
+      // If the manifest can't be read the base URLs are still returned so
+      // reconcile doesn't purge a partially-cached plugin.
+    }
+    return urls;
   }
 }
