@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   PluginStylesLoader,
+  assertSafeCssValue,
+  assertSafeInlineStyleValue,
   validatePluginCss,
 } from "/js/plugins/pluginStylesLoader.js";
 
@@ -140,6 +142,68 @@ function expectThrow(fn, messageFragment) {
     `expected error "${caught.message}" to include "${messageFragment}"`,
   );
 }
+
+describe("assertSafeCssValue", () => {
+  it("accepts values without resource functions", () => {
+    assertSafeCssValue("color", "red");
+    assertSafeCssValue("height", "0.68333em");
+    assertSafeCssValue("transform", "translate(1px, 2px)");
+  });
+
+  for (const fn of [
+    "url",
+    "image-set",
+    "-webkit-image-set",
+    "image",
+    "cross-fade",
+    "element",
+  ]) {
+    it(`rejects ${fn}() in a value`, () => {
+      expectThrow(
+        () => assertSafeCssValue("background", `${fn}("https://evil.test/x")`),
+        "disallowed url() in background",
+      );
+    });
+  }
+
+  it("rejects a resource function inside a custom property value", () => {
+    expectThrow(
+      () => assertSafeCssValue("--bg", "url(https://evil.test/x)"),
+      "disallowed url() in --bg",
+    );
+  });
+
+  it("accepts backslashes (author CSS is post-parse serialized)", () => {
+    assertSafeCssValue("content", '"\\A"');
+  });
+});
+
+describe("assertSafeInlineStyleValue", () => {
+  it("accepts plain values", () => {
+    assertSafeInlineStyleValue("color", "red");
+    assertSafeInlineStyleValue("height", "0.68333em");
+  });
+
+  it("rejects any backslash to block CSS-escape identifier smuggling", () => {
+    expectThrow(
+      () =>
+        assertSafeInlineStyleValue("background", "\\75rl(https://evil.test/x)"),
+      "disallowed escape in background",
+    );
+    expectThrow(
+      () => assertSafeInlineStyleValue("content", '"\\A"'),
+      "disallowed escape in content",
+    );
+  });
+
+  it("still rejects raw resource functions", () => {
+    expectThrow(
+      () =>
+        assertSafeInlineStyleValue("background", "url(https://evil.test/x)"),
+      "disallowed url() in background",
+    );
+  });
+});
 
 describe("validatePluginCss", () => {
   let env;

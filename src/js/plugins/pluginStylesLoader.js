@@ -1,6 +1,21 @@
 const URL_FUNC_RE =
   /\b(?:url|image-set|-webkit-image-set|image|cross-fade|element)\s*\(/i;
 
+export function assertSafeCssValue(property, value) {
+  if (URL_FUNC_RE.test(value)) {
+    throw new Error(`disallowed url() in ${property}`);
+  }
+}
+
+export function assertSafeInlineStyleValue(property, value) {
+  // Reject any backslash so a CSS-escape-encoded identifier (e.g. `\75rl(...)`)
+  // can't slip past URL_FUNC_RE
+  if (value.includes("\\")) {
+    throw new Error(`disallowed escape in ${property}`);
+  }
+  assertSafeCssValue(property, value);
+}
+
 export function validatePluginCss(text) {
   const sheet = new CSSStyleSheet();
   sheet.replaceSync(text);
@@ -18,9 +33,7 @@ function walk(rules) {
 
     if (rule.style) {
       for (const prop of rule.style) {
-        if (URL_FUNC_RE.test(rule.style.getPropertyValue(prop))) {
-          throw new Error(`disallowed url() in ${prop}`);
-        }
+        assertSafeCssValue(prop, rule.style.getPropertyValue(prop));
       }
     }
 

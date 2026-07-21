@@ -190,6 +190,32 @@ describe("VirtualEl (via Setting & friends)", () => {
     assert.deepEqual(tail._serialize(), { type: "text", value: " after" });
   });
 
+  it("setStyle is chainable and serializes a distinct styles field", () => {
+    const el = makeVirtualEl();
+    const result = el
+      .setStyle("height", "0.68333em")
+      .setStyle("vertical-align", "-0.08333em");
+    assert(result === el);
+    const serialized = el._serialize();
+    assert.deepEqual(serialized.styles, {
+      height: "0.68333em",
+      "vertical-align": "-0.08333em",
+    });
+    assert(!("style" in serialized.attrs));
+  });
+
+  it("omits the styles field when no styles are set", () => {
+    const el = makeVirtualEl();
+    const serialized = el._serialize();
+    assert(!("styles" in serialized));
+  });
+
+  it("setStyle coerces numeric values to strings", () => {
+    const el = makeVirtualEl();
+    el.setStyle("z-index", 3);
+    assert.deepEqual(el._serialize().styles, { "z-index": "3" });
+  });
+
   it("appendChild rejects values that are not VirtualEl or VirtualText", () => {
     const el = makeVirtualEl();
     assert.throws(() => el.appendChild({ tag: "div" }), TypeError);

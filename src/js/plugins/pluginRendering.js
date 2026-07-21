@@ -1,4 +1,5 @@
 import { ExternalLinkWarningModal } from "/js/modals/externalLinkWarning.modal.js";
+import { assertSafeInlineStyleValue } from "/js/plugins/pluginStylesLoader.js";
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
@@ -113,6 +114,8 @@ const TREE_LIMITS = {
   maxTotalText: 256 * 1024,
   maxAttrs: 32,
   maxChildren: 1000,
+  maxStyles: 64,
+  maxStyleValueLength: 128,
 };
 
 class NormalizerState {
@@ -170,6 +173,49 @@ function normalizeAttrs(rawAttrs, state) {
   return attrs;
 }
 
+const IMPORTANT_SUFFIX_RE = /\s*!\s*important\s*$/i;
+
+function applyStyle(element, name, value) {
+  const match = IMPORTANT_SUFFIX_RE.exec(value);
+  if (match) {
+    element.style.setProperty(name, value.slice(0, match.index), "important");
+  } else {
+    element.style.setProperty(name, value);
+  }
+}
+
+function normalizeStyles(rawStyles, state) {
+  if (!rawStyles || typeof rawStyles !== "object") return {};
+  const entries = Object.entries(rawStyles);
+  if (entries.length > TREE_LIMITS.maxStyles) {
+    state.recordIssue("element exceeds max style declarations; extras ignored");
+  }
+  const styles = {};
+  for (const [name, rawValue] of entries.slice(0, TREE_LIMITS.maxStyles)) {
+    if (typeof name !== "string" || name === "") {
+      state.recordIssue("style property name is not a non-empty string");
+      continue;
+    }
+    if (typeof rawValue !== "string" && typeof rawValue !== "number") {
+      state.recordIssue("style value is not a string or number");
+      continue;
+    }
+    const value = String(rawValue);
+    if (value.length > TREE_LIMITS.maxStyleValueLength) {
+      state.recordIssue("style value exceeds max length");
+      continue;
+    }
+    try {
+      assertSafeInlineStyleValue(name, value);
+    } catch {
+      state.recordIssue("disallowed resource function in style value");
+      continue;
+    }
+    styles[name] = value;
+  }
+  return styles;
+}
+
 // Normalize any serialized node into `{ type: "text" | "element", ... }`,
 // converting from legacy `{ tag, attrs, text, children }` format if needed.
 // Returns null if invalid or over limits, recording the reason on `state`.
@@ -223,6 +269,7 @@ function normalizeNode(raw, depth, state) {
     type: "element",
     tag: typeof raw.tag === "string" ? raw.tag : "div",
     attrs: normalizeAttrs(raw.attrs, state),
+    styles: normalizeStyles(raw.styles, state),
     events: raw.events && typeof raw.events === "object" ? raw.events : {},
     children,
   };
@@ -280,6 +327,7 @@ export class PluginRenderer {
         type: "element",
         tag: "span",
         attrs: {},
+        styles: {},
         events: {},
         children: [],
       }
@@ -358,6 +406,11 @@ export class PluginRenderer {
         element.setAttribute(name, String(value));
       }
     }
+    if (node.styles) {
+      for (const [name, value] of Object.entries(node.styles)) {
+        applyStyle(element, name, value);
+      }
+    }
     this._patchEvents(element, null, node.events);
     for (const child of node.children) {
       element.appendChild(this._create(child));
@@ -399,6 +452,15 @@ export class PluginRenderer {
         continue;
       }
       if (oldAttrs[name] !== value) element.setAttribute(name, String(value));
+    }
+
+    const oldStyles = oldNode.styles ?? {};
+    const newStyles = newNode.styles ?? {};
+    for (const name of Object.keys(oldStyles)) {
+      if (!(name in newStyles)) element.style.removeProperty(name);
+    }
+    for (const [name, value] of Object.entries(newStyles)) {
+      if (oldStyles[name] !== value) applyStyle(element, name, value);
     }
 
     this._patchEvents(element, oldNode.events, newNode.events);

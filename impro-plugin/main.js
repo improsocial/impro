@@ -753,8 +753,14 @@ export class VirtualEl {
   constructor(tag) {
     this.tag = tag;
     this.attrs = {};
+    this.styles = {};
     this.children = [];
     this.events = {};
+  }
+
+  setStyle(name, value) {
+    this.styles[String(name)] = value == null ? "" : String(value);
+    return this;
   }
 
   onClick(fn) {
@@ -861,13 +867,15 @@ export class VirtualEl {
   }
 
   _serialize() {
-    return {
+    const serialized = {
       type: "element",
       tag: this.tag,
       attrs: this.attrs,
       events: this.events,
       children: this.children.map((child) => child._serialize()),
     };
+    if (Object.keys(this.styles).length > 0) serialized.styles = this.styles;
+    return serialized;
   }
 }
 

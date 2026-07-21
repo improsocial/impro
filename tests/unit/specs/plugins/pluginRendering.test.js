@@ -760,6 +760,215 @@ describe("PluginRenderer:legacy normalization", () => {
   });
 });
 
+describe("PluginRenderer:inline styles", () => {
+  it("applies serialized styles via setProperty on create", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: { class: "strut" },
+      styles: { height: "0.68333em", "vertical-align": "-0.08333em" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "0.68333em");
+    assert.deepEqual(
+      element.style.getPropertyValue("vertical-align"),
+      "-0.08333em",
+    );
+  });
+
+  it("still rejects a raw `style` attribute", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: { style: "color: red" },
+      events: {},
+      children: [],
+    });
+    assert(!element.hasAttribute("style"));
+  });
+
+  it("drops values containing a resource function", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: {
+        background: 'url("https://evil.test/x.png")',
+        color: "red",
+      },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("drops values containing a backslash (blocks CSS-escape url() smuggling)", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: {
+        background: "\\75rl(https://evil.test/x)",
+        color: "red",
+      },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("drops resource functions inside custom property values", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { "--bg": "url(https://evil.test/x)" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("--bg"), "");
+  });
+
+  it("drops values exceeding the max length", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { color: "a".repeat(129), background: "blue" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("color"), "");
+    assert.deepEqual(element.style.getPropertyValue("background"), "blue");
+  });
+
+  it("caps the number of declarations per node", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const styles = {};
+    for (let i = 0; i < 100; i++) styles[`--v${i}`] = `${i}px`;
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles,
+      events: {},
+      children: [],
+    });
+    // Only the first 64 declarations survive normalization.
+    assert.deepEqual(element.style.getPropertyValue("--v0"), "0px");
+    assert.deepEqual(element.style.getPropertyValue("--v63"), "63px");
+    assert.deepEqual(element.style.getPropertyValue("--v64"), "");
+  });
+
+  it("permits !important", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { color: "red !important" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyPriority("color"), "important");
+  });
+
+  it("updates changed style values in place on patch", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em", color: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "2em", color: "red" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "2em");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("removes style declarations that are absent from the new tree", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em", color: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "1em");
+    assert.deepEqual(element.style.getPropertyValue("color"), "");
+  });
+
+  it("removes a previously applied style when its new value is invalid", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { background: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { background: 'url("https://evil.test/x.png")' },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+  });
+});
+
 describe("PluginRenderer:malformed and oversized nodes", () => {
   it("renders an empty span when the whole tree is malformed", () => {
     const { bridge } = makeBridge();
