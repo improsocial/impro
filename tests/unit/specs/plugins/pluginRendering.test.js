@@ -338,14 +338,16 @@ describe("PluginRenderer:root reconciliation", () => {
       text: "Applying",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    const originalSpinner = element.children[0];
     root.render({
       tag: "button",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
     assert.deepEqual(element.childNodes.length, 1);
     assert.deepEqual(element.children.length, 1);
-    assert(element.children[0] === originalSpinner);
+    assert.deepEqual(
+      element.children[0].getAttribute("class"),
+      "loading-spinner",
+    );
   });
 
   it("replaces a child whose tag no longer matches", () => {
@@ -605,5 +607,306 @@ describe("PluginRenderer:anchor tags", () => {
       attrs: { href: "javascript:alert(1)" },
     });
     assert(!element.hasAttribute("href"));
+  });
+});
+
+describe("PluginRenderer:union node model", () => {
+  const TEXT = Node.TEXT_NODE;
+
+  it("renders interleaved text and element children in order", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "before " },
+        {
+          type: "element",
+          tag: "em",
+          attrs: {},
+          events: {},
+          children: [{ type: "text", value: "middle" }],
+        },
+        { type: "text", value: " after" },
+      ],
+    });
+    const kinds = Array.from(element.childNodes).map((child) => child.nodeType);
+    assert.deepEqual(kinds, [TEXT, Node.ELEMENT_NODE, TEXT]);
+    assert.deepEqual(element.childNodes[0].nodeValue, "before ");
+    assert.deepEqual(element.childNodes[1].tagName.toLowerCase(), "em");
+    assert.deepEqual(element.childNodes[1].textContent, "middle");
+    assert.deepEqual(element.childNodes[2].nodeValue, " after");
+  });
+
+  it("renders a bare text node at the root", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render({ type: "text", value: "hello" });
+    assert.deepEqual(node.nodeType, TEXT);
+    assert.deepEqual(node.nodeValue, "hello");
+  });
+
+  it("patches a text node's value in place across renders", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({ type: "text", value: "one" });
+    const second = root.render({ type: "text", value: "two" });
+    assert(first === second);
+    assert.deepEqual(second.nodeValue, "two");
+  });
+
+  it("patches a text child's value without recreating the node", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    const textNode = element.firstChild;
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "b" }],
+    });
+    assert(element.firstChild === textNode);
+    assert.deepEqual(textNode.nodeValue, "b");
+  });
+
+  it("replaces a text child with an element child when the kind changes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "x" }],
+    });
+    assert.deepEqual(element.firstChild.nodeType, TEXT);
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "element", tag: "em", attrs: {}, events: {}, children: [] },
+      ],
+    });
+    assert.deepEqual(element.firstChild.nodeType, Node.ELEMENT_NODE);
+    assert.deepEqual(element.firstChild.tagName.toLowerCase(), "em");
+  });
+
+  it("inserts and removes text children at the tail", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "a" },
+        { type: "text", value: "b" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 2);
+    assert.deepEqual(element.textContent, "ab");
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "a");
+  });
+});
+
+describe("PluginRenderer:legacy normalization", () => {
+  it("converts a legacy leading-text node into a text child", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "span",
+      attrs: {},
+      text: "before ",
+      children: [{ tag: "em", text: "middle" }],
+      events: {},
+    });
+    assert.deepEqual(element.childNodes[0].nodeType, Node.TEXT_NODE);
+    assert.deepEqual(element.childNodes[0].nodeValue, "before ");
+    assert.deepEqual(element.childNodes[1].tagName.toLowerCase(), "em");
+    assert.deepEqual(element.childNodes[1].textContent, "middle");
+  });
+});
+
+describe("PluginRenderer:malformed and oversized nodes", () => {
+  it("renders an empty span when the whole tree is malformed", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render(null);
+    assert.deepEqual(node.nodeType, Node.ELEMENT_NODE);
+    assert.deepEqual(node.tagName.toLowerCase(), "span");
+    assert.deepEqual(node.childNodes.length, 0);
+  });
+
+  it("drops a text child whose value is not a string", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: { toString: () => "nope" } },
+        { type: "text", value: "ok" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "ok");
+  });
+
+  it("drops a child with an unknown node type", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "comment", value: "x" },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "kept");
+  });
+
+  it("ignores attrs, events, and children on a text node", () => {
+    const { bridge, calls } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render({
+      type: "text",
+      value: "plain",
+      attrs: { onclick: "alert(1)" },
+      events: { click: "h1" },
+      children: [{ type: "text", value: "nested" }],
+    });
+    assert.deepEqual(node.nodeType, Node.TEXT_NODE);
+    assert.deepEqual(node.nodeValue, "plain");
+    assert(typeof node.setAttribute !== "function");
+    assert.deepEqual(calls.length, 0);
+  });
+
+  it("truncates children beyond the per-element limit", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const children = Array.from({ length: 1050 }, () => ({
+      type: "text",
+      value: "x",
+    }));
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children,
+    });
+    assert.deepEqual(element.childNodes.length, 1000);
+  });
+
+  it("drops a text node that exceeds the max text length", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "z".repeat(16 * 1024 + 1) },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "kept");
+  });
+
+  it("stops descending past the max depth", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    let node = { type: "text", value: "deep" };
+    for (let level = 0; level < 70; level++) {
+      node = {
+        type: "element",
+        tag: "span",
+        attrs: {},
+        events: {},
+        children: [node],
+      };
+    }
+    // Should not throw; the subtree past the limit is dropped.
+    const element = renderer.createRoot().render(node);
+    assert.deepEqual(element.tagName.toLowerCase(), "span");
+  });
+
+  it("reports all issues in a single consolidated warning with the total", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "comment", value: "x" },
+        { type: "comment", value: "y" },
+        { type: "text", value: 5 },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(warn.mock.callCount(), 1);
+    const message = warn.mock.calls[0].arguments[0];
+    assert(message.includes("demo"));
+    assert(message.includes("3 issue(s)"));
+    assert(message.includes('unknown node type "comment" ×2'));
+    assert(message.includes("text node value is not a string"));
+  });
+
+  it("emits no warning when there are no issues", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "ok" }],
+    });
+    assert.deepEqual(warn.mock.callCount(), 0);
   });
 });

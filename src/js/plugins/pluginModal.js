@@ -82,7 +82,9 @@ export function showPluginModal({
   modal.contentEl.replaceChildren();
   if (!pluginRenderer.isEmptyNode(title)) {
     const titleEl = pluginRenderer.createRoot().render(title);
-    titleEl.classList.add("modal-dialog-title");
+    if (titleEl.nodeType === Node.ELEMENT_NODE) {
+      titleEl.classList.add("modal-dialog-title");
+    }
     modal.contentEl.appendChild(titleEl);
   }
   if (content?.children?.length) {

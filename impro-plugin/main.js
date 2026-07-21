@@ -739,11 +739,20 @@ class PostsFeedComponent {
   }
 }
 
+export class VirtualText {
+  constructor(value) {
+    this.value = value == null ? "" : String(value);
+  }
+
+  _serialize() {
+    return { type: "text", value: this.value };
+  }
+}
+
 export class VirtualEl {
   constructor(tag) {
     this.tag = tag;
     this.attrs = {};
-    this.text = null;
     this.children = [];
     this.events = {};
   }
@@ -770,15 +779,35 @@ export class VirtualEl {
   }
 
   setText(text) {
-    this.text = text;
     this.children = [];
+    if (text != null && text !== "") this.children.push(new VirtualText(text));
     return this;
   }
 
   empty() {
-    this.text = null;
     this.children = [];
     return this;
+  }
+
+  appendChild(child) {
+    if (!(child instanceof VirtualEl) && !(child instanceof VirtualText)) {
+      throw new TypeError(
+        "appendChild expects a VirtualEl or VirtualText instance",
+      );
+    }
+    this.children.push(child);
+    return this;
+  }
+
+  appendText(value) {
+    this.children.push(new VirtualText(value));
+    return this;
+  }
+
+  createText(value) {
+    const node = new VirtualText(value);
+    this.children.push(node);
+    return node;
   }
 
   addClass(cls) {
@@ -793,7 +822,7 @@ export class VirtualEl {
 
   createEl(tag, options = {}, callback) {
     const child = new VirtualEl(tag);
-    if (options.text != null) child.text = options.text;
+    if (options.text != null) child.setText(options.text);
     if (options.cls) {
       child.attrs.class = Array.isArray(options.cls)
         ? options.cls.join(" ")
@@ -833,11 +862,11 @@ export class VirtualEl {
 
   _serialize() {
     return {
+      type: "element",
       tag: this.tag,
       attrs: this.attrs,
-      text: this.text,
-      children: this.children.map((child) => child._serialize()),
       events: this.events,
+      children: this.children.map((child) => child._serialize()),
     };
   }
 }

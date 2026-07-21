@@ -106,6 +106,128 @@ function createVirtualEvent(e) {
 
 const HANDLER_MAP = Symbol("pluginHandlerMap");
 
+const TREE_LIMITS = {
+  maxDepth: 64,
+  maxNodes: 5000,
+  maxTextLength: 16 * 1024,
+  maxTotalText: 256 * 1024,
+  maxAttrs: 32,
+  maxChildren: 1000,
+};
+
+class NormalizerState {
+  static MAX_ISSUE_REASONS = 20;
+
+  constructor() {
+    this.nodeCount = 0;
+    this.totalText = 0;
+    this.issueCount = 0;
+    this.issueReasons = new Map();
+  }
+
+  recordIssue(reason) {
+    this.issueCount += 1;
+    if (this.issueReasons.has(reason)) {
+      this.issueReasons.set(reason, this.issueReasons.get(reason) + 1);
+    } else if (this.issueReasons.size < NormalizerState.MAX_ISSUE_REASONS) {
+      this.issueReasons.set(reason, 1);
+    }
+  }
+
+  getIssueSummary() {
+    if (this.issueCount === 0) return null;
+    const detail = [...this.issueReasons.entries()]
+      .map(([reason, count]) => (count > 1 ? `${reason} ×${count}` : reason))
+      .join(", ");
+    return `${this.issueCount} issue(s) during render: ${detail}`;
+  }
+}
+
+function createTextNode(value, state) {
+  if (value.length > TREE_LIMITS.maxTextLength) {
+    state.recordIssue("text node exceeds max length");
+    return null;
+  }
+  if (state.totalText + value.length > TREE_LIMITS.maxTotalText) {
+    state.recordIssue("total text budget exceeded");
+    return null;
+  }
+  state.totalText += value.length;
+  state.nodeCount += 1;
+  return { type: "text", value };
+}
+
+function normalizeAttrs(rawAttrs, state) {
+  if (!rawAttrs || typeof rawAttrs !== "object") return {};
+  const entries = Object.entries(rawAttrs);
+  if (entries.length > TREE_LIMITS.maxAttrs) {
+    state.recordIssue("element exceeds max attributes; extras ignored");
+  }
+  const attrs = {};
+  for (const [name, value] of entries.slice(0, TREE_LIMITS.maxAttrs)) {
+    attrs[name] = value;
+  }
+  return attrs;
+}
+
+// Normalize any serialized node into `{ type: "text" | "element", ... }`,
+// converting from legacy `{ tag, attrs, text, children }` format if needed.
+// Returns null if invalid or over limits, recording the reason on `state`.
+function normalizeNode(raw, depth, state) {
+  if (!raw || typeof raw !== "object") {
+    state.recordIssue("not an object");
+    return null;
+  }
+  if (depth > TREE_LIMITS.maxDepth) {
+    state.recordIssue("tree exceeds max depth");
+    return null;
+  }
+  if (state.nodeCount >= TREE_LIMITS.maxNodes) {
+    state.recordIssue("tree exceeds max node count");
+    return null;
+  }
+
+  if (raw.type === "text") {
+    if (typeof raw.value !== "string") {
+      state.recordIssue("text node value is not a string");
+      return null;
+    }
+    return createTextNode(raw.value, state);
+  }
+
+  const isLegacy = raw.type === undefined;
+  if (raw.type !== "element" && !isLegacy) {
+    state.recordIssue(`unknown node type "${raw.type}"`);
+    return null;
+  }
+
+  state.nodeCount += 1;
+  const children = [];
+
+  // Legacy leading text becomes an explicit leading text child.
+  if (isLegacy && raw.text != null && raw.text !== "") {
+    const textNode = createTextNode(String(raw.text), state);
+    if (textNode) children.push(textNode);
+  }
+
+  const rawChildren = Array.isArray(raw.children) ? raw.children : [];
+  if (rawChildren.length > TREE_LIMITS.maxChildren) {
+    state.recordIssue("element exceeds max children; extras ignored");
+  }
+  for (const rawChild of rawChildren.slice(0, TREE_LIMITS.maxChildren)) {
+    const child = normalizeNode(rawChild, depth + 1, state);
+    if (child) children.push(child);
+  }
+
+  return {
+    type: "element",
+    tag: typeof raw.tag === "string" ? raw.tag : "div",
+    attrs: normalizeAttrs(raw.attrs, state),
+    events: raw.events && typeof raw.events === "object" ? raw.events : {},
+    children,
+  };
+}
+
 function resolveTag(node, pluginId) {
   let tag = typeof node.tag === "string" ? node.tag.toLowerCase() : "div";
   if (!isAllowedTag(tag)) {
@@ -119,7 +241,7 @@ function resolveTag(node, pluginId) {
   return tag;
 }
 
-// Render a serialized VirtualEl node ({ tag, attrs, text, children }) into a DOM element.
+// Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
   constructor(pluginBridge, pluginId, renderContext) {
     this.pluginBridge = pluginBridge;
@@ -129,15 +251,15 @@ export class PluginRenderer {
 
   createRoot() {
     const renderer = this;
-    const pluginId = this.pluginId;
     return {
       tree: null,
       el: null,
-      render(node) {
-        if (this.el && renderer._sameType(this.tree, node)) {
-          renderer._patch(this.el, this.tree, node, pluginId);
+      render(rawNode) {
+        const node = renderer._normalize(rawNode);
+        if (this.el && renderer._sameKind(this.tree, node)) {
+          renderer._patch(this.el, this.tree, node);
         } else {
-          this.el = renderer._create(node, pluginId);
+          this.el = renderer._create(node);
         }
         this.tree = node;
         return this.el;
@@ -149,12 +271,41 @@ export class PluginRenderer {
     };
   }
 
-  _sameType(oldNode, newNode) {
-    if (!oldNode || !newNode) return false;
-    return resolveTag(oldNode) === resolveTag(newNode);
+  _normalize(rawNode) {
+    const state = new NormalizerState();
+    const node = normalizeNode(rawNode, 0, state);
+    this._reportIssues(state);
+    return (
+      node ?? {
+        type: "element",
+        tag: "span",
+        attrs: {},
+        events: {},
+        children: [],
+      }
+    );
   }
 
-  _create(node, pluginId) {
+  _reportIssues(state) {
+    const summary = state.getIssueSummary();
+    if (!summary || this.pluginId === undefined) return;
+    console.warn(`[plugins] "${this.pluginId}" had ${summary}`);
+  }
+
+  _sameKind(oldNode, newNode) {
+    if (!oldNode || !newNode) return false;
+    if (oldNode.type === "text" && newNode.type === "text") return true;
+    if (oldNode.type === "element" && newNode.type === "element") {
+      return resolveTag(oldNode) === resolveTag(newNode);
+    }
+    return false;
+  }
+
+  _create(node) {
+    if (node.type === "text") {
+      return document.createTextNode(node.value);
+    }
+    const pluginId = this.pluginId;
     const tag = resolveTag(node, pluginId);
     const element = document.createElement(tag);
     if (tag === "a") {
@@ -207,23 +358,20 @@ export class PluginRenderer {
         element.setAttribute(name, String(value));
       }
     }
-    this._patchEvents(element, null, node.events, pluginId);
-    const children = Array.isArray(node.children) ? node.children : [];
-    const hasText = node.text != null && node.text !== "";
-    if (hasText && children.length === 0) {
-      element.textContent = node.text;
-    } else {
-      if (hasText) {
-        element.appendChild(document.createTextNode(node.text));
-      }
-      for (const child of children) {
-        element.appendChild(this._create(child, pluginId));
-      }
+    this._patchEvents(element, null, node.events);
+    for (const child of node.children) {
+      element.appendChild(this._create(child));
     }
     return element;
   }
 
-  _patch(element, oldNode, newNode, pluginId) {
+  _patch(node, oldNode, newNode) {
+    if (newNode.type === "text") {
+      if (node.nodeValue !== newNode.value) node.nodeValue = newNode.value;
+      return;
+    }
+    const pluginId = this.pluginId;
+    const element = node;
     const oldAttrs = oldNode.attrs ?? {};
     const newAttrs = newNode.attrs ?? {};
     const isFocused = document.activeElement === element;
@@ -253,7 +401,7 @@ export class PluginRenderer {
       if (oldAttrs[name] !== value) element.setAttribute(name, String(value));
     }
 
-    this._patchEvents(element, oldNode.events, newNode.events, pluginId);
+    this._patchEvents(element, oldNode.events, newNode.events);
 
     // Custom elements may have internal state derived from selectors (e.g.
     // optimistic like state). Give them a chance to re-render now that the
@@ -262,74 +410,27 @@ export class PluginRenderer {
       element.refresh();
     }
 
-    const oldChildren = Array.isArray(oldNode.children) ? oldNode.children : [];
-    const newChildren = Array.isArray(newNode.children) ? newNode.children : [];
-    const oldHasText = oldNode.text != null && oldNode.text !== "";
-    const newHasText = newNode.text != null && newNode.text !== "";
-
-    // Fast path: text-only on both sides.
-    if (oldChildren.length === 0 && newChildren.length === 0) {
-      if (newHasText) {
-        if (newNode.text !== oldNode.text) element.textContent = newNode.text;
-      } else if (oldHasText) {
-        element.textContent = "";
-      }
-      return;
-    }
-
-    // If the children-vs-text shape changed dramatically, rebuild content.
-    const oldHadOnlyText = oldChildren.length === 0 && oldHasText;
-    const newHasOnlyText = newChildren.length === 0 && newHasText;
-    if (oldHadOnlyText || newHasOnlyText) {
-      element.textContent = "";
-      if (newHasText) {
-        element.appendChild(document.createTextNode(newNode.text));
-      }
-      for (const child of newChildren) {
-        element.appendChild(this._create(child, pluginId));
-      }
-      return;
-    }
-
-    // Both sides have element children — manage the optional leading text node.
-    let textOffset = 0;
-    const firstIsTextNode =
-      element.firstChild && element.firstChild.nodeType === Node.TEXT_NODE;
-    if (newHasText) {
-      if (firstIsTextNode) {
-        if (element.firstChild.textContent !== newNode.text) {
-          element.firstChild.textContent = newNode.text;
-        }
-      } else {
-        element.insertBefore(
-          document.createTextNode(newNode.text),
-          element.firstChild,
-        );
-      }
-      textOffset = 1;
-    } else if (oldHasText && firstIsTextNode) {
-      element.removeChild(element.firstChild);
-    }
-
+    const oldChildren = oldNode.children ?? [];
+    const newChildren = newNode.children ?? [];
     const domChildren = Array.from(element.childNodes);
     const max = Math.max(oldChildren.length, newChildren.length);
     for (let index = 0; index < max; index++) {
       const oldChild = oldChildren[index];
       const newChild = newChildren[index];
-      const domChild = domChildren[index + textOffset];
+      const domChild = domChildren[index];
       if (!oldChild && newChild) {
-        element.appendChild(this._create(newChild, pluginId));
+        element.appendChild(this._create(newChild));
       } else if (oldChild && !newChild) {
         if (domChild) element.removeChild(domChild);
-      } else if (this._sameType(oldChild, newChild)) {
-        this._patch(domChild, oldChild, newChild, pluginId);
+      } else if (this._sameKind(oldChild, newChild)) {
+        this._patch(domChild, oldChild, newChild);
       } else {
-        element.replaceChild(this._create(newChild, pluginId), domChild);
+        element.replaceChild(this._create(newChild), domChild);
       }
     }
   }
 
-  _patchEvents(element, oldEvents, newEvents, pluginId) {
+  _patchEvents(element, oldEvents, newEvents) {
     const map = (element[HANDLER_MAP] ??= {});
     const next = newEvents && typeof newEvents === "object" ? newEvents : {};
     if (oldEvents) {
@@ -340,7 +441,7 @@ export class PluginRenderer {
     for (const [name, handlerId] of Object.entries(next)) {
       if (!ALLOWED_EVENTS.includes(name)) {
         console.warn(
-          `[plugins] "${pluginId}" tried to bind disallowed event "${name}"`,
+          `[plugins] "${this.pluginId}" tried to bind disallowed event "${name}"`,
         );
         continue;
       }
@@ -351,7 +452,7 @@ export class PluginRenderer {
           const currentId = element[HANDLER_MAP]?.[name];
           if (currentId == null) return;
           this.pluginBridge.handleNodeEvent(
-            pluginId,
+            this.pluginId,
             currentId,
             createVirtualEvent(event),
           );
@@ -361,7 +462,9 @@ export class PluginRenderer {
   }
 
   isEmptyNode(node) {
-    if (!node) return true;
+    if (!node || typeof node !== "object") return true;
+    if (node.type === "text") return !node.value;
+    // Legacy `text` field or new/legacy `children`.
     if (node.text != null && node.text !== "") return false;
     if (Array.isArray(node.children) && node.children.length > 0) return false;
     return true;

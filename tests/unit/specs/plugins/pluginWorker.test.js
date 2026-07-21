@@ -126,8 +126,14 @@ describe("VirtualEl (via Setting & friends)", () => {
     assert.deepEqual(serialized.children.length, 2);
     const info = serialized.children[0];
     assert.deepEqual(info.attrs.class, "setting-item-info");
-    assert.deepEqual(info.children[0].text, "Hello");
-    assert.deepEqual(info.children[1].text, "World");
+    assert.deepEqual(info.children[0].children[0], {
+      type: "text",
+      value: "Hello",
+    });
+    assert.deepEqual(info.children[1].children[0], {
+      type: "text",
+      value: "World",
+    });
   });
 
   it("addClass concatenates classes and setAttr stores attributes", () => {
@@ -145,14 +151,48 @@ describe("VirtualEl (via Setting & friends)", () => {
     assert.deepEqual(serialized.attrs.disabled, "");
   });
 
-  it("empty() clears text and children", () => {
+  it("empty() clears children", () => {
     const el = makeVirtualEl();
     el.createDiv({ text: "child" });
     el.setText("hi");
     el.empty();
     const serialized = el._serialize();
-    assert.deepEqual(serialized.text, null);
     assert.deepEqual(serialized.children, []);
+    assert(!("text" in serialized));
+  });
+
+  it("setText appends a single text child, and skips empty/null values", () => {
+    const el = makeVirtualEl();
+    el.setText("hi");
+    assert.deepEqual(el._serialize().children, [{ type: "text", value: "hi" }]);
+    el.setText("");
+    assert.deepEqual(el._serialize().children, []);
+    el.setText(null);
+    assert.deepEqual(el._serialize().children, []);
+  });
+
+  it("appendText and createText add ordered text nodes", () => {
+    const el = makeVirtualEl();
+    el.appendText("before ");
+    el.createEl("em", { text: "middle" });
+    const tail = el.createText(" after");
+    assert.deepEqual(el._serialize().children, [
+      { type: "text", value: "before " },
+      {
+        type: "element",
+        tag: "em",
+        attrs: {},
+        events: {},
+        children: [{ type: "text", value: "middle" }],
+      },
+      { type: "text", value: " after" },
+    ]);
+    assert.deepEqual(tail._serialize(), { type: "text", value: " after" });
+  });
+
+  it("appendChild rejects values that are not VirtualEl or VirtualText", () => {
+    const el = makeVirtualEl();
+    assert.throws(() => el.appendChild({ tag: "div" }), TypeError);
   });
 
   it("createEl supports text, cls (string or array), and attr options", () => {
@@ -160,7 +200,10 @@ describe("VirtualEl (via Setting & friends)", () => {
     el.createEl("span", { text: "x", cls: ["one", "two"], attr: { id: "z" } });
     const serialized = el._serialize();
     assert.deepEqual(serialized.children[0].tag, "span");
-    assert.deepEqual(serialized.children[0].text, "x");
+    assert.deepEqual(serialized.children[0].children[0], {
+      type: "text",
+      value: "x",
+    });
     assert.deepEqual(serialized.children[0].attrs.class, "one two");
     assert.deepEqual(serialized.children[0].attrs.id, "z");
   });
@@ -240,7 +283,10 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert.deepEqual(result.callId, 42);
     assert.deepEqual(result.value.tag, "div");
     assert.deepEqual(result.value.attrs.class, "hello");
-    assert.deepEqual(result.value.text, "world");
+    assert.deepEqual(result.value.children[0], {
+      type: "text",
+      value: "world",
+    });
   });
 
   it("registerSlot returns null when the callback returns null", async () => {
@@ -436,7 +482,10 @@ describe("Notice", () => {
     assert(sent, "expected a showToast hostCall");
     assert.deepEqual(sent.args[0].timeout, 1000);
     assert.deepEqual(sent.args[0].element.tag, "div");
-    assert.deepEqual(sent.args[0].element.text, "Saved!");
+    assert.deepEqual(sent.args[0].element.children[0], {
+      type: "text",
+      value: "Saved!",
+    });
   });
 
   it("hide() before the microtask suppresses the showToast", async () => {
@@ -517,8 +566,14 @@ describe("Modal", () => {
     const sent = lastMessage();
     assert.deepEqual(sent.type, "hostCall");
     assert.deepEqual(sent.method, "openModal");
-    assert.deepEqual(sent.args[0].title.text, "Title");
-    assert.deepEqual(sent.args[0].content.text, "Body");
+    assert.deepEqual(sent.args[0].title.children[0], {
+      type: "text",
+      value: "Title",
+    });
+    assert.deepEqual(sent.args[0].content.children[0], {
+      type: "text",
+      value: "Body",
+    });
   });
 
   it("calling open() twice only sends one openModal", () => {
@@ -747,7 +802,10 @@ describe("Setting components", () => {
     );
     const button = setting.controlEl.children[0];
     assert.deepEqual(button.tag, "button");
-    assert.deepEqual(button.text, "Save");
+    assert.deepEqual(button.children[0]._serialize(), {
+      type: "text",
+      value: "Save",
+    });
     assert(button.attrs.class.includes("rounded-button-primary"));
     assert(typeof button.events.click === "number");
   });
@@ -904,7 +962,10 @@ describe("registerRichTextTransform", () => {
     assert.deepEqual(first.value[0], { type: "text", value: "one" });
     assert.deepEqual(first.value[1].type, "inline");
     assert.deepEqual(first.value[1].node.tag, "code");
-    assert.deepEqual(first.value[1].node.text, "hi");
+    assert.deepEqual(first.value[1].node.children[0], {
+      type: "text",
+      value: "hi",
+    });
     assert.deepEqual(second.value, [{ type: "text", value: "two" }]);
   });
 
