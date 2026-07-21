@@ -632,6 +632,11 @@ export class Api {
   }
 
   async sendInteractions(interactions, feedProxyUrl) {
+    // Interactions are only useful to the feed generator that served the
+    // posts, so callers must route to one.
+    if (!feedProxyUrl) {
+      throw new Error("sendInteractions requires a feedProxyUrl");
+    }
     await this.request(`app.bsky.feed.sendInteractions`, {
       method: "POST",
       body: { interactions },

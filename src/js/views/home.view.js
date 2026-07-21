@@ -16,6 +16,7 @@ import { bindToPage, pageEffect } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
+import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
 class HomeView extends View {
   async render({
@@ -74,13 +75,6 @@ class HomeView extends View {
       });
     }
 
-    function getProxyUrl(feedGenerator) {
-      if (!feedGenerator.did) {
-        return null;
-      }
-      return `${feedGenerator.did}#bsky_fg`;
-    }
-
     const postSeenObservers = new Map();
 
     // Initialize post seen observers for feeds with proxy URLs
@@ -96,7 +90,7 @@ class HomeView extends View {
       }
       postSeenObservers.clear();
       for (const item of interactableItems) {
-        const proxyUrl = getProxyUrl(item);
+        const proxyUrl = getFeedGeneratorProxyUrl(item);
         if (proxyUrl) {
           postSeenObservers.set(item.uri, new PostSeenObserver(api, proxyUrl));
         }
@@ -122,8 +116,9 @@ class HomeView extends View {
     async function handleShowLess(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowLessInteraction(
         post.uri,
+        feedGenerator.uri,
         feedContext,
-        getProxyUrl(feedGenerator),
+        getFeedGeneratorProxyUrl(feedGenerator),
       );
       // Scroll to keep the feedback message in view (it might be hidden by the header, but that's okay)
       const feedFeedbackMessageElement = document.querySelector(
@@ -137,8 +132,9 @@ class HomeView extends View {
     async function handleShowMore(post, feedContext, feedGenerator) {
       dataLayer.mutations.sendShowMoreInteraction(
         post.uri,
+        feedGenerator.uri,
         feedContext,
-        getProxyUrl(feedGenerator),
+        getFeedGeneratorProxyUrl(feedGenerator),
       );
       showToast("Feedback sent to feed operator");
     }
@@ -210,13 +206,19 @@ class HomeView extends View {
     });
 
     pageEffect(root, () => {
-      const showLessInteractions =
-        dataLayer.derived.$showLessInteractions.get() ?? [];
-      const hiddenPostUris = showLessInteractions.map(
-        (interaction) => interaction.item,
-      );
       const currentUser = dataLayer.derived.$currentUser.get();
       const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+      // Map of feed items -> feedContexts for postSeenObserver
+      const feedContextsByFeedUri = new Map(
+        pinnedItems.map((item) => [
+          item.uri,
+          new Map(
+            (dataLayer.derived.$hydratedFeeds.get(item.uri)?.feed ?? []).map(
+              (feedItem) => [feedItem.post.uri, feedItem.feedContext ?? null],
+            ),
+          ),
+        ]),
+      );
       const currentFeedUri = state.$currentFeedUri.get();
       const currentFeedRequestStatus =
         dataLayer.requests.statusStore.$statuses.get(
@@ -257,6 +259,9 @@ class HomeView extends View {
             ${pinnedItems.map((item) => {
               const acceptsInteractions =
                 item.acceptsInteractions || item.uri === LOGGED_OUT_FEED_URI;
+              const hiddenPostUris = dataLayer.derived.$showLessInteractions
+                .get(item.uri)
+                .map((interaction) => interaction.item);
               const feed = dataLayer.derived.$hydratedFeeds.get(item.uri);
               const feedRequestStatus =
                 dataLayer.requests.statusStore.$statuses.get(
@@ -297,10 +302,12 @@ class HomeView extends View {
       );
       const feedItems = document.querySelectorAll(".feed-item");
       feedItems.forEach((feedItem) => {
-        const { feedGeneratorUri, feedContext, postUri } = feedItem.dataset;
+        const { feedGeneratorUri, postUri } = feedItem.dataset;
         if (feedGeneratorUri) {
           const postSeenObserver = postSeenObservers.get(feedGeneratorUri);
           if (postSeenObserver) {
+            const feedContext =
+              feedContextsByFeedUri.get(feedGeneratorUri)?.get(postUri) ?? null;
             postSeenObserver.register(feedItem, postUri, feedContext);
           }
         }

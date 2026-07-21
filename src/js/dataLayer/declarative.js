@@ -28,6 +28,18 @@ export class Declarative {
     return profile;
   }
 
+  async ensureKnownFollowers(profileDid) {
+    let knownFollowers = this.derived.$knownFollowers.get(profileDid);
+    if (!knownFollowers) {
+      await this.requests.loadKnownFollowers(profileDid);
+      knownFollowers = this.derived.$knownFollowers.get(profileDid);
+    }
+    if (!knownFollowers) {
+      throw new Error("Known followers not found");
+    }
+    return knownFollowers;
+  }
+
   async ensureProfileFollows(profileDid) {
     let profileFollows = this.derived.$profileFollows.get(profileDid);
     if (!profileFollows) {

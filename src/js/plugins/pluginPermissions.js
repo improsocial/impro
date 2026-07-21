@@ -1,5 +1,7 @@
 import { unique } from "/js/utils.js";
 
+const ACTION_SCOPES = ["mute", "block", "feedFeedback"];
+
 export function getPermissionsFromManifest(manifest) {
   return parsePermissions(manifest.permissions ?? {});
 }
@@ -15,7 +17,22 @@ export function parsePermissions(permissions) {
     );
     if (fetchPatterns.length > 0) parsed.fetch = fetchPatterns;
   }
+  if (permissions.actions) {
+    const actionsArray = Array.isArray(permissions.actions)
+      ? permissions.actions
+      : [permissions.actions];
+    const actionScopes = unique(
+      actionsArray.filter((entry) => ACTION_SCOPES.includes(entry)),
+    );
+    if (actionScopes.length > 0) parsed.actions = actionScopes;
+  }
   return parsed;
+}
+
+// action is one of "mute", "block", "feedFeedback" (the "show fewer/more
+// like this" feed-interaction signal)
+export function isActionAllowed(action, permissions) {
+  return (permissions.actions ?? []).includes(action);
 }
 
 export function diffPermissions(current, next) {

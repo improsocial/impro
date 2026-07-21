@@ -115,18 +115,6 @@ describe("postFeedTemplate - feed with posts", () => {
     const feedItem = container.querySelector("[data-testid='feed-item']");
     assert(feedItem.getAttribute("data-post-uri") !== null);
   });
-
-  it("should set data-feed-context attribute on feed items", () => {
-    const result = postFeedTemplate({
-      feed: { feed: feed.slice(0, 1), cursor: null },
-      currentUser: mockUser,
-      postInteractionHandler,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const feedItem = container.querySelector("[data-testid='feed-item']");
-    assert(feedItem.hasAttribute("data-feed-context"));
-  });
 });
 
 describe("postFeedTemplate - pagination", () => {

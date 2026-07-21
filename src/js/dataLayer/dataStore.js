@@ -11,8 +11,6 @@ export class DataStore extends ReactiveStore {
     this.$chatRecipientSearchResults = new Signal.State(null);
     this.$searchTypeaheadResults = new Signal.State(null);
     this.$feedSearchResults = new Signal.State(null);
-    this.$showLessInteractions = new Signal.State([]);
-    this.$showMoreInteractions = new Signal.State([]);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
@@ -31,6 +29,8 @@ export class DataStore extends ReactiveStore {
     this.$latestPostSearchRequestTimeTop = new Signal.State(null);
     this.$latestPostSearchRequestTimeLatest = new Signal.State(null);
     // Keyed signals
+    this.$showLessInteractions = new SignalMap();
+    this.$showMoreInteractions = new SignalMap();
     this.$feeds = new SignalMap();
     this.$posts = new SignalMap();
     this.$embeddedPosts = new SignalMap();

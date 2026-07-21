@@ -21,6 +21,7 @@ import {
   getPermissionsFromManifest,
   diffPermissions,
   isEmptyPermissions,
+  isActionAllowed,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import {
@@ -30,8 +31,16 @@ import {
 import { Signal, SignalMap, SignalSet, ReactiveStore } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { PLUGIN_REGISTRY_URL } from "/js/config.js";
+import { getFeedGeneratorProxyUrl } from "/js/dataHelpers.js";
 
 const DISABLE_PLUGINS_QUERY_PARAM = "disable-plugins";
+
+function requireHostMethodArg(method, name, value) {
+  if (!value) {
+    throw new Error(`${method} requires a ${name}`);
+  }
+}
+
 export const PLUGIN_PREVIEW_QUERY_PARAM = "plugin-preview";
 
 export function arePluginsDisabledByQueryParam() {
@@ -373,13 +382,54 @@ export class PluginService extends ReactiveStore {
       return pluginFetch(plugin, url, init);
     });
 
-    this.pluginBridge.addHostMethod("getPost", (plugin, { uri }) => {
-      return this._dataLayer?.derived.$hydratedPosts.get(uri) ?? null;
+    this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
+      if (!this._dataLayer) return null;
+      try {
+        return await this._dataLayer.declarative.ensurePost(uri);
+      } catch {
+        return null;
+      }
     });
 
-    this.pluginBridge.addHostMethod("getProfile", (plugin, { did }) => {
-      return this._dataLayer?.derived.$hydratedProfiles.get(did) ?? null;
+    this.pluginBridge.addHostMethod("getProfile", async (plugin, { did }) => {
+      if (!this._dataLayer) return null;
+      const profile = this._dataLayer.derived.$hydratedProfiles.get(did);
+      if (profile) return profile;
+      try {
+        await this._dataLayer.declarative.ensureDetailedProfile(did);
+      } catch {
+        return null;
+      }
+      return this._dataLayer.derived.$hydratedProfiles.get(did) ?? null;
     });
+
+    this.pluginBridge.addHostMethod(
+      "getDetailedProfile",
+      async (plugin, { did }) => {
+        if (!this._dataLayer) return null;
+        try {
+          return await this._dataLayer.declarative.ensureDetailedProfile(did);
+        } catch {
+          return null;
+        }
+      },
+    );
+
+    // Full known-followers list for did (the profile.viewer.knownFollowers
+    // included on getProfile/getDetailedProfile is capped to a handful).
+    // The AppView doesn't currently paginate this endpoint in practice, so
+    // this is a single round-trip, not a cursor loop.
+    this.pluginBridge.addHostMethod(
+      "getKnownFollowers",
+      async (plugin, { did }) => {
+        if (!this._dataLayer) return null;
+        try {
+          return await this._dataLayer.declarative.ensureKnownFollowers(did);
+        } catch {
+          return null;
+        }
+      },
+    );
 
     this.pluginBridge.addHostMethod("getRecord", (plugin, args) =>
       this.slingshot.getRecord(args),
@@ -392,6 +442,99 @@ export class PluginService extends ReactiveStore {
         handle: this.session.handle,
       };
     });
+
+    this.pluginBridge.addHostMethod(
+      "muteActor",
+      async (plugin, { did, mute = true }) => {
+        this._requireSignedIn();
+        this._requireActionPermission(plugin, "mute");
+        requireHostMethodArg("muteActor", "did", did);
+        const profile = this._resolveProfileForMutation(did);
+        if (mute) await this._dataLayer.mutations.muteProfile(profile);
+        else await this._dataLayer.mutations.unmuteProfile(profile);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "blockActor",
+      async (plugin, { did, block = true }) => {
+        this._requireSignedIn();
+        this._requireActionPermission(plugin, "block");
+        requireHostMethodArg("blockActor", "did", did);
+        const profile = this._resolveProfileForMutation(did);
+        if (block) await this._dataLayer.mutations.blockProfile(profile);
+        else await this._dataLayer.mutations.unblockProfile(profile);
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "showLessLikeThis",
+      async (plugin, { postUri, feedUri = null }) => {
+        this._requireSignedIn();
+        this._requireActionPermission(plugin, "feedFeedback");
+        requireHostMethodArg("showLessLikeThis", "postUri", postUri);
+        requireHostMethodArg("showLessLikeThis", "feedUri", feedUri);
+        const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
+          postUri,
+          feedUri,
+        );
+        await this._dataLayer.mutations.sendShowLessInteraction(
+          postUri,
+          feedUri,
+          feedContext,
+          feedProxyUrl,
+        );
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "showMoreLikeThis",
+      async (plugin, { postUri, feedUri = null }) => {
+        this._requireSignedIn();
+        this._requireActionPermission(plugin, "feedFeedback");
+        requireHostMethodArg("showMoreLikeThis", "postUri", postUri);
+        requireHostMethodArg("showMoreLikeThis", "feedUri", feedUri);
+        const { feedContext, feedProxyUrl } = this._resolveFeedAttribution(
+          postUri,
+          feedUri,
+        );
+        await this._dataLayer.mutations.sendShowMoreInteraction(
+          postUri,
+          feedUri,
+          feedContext,
+          feedProxyUrl,
+        );
+      },
+    );
+  }
+
+  _resolveFeedAttribution(postUri, feedUri) {
+    const feed = this._dataLayer.dataStore.$feeds.get(feedUri);
+    const feedItem = feed?.feed.find((item) => item.post.uri === postUri);
+    const feedGenerator = this._dataLayer.derived.$feedGenerators.get(feedUri);
+    return {
+      feedContext: feedItem?.feedContext ?? null,
+      feedProxyUrl: getFeedGeneratorProxyUrl(feedGenerator),
+    };
+  }
+
+  _requireSignedIn() {
+    if (!this._dataLayer) throw new Error("Not signed in");
+  }
+
+  _requireActionPermission(plugin, action) {
+    if (!isActionAllowed(action, plugin.permissions)) {
+      throw new Error(
+        `"${plugin.pluginId}" does not have "${action}" action permission`,
+      );
+    }
+  }
+
+  _resolveProfileForMutation(did) {
+    return (
+      this._dataLayer.derived.$hydratedDetailedProfiles.get(did) ??
+      this._dataLayer.derived.$hydratedProfiles.get(did) ?? { did }
+    );
   }
 
   async loadEnabledPlugins() {
@@ -815,8 +958,8 @@ export class PluginService extends ReactiveStore {
     return this.$settingTabs.get(pluginId);
   }
 
-  async getPostContextMenuItems(post) {
-    return this._collectContextMenuItems("post-context-menu", post);
+  async getPostContextMenuItems(post, meta = null) {
+    return this._collectContextMenuItems("post-context-menu", post, meta);
   }
 
   async getProfileContextMenuItems(profile) {
@@ -861,13 +1004,14 @@ export class PluginService extends ReactiveStore {
     return { text, cursor };
   }
 
-  async _collectContextMenuItems(event, target) {
+  async _collectContextMenuItems(event, target, meta = null) {
     const listeners = this.registries.eventListeners.get(event);
     if (!listeners || listeners.size === 0) return [];
     const results = await Promise.all(
       [...listeners].map(async ([pluginId, handler]) => {
         try {
-          const items = await handler(target);
+          const items =
+            meta != null ? await handler(target, meta) : await handler(target);
           return (items ?? []).map((item) => ({
             pluginId,
             icon: item.icon,

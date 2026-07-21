@@ -147,6 +147,17 @@ class PluginData {
   getProfile(did) {
     return hostCall("getProfile", { did });
   }
+  // Like getProfile, but includes viewer relationship details not present
+  // on the basic profile view: viewer.following, viewer.followedBy, and
+  // viewer.knownFollowers (a summary of mutual followers).
+  getDetailedProfile(did) {
+    return hostCall("getDetailedProfile", { did });
+  }
+  // The full known-followers list for did (the summary on
+  // getDetailedProfile's viewer.knownFollowers is capped to a handful).
+  getKnownFollowers(did) {
+    return hostCall("getKnownFollowers", { did });
+  }
   getRecord(repo, collection, rkey) {
     return hostCall("getRecord", { repo, collection, rkey });
   }
@@ -163,6 +174,32 @@ class App {
 
   refreshFeedFilters(feedURI = null) {
     return hostCall("refreshFeedFilters", feedURI);
+  }
+
+  // Actions on behalf of the signed-in user. Each method requires the
+  // corresponding scope ("mute", "block", "feedFeedback") to be declared in
+  // the plugin manifest's `permissions.actions` array, which the user must
+  // grant at install time.
+  muteActor(did) {
+    return hostCall("muteActor", { did, mute: true });
+  }
+  unmuteActor(did) {
+    return hostCall("muteActor", { did, mute: false });
+  }
+  blockActor(did) {
+    return hostCall("blockActor", { did, block: true });
+  }
+  unblockActor(did) {
+    return hostCall("blockActor", { did, block: false });
+  }
+  // Acts like the user clicking "Show less like this": sends the requestLess
+  // feedback signal to the feed that served the post and collapses the post
+  // behind a feedback message in feeds.
+  showLessLikeThis(postUri, feedUri) {
+    return hostCall("showLessLikeThis", { postUri, feedUri });
+  }
+  showMoreLikeThis(postUri, feedUri) {
+    return hostCall("showMoreLikeThis", { postUri, feedUri });
   }
 }
 

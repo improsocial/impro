@@ -42,7 +42,7 @@ class FeedDetailView extends View {
 
     pageEffect(root, () => {
       const showLessInteractions =
-        dataLayer.derived.$showLessInteractions.get() ?? [];
+        dataLayer.derived.$showLessInteractions.get(feedUri);
       const hiddenPostUris = showLessInteractions.map(
         (interaction) => interaction.item,
       );

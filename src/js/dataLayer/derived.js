@@ -120,8 +120,8 @@ export class Derived extends ReactiveStore {
     this.pluginService = pluginService;
     this.isAuthenticated = isAuthenticated;
     this.draftMediaStore = draftMediaStore;
-    this.$showLessInteractions = new Signal.Computed(() =>
-      this.dataStore.$showLessInteractions.get(),
+    this.$showLessInteractions = new ComputedMap(
+      (feedUri) => this.dataStore.$showLessInteractions.get(feedUri) ?? [],
     );
     this.$hydratedPosts = new ComputedMap((uri) => {
       const post = this.patchStore.$patchedPosts.get(uri);

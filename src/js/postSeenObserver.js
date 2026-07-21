@@ -115,7 +115,7 @@ export class PostSeenObserver {
         await this.interactionsDispatch.sendInteraction({
           item: postUri,
           event: "app.bsky.feed.defs#interactionSeen",
-          feedContext,
+          ...(feedContext != null ? { feedContext } : {}),
         });
         this.seenPosts.add(postUri);
       } catch (error) {

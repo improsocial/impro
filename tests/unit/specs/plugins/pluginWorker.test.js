@@ -335,6 +335,43 @@ describe("hostCall round-trip", () => {
     assert.deepEqual(sent.args[0], "at://example/feed");
   });
 
+  it("app mute and block methods post hostCalls with the direction flag", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const did = "did:plc:target";
+
+    plugin.app.muteActor(did);
+    assert.deepEqual(lastMessage().method, "muteActor");
+    assert.deepEqual(lastMessage().args[0], { did, mute: true });
+
+    plugin.app.unmuteActor(did);
+    assert.deepEqual(lastMessage().method, "muteActor");
+    assert.deepEqual(lastMessage().args[0], { did, mute: false });
+
+    plugin.app.blockActor(did);
+    assert.deepEqual(lastMessage().method, "blockActor");
+    assert.deepEqual(lastMessage().args[0], { did, block: true });
+
+    plugin.app.unblockActor(did);
+    assert.deepEqual(lastMessage().method, "blockActor");
+    assert.deepEqual(lastMessage().args[0], { did, block: false });
+  });
+
+  it("app feedback methods post hostCalls with postUri and feedUri", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const postUri = "at://example/post/1";
+    const feedUri = "at://example/feed/cool";
+
+    plugin.app.showLessLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showLessLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+
+    plugin.app.showMoreLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showMoreLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+  });
+
   it("app.data.getPost posts a hostCall and resolves with the host result", async () => {
     clearMessages();
     const plugin = new Plugin();
