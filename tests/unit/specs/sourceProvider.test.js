@@ -785,3 +785,75 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
     }
   });
 });
+
+// The knot's raw=true mode 403s for font mime types, so getFont fetches the
+// JSON-wrapped (base64) response for tangled repos instead and decodes it
+// client-side. Verified against a real binary file on the live server
+// (byte-for-byte identical to a raw=true fetch of the same file) separately
+// from this suite; these tests cover the decode logic in isolation.
+function wrappedFontResponse(bytes) {
+  return jsonResponse({
+    content: Buffer.from(bytes).toString("base64"),
+    encoding: "base64",
+    isBinary: true,
+  });
+}
+
+describe("SourceProvider.getFont with tangled.sh-hosted plugins", () => {
+  it("fetches the non-raw wrapped response and decodes it into a Blob", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
+    const bytes = woff2Bytes();
+    const pluginCache = fakePluginCache(async () => wrappedFontResponse(bytes));
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const blob = await provider.getFont(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+        "fonts/f.woff2",
+      );
+      const params = new URLSearchParams({
+        repo: identity.repoDid,
+        ref: "1.0.0",
+        path: "fonts/f.woff2",
+      });
+      assert.deepEqual(
+        pluginCache.calls[0].url,
+        `https://${identity.knot}/xrpc/sh.tangled.repo.blob?${params}`,
+      );
+      assert(!pluginCache.calls[0].url.includes("raw="));
+      assert(blob instanceof Blob);
+      assert.deepEqual(blob.type, "font/woff2");
+      assert.deepEqual(blob.size, bytes.byteLength);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("rejects invalid magic bytes the same way as GitHub/local fonts", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
+    const notFont = new Uint8Array([0, 0, 0, 0, 0, 0, 0, 0]);
+    const pluginCache = fakePluginCache(async () =>
+      wrappedFontResponse(notFont),
+    );
+    try {
+      const provider = new SourceProvider(pluginCache);
+      let caught = null;
+      try {
+        await provider.getFont(
+          "alpha",
+          "1.0.0",
+          `tangled:${identity.ownerHandle}/alpha`,
+          "fonts/f.woff2",
+        );
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught?.message.includes("invalid magic bytes"));
+    } finally {
+      stub.restore();
+    }
+  });
+});

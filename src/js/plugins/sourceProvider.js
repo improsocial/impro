@@ -163,7 +163,12 @@ async function resolveTangledRepoInfo(path) {
   return promise;
 }
 
-async function remoteAssetUrl({ repo, file, release = null }) {
+// The knot's raw=true mode only serves image/video/text mime types (fonts
+// come back 403 "only image, video, and text files can be accessed
+// directly"). Passing raw=false instead gets the JSON-wrapped response
+// (content + encoding, "base64" for binary files) that every file type
+// supports — needed for fonts, usable for any file type.
+async function remoteAssetUrl({ repo, file, release = null, raw = true }) {
   const { host, path } = parseRepoSpec(repo);
   if (host === "tangled") {
     const { knot, repoDid } = await resolveTangledRepoInfo(path);
@@ -171,12 +176,29 @@ async function remoteAssetUrl({ repo, file, release = null }) {
       repo: repoDid,
       ref: release ?? "main",
       path: file,
-      raw: "true",
     });
+    if (raw) params.set("raw", "true");
     return `https://${knot}/xrpc/sh.tangled.repo.blob?${params}`;
   }
   const ref = release ? `refs/tags/${release}` : "refs/heads/main";
   return `https://raw.githubusercontent.com/${path}/${ref}/${file}`;
+}
+
+// Decodes a tangled knot's JSON-wrapped blob response (from a non-raw
+// sh.tangled.repo.blob fetch) into an ArrayBuffer.
+function decodeTangledBlobContent(data, file) {
+  if (typeof data.content !== "string") {
+    throw new Error(`tangled blob response for "${file}" has no content`);
+  }
+  if (data.encoding === "base64") {
+    const binary = atob(data.content);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+      bytes[i] = binary.charCodeAt(i);
+    }
+    return bytes.buffer;
+  }
+  return new TextEncoder().encode(data.content).buffer;
 }
 
 export class SourceProvider {
@@ -284,9 +306,21 @@ export class SourceProvider {
       if (!version || !repo) {
         throw new Error("Version and repo are required");
       }
-      const url = await remoteAssetUrl({ repo, file, release: version });
-      const response = await this.pluginCache.fetch(url);
-      bytes = await response.arrayBuffer();
+      const { host } = parseRepoSpec(repo);
+      if (host === "tangled") {
+        const url = await remoteAssetUrl({
+          repo,
+          file,
+          release: version,
+          raw: false,
+        });
+        const response = await this.pluginCache.fetch(url);
+        bytes = decodeTangledBlobContent(await response.json(), file);
+      } else {
+        const url = await remoteAssetUrl({ repo, file, release: version });
+        const response = await this.pluginCache.fetch(url);
+        bytes = await response.arrayBuffer();
+      }
     }
     assertFontMagicBytes(file, bytes);
     const mime = /\.woff2$/i.test(file) ? "font/woff2" : "font/woff";
