@@ -107,14 +107,59 @@ function assertFontMagicBytes(file, bytes) {
 //   1. resolveIdentity(ownerHandle) -> owner DID + DID doc (handle
 //      resolver + plc.directory)
 //   2. getServiceEndpointFromDidDoc -> owner's PDS
-//   3. com.atproto.repo.getRecord on the owner's PDS for the repo's own
-//      "sh.tangled.repo" record (rkey = repo name) -> {knot, repoDid}
+//   3. the repo's own "sh.tangled.repo" record on the owner's PDS ->
+//      {knot, repoDid} (see findTangledRepoRecord below re. the two
+//      record-key schemes this has to handle)
 //   4. the individual knot server's own "sh.tangled.repo.blob" XRPC route
 //      (not the mirror), which does set Access-Control-Allow-Origin: *
 //
-// Cached per repo path since each resolution costs 3 network round-trips
-// and rarely changes.
+// Cached per repo path since each resolution costs multiple network
+// round-trips and rarely changes.
 const tangledRepoInfoCache = new Map();
+
+// The "sh.tangled.repo" record key scheme has changed at least once:
+// repos created more recently use the repo name directly as the record
+// key (rkey), while older repos use an opaque TID key instead, with the
+// repo name only present as an explicit "name" field on the record value
+// (confirmed against real accounts, e.g. tangled.org's own "infra" repo
+// still uses a TID key). Try the fast direct lookup first, and fall back
+// to scanning the owner's records by name — this has to keep working for
+// both existing schemes, and possibly future ones with the same fallback.
+async function findTangledRepoRecord(pds, ownerDid, repoName) {
+  const directUrl =
+    `${pds}/xrpc/com.atproto.repo.getRecord?` +
+    new URLSearchParams({
+      repo: ownerDid,
+      collection: "sh.tangled.repo",
+      rkey: repoName,
+    });
+  const directResponse = await fetch(directUrl);
+  if (directResponse.ok) {
+    const record = await directResponse.json();
+    if (record.value) return record.value;
+  }
+
+  let cursor = null;
+  for (let page = 0; page < 20; page++) {
+    const params = new URLSearchParams({
+      repo: ownerDid,
+      collection: "sh.tangled.repo",
+      limit: "100",
+    });
+    if (cursor) params.set("cursor", cursor);
+    const response = await fetch(
+      `${pds}/xrpc/com.atproto.repo.listRecords?${params}`,
+    );
+    if (!response.ok) return null;
+    const data = await response.json();
+    const records = data.records ?? [];
+    const match = records.find((record) => record.value?.name === repoName);
+    if (match) return match.value;
+    if (!data.cursor || records.length === 0) return null;
+    cursor = data.cursor;
+  }
+  return null;
+}
 
 async function resolveTangledRepoInfo(path) {
   if (tangledRepoInfoCache.has(path)) {
@@ -134,22 +179,13 @@ async function resolveTangledRepoInfo(path) {
     }
     const pds = getServiceEndpointFromDidDoc(identity.didDoc);
 
-    const recordUrl =
-      `${pds}/xrpc/com.atproto.repo.getRecord?` +
-      new URLSearchParams({
-        repo: identity.did,
-        collection: "sh.tangled.repo",
-        rkey: repoName,
-      });
-    const response = await fetch(recordUrl);
-    if (!response.ok) {
+    const record = await findTangledRepoRecord(pds, identity.did, repoName);
+    if (!record) {
       throw new Error(
-        `Could not resolve tangled repo "${path}" (HTTP ${response.status})`,
+        `Could not find a tangled repo record named "${repoName}" for "${ownerHandle}"`,
       );
     }
-    const record = await response.json();
-    const knot = record.value?.knot;
-    const repoDid = record.value?.repoDid;
+    const { knot, repoDid } = record;
     if (!knot || !repoDid) {
       throw new Error(
         `tangled repo record for "${path}" is missing knot/repoDid`,

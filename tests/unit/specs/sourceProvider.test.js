@@ -527,13 +527,20 @@ describe("SourceProvider.getCacheUrls with fonts", () => {
 // This stubs global fetch to answer those three resolution requests by URL
 // pattern; the actual file-content request is left to the caller (via
 // fakePluginCache, or a 4th branch here for plain-fetch methods).
+// legacyRecordKey simulates repos created before the "rkey = repo name"
+// scheme existed: the direct getRecord lookup 404s (well, 400s — standard
+// atproto RecordNotFound), and the record only turns up via listRecords,
+// keyed by an opaque TID with an explicit "name" field. Confirmed for real
+// against tangled.org's own account (its "infra" repo still uses this).
 function stubTangledResolution({
   ownerHandle,
   ownerDid,
   pds,
   knot,
   repoDid,
+  repoName = "alpha",
   content = null,
+  legacyRecordKey = false,
 }) {
   const calls = [];
   const fetchImpl = async (url, options) => {
@@ -559,7 +566,31 @@ function stubTangledResolution({
       urlStr.startsWith(pds) &&
       urlStr.includes("com.atproto.repo.getRecord")
     ) {
+      if (legacyRecordKey) {
+        return jsonResponse(
+          { error: "RecordNotFound", message: "not found" },
+          { ok: false, status: 400 },
+        );
+      }
       return jsonResponse({ value: { knot, repoDid } });
+    }
+    if (
+      urlStr.startsWith(pds) &&
+      urlStr.includes("com.atproto.repo.listRecords")
+    ) {
+      if (!legacyRecordKey) {
+        throw new Error(
+          "listRecords should only be hit as a fallback (legacyRecordKey: true)",
+        );
+      }
+      return jsonResponse({
+        records: [
+          {
+            uri: `at://${ownerDid}/sh.tangled.repo/3lxfwy4ifg622`,
+            value: { knot, repoDid, name: repoName },
+          },
+        ],
+      });
     }
     if (content && urlStr.startsWith(`https://${knot}/`)) {
       return content;
@@ -741,6 +772,64 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         caught = error;
       }
       assert(caught?.message.includes("Could not resolve tangled repo owner"));
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("falls back to listRecords for repos using the older TID record key", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({
+      ...identity,
+      repoName: "alpha",
+      legacyRecordKey: true,
+    });
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
+    );
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const manifest = await provider.getManifest(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(manifest.id, "alpha");
+      assert.deepEqual(
+        pluginCache.calls[0].url,
+        knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
+      );
+      // resolveHandle, plc.directory, getRecord (404), listRecords
+      assert.deepEqual(stub.calls.length, 4);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("throws a clear error when no record matches by rkey or name", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({
+      ...identity,
+      repoName: "some-other-repo",
+      legacyRecordKey: true,
+    });
+    try {
+      const provider = new SourceProvider(fakePluginCache(async () => null));
+      let caught = null;
+      try {
+        await provider.getManifest(
+          "alpha",
+          "1.0.0",
+          `tangled:${identity.ownerHandle}/alpha`,
+        );
+      } catch (error) {
+        caught = error;
+      }
+      assert(
+        caught?.message.includes(
+          'Could not find a tangled repo record named "alpha"',
+        ),
+      );
     } finally {
       stub.restore();
     }
