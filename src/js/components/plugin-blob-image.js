@@ -1,18 +1,18 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { BSKY_CDN_URL } from "/js/config.js";
+import { buildCdnUrl } from "/js/dataHelpers.js";
 
 const DID_PATTERN = /^did:(plc|web):[a-zA-Z0-9._%:-]+$/;
 const CID_PATTERN = /^b[a-z2-7]{20,}$/;
 
-const CDN_PREFIXES = new Set([
-  "avatar",
-  "avatar_thumbnail",
-  "banner",
-  "feed_thumbnail",
-  "feed_fullsize",
-]);
+function safeBuildCdnUrl(prefix, did, cid) {
+  try {
+    return buildCdnUrl(prefix, did, cid);
+  } catch {
+    return null;
+  }
+}
 
 function isValidDid(did) {
   return typeof did === "string" && DID_PATTERN.test(did);
@@ -20,10 +20,6 @@ function isValidDid(did) {
 
 function isValidCid(cid) {
   return typeof cid === "string" && CID_PATTERN.test(cid);
-}
-
-function buildCdnUrl(prefix, did, cid) {
-  return `${BSKY_CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
 }
 
 class PluginBlobImage extends Component {
@@ -48,11 +44,8 @@ class PluginBlobImage extends Component {
         const alt = this.state.$alt.get() ?? "";
         const failed = this.state.$failed.get();
         const src =
-          !failed &&
-          isValidDid(did) &&
-          isValidCid(cid) &&
-          CDN_PREFIXES.has(cdnPrefix)
-            ? buildCdnUrl(cdnPrefix, did, cid)
+          !failed && isValidDid(did) && isValidCid(cid)
+            ? safeBuildCdnUrl(cdnPrefix, did, cid)
             : null;
         if (src) {
           render(

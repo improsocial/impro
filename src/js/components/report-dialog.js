@@ -831,6 +831,11 @@ class ReportDialog extends Component {
   close() {
     return closeWithAnimation(this.querySelector(".report-dialog"));
   }
+
+  disconnectedCallback() {
+    this.scrollLock?.release();
+    this.scrollLock = null;
+  }
 }
 
 ReportDialog.register();

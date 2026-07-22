@@ -6,7 +6,6 @@ import {
   enableDragToDismiss,
   resetScrollOnBlur,
 } from "/js/dialogHelpers.js";
-import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/image-cropper.js";
@@ -16,68 +15,60 @@ import "/js/components/context-menu-item-group.js";
 import { cameraIconTemplate } from "/js/templates/icons/cameraIcon.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 
-const MAX_DISPLAY_NAME_LENGTH = 64;
-const MAX_DESCRIPTION_LENGTH = 256;
+const MAX_NAME_LENGTH = 64;
+const MAX_DESCRIPTION_LENGTH = 300;
 
-class EditProfileDialog extends Component {
+class EditListDetailsDialog extends Component {
   connectedCallback() {
     if (this.initialized) {
       return;
     }
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = null;
-    this._displayName = "";
+    this._name = "";
     this._description = "";
     this._currentAvatar = null;
-    this._currentBanner = null;
     this._newAvatarDataUrl = null;
-    this._newBannerDataUrl = null;
     this._removeAvatar = false;
-    this._removeBanner = false;
     this._saving = false;
     this._error = null;
-    this._croppingTarget = null; // "avatar" or "banner"
     this._croppingImageSrc = null;
     this._isOpen = false;
-    this._profile = null;
+    this._list = null;
     this.innerHTML = "";
     this.render();
     this.initialized = true;
   }
 
-  setProfile(profile) {
-    this._profile = profile;
-    this._displayName = profile.displayName || "";
-    this._description = profile.description || "";
-    this._currentAvatar = profile.avatar
-      ? avatarThumbnailUrl(profile.avatar)
-      : null;
-    this._currentBanner = profile.banner || null;
+  setList(list) {
+    this._list = list;
+    this._name = list.name || "";
+    this._description = list.description || "";
+    this._currentAvatar = list.avatar || null;
     this._newAvatarDataUrl = null;
-    this._newBannerDataUrl = null;
     this._removeAvatar = false;
-    this._removeBanner = false;
     this._saving = false;
     this._error = null;
-    this._croppingTarget = null;
     this._croppingImageSrc = null;
     this.render();
   }
 
   get _isDirty() {
-    if (!this._profile) return false;
+    if (!this._list) return false;
     return (
-      this._displayName !== (this._profile.displayName || "") ||
-      this._description !== (this._profile.description || "") ||
+      this._name !== (this._list.name || "") ||
+      this._description !== (this._list.description || "") ||
       this._newAvatarDataUrl !== null ||
-      this._newBannerDataUrl !== null ||
-      this._removeAvatar ||
-      this._removeBanner
+      this._removeAvatar
     );
   }
 
-  get _isDisplayNameTooLong() {
-    return graphemeCount(this._displayName) > MAX_DISPLAY_NAME_LENGTH;
+  get _isNameTooLong() {
+    return graphemeCount(this._name) > MAX_NAME_LENGTH;
+  }
+
+  get _isNameEmpty() {
+    return this._name.trim().length === 0;
   }
 
   get _isDescriptionTooLong() {
@@ -88,26 +79,24 @@ class EditProfileDialog extends Component {
     return (
       this._isDirty &&
       !this._saving &&
-      !this._isDisplayNameTooLong &&
+      !this._isNameEmpty &&
+      !this._isNameTooLong &&
       !this._isDescriptionTooLong
     );
   }
 
   render() {
-    const isCropping = !!this._croppingTarget;
+    const isCropping = !!this._croppingImageSrc;
 
-    const displayNameCount = graphemeCount(this._displayName);
+    const nameCount = graphemeCount(this._name);
     const descriptionCount = graphemeCount(this._description);
     const avatarSrc = this._removeAvatar
       ? null
       : this._newAvatarDataUrl || this._currentAvatar;
-    const bannerSrc = this._removeBanner
-      ? null
-      : this._newBannerDataUrl || this._currentBanner;
 
     render(
       html`<dialog
-        class="bottom-sheet bottom-sheet-fullscreen no-handle edit-profile-dialog"
+        class="bottom-sheet bottom-sheet-fullscreen no-handle edit-profile-dialog edit-list-details-dialog"
         @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
             if (await this.confirmClose()) {
@@ -118,7 +107,6 @@ class EditProfileDialog extends Component {
         @cancel=${async (event) => {
           event.preventDefault();
           if (isCropping) {
-            this._croppingTarget = null;
             this._croppingImageSrc = null;
             this.render();
           } else if (await this.confirmClose()) {
@@ -128,7 +116,7 @@ class EditProfileDialog extends Component {
         @close=${() => {
           this.scrollLock?.release();
           this.scrollLock = null;
-          this.dispatchEvent(new CustomEvent("edit-profile-closed"));
+          this.dispatchEvent(new CustomEvent("edit-list-details-closed"));
         }}
       >
         ${isCropping
@@ -138,9 +126,8 @@ class EditProfileDialog extends Component {
               <div class="edit-profile-dialog-header">
                 <button
                   class="edit-profile-dialog-header-button"
-                  data-testid="edit-profile-crop-cancel-button"
+                  data-testid="edit-list-details-crop-cancel-button"
                   @click=${() => {
-                    this._croppingTarget = null;
                     this._croppingImageSrc = null;
                     this.render();
                   }}
@@ -150,6 +137,7 @@ class EditProfileDialog extends Component {
                 <h2>Edit image</h2>
                 <button
                   class="edit-profile-dialog-header-button edit-profile-dialog-save-button"
+                  data-testid="edit-list-details-crop-apply-button"
                   @click=${() => this._applyCrop()}
                 >
                   Apply
@@ -158,10 +146,8 @@ class EditProfileDialog extends Component {
               <div class="edit-profile-cropper-container">
                 <image-cropper
                   src="${this._croppingImageSrc}"
-                  aspect-ratio="${this._croppingTarget === "avatar" ? 1 : 3}"
-                  shape="${this._croppingTarget === "avatar"
-                    ? "circle"
-                    : "square"}"
+                  aspect-ratio="1"
+                  shape="rounded-square"
                 ></image-cropper>
               </div>
             </div>`
@@ -169,7 +155,7 @@ class EditProfileDialog extends Component {
               <div class="edit-profile-dialog-header">
                 <button
                   class="edit-profile-dialog-header-button"
-                  data-testid="edit-profile-cancel-button"
+                  data-testid="edit-list-details-cancel-button"
                   @click=${async () => {
                     if (await this.confirmClose()) {
                       this.close();
@@ -179,7 +165,7 @@ class EditProfileDialog extends Component {
                 >
                   Cancel
                 </button>
-                <h2>Edit profile</h2>
+                <h2>Edit list details</h2>
                 <button
                   class=${classnames(
                     "edit-profile-dialog-header-button edit-profile-dialog-save-button",
@@ -187,7 +173,7 @@ class EditProfileDialog extends Component {
                   )}
                   @click=${() => this._save()}
                   .disabled=${!this._canSave}
-                  data-testid="edit-profile-save-button"
+                  data-testid="edit-list-details-save-button"
                 >
                   <span>Save</span>
                   ${this._saving
@@ -197,34 +183,19 @@ class EditProfileDialog extends Component {
               </div>
 
               <div class="edit-profile-dialog-body">
-                <div class="edit-profile-images-section">
-                  <div
-                    class="edit-profile-banner-preview"
-                    @click=${(event) => this._openImageMenu(event, "banner")}
-                  >
-                    ${bannerSrc
-                      ? html`<img src="${bannerSrc}" alt="Banner preview" />`
-                      : html`<div
-                          class="edit-profile-banner-placeholder"
-                        ></div>`}
-                    <div class="edit-profile-image-overlay"></div>
-                    <div
-                      class="edit-profile-camera-button edit-profile-camera-button-banner"
-                    >
-                      ${cameraIconTemplate()}
-                    </div>
-                  </div>
-
+                <div
+                  class="edit-profile-images-section edit-list-details-images-section"
+                >
                   <div
                     class="edit-profile-avatar-wrapper"
-                    @click=${(event) => this._openImageMenu(event, "avatar")}
+                    @click=${() => this._openAvatarMenu()}
                   >
                     <div class="edit-profile-avatar-preview">
                       ${avatarSrc
                         ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
                         : html`<img
                             class="edit-profile-avatar-placeholder"
-                            src="/img/avatar-fallback.svg"
+                            src="/img/list-avatar-fallback.svg"
                             alt=""
                           />`}
                       <div class="edit-profile-image-overlay"></div>
@@ -237,36 +208,11 @@ class EditProfileDialog extends Component {
                   </div>
                 </div>
 
-                <context-menu class="edit-profile-banner-menu">
+                <context-menu class="edit-list-details-avatar-menu">
                   <context-menu-item-group>
                     <context-menu-item
-                      data-testid="menu-action-banner-upload"
-                      @click=${() => this._pickImage("banner")}
-                    >
-                      Upload from Files
-                    </context-menu-item>
-                  </context-menu-item-group>
-                  ${bannerSrc
-                    ? html`<context-menu-item-group>
-                        <context-menu-item
-                          data-testid="menu-action-banner-remove"
-                          @click=${() => {
-                            this._newBannerDataUrl = null;
-                            this._removeBanner = true;
-                            this.render();
-                          }}
-                        >
-                          Remove Banner
-                        </context-menu-item>
-                      </context-menu-item-group>`
-                    : ""}
-                </context-menu>
-
-                <context-menu class="edit-profile-avatar-menu">
-                  <context-menu-item-group>
-                    <context-menu-item
-                      data-testid="menu-action-avatar-upload"
-                      @click=${() => this._pickImage("avatar")}
+                      data-testid="menu-action-list-avatar-upload"
+                      @click=${() => this._pickImage()}
                     >
                       Upload from Files
                     </context-menu-item>
@@ -274,7 +220,7 @@ class EditProfileDialog extends Component {
                   ${avatarSrc
                     ? html`<context-menu-item-group>
                         <context-menu-item
-                          data-testid="menu-action-avatar-remove"
+                          data-testid="menu-action-list-avatar-remove"
                           @click=${() => {
                             this._newAvatarDataUrl = null;
                             this._removeAvatar = true;
@@ -288,31 +234,31 @@ class EditProfileDialog extends Component {
                 </context-menu>
 
                 <div class="edit-profile-field">
-                  <label for="edit-profile-display-name">Display Name</label>
+                  <label for="edit-list-details-name">List Name</label>
                   <input
-                    id="edit-profile-display-name"
+                    id="edit-list-details-name"
                     type="text"
                     class="edit-profile-input"
-                    .value=${this._displayName}
+                    .value=${this._name}
                     @input=${(event) => {
-                      this._displayName = event.target.value;
+                      this._name = event.target.value;
                       this.render();
                     }}
-                    data-testid="edit-profile-display-name"
+                    data-testid="edit-list-details-name"
                   />
                   <div
                     class=${classnames("edit-profile-char-count", {
-                      overflow: this._isDisplayNameTooLong,
+                      overflow: this._isNameTooLong,
                     })}
                   >
-                    ${displayNameCount}/${MAX_DISPLAY_NAME_LENGTH}
+                    ${nameCount}/${MAX_NAME_LENGTH}
                   </div>
                 </div>
 
                 <div class="edit-profile-field">
-                  <label for="edit-profile-description">Description</label>
+                  <label for="edit-list-details-description">Description</label>
                   <textarea
-                    id="edit-profile-description"
+                    id="edit-list-details-description"
                     class="edit-profile-textarea"
                     .value=${this._description}
                     @input=${(event) => {
@@ -320,7 +266,7 @@ class EditProfileDialog extends Component {
                       this.render();
                     }}
                     rows="4"
-                    data-testid="edit-profile-description"
+                    data-testid="edit-list-details-description"
                   ></textarea>
                   <div
                     class=${classnames("edit-profile-char-count", {
@@ -341,7 +287,7 @@ class EditProfileDialog extends Component {
           type="file"
           accept="image/*"
           style="display: none;"
-          class="edit-profile-file-input"
+          class="edit-list-details-file-input"
           @change=${(event) => this._handleFileSelect(event)}
           @cancel=${(event) => {
             event.stopPropagation();
@@ -352,24 +298,18 @@ class EditProfileDialog extends Component {
     );
 
     if (this._isOpen) {
-      const dialog = this.querySelector(".edit-profile-dialog");
+      const dialog = this.querySelector(".edit-list-details-dialog");
       if (dialog && !dialog.open) {
         dialog.showModal();
       }
     }
   }
 
-  _openImageMenu(event, target) {
-    const menuClass =
-      target === "avatar"
-        ? ".edit-profile-avatar-menu"
-        : ".edit-profile-banner-menu";
-    const buttonClass =
-      target === "avatar"
-        ? ".edit-profile-camera-button-avatar"
-        : ".edit-profile-camera-button-banner";
-    const menu = this.querySelector(menuClass);
-    const cameraButton = this.querySelector(buttonClass);
+  _openAvatarMenu() {
+    const menu = this.querySelector(".edit-list-details-avatar-menu");
+    const cameraButton = this.querySelector(
+      ".edit-profile-camera-button-avatar",
+    );
     if (menu && cameraButton) {
       const rect = cameraButton.getBoundingClientRect();
       const x = rect.left + rect.width / 2;
@@ -378,9 +318,8 @@ class EditProfileDialog extends Component {
     }
   }
 
-  _pickImage(target) {
-    this._pendingPickTarget = target;
-    const input = this.querySelector(".edit-profile-file-input");
+  _pickImage() {
+    const input = this.querySelector(".edit-list-details-file-input");
     if (input) {
       input.click();
     }
@@ -396,9 +335,7 @@ class EditProfileDialog extends Component {
     const dataUrl = await readFileAsDataUrl(file);
     event.target.value = "";
 
-    this._croppingTarget = this._pendingPickTarget;
     this._croppingImageSrc = dataUrl;
-    this._pendingPickTarget = null;
     this.render();
   }
 
@@ -409,15 +346,8 @@ class EditProfileDialog extends Component {
     const croppedDataUrl = cropper.cropImage();
     if (!croppedDataUrl) return;
 
-    if (this._croppingTarget === "avatar") {
-      this._newAvatarDataUrl = croppedDataUrl;
-      this._removeAvatar = false;
-    } else {
-      this._newBannerDataUrl = croppedDataUrl;
-      this._removeBanner = false;
-    }
-
-    this._croppingTarget = null;
+    this._newAvatarDataUrl = croppedDataUrl;
+    this._removeAvatar = false;
     this._croppingImageSrc = null;
     this.render();
   }
@@ -429,42 +359,31 @@ class EditProfileDialog extends Component {
 
     try {
       let avatarBlob = null;
-      let bannerBlob = null;
-      const imageCompressor = new ImageCompressor();
-
       if (this._newAvatarDataUrl) {
-        const compressed = await imageCompressor.compressImage(
+        const compressed = await new ImageCompressor().compressImage(
           this._newAvatarDataUrl,
         );
         avatarBlob = compressed.blob;
-      }
-      if (this._newBannerDataUrl) {
-        const compressed = await imageCompressor.compressImage(
-          this._newBannerDataUrl,
-        );
-        bannerBlob = compressed.blob;
       }
 
       const successCallback = () => {
         this.close();
       };
       const errorCallback = (error) => {
-        console.error("Failed to update profile:", error);
-        this._error = "Failed to save profile. Please try again.";
+        console.error("Failed to update list:", error);
+        this._error = "Failed to save list. Please try again.";
         this._saving = false;
         this.render();
       };
 
       this.dispatchEvent(
-        new CustomEvent("profile-save", {
+        new CustomEvent("list-save", {
           detail: {
-            profileUpdates: {
-              displayName: this._displayName,
+            listUpdates: {
+              name: this._name,
               description: this._description,
               avatarBlob,
-              bannerBlob,
               removeAvatar: this._removeAvatar,
-              removeBanner: this._removeBanner,
             },
             successCallback,
             errorCallback,
@@ -472,8 +391,8 @@ class EditProfileDialog extends Component {
         }),
       );
     } catch (error) {
-      console.error("Error saving profile:", error);
-      this._error = "Failed to save profile. Please try again.";
+      console.error("Error saving list:", error);
+      this._error = "Failed to save list. Please try again.";
       this._saving = false;
       this.render();
     }
@@ -482,7 +401,7 @@ class EditProfileDialog extends Component {
   open() {
     this._isOpen = true;
     this.scrollLock ??= scrollLocks.acquire({ target: this });
-    const dialog = this.querySelector(".edit-profile-dialog");
+    const dialog = this.querySelector(".edit-list-details-dialog");
     if (dialog?.open) return;
     if (dialog) {
       dialog.showModal();
@@ -506,7 +425,7 @@ class EditProfileDialog extends Component {
   }
 
   async confirmClose() {
-    if (!this._isDirty || !!this._croppingTarget || this._saving) return true;
+    if (!this._isDirty || !!this._croppingImageSrc || this._saving) return true;
     return confirmModal("Are you sure you want to discard your changes?", {
       title: "Discard changes?",
       confirmButtonStyle: "danger",
@@ -516,7 +435,7 @@ class EditProfileDialog extends Component {
 
   close() {
     this._isOpen = false;
-    return closeWithAnimation(this.querySelector(".edit-profile-dialog"));
+    return closeWithAnimation(this.querySelector(".edit-list-details-dialog"));
   }
 
   disconnectedCallback() {
@@ -525,4 +444,4 @@ class EditProfileDialog extends Component {
   }
 }
 
-EditProfileDialog.register();
+EditListDetailsDialog.register();

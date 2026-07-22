@@ -165,6 +165,11 @@ class PostNotificationsDialog extends Component {
   close() {
     return closeWithAnimation(this.querySelector(".post-notifications-dialog"));
   }
+
+  disconnectedCallback() {
+    this.scrollLock?.release();
+    this.scrollLock = null;
+  }
 }
 
 PostNotificationsDialog.register();

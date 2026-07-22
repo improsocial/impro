@@ -1,5 +1,9 @@
 import { unique } from "/js/utils.js";
-import { FOLLOWING_FEED_URI, IN_APP_LINK_DOMAINS } from "/js/config.js";
+import {
+  BSKY_CDN_URL,
+  FOLLOWING_FEED_URI,
+  IN_APP_LINK_DOMAINS,
+} from "/js/config.js";
 
 export const INVALID_HANDLE = "handle.invalid";
 export const MISSING_HANDLE = "missing.invalid";
@@ -14,6 +18,21 @@ export function hasValidHandle(profile) {
     profile.handle !== INVALID_HANDLE &&
     profile.handle !== MISSING_HANDLE
   );
+}
+
+const CDN_PREFIXES = new Set([
+  "avatar",
+  "avatar_thumbnail",
+  "banner",
+  "feed_thumbnail",
+  "feed_fullsize",
+]);
+
+export function buildCdnUrl(prefix, did, cid) {
+  if (!CDN_PREFIXES.has(prefix)) {
+    throw new Error(`Invalid CDN prefix: ${prefix}`);
+  }
+  return `${BSKY_CDN_URL}/img/${prefix}/plain/${did}/${cid}@jpeg`;
 }
 
 export function avatarThumbnailUrl(avatarUrl) {

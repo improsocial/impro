@@ -86,4 +86,26 @@ export class ListInteractionHandler {
       showToast("Failed to unblock list", { style: "error" });
     }
   }
+
+  async handleDeleteList(list) {
+    const confirmed = await confirmModal(
+      "This list will be permanently deleted. This action cannot be undone.",
+      {
+        title: "Delete this list?",
+        confirmButtonText: "Delete",
+        confirmButtonStyle: "danger",
+      },
+    );
+    if (!confirmed) return false;
+    try {
+      hapticsImpactMedium();
+      await this.dataLayer.mutations.deleteList(list);
+      showToast("List deleted");
+      return true;
+    } catch (error) {
+      console.error(error);
+      showToast("Failed to delete list", { style: "error" });
+      return false;
+    }
+  }
 }

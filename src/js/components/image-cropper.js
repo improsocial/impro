@@ -3,6 +3,9 @@ import { Component } from "/js/components/component.js";
 const MIN_SCALE = 1;
 const MAX_SCALE = 5;
 
+const SHAPES = new Set(["circle", "square", "rounded-square"]);
+const ROUNDED_SQUARE_RADIUS = 8;
+
 // Claude wrote this
 class ImageCropper extends Component {
   connectedCallback() {
@@ -48,14 +51,14 @@ class ImageCropper extends Component {
   }
 
   static get observedAttributes() {
-    return ["src", "aspect-ratio", "circular"];
+    return ["src", "aspect-ratio", "shape"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
     if (!this.initialized) return;
     if (name === "src" && newValue !== oldValue) {
       this.loadImage(newValue);
-    } else if (name === "aspect-ratio" || name === "circular") {
+    } else if (name === "aspect-ratio" || name === "shape") {
       this._draw();
     }
   }
@@ -64,8 +67,9 @@ class ImageCropper extends Component {
     return parseFloat(this.getAttribute("aspect-ratio")) || 1;
   }
 
-  get circular() {
-    return this.hasAttribute("circular");
+  get shape() {
+    const attr = this.getAttribute("shape");
+    return SHAPES.has(attr) ? attr : "square";
   }
 
   async loadImage(src) {
@@ -178,33 +182,37 @@ class ImageCropper extends Component {
     // Darken area outside the crop zone
     ctx.fillStyle = "rgba(0, 0, 0, 0.6)";
 
-    if (this.circular) {
-      // Draw darkened overlay with circular cutout
-      ctx.beginPath();
-      ctx.rect(0, 0, displayWidth, displayHeight);
-      const radius = cropWidth / 2;
-      const cx = cropX + cropWidth / 2;
-      const cy = cropY + cropHeight / 2;
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2, true);
-      ctx.fill("evenodd");
+    const shape = this.shape;
+    ctx.beginPath();
+    ctx.rect(0, 0, displayWidth, displayHeight);
+    this._traceCropPath(ctx, cropX, cropY, cropWidth, cropHeight, shape);
+    ctx.fill("evenodd");
 
-      // Draw circle border
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.lineWidth = 2;
-      ctx.beginPath();
-      ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-      ctx.stroke();
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    this._traceCropPath(ctx, cropX, cropY, cropWidth, cropHeight, shape);
+    ctx.stroke();
+  }
+
+  _traceCropPath(ctx, x, y, width, height, shape) {
+    if (shape === "circle") {
+      const radius = width / 2;
+      ctx.arc(x + width / 2, y + height / 2, radius, 0, Math.PI * 2);
+    } else if (shape === "rounded-square") {
+      const r = Math.min(ROUNDED_SQUARE_RADIUS, width / 2, height / 2);
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + width - r, y);
+      ctx.arcTo(x + width, y, x + width, y + r, r);
+      ctx.lineTo(x + width, y + height - r);
+      ctx.arcTo(x + width, y + height, x + width - r, y + height, r);
+      ctx.lineTo(x + r, y + height);
+      ctx.arcTo(x, y + height, x, y + height - r, r);
+      ctx.lineTo(x, y + r);
+      ctx.arcTo(x, y, x + r, y, r);
+      ctx.closePath();
     } else {
-      // Draw darkened overlay with rectangular cutout
-      ctx.beginPath();
-      ctx.rect(0, 0, displayWidth, displayHeight);
-      ctx.rect(cropX, cropY, cropWidth, cropHeight);
-      ctx.fill("evenodd");
-
-      // Draw rect border
-      ctx.strokeStyle = "rgba(255, 255, 255, 0.8)";
-      ctx.lineWidth = 2;
-      ctx.strokeRect(cropX, cropY, cropWidth, cropHeight);
+      ctx.rect(x, y, width, height);
     }
   }
 

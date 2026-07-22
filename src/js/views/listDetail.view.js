@@ -16,6 +16,7 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/edit-list-details-dialog.js";
 
 class ListDetailView extends View {
   async render({
@@ -171,6 +172,22 @@ class ListDetailView extends View {
                     >
                       Copy link to list
                     </context-menu-item>
+                    ${listCreator?.did &&
+                    currentUser?.did &&
+                    listCreator.did === currentUser.did
+                      ? html`<context-menu-item
+                            data-testid="menu-action-list-edit"
+                            @click=${() => handleEditList(list)}
+                          >
+                            Edit list details
+                          </context-menu-item>
+                          <context-menu-item
+                            data-testid="menu-action-list-delete"
+                            @click=${() => handleDeleteList(list)}
+                          >
+                            Delete list
+                          </context-menu-item>`
+                      : ""}
                   </context-menu>
                 `
               : null,
@@ -286,6 +303,35 @@ class ListDetailView extends View {
         root,
       );
     });
+
+    async function handleDeleteList(list) {
+      const deleted = await listInteractionHandler.handleDeleteList(list);
+      if (!deleted) return;
+      const fallbackRoute = list.creator?.handle
+        ? `/profile/${list.creator.handle}`
+        : "/";
+      window.router.back({ fallbackRoute });
+    }
+
+    async function handleEditList(list) {
+      const dialog = document.createElement("edit-list-details-dialog");
+      dialog.addEventListener("list-save", async (event) => {
+        const { listUpdates, successCallback, errorCallback } = event.detail;
+        try {
+          await dataLayer.mutations.updateList(list, listUpdates);
+          showToast("List updated");
+          successCallback();
+        } catch (error) {
+          errorCallback(error);
+        }
+      });
+      dialog.addEventListener("edit-list-details-closed", () => {
+        dialog.remove();
+      });
+      root.querySelector("main").appendChild(dialog);
+      dialog.setList(list);
+      dialog.open();
+    }
 
     async function loadFeed({ reload = false } = {}) {
       await dataLayer.requests.loadNextFeedPage(

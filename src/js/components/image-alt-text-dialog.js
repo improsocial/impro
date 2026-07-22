@@ -159,6 +159,11 @@ class ImageAltTextDialog extends Component {
     );
     this.close();
   }
+
+  disconnectedCallback() {
+    this.scrollLock?.release();
+    this.scrollLock = null;
+  }
 }
 
 ImageAltTextDialog.register();

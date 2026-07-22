@@ -1390,6 +1390,34 @@ export class Api {
     return res.data;
   }
 
+  async getListRecord(rkey) {
+    const res = await this.request("com.atproto.repo.getRecord", {
+      query: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.list",
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
+  async putListRecord(rkey, record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.list",
+        rkey,
+        record: {
+          $type: "app.bsky.graph.list",
+          ...record,
+        },
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
   async createModerationReport({ reasonType, reason, subject, labelerDid }) {
     const body = {
       reasonType,

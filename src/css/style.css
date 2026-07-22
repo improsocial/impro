@@ -5809,6 +5809,10 @@ emoji-picker-dialog emoji-picker,
   font-size: 24px;
 }
 
+#list-detail-view .pin-feed-button {
+  margin-right: 8px;
+}
+
 #feed-detail-view .pin-feed-button.pinned,
 #list-detail-view .pin-feed-button.pinned {
   color: var(--highlight-color);
@@ -9474,7 +9478,7 @@ tab-bar[full-width] .tab-bar-button {
 }
 
 .edit-profile-camera-button-avatar {
-  bottom: 6px;
+  bottom: 0;
   right: 0;
 }
 
@@ -9482,8 +9486,6 @@ tab-bar[full-width] .tab-bar-button {
   position: absolute;
   bottom: 0;
   left: 12px;
-  width: 84px;
-  height: 84px;
   cursor: pointer;
 }
 
@@ -9556,6 +9558,22 @@ tab-bar[full-width] .tab-bar-button {
   padding: 8px 12px;
   border-radius: var(--card-border-radius);
   background-color: light-dark(#fef2f2, #3b1111);
+}
+
+.edit-list-details-dialog .edit-list-details-images-section {
+  padding: 8px 0;
+  display: flex;
+  justify-content: flex-start;
+}
+
+.edit-list-details-dialog .edit-profile-avatar-wrapper {
+  position: relative;
+  bottom: auto;
+  left: auto;
+}
+
+.edit-list-details-dialog .edit-profile-avatar-preview {
+  border-radius: var(--list-avatar-border-radius);
 }
 
 /* Image Cropper */
