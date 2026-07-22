@@ -2,10 +2,11 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import {
+  closeWithAnimation,
   enableDragToDismiss,
-  kebabCase,
   resetScrollOnBlur,
-} from "/js/utils.js";
+} from "/js/dialogHelpers.js";
+import { kebabCase } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -661,6 +662,11 @@ class ReportDialog extends Component {
             e.preventDefault();
             this.close();
           }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("report-dialog-closed"));
+          }}
         >
           <div class="report-dialog-content">
             <button class="report-dialog-close" @click=${() => this.close()}>
@@ -810,8 +816,8 @@ class ReportDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".report-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
-
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       scrollContainer: this.querySelector(".report-dialog-body"),
@@ -823,11 +829,7 @@ class ReportDialog extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".report-dialog");
-    dialog.close();
-    this.dispatchEvent(new CustomEvent("report-dialog-closed"));
+    return closeWithAnimation(this.querySelector(".report-dialog"));
   }
 }
 

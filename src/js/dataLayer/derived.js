@@ -120,21 +120,18 @@ export class Derived extends ReactiveStore {
     this.pluginService = pluginService;
     this.isAuthenticated = isAuthenticated;
     this.draftMediaStore = draftMediaStore;
-    this.$showLessInteractions = new Signal.Computed(() =>
-      this.dataStore.$showLessInteractions.get(),
+    this.$showLessInteractions = new ComputedMap(
+      (feedUri) => this.dataStore.$showLessInteractions.get(feedUri) ?? [],
     );
     this.$hydratedPosts = new ComputedMap((uri) => {
       const post = this.patchStore.$patchedPosts.get(uri);
       const preferences = this.$preferences.get();
-      if (!post || !preferences) {
-        return null;
-      }
-      let result = this.resolveBlockedQuote(post);
-      result = this.attachJoinLinkPreview(result);
-      result = applyMutedWords(result, preferences);
-      result = applyIsHidden(result, preferences);
-      result = applyLabels(result, preferences);
-      return result;
+      return this.hydratePost(post, preferences);
+    });
+    this.$hydratedEmbeddedPosts = new ComputedMap((uri) => {
+      const post = this.dataStore.$embeddedPosts.get(uri);
+      const preferences = this.$preferences.get();
+      return this.hydratePost(post, preferences);
     });
     this.$hydratedFeeds = new ComputedMap((feedURI) => {
       const feed = this.dataStore.$feeds.get(feedURI);
@@ -689,6 +686,17 @@ export class Derived extends ReactiveStore {
     const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
     if (!updated) return item;
     return { ...item, embed: updated };
+  }
+
+  hydratePost(post, preferences) {
+    if (!post || !preferences) {
+      return null;
+    }
+    let result = this.resolveBlockedQuote(post);
+    result = this.attachJoinLinkPreview(result);
+    result = applyMutedWords(result, preferences);
+    result = applyIsHidden(result, preferences);
+    return applyLabels(result, preferences);
   }
 
   resolveBlockedQuote(post) {

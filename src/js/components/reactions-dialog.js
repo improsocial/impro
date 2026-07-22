@@ -2,7 +2,7 @@ import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -38,9 +38,7 @@ class ReactionsDialog extends Component {
   }
 
   _close() {
-    const dialog = this.querySelector(".reactions-dialog");
-    if (dialog?.open) dialog.close();
-    this.dispatchEvent(new CustomEvent("close"));
+    return closeWithAnimation(this.querySelector(".reactions-dialog"));
   }
 
   _getMessage() {
@@ -123,6 +121,11 @@ class ReactionsDialog extends Component {
           @cancel=${(event) => {
             event.preventDefault();
             this._close();
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("close"));
           }}
         >
           <div class="reactions-dialog-content">

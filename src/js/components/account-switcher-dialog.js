@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
@@ -100,6 +100,11 @@ class AccountSwitcherDialog extends Component {
             if (this.state.$pendingAction.get() === null) {
               this.close();
             }
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
           <div class="account-switcher-content">
@@ -280,6 +285,7 @@ class AccountSwitcherDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
@@ -290,13 +296,7 @@ class AccountSwitcherDialog extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector("dialog");
-    if (dialog?.open) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("dialog-closed"));
+    return closeWithAnimation(this.querySelector("dialog"));
   }
 }
 

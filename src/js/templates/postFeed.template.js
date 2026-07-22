@@ -110,6 +110,7 @@ function feedItemTemplate({
   feedItem,
   currentUser,
   isAuthenticated,
+  feedGenerator,
   hiddenPostUris,
   postInteractionHandler,
   onClickShowLess,
@@ -156,6 +157,8 @@ function feedItemTemplate({
         currentUser,
         isAuthenticated,
         isPinned,
+        feedContext,
+        feedGenerator,
         hiddenPostUris,
         isUserPost: currentUser?.did === post.author?.did,
         replyContext: showReplyContext ? "reply" : null,
@@ -223,7 +226,6 @@ export function postFeedTemplate({
             const content = html`<div
               class="feed-item"
               data-testid="feed-item"
-              data-feed-context="${feedItem.feedContext}"
               data-post-uri="${feedItem.post.uri}"
               data-feed-generator-uri="${feedGenerator?.uri ?? ""}"
             >
@@ -233,6 +235,7 @@ export function postFeedTemplate({
                   feedItem,
                   currentUser,
                   isAuthenticated,
+                  feedGenerator,
                   hiddenPostUris,
                   postInteractionHandler,
                   onClickShowLess,

@@ -28,6 +28,7 @@ import { getTimestampFromRkey } from "/js/atproto.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { verifiedCheckIconTemplate } from "/js/templates/icons/verifiedCheckIcon.template.js";
 import { contactsIconTemplate } from "/js/templates/icons/contactsIcon.template.js";
+import { profileListModal } from "/js/modals/profileList.modal.js";
 import "/js/components/tab-bar.js";
 import { NOTIFICATIONS_PAGE_SIZE } from "/js/config.js";
 import "/js/components/infinite-scroll-container.js";
@@ -242,7 +243,7 @@ class NotificationsView extends View {
       `;
     }
 
-    function notificationProfileNamesTemplate({ notificationGroup }) {
+    function notificationProfileNamesTemplate({ notificationGroup, title }) {
       const { notifications } = notificationGroup;
       const firstNotif = notifications[0];
       const displayName = getDisplayName(firstNotif.author);
@@ -255,9 +256,26 @@ class NotificationsView extends View {
         })}${otherCount > 0
           ? html`<span>
               and
-              <strong
-                >${otherCount} ${otherCount === 1 ? "other" : "others"}</strong
-              ></span
+              <button
+                type="button"
+                class="notification-others-button"
+                data-testid="notification-others-button"
+                @click=${(event) => {
+                  event.stopPropagation();
+                  profileListModal(
+                    notifications.map((notif) => notif.author),
+                    {
+                      title,
+                      isAuthenticated,
+                      currentUserDid: dataLayer.derived.$currentUser.get()?.did,
+                      profileInteractionHandler:
+                        interactionHandlers.profileInteractionHandler,
+                    },
+                  );
+                }}
+              >
+                ${otherCount} ${otherCount === 1 ? "other" : "others"}
+              </button></span
             >`
           : ""}
       </span>`;
@@ -276,7 +294,10 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })}
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: "Followed you",
+              })}
               ${notificationGroup.type === "follow-back"
                 ? "followed you back"
                 : "followed you"}
@@ -337,8 +358,11 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })} liked
-              ${isRepost ? "your repost" : "your post"}
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: isRepost ? "Liked your repost" : "Liked your post",
+              })}
+              liked ${isRepost ? "your repost" : "your post"}
               <span class="notification-time">· ${timeAgo}</span>
             </div>
             ${postPreviewTemplate({ post: likedPost })}
@@ -366,7 +390,10 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })}
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: isRepost ? "Reposted your repost" : "Reposted your post",
+              })}
               ${isRepost ? "reposted your repost" : "reposted your post"}
               <span class="notification-time">· ${timeAgo}</span>
             </div>
@@ -419,8 +446,11 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })} liked
-              your custom feed
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: "Liked your custom feed",
+              })}
+              liked your custom feed
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
@@ -448,8 +478,11 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })} signed
-              up with your starter pack
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: "Joined via your starter pack",
+              })}
+              signed up with your starter pack
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>
@@ -471,7 +504,10 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })}
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: "Verified you",
+              })}
               verified you
               <span class="notification-time">· ${timeAgo}</span>
             </div>
@@ -495,9 +531,12 @@ class NotificationsView extends View {
           <div class="notification-content">
             ${notificationAvatarsTemplate({ notifications })}
             <div class="notification-text">
-              ${notificationProfileNamesTemplate({ notificationGroup })} removed
-              their ${otherCount > 0 ? "verifications" : "verification"} from
-              your account
+              ${notificationProfileNamesTemplate({
+                notificationGroup,
+                title: "Removed verification",
+              })}
+              removed their ${otherCount > 0 ? "verifications" : "verification"}
+              from your account
               <span class="notification-time">· ${timeAgo}</span>
             </div>
           </div>

@@ -84,6 +84,18 @@ describe("largePostTemplate", () => {
     container.remove();
   });
 
+  it("should omit actions when rendering a prefill", () => {
+    const result = largePostTemplate({
+      post,
+      ...baseProps,
+      showActions: false,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(container.querySelector(".post-action-counts"), null);
+    assert.deepEqual(container.querySelector(".post-actions"), null);
+  });
+
   it("should render with reply context line when replyContext is parent", () => {
     const result = largePostTemplate({
       post,
@@ -248,9 +260,9 @@ describe("largePostTemplate - plugin context menu items", () => {
 
   async function openPostContextMenu(container) {
     ensurePageVisible();
-    const moreButton = Array.from(
-      container.querySelectorAll(".post-action-button.text-button"),
-    ).find((button) => button.textContent.trim() === "...");
+    const moreButton = container.querySelector(
+      '[data-testid="post-action-more"]',
+    );
     moreButton.click();
     await flushMicrotasks();
     return document.body.querySelector("context-menu.post-context-menu");

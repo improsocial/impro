@@ -309,6 +309,29 @@ export class PluginBridge {
         throw new Error("Plugin styles failed validation");
       }
     }
+    if (manifest.fonts?.length) {
+      try {
+        const descriptors = await Promise.all(
+          manifest.fonts.map(async (font) => ({
+            ...font,
+            blob: await this._provider.getFont(
+              pluginId,
+              version,
+              repo,
+              font.file,
+            ),
+          })),
+        );
+        this._pluginStylesLoader.mountFonts(pluginId, descriptors);
+      } catch (error) {
+        this._pluginStylesLoader.unmount(pluginId);
+        logger.error(
+          `failed to load "${pluginId}": could not load fonts`,
+          error,
+        );
+        throw new Error("Failed to load plugin fonts");
+      }
+    }
     try {
       const pluginInstance = await this._loadPluginInstance(
         pluginId,

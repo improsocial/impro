@@ -338,14 +338,16 @@ describe("PluginRenderer:root reconciliation", () => {
       text: "Applying",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
-    const originalSpinner = element.children[0];
     root.render({
       tag: "button",
       children: [{ tag: "div", attrs: { class: "loading-spinner" } }],
     });
     assert.deepEqual(element.childNodes.length, 1);
     assert.deepEqual(element.children.length, 1);
-    assert(element.children[0] === originalSpinner);
+    assert.deepEqual(
+      element.children[0].getAttribute("class"),
+      "loading-spinner",
+    );
   });
 
   it("replaces a child whose tag no longer matches", () => {
@@ -605,5 +607,693 @@ describe("PluginRenderer:anchor tags", () => {
       attrs: { href: "javascript:alert(1)" },
     });
     assert(!element.hasAttribute("href"));
+  });
+});
+
+describe("PluginRenderer:union node model", () => {
+  const TEXT = Node.TEXT_NODE;
+
+  it("renders interleaved text and element children in order", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "before " },
+        {
+          type: "element",
+          tag: "em",
+          attrs: {},
+          events: {},
+          children: [{ type: "text", value: "middle" }],
+        },
+        { type: "text", value: " after" },
+      ],
+    });
+    const kinds = Array.from(element.childNodes).map((child) => child.nodeType);
+    assert.deepEqual(kinds, [TEXT, Node.ELEMENT_NODE, TEXT]);
+    assert.deepEqual(element.childNodes[0].nodeValue, "before ");
+    assert.deepEqual(element.childNodes[1].tagName.toLowerCase(), "em");
+    assert.deepEqual(element.childNodes[1].textContent, "middle");
+    assert.deepEqual(element.childNodes[2].nodeValue, " after");
+  });
+
+  it("renders a bare text node at the root", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render({ type: "text", value: "hello" });
+    assert.deepEqual(node.nodeType, TEXT);
+    assert.deepEqual(node.nodeValue, "hello");
+  });
+
+  it("patches a text node's value in place across renders", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({ type: "text", value: "one" });
+    const second = root.render({ type: "text", value: "two" });
+    assert(first === second);
+    assert.deepEqual(second.nodeValue, "two");
+  });
+
+  it("patches a text child's value without recreating the node", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    const textNode = element.firstChild;
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "b" }],
+    });
+    assert(element.firstChild === textNode);
+    assert.deepEqual(textNode.nodeValue, "b");
+  });
+
+  it("replaces a text child with an element child when the kind changes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "x" }],
+    });
+    assert.deepEqual(element.firstChild.nodeType, TEXT);
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "element", tag: "em", attrs: {}, events: {}, children: [] },
+      ],
+    });
+    assert.deepEqual(element.firstChild.nodeType, Node.ELEMENT_NODE);
+    assert.deepEqual(element.firstChild.tagName.toLowerCase(), "em");
+  });
+
+  it("inserts and removes text children at the tail", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "a" },
+        { type: "text", value: "b" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 2);
+    assert.deepEqual(element.textContent, "ab");
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "a" }],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "a");
+  });
+});
+
+describe("PluginRenderer:legacy normalization", () => {
+  it("converts a legacy leading-text node into a text child", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "span",
+      attrs: {},
+      text: "before ",
+      children: [{ tag: "em", text: "middle" }],
+      events: {},
+    });
+    assert.deepEqual(element.childNodes[0].nodeType, Node.TEXT_NODE);
+    assert.deepEqual(element.childNodes[0].nodeValue, "before ");
+    assert.deepEqual(element.childNodes[1].tagName.toLowerCase(), "em");
+    assert.deepEqual(element.childNodes[1].textContent, "middle");
+  });
+});
+
+describe("PluginRenderer:inline styles", () => {
+  it("applies serialized styles via setProperty on create", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: { class: "strut" },
+      styles: { height: "0.68333em", "vertical-align": "-0.08333em" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "0.68333em");
+    assert.deepEqual(
+      element.style.getPropertyValue("vertical-align"),
+      "-0.08333em",
+    );
+  });
+
+  it("still rejects a raw `style` attribute", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: { style: "color: red" },
+      events: {},
+      children: [],
+    });
+    assert(!element.hasAttribute("style"));
+  });
+
+  it("drops values containing a resource function", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: {
+        background: 'url("https://evil.test/x.png")',
+        color: "red",
+      },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("drops values containing a backslash (blocks CSS-escape url() smuggling)", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: {
+        background: "\\75rl(https://evil.test/x)",
+        color: "red",
+      },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("drops resource functions inside custom property values", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { "--bg": "url(https://evil.test/x)" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("--bg"), "");
+  });
+
+  it("drops values exceeding the max length", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { color: "a".repeat(129), background: "blue" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("color"), "");
+    assert.deepEqual(element.style.getPropertyValue("background"), "blue");
+  });
+
+  it("caps the number of declarations per node", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const styles = {};
+    for (let i = 0; i < 100; i++) styles[`--v${i}`] = `${i}px`;
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles,
+      events: {},
+      children: [],
+    });
+    // Only the first 64 declarations survive normalization.
+    assert.deepEqual(element.style.getPropertyValue("--v0"), "0px");
+    assert.deepEqual(element.style.getPropertyValue("--v63"), "63px");
+    assert.deepEqual(element.style.getPropertyValue("--v64"), "");
+  });
+
+  it("permits !important", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { color: "red !important" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyPriority("color"), "important");
+  });
+
+  it("updates changed style values in place on patch", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em", color: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "2em", color: "red" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "2em");
+    assert.deepEqual(element.style.getPropertyValue("color"), "red");
+  });
+
+  it("removes style declarations that are absent from the new tree", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em", color: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { height: "1em" },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("height"), "1em");
+    assert.deepEqual(element.style.getPropertyValue("color"), "");
+  });
+
+  it("removes a previously applied style when its new value is invalid", (t) => {
+    t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const element = root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { background: "red" },
+      events: {},
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      styles: { background: 'url("https://evil.test/x.png")' },
+      events: {},
+      children: [],
+    });
+    assert.deepEqual(element.style.getPropertyValue("background"), "");
+  });
+});
+
+describe("PluginRenderer:malformed and oversized nodes", () => {
+  it("renders an empty span when the whole tree is malformed", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render(null);
+    assert.deepEqual(node.nodeType, Node.ELEMENT_NODE);
+    assert.deepEqual(node.tagName.toLowerCase(), "span");
+    assert.deepEqual(node.childNodes.length, 0);
+  });
+
+  it("drops a text child whose value is not a string", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: { toString: () => "nope" } },
+        { type: "text", value: "ok" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "ok");
+  });
+
+  it("drops a child with an unknown node type", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "comment", value: "x" },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "kept");
+  });
+
+  it("ignores attrs, events, and children on a text node", () => {
+    const { bridge, calls } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const node = renderer.createRoot().render({
+      type: "text",
+      value: "plain",
+      attrs: { onclick: "alert(1)" },
+      events: { click: "h1" },
+      children: [{ type: "text", value: "nested" }],
+    });
+    assert.deepEqual(node.nodeType, Node.TEXT_NODE);
+    assert.deepEqual(node.nodeValue, "plain");
+    assert(typeof node.setAttribute !== "function");
+    assert.deepEqual(calls.length, 0);
+  });
+
+  it("truncates children beyond the per-element limit", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const children = Array.from({ length: 1050 }, () => ({
+      type: "text",
+      value: "x",
+    }));
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children,
+    });
+    assert.deepEqual(element.childNodes.length, 1000);
+  });
+
+  it("drops a text node that exceeds the max text length", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "text", value: "z".repeat(16 * 1024 + 1) },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 1);
+    assert.deepEqual(element.textContent, "kept");
+  });
+
+  it("stops descending past the max depth", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    let node = { type: "text", value: "deep" };
+    for (let level = 0; level < 70; level++) {
+      node = {
+        type: "element",
+        tag: "span",
+        attrs: {},
+        events: {},
+        children: [node],
+      };
+    }
+    // Should not throw; the subtree past the limit is dropped.
+    const element = renderer.createRoot().render(node);
+    assert.deepEqual(element.tagName.toLowerCase(), "span");
+  });
+
+  it("reports all issues in a single consolidated warning with the total", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [
+        { type: "comment", value: "x" },
+        { type: "comment", value: "y" },
+        { type: "text", value: 5 },
+        { type: "text", value: "kept" },
+      ],
+    });
+    assert.deepEqual(warn.mock.callCount(), 1);
+    const message = warn.mock.calls[0].arguments[0];
+    assert(message.includes("demo"));
+    assert(message.includes("3 issue(s)"));
+    assert(message.includes('unknown node type "comment" ×2'));
+    assert(message.includes("text node value is not a string"));
+  });
+
+  it("emits no warning when there are no issues", (t) => {
+    const warn = t.mock.method(console, "warn", () => {});
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    renderer.createRoot().render({
+      type: "element",
+      tag: "span",
+      attrs: {},
+      events: {},
+      children: [{ type: "text", value: "ok" }],
+    });
+    assert.deepEqual(warn.mock.callCount(), 0);
+  });
+});
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+const HTML_NS = "http://www.w3.org/1999/xhtml";
+
+function svgTree(pathAttrs = { d: "M0 0 L10 10" }) {
+  return {
+    type: "element",
+    tag: "svg",
+    attrs: { viewBox: "0 0 10 10", width: "10", height: "10" },
+    children: [
+      { type: "element", tag: "path", attrs: pathAttrs, children: [] },
+    ],
+  };
+}
+
+describe("PluginRenderer:svg", () => {
+  it("renders <svg><path> with the SVG namespace", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render(svgTree());
+    assert.deepEqual(element.namespaceURI, SVG_NS);
+    assert.deepEqual(element.tagName, "svg");
+    const path = element.firstChild;
+    assert.deepEqual(path.namespaceURI, SVG_NS);
+    assert.deepEqual(path.getAttribute("d"), "M0 0 L10 10");
+  });
+
+  it("preserves camelCase attributes like viewBox", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render(svgTree());
+    assert.deepEqual(element.getAttribute("viewBox"), "0 0 10 10");
+    assert(!element.hasAttribute("viewbox"));
+  });
+
+  it("replaces disallowed SVG tags with an inert <g>", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        { type: "element", tag: "script", attrs: {}, children: [] },
+        { type: "element", tag: "foreignObject", attrs: {}, children: [] },
+        { type: "element", tag: "path", attrs: { d: "M0 0" }, children: [] },
+      ],
+    });
+    assert.deepEqual(element.childNodes.length, 3);
+    const [first, second, third] = element.childNodes;
+    assert.deepEqual(first.namespaceURI, SVG_NS);
+    assert.deepEqual(first.tagName, "g");
+    assert.deepEqual(second.tagName, "g");
+    assert.deepEqual(third.tagName, "path");
+  });
+
+  it("drops disallowed SVG attributes and on* handlers", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: { onclick: "alert(1)", xmlns: "http://evil", id: "grad" },
+      children: [],
+    });
+    assert(!element.hasAttribute("onclick"));
+    assert(!element.hasAttribute("xmlns"));
+    assert(!element.hasAttribute("id"));
+  });
+
+  it("rejects url() in SVG attribute values", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        {
+          type: "element",
+          tag: "path",
+          attrs: { d: "M0 0", fill: "url(https://evil.example/x.svg)" },
+          children: [],
+        },
+      ],
+    });
+    const path = element.firstChild;
+    assert(!path.hasAttribute("fill"));
+    assert.deepEqual(path.getAttribute("d"), "M0 0");
+  });
+
+  it("caps oversized d and points attributes", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const huge = "M" + "0 ".repeat(20000);
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: {},
+      children: [
+        { type: "element", tag: "path", attrs: { d: huge }, children: [] },
+      ],
+    });
+    assert(!element.firstChild.hasAttribute("d"));
+  });
+
+  it("patches attribute updates on an SVG subtree", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render(svgTree({ d: "M0 0" }));
+    const second = root.render(svgTree({ d: "M1 1" }));
+    assert(first === second);
+    assert.deepEqual(first.firstChild.getAttribute("d"), "M1 1");
+  });
+
+  it("removes attributes that are no longer present on patch", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const root = renderer.createRoot();
+    const first = root.render({
+      type: "element",
+      tag: "svg",
+      attrs: { viewBox: "0 0 10 10", width: "10" },
+      children: [],
+    });
+    root.render({
+      type: "element",
+      tag: "svg",
+      attrs: { viewBox: "0 0 10 10" },
+      children: [],
+    });
+    assert(!first.hasAttribute("width"));
+  });
+
+  it("allows <title>, <desc>, and role/aria attributes for a11y", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      type: "element",
+      tag: "svg",
+      attrs: { role: "img", "aria-label": "square root" },
+      children: [
+        {
+          type: "element",
+          tag: "title",
+          attrs: {},
+          children: [{ type: "text", value: "sqrt" }],
+        },
+        {
+          type: "element",
+          tag: "desc",
+          attrs: {},
+          children: [{ type: "text", value: "a radical" }],
+        },
+      ],
+    });
+    assert.deepEqual(element.getAttribute("role"), "img");
+    assert.deepEqual(element.getAttribute("aria-label"), "square root");
+    const [title, desc] = element.childNodes;
+    assert.deepEqual(title.namespaceURI, SVG_NS);
+    assert.deepEqual(title.tagName, "title");
+    assert.deepEqual(title.textContent, "sqrt");
+    assert.deepEqual(desc.textContent, "a radical");
+  });
+
+  it("leaves existing HTML rendering unaffected", () => {
+    const { bridge } = makeBridge();
+    const renderer = new PluginRenderer(bridge, "demo");
+    const element = renderer.createRoot().render({
+      tag: "div",
+      attrs: { class: "x" },
+      children: [{ type: "text", value: "hello" }],
+    });
+    assert.deepEqual(element.namespaceURI, HTML_NS);
+    assert.deepEqual(element.textContent, "hello");
   });
 });

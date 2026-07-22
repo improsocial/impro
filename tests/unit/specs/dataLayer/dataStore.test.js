@@ -31,7 +31,7 @@ describe("setPosts", () => {
     );
   });
 
-  it("should normalize nested quoted posts", () => {
+  it("should store nested quoted posts as embedded previews", () => {
     const dataStore = new DataStore();
     const nestedQuotedPost = {
       $type: "app.bsky.embed.record#viewRecord",
@@ -66,7 +66,8 @@ describe("setPosts", () => {
 
     dataStore.setPosts([post]);
 
-    assert.deepEqual(dataStore.$posts.get(quotedPost.uri), {
+    assert.deepEqual(dataStore.$posts.get(quotedPost.uri), null);
+    assert.deepEqual(dataStore.$embeddedPosts.get(quotedPost.uri), {
       uri: quotedPost.uri,
       cid: quotedPost.cid,
       author: quotedPost.author,
@@ -79,7 +80,8 @@ describe("setPosts", () => {
       quoteCount: undefined,
       indexedAt: quotedPost.indexedAt,
     });
-    assert.deepEqual(dataStore.$posts.get(nestedQuotedPost.uri), {
+    assert.deepEqual(dataStore.$posts.get(nestedQuotedPost.uri), null);
+    assert.deepEqual(dataStore.$embeddedPosts.get(nestedQuotedPost.uri), {
       uri: nestedQuotedPost.uri,
       cid: nestedQuotedPost.cid,
       author: nestedQuotedPost.author,
@@ -92,6 +94,42 @@ describe("setPosts", () => {
       quoteCount: undefined,
       indexedAt: nestedQuotedPost.indexedAt,
     });
+  });
+
+  it("should replace an embedded preview with a full post", () => {
+    const dataStore = new DataStore();
+    const quotedUri = "at://did:test/app.bsky.feed.post/quoted";
+    const quotedPost = {
+      $type: "app.bsky.embed.record#viewRecord",
+      uri: quotedUri,
+      cid: "quoted-cid",
+      author: { did: "did:test", handle: "quoted.test" },
+      value: { text: "quoted" },
+      indexedAt: "2026-07-19T00:00:00Z",
+    };
+    dataStore.setPosts([
+      {
+        uri: "at://did:test/app.bsky.feed.post/root",
+        record: { text: "root" },
+        embed: {
+          $type: "app.bsky.embed.record#view",
+          record: quotedPost,
+        },
+      },
+    ]);
+
+    const fullPost = {
+      uri: quotedUri,
+      cid: "quoted-cid",
+      author: quotedPost.author,
+      record: quotedPost.value,
+      indexedAt: quotedPost.indexedAt,
+      viewer: { like: "at://did:test/app.bsky.feed.like/quoted" },
+    };
+    dataStore.setPosts([fullPost]);
+
+    assert.deepEqual(dataStore.$embeddedPosts.get(quotedUri), null);
+    assert.deepEqual(dataStore.$posts.get(quotedUri), fullPost);
   });
 });
 

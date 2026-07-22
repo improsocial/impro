@@ -548,6 +548,7 @@ describe("new-chat-dialog", () => {
     it("should close, ensure the convo, and navigate on selecting a user", async () => {
       const { dataLayer, ensureCalls } = createFakeDataLayer();
       const element = createDialog(dataLayer);
+      element.open();
       let closed = false;
       element.addEventListener("dialog-closed", () => {
         closed = true;
@@ -561,8 +562,8 @@ describe("new-chat-dialog", () => {
       ]);
       await typeQuery(element, "alice");
       element.querySelector('[data-testid="new-chat-result"]').click();
-      assert(closed, "dialog-closed should fire before the convo loads");
       await flushMicrotasks();
+      assert(closed, "the dialog closes when a user is selected");
       assert.deepEqual(ensureCalls, ["did:plc:alice"]);
       assert.deepEqual(
         window.router.go.mock.calls.map((call) => call.arguments),
@@ -577,6 +578,7 @@ describe("new-chat-dialog", () => {
         ensureConvoForProfile: () => Promise.reject(blockedError),
       });
       const element = createDialog(dataLayer);
+      element.open();
       dataLayer.derived.$chatRecipientSearchResults.set([
         createProfile({
           did: "did:plc:alice",
@@ -603,6 +605,7 @@ describe("new-chat-dialog", () => {
           Promise.reject(new TypeError("Failed to fetch")),
       });
       const element = createDialog(dataLayer);
+      element.open();
       dataLayer.derived.$chatRecipientSearchResults.set([
         createProfile({
           did: "did:plc:alice",
@@ -624,6 +627,7 @@ describe("new-chat-dialog", () => {
           Promise.reject(new Error("Conversation not found")),
       });
       const element = createDialog(dataLayer);
+      element.open();
       dataLayer.derived.$chatRecipientSearchResults.set([
         createProfile({
           did: "did:plc:alice",
@@ -666,29 +670,51 @@ describe("new-chat-dialog", () => {
         element.querySelector(".new-chat-dialog").hasAttribute("autofocus"),
       );
     });
+
+    it("should reset scroll when the search input blurs", () => {
+      const { dataLayer } = createFakeDataLayer();
+      const element = createDialog(dataLayer);
+      element.open();
+
+      const results = element.querySelector(".new-chat-results");
+      const input = element.querySelector(
+        '[data-testid="new-chat-search-input"]',
+      );
+      results.scrollTop = 200;
+      window.scrollTo(0, 200);
+
+      input.dispatchEvent(new window.FocusEvent("blur", { bubbles: false }));
+
+      assert.equal(results.scrollTop, 0);
+      assert.equal(window.scrollY, 0);
+    });
   });
 
   describe("NewChatDialog - dismissal", () => {
-    it("should close on the close button", () => {
+    it("should close on the close button", async () => {
       const { dataLayer } = createFakeDataLayer();
       const element = createDialog(dataLayer);
       let closed = false;
       element.addEventListener("dialog-closed", () => {
         closed = true;
       });
+      element.open();
       element.querySelector('[data-testid="new-chat-dialog-close"]').click();
+      await flushMicrotasks();
       assert(closed);
     });
 
-    it("should close on cancel (Escape)", () => {
+    it("should close on cancel (Escape)", async () => {
       const { dataLayer } = createFakeDataLayer();
       const element = createDialog(dataLayer);
       let closed = false;
       element.addEventListener("dialog-closed", () => {
         closed = true;
       });
+      element.open();
       const dialog = element.querySelector("dialog.new-chat-dialog");
       dialog.dispatchEvent(new window.Event("cancel", { bubbles: false }));
+      await flushMicrotasks();
       assert(closed);
     });
   });

@@ -786,6 +786,17 @@ describe("sendInteractions", () => {
       "did:web:feed.example.com#feed_proxy",
     );
   });
+
+  it("should reject when no feed proxy url is given", async () => {
+    const session = createMockSession({});
+    const api = new Api(session);
+
+    await assert.rejects(
+      api.sendInteractions([{ uri: "post1", event: "view" }], null),
+      /requires a feedProxyUrl/,
+    );
+    assert.deepEqual(session.getLastFetchOptions(), null);
+  });
 });
 
 describe("getAuthorFeed", () => {

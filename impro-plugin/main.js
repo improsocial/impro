@@ -147,6 +147,17 @@ class PluginData {
   getProfile(did) {
     return hostCall("getProfile", { did });
   }
+  // Like getProfile, but includes viewer relationship details not present
+  // on the basic profile view: viewer.following, viewer.followedBy, and
+  // viewer.knownFollowers (a summary of mutual followers).
+  getDetailedProfile(did) {
+    return hostCall("getDetailedProfile", { did });
+  }
+  // The full known-followers list for did (the summary on
+  // getDetailedProfile's viewer.knownFollowers is capped to a handful).
+  getKnownFollowers(did) {
+    return hostCall("getKnownFollowers", { did });
+  }
   getRecord(repo, collection, rkey) {
     return hostCall("getRecord", { repo, collection, rkey });
   }
@@ -163,6 +174,32 @@ class App {
 
   refreshFeedFilters(feedURI = null) {
     return hostCall("refreshFeedFilters", feedURI);
+  }
+
+  // Actions on behalf of the signed-in user. Each method requires the
+  // corresponding scope ("mute", "block", "feedFeedback") to be declared in
+  // the plugin manifest's `permissions.actions` array, which the user must
+  // grant at install time.
+  muteActor(did) {
+    return hostCall("muteActor", { did, mute: true });
+  }
+  unmuteActor(did) {
+    return hostCall("muteActor", { did, mute: false });
+  }
+  blockActor(did) {
+    return hostCall("blockActor", { did, block: true });
+  }
+  unblockActor(did) {
+    return hostCall("blockActor", { did, block: false });
+  }
+  // Acts like the user clicking "Show less like this": sends the requestLess
+  // feedback signal to the feed that served the post and collapses the post
+  // behind a feedback message in feeds.
+  showLessLikeThis(postUri, feedUri) {
+    return hostCall("showLessLikeThis", { postUri, feedUri });
+  }
+  showMoreLikeThis(postUri, feedUri) {
+    return hostCall("showMoreLikeThis", { postUri, feedUri });
   }
 }
 
@@ -702,13 +739,28 @@ class PostsFeedComponent {
   }
 }
 
+export class VirtualText {
+  constructor(value) {
+    this.value = value == null ? "" : String(value);
+  }
+
+  _serialize() {
+    return { type: "text", value: this.value };
+  }
+}
+
 export class VirtualEl {
   constructor(tag) {
     this.tag = tag;
     this.attrs = {};
-    this.text = null;
+    this.styles = {};
     this.children = [];
     this.events = {};
+  }
+
+  setStyle(name, value) {
+    this.styles[String(name)] = value == null ? "" : String(value);
+    return this;
   }
 
   onClick(fn) {
@@ -733,15 +785,35 @@ export class VirtualEl {
   }
 
   setText(text) {
-    this.text = text;
     this.children = [];
+    if (text != null && text !== "") this.children.push(new VirtualText(text));
     return this;
   }
 
   empty() {
-    this.text = null;
     this.children = [];
     return this;
+  }
+
+  appendChild(child) {
+    if (!(child instanceof VirtualEl) && !(child instanceof VirtualText)) {
+      throw new TypeError(
+        "appendChild expects a VirtualEl or VirtualText instance",
+      );
+    }
+    this.children.push(child);
+    return this;
+  }
+
+  appendText(value) {
+    this.children.push(new VirtualText(value));
+    return this;
+  }
+
+  createText(value) {
+    const node = new VirtualText(value);
+    this.children.push(node);
+    return node;
   }
 
   addClass(cls) {
@@ -756,7 +828,7 @@ export class VirtualEl {
 
   createEl(tag, options = {}, callback) {
     const child = new VirtualEl(tag);
-    if (options.text != null) child.text = options.text;
+    if (options.text != null) child.setText(options.text);
     if (options.cls) {
       child.attrs.class = Array.isArray(options.cls)
         ? options.cls.join(" ")
@@ -795,13 +867,15 @@ export class VirtualEl {
   }
 
   _serialize() {
-    return {
+    const serialized = {
+      type: "element",
       tag: this.tag,
       attrs: this.attrs,
-      text: this.text,
-      children: this.children.map((child) => child._serialize()),
       events: this.events,
+      children: this.children.map((child) => child._serialize()),
     };
+    if (Object.keys(this.styles).length > 0) serialized.styles = this.styles;
+    return serialized;
   }
 }
 

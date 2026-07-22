@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 import "/js/components/toggle-switch.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
@@ -41,6 +41,11 @@ class PostNotificationsDialog extends Component {
           @cancel=${(event) => {
             event.preventDefault();
             this.close();
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
           <div class="post-notifications-dialog-content">
@@ -148,8 +153,8 @@ class PostNotificationsDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".post-notifications-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
-
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       allowUpwardStretch: true,
@@ -158,13 +163,7 @@ class PostNotificationsDialog extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".post-notifications-dialog");
-    if (dialog?.open) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("dialog-closed"));
+    return closeWithAnimation(this.querySelector(".post-notifications-dialog"));
   }
 }
 

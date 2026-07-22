@@ -26,9 +26,16 @@ export function postHeaderTextTemplate({
       profile: author,
     })}${automatedAccountBadgeTemplate({ profile: author })}
     ${includeHandle
-      ? html`<span class="post-username" data-testid="post-author-handle"
-          >@${author.handle}</span
-        >`
+      ? enableProfileLink
+        ? html`<a
+            href="${linkToProfile(author)}"
+            class="post-username"
+            data-testid="post-author-handle"
+            >@${author.handle}</a
+          >`
+        : html`<span class="post-username" data-testid="post-author-handle"
+            >@${author.handle}</span
+          >`
       : ""}
     ${includeTime
       ? html`<span class="post-separator">·</span

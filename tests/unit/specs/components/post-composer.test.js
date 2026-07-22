@@ -220,16 +220,16 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - close method", () => {
-    it("should close the dialog when close() is called", () => {
+    it("should close the dialog when close() is called", async () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
-      element.close();
+      await element.close();
       const dialog = element.querySelector(".post-composer");
       assert(!dialog.open);
     });
 
-    it("should dispatch post-composer-closed event when close() is called", () => {
+    it("should dispatch post-composer-closed event when close() is called", async () => {
       const element = createPostComposer();
       connectElement(element);
       element.open();
@@ -239,7 +239,7 @@ describe("post-composer", () => {
         eventFired = true;
       });
 
-      element.close();
+      await element.close();
       assert(eventFired);
     });
   });
@@ -2413,7 +2413,7 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - emoji picker", () => {
-    it("opens the emoji picker from the button and toggles it closed", () => {
+    it("opens the emoji picker from the button and toggles it closed", async () => {
       const element = createPostComposer();
       connectElement(element);
       const button = element.querySelector(".post-composer-emoji-button");
@@ -2421,10 +2421,11 @@ describe("post-composer", () => {
       button.click();
       assert.deepEqual(picker.isOpen, true);
       button.click();
+      await nextFrame();
       assert.deepEqual(picker.isOpen, false);
     });
 
-    it("inserts the selected emoji into the active input", () => {
+    it("inserts the selected emoji into the active input", async () => {
       const element = createPostComposer();
       connectElement(element);
       const richTextInput = element.querySelector("rich-text-input");
@@ -2434,6 +2435,7 @@ describe("post-composer", () => {
       picker.dispatchEvent(
         new CustomEvent("select", { detail: { emoji: "😀" } }),
       );
+      await nextFrame();
       assert(richTextInput.text.includes("😀"));
       assert.deepEqual(getFirstPost(element).text, richTextInput.text);
       assert.deepEqual(element._savedEmojiCursor, null);
@@ -2507,14 +2509,15 @@ describe("post-composer", () => {
       );
     });
 
-    it("closes the image alt-text dialog without saving on cancel", async () => {
+    it("closes the image alt-text dialog without saving on close", async () => {
       const element = createPostComposer();
       connectElement(element);
       patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:a" }] });
       await nextFrame();
       element.querySelector(".image-preview-item img").click();
       const dialog = document.body.querySelector("image-alt-text-dialog");
-      dialog.querySelector('[data-testid="alt-text-cancel"]').click();
+      dialog.querySelector('[data-testid="alt-text-close"]').click();
+      await nextFrame();
       assert.deepEqual(getFirstPost(element).images[0].alt, undefined);
       assert.deepEqual(
         document.body.querySelector("image-alt-text-dialog"),
@@ -2717,6 +2720,7 @@ describe("post-composer", () => {
       });
       await element.send();
       receivedDetail.successCallback();
+      await nextFrame();
       assert(!element.querySelector(".post-composer").open);
       assert(closedEventFired);
     });

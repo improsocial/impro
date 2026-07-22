@@ -3001,6 +3001,7 @@ describe("removeMessageReaction", () => {
 
 describe("sendShowLessInteraction", () => {
   const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool";
   const feedContext = "ctx";
   const feedProxyUrl = "https://feed.example/xrpc";
 
@@ -3022,9 +3023,14 @@ describe("sendShowLessInteraction", () => {
       mockPreferencesProvider,
     );
 
-    await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
+    await mutations.sendShowLessInteraction(
+      postURI,
+      feedUri,
+      feedContext,
+      feedProxyUrl,
+    );
 
-    const stored = dataStore.$showLessInteractions.get();
+    const stored = dataStore.$showLessInteractions.get(feedUri);
     assert.deepEqual(stored.length, 1);
     assert.deepEqual(stored[0].item, postURI);
     assert.deepEqual(stored[0].event, "app.bsky.feed.defs#requestLess");
@@ -3040,7 +3046,9 @@ describe("sendShowLessInteraction", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    dataStore.$showLessInteractions.set([{ item: "existing", event: "x" }]);
+    dataStore.$showLessInteractions.set(feedUri, [
+      { item: "existing", event: "x" },
+    ]);
     const mutations = makeMutations(
       { sendInteractions: async () => {} },
       dataStore,
@@ -3048,16 +3056,107 @@ describe("sendShowLessInteraction", () => {
       mockPreferencesProvider,
     );
 
-    await mutations.sendShowLessInteraction(postURI, feedContext, feedProxyUrl);
+    await mutations.sendShowLessInteraction(
+      postURI,
+      feedUri,
+      feedContext,
+      feedProxyUrl,
+    );
 
-    const stored = dataStore.$showLessInteractions.get();
+    const stored = dataStore.$showLessInteractions.get(feedUri);
     assert.deepEqual(stored.length, 2);
     assert.deepEqual(stored[1].item, postURI);
+  });
+
+  it("should key stored interactions by feed", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      { sendInteractions: async () => {} },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+    const otherFeedUri = "at://did:plc:feedgen/app.bsky.feed.generator/other";
+
+    await mutations.sendShowLessInteraction(
+      postURI,
+      feedUri,
+      feedContext,
+      feedProxyUrl,
+    );
+
+    assert.deepEqual(dataStore.$showLessInteractions.get(feedUri).length, 1);
+    assert.deepEqual(dataStore.$showLessInteractions.get(otherFeedUri), null);
+  });
+
+  it("should omit feedContext when null but keep an empty string", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const sentInteractions = [];
+    const mutations = makeMutations(
+      {
+        sendInteractions: async (interactions) => {
+          sentInteractions.push(...interactions);
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowLessInteraction(
+      postURI,
+      feedUri,
+      null,
+      feedProxyUrl,
+    );
+    await mutations.sendShowLessInteraction(postURI, feedUri, "", feedProxyUrl);
+
+    assert.deepEqual(sentInteractions, [
+      { item: postURI, event: "app.bsky.feed.defs#requestLess" },
+      {
+        item: postURI,
+        event: "app.bsky.feed.defs#requestLess",
+        feedContext: "",
+      },
+    ]);
+  });
+
+  it("should store but not send when there is no feed proxy url", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const sentInteractions = [];
+    const mutations = makeMutations(
+      {
+        sendInteractions: async (interactions) => {
+          sentInteractions.push(...interactions);
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.sendShowLessInteraction(postURI, feedUri, null, null);
+
+    assert.deepEqual(sentInteractions, []);
+    assert.deepEqual(dataStore.$showLessInteractions.get(feedUri).length, 1);
   });
 });
 
 describe("sendShowMoreInteraction", () => {
   const postURI = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool";
   const feedContext = "ctx";
   const feedProxyUrl = "https://feed.example/xrpc";
 
@@ -3079,9 +3178,14 @@ describe("sendShowMoreInteraction", () => {
       mockPreferencesProvider,
     );
 
-    await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
+    await mutations.sendShowMoreInteraction(
+      postURI,
+      feedUri,
+      feedContext,
+      feedProxyUrl,
+    );
 
-    const stored = dataStore.$showMoreInteractions.get();
+    const stored = dataStore.$showMoreInteractions.get(feedUri);
     assert.deepEqual(stored.length, 1);
     assert.deepEqual(stored[0].item, postURI);
     assert.deepEqual(stored[0].event, "app.bsky.feed.defs#requestMore");
@@ -3096,7 +3200,9 @@ describe("sendShowMoreInteraction", () => {
     const mockPreferencesProvider = {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
-    dataStore.$showMoreInteractions.set([{ item: "existing", event: "x" }]);
+    dataStore.$showMoreInteractions.set(feedUri, [
+      { item: "existing", event: "x" },
+    ]);
     const mutations = makeMutations(
       { sendInteractions: async () => {} },
       dataStore,
@@ -3104,9 +3210,14 @@ describe("sendShowMoreInteraction", () => {
       mockPreferencesProvider,
     );
 
-    await mutations.sendShowMoreInteraction(postURI, feedContext, feedProxyUrl);
+    await mutations.sendShowMoreInteraction(
+      postURI,
+      feedUri,
+      feedContext,
+      feedProxyUrl,
+    );
 
-    const stored = dataStore.$showMoreInteractions.get();
+    const stored = dataStore.$showMoreInteractions.get(feedUri);
     assert.deepEqual(stored.length, 2);
     assert.deepEqual(stored[1].item, postURI);
   });

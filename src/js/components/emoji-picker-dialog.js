@@ -33,6 +33,13 @@ class EmojiPickerDialog extends Component {
         this.close();
       }
     });
+    dialog.addEventListener("cancel", (event) => {
+      event.preventDefault();
+      this.close();
+    });
+    dialog.addEventListener("close", () => this._finishClose(dialog), {
+      once: true,
+    });
     document.body.appendChild(dialog);
     dialog.showModal();
     this.scrollLock ??= scrollLocks.acquire({ target: this });
@@ -51,10 +58,16 @@ class EmojiPickerDialog extends Component {
     window.removeEventListener("resize", this._reposition);
     this._reposition = null;
     this._picker = null;
-    if (this._dialog?.open) {
-      this._dialog.close();
+    const dialog = this._dialog;
+    if (dialog?.open) {
+      dialog.close();
+    } else {
+      this._finishClose(dialog);
     }
-    this._dialog?.remove();
+  }
+
+  _finishClose(dialog) {
+    dialog?.remove();
     this._dialog = null;
     this._anchor = null;
     this.scrollLock?.release();

@@ -104,6 +104,7 @@ export function largePostTemplate({
   postInteractionHandler,
   onClickReply = noop,
   replyContext,
+  showActions = true,
   afterDelete = null,
   afterHide = null,
   pluginService,
@@ -182,48 +183,53 @@ export function largePostTemplate({
           ${formatFullTimestamp(post.indexedAt)}
           ${whoCanReplyBadgeTemplate({ post })}
         </div>
-        ${postActionCountsTemplate({
-          repostCount: post.repostCount,
-          quoteCount: post.quoteCount,
-          likeCount: post.likeCount,
-          bookmarkCount: post.bookmarkCount,
-          post,
-        })}
-        ${postActionBarTemplate({
-          post,
-          isUserPost,
-          isAuthenticated,
-          currentUser,
-          onClickReply,
-          onClickLike: (post, doLike) =>
-            postInteractionHandler.handleLike(post, doLike),
-          onClickRepost: (post, doRepost) =>
-            postInteractionHandler.handleRepost(post, doRepost),
-          onClickQuotePost: (post) =>
-            postInteractionHandler.handleQuotePost(post),
-          onClickBookmark: (post, doBookmark) =>
-            postInteractionHandler.handleBookmark(post, doBookmark),
-          onClickHidePost: async (post) => {
-            await postInteractionHandler.handleHidePost(post);
-            if (afterHide) {
-              afterHide(post);
-            }
-          },
-          onClickMute: (profile, doMute) =>
-            postInteractionHandler.handleMuteAuthor(profile, doMute),
-          onClickBlock: (profile, doBlock) =>
-            postInteractionHandler.handleBlockAuthor(profile, doBlock),
-          onClickDelete: async (post) => {
-            await postInteractionHandler.handleDeletePost(post);
-            if (afterDelete) {
-              afterDelete(post);
-            }
-          },
-          onClickPin: (post, doPin) =>
-            postInteractionHandler.handlePinPost(post, doPin),
-          onClickReport: (post) => postInteractionHandler.handleReport(post),
-          pluginService,
-        })}
+        ${showActions
+          ? html`
+              ${postActionCountsTemplate({
+                repostCount: post.repostCount,
+                quoteCount: post.quoteCount,
+                likeCount: post.likeCount,
+                bookmarkCount: post.bookmarkCount,
+                post,
+              })}
+              ${postActionBarTemplate({
+                post,
+                isUserPost,
+                isAuthenticated,
+                currentUser,
+                onClickReply,
+                onClickLike: (post, doLike) =>
+                  postInteractionHandler.handleLike(post, doLike),
+                onClickRepost: (post, doRepost) =>
+                  postInteractionHandler.handleRepost(post, doRepost),
+                onClickQuotePost: (post) =>
+                  postInteractionHandler.handleQuotePost(post),
+                onClickBookmark: (post, doBookmark) =>
+                  postInteractionHandler.handleBookmark(post, doBookmark),
+                onClickHidePost: async (post) => {
+                  await postInteractionHandler.handleHidePost(post);
+                  if (afterHide) {
+                    afterHide(post);
+                  }
+                },
+                onClickMute: (profile, doMute) =>
+                  postInteractionHandler.handleMuteAuthor(profile, doMute),
+                onClickBlock: (profile, doBlock) =>
+                  postInteractionHandler.handleBlockAuthor(profile, doBlock),
+                onClickDelete: async (post) => {
+                  await postInteractionHandler.handleDeletePost(post);
+                  if (afterDelete) {
+                    afterDelete(post);
+                  }
+                },
+                onClickPin: (post, doPin) =>
+                  postInteractionHandler.handlePinPost(post, doPin),
+                onClickReport: (post) =>
+                  postInteractionHandler.handleReport(post),
+                pluginService,
+              })}
+            `
+          : ""}
       </div>
     </div>
   </div>`;

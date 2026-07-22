@@ -1,7 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { displayRelativeTime, enableDragToDismiss } from "/js/utils.js";
+import { displayRelativeTime } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
@@ -210,8 +211,8 @@ class DraftsDialog extends Component {
     }
   }
 
-  async _onSelect(draftView) {
-    // Close first, then restore (close-then-restore ordering)
+  _onSelect(draftView) {
+    // Start the close animation, but restore immediately without waiting for it
     this.close();
     this.dispatchEvent(
       new CustomEvent("draft-selected", { detail: { draftView } }),
@@ -253,7 +254,7 @@ class DraftsDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-stacked drafts-dialog"
+          class="bottom-sheet bottom-sheet-stacked no-handle drafts-dialog"
           data-testid="drafts-dialog"
           @click=${(event) => {
             if (event.target.tagName === "DIALOG") {
@@ -263,6 +264,11 @@ class DraftsDialog extends Component {
           @cancel=${(event) => {
             event.preventDefault();
             this.close();
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
           <div class="drafts-dialog-content">
@@ -325,6 +331,7 @@ class DraftsDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
@@ -335,13 +342,7 @@ class DraftsDialog extends Component {
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector("dialog");
-    if (dialog?.open) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("dialog-closed"));
+    return closeWithAnimation(this.querySelector("dialog"));
   }
 }
 

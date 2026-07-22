@@ -917,7 +917,53 @@ describe("installUnregisteredPlugin", () => {
     assert.deepEqual(state.installedPlugins[0].repo, "ow/alpha");
   });
 
-  it("rejects non-GitHub URLs", async () => {
+  it("installs from a tangled.org URL using a tangled repo spec", async () => {
+    const { service, state, loadCalls } = makeService({
+      liveManifestsByRepo: {
+        "tangled:@ow.example.com/alpha": {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+        },
+      },
+    });
+    const result = await service.installUnregisteredPlugin(
+      "https://tangled.org/@ow.example.com/alpha",
+    );
+    assert.deepEqual(result, { id: "alpha", name: "Alpha" });
+    assert.deepEqual(
+      state.installedPlugins[0].repo,
+      "tangled:@ow.example.com/alpha",
+    );
+    assert.deepEqual(loadCalls, [
+      {
+        id: "alpha",
+        version: "1.0.0",
+        repo: "tangled:@ow.example.com/alpha",
+      },
+    ]);
+  });
+
+  it("accepts tangled.sh URLs", async () => {
+    const { service, state } = makeService({
+      liveManifestsByRepo: {
+        "tangled:@ow.example.com/alpha": {
+          id: "alpha",
+          name: "Alpha",
+          version: "1.0.0",
+        },
+      },
+    });
+    await service.installUnregisteredPlugin(
+      "https://tangled.sh/@ow.example.com/alpha",
+    );
+    assert.deepEqual(
+      state.installedPlugins[0].repo,
+      "tangled:@ow.example.com/alpha",
+    );
+  });
+
+  it("rejects URLs from unsupported hosts", async () => {
     const { service, state } = makeService();
     let caught = null;
     try {
@@ -925,7 +971,7 @@ describe("installUnregisteredPlugin", () => {
     } catch (error) {
       caught = error;
     }
-    assert(caught?.message.includes("Invalid GitHub URL"));
+    assert(caught?.message.includes("Invalid repo URL"));
     assert.deepEqual(state.installedPlugins, []);
   });
 
@@ -937,7 +983,7 @@ describe("installUnregisteredPlugin", () => {
     } catch (error) {
       caught = error;
     }
-    assert(caught?.message.includes("Invalid GitHub URL"));
+    assert(caught?.message.includes("Invalid repo URL"));
   });
 
   it("throws when manifest is missing required fields", async () => {
@@ -1301,27 +1347,6 @@ describe("app.data host methods", () => {
     return { map, calls };
   }
 
-  it("getPost host method returns the hydrated post from derived", async () => {
-    const service = makeServiceWithRealBridge();
-    const posts = makeStubComputedMap((uri) => ({
-      uri,
-      record: { text: "cached" },
-    }));
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: posts.map,
-        $hydratedProfiles: makeStubComputedMap(() => null).map,
-      },
-    });
-    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
-    const result = await handler(null, { uri: "at://example/post/1" });
-    assert.deepEqual(posts.calls, ["at://example/post/1"]);
-    assert.deepEqual(result, {
-      uri: "at://example/post/1",
-      record: { text: "cached" },
-    });
-  });
-
   it("getProfile host method returns the hydrated profile from derived", async () => {
     const service = makeServiceWithRealBridge();
     const profiles = makeStubComputedMap((did) => ({
@@ -1347,17 +1372,349 @@ describe("app.data host methods", () => {
     assert.deepEqual(result, null);
   });
 
-  it("getProfile returns null when the hydrated profile signal is empty", async () => {
+  it("getPost fetches the post on a cache miss", async () => {
+    const service = makeServiceWithRealBridge();
+    const ensureCalls = [];
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
+      },
+      declarative: {
+        ensurePost: async (uri) => {
+          ensureCalls.push(uri);
+          return { uri, record: { text: "fetched" } };
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/1" });
+    assert.deepEqual(ensureCalls, ["at://example/post/1"]);
+    assert.deepEqual(result, {
+      uri: "at://example/post/1",
+      record: { text: "fetched" },
+    });
+  });
+
+  it("getPost returns null when the post cannot be loaded", async () => {
     const service = makeServiceWithRealBridge();
     service.setDataLayer({
       derived: {
         $hydratedPosts: makeStubComputedMap(() => null).map,
         $hydratedProfiles: makeStubComputedMap(() => null).map,
       },
+      declarative: {
+        ensurePost: async () => {
+          throw new Error("Post not found");
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
+    const result = await handler(null, { uri: "at://example/post/gone" });
+    assert.deepEqual(result, null);
+  });
+
+  it("getProfile fetches on a cache miss and returns the basic hydrated profile", async () => {
+    const service = makeServiceWithRealBridge();
+    let loaded = false;
+    const profiles = makeStubComputedMap((did) =>
+      loaded ? { did, handle: "alice.test" } : null,
+    );
+    const ensureCalls = [];
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: profiles.map,
+      },
+      declarative: {
+        ensureDetailedProfile: async (did) => {
+          ensureCalls.push(did);
+          loaded = true;
+        },
+      },
+    });
+    const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
+    assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
+  });
+
+  it("getKnownFollowers resolves via the declarative layer", async () => {
+    const service = makeServiceWithRealBridge();
+    const knownFollowers = { followers: [{ did: "did:plc:follower" }] };
+    const ensureCalls = [];
+    service.setDataLayer({
+      declarative: {
+        ensureKnownFollowers: async (did) => {
+          ensureCalls.push(did);
+          return knownFollowers;
+        },
+      },
+    });
+    const handler =
+      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
+    const result = await handler(null, { did: "did:plc:abc" });
+    assert.deepEqual(ensureCalls, ["did:plc:abc"]);
+    assert.deepEqual(result, knownFollowers);
+  });
+
+  it("getKnownFollowers returns null when the list cannot be loaded", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      declarative: {
+        ensureKnownFollowers: async () => {
+          throw new Error("Known followers not found");
+        },
+      },
+    });
+    const handler =
+      service.pluginBridge._hostCallHandlers.get("getKnownFollowers");
+    const result = await handler(null, { did: "did:plc:missing" });
+    assert.deepEqual(result, null);
+  });
+
+  it("getProfile returns null when the profile cannot be loaded", async () => {
+    const service = makeServiceWithRealBridge();
+    service.setDataLayer({
+      derived: {
+        $hydratedPosts: makeStubComputedMap(() => null).map,
+        $hydratedProfiles: makeStubComputedMap(() => null).map,
+      },
+      declarative: {
+        ensureDetailedProfile: async () => {
+          throw new Error("Profile not found");
+        },
+      },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:missing" });
     assert.deepEqual(result, null);
+  });
+});
+
+describe("action host methods", () => {
+  const feedbackPlugin = {
+    pluginId: "test-plugin",
+    permissions: { actions: ["feedFeedback"] },
+  };
+  const postUri = "at://did:plc:author/app.bsky.feed.post/1";
+  const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool-feed";
+
+  function makeService({
+    feedItem = null,
+    feedGenerator = null,
+    hydratedProfiles = {},
+  } = {}) {
+    const { provider } = makeProvider();
+    const service = new PluginService(provider, null);
+    const calls = {
+      showLess: [],
+      showMore: [],
+      mute: [],
+      unmute: [],
+      block: [],
+      unblock: [],
+    };
+    service.setDataLayer({
+      dataStore: {
+        $feeds: {
+          get: (uri) =>
+            uri === feedUri && feedItem ? { feed: [feedItem] } : null,
+        },
+      },
+      derived: {
+        $feedGenerators: {
+          get: (uri) => (uri === feedUri ? feedGenerator : null),
+        },
+        $hydratedDetailedProfiles: { get: () => null },
+        $hydratedProfiles: { get: (did) => hydratedProfiles[did] ?? null },
+      },
+      mutations: {
+        sendShowLessInteraction: async (...args) => calls.showLess.push(args),
+        sendShowMoreInteraction: async (...args) => calls.showMore.push(args),
+        muteProfile: async (profile) => calls.mute.push(profile),
+        unmuteProfile: async (profile) => calls.unmute.push(profile),
+        blockProfile: async (profile) => calls.block.push(profile),
+        unblockProfile: async (profile) => calls.unblock.push(profile),
+      },
+    });
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("showLessLikeThis resolves feedContext and proxy from the feed", async () => {
+    const { service, calls } = makeService({
+      feedItem: { post: { uri: postUri }, feedContext: "ctx" },
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showLessLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showLess, [
+      [postUri, feedUri, "ctx", "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("showLessLikeThis and showMoreLikeThis reject when feedUri is missing", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "showLessLikeThis")(feedbackPlugin, { postUri }),
+      /requires a feedUri/,
+    );
+    await assert.rejects(
+      getHandler(service, "showMoreLikeThis")(feedbackPlugin, { postUri }),
+      /requires a feedUri/,
+    );
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+  });
+
+  it("both methods reject when postUri is missing", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "showLessLikeThis")(feedbackPlugin, { feedUri }),
+      /requires a postUri/,
+    );
+    await assert.rejects(
+      getHandler(service, "showMoreLikeThis")(feedbackPlugin, { feedUri }),
+      /requires a postUri/,
+    );
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+  });
+
+  it("muteActor and blockActor reject when did is missing", async () => {
+    const { service } = makeService();
+    await assert.rejects(
+      getHandler(service, "muteActor")(
+        { pluginId: "test-plugin", permissions: { actions: ["mute"] } },
+        {},
+      ),
+      /muteActor requires a did/,
+    );
+    await assert.rejects(
+      getHandler(service, "blockActor")(
+        { pluginId: "test-plugin", permissions: { actions: ["block"] } },
+        {},
+      ),
+      /blockActor requires a did/,
+    );
+  });
+
+  it("showLessLikeThis with an uncached feed still resolves the generator proxy", async () => {
+    const { service, calls } = makeService({
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showLessLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showLess, [
+      [postUri, feedUri, null, "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("showMoreLikeThis resolves attribution the same way", async () => {
+    const { service, calls } = makeService({
+      feedItem: { post: { uri: postUri }, feedContext: "ctx" },
+      feedGenerator: { uri: feedUri, did: "did:web:feed.example" },
+    });
+    await getHandler(service, "showMoreLikeThis")(feedbackPlugin, {
+      postUri,
+      feedUri,
+    });
+    assert.deepEqual(calls.showMore, [
+      [postUri, feedUri, "ctx", "did:web:feed.example#bsky_fg"],
+    ]);
+  });
+
+  it("both methods require the feedFeedback action permission", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["mute"] },
+    };
+    for (const name of ["showLessLikeThis", "showMoreLikeThis"]) {
+      await assert.rejects(
+        getHandler(service, name)(noPermissionPlugin, { postUri, feedUri }),
+        /"feedFeedback" action permission/,
+      );
+    }
+    assert.deepEqual(calls.showLess, []);
+    assert.deepEqual(calls.showMore, []);
+  });
+
+  it("muteActor routes the mute flag to muteProfile and unmuteProfile", async () => {
+    const did = "did:plc:target";
+    const profile = { did, handle: "target.example" };
+    const { service, calls } = makeService({
+      hydratedProfiles: { [did]: profile },
+    });
+    const mutePlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["mute"] },
+    };
+    await getHandler(service, "muteActor")(mutePlugin, { did, mute: true });
+    await getHandler(service, "muteActor")(mutePlugin, { did, mute: false });
+    assert.deepEqual(calls.mute, [profile]);
+    assert.deepEqual(calls.unmute, [profile]);
+  });
+
+  it("blockActor routes the block flag to blockProfile and unblockProfile", async () => {
+    const did = "did:plc:target";
+    const { service, calls } = makeService();
+    const blockPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["block"] },
+    };
+    await getHandler(service, "blockActor")(blockPlugin, { did, block: true });
+    await getHandler(service, "blockActor")(blockPlugin, { did, block: false });
+    assert.deepEqual(calls.block, [{ did }]);
+    assert.deepEqual(calls.unblock, [{ did }]);
+  });
+
+  it("muteActor and blockActor require their action permissions", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["feedFeedback"] },
+    };
+    const did = "did:plc:target";
+    await assert.rejects(
+      getHandler(service, "muteActor")(noPermissionPlugin, { did }),
+      /"mute" action permission/,
+    );
+    await assert.rejects(
+      getHandler(service, "blockActor")(noPermissionPlugin, { did }),
+      /"block" action permission/,
+    );
+    assert.deepEqual(calls.mute, []);
+    assert.deepEqual(calls.block, []);
+  });
+
+  it("all action methods reject when signed out", async () => {
+    const { provider } = makeProvider();
+    const service = new PluginService(provider, null);
+    const allActionsPlugin = {
+      pluginId: "test-plugin",
+      permissions: { actions: ["mute", "block", "feedFeedback"] },
+    };
+    const argsByMethod = {
+      muteActor: { did: "did:plc:target" },
+      blockActor: { did: "did:plc:target" },
+      showLessLikeThis: { postUri, feedUri },
+      showMoreLikeThis: { postUri, feedUri },
+    };
+    for (const [name, args] of Object.entries(argsByMethod)) {
+      await assert.rejects(
+        getHandler(service, name)(allActionsPlugin, args),
+        /Not signed in/,
+      );
+    }
   });
 });
 

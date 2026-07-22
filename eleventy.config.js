@@ -83,6 +83,14 @@ export default async function (eleventyConfig) {
       if (fs.existsSync(readmePath)) {
         fs.copyFileSync(readmePath, path.join(destDir, "README.md"));
       }
+      for (const font of manifest.fonts ?? []) {
+        if (typeof font?.file !== "string") continue;
+        const src = path.join(pluginPath, font.file);
+        if (!fs.existsSync(src)) continue;
+        const dest = path.join(destDir, font.file);
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(src, dest);
+      }
     }
     fs.writeFileSync(
       path.join(buildPluginsDir, "index.json"),

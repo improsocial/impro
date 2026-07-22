@@ -95,7 +95,7 @@ describe("showPluginModal", () => {
     assert.deepEqual(body.textContent, "Single body");
   });
 
-  it("should reuse the existing dialog and replace its content on a second call", () => {
+  it("should reuse the existing dialog and replace its content on a second call", async () => {
     clearDOM();
     const pluginId = "reuse.plugin";
     const modalId = uniqueModalId("reuse");
@@ -112,6 +112,7 @@ describe("showPluginModal", () => {
       title: { tag: "span", text: "Second Title" },
       content: { tag: "p", text: "Second body" },
     });
+    await new Promise((resolve) => setTimeout(resolve, 0));
     const dialogs = document.querySelectorAll("dialog.plugin-modal");
     assert.deepEqual(dialogs.length, 1);
     const title = document.querySelector(".modal-dialog-title");
@@ -142,7 +143,7 @@ describe("showPluginModal", () => {
     hidePluginModal({ pluginId, modalId });
   });
 
-  it("should invoke onDismiss when dismissed via backdrop click", () => {
+  it("should invoke onDismiss when dismissed via backdrop click", async () => {
     clearDOM();
     const onDismiss = mock.fn();
     showPluginModal({
@@ -154,11 +155,12 @@ describe("showPluginModal", () => {
     });
     const dialog = document.querySelector("dialog.plugin-modal");
     dialog.dispatchEvent(new Event("click", { bubbles: true }));
+    await Promise.resolve();
     assert(!dialog.hasAttribute("open"));
     assert.deepEqual(onDismiss.mock.callCount(), 1);
   });
 
-  it("should invoke onDismiss when dismissed via cancel event", () => {
+  it("should invoke onDismiss when dismissed via cancel event", async () => {
     clearDOM();
     const onDismiss = mock.fn();
     showPluginModal({
@@ -172,6 +174,7 @@ describe("showPluginModal", () => {
     const cancelEvent = new Event("cancel");
     cancelEvent.preventDefault = () => {};
     dialog.dispatchEvent(cancelEvent);
+    await Promise.resolve();
     assert(!dialog.hasAttribute("open"));
     assert.deepEqual(onDismiss.mock.callCount(), 1);
   });

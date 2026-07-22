@@ -14,7 +14,11 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { replyIconTemplate } from "/js/templates/icons/replyIcon.template.js";
 import { heartIconTemplate } from "/js/templates/icons/heartIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
-import { getRKey, canReplyToPost } from "/js/dataHelpers.js";
+import {
+  getRKey,
+  canReplyToPost,
+  getFeedGeneratorProxyUrl,
+} from "/js/dataHelpers.js";
 import { richTextToString } from "/js/facetHelpers.js";
 import { SignInModal } from "/js/modals/signIn.modal.js";
 import "/js/components/context-menu.js";
@@ -53,6 +57,7 @@ function postContextMenuTemplate({
   isUserPost,
   isPinnedToProfile,
   enableFeedFeedback,
+  feedContext,
   pluginItems,
   onClickShowMore,
   onClickShowLess,
@@ -118,13 +123,13 @@ function postContextMenuTemplate({
                 <context-menu-item-group>
                   <context-menu-item
                     data-testid="menu-action-post-show-more"
-                    @click=${() => onClickShowMore(post)}
+                    @click=${() => onClickShowMore(post, feedContext)}
                   >
                     Show more like this
                   </context-menu-item>
                   <context-menu-item
                     data-testid="menu-action-post-show-less"
-                    @click=${() => onClickShowLess(post)}
+                    @click=${() => onClickShowLess(post, feedContext)}
                   >
                     Show less like this
                   </context-menu-item>
@@ -227,6 +232,11 @@ function postContextMenuTemplate({
 async function openPostContextMenu(event, props) {
   const pluginItems = await props.pluginService.getPostContextMenuItems(
     props.post,
+    {
+      feedGenerator: props.feedGenerator ?? null,
+      feedContext: props.feedContext ?? null,
+      feedProxyUrl: getFeedGeneratorProxyUrl(props.feedGenerator),
+    },
   );
   const menu = document.createElement("context-menu");
   menu.classList.add("post-context-menu");
@@ -245,6 +255,8 @@ export function postActionBarTemplate({
   isAuthenticated,
   currentUser,
   isUserPost,
+  feedContext = null,
+  feedGenerator = null,
   onClickReply = noop,
   onClickRepost = noop,
   onClickQuotePost = noop,
@@ -408,6 +420,8 @@ export function postActionBarTemplate({
                 isUserPost,
                 isPinnedToProfile,
                 enableFeedFeedback,
+                feedContext,
+                feedGenerator,
                 pluginService,
                 onClickShowMore,
                 onClickShowLess,

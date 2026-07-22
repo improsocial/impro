@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { enableDragToDismiss } from "/js/utils.js";
+import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { isModerationList } from "/js/dataHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -109,6 +109,11 @@ class AddToListsDialog extends Component {
           @cancel=${(event) => {
             event.preventDefault();
             this.close();
+          }}
+          @close=${() => {
+            this.scrollLock?.release();
+            this.scrollLock = null;
+            this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
           <div class="add-to-lists-dialog-content">
@@ -232,22 +237,18 @@ class AddToListsDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".add-to-lists-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
       allowUpwardStretch: true,
+      scrollContainer: this.querySelector(".add-to-lists-dialog-rows"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".add-to-lists-dialog");
-    if (dialog?.open) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("dialog-closed"));
+    return closeWithAnimation(this.querySelector(".add-to-lists-dialog"));
   }
 }
 

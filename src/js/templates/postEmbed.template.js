@@ -9,6 +9,7 @@ import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
 import "/js/components/plugin-rich-text.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
 import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
@@ -368,13 +369,17 @@ function openAltTextDialog(altText) {
   dialog.dataset.testid = "alt-text-dialog";
   dialog.addEventListener("close", () => dialog.remove());
   dialog.addEventListener("click", (e) => {
-    if (e.target === dialog) dialog.close();
+    if (e.target === dialog) closeWithAnimation(dialog);
+  });
+  dialog.addEventListener("cancel", (e) => {
+    e.preventDefault();
+    closeWithAnimation(dialog);
   });
   render(
     html`<button
         class="alt-text-dialog-close"
         data-testid="alt-text-dialog-close"
-        @click=${() => dialog.close()}
+        @click=${() => closeWithAnimation(dialog)}
         aria-label="Close"
       >
         ${closeIconTemplate()}

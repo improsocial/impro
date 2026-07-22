@@ -227,7 +227,7 @@ test.describe("Settings Advanced view", () => {
       ).toBeVisible();
     });
 
-    test("shows an error toast when the URL is not a GitHub URL", async ({
+    test("shows an error toast when the URL is not a supported repo URL", async ({
       page,
     }) => {
       const mockServer = new MockServer();
@@ -245,7 +245,7 @@ test.describe("Settings Advanced view", () => {
         .click();
 
       await expect(page.locator('[data-testid="toast"]')).toContainText(
-        "Invalid GitHub URL",
+        "Invalid repo URL",
       );
     });
 

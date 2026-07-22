@@ -51,6 +51,17 @@ export function valueForPinnedItem(item) {
   return item.type === "timeline" ? FOLLOWING_FEED_URI : item.data.uri;
 }
 
+// The atproto-proxy value that routes app.bsky.feed.sendInteractions (and
+// post-seen tracking) to a specific feed generator's own service, so
+// algorithmic feeds actually receive the signal instead of it silently
+// going nowhere useful.
+export function getFeedGeneratorProxyUrl(feedGenerator) {
+  if (!feedGenerator?.did) {
+    return null;
+  }
+  return `${feedGenerator.did}#bsky_fg`;
+}
+
 export function getRKey(record) {
   return record.uri.split("/").pop();
 }

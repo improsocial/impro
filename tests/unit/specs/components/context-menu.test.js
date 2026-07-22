@@ -104,40 +104,41 @@ describe("context-menu", () => {
   });
 
   describe("ContextMenu - close method", () => {
-    it("should set isOpen to false when close() is called", () => {
+    it("should set isOpen to false when close() is called", async () => {
       const element = document.createElement("context-menu");
       connectElement(element);
       element.open(100, 100);
-      element.close();
+      await element.close();
       assert.deepEqual(element.isOpen, false);
     });
 
-    it("should remove open class from container when close() is called", () => {
+    it("should remove open class from container when close() is called", async () => {
       const element = document.createElement("context-menu");
       connectElement(element);
       element.open(100, 100);
-      element.close();
+      await element.close();
       const container = element.querySelector(".context-menu-container");
       assert(!container.classList.contains("open"));
     });
 
-    it("should close the dialog when close() is called", () => {
+    it("should close the dialog when close() is called", async () => {
       const element = document.createElement("context-menu");
       connectElement(element);
       element.open(100, 100);
-      element.close();
+      await element.close();
       const dialog = element.querySelector(".context-menu");
       assert(!dialog.open);
     });
   });
 
   describe("ContextMenu - container click", () => {
-    it("should close menu when container is clicked", () => {
+    it("should close menu when container is clicked", async () => {
       const element = document.createElement("context-menu");
       connectElement(element);
       element.open(100, 100);
       const container = element.querySelector(".context-menu-container");
       container.click();
+      await Promise.resolve();
       assert.deepEqual(element.isOpen, false);
     });
   });

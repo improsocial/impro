@@ -2,6 +2,8 @@ import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import {
   PluginStylesLoader,
+  assertSafeCssValue,
+  assertSafeInlineStyleValue,
   validatePluginCss,
 } from "/js/plugins/pluginStylesLoader.js";
 
@@ -140,6 +142,68 @@ function expectThrow(fn, messageFragment) {
     `expected error "${caught.message}" to include "${messageFragment}"`,
   );
 }
+
+describe("assertSafeCssValue", () => {
+  it("accepts values without resource functions", () => {
+    assertSafeCssValue("color", "red");
+    assertSafeCssValue("height", "0.68333em");
+    assertSafeCssValue("transform", "translate(1px, 2px)");
+  });
+
+  for (const fn of [
+    "url",
+    "image-set",
+    "-webkit-image-set",
+    "image",
+    "cross-fade",
+    "element",
+  ]) {
+    it(`rejects ${fn}() in a value`, () => {
+      expectThrow(
+        () => assertSafeCssValue("background", `${fn}("https://evil.test/x")`),
+        "disallowed url() in background",
+      );
+    });
+  }
+
+  it("rejects a resource function inside a custom property value", () => {
+    expectThrow(
+      () => assertSafeCssValue("--bg", "url(https://evil.test/x)"),
+      "disallowed url() in --bg",
+    );
+  });
+
+  it("accepts backslashes (author CSS is post-parse serialized)", () => {
+    assertSafeCssValue("content", '"\\A"');
+  });
+});
+
+describe("assertSafeInlineStyleValue", () => {
+  it("accepts plain values", () => {
+    assertSafeInlineStyleValue("color", "red");
+    assertSafeInlineStyleValue("height", "0.68333em");
+  });
+
+  it("rejects any backslash to block CSS-escape identifier smuggling", () => {
+    expectThrow(
+      () =>
+        assertSafeInlineStyleValue("background", "\\75rl(https://evil.test/x)"),
+      "disallowed escape in background",
+    );
+    expectThrow(
+      () => assertSafeInlineStyleValue("content", '"\\A"'),
+      "disallowed escape in content",
+    );
+  });
+
+  it("still rejects raw resource functions", () => {
+    expectThrow(
+      () =>
+        assertSafeInlineStyleValue("background", "url(https://evil.test/x)"),
+      "disallowed url() in background",
+    );
+  });
+});
 
 describe("validatePluginCss", () => {
   let env;
@@ -343,6 +407,108 @@ describe("PluginStylesLoader.unmountSnippet", () => {
     loader.mountSnippet("plugin-a", 1, ".a { color: red; }");
     loader.unmountSnippet("plugin-missing", 1);
     loader.unmountSnippet("plugin-a", 999);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+  });
+});
+
+describe("PluginStylesLoader.mountFonts", () => {
+  let env;
+  let createdUrls;
+  let revokedUrls;
+  let originalCreate;
+  let originalRevoke;
+  beforeEach(() => {
+    env = stubCssEnv();
+    createdUrls = [];
+    revokedUrls = [];
+    originalCreate = URL.createObjectURL;
+    originalRevoke = URL.revokeObjectURL;
+    let counter = 0;
+    URL.createObjectURL = () => {
+      const url = `blob:mock/${++counter}`;
+      createdUrls.push(url);
+      return url;
+    };
+    URL.revokeObjectURL = (url) => {
+      revokedUrls.push(url);
+    };
+  });
+  afterEach(() => {
+    URL.createObjectURL = originalCreate;
+    URL.revokeObjectURL = originalRevoke;
+    env.restore();
+  });
+
+  const desc = (overrides = {}) => ({
+    family: "MyFont",
+    weight: "400",
+    style: "normal",
+    file: "fonts/myfont.woff2",
+    blob: { size: 0, type: "font/woff2" },
+    ...overrides,
+  });
+
+  it("adopts a font sheet and creates one object URL per descriptor", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [
+      desc(),
+      desc({ weight: "700", file: "fonts/myfont-bold.woff2" }),
+    ]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+    assert.deepEqual(createdUrls.length, 2);
+  });
+
+  it("is a no-op for an empty or missing descriptor list", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", []);
+    loader.mountFonts("plugin-a", null);
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+    assert.deepEqual(createdUrls.length, 0);
+  });
+
+  it("unmount removes the font sheet and revokes every object URL", () => {
+    const loader = new PluginStylesLoader();
+    loader.mount("plugin-a", ".a { color: red; }");
+    loader.mountFonts("plugin-a", [desc(), desc({ file: "fonts/b.woff2" })]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 2);
+    loader.unmount("plugin-a");
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+    assert.deepEqual(revokedUrls.sort(), createdUrls.sort());
+  });
+
+  it("defaults weight to 400 and style to normal when omitted", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [
+      { family: "MyFont", file: "fonts/f.woff2", blob: { size: 0 } },
+    ]);
+    assert.deepEqual(env.adoptedStyleSheets.length, 1);
+  });
+
+  it("throws (without leaking object URLs) on invalid weight/style", () => {
+    const loader = new PluginStylesLoader();
+    for (const bad of [
+      { weight: "1200" },
+      { weight: "500 200" },
+      { style: "backwards" },
+    ]) {
+      let caught = null;
+      try {
+        loader.mountFonts("plugin-a", [desc(bad)]);
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught, `expected mountFonts(${JSON.stringify(bad)}) to throw`);
+    }
+    assert.deepEqual(createdUrls.length, 0);
+    assert.deepEqual(env.adoptedStyleSheets.length, 0);
+  });
+
+  it("remounting fonts revokes the prior URLs", () => {
+    const loader = new PluginStylesLoader();
+    loader.mountFonts("plugin-a", [desc()]);
+    const first = [...createdUrls];
+    loader.mountFonts("plugin-a", [desc({ file: "fonts/b.woff2" })]);
+    assert.deepEqual(revokedUrls, first);
     assert.deepEqual(env.adoptedStyleSheets.length, 1);
   });
 });

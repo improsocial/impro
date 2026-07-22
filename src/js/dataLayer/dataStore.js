@@ -11,8 +11,6 @@ export class DataStore extends ReactiveStore {
     this.$chatRecipientSearchResults = new Signal.State(null);
     this.$searchTypeaheadResults = new Signal.State(null);
     this.$feedSearchResults = new Signal.State(null);
-    this.$showLessInteractions = new Signal.State([]);
-    this.$showMoreInteractions = new Signal.State([]);
     this.$notifications = new Signal.State(null);
     this.$mentionNotifications = new Signal.State(null);
     this.$pinnedItems = new Signal.State(null);
@@ -31,8 +29,11 @@ export class DataStore extends ReactiveStore {
     this.$latestPostSearchRequestTimeTop = new Signal.State(null);
     this.$latestPostSearchRequestTimeLatest = new Signal.State(null);
     // Keyed signals
+    this.$showLessInteractions = new SignalMap();
+    this.$showMoreInteractions = new SignalMap();
     this.$feeds = new SignalMap();
     this.$posts = new SignalMap();
+    this.$embeddedPosts = new SignalMap();
     this.$postThreads = new SignalMap();
     this.$postThreadOthers = new SignalMap();
     this.$profiles = new SignalMap();
@@ -75,14 +76,16 @@ export class DataStore extends ReactiveStore {
       seenQuotedPostUris.add(quotedPost.uri);
 
       const normalizedQuotedPost = embedViewRecordToPostView(quotedPost);
-      if (this.$posts.get(quotedPost.uri) == null) {
-        this.$posts.set(quotedPost.uri, normalizedQuotedPost);
+      if (!this.$posts.has(quotedPost.uri)) {
+        this.$embeddedPosts.set(quotedPost.uri, normalizedQuotedPost);
       }
       setQuotedPost(getQuotedPost(normalizedQuotedPost));
     };
 
     for (const post of posts) {
       this.$posts.set(post.uri, post);
+      // Delete matching embedded post, since they're only used as previews
+      this.$embeddedPosts.delete(post.uri);
       setQuotedPost(getQuotedPost(post));
     }
   }

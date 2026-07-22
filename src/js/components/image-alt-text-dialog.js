@@ -1,7 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
-import { classnames, graphemeCount, resetScrollOnBlur } from "/js/utils.js";
+import { classnames, graphemeCount } from "/js/utils.js";
 import { scrollLocks } from "/js/scrollLocks.js";
+import {
+  closeWithAnimation,
+  enableDragToDismiss,
+  resetScrollOnBlur,
+} from "/js/dialogHelpers.js";
+import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class ImageAltTextDialog extends Component {
   connectedCallback() {
@@ -37,22 +43,36 @@ class ImageAltTextDialog extends Component {
 
     render(
       html`<dialog
-        class="image-alt-text-dialog bottom-sheet-stacked"
+        class="image-alt-text-dialog bottom-sheet bottom-sheet-stacked"
         autofocus
         @click=${(e) => {
           if (e.target.tagName === "DIALOG") {
             this.close();
           }
         }}
-        @cancel=${() => {
+        @cancel=${(event) => {
+          event.preventDefault();
           this.close();
+        }}
+        @close=${() => {
+          this.scrollLock?.release();
+          this.scrollLock = null;
+          this.dispatchEvent(new CustomEvent("alt-text-dialog-closed"));
         }}
       >
         <div class="image-alt-text-dialog-content">
           <div class="image-alt-text-dialog-header">
             <h2>Add alt text</h2>
+            <button
+              class="image-alt-text-dialog-close"
+              aria-label="Close"
+              data-testid="alt-text-close"
+              @click=${() => this.close()}
+            >
+              ${closeIconTemplate()}
+            </button>
           </div>
-          <div class="image-alt-text-dialog-body">
+          <div class="image-alt-text-dialog-body sheet-scroll-region">
             ${this.imageUrl
               ? html`<div class="image-alt-text-dialog-image-container">
                   <img src="${this.imageUrl}" alt="Preview" />
@@ -89,13 +109,6 @@ class ImageAltTextDialog extends Component {
             </div>
             <div class="image-alt-text-dialog-footer-buttons">
               <button
-                class="rounded-button rounded-button-secondary"
-                data-testid="alt-text-cancel"
-                @click=${() => this.close()}
-              >
-                Cancel
-              </button>
-              <button
                 class="rounded-button rounded-button-primary"
                 data-testid="alt-text-save"
                 @click=${() => this.save()}
@@ -114,23 +127,26 @@ class ImageAltTextDialog extends Component {
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".image-alt-text-dialog");
+    if (dialog?.open) return;
     dialog.showModal();
     this.querySelector(".image-alt-text-dialog-textarea")?.focus({
       preventScroll: true,
     });
 
+    enableDragToDismiss(dialog, {
+      onClose: () => this.close(),
+      ignoreTouchTarget: (element) =>
+        element.closest("button, textarea") !== null,
+    });
+
     resetScrollOnBlur(
       dialog,
-      this.querySelector(".image-alt-text-dialog-content"),
+      this.querySelector(".image-alt-text-dialog-body"),
     );
   }
 
   close() {
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".image-alt-text-dialog");
-    dialog.close();
-    this.dispatchEvent(new CustomEvent("alt-text-dialog-closed"));
+    return closeWithAnimation(this.querySelector(".image-alt-text-dialog"));
   }
 
   save() {

@@ -1,14 +1,13 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import {
-  classnames,
+  closeWithAnimation,
   enableDragToDismiss,
-  graphemeCount,
-  readFileAsDataUrl,
   resetScrollOnBlur,
-} from "/js/utils.js";
+} from "/js/dialogHelpers.js";
+import { avatarThumbnailUrl } from "/js/dataHelpers.js";
+import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
 import "/js/components/image-cropper.js";
 import "/js/components/context-menu.js";
@@ -126,10 +125,15 @@ class EditProfileDialog extends Component {
             this.close();
           }
         }}
+        @close=${() => {
+          this.scrollLock?.release();
+          this.scrollLock = null;
+          this.dispatchEvent(new CustomEvent("edit-profile-closed"));
+        }}
       >
         ${isCropping
           ? html`<div
-              class="edit-profile-dialog-content edit-profile-cropper-content"
+              class="edit-profile-dialog-content edit-profile-cropper-content sheet-scroll-region"
             >
               <div class="edit-profile-dialog-header">
                 <button
@@ -159,7 +163,7 @@ class EditProfileDialog extends Component {
                 ></image-cropper>
               </div>
             </div>`
-          : html`<div class="edit-profile-dialog-content">
+          : html`<div class="edit-profile-dialog-content sheet-scroll-region">
               <div class="edit-profile-dialog-header">
                 <button
                   class="edit-profile-dialog-header-button"
@@ -477,9 +481,9 @@ class EditProfileDialog extends Component {
     this._isOpen = true;
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector(".edit-profile-dialog");
+    if (dialog?.open) return;
     if (dialog) {
       dialog.showModal();
-
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
         onClose: () => this.close(),
@@ -510,13 +514,7 @@ class EditProfileDialog extends Component {
 
   close() {
     this._isOpen = false;
-    this.scrollLock?.release();
-    this.scrollLock = null;
-    const dialog = this.querySelector(".edit-profile-dialog");
-    if (dialog) {
-      dialog.close();
-    }
-    this.dispatchEvent(new CustomEvent("edit-profile-closed"));
+    return closeWithAnimation(this.querySelector(".edit-profile-dialog"));
   }
 }
 

@@ -5,6 +5,7 @@ import {
   diffPermissions,
   isEmptyPermissions,
   isFetchAllowed,
+  isActionAllowed,
 } from "/js/plugins/pluginPermissions.js";
 
 describe("parsePermissions", () => {
@@ -39,6 +40,39 @@ describe("parsePermissions", () => {
       }),
       { fetch: ["https://a.com/*", "https://b.com/*"] },
     );
+  });
+
+  it("parses known action scopes and drops unknown ones", () => {
+    assert.deepEqual(
+      parsePermissions({
+        actions: ["mute", "block", "feedFeedback", "deleteEverything"],
+      }),
+      { actions: ["mute", "block", "feedFeedback"] },
+    );
+  });
+
+  it("wraps a string actions value into an array", () => {
+    assert.deepEqual(parsePermissions({ actions: "mute" }), {
+      actions: ["mute"],
+    });
+  });
+
+  it("omits the actions key when no valid scopes remain", () => {
+    assert.deepEqual(parsePermissions({ actions: [] }), {});
+    assert.deepEqual(parsePermissions({ actions: ["feedback"] }), {});
+  });
+});
+
+describe("isActionAllowed", () => {
+  it("allows only granted action scopes", () => {
+    const permissions = { actions: ["mute", "feedFeedback"] };
+    assert(isActionAllowed("mute", permissions));
+    assert(isActionAllowed("feedFeedback", permissions));
+    assert(!isActionAllowed("block", permissions));
+  });
+
+  it("denies everything when the actions key is missing", () => {
+    assert(!isActionAllowed("mute", {}));
   });
 });
 

@@ -126,8 +126,14 @@ describe("VirtualEl (via Setting & friends)", () => {
     assert.deepEqual(serialized.children.length, 2);
     const info = serialized.children[0];
     assert.deepEqual(info.attrs.class, "setting-item-info");
-    assert.deepEqual(info.children[0].text, "Hello");
-    assert.deepEqual(info.children[1].text, "World");
+    assert.deepEqual(info.children[0].children[0], {
+      type: "text",
+      value: "Hello",
+    });
+    assert.deepEqual(info.children[1].children[0], {
+      type: "text",
+      value: "World",
+    });
   });
 
   it("addClass concatenates classes and setAttr stores attributes", () => {
@@ -145,14 +151,74 @@ describe("VirtualEl (via Setting & friends)", () => {
     assert.deepEqual(serialized.attrs.disabled, "");
   });
 
-  it("empty() clears text and children", () => {
+  it("empty() clears children", () => {
     const el = makeVirtualEl();
     el.createDiv({ text: "child" });
     el.setText("hi");
     el.empty();
     const serialized = el._serialize();
-    assert.deepEqual(serialized.text, null);
     assert.deepEqual(serialized.children, []);
+    assert(!("text" in serialized));
+  });
+
+  it("setText appends a single text child, and skips empty/null values", () => {
+    const el = makeVirtualEl();
+    el.setText("hi");
+    assert.deepEqual(el._serialize().children, [{ type: "text", value: "hi" }]);
+    el.setText("");
+    assert.deepEqual(el._serialize().children, []);
+    el.setText(null);
+    assert.deepEqual(el._serialize().children, []);
+  });
+
+  it("appendText and createText add ordered text nodes", () => {
+    const el = makeVirtualEl();
+    el.appendText("before ");
+    el.createEl("em", { text: "middle" });
+    const tail = el.createText(" after");
+    assert.deepEqual(el._serialize().children, [
+      { type: "text", value: "before " },
+      {
+        type: "element",
+        tag: "em",
+        attrs: {},
+        events: {},
+        children: [{ type: "text", value: "middle" }],
+      },
+      { type: "text", value: " after" },
+    ]);
+    assert.deepEqual(tail._serialize(), { type: "text", value: " after" });
+  });
+
+  it("setStyle is chainable and serializes a distinct styles field", () => {
+    const el = makeVirtualEl();
+    const result = el
+      .setStyle("height", "0.68333em")
+      .setStyle("vertical-align", "-0.08333em");
+    assert(result === el);
+    const serialized = el._serialize();
+    assert.deepEqual(serialized.styles, {
+      height: "0.68333em",
+      "vertical-align": "-0.08333em",
+    });
+    assert(!("style" in serialized.attrs));
+  });
+
+  it("omits the styles field when no styles are set", () => {
+    const el = makeVirtualEl();
+    const serialized = el._serialize();
+    assert(!("styles" in serialized));
+  });
+
+  it("setStyle coerces numeric values to strings", () => {
+    const el = makeVirtualEl();
+    el.setStyle("z-index", 3);
+    assert.deepEqual(el._serialize().styles, { "z-index": "3" });
+  });
+
+  it("appendChild rejects values that are not VirtualEl or VirtualText", () => {
+    const el = makeVirtualEl();
+    assert.throws(() => el.appendChild({ tag: "div" }), TypeError);
   });
 
   it("createEl supports text, cls (string or array), and attr options", () => {
@@ -160,7 +226,10 @@ describe("VirtualEl (via Setting & friends)", () => {
     el.createEl("span", { text: "x", cls: ["one", "two"], attr: { id: "z" } });
     const serialized = el._serialize();
     assert.deepEqual(serialized.children[0].tag, "span");
-    assert.deepEqual(serialized.children[0].text, "x");
+    assert.deepEqual(serialized.children[0].children[0], {
+      type: "text",
+      value: "x",
+    });
     assert.deepEqual(serialized.children[0].attrs.class, "one two");
     assert.deepEqual(serialized.children[0].attrs.id, "z");
   });
@@ -240,7 +309,10 @@ describe("Plugin sidebar/feedFilter registration", () => {
     assert.deepEqual(result.callId, 42);
     assert.deepEqual(result.value.tag, "div");
     assert.deepEqual(result.value.attrs.class, "hello");
-    assert.deepEqual(result.value.text, "world");
+    assert.deepEqual(result.value.children[0], {
+      type: "text",
+      value: "world",
+    });
   });
 
   it("registerSlot returns null when the callback returns null", async () => {
@@ -335,6 +407,43 @@ describe("hostCall round-trip", () => {
     assert.deepEqual(sent.args[0], "at://example/feed");
   });
 
+  it("app mute and block methods post hostCalls with the direction flag", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const did = "did:plc:target";
+
+    plugin.app.muteActor(did);
+    assert.deepEqual(lastMessage().method, "muteActor");
+    assert.deepEqual(lastMessage().args[0], { did, mute: true });
+
+    plugin.app.unmuteActor(did);
+    assert.deepEqual(lastMessage().method, "muteActor");
+    assert.deepEqual(lastMessage().args[0], { did, mute: false });
+
+    plugin.app.blockActor(did);
+    assert.deepEqual(lastMessage().method, "blockActor");
+    assert.deepEqual(lastMessage().args[0], { did, block: true });
+
+    plugin.app.unblockActor(did);
+    assert.deepEqual(lastMessage().method, "blockActor");
+    assert.deepEqual(lastMessage().args[0], { did, block: false });
+  });
+
+  it("app feedback methods post hostCalls with postUri and feedUri", async () => {
+    clearMessages();
+    const plugin = new Plugin();
+    const postUri = "at://example/post/1";
+    const feedUri = "at://example/feed/cool";
+
+    plugin.app.showLessLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showLessLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+
+    plugin.app.showMoreLikeThis(postUri, feedUri);
+    assert.deepEqual(lastMessage().method, "showMoreLikeThis");
+    assert.deepEqual(lastMessage().args[0], { postUri, feedUri });
+  });
+
   it("app.data.getPost posts a hostCall and resolves with the host result", async () => {
     clearMessages();
     const plugin = new Plugin();
@@ -399,7 +508,10 @@ describe("Notice", () => {
     assert(sent, "expected a showToast hostCall");
     assert.deepEqual(sent.args[0].timeout, 1000);
     assert.deepEqual(sent.args[0].element.tag, "div");
-    assert.deepEqual(sent.args[0].element.text, "Saved!");
+    assert.deepEqual(sent.args[0].element.children[0], {
+      type: "text",
+      value: "Saved!",
+    });
   });
 
   it("hide() before the microtask suppresses the showToast", async () => {
@@ -480,8 +592,14 @@ describe("Modal", () => {
     const sent = lastMessage();
     assert.deepEqual(sent.type, "hostCall");
     assert.deepEqual(sent.method, "openModal");
-    assert.deepEqual(sent.args[0].title.text, "Title");
-    assert.deepEqual(sent.args[0].content.text, "Body");
+    assert.deepEqual(sent.args[0].title.children[0], {
+      type: "text",
+      value: "Title",
+    });
+    assert.deepEqual(sent.args[0].content.children[0], {
+      type: "text",
+      value: "Body",
+    });
   });
 
   it("calling open() twice only sends one openModal", () => {
@@ -710,7 +828,10 @@ describe("Setting components", () => {
     );
     const button = setting.controlEl.children[0];
     assert.deepEqual(button.tag, "button");
-    assert.deepEqual(button.text, "Save");
+    assert.deepEqual(button.children[0]._serialize(), {
+      type: "text",
+      value: "Save",
+    });
     assert(button.attrs.class.includes("rounded-button-primary"));
     assert(typeof button.events.click === "number");
   });
@@ -867,7 +988,10 @@ describe("registerRichTextTransform", () => {
     assert.deepEqual(first.value[0], { type: "text", value: "one" });
     assert.deepEqual(first.value[1].type, "inline");
     assert.deepEqual(first.value[1].node.tag, "code");
-    assert.deepEqual(first.value[1].node.text, "hi");
+    assert.deepEqual(first.value[1].node.children[0], {
+      type: "text",
+      value: "hi",
+    });
     assert.deepEqual(second.value, [{ type: "text", value: "two" }]);
   });
 

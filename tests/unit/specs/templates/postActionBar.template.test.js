@@ -402,13 +402,74 @@ describe("postActionBarTemplate - plugin context menu items", () => {
 
   async function openPostContextMenu(container) {
     ensurePageVisible();
-    const moreButton = Array.from(
-      container.querySelectorAll(".post-action-button.text-button"),
-    ).find((button) => button.textContent.trim() === "...");
+    const moreButton = container.querySelector(
+      '[data-testid="post-action-more"]',
+    );
     moreButton.click();
     await flushMicrotasks();
     return document.body.querySelector("context-menu.post-context-menu");
   }
+
+  it("should pass the post and feed meta to getPostContextMenuItems", async () => {
+    const menuCalls = [];
+    const pluginService = {
+      getPostContextMenuItems: async (...args) => {
+        menuCalls.push(args);
+        return [];
+      },
+    };
+    const feedGenerator = {
+      uri: "at://did:plc:feedgen/app.bsky.feed.generator/cool",
+      did: "did:web:feed.example",
+    };
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      feedContext: "ctx",
+      feedGenerator,
+      pluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    await openPostContextMenu(container);
+    assert.deepEqual(menuCalls, [
+      [
+        post,
+        {
+          feedGenerator,
+          feedContext: "ctx",
+          feedProxyUrl: "did:web:feed.example#bsky_fg",
+        },
+      ],
+    ]);
+    container.remove();
+  });
+
+  it("should pass null feed meta when the post is not in a feed", async () => {
+    const menuCalls = [];
+    const pluginService = {
+      getPostContextMenuItems: async (...args) => {
+        menuCalls.push(args);
+        return [];
+      },
+    };
+    const result = postActionBarTemplate({
+      post,
+      isAuthenticated: true,
+      currentUser: { did: "did:plc:test" },
+      pluginService,
+    });
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    render(result, container);
+    await openPostContextMenu(container);
+    assert.deepEqual(menuCalls, [
+      [post, { feedGenerator: null, feedContext: null, feedProxyUrl: null }],
+    ]);
+    container.remove();
+  });
 
   it("should render one context-menu-item-group per plugin", async () => {
     const pluginService = makePluginService([
@@ -603,9 +664,9 @@ describe("postActionBarTemplate - translate menu action", () => {
     document.body.appendChild(container);
     render(result, container);
     ensurePageVisible();
-    const moreButton = Array.from(
-      container.querySelectorAll(".post-action-button.text-button"),
-    ).find((button) => button.textContent.trim() === "...");
+    const moreButton = container.querySelector(
+      '[data-testid="post-action-more"]',
+    );
     moreButton.click();
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));

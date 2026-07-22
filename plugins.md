@@ -20,7 +20,7 @@ Your plugin should now appear in the "Community Plugins" page: `http://localhost
 
 ## Publishing a plugin
 
-To publish a plugin version, tag a commit with the version number (e.g. "0.1.0", no v) and push it to a public GitHub repository. To include your plugin in the Community Plugins listing, make a pull request to https://github.com/improsocial/impro-releases with the plugin info.
+To publish a plugin version, tag a commit with the version number (e.g. "0.1.0", no v) and push it to a public GitHub or Tangled repository. To include your plugin in the Community Plugins listing, make a pull request to https://github.com/improsocial/impro-releases with the plugin info.
 
 ## API surface
 
@@ -38,6 +38,8 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Add custom feed filters
 - Transform rich text in posts
 - Make whitelisted network requests (requires permissions)
+- Read appview data with the current user as the viewer (profiles, posts, etc.)
+- Mute, block, or send feed feedback ("show more/less like this") on the user's behalf (requires permissions)
 
 ### Plugins CANNOT:
 
