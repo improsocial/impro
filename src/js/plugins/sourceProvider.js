@@ -1,3 +1,5 @@
+import { resolveIdentity, getServiceEndpointFromDidDoc } from "/js/atproto.js";
+
 const REQUIRED_MANIFEST_FIELDS = ["id", "name", "version"];
 
 function isRelativePath(file) {
@@ -75,35 +77,6 @@ export function repoWebUrl(repo) {
   return `https://github.com/${path}`;
 }
 
-// GitHub's raw content host returns a clean 404 for a missing file.
-// tangled.sh's blob-fetch backend instead returns 500 with this exact JSON
-// error body for a missing blob — verified against a real repo, since it
-// has no dedicated "not found" status. Match on the body too (not just the
-// 500), so an actual tangled.sh outage still surfaces as a real error
-// instead of being silently swallowed as "file doesn't exist".
-function isTangledMissingBlobBody(body) {
-  if (typeof body !== "string") return false;
-  let parsed;
-  try {
-    parsed = JSON.parse(body);
-  } catch {
-    return false;
-  }
-  return (
-    parsed?.error === "InternalServerError" &&
-    parsed?.message === "failed to get blob"
-  );
-}
-
-function isMissingFileResponse(repo, status, body) {
-  if (status === 404) return true;
-  return (
-    parseRepoSpec(repo).host === "tangled" &&
-    status === 500 &&
-    isTangledMissingBlobBody(body)
-  );
-}
-
 function assertFontMagicBytes(file, bytes) {
   const view = new Uint8Array(bytes, 0, 4);
   const isWoff2 =
@@ -122,13 +95,85 @@ function assertFontMagicBytes(file, bytes) {
   }
 }
 
-function remoteAssetUrl({ repo, file, release = null }) {
+// tangled.org's own HTTP endpoints (the "/raw/<ref>/<path>" route and the
+// mirror.tangled.network XRPC service it redirects through) don't set
+// Access-Control-Allow-Origin, so browsers block fetching them cross-origin
+// entirely — this isn't fixable by changing the URL we hit on that host.
+//
+// Instead, resolve and fetch entirely through standard AT Protocol
+// infrastructure, which is CORS-enabled throughout (impro already depends
+// on plc.directory and the handle resolver for its own core function, so
+// this adds no new trust surface):
+//   1. resolveIdentity(ownerHandle) -> owner DID + DID doc (handle
+//      resolver + plc.directory)
+//   2. getServiceEndpointFromDidDoc -> owner's PDS
+//   3. com.atproto.repo.getRecord on the owner's PDS for the repo's own
+//      "sh.tangled.repo" record (rkey = repo name) -> {knot, repoDid}
+//   4. the individual knot server's own "sh.tangled.repo.blob" XRPC route
+//      (not the mirror), which does set Access-Control-Allow-Origin: *
+//
+// Cached per repo path since each resolution costs 3 network round-trips
+// and rarely changes.
+const tangledRepoInfoCache = new Map();
+
+async function resolveTangledRepoInfo(path) {
+  if (tangledRepoInfoCache.has(path)) {
+    return tangledRepoInfoCache.get(path);
+  }
+  const promise = (async () => {
+    const slashIndex = path.indexOf("/");
+    if (slashIndex === -1) {
+      throw new Error(`Invalid tangled repo path "${path}"`);
+    }
+    const ownerHandle = path.slice(0, slashIndex);
+    const repoName = path.slice(slashIndex + 1);
+
+    const identity = await resolveIdentity(ownerHandle);
+    if (!identity) {
+      throw new Error(`Could not resolve tangled repo owner "${ownerHandle}"`);
+    }
+    const pds = getServiceEndpointFromDidDoc(identity.didDoc);
+
+    const recordUrl =
+      `${pds}/xrpc/com.atproto.repo.getRecord?` +
+      new URLSearchParams({
+        repo: identity.did,
+        collection: "sh.tangled.repo",
+        rkey: repoName,
+      });
+    const response = await fetch(recordUrl);
+    if (!response.ok) {
+      throw new Error(
+        `Could not resolve tangled repo "${path}" (HTTP ${response.status})`,
+      );
+    }
+    const record = await response.json();
+    const knot = record.value?.knot;
+    const repoDid = record.value?.repoDid;
+    if (!knot || !repoDid) {
+      throw new Error(
+        `tangled repo record for "${path}" is missing knot/repoDid`,
+      );
+    }
+    return { knot, repoDid };
+  })();
+  // Don't cache a failed resolution — allow retrying on a later call.
+  promise.catch(() => tangledRepoInfoCache.delete(path));
+  tangledRepoInfoCache.set(path, promise);
+  return promise;
+}
+
+async function remoteAssetUrl({ repo, file, release = null }) {
   const { host, path } = parseRepoSpec(repo);
   if (host === "tangled") {
-    // tangled.sh serves raw blobs at /raw/<ref>/<path> for both branches
-    // and tags; there's no separate "refs/tags/..." form like GitHub's.
-    const ref = release ?? "main";
-    return `https://tangled.org/${path}/raw/${ref}/${file}`;
+    const { knot, repoDid } = await resolveTangledRepoInfo(path);
+    const params = new URLSearchParams({
+      repo: repoDid,
+      ref: release ?? "main",
+      path: file,
+      raw: "true",
+    });
+    return `https://${knot}/xrpc/sh.tangled.repo.blob?${params}`;
   }
   const ref = release ? `refs/tags/${release}` : "refs/heads/main";
   return `https://raw.githubusercontent.com/${path}/${ref}/${file}`;
@@ -150,7 +195,7 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl({
+    const url = await remoteAssetUrl({
       repo,
       file: "manifest.json",
       release: version,
@@ -167,7 +212,7 @@ export class SourceProvider {
       throw new Error("Repo is required");
     }
     // Fetch from main branch
-    const url = remoteAssetUrl({ repo, file: "manifest.json" });
+    const url = await remoteAssetUrl({ repo, file: "manifest.json" });
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     return parsePluginManifest(pluginId, await response.json());
@@ -177,7 +222,7 @@ export class SourceProvider {
     if (!repo) {
       throw new Error("Repo is required");
     }
-    const url = remoteAssetUrl({ repo, file: "manifest.json" });
+    const url = await remoteAssetUrl({ repo, file: "manifest.json" });
     const response = await fetch(url, { cache: "no-store" });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
     const manifest = await response.json();
@@ -193,7 +238,11 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl({ repo, file: "main.js", release: version });
+    const url = await remoteAssetUrl({
+      repo,
+      file: "main.js",
+      release: version,
+    });
     const response = await this.pluginCache.fetch(url);
     return await response.text();
   }
@@ -209,15 +258,18 @@ export class SourceProvider {
     if (!version || !repo) {
       throw new Error("Version and repo are required");
     }
-    const url = remoteAssetUrl({ repo, file: "styles.css", release: version });
+    const url = await remoteAssetUrl({
+      repo,
+      file: "styles.css",
+      release: version,
+    });
     try {
       const response = await this.pluginCache.fetch(url, {
         doCacheNotFound: true,
-        isNotFound: (status, body) => isMissingFileResponse(repo, status, body),
       });
       return await response.text();
     } catch (error) {
-      if (isMissingFileResponse(repo, error?.status, error?.body)) return null;
+      if (error?.status === 404) return null;
       throw error;
     }
   }
@@ -232,7 +284,7 @@ export class SourceProvider {
       if (!version || !repo) {
         throw new Error("Version and repo are required");
       }
-      const url = remoteAssetUrl({ repo, file, release: version });
+      const url = await remoteAssetUrl({ repo, file, release: version });
       const response = await this.pluginCache.fetch(url);
       bytes = await response.arrayBuffer();
     }
@@ -252,14 +304,11 @@ export class SourceProvider {
       throw new Error("Repo is required");
     }
     // Fetch from main branch so we show the latest README
-    const url = remoteAssetUrl({ repo, file: "README.md" });
+    const url = await remoteAssetUrl({ repo, file: "README.md" });
     const response = await fetch(url, { cache: "no-store" });
-    const body = await response.text();
-    if (!response.ok) {
-      if (isMissingFileResponse(repo, response.status, body)) return null;
-      throw new Error(`HTTP ${response.status}`);
-    }
-    return body;
+    if (response.status === 404) return null;
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    return await response.text();
   }
 
   // URLs that should be retained in the cache
@@ -269,14 +318,16 @@ export class SourceProvider {
       return [];
     }
     const urls = [
-      remoteAssetUrl({ repo, file: "manifest.json", release: version }),
-      remoteAssetUrl({ repo, file: "main.js", release: version }),
-      remoteAssetUrl({ repo, file: "styles.css", release: version }),
+      await remoteAssetUrl({ repo, file: "manifest.json", release: version }),
+      await remoteAssetUrl({ repo, file: "main.js", release: version }),
+      await remoteAssetUrl({ repo, file: "styles.css", release: version }),
     ];
     try {
       const manifest = await this.getManifest(pluginId, version, repo);
       for (const font of manifest.fonts ?? []) {
-        urls.push(remoteAssetUrl({ repo, file: font.file, release: version }));
+        urls.push(
+          await remoteAssetUrl({ repo, file: font.file, release: version }),
+        );
       }
     } catch {
       // If the manifest can't be read the base URLs are still returned so

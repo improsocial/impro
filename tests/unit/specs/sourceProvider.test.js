@@ -239,10 +239,7 @@ describe("SourceProvider with remote plugins", () => {
       pluginCache.calls[0].url,
       "https://raw.githubusercontent.com/ow/alpha/refs/tags/1.0.0/styles.css",
     );
-    const { doCacheNotFound, isNotFound } = pluginCache.calls[0].options;
-    assert.deepEqual(doCacheNotFound, true);
-    assert.deepEqual(isNotFound(404, null), true);
-    assert.deepEqual(isNotFound(500, "boom"), false);
+    assert.deepEqual(pluginCache.calls[0].options, { doCacheNotFound: true });
     assert.deepEqual(styles, "body{color:blue}");
   });
 
@@ -522,25 +519,115 @@ describe("SourceProvider.getCacheUrls with fonts", () => {
   });
 });
 
+// tangled.org's own HTTP endpoints don't set CORS headers, so
+// SourceProvider resolves tangled: repos entirely through standard AT
+// Protocol infrastructure instead: resolveHandle -> plc.directory ->
+// the owner's PDS (for the repo's own "sh.tangled.repo" record, which
+// carries {knot, repoDid}) -> the knot's own CORS-enabled blob endpoint.
+// This stubs global fetch to answer those three resolution requests by URL
+// pattern; the actual file-content request is left to the caller (via
+// fakePluginCache, or a 4th branch here for plain-fetch methods).
+function stubTangledResolution({
+  ownerHandle,
+  ownerDid,
+  pds,
+  knot,
+  repoDid,
+  content = null,
+}) {
+  const calls = [];
+  const fetchImpl = async (url, options) => {
+    calls.push({ url: String(url), options });
+    const urlStr = String(url);
+    if (urlStr.includes("com.atproto.identity.resolveHandle")) {
+      return jsonResponse({ did: ownerDid });
+    }
+    if (urlStr.startsWith("https://plc.directory/")) {
+      return jsonResponse({
+        id: ownerDid,
+        alsoKnownAs: [`at://${ownerHandle}`],
+        service: [
+          {
+            id: "#atproto_pds",
+            type: "AtprotoPersonalDataServer",
+            serviceEndpoint: pds,
+          },
+        ],
+      });
+    }
+    if (
+      urlStr.startsWith(pds) &&
+      urlStr.includes("com.atproto.repo.getRecord")
+    ) {
+      return jsonResponse({ value: { knot, repoDid } });
+    }
+    if (content && urlStr.startsWith(`https://${knot}/`)) {
+      return content;
+    }
+    throw new Error(`Unexpected fetch in stubTangledResolution: ${urlStr}`);
+  };
+  const originalGlobal = globalThis.fetch;
+  const originalWindow = globalThis.window.fetch;
+  globalThis.fetch = fetchImpl;
+  globalThis.window.fetch = fetchImpl;
+  return {
+    calls,
+    restore() {
+      globalThis.fetch = originalGlobal;
+      globalThis.window.fetch = originalWindow;
+    },
+  };
+}
+
+function knotBlobUrl({ knot, repoDid, ref, path }) {
+  const params = new URLSearchParams({ repo: repoDid, ref, path, raw: "true" });
+  return `https://${knot}/xrpc/sh.tangled.repo.blob?${params}`;
+}
+
+// resolveTangledRepoInfo caches per repo path at module scope, so each test
+// below uses its own unique owner handle to avoid one test's cached
+// resolution masking another test's stub (and hiding real bugs).
+let identityCounter = 0;
+function makeIdentity() {
+  const n = ++identityCounter;
+  return {
+    ownerHandle: `owner${n}.example`,
+    ownerDid: `did:plc:owner${n}`,
+    pds: `https://pds${n}.example`,
+    knot: `knot${n}.example`,
+    repoDid: `did:plc:repo${n}`,
+  };
+}
+
 describe("SourceProvider with tangled.sh-hosted plugins", () => {
-  it("fetches a versioned manifest from tangled.org via plugin cache", async () => {
+  it("resolves via atproto and fetches a versioned manifest from the knot", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
     const pluginCache = fakePluginCache(async () =>
       jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
     );
-    const provider = new SourceProvider(pluginCache);
-    const manifest = await provider.getManifest(
-      "alpha",
-      "1.0.0",
-      "tangled:ow/alpha",
-    );
-    assert.deepEqual(
-      pluginCache.calls[0].url,
-      "https://tangled.org/ow/alpha/raw/1.0.0/manifest.json",
-    );
-    assert.deepEqual(manifest.id, "alpha");
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const manifest = await provider.getManifest(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(
+        pluginCache.calls[0].url,
+        knotBlobUrl({ ...identity, ref: "1.0.0", path: "manifest.json" }),
+      );
+      assert.deepEqual(manifest.id, "alpha");
+      // resolveHandle, plc.directory, getRecord
+      assert.deepEqual(stub.calls.length, 3);
+    } finally {
+      stub.restore();
+    }
   });
 
   it("fetches source from the version that was passed in", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
     const pluginCache = fakePluginCache(async () => ({
       ok: true,
       status: 200,
@@ -548,51 +635,84 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
         return "alert(1)";
       },
     }));
-    const provider = new SourceProvider(pluginCache);
-    const source = await provider.getSource(
-      "alpha",
-      "2.5.0",
-      "tangled:ow/alpha",
-    );
-    assert.deepEqual(
-      pluginCache.calls[0].url,
-      "https://tangled.org/ow/alpha/raw/2.5.0/main.js",
-    );
-    assert.deepEqual(source, "alert(1)");
-  });
-
-  it("getLiveManifest fetches from the main branch", async () => {
-    const stub = stubFetch(async () =>
-      jsonResponse({ id: "alpha", name: "A", version: "9.9.9" }),
-    );
     try {
-      const provider = new SourceProvider(null);
-      const manifest = await provider.getLiveManifest(
+      const provider = new SourceProvider(pluginCache);
+      const source = await provider.getSource(
         "alpha",
-        "tangled:ow/alpha",
+        "2.5.0",
+        `tangled:${identity.ownerHandle}/alpha`,
       );
       assert.deepEqual(
-        stub.calls[0].url,
-        "https://tangled.org/ow/alpha/raw/main/manifest.json",
+        pluginCache.calls[0].url,
+        knotBlobUrl({ ...identity, ref: "2.5.0", path: "main.js" }),
       );
-      assert.deepEqual(manifest.version, "9.9.9");
+      assert.deepEqual(source, "alert(1)");
     } finally {
       stub.restore();
     }
   });
 
-  it("getCacheUrls includes manifest, main.js, and styles.css URLs", async () => {
-    const provider = new SourceProvider(null);
-    const urls = await provider.getCacheUrls(
-      "alpha",
-      "1.2.3",
-      "tangled:ow/alpha",
+  it("getLiveManifest resolves via atproto and fetches from the knot's main ref", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({
+      ...identity,
+      content: jsonResponse({ id: "alpha", name: "A", version: "9.9.9" }),
+    });
+    try {
+      const provider = new SourceProvider(null);
+      const manifest = await provider.getLiveManifest(
+        "alpha",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(manifest.version, "9.9.9");
+      const finalCall = stub.calls.at(-1);
+      assert.deepEqual(
+        finalCall.url,
+        knotBlobUrl({ ...identity, ref: "main", path: "manifest.json" }),
+      );
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("caches the resolved knot/repoDid so a second fetch doesn't re-resolve", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
+    const pluginCache = fakePluginCache(async () =>
+      jsonResponse({ id: "alpha", name: "A", version: "1.0.0" }),
     );
-    assert.deepEqual(urls, [
-      "https://tangled.org/ow/alpha/raw/1.2.3/manifest.json",
-      "https://tangled.org/ow/alpha/raw/1.2.3/main.js",
-      "https://tangled.org/ow/alpha/raw/1.2.3/styles.css",
-    ]);
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const repo = `tangled:${identity.ownerHandle}/alpha`;
+      await provider.getManifest("alpha", "1.0.0", repo);
+      await provider.getSource("alpha", "1.0.0", repo);
+      // Still just the 3 resolution calls, not 6 — the second fetch reused
+      // the cached {knot, repoDid}.
+      assert.deepEqual(stub.calls.length, 3);
+      assert.deepEqual(pluginCache.calls.length, 2);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getCacheUrls resolves once and includes manifest, main.js, and styles.css URLs", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
+    try {
+      const provider = new SourceProvider(null);
+      const urls = await provider.getCacheUrls(
+        "alpha",
+        "1.2.3",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(urls, [
+        knotBlobUrl({ ...identity, ref: "1.2.3", path: "manifest.json" }),
+        knotBlobUrl({ ...identity, ref: "1.2.3", path: "main.js" }),
+        knotBlobUrl({ ...identity, ref: "1.2.3", path: "styles.css" }),
+      ]);
+    } finally {
+      stub.restore();
+    }
   });
 
   it("throws for an unrecognized repo host prefix", async () => {
@@ -606,110 +726,60 @@ describe("SourceProvider with tangled.sh-hosted plugins", () => {
     assert(caught?.message.includes('Unsupported plugin repo host "gitlab"'));
   });
 
-  // tangled.sh's blob backend returns 500 (not 404) for a missing file, so
-  // "optional file absent" detection has to special-case it per host.
-  const TANGLED_MISSING_BLOB_BODY = JSON.stringify({
-    error: "InternalServerError",
-    message: "failed to get blob",
-  });
-
-  it("getStyles treats tangled's missing-blob 500 as a missing styles.css, not an error", async () => {
-    const pluginCache = fakePluginCache(async () => {
-      const error = new Error("HTTP 500");
-      error.status = 500;
-      error.body = TANGLED_MISSING_BLOB_BODY;
-      throw error;
-    });
-    const provider = new SourceProvider(pluginCache);
-    const styles = await provider.getStyles(
-      "alpha",
-      "1.0.0",
-      "tangled:ow/alpha",
-    );
-    assert.deepEqual(styles, null);
-    const { isNotFound } = pluginCache.calls[0].options;
-    assert.deepEqual(isNotFound(500, TANGLED_MISSING_BLOB_BODY), true);
-    assert.deepEqual(isNotFound(500, "boom"), false);
-    assert.deepEqual(isNotFound(404, null), true);
-  });
-
-  it("getStyles still throws a tangled 500 with an unrelated body", async () => {
-    const pluginCache = fakePluginCache(async () => {
-      const error = new Error("HTTP 500");
-      error.status = 500;
-      error.body = JSON.stringify({ error: "InternalServerError" });
-      throw error;
-    });
-    const provider = new SourceProvider(pluginCache);
-    let caught = null;
+  it("throws a clear error when the owner handle can't be resolved", async () => {
+    const stub = stubFetch(async () => jsonResponse({ did: null }));
     try {
-      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
-    } catch (error) {
-      caught = error;
-    }
-    assert.deepEqual(caught?.status, 500);
-  });
-
-  it("getStyles still throws a tangled 500 with a non-JSON body", async () => {
-    const pluginCache = fakePluginCache(async () => {
-      const error = new Error("HTTP 500");
-      error.status = 500;
-      error.body = "<html>gateway error</html>";
-      throw error;
-    });
-    const provider = new SourceProvider(pluginCache);
-    let caught = null;
-    try {
-      await provider.getStyles("alpha", "1.0.0", "tangled:ow/alpha");
-    } catch (error) {
-      caught = error;
-    }
-    assert.deepEqual(caught?.status, 500);
-  });
-
-  it("getStyles still throws a matching-body 500 for non-tangled repos", async () => {
-    const pluginCache = fakePluginCache(async () => {
-      const error = new Error("HTTP 500");
-      error.status = 500;
-      error.body = TANGLED_MISSING_BLOB_BODY;
-      throw error;
-    });
-    const provider = new SourceProvider(pluginCache);
-    let caught = null;
-    try {
-      await provider.getStyles("alpha", "1.0.0", "ow/alpha");
-    } catch (error) {
-      caught = error;
-    }
-    assert.deepEqual(caught?.status, 500);
-  });
-
-  it("getReadme treats tangled's missing-blob 500 as a missing README, not an error", async () => {
-    const stub = stubFetch(async () =>
-      jsonResponse(TANGLED_MISSING_BLOB_BODY, { ok: false, status: 500 }),
-    );
-    try {
-      const provider = new SourceProvider(null);
-      const readme = await provider.getReadme("alpha", "tangled:ow/alpha");
-      assert.deepEqual(readme, null);
+      const provider = new SourceProvider(fakePluginCache(async () => null));
+      let caught = null;
+      try {
+        await provider.getManifest(
+          "alpha",
+          "1.0.0",
+          "tangled:unknown.example/alpha",
+        );
+      } catch (error) {
+        caught = error;
+      }
+      assert(caught?.message.includes("Could not resolve tangled repo owner"));
     } finally {
       stub.restore();
     }
   });
 
-  it("getReadme still throws a tangled 500 with an unrelated body", async () => {
-    const stub = stubFetch(async () =>
-      jsonResponse("server exploded", { ok: false, status: 500 }),
-    );
+  it("getStyles returns null when the knot 404s (no styles.css)", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution(identity);
+    const pluginCache = fakePluginCache(async () => {
+      const error = new Error("HTTP 404");
+      error.status = 404;
+      throw error;
+    });
+    try {
+      const provider = new SourceProvider(pluginCache);
+      const styles = await provider.getStyles(
+        "alpha",
+        "1.0.0",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(styles, null);
+    } finally {
+      stub.restore();
+    }
+  });
+
+  it("getReadme returns null when the knot 404s (no README.md)", async () => {
+    const identity = makeIdentity();
+    const stub = stubTangledResolution({
+      ...identity,
+      content: { ok: false, status: 404 },
+    });
     try {
       const provider = new SourceProvider(null);
-      let caught = null;
-      try {
-        await provider.getReadme("alpha", "tangled:ow/alpha");
-      } catch (error) {
-        caught = error;
-      }
-      assert(caught?.message.includes("500"));
+      const readme = await provider.getReadme(
+        "alpha",
+        `tangled:${identity.ownerHandle}/alpha`,
+      );
+      assert.deepEqual(readme, null);
     } finally {
       stub.restore();
     }
