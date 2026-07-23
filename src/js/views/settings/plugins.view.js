@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { html, render } from "/js/lib/lit-html.js";
+import { html, render, keyed } from "/js/lib/lit-html.js";
 import { pageEffect, bindToPage } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -239,85 +239,90 @@ class SettingsPluginsView extends View {
                           state.$enablingIds.has(plugin.id) ||
                           state.$disablingIds.has(plugin.id) ||
                           isUpdating;
-                        return html`
-                          <li
-                            class="plugin-list-item ${state.$uninstallingIds.has(
-                              plugin.id,
-                            )
-                              ? "uninstalling"
-                              : ""}"
-                            ?inert=${isPending}
-                          >
-                            <div class="plugin-list-item-info">
-                              <div class="plugin-list-item-name">
-                                ${plugin.name}
-                                ${plugin.id.endsWith("__LOCAL")
-                                  ? html`<span class="plugin-local-badge"
-                                      >local</span
-                                    >`
+                        // Keyed to avoid flipping animation when plugins are added / removed
+                        return keyed(
+                          plugin.id,
+                          html`
+                            <li
+                              class="plugin-list-item ${state.$uninstallingIds.has(
+                                plugin.id,
+                              )
+                                ? "uninstalling"
+                                : ""}"
+                              ?inert=${isPending}
+                            >
+                              <div class="plugin-list-item-info">
+                                <div class="plugin-list-item-name">
+                                  ${plugin.name}
+                                  ${plugin.id.endsWith("__LOCAL")
+                                    ? html`<span class="plugin-local-badge"
+                                        >local</span
+                                      >`
+                                    : ""}
+                                </div>
+                                ${plugin.description
+                                  ? html`<div
+                                      class="plugin-list-item-description"
+                                    >
+                                      ${plugin.description}
+                                    </div>`
                                   : ""}
+                                <div class="plugin-list-item-version">
+                                  Version: ${plugin.version}
+                                </div>
+                                <div class="plugin-list-item-author">
+                                  By ${plugin.author}
+                                </div>
                               </div>
-                              ${plugin.description
-                                ? html`<div
-                                    class="plugin-list-item-description"
-                                  >
-                                    ${plugin.description}
-                                  </div>`
-                                : ""}
-                              <div class="plugin-list-item-version">
-                                Version: ${plugin.version}
+                              <div class="plugin-list-item-controls">
+                                ${hasUpdate
+                                  ? html`<button
+                                      class="plugin-update-button rounded-button rounded-button-primary"
+                                      @click=${() => updatePlugin(plugin)}
+                                      ?disabled=${isUpdating}
+                                    >
+                                      ${isUpdating
+                                        ? html`Updating
+                                            <div
+                                              class="loading-spinner"
+                                              data-testid="loading-spinner"
+                                            ></div>`
+                                        : "Update"}
+                                    </button>`
+                                  : ""}
+                                ${plugin.enabled && plugin.hasSettings
+                                  ? html`<a
+                                      class="plugin-settings-link icon-button"
+                                      href="/settings/plugins/${plugin.id}"
+                                      aria-label="Settings for ${plugin.name}"
+                                    >
+                                      ${settingsIconTemplate()}
+                                    </a>`
+                                  : ""}
+                                <button
+                                  class="plugin-uninstall-button icon-button"
+                                  aria-label="Uninstall ${plugin.name}"
+                                  @click=${() => uninstallPlugin(plugin)}
+                                >
+                                  ${trashCanIconTemplate()}
+                                </button>
+                                <toggle-switch
+                                  class="plugin-toggle"
+                                  label="Enable ${plugin.name}"
+                                  ?checked=${state.$enablingIds.has(plugin.id)
+                                    ? true
+                                    : state.$disablingIds.has(plugin.id)
+                                      ? false
+                                      : plugin.enabled}
+                                  ?disabled=${state.$enablingIds.has(
+                                    plugin.id,
+                                  ) || state.$disablingIds.has(plugin.id)}
+                                  @change=${() => togglePlugin(plugin)}
+                                ></toggle-switch>
                               </div>
-                              <div class="plugin-list-item-author">
-                                By ${plugin.author}
-                              </div>
-                            </div>
-                            <div class="plugin-list-item-controls">
-                              ${hasUpdate
-                                ? html`<button
-                                    class="plugin-update-button rounded-button rounded-button-primary"
-                                    @click=${() => updatePlugin(plugin)}
-                                    ?disabled=${isUpdating}
-                                  >
-                                    ${isUpdating
-                                      ? html`Updating
-                                          <div
-                                            class="loading-spinner"
-                                            data-testid="loading-spinner"
-                                          ></div>`
-                                      : "Update"}
-                                  </button>`
-                                : ""}
-                              ${plugin.enabled && plugin.hasSettings
-                                ? html`<a
-                                    class="plugin-settings-link icon-button"
-                                    href="/settings/plugins/${plugin.id}"
-                                    aria-label="Settings for ${plugin.name}"
-                                  >
-                                    ${settingsIconTemplate()}
-                                  </a>`
-                                : ""}
-                              <button
-                                class="plugin-uninstall-button icon-button"
-                                aria-label="Uninstall ${plugin.name}"
-                                @click=${() => uninstallPlugin(plugin)}
-                              >
-                                ${trashCanIconTemplate()}
-                              </button>
-                              <toggle-switch
-                                class="plugin-toggle"
-                                label="Enable ${plugin.name}"
-                                ?checked=${state.$enablingIds.has(plugin.id)
-                                  ? true
-                                  : state.$disablingIds.has(plugin.id)
-                                    ? false
-                                    : plugin.enabled}
-                                ?disabled=${state.$enablingIds.has(plugin.id) ||
-                                state.$disablingIds.has(plugin.id)}
-                                @change=${() => togglePlugin(plugin)}
-                              ></toggle-switch>
-                            </div>
-                          </li>
-                        `;
+                            </li>
+                          `,
+                        );
                       })}
                     </ul>`}
           </main>
