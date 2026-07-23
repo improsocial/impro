@@ -352,9 +352,18 @@ class ListDetailView extends View {
       ]);
     });
 
-    root.addEventListener("page-restore", (e) => {
+    root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      window.scrollTo(0, scrollY);
+      const isBack = e.detail?.isBack ?? false;
+      if (isBack) {
+        window.scrollTo(0, scrollY);
+      } else {
+        window.scrollTo(0, 0);
+        await Promise.all([
+          loadFeed({ reload: true }),
+          loadMembers({ reload: true }),
+        ]);
+      }
     });
   }
 }
