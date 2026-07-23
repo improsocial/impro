@@ -3,7 +3,13 @@ import { html } from "/js/lib/lit-html.js";
 // Source: https://github.com/halfmage/majesticons/blob/main/solid/user-box.svg
 export function contactsIconTemplate() {
   return html`<div class="icon contacts-icon">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+    >
       <circle
         cx="12"
         cy="10"

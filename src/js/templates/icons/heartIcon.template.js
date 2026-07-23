@@ -7,7 +7,12 @@ const heartPath =
 export function heartIconTemplate({ filled = false } = {}) {
   return html`<div class=${classnames("icon heart-icon", { filled })}>
     ${filled
-      ? html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      ? html`<svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+        >
           <path
             fill="currentColor"
             stroke="currentColor"
@@ -17,7 +22,12 @@ export function heartIconTemplate({ filled = false } = {}) {
             d=${heartPath}
           />
         </svg>`
-      : html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      : html`<svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+        >
           <path
             fill="none"
             stroke="currentColor"

@@ -4,7 +4,12 @@ import { classnames } from "/js/utils.js";
 export function bookmarkIconTemplate({ filled = false } = {}) {
   return html`<div class=${classnames("icon bookmark-icon", { filled })}>
     ${filled
-      ? html`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+      ? html`<svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 24 24"
+          width="24"
+          height="24"
+        >
           <path
             fill="currentColor"
             fill-rule="evenodd"
@@ -15,6 +20,8 @@ export function bookmarkIconTemplate({ filled = false } = {}) {
       : html`<svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
+          width="24"
+          height="24"
           fill="none"
         >
           <path

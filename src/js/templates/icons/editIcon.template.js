@@ -3,7 +3,13 @@ import { html } from "/js/lib/lit-html.js";
 // Source: https://github.com/halfmage/majesticons/blob/main/solid/edit-pen-2.svg
 export function editIconTemplate({} = {}) {
   return html`<div class="icon edit-icon">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+    >
       <path
         fill="currentColor"
         fill-rule="evenodd"

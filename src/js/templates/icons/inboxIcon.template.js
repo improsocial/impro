@@ -3,7 +3,13 @@ import { html } from "/js/lib/lit-html.js";
 // Source: src/img/icons/custom/inbox.svg
 export function inboxIconTemplate() {
   return html`<div class="icon inbox-icon">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+    >
       <path
         fill="currentColor"
         fill-rule="evenodd"
