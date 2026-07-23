@@ -145,7 +145,8 @@ html {
   /* border radius */
   --skeleton-border-radius: 4px;
   --tag-border-radius: 4px;
-  --list-avatar-border-radius: 4px;
+  --list-avatar-border-radius: 20%;
+  --feed-avatar-border-radius: 20%;
   --icon-button-border-radius: 4px;
   --feed-feedback-inner-border-radius: 6px;
   --text-input-border-radius: 8px;
@@ -2672,7 +2673,7 @@ animated-button {
 .feed-avatar {
   width: 40px;
   height: 40px;
-  border-radius: var(--embed-border-radius);
+  border-radius: var(--feed-avatar-border-radius);
   object-fit: cover;
 }
 
