@@ -50,7 +50,7 @@ function listItemTemplate({ list }) {
 export function listFeedTemplate({ lists, cursor, onLoadMore }) {
   if (!lists) {
     return html`<div class="feeds-list" data-testid="feeds-list">
-      ${Array.from({ length: 5 }).map(() => listItemSkeletonTemplate())}
+      ${Array.from({ length: 10 }).map(() => listItemSkeletonTemplate())}
     </div>`;
   }
   const hasMore = !!cursor;

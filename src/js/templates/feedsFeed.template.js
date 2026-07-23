@@ -27,7 +27,7 @@ export function feedsFeedTemplate({
 }) {
   if (!items) {
     return html`<div class="feeds-list" data-testid="feeds-list">
-      ${Array.from({ length: 5 }).map(() => feedsListItemSkeletonTemplate())}
+      ${Array.from({ length: 10 }).map(() => feedsListItemSkeletonTemplate())}
     </div>`;
   }
   const list = html`<div

@@ -627,7 +627,7 @@ class NotificationsView extends View {
 
     function notificationsSkeletonTemplate() {
       return html`
-        ${Array.from({ length: 5 }).map(() => postSkeletonTemplate())}
+        ${Array.from({ length: 10 }).map(() => postSkeletonTemplate())}
       `;
     }
 
@@ -667,7 +667,7 @@ class NotificationsView extends View {
             )}
             ${!hasMore
               ? html`<div class="feed-end-message">No more notifications</div>`
-              : Array.from({ length: 5 }).map(() => postSkeletonTemplate())}
+              : Array.from({ length: 10 }).map(() => postSkeletonTemplate())}
           </infinite-scroll-container>
         `;
       } catch (error) {
