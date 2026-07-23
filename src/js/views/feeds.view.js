@@ -3,7 +3,7 @@ import { pageEffect } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
+import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
 import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
@@ -252,25 +252,18 @@ class FeedsView extends View {
           })}
           <main>
             <div class="feeds-list-header">Pinned Feeds</div>
-            <div
-              class="feeds-list"
-              data-testid="feeds-list"
-              ?data-editing=${isEditing}
-            >
-              ${orderedItems
-                ? orderedItems.map((item) =>
-                    rowTemplate({
-                      item,
-                      currentUser,
-                      isEditing,
-                      isSaving,
-                      showUnpin,
-                    }),
-                  )
-                : Array.from({ length: 5 }).map(() =>
-                    feedGeneratorListItemSkeletonTemplate(),
-                  )}
-            </div>
+            ${feedsFeedTemplate({
+              items: orderedItems,
+              renderItem: (item) =>
+                rowTemplate({
+                  item,
+                  currentUser,
+                  isEditing,
+                  isSaving,
+                  showUnpin,
+                }),
+              isEditing,
+            })}
           </main>
         </div>`,
         root,
