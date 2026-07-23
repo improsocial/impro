@@ -14,6 +14,11 @@ button {
   font-family: inherit;
 }
 
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 html,
 body,
 #app-root {
@@ -416,11 +421,6 @@ plugin-rich-text {
   background-color: var(--secondary-button-color);
 }
 
-.rounded-button[disabled] {
-  opacity: 0.5;
-  cursor: default;
-}
-
 .rounded-button .plus-icon {
   width: 14px;
   height: 14px;
@@ -442,11 +442,11 @@ plugin-rich-text {
 }
 
 @media (hover: hover) {
-  .rounded-button:hover {
+  .rounded-button:not(:disabled):hover {
     background-color: var(--secondary-button-hover-color);
   }
 
-  .rounded-button.rounded-button-primary:hover {
+  .rounded-button.rounded-button-primary:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
   }
 }
@@ -6870,13 +6870,13 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 @media (hover: hover) {
-  .modal-dialog-button.danger-subtle-button:hover {
+  .modal-dialog-button.danger-subtle-button:not(:disabled):hover {
     background-color: var(--error-subtle-hover-color);
   }
 }
 
 @media (hover: hover) {
-  .modal-dialog-button.primary-button:hover {
+  .modal-dialog-button.primary-button:not(:disabled):hover {
     background-color: var(--primary-button-hover-color);
   }
 }
@@ -6899,6 +6899,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   justify-content: center;
   gap: 8px;
   cursor: default;
+  opacity: 1;
 }
 
 .modal-dialog-button.confirm-button .loading-spinner {

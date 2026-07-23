@@ -58,6 +58,7 @@ class ConfirmModal extends Modal {
           <button
             class="modal-dialog-button cancel-button"
             data-testid="modal-cancel-button"
+            ?disabled=${isPending}
             @click=${() => dismiss(false)}
           >
             Cancel
@@ -68,11 +69,12 @@ class ConfirmModal extends Modal {
               : ""}"
             data-testid="modal-confirm-button"
             data-teststate=${isPending ? "pending" : "idle"}
+            ?disabled=${isPending}
             @click=${handleConfirm}
           >
             ${isPending
-              ? html`<div class="loading-spinner"></div>
-                  ${pendingText ?? confirmButtonText}`
+              ? html`${pendingText ?? confirmButtonText}
+                  <div class="loading-spinner"></div>`
               : confirmButtonText}
           </button>
         </div>
