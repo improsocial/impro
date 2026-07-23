@@ -214,6 +214,12 @@ test.describe("List creation edge cases", () => {
     await login(page);
     const dialog = await openCreateListDialog(page);
 
+    await dialog
+      .locator(
+        '[data-testid="create-list-purpose"] input[value="app.bsky.graph.defs#modlist"]',
+      )
+      .check();
+
     await dialog.locator('[data-testid="create-list-cancel-button"]').click();
 
     await expect(page.locator('[data-testid="confirm-modal"]')).toHaveCount(0);

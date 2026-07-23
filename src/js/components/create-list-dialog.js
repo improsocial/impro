@@ -44,8 +44,7 @@ class CreateListDialog extends Component {
     return (
       this._name.length > 0 ||
       this._description.length > 0 ||
-      this._newAvatarDataUrl !== null ||
-      this._purpose !== CURATE_LIST_PURPOSE
+      this._newAvatarDataUrl !== null
     );
   }
 
