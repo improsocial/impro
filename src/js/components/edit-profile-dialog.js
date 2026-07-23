@@ -107,7 +107,7 @@ class EditProfileDialog extends Component {
 
     render(
       html`<dialog
-        class="bottom-sheet bottom-sheet-fullscreen no-handle edit-profile-dialog"
+        class="bottom-sheet bottom-sheet-fullscreen no-handle form-dialog"
         @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
             if (await this.confirmClose()) {
@@ -133,11 +133,11 @@ class EditProfileDialog extends Component {
       >
         ${isCropping
           ? html`<div
-              class="edit-profile-dialog-content edit-profile-cropper-content sheet-scroll-region"
+              class="form-dialog-content form-dialog-cropper-content sheet-scroll-region"
             >
-              <div class="edit-profile-dialog-header">
+              <div class="form-dialog-header">
                 <button
-                  class="edit-profile-dialog-header-button"
+                  class="form-dialog-header-button"
                   data-testid="edit-profile-crop-cancel-button"
                   @click=${() => {
                     this._croppingTarget = null;
@@ -149,13 +149,13 @@ class EditProfileDialog extends Component {
                 </button>
                 <h2>Edit image</h2>
                 <button
-                  class="edit-profile-dialog-header-button edit-profile-dialog-save-button"
+                  class="form-dialog-header-button form-dialog-save-button"
                   @click=${() => this._applyCrop()}
                 >
                   Apply
                 </button>
               </div>
-              <div class="edit-profile-cropper-container">
+              <div class="form-dialog-cropper-container">
                 <image-cropper
                   src="${this._croppingImageSrc}"
                   aspect-ratio="${this._croppingTarget === "avatar" ? 1 : 3}"
@@ -165,10 +165,10 @@ class EditProfileDialog extends Component {
                 ></image-cropper>
               </div>
             </div>`
-          : html`<div class="edit-profile-dialog-content sheet-scroll-region">
-              <div class="edit-profile-dialog-header">
+          : html`<div class="form-dialog-content sheet-scroll-region">
+              <div class="form-dialog-header">
                 <button
-                  class="edit-profile-dialog-header-button"
+                  class="form-dialog-header-button"
                   data-testid="edit-profile-cancel-button"
                   @click=${async () => {
                     if (await this.confirmClose()) {
@@ -182,7 +182,7 @@ class EditProfileDialog extends Component {
                 <h2>Edit profile</h2>
                 <button
                   class=${classnames(
-                    "edit-profile-dialog-header-button edit-profile-dialog-save-button",
+                    "form-dialog-header-button form-dialog-save-button",
                     { saving: this._saving },
                   )}
                   @click=${() => this._save()}
@@ -196,8 +196,8 @@ class EditProfileDialog extends Component {
                 </button>
               </div>
 
-              <div class="edit-profile-dialog-body">
-                <div class="edit-profile-images-section">
+              <div class="form-dialog-body">
+                <div class="form-dialog-images-section">
                   <div
                     class="edit-profile-banner-preview"
                     @click=${(event) => this._openImageMenu(event, "banner")}
@@ -207,30 +207,30 @@ class EditProfileDialog extends Component {
                       : html`<div
                           class="edit-profile-banner-placeholder"
                         ></div>`}
-                    <div class="edit-profile-image-overlay"></div>
+                    <div class="form-dialog-image-overlay"></div>
                     <div
-                      class="edit-profile-camera-button edit-profile-camera-button-banner"
+                      class="form-dialog-camera-button form-dialog-camera-button-banner"
                     >
                       ${cameraIconTemplate()}
                     </div>
                   </div>
 
                   <div
-                    class="edit-profile-avatar-wrapper"
+                    class="form-dialog-avatar-wrapper"
                     @click=${(event) => this._openImageMenu(event, "avatar")}
                   >
-                    <div class="edit-profile-avatar-preview">
+                    <div class="form-dialog-avatar-preview">
                       ${avatarSrc
                         ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
                         : html`<img
-                            class="edit-profile-avatar-placeholder"
+                            class="form-dialog-avatar-placeholder"
                             src="/img/avatar-fallback.svg"
                             alt=""
                           />`}
-                      <div class="edit-profile-image-overlay"></div>
+                      <div class="form-dialog-image-overlay"></div>
                     </div>
                     <div
-                      class="edit-profile-camera-button edit-profile-camera-button-avatar"
+                      class="form-dialog-camera-button form-dialog-camera-button-avatar"
                     >
                       ${cameraIconTemplate()}
                     </div>
@@ -287,12 +287,12 @@ class EditProfileDialog extends Component {
                     : ""}
                 </context-menu>
 
-                <div class="edit-profile-field">
+                <div class="form-dialog-field">
                   <label for="edit-profile-display-name">Display Name</label>
                   <input
                     id="edit-profile-display-name"
                     type="text"
-                    class="edit-profile-input"
+                    class="form-dialog-input"
                     .value=${this._displayName}
                     @input=${(event) => {
                       this._displayName = event.target.value;
@@ -301,7 +301,7 @@ class EditProfileDialog extends Component {
                     data-testid="edit-profile-display-name"
                   />
                   <div
-                    class=${classnames("edit-profile-char-count", {
+                    class=${classnames("form-dialog-char-count", {
                       overflow: this._isDisplayNameTooLong,
                     })}
                   >
@@ -309,11 +309,11 @@ class EditProfileDialog extends Component {
                   </div>
                 </div>
 
-                <div class="edit-profile-field">
+                <div class="form-dialog-field">
                   <label for="edit-profile-description">Description</label>
                   <textarea
                     id="edit-profile-description"
-                    class="edit-profile-textarea"
+                    class="form-dialog-textarea"
                     .value=${this._description}
                     @input=${(event) => {
                       this._description = event.target.value;
@@ -323,7 +323,7 @@ class EditProfileDialog extends Component {
                     data-testid="edit-profile-description"
                   ></textarea>
                   <div
-                    class=${classnames("edit-profile-char-count", {
+                    class=${classnames("form-dialog-char-count", {
                       overflow: this._isDescriptionTooLong,
                     })}
                   >
@@ -332,7 +332,7 @@ class EditProfileDialog extends Component {
                 </div>
 
                 ${this._error
-                  ? html`<div class="edit-profile-error">${this._error}</div>`
+                  ? html`<div class="form-dialog-error">${this._error}</div>`
                   : ""}
               </div>
             </div>`}
@@ -352,7 +352,7 @@ class EditProfileDialog extends Component {
     );
 
     if (this._isOpen) {
-      const dialog = this.querySelector(".edit-profile-dialog");
+      const dialog = this.querySelector(".form-dialog");
       if (dialog && !dialog.open) {
         dialog.showModal();
       }
@@ -366,8 +366,8 @@ class EditProfileDialog extends Component {
         : ".edit-profile-banner-menu";
     const buttonClass =
       target === "avatar"
-        ? ".edit-profile-camera-button-avatar"
-        : ".edit-profile-camera-button-banner";
+        ? ".form-dialog-camera-button-avatar"
+        : ".form-dialog-camera-button-banner";
     const menu = this.querySelector(menuClass);
     const cameraButton = this.querySelector(buttonClass);
     if (menu && cameraButton) {
@@ -482,14 +482,14 @@ class EditProfileDialog extends Component {
   open() {
     this._isOpen = true;
     this.scrollLock ??= scrollLocks.acquire({ target: this });
-    const dialog = this.querySelector(".edit-profile-dialog");
+    const dialog = this.querySelector(".form-dialog");
     if (dialog?.open) return;
     if (dialog) {
       dialog.showModal();
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
         onClose: () => this.close(),
-        scrollContainer: this.querySelector(".edit-profile-dialog-content"),
+        scrollContainer: this.querySelector(".form-dialog-content"),
         ignoreTouchTarget: (el) =>
           !!el.closest("button") ||
           el.tagName === "INPUT" ||
@@ -498,10 +498,7 @@ class EditProfileDialog extends Component {
         disableWhenKeyboardOpen: true,
       });
 
-      resetScrollOnBlur(
-        dialog,
-        this.querySelector(".edit-profile-dialog-content"),
-      );
+      resetScrollOnBlur(dialog, this.querySelector(".form-dialog-content"));
     }
   }
 
@@ -516,7 +513,7 @@ class EditProfileDialog extends Component {
 
   close() {
     this._isOpen = false;
-    return closeWithAnimation(this.querySelector(".edit-profile-dialog"));
+    return closeWithAnimation(this.querySelector(".form-dialog"));
   }
 
   disconnectedCallback() {

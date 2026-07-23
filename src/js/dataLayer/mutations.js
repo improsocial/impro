@@ -921,6 +921,53 @@ export class Mutations {
     }
   }
 
+  async createList({ currentUser, purpose, name, description, avatarBlob }) {
+    const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
+    const record = {
+      purpose,
+      name,
+      description,
+      createdAt: getCurrentTimestamp(),
+    };
+    if (avatarRef) record.avatar = avatarRef;
+
+    const res = await this.api.createListRecord(record);
+
+    const creator = {
+      did: currentUser.did,
+      handle: currentUser.handle,
+      displayName: currentUser.displayName,
+      avatar: currentUser.avatar,
+    };
+    const listView = {
+      $type: "app.bsky.graph.defs#listView",
+      uri: res.uri,
+      cid: res.cid,
+      name,
+      purpose,
+      description,
+      descriptionFacets: [],
+      avatar: avatarRef?.ref?.$link
+        ? buildCdnUrl("avatar", creator.did, avatarRef.ref.$link)
+        : undefined,
+      creator,
+      indexedAt: record.createdAt,
+      listItemCount: 0,
+      viewer: {},
+    };
+    this.dataStore.$lists.set(res.uri, listView);
+    const actorLists = untrack(() =>
+      this.dataStore.$actorLists.get(creator.did),
+    );
+    if (actorLists) {
+      this.dataStore.$actorLists.set(creator.did, {
+        ...actorLists,
+        lists: [listView, ...actorLists.lists],
+      });
+    }
+    return listView;
+  }
+
   async updateList(list, { name, description, avatarBlob, removeAvatar }) {
     const rkey = list.uri.split("/").pop();
     const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;

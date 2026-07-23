@@ -84,6 +84,36 @@ test.describe("Lists view", () => {
     );
   });
 
+  test("should create a new list and navigate to its detail page", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/lists");
+
+    const listsView = page.locator("#lists-view");
+    const newButton = listsView.locator('[data-testid="new-list-button"]');
+    await expect(newButton).toBeVisible({ timeout: 10000 });
+    await newButton.click();
+
+    const dialog = page.locator("create-list-dialog");
+    await expect(
+      dialog.locator('[data-testid="create-list-purpose"]'),
+    ).toBeVisible();
+
+    await dialog
+      .locator('[data-testid="create-list-name"]')
+      .fill("My New List");
+    await dialog.locator('[data-testid="create-list-save-button"]').click();
+
+    await expect(page).toHaveURL(
+      new RegExp(`/profile/${userProfile.handle}/lists/rkey-\\d+$`),
+      { timeout: 10000 },
+    );
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

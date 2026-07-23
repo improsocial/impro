@@ -271,8 +271,8 @@ class SettingsMutedWordsView extends View {
                 autocapitalize="none"
               />
 
-              <div class="muted-word-field-label">Duration:</div>
-              <div class="muted-word-radio-group" data-testid="duration-group">
+              <div class="field-caption">Duration:</div>
+              <div class="pill-radio-group" data-testid="duration-group">
                 <label>
                   <input type="radio" name="duration" value="forever" checked />
                   Forever
@@ -291,8 +291,8 @@ class SettingsMutedWordsView extends View {
                 </label>
               </div>
 
-              <div class="muted-word-field-label">Mute in:</div>
-              <div class="muted-word-radio-group" data-testid="target-group">
+              <div class="field-caption">Mute in:</div>
+              <div class="pill-radio-group" data-testid="target-group">
                 <label>
                   <input type="radio" name="target" value="content" checked />
                   Text & tags
@@ -303,7 +303,7 @@ class SettingsMutedWordsView extends View {
                 </label>
               </div>
 
-              <div class="muted-word-field-label">Options:</div>
+              <div class="field-caption">Options:</div>
               <label
                 class="muted-word-checkbox-row"
                 data-testid="exclude-following"

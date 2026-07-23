@@ -1390,6 +1390,21 @@ export class Api {
     return res.data;
   }
 
+  async createListRecord(record) {
+    const res = await this.request("com.atproto.repo.createRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection: "app.bsky.graph.list",
+        record: {
+          $type: "app.bsky.graph.list",
+          ...record,
+        },
+      },
+    });
+    return res.data;
+  }
+
   async getListRecord(rkey) {
     const res = await this.request("com.atproto.repo.getRecord", {
       query: {

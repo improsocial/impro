@@ -17,8 +17,10 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 
 const MAX_NAME_LENGTH = 64;
 const MAX_DESCRIPTION_LENGTH = 300;
+const CURATE_LIST_PURPOSE = "app.bsky.graph.defs#curatelist";
+const MOD_LIST_PURPOSE = "app.bsky.graph.defs#modlist";
 
-class EditListDetailsDialog extends Component {
+class CreateListDialog extends Component {
   connectedCallback() {
     if (this.initialized) {
       return;
@@ -27,39 +29,23 @@ class EditListDetailsDialog extends Component {
     this.scrollLock = null;
     this._name = "";
     this._description = "";
-    this._currentAvatar = null;
     this._newAvatarDataUrl = null;
-    this._removeAvatar = false;
+    this._purpose = CURATE_LIST_PURPOSE;
     this._saving = false;
     this._error = null;
     this._croppingImageSrc = null;
     this._isOpen = false;
-    this._list = null;
     this.innerHTML = "";
     this.render();
     this.initialized = true;
   }
 
-  setList(list) {
-    this._list = list;
-    this._name = list.name || "";
-    this._description = list.description || "";
-    this._currentAvatar = list.avatar || null;
-    this._newAvatarDataUrl = null;
-    this._removeAvatar = false;
-    this._saving = false;
-    this._error = null;
-    this._croppingImageSrc = null;
-    this.render();
-  }
-
   get _isDirty() {
-    if (!this._list) return false;
     return (
-      this._name !== (this._list.name || "") ||
-      this._description !== (this._list.description || "") ||
+      this._name.length > 0 ||
+      this._description.length > 0 ||
       this._newAvatarDataUrl !== null ||
-      this._removeAvatar
+      this._purpose !== CURATE_LIST_PURPOSE
     );
   }
 
@@ -77,7 +63,6 @@ class EditListDetailsDialog extends Component {
 
   get _canSave() {
     return (
-      this._isDirty &&
       !this._saving &&
       !this._isNameEmpty &&
       !this._isNameTooLong &&
@@ -90,13 +75,11 @@ class EditListDetailsDialog extends Component {
 
     const nameCount = graphemeCount(this._name);
     const descriptionCount = graphemeCount(this._description);
-    const avatarSrc = this._removeAvatar
-      ? null
-      : this._newAvatarDataUrl || this._currentAvatar;
+    const avatarSrc = this._newAvatarDataUrl;
 
     render(
       html`<dialog
-        class="bottom-sheet bottom-sheet-fullscreen no-handle form-dialog edit-list-details-dialog"
+        class="bottom-sheet bottom-sheet-fullscreen no-handle form-dialog create-list-dialog"
         @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
             if (await this.confirmClose()) {
@@ -116,7 +99,7 @@ class EditListDetailsDialog extends Component {
         @close=${() => {
           this.scrollLock?.release();
           this.scrollLock = null;
-          this.dispatchEvent(new CustomEvent("edit-list-details-closed"));
+          this.dispatchEvent(new CustomEvent("create-list-closed"));
         }}
       >
         ${isCropping
@@ -126,7 +109,7 @@ class EditListDetailsDialog extends Component {
               <div class="form-dialog-header">
                 <button
                   class="form-dialog-header-button"
-                  data-testid="edit-list-details-crop-cancel-button"
+                  data-testid="create-list-crop-cancel-button"
                   @click=${() => {
                     this._croppingImageSrc = null;
                     this.render();
@@ -137,7 +120,7 @@ class EditListDetailsDialog extends Component {
                 <h2>Edit image</h2>
                 <button
                   class="form-dialog-header-button form-dialog-save-button"
-                  data-testid="edit-list-details-crop-apply-button"
+                  data-testid="create-list-crop-apply-button"
                   @click=${() => this._applyCrop()}
                 >
                   Apply
@@ -155,7 +138,7 @@ class EditListDetailsDialog extends Component {
               <div class="form-dialog-header">
                 <button
                   class="form-dialog-header-button"
-                  data-testid="edit-list-details-cancel-button"
+                  data-testid="create-list-cancel-button"
                   @click=${async () => {
                     if (await this.confirmClose()) {
                       this.close();
@@ -165,7 +148,7 @@ class EditListDetailsDialog extends Component {
                 >
                   Cancel
                 </button>
-                <h2>Edit list details</h2>
+                <h2>New list</h2>
                 <button
                   class=${classnames(
                     "form-dialog-header-button form-dialog-save-button",
@@ -173,9 +156,9 @@ class EditListDetailsDialog extends Component {
                   )}
                   @click=${() => this._save()}
                   .disabled=${!this._canSave}
-                  data-testid="edit-list-details-save-button"
+                  data-testid="create-list-save-button"
                 >
-                  <span>Save</span>
+                  <span>Create</span>
                   ${this._saving
                     ? html`<div class="loading-spinner"></div>`
                     : ""}
@@ -183,30 +166,36 @@ class EditListDetailsDialog extends Component {
               </div>
 
               <div class="form-dialog-body">
-                <div class="form-dialog-images-section">
-                  <div
-                    class="form-dialog-avatar-wrapper"
-                    @click=${() => this._openAvatarMenu()}
-                  >
-                    <div class="form-dialog-avatar-preview">
-                      ${avatarSrc
-                        ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
-                        : html`<img
-                            class="form-dialog-avatar-placeholder"
-                            src="/img/list-avatar-fallback.svg"
-                            alt=""
-                          />`}
-                      <div class="form-dialog-image-overlay"></div>
-                    </div>
+                <div class="form-dialog-field">
+                  <div class="field-caption">List Avatar</div>
+                  <div class="form-dialog-images-section">
                     <div
-                      class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      class="form-dialog-avatar-wrapper"
+                      @click=${() => this._openAvatarMenu()}
                     >
-                      ${cameraIconTemplate()}
+                      <div class="form-dialog-avatar-preview">
+                        ${avatarSrc
+                          ? html`<img
+                              src="${avatarSrc}"
+                              alt="Avatar preview"
+                            />`
+                          : html`<img
+                              class="form-dialog-avatar-placeholder"
+                              src="/img/list-avatar-fallback.svg"
+                              alt=""
+                            />`}
+                        <div class="form-dialog-image-overlay"></div>
+                      </div>
+                      <div
+                        class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      >
+                        ${cameraIconTemplate()}
+                      </div>
                     </div>
                   </div>
                 </div>
 
-                <context-menu class="edit-list-details-avatar-menu">
+                <context-menu class="create-list-avatar-menu">
                   <context-menu-item-group>
                     <context-menu-item
                       data-testid="menu-action-list-avatar-upload"
@@ -221,7 +210,6 @@ class EditListDetailsDialog extends Component {
                           data-testid="menu-action-list-avatar-remove"
                           @click=${() => {
                             this._newAvatarDataUrl = null;
-                            this._removeAvatar = true;
                             this.render();
                           }}
                         >
@@ -232,17 +220,51 @@ class EditListDetailsDialog extends Component {
                 </context-menu>
 
                 <div class="form-dialog-field">
-                  <label for="edit-list-details-name">List Name</label>
+                  <div class="field-caption">List Type</div>
+                  <div
+                    class="pill-radio-group"
+                    data-testid="create-list-purpose"
+                    @change=${(event) => {
+                      this._purpose = event.target.value;
+                      this.render();
+                    }}
+                  >
+                    <label>
+                      <input
+                        type="radio"
+                        name="create-list-purpose"
+                        value=${CURATE_LIST_PURPOSE}
+                        ?checked=${this._purpose === CURATE_LIST_PURPOSE}
+                      />
+                      User list
+                    </label>
+                    <label>
+                      <input
+                        type="radio"
+                        name="create-list-purpose"
+                        value=${MOD_LIST_PURPOSE}
+                        ?checked=${this._purpose === MOD_LIST_PURPOSE}
+                      />
+                      Moderation list
+                    </label>
+                  </div>
+                </div>
+
+                <div class="form-dialog-field">
+                  <label class="field-caption" for="create-list-name"
+                    >List Name</label
+                  >
                   <input
-                    id="edit-list-details-name"
+                    id="create-list-name"
                     type="text"
+                    placeholder="e.g. My List"
                     class="form-dialog-input"
                     .value=${this._name}
                     @input=${(event) => {
                       this._name = event.target.value;
                       this.render();
                     }}
-                    data-testid="edit-list-details-name"
+                    data-testid="create-list-name"
                   />
                   <div
                     class=${classnames("form-dialog-char-count", {
@@ -254,9 +276,11 @@ class EditListDetailsDialog extends Component {
                 </div>
 
                 <div class="form-dialog-field">
-                  <label for="edit-list-details-description">Description</label>
+                  <label class="field-caption" for="create-list-description"
+                    >Description</label
+                  >
                   <textarea
-                    id="edit-list-details-description"
+                    id="create-list-description"
                     class="form-dialog-textarea"
                     .value=${this._description}
                     @input=${(event) => {
@@ -264,7 +288,7 @@ class EditListDetailsDialog extends Component {
                       this.render();
                     }}
                     rows="4"
-                    data-testid="edit-list-details-description"
+                    data-testid="create-list-description"
                   ></textarea>
                   <div
                     class=${classnames("form-dialog-char-count", {
@@ -285,7 +309,7 @@ class EditListDetailsDialog extends Component {
           type="file"
           accept="image/*"
           style="display: none;"
-          class="edit-list-details-file-input"
+          class="create-list-file-input"
           @change=${(event) => this._handleFileSelect(event)}
           @cancel=${(event) => {
             event.stopPropagation();
@@ -296,7 +320,7 @@ class EditListDetailsDialog extends Component {
     );
 
     if (this._isOpen) {
-      const dialog = this.querySelector(".edit-list-details-dialog");
+      const dialog = this.querySelector(".create-list-dialog");
       if (dialog && !dialog.open) {
         dialog.showModal();
       }
@@ -304,7 +328,7 @@ class EditListDetailsDialog extends Component {
   }
 
   _openAvatarMenu() {
-    const menu = this.querySelector(".edit-list-details-avatar-menu");
+    const menu = this.querySelector(".create-list-avatar-menu");
     const cameraButton = this.querySelector(
       ".form-dialog-camera-button-avatar",
     );
@@ -317,7 +341,7 @@ class EditListDetailsDialog extends Component {
   }
 
   _pickImage() {
-    const input = this.querySelector(".edit-list-details-file-input");
+    const input = this.querySelector(".create-list-file-input");
     if (input) {
       input.click();
     }
@@ -345,7 +369,6 @@ class EditListDetailsDialog extends Component {
     if (!croppedDataUrl) return;
 
     this._newAvatarDataUrl = croppedDataUrl;
-    this._removeAvatar = false;
     this._croppingImageSrc = null;
     this.render();
   }
@@ -368,20 +391,20 @@ class EditListDetailsDialog extends Component {
         this.close();
       };
       const errorCallback = (error) => {
-        console.error("Failed to update list:", error);
-        this._error = "Failed to save list. Please try again.";
+        console.error("Failed to create list:", error);
+        this._error = "Failed to create list. Please try again.";
         this._saving = false;
         this.render();
       };
 
       this.dispatchEvent(
-        new CustomEvent("list-save", {
+        new CustomEvent("list-create", {
           detail: {
-            listUpdates: {
+            listData: {
+              purpose: this._purpose,
               name: this._name,
               description: this._description,
               avatarBlob,
-              removeAvatar: this._removeAvatar,
             },
             successCallback,
             errorCallback,
@@ -389,8 +412,8 @@ class EditListDetailsDialog extends Component {
         }),
       );
     } catch (error) {
-      console.error("Error saving list:", error);
-      this._error = "Failed to save list. Please try again.";
+      console.error("Error creating list:", error);
+      this._error = "Failed to create list. Please try again.";
       this._saving = false;
       this.render();
     }
@@ -399,7 +422,7 @@ class EditListDetailsDialog extends Component {
   open() {
     this._isOpen = true;
     this.scrollLock ??= scrollLocks.acquire({ target: this });
-    const dialog = this.querySelector(".edit-list-details-dialog");
+    const dialog = this.querySelector(".create-list-dialog");
     if (dialog?.open) return;
     if (dialog) {
       dialog.showModal();
@@ -421,8 +444,8 @@ class EditListDetailsDialog extends Component {
 
   async confirmClose() {
     if (!this._isDirty || !!this._croppingImageSrc || this._saving) return true;
-    return confirmModal("Are you sure you want to discard your changes?", {
-      title: "Discard changes?",
+    return confirmModal("Are you sure you want to discard this list?", {
+      title: "Discard list?",
       confirmButtonStyle: "danger",
       confirmButtonText: "Discard",
     });
@@ -430,7 +453,7 @@ class EditListDetailsDialog extends Component {
 
   close() {
     this._isOpen = false;
-    return closeWithAnimation(this.querySelector(".edit-list-details-dialog"));
+    return closeWithAnimation(this.querySelector(".create-list-dialog"));
   }
 
   disconnectedCallback() {
@@ -439,4 +462,4 @@ class EditListDetailsDialog extends Component {
   }
 }
 
-EditListDetailsDialog.register();
+CreateListDialog.register();

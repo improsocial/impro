@@ -4,6 +4,9 @@ import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import { bindToPage, pageEffect } from "/js/router.js";
+import { showToast } from "/js/toasts.js";
+import { parseUri } from "/js/dataHelpers.js";
+import "/js/components/create-list-dialog.js";
 
 class ListsView extends View {
   async render({ root, layout, context: { dataLayer } }) {
@@ -29,7 +32,18 @@ class ListsView extends View {
 
       render(
         html`<div id="lists-view">
-          ${headerTemplate({ title: "Lists" })}
+          ${headerTemplate({
+            title: "Lists",
+            rightItemTemplate: () => html`
+              <button
+                class="rounded-button rounded-button-secondary new-list-button"
+                data-testid="new-list-button"
+                @click=${() => handleClickNew({ currentUser })}
+              >
+                + New
+              </button>
+            `,
+          })}
           <main>
             ${listFeedTemplate({
               lists: actorLists?.lists,
@@ -44,6 +58,30 @@ class ListsView extends View {
 
     async function loadLists({ reload = false } = {}) {
       await dataLayer.requests.loadCurrentUserLists({ reload });
+    }
+
+    async function handleClickNew({ currentUser }) {
+      const dialog = document.createElement("create-list-dialog");
+      dialog.addEventListener("list-create", async (event) => {
+        const { listData, successCallback, errorCallback } = event.detail;
+        try {
+          const list = await dataLayer.mutations.createList({
+            ...listData,
+            currentUser,
+          });
+          showToast("List created");
+          successCallback();
+          const { rkey } = parseUri(list.uri);
+          window.router.go(`/profile/${currentUser.handle}/lists/${rkey}`);
+        } catch (error) {
+          errorCallback(error);
+        }
+      });
+      dialog.addEventListener("create-list-closed", () => {
+        dialog.remove();
+      });
+      root.querySelector("main").appendChild(dialog);
+      dialog.open();
     }
 
     root.addEventListener("page-enter", async () => {
