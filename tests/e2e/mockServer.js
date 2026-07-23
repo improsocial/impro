@@ -2132,9 +2132,21 @@ export class MockServer {
 
       if (collection === "app.bsky.graph.listitem") {
         const itemUri = `at://${userProfile.did}/${collection}/${rkey}`;
+        const removed = this.currentUserListItems.find(
+          (item) => item.uri === itemUri,
+        );
         this.currentUserListItems = this.currentUserListItems.filter(
           (item) => item.uri !== itemUri,
         );
+        if (removed) {
+          const members = this.listMembers.get(removed.listUri);
+          if (members) {
+            this.listMembers.set(
+              removed.listUri,
+              members.filter((profile) => profile.did !== removed.subjectDid),
+            );
+          }
+        }
       }
 
       return route.fulfill({
@@ -2201,6 +2213,13 @@ export class MockServer {
           listUri: record.list,
           subjectDid: record.subject,
         });
+        const profile = this.profiles.get(record.subject);
+        if (profile) {
+          const members = this.listMembers.get(record.list) || [];
+          if (!members.some((p) => p.did === profile.did)) {
+            this.listMembers.set(record.list, [profile, ...members]);
+          }
+        }
       }
 
       if (collection === "app.bsky.feed.post") {
