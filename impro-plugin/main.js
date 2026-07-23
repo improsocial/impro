@@ -709,6 +709,28 @@ class IconComponent {
   }
 }
 
+class BlobImageComponent {
+  constructor(containerEl) {
+    this.el = containerEl.createEl("plugin-blob-image");
+  }
+  setDid(did) {
+    this.el.setAttr("did", did);
+    return this;
+  }
+  setCid(cid) {
+    this.el.setAttr("cid", cid);
+    return this;
+  }
+  setAlt(alt) {
+    this.el.setAttr("alt", alt);
+    return this;
+  }
+  setCdnPrefix(prefix) {
+    this.el.setAttr("cdn-prefix", prefix);
+    return this;
+  }
+}
+
 class ProfilesListComponent {
   constructor(containerEl) {
     this.el = containerEl.createEl("plugin-profiles-list");
@@ -862,6 +884,12 @@ export class VirtualEl {
 
   createIcon(callback) {
     const component = new IconComponent(this);
+    if (typeof callback === "function") callback(component);
+    return component;
+  }
+
+  createBlobImage(callback) {
+    const component = new BlobImageComponent(this);
     if (typeof callback === "function") callback(component);
     return component;
   }
