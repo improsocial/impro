@@ -6893,6 +6893,32 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   flex-direction: column-reverse;
 }
 
+.modal-dialog-button.confirm-button.is-pending {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  cursor: default;
+}
+
+.modal-dialog-button.confirm-button .loading-spinner {
+  width: 14px;
+  height: 14px;
+  border-width: 2px;
+  border-left-color: transparent;
+  border-right-color: transparent;
+  border-bottom-color: transparent;
+}
+
+.modal-dialog-button.primary-button .loading-spinner,
+.modal-dialog-button.danger-button .loading-spinner {
+  border-top-color: var(--primary-button-text-color);
+}
+
+.modal-dialog-button.danger-subtle-button .loading-spinner {
+  border-top-color: var(--error-color);
+}
+
 @media (min-width: 800px) {
   .image-alt-text-dialog.bottom-sheet {
     max-width: 600px;

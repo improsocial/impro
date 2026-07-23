@@ -88,24 +88,24 @@ export class ListInteractionHandler {
   }
 
   async handleDeleteList(list) {
-    const confirmed = await confirmModal(
+    return await confirmModal(
       "This list will be permanently deleted. This action cannot be undone.",
       {
         title: "Delete this list?",
         confirmButtonText: "Delete",
+        pendingText: "Deleting…",
         confirmButtonStyle: "danger",
+        onConfirm: async () => {
+          try {
+            await this.dataLayer.mutations.deleteList(list);
+            showToast("List deleted");
+          } catch (error) {
+            console.error(error);
+            showToast("Failed to delete list", { style: "error" });
+            throw error;
+          }
+        },
       },
     );
-    if (!confirmed) return false;
-    try {
-      hapticsImpactMedium();
-      await this.dataLayer.mutations.deleteList(list);
-      showToast("List deleted");
-      return true;
-    } catch (error) {
-      console.error(error);
-      showToast("Failed to delete list", { style: "error" });
-      return false;
-    }
   }
 }

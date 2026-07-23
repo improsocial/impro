@@ -2,6 +2,8 @@ import { html } from "/js/lib/lit-html.js";
 import { Modal } from "/js/modals/modal.js";
 
 class ConfirmModal extends Modal {
+  #isPending = false;
+
   get className() {
     return "bottom-sheet text-modal confirm-modal compact";
   }
@@ -10,17 +12,40 @@ class ConfirmModal extends Modal {
     return { "data-testid": "confirm-modal" };
   }
 
+  canDismiss() {
+    return !this.#isPending;
+  }
+
   render({
     dismiss,
+    update,
     props: {
       message,
       title,
       confirmButtonStyle = "primary",
       confirmButtonText = "Confirm",
+      pendingText = null,
+      onConfirm = null,
     },
   }) {
+    const isPending = this.#isPending;
+    const handleConfirm = async () => {
+      if (!onConfirm) {
+        dismiss(true);
+        return;
+      }
+      this.#isPending = true;
+      update();
+      try {
+        await onConfirm();
+        dismiss(true);
+      } catch {
+        this.#isPending = false;
+        update();
+      }
+    };
     return html`
-      <div class="modal-dialog-content">
+      <div class="modal-dialog-content" ?inert=${isPending}>
         ${title
           ? html`<h2 class="modal-dialog-title" data-testid="modal-title">
               ${title}
@@ -38,11 +63,17 @@ class ConfirmModal extends Modal {
             Cancel
           </button>
           <button
-            class="modal-dialog-button confirm-button ${confirmButtonStyle}-button"
+            class="modal-dialog-button confirm-button ${confirmButtonStyle}-button ${isPending
+              ? "is-pending"
+              : ""}"
             data-testid="modal-confirm-button"
-            @click=${() => dismiss(true)}
+            data-teststate=${isPending ? "pending" : "idle"}
+            @click=${handleConfirm}
           >
-            ${confirmButtonText}
+            ${isPending
+              ? html`<div class="loading-spinner"></div>
+                  ${pendingText ?? confirmButtonText}`
+              : confirmButtonText}
           </button>
         </div>
       </div>
