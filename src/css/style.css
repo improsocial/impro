@@ -9385,8 +9385,9 @@ tab-bar[full-width] .tab-bar-button {
 }
 
 .form-dialog-body > .form-dialog-field ~ .form-dialog-field,
+.form-dialog-body > .form-dialog-images-section ~ .form-dialog-field,
 .form-dialog-body > .form-dialog-field ~ .form-dialog-error {
-  margin-top: 16px;
+  margin-top: 12px;
 }
 
 .form-dialog-body .field-caption {
@@ -9513,9 +9514,10 @@ tab-bar[full-width] .tab-bar-button {
   gap: 4px;
 }
 
-.form-dialog-field label {
-  font-size: 14px;
+.form-dialog-field > label {
+  font-size: 13px;
   font-weight: 600;
+  color: var(--text-color-muted);
 }
 
 .form-dialog-input,

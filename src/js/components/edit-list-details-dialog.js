@@ -183,25 +183,31 @@ class EditListDetailsDialog extends Component {
               </div>
 
               <div class="form-dialog-body">
-                <div class="form-dialog-images-section">
-                  <div
-                    class="form-dialog-avatar-wrapper"
-                    @click=${() => this._openAvatarMenu()}
-                  >
-                    <div class="form-dialog-avatar-preview">
-                      ${avatarSrc
-                        ? html`<img src="${avatarSrc}" alt="Avatar preview" />`
-                        : html`<img
-                            class="form-dialog-avatar-placeholder"
-                            src="/img/list-avatar-fallback.svg"
-                            alt=""
-                          />`}
-                      <div class="form-dialog-image-overlay"></div>
-                    </div>
+                <div class="form-dialog-field">
+                  <div class="field-caption">List Avatar</div>
+                  <div class="form-dialog-images-section">
                     <div
-                      class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      class="form-dialog-avatar-wrapper"
+                      @click=${() => this._openAvatarMenu()}
                     >
-                      ${cameraIconTemplate()}
+                      <div class="form-dialog-avatar-preview">
+                        ${avatarSrc
+                          ? html`<img
+                              src="${avatarSrc}"
+                              alt="Avatar preview"
+                            />`
+                          : html`<img
+                              class="form-dialog-avatar-placeholder"
+                              src="/img/list-avatar-fallback.svg"
+                              alt=""
+                            />`}
+                        <div class="form-dialog-image-overlay"></div>
+                      </div>
+                      <div
+                        class="form-dialog-camera-button form-dialog-camera-button-avatar"
+                      >
+                        ${cameraIconTemplate()}
+                      </div>
                     </div>
                   </div>
                 </div>

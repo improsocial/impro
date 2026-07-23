@@ -250,9 +250,7 @@ class CreateListDialog extends Component {
                 </div>
 
                 <div class="form-dialog-field">
-                  <label class="field-caption" for="create-list-name"
-                    >List Name</label
-                  >
+                  <label for="create-list-name">List Name</label>
                   <input
                     id="create-list-name"
                     type="text"
@@ -275,9 +273,7 @@ class CreateListDialog extends Component {
                 </div>
 
                 <div class="form-dialog-field">
-                  <label class="field-caption" for="create-list-description"
-                    >Description</label
-                  >
+                  <label for="create-list-description">Description</label>
                   <textarea
                     id="create-list-description"
                     class="form-dialog-textarea"
