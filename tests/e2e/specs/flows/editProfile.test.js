@@ -144,7 +144,7 @@ test.describe("Edit profile flow", () => {
 
     // The character count should show overflow styling
     await expect(
-      dialog.locator(".edit-profile-char-count.overflow"),
+      dialog.locator(".form-dialog-char-count.overflow"),
     ).toBeVisible();
 
     // Save button should be disabled
@@ -186,7 +186,7 @@ test.describe("Edit profile flow", () => {
     await dialog.locator('[data-testid="edit-profile-cancel-button"]').click();
 
     // Dialog should be closed
-    await expect(dialog.locator(".edit-profile-dialog[open]")).toHaveCount(0, {
+    await expect(dialog.locator(".form-dialog[open]")).toHaveCount(0, {
       timeout: 5000,
     });
 
@@ -226,7 +226,7 @@ test.describe("Edit profile flow", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Click avatar preview to open context menu
-    await dialog.locator(".edit-profile-avatar-preview").click();
+    await dialog.locator(".form-dialog-avatar-preview").click();
 
     // Context menu should appear with "Upload from Files" and "Remove Avatar"
     const menu = dialog.locator(".edit-profile-avatar-menu");
@@ -267,7 +267,7 @@ test.describe("Edit profile flow", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Click avatar preview to open context menu
-    await dialog.locator(".edit-profile-avatar-preview").click();
+    await dialog.locator(".form-dialog-avatar-preview").click();
 
     // Context menu should only have "Upload from Files"
     const menu = dialog.locator(".edit-profile-avatar-menu");
@@ -309,12 +309,12 @@ test.describe("Edit profile flow", () => {
     // Avatar image should be visible in the preview
     await expect(
       dialog.locator(
-        ".edit-profile-avatar-preview img:not(.edit-profile-avatar-placeholder)",
+        ".form-dialog-avatar-preview img:not(.form-dialog-avatar-placeholder)",
       ),
     ).toBeVisible();
 
     // Click avatar preview to open context menu
-    await dialog.locator(".edit-profile-avatar-preview").click();
+    await dialog.locator(".form-dialog-avatar-preview").click();
 
     // Click "Remove Avatar"
     const menu = dialog.locator(".edit-profile-avatar-menu");
@@ -323,7 +323,7 @@ test.describe("Edit profile flow", () => {
     // Avatar image should be removed from the preview (placeholder may still exist)
     await expect(
       dialog.locator(
-        ".edit-profile-avatar-preview img:not(.edit-profile-avatar-placeholder)",
+        ".form-dialog-avatar-preview img:not(.form-dialog-avatar-placeholder)",
       ),
     ).toHaveCount(0);
 
@@ -416,7 +416,7 @@ test.describe("Edit profile flow", () => {
     ).toBeVisible({ timeout: 5000 });
 
     // Click avatar preview to open context menu
-    await dialog.locator(".edit-profile-avatar-preview").click();
+    await dialog.locator(".form-dialog-avatar-preview").click();
 
     // Click "Upload from Files" to trigger file picker
     const menu = dialog.locator(".edit-profile-avatar-menu");
@@ -508,7 +508,7 @@ test.describe("Edit profile flow", () => {
     await dialog.locator('[data-testid="edit-profile-save-button"]').click();
 
     // Error message should appear in the dialog
-    await expect(dialog.locator(".edit-profile-error")).toContainText(
+    await expect(dialog.locator(".form-dialog-error")).toContainText(
       "Failed to save profile",
       { timeout: 5000 },
     );

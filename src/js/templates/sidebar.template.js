@@ -14,6 +14,7 @@ import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
+import { listIconTemplate } from "/js/templates/icons/listIcon.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { editIconTemplate } from "/js/templates/icons/editIcon.template.js";
 import {
@@ -200,6 +201,12 @@ export function sidebarTemplate({
       icon: hashtagIconTemplate,
       label: "Feeds",
       url: "/feeds",
+    },
+    {
+      id: "lists",
+      icon: listIconTemplate,
+      label: "Lists",
+      url: "/lists",
     },
     {
       id: "bookmarks",

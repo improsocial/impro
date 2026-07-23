@@ -863,6 +863,54 @@ describe("Setting components", () => {
     const child = container.children[0]._serialize();
     assert.deepEqual(child.attrs.dids, "did:plc:a,did:plc:b");
   });
+
+  it("createPostsFeed builds a plugin-posts-feed with array uris", () => {
+    const container = makeVirtualEl();
+    container.createPostsFeed((feed) =>
+      feed
+        .setUris([
+          "at://did:plc:a/app.bsky.feed.post/1",
+          "at://did:plc:b/app.bsky.feed.post/2",
+        ])
+        .setEmptyMessage("Nothing to show."),
+    );
+    const child = container.children[0]._serialize();
+    assert.deepEqual(child.tag, "plugin-posts-feed");
+    assert.deepEqual(
+      child.attrs.uris,
+      "at://did:plc:a/app.bsky.feed.post/1,at://did:plc:b/app.bsky.feed.post/2",
+    );
+    assert.deepEqual(child.attrs["empty-message"], "Nothing to show.");
+  });
+
+  it("createPostsFeed accepts a pre-joined string of uris", () => {
+    const container = makeVirtualEl();
+    container.createPostsFeed((feed) =>
+      feed.setUris("at://did:plc:a/app.bsky.feed.post/1"),
+    );
+    const child = container.children[0]._serialize();
+    assert.deepEqual(child.attrs.uris, "at://did:plc:a/app.bsky.feed.post/1");
+  });
+
+  it("createBlobImage builds a plugin-blob-image with did/cid/alt/cdn-prefix", () => {
+    const container = makeVirtualEl();
+    container.createBlobImage((image) =>
+      image
+        .setDid("did:plc:abc")
+        .setCid("bafkreiabcdefghijklmnopqrstuvwxyz234567")
+        .setAlt("A cat")
+        .setCdnPrefix("avatar"),
+    );
+    const child = container.children[0]._serialize();
+    assert.deepEqual(child.tag, "plugin-blob-image");
+    assert.deepEqual(child.attrs.did, "did:plc:abc");
+    assert.deepEqual(
+      child.attrs.cid,
+      "bafkreiabcdefghijklmnopqrstuvwxyz234567",
+    );
+    assert.deepEqual(child.attrs.alt, "A cat");
+    assert.deepEqual(child.attrs["cdn-prefix"], "avatar");
+  });
 });
 
 describe("fetch — header serialization", () => {

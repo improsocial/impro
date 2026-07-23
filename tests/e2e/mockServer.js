@@ -1695,6 +1695,17 @@ export class MockServer {
       });
     });
 
+    await page.route("https://cdn.bsky.app/img/**", (route) => {
+      return route.fulfill({
+        status: 200,
+        contentType: "image/png",
+        body: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+    });
+
     await page.route("https://ogcard.cdn.bsky.app/**", (route) => {
       return route.fulfill({
         status: 200,
@@ -2121,9 +2132,21 @@ export class MockServer {
 
       if (collection === "app.bsky.graph.listitem") {
         const itemUri = `at://${userProfile.did}/${collection}/${rkey}`;
+        const removed = this.currentUserListItems.find(
+          (item) => item.uri === itemUri,
+        );
         this.currentUserListItems = this.currentUserListItems.filter(
           (item) => item.uri !== itemUri,
         );
+        if (removed) {
+          const members = this.listMembers.get(removed.listUri);
+          if (members) {
+            this.listMembers.set(
+              removed.listUri,
+              members.filter((profile) => profile.did !== removed.subjectDid),
+            );
+          }
+        }
       }
 
       return route.fulfill({
@@ -2190,6 +2213,13 @@ export class MockServer {
           listUri: record.list,
           subjectDid: record.subject,
         });
+        const profile = this.profiles.get(record.subject);
+        if (profile) {
+          const members = this.listMembers.get(record.list) || [];
+          if (!members.some((p) => p.did === profile.did)) {
+            this.listMembers.set(record.list, [profile, ...members]);
+          }
+        }
       }
 
       if (collection === "app.bsky.feed.post") {
@@ -2378,6 +2408,28 @@ export class MockServer {
           }),
         });
       }
+      if (collection === "app.bsky.graph.list") {
+        const repo = url.searchParams.get("repo");
+        const listUri = `at://${repo}/${collection}/${rkey}`;
+        const list = this.lists.find((l) => l.uri === listUri);
+        if (list) {
+          return route.fulfill({
+            status: 200,
+            contentType: "application/json",
+            body: JSON.stringify({
+              uri: listUri,
+              cid: list.cid || "bafyreilistrecord",
+              value: {
+                $type: "app.bsky.graph.list",
+                purpose: list.purpose,
+                name: list.name,
+                description: list.description || "",
+                createdAt: list.indexedAt || "2024-01-01T00:00:00.000Z",
+              },
+            }),
+          });
+        }
+      }
       return route.fulfill({ status: 404, body: "{}" });
     });
 
@@ -2407,6 +2459,22 @@ export class MockServer {
           delete profile.pinnedPost;
         }
         this.profiles.set(userProfile.did, profile);
+      }
+      if (collection === "app.bsky.graph.list") {
+        const repo = body?.repo;
+        const rkey = body?.rkey;
+        const listUri = `at://${repo}/${collection}/${rkey}`;
+        // Intentionally do NOT mutate the list here: the client patches its
+        // local list from the record it just wrote, matching real bsky
+        // AppView behavior (which briefly returns stale data after putRecord).
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            uri: listUri,
+            cid: "bafyreiupdatedlist",
+          }),
+        });
       }
       return route.fulfill({
         status: 200,

@@ -203,7 +203,7 @@ test.describe("Drag-to-dismiss", () => {
       await page
         .locator('#profile-view [data-testid="edit-profile-button"]')
         .click({ timeout: 10000 });
-      const dialog = page.locator("edit-profile-dialog .edit-profile-dialog");
+      const dialog = page.locator("edit-profile-dialog .form-dialog");
       await expect(dialog).toBeVisible({ timeout: 5000 });
       return dialog;
     }
@@ -211,19 +211,19 @@ test.describe("Drag-to-dismiss", () => {
     test("dragging past threshold dismisses it", async ({ page }) => {
       await openEditProfileDialog(page);
       await drag(page, {
-        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        eventSourceSelector: "edit-profile-dialog .form-dialog",
         startY: 300,
         endY: 400,
       });
       await expect(
-        page.locator("edit-profile-dialog .edit-profile-dialog"),
+        page.locator("edit-profile-dialog .form-dialog"),
       ).not.toBeVisible({ timeout: 2000 });
     });
 
     test("dragging below threshold snaps back", async ({ page }) => {
       const dialog = await openEditProfileDialog(page);
       await drag(page, {
-        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        eventSourceSelector: "edit-profile-dialog .form-dialog",
         startY: 300,
         endY: 330,
       });
@@ -233,9 +233,8 @@ test.describe("Drag-to-dismiss", () => {
     test("drag starting on a button does not dismiss", async ({ page }) => {
       const dialog = await openEditProfileDialog(page);
       await drag(page, {
-        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
-        startTouchTargetSelector:
-          "edit-profile-dialog .edit-profile-dialog button",
+        eventSourceSelector: "edit-profile-dialog .form-dialog",
+        startTouchTargetSelector: "edit-profile-dialog .form-dialog button",
         startY: 300,
         endY: 430,
       });
@@ -246,7 +245,7 @@ test.describe("Drag-to-dismiss", () => {
       const dialog = await openEditProfileDialog(page);
       await simulateKeyboardOpen(page);
       await drag(page, {
-        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
+        eventSourceSelector: "edit-profile-dialog .form-dialog",
         startY: 300,
         endY: 430,
       });
@@ -261,7 +260,7 @@ test.describe("Drag-to-dismiss", () => {
       const dialog = await openEditProfileDialog(page);
 
       const scrollTop = await dialog
-        .locator(".edit-profile-dialog-content")
+        .locator(".form-dialog-content")
         .evaluate((element) => {
           element.scrollTop = element.scrollHeight;
           return element.scrollTop;
@@ -269,8 +268,8 @@ test.describe("Drag-to-dismiss", () => {
       expect(scrollTop).toBeGreaterThan(0);
 
       await drag(page, {
-        eventSourceSelector: "edit-profile-dialog .edit-profile-dialog",
-        startTouchTargetSelector: "edit-profile-dialog .edit-profile-field",
+        eventSourceSelector: "edit-profile-dialog .form-dialog",
+        startTouchTargetSelector: "edit-profile-dialog .form-dialog-field",
         startY: 200,
         endY: 380,
       });

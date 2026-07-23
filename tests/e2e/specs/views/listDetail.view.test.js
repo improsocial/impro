@@ -535,6 +535,350 @@ test.describe("List Detail view", () => {
     });
   });
 
+  test.describe("Edit list details", () => {
+    const OWN_LIST_URI = "at://did:plc:testuser123/app.bsky.graph.list/ownlist";
+
+    function setupOwnList(mockServer, { description } = {}) {
+      const list = createList({
+        uri: OWN_LIST_URI,
+        name: "My Own List",
+        creatorHandle: "testuser.bsky.social",
+      });
+      if (description !== undefined) {
+        list.description = description;
+      }
+      mockServer.addLists([list]);
+      return list;
+    }
+
+    test("should not show the Edit menu item on another user's list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-list-edit"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should show the Edit menu item on the current user's list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-edit"]'),
+      ).toBeVisible();
+    });
+
+    test("should edit list name and description and update the view", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer, { description: "Original description" });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText("My Own List", { timeout: 10000 });
+
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-edit"]').click();
+
+      const dialog = page.locator("edit-list-details-dialog");
+      await expect(
+        dialog.locator('[data-testid="edit-list-details-name"]'),
+      ).toBeVisible({ timeout: 10000 });
+
+      await dialog
+        .locator('[data-testid="edit-list-details-name"]')
+        .fill("Renamed List");
+      await dialog
+        .locator('[data-testid="edit-list-details-description"]')
+        .fill("Updated description");
+
+      await dialog
+        .locator('[data-testid="edit-list-details-save-button"]')
+        .click();
+
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText("Renamed List", { timeout: 10000 });
+      await expect(
+        view.locator('[data-testid="list-detail-description"]'),
+      ).toContainText("Updated description");
+    });
+
+    test("updates the description in place when only the description is edited", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer, { description: "Original description" });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      const descriptionEl = view.locator(
+        '[data-testid="list-detail-description"]',
+      );
+      await expect(descriptionEl).toHaveText("Original description", {
+        timeout: 10000,
+      });
+
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-edit"]').click();
+
+      const dialog = page.locator("edit-list-details-dialog");
+      const descriptionInput = dialog.locator(
+        '[data-testid="edit-list-details-description"]',
+      );
+      await expect(descriptionInput).toHaveValue("Original description", {
+        timeout: 10000,
+      });
+
+      await descriptionInput.fill("Brand new description");
+      await dialog
+        .locator('[data-testid="edit-list-details-save-button"]')
+        .click();
+
+      // The dialog closes and the on-page description reflects the edit.
+      await expect(dialog).toHaveCount(0, { timeout: 10000 });
+      await expect(descriptionEl).toHaveText("Brand new description", {
+        timeout: 10000,
+      });
+      await expect(descriptionEl).not.toContainText("Original description");
+    });
+
+    test("updates the on-page avatar when a new avatar is uploaded", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      const avatarImg = view.locator(".list-detail-avatar");
+      await expect(avatarImg).toHaveAttribute(
+        "src",
+        "/img/list-avatar-fallback.svg",
+        { timeout: 10000 },
+      );
+
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-edit"]').click();
+
+      const dialog = page.locator("edit-list-details-dialog");
+      await expect(
+        dialog.locator('[data-testid="edit-list-details-name"]'),
+      ).toBeVisible({ timeout: 10000 });
+
+      // Upload a tiny in-memory PNG via the hidden file input, then apply
+      // the crop and save.
+      await dialog.locator("input.edit-list-details-file-input").setInputFiles({
+        name: "avatar.png",
+        mimeType: "image/png",
+        buffer: Buffer.from(
+          "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "base64",
+        ),
+      });
+
+      await expect(dialog.locator("image-cropper")).toBeVisible({
+        timeout: 10000,
+      });
+      await dialog
+        .locator('[data-testid="edit-list-details-crop-apply-button"]')
+        .click();
+      await dialog
+        .locator('[data-testid="edit-list-details-save-button"]')
+        .click();
+
+      // After save the dialog closes and the on-page avatar is a CDN URL
+      // constructed from the returned blob ref + list-owner DID.
+      await expect(dialog).toHaveCount(0, { timeout: 10000 });
+      await expect(avatarImg).toHaveAttribute(
+        "src",
+        /^https:\/\/cdn\.bsky\.app\/img\/avatar\/plain\/did:plc:testuser123\/bafkreimockblob[a-j]+@jpeg$/,
+        { timeout: 10000 },
+      );
+    });
+
+    test("should not show the Delete menu item on another user's list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-copy-link"]'),
+      ).toBeVisible();
+      await expect(
+        view.locator('[data-testid="menu-action-list-delete"]'),
+      ).toHaveCount(0);
+    });
+
+    test("should show the Delete menu item on the current user's list", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await expect(
+        view.locator('[data-testid="menu-action-list-delete"]'),
+      ).toBeVisible();
+    });
+
+    test("cancelling the delete confirmation keeps the list on the page", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-delete"]').click();
+
+      await expect(page.locator('[data-testid="confirm-modal"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await page.locator('[data-testid="modal-cancel-button"]').click();
+
+      await expect(page).toHaveURL(
+        /\/profile\/testuser\.bsky\.social\/lists\/ownlist/,
+      );
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText("My Own List");
+    });
+
+    test("confirming the delete removes the list and navigates away", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(
+        view.locator('[data-testid="list-detail-name"]'),
+      ).toContainText("My Own List", { timeout: 10000 });
+
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-delete"]').click();
+
+      await expect(page.locator('[data-testid="confirm-modal"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await page.locator('[data-testid="modal-confirm-button"]').click();
+
+      await expect(page).not.toHaveURL(
+        /\/profile\/testuser\.bsky\.social\/lists\/ownlist/,
+        { timeout: 10000 },
+      );
+      await expect(page.locator('[data-testid="toast"]')).toBeVisible();
+
+      const applyWritesCalls = mockServer.applyWritesCalls;
+      const flat = applyWritesCalls.flat();
+      const listDeletes = flat.filter(
+        (write) =>
+          write.$type === "com.atproto.repo.applyWrites#delete" &&
+          write.collection === "app.bsky.graph.list" &&
+          write.rkey === "ownlist",
+      );
+      expect(listDeletes.length).toBe(1);
+    });
+
+    test("save button is disabled until a field changes and re-disabled when name is empty", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      setupOwnList(mockServer);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+      const view = page.locator("#list-detail-view");
+      await expect(view.locator(".context-menu-button")).toBeVisible({
+        timeout: 10000,
+      });
+      await view.locator(".context-menu-button").click();
+      await view.locator('[data-testid="menu-action-list-edit"]').click();
+
+      const dialog = page.locator("edit-list-details-dialog");
+      const saveButton = dialog.locator(
+        '[data-testid="edit-list-details-save-button"]',
+      );
+      await expect(saveButton).toBeDisabled({ timeout: 10000 });
+
+      await dialog
+        .locator('[data-testid="edit-list-details-name"]')
+        .fill("Changed");
+      await expect(saveButton).toBeEnabled();
+
+      await dialog.locator('[data-testid="edit-list-details-name"]').fill("");
+      await expect(saveButton).toBeDisabled();
+    });
+  });
+
   test.describe("Logged-out behavior", () => {
     test("should redirect to /login when not authenticated", async ({
       page,

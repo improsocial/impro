@@ -207,21 +207,33 @@ class GroupChatDetailsView extends View {
       );
     });
 
+    function loadConvoDetails({ reload = false } = {}) {
+      return Promise.all([
+        dataLayer.requests.loadConvo(convoId).catch((error) => {
+          console.error("Failed to load convo", error);
+        }),
+        dataLayer.requests
+          .loadConvoMembers(convoId, { reload })
+          .catch((error) => {
+            console.error("Failed to load convo members", error);
+          }),
+      ]);
+    }
+
     root.addEventListener("page-enter", () => {
-      dataLayer.requests.loadConvo(convoId).catch((error) => {
-        console.error("Failed to load convo", error);
-      });
-      dataLayer.requests
-        .loadConvoMembers(convoId, { reload: true })
-        .catch((error) => {
-          console.error("Failed to load convo members", error);
-        });
+      loadConvoDetails({ reload: true });
     });
 
-    root.addEventListener("page-restore", (e) => {
+    root.addEventListener("page-restore", async (e) => {
       const scrollY = e.detail?.scrollY ?? 0;
-      if (scrollY > 0) {
-        window.scrollTo(0, scrollY);
+      const isBack = e.detail?.isBack ?? false;
+      if (isBack) {
+        if (scrollY > 0) {
+          window.scrollTo(0, scrollY);
+        }
+      } else {
+        window.scrollTo(0, 0);
+        await loadConvoDetails({ reload: true });
       }
     });
   }

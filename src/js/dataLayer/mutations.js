@@ -5,8 +5,9 @@ import {
   pinPostInFeed,
   unpinPostInFeed,
   valueForPinnedItem,
+  buildCdnUrl,
 } from "/js/dataHelpers.js";
-import { getCurrentTimestamp } from "/js/utils.js";
+import { batch, getCurrentTimestamp } from "/js/utils.js";
 import { PostCreator } from "/js/postCreator.js";
 import { untrack } from "/js/signals.js";
 
@@ -872,6 +873,7 @@ export class Mutations {
     }
     if (description !== undefined) {
       updatedRecord.description = description;
+      delete updatedRecord.descriptionFacets;
     }
     if (avatarRef) {
       updatedRecord.avatar = avatarRef;
@@ -886,18 +888,209 @@ export class Mutations {
 
     await this.api.putProfileRecord(updatedRecord, swapCid);
 
-    const preferences = this.preferencesProvider.requirePreferences();
-    const labelers = preferences.getLabelerDids();
-    // Fetch full profile to get updated image urls
-    const updatedProfile = await this.api.getProfile(profile.did, { labelers });
-    this.dataStore.$profiles.set(updatedProfile.did, updatedProfile);
-    this.dataStore.$detailedProfiles.set(updatedProfile.did, updatedProfile);
-    const currentUser = this.dataStore.$currentUser.get();
-    if (currentUser && currentUser.did === updatedProfile.did) {
-      this.dataStore.$currentUser.set({
-        ...currentUser,
-        ...updatedProfile,
+    // Update in memory
+    const patch = { displayName, description };
+    if (avatarRef) {
+      patch.avatar = buildCdnUrl("avatar", profile.did, avatarRef.ref.$link);
+    } else if (removeAvatar) {
+      patch.avatar = "";
+    }
+    if (bannerRef) {
+      patch.banner = buildCdnUrl("banner", profile.did, bannerRef.ref.$link);
+    } else if (removeBanner) {
+      patch.banner = "";
+    }
+
+    const existingProfile = this.dataStore.$profiles.get(profile.did);
+    if (existingProfile) {
+      this.dataStore.$profiles.set(profile.did, {
+        ...existingProfile,
+        ...patch,
       });
+    }
+    const existingDetailed = this.dataStore.$detailedProfiles.get(profile.did);
+    if (existingDetailed) {
+      this.dataStore.$detailedProfiles.set(profile.did, {
+        ...existingDetailed,
+        ...patch,
+      });
+    }
+    const currentUser = this.dataStore.$currentUser.get();
+    if (currentUser && currentUser.did === profile.did) {
+      this.dataStore.$currentUser.set({ ...currentUser, ...patch });
+    }
+  }
+
+  async createList({ currentUser, purpose, name, description, avatarBlob }) {
+    const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
+    const record = {
+      purpose,
+      name,
+      description,
+      createdAt: getCurrentTimestamp(),
+    };
+    if (avatarRef) record.avatar = avatarRef;
+
+    const res = await this.api.createListRecord(record);
+
+    const creator = {
+      did: currentUser.did,
+      handle: currentUser.handle,
+      displayName: currentUser.displayName,
+      avatar: currentUser.avatar,
+    };
+    const listView = {
+      $type: "app.bsky.graph.defs#listView",
+      uri: res.uri,
+      cid: res.cid,
+      name,
+      purpose,
+      description,
+      descriptionFacets: [],
+      avatar: avatarRef?.ref?.$link
+        ? buildCdnUrl("avatar", creator.did, avatarRef.ref.$link)
+        : undefined,
+      creator,
+      indexedAt: record.createdAt,
+      listItemCount: 0,
+      viewer: {},
+    };
+    this.dataStore.$lists.set(res.uri, listView);
+    const actorLists = untrack(() =>
+      this.dataStore.$actorLists.get(creator.did),
+    );
+    if (actorLists) {
+      this.dataStore.$actorLists.set(creator.did, {
+        ...actorLists,
+        lists: [listView, ...actorLists.lists],
+      });
+    }
+    return listView;
+  }
+
+  async updateList(list, { name, description, avatarBlob, removeAvatar }) {
+    const rkey = list.uri.split("/").pop();
+    const avatarRef = avatarBlob ? await this.api.uploadBlob(avatarBlob) : null;
+
+    const recordData = await this.api.getListRecord(rkey);
+    const existingRecord = recordData.value || {};
+    const swapCid = recordData.cid;
+
+    const updatedRecord = { ...existingRecord };
+    if (name !== undefined) {
+      updatedRecord.name = name;
+    }
+    if (description !== undefined) {
+      updatedRecord.description = description;
+      delete updatedRecord.descriptionFacets;
+    }
+    if (avatarRef) {
+      updatedRecord.avatar = avatarRef;
+    } else if (removeAvatar) {
+      delete updatedRecord.avatar;
+    }
+
+    await this.api.putListRecord(rkey, updatedRecord, swapCid);
+
+    // Update in memory
+    const current = this.dataStore.$lists.get(list.uri) ?? list;
+    const patched = { ...current };
+    if (name !== undefined) patched.name = name;
+    if (description !== undefined) {
+      patched.description = description;
+      patched.descriptionFacets = [];
+    }
+    if (avatarRef?.ref?.$link && list.creator?.did) {
+      patched.avatar = buildCdnUrl(
+        "avatar",
+        list.creator.did,
+        avatarRef.ref.$link,
+      );
+    } else if (removeAvatar) {
+      patched.avatar = "";
+    }
+    this.dataStore.$lists.set(list.uri, patched);
+  }
+
+  async deleteList(list) {
+    const { rkey } = parseUri(list.uri);
+    const listItemUris = [];
+    let cursor = "";
+    const MAX_PAGES = 100;
+    let hitCap = true;
+    for (let i = 0; i < MAX_PAGES; i++) {
+      const res = await this.api.getListItems({ cursor, limit: 100 });
+      for (const record of res.records) {
+        if (record.value?.list === list.uri) {
+          listItemUris.push(record.uri);
+        }
+      }
+      cursor = res.cursor;
+      if (!cursor) {
+        hitCap = false;
+        break;
+      }
+    }
+    if (hitCap) {
+      console.warn(
+        `deleteList: stopped scanning listitems after ${MAX_PAGES} pages`,
+      );
+    }
+    const writes = [
+      ...listItemUris.map((uri) => ({
+        $type: "com.atproto.repo.applyWrites#delete",
+        collection: "app.bsky.graph.listitem",
+        rkey: parseUri(uri).rkey,
+      })),
+      {
+        $type: "com.atproto.repo.applyWrites#delete",
+        collection: "app.bsky.graph.list",
+        rkey,
+      },
+    ];
+    for (const chunk of batch(writes, 10)) {
+      await this.api.applyWrites(chunk);
+    }
+    this.dataStore.$lists.set(list.uri, null);
+    this.dataStore.$listMembers.set(list.uri, null);
+    if (list.creator?.did) {
+      const actorLists = this.dataStore.$actorLists.get(list.creator.did);
+      if (actorLists) {
+        this.dataStore.$actorLists.set(list.creator.did, {
+          ...actorLists,
+          lists: actorLists.lists.filter((entry) => entry.uri !== list.uri),
+        });
+      }
+    }
+    for (const [
+      actorDid,
+      entry,
+    ] of this.dataStore.$listsWithMembershipByActor.entries()) {
+      if (!entry?.listsWithMembership) continue;
+      const filtered = entry.listsWithMembership.filter(
+        (item) => item.list.uri !== list.uri,
+      );
+      if (filtered.length !== entry.listsWithMembership.length) {
+        this.dataStore.$listsWithMembershipByActor.set(actorDid, {
+          ...entry,
+          listsWithMembership: filtered,
+        });
+      }
+    }
+    const pinnedItems = untrack(() => this.dataStore.$pinnedItems.get());
+    if (pinnedItems?.some((item) => item.data?.uri === list.uri)) {
+      this.dataStore.$pinnedItems.set(
+        pinnedItems.filter((item) => item.data?.uri !== list.uri),
+      );
+    }
+    const preferences = this.preferencesProvider.requirePreferences();
+    if (preferences.isFeedPinned(list.uri)) {
+      const newPreferences = preferences.unpinFeed(list.uri);
+      try {
+        await this.preferencesProvider.updatePreferences(newPreferences);
+      } catch (error) {
+        console.error(error);
+      }
     }
   }
 

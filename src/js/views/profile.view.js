@@ -4,7 +4,6 @@ import { Signal, ReactiveStore } from "/js/signals.js";
 import {
   doHideAuthorOnUnauthenticated,
   isLabelerProfile,
-  isModerationList,
 } from "/js/dataHelpers.js";
 import { View } from "/js/views/view.js";
 import { profileCardTemplate } from "/js/templates/profileCard.template.js";
@@ -18,11 +17,10 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
 import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js";
 import { feedGeneratorListItemTemplate } from "/js/templates/feedGeneratorListItem.template.js";
-import { feedGeneratorListItemSkeletonTemplate } from "/js/templates/feedGeneratorListItemSkeleton.template.js";
-import { linkToList } from "/js/navigation.js";
+import { feedsFeedTemplate } from "/js/templates/feedsFeed.template.js";
+import { listFeedTemplate } from "/js/templates/listFeed.template.js";
 import "/js/components/edit-profile-dialog.js";
 import "/js/components/add-to-lists-dialog.js";
-import "/js/components/container-link.js";
 
 class ProfileView extends View {
   async render({
@@ -163,96 +161,14 @@ class ProfileView extends View {
     }
 
     function actorFeedsTemplate({ actorFeeds, onLoadMore, currentUserDid }) {
-      if (!actorFeeds) {
-        return html`<div class="feeds-list">
-          ${Array.from({ length: 5 }).map(() =>
-            feedGeneratorListItemSkeletonTemplate(),
-          )}
-        </div>`;
-      }
-      if (actorFeeds.feeds.length === 0) {
-        return html`<div class="feeds-list">
-          <div class="feed-end-message">No custom feeds.</div>
-        </div>`;
-      }
-      const hasMore = !!actorFeeds.cursor;
-      return html`
-        <infinite-scroll-container
-          lookahead="2500px"
-          @load-more=${async (e) => {
-            if (hasMore && onLoadMore) {
-              await onLoadMore();
-              e.detail.resume();
-            }
-          }}
-        >
-          <div class="feeds-list">
-            ${actorFeeds.feeds.map((feedGenerator) =>
-              feedGeneratorListItemTemplate({ feedGenerator, currentUserDid }),
-            )}
-            ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
-          </div>
-        </infinite-scroll-container>
-      `;
-    }
-
-    function actorListItemTemplate({ list }) {
-      return html`
-        <container-link
-          class="feeds-list-item clickable"
-          data-testid="feeds-list-item-list"
-          href=${linkToList(list)}
-        >
-          <div class="feeds-list-item-avatar">
-            <img
-              src=${list.avatar || "/img/list-avatar-fallback.svg"}
-              alt=${list.name}
-              class="feed-avatar"
-            />
-          </div>
-          <div class="feeds-list-item-content">
-            <div class="feeds-list-item-title">${list.name}</div>
-            ${list.creator
-              ? html`<div class="feeds-list-item-creator">
-                  ${isModerationList(list) ? "Moderation list" : "List"} by
-                  @${list.creator.handle}
-                </div>`
-              : ""}
-          </div>
-        </container-link>
-      `;
-    }
-
-    function actorListsTemplate({ actorLists, onLoadMore }) {
-      if (!actorLists) {
-        return html`<div class="feeds-list">
-          ${Array.from({ length: 5 }).map(() =>
-            feedGeneratorListItemSkeletonTemplate(),
-          )}
-        </div>`;
-      }
-      if (actorLists.lists.length === 0) {
-        return html`<div class="feeds-list">
-          <div class="feed-end-message">No lists.</div>
-        </div>`;
-      }
-      const hasMore = !!actorLists.cursor;
-      return html`
-        <infinite-scroll-container
-          lookahead="2500px"
-          @load-more=${async (event) => {
-            if (hasMore && onLoadMore) {
-              await onLoadMore();
-              event.detail.resume();
-            }
-          }}
-        >
-          <div class="feeds-list">
-            ${actorLists.lists.map((list) => actorListItemTemplate({ list }))}
-            ${hasMore ? html`<div class="loading-spinner"></div>` : ""}
-          </div>
-        </infinite-scroll-container>
-      `;
+      return feedsFeedTemplate({
+        items: actorFeeds?.feeds,
+        renderItem: (feedGenerator) =>
+          feedGeneratorListItemTemplate({ feedGenerator, currentUserDid }),
+        emptyMessage: "No custom feeds.",
+        hasMore: !!actorFeeds?.cursor,
+        onLoadMore,
+      });
     }
 
     function isNotFoundError(error) {
@@ -471,8 +387,9 @@ class ProfileView extends View {
                         class="feed-container"
                         ?hidden=${activeTab !== "lists"}
                       >
-                        ${actorListsTemplate({
-                          actorLists,
+                        ${listFeedTemplate({
+                          lists: actorLists?.lists,
+                          cursor: actorLists?.cursor,
                           onLoadMore: () => loadActorLists(),
                         })}
                       </div>`;

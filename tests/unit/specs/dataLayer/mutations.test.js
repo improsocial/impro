@@ -938,54 +938,66 @@ describe("updateProfile", () => {
     assert.deepEqual(uploadBlobCallCount, 1);
   });
 
-  it("should update dataStore with the fetched profile on success", async () => {
-    const mockApi = makeMockApi({
-      getProfile: async (did) => ({
-        did,
-        displayName: "Updated Name",
-        description: "Updated bio",
-        avatar: "https://example.com/new-avatar.jpg",
-        viewer: {},
-      }),
-    });
-
-    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+  it("patches $profiles in place with the new displayName and description", async () => {
+    // The appview lags briefly after putRecord, so we patch locally rather
+    // than round-tripping through getProfile (which can return stale data).
+    const { mutations, dataStore } = createMutationsWithMockApi(makeMockApi());
     await mutations.updateProfile(testProfile, {
-      displayName: "Updated Name",
-      description: "Updated bio",
+      displayName: "Patched Name",
+      description: "Patched bio",
     });
 
     const updatedProfile = dataStore.$profiles.get(testProfile.did);
-    assert.deepEqual(updatedProfile.displayName, "Updated Name");
-    assert.deepEqual(updatedProfile.description, "Updated bio");
-    assert.deepEqual(
-      updatedProfile.avatar,
-      "https://example.com/new-avatar.jpg",
-    );
+    assert.deepEqual(updatedProfile.displayName, "Patched Name");
+    assert.deepEqual(updatedProfile.description, "Patched bio");
+    // Non-patched fields survive.
+    assert.deepEqual(updatedProfile.did, testProfile.did);
   });
 
-  it("should fetch profile with labelers after updating", async () => {
-    let getProfileArgs = null;
+  it("sets the local avatar and banner to CDN URLs built from the uploaded refs", async () => {
+    let uploadCallIndex = 0;
     const mockApi = makeMockApi({
-      getProfile: async (did, options) => {
-        getProfileArgs = { did, options };
+      uploadBlob: async () => {
+        uploadCallIndex++;
         return {
-          did,
-          displayName: "Fetched",
-          description: "Fetched",
-          viewer: {},
+          ref: { $link: `bafkreiblob${uploadCallIndex}` },
+          mimeType: "image/jpeg",
+          size: 100,
         };
       },
     });
 
-    const { mutations } = createMutationsWithMockApi(mockApi);
+    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
     await mutations.updateProfile(testProfile, {
-      displayName: "New Name",
-      description: "New bio",
+      displayName: "Name",
+      description: "Bio",
+      avatarBlob: new Blob(["a"], { type: "image/jpeg" }),
+      bannerBlob: new Blob(["b"], { type: "image/jpeg" }),
     });
 
-    assert.deepEqual(getProfileArgs.did, testProfile.did);
-    assert.deepEqual(Array.isArray(getProfileArgs.options.labelers), true);
+    const updatedProfile = dataStore.$profiles.get(testProfile.did);
+    assert.match(
+      updatedProfile.avatar,
+      /^https:\/\/cdn\.bsky\.app\/img\/avatar\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+    );
+    assert.match(
+      updatedProfile.banner,
+      /^https:\/\/cdn\.bsky\.app\/img\/banner\/plain\/did:plc:test123\/bafkreiblob\d+@jpeg$/,
+    );
+  });
+
+  it("clears the local avatar and banner when removeAvatar/removeBanner are true", async () => {
+    const { mutations, dataStore } = createMutationsWithMockApi(makeMockApi());
+    await mutations.updateProfile(testProfile, {
+      displayName: "Name",
+      description: "Bio",
+      removeAvatar: true,
+      removeBanner: true,
+    });
+
+    const updatedProfile = dataStore.$profiles.get(testProfile.did);
+    assert.equal(updatedProfile.avatar, "");
+    assert.equal(updatedProfile.banner, "");
   });
 
   it("should rethrow non-400 errors from getProfileRecord", async () => {
@@ -1008,16 +1020,7 @@ describe("updateProfile", () => {
   });
 
   it("should update currentUser when editing own profile", async () => {
-    const mockApi = makeMockApi({
-      getProfile: async (did) => ({
-        did,
-        displayName: "Updated User",
-        description: "Updated bio",
-        viewer: {},
-      }),
-    });
-
-    const { mutations, dataStore } = createMutationsWithMockApi(mockApi);
+    const { mutations, dataStore } = createMutationsWithMockApi(makeMockApi());
     await mutations.updateProfile(testProfile, {
       displayName: "Updated User",
       description: "Updated bio",
@@ -1025,6 +1028,7 @@ describe("updateProfile", () => {
 
     const currentUser = dataStore.$currentUser.get();
     assert.deepEqual(currentUser.displayName, "Updated User");
+    assert.deepEqual(currentUser.description, "Updated bio");
   });
 });
 
@@ -3705,26 +3709,25 @@ describe("$detailedProfiles mirroring", () => {
     return { mutations, dataStore };
   }
 
-  it("updateProfile writes the fetched detailed profile to both stores", async () => {
-    const fetched = {
-      did: targetDid,
-      displayName: "Updated Name",
-      description: "Updated bio",
-      pinnedPost: { uri: "at://newpinned" },
-      viewer: {},
-    };
+  it("updateProfile patches both $profiles and $detailedProfiles in place", async () => {
     const mockApi = {
       getProfileRecord: async () => ({ value: {}, cid: "cid" }),
       putProfileRecord: async () => ({}),
-      getProfile: async () => fetched,
     };
     const { mutations, dataStore } = setup(mockApi);
     await mutations.updateProfile(baseProfile, {
       displayName: "Updated Name",
       description: "Updated bio",
     });
-    assert.deepEqual(dataStore.$profiles.get(targetDid), fetched);
-    assert.deepEqual(dataStore.$detailedProfiles.get(targetDid), fetched);
+    const patchedBasic = dataStore.$profiles.get(targetDid);
+    assert.deepEqual(patchedBasic.displayName, "Updated Name");
+    assert.deepEqual(patchedBasic.description, "Updated bio");
+    assert.deepEqual(patchedBasic.followersCount, 10);
+    // Detailed-only fields survive on the detailed entry.
+    const patchedDetailed = dataStore.$detailedProfiles.get(targetDid);
+    assert.deepEqual(patchedDetailed.displayName, "Updated Name");
+    assert.deepEqual(patchedDetailed.description, "Updated bio");
+    assert.deepEqual(patchedDetailed.pinnedPost.uri, "at://pinned");
   });
 
   it("followProfile mirrors viewer.following and count into $detailedProfiles", async () => {
@@ -3872,5 +3875,467 @@ describe("$detailedProfiles mirroring", () => {
       dataStore.$detailedProfiles.get(targetDid).viewer.activitySubscription,
       subscription,
     );
+  });
+});
+
+describe("updateList", () => {
+  const listUri = "at://did:plc:test123/app.bsky.graph.list/mylist";
+  const testList = {
+    uri: listUri,
+    cid: "listcid",
+    name: "Old Name",
+    description: "Old description",
+    purpose: "app.bsky.graph.defs#curatelist",
+    creator: { did: "did:plc:test123", handle: "test.bsky.social" },
+    viewer: {},
+  };
+
+  function setup(overrides = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$lists.set(listUri, testList);
+    const api = {
+      getListRecord: async () => ({
+        value: {
+          purpose: "app.bsky.graph.defs#curatelist",
+          name: "Old Name",
+          description: "Old description",
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+        cid: "listcid",
+      }),
+      putListRecord: async () => ({}),
+      uploadBlob: async () => ({
+        ref: { $link: "list-avatar-blob" },
+        mimeType: "image/jpeg",
+        size: 100,
+      }),
+      ...overrides,
+    };
+    return {
+      api,
+      dataStore,
+      mutations: makeMutations(api, dataStore, patchStore, preferencesProvider),
+    };
+  }
+
+  it("puts the record with merged fields and the swapCid from getListRecord", async () => {
+    let putArgs = null;
+    const { mutations } = setup({
+      putListRecord: async (rkey, record, swapCid) => {
+        putArgs = { rkey, record, swapCid };
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, {
+      name: "New Name",
+      description: "New description",
+    });
+
+    assert.equal(putArgs.rkey, "mylist");
+    assert.equal(putArgs.record.name, "New Name");
+    assert.equal(putArgs.record.description, "New description");
+    assert.equal(putArgs.record.purpose, "app.bsky.graph.defs#curatelist");
+    assert.equal(putArgs.record.createdAt, "2024-01-01T00:00:00.000Z");
+    assert.equal(putArgs.swapCid, "listcid");
+  });
+
+  it("uploads and sets the avatar blob when provided", async () => {
+    let uploadCalled = false;
+    let putRecord = null;
+    const { mutations } = setup({
+      uploadBlob: async () => {
+        uploadCalled = true;
+        return {
+          ref: { $link: "avatar-blob" },
+          mimeType: "image/jpeg",
+          size: 100,
+        };
+      },
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, {
+      name: "Name",
+      description: "Desc",
+      avatarBlob: new Blob(["x"], { type: "image/jpeg" }),
+    });
+
+    assert.equal(uploadCalled, true);
+    assert.deepEqual(putRecord.avatar, {
+      ref: { $link: "avatar-blob" },
+      mimeType: "image/jpeg",
+      size: 100,
+    });
+  });
+
+  it("strips stale descriptionFacets from the put record when description changes", async () => {
+    let putRecord = null;
+    const { mutations } = setup({
+      getListRecord: async () => ({
+        value: {
+          purpose: "app.bsky.graph.defs#curatelist",
+          name: "Old Name",
+          description: "Old description",
+          descriptionFacets: [
+            { index: { byteStart: 0, byteEnd: 3 }, features: [] },
+          ],
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+        cid: "listcid",
+      }),
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, {
+      name: "Old Name",
+      description: "Totally different text",
+    });
+
+    assert.equal("descriptionFacets" in putRecord, false);
+  });
+
+  it("clears local descriptionFacets when description changes", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.$lists.set(listUri, {
+      ...testList,
+      descriptionFacets: [
+        { index: { byteStart: 0, byteEnd: 3 }, features: [] },
+      ],
+    });
+
+    await mutations.updateList(testList, {
+      name: "Old Name",
+      description: "Totally different text",
+    });
+
+    assert.deepEqual(dataStore.$lists.get(listUri).descriptionFacets, []);
+  });
+
+  it("deletes the avatar from the record when removeAvatar is true", async () => {
+    let putRecord = null;
+    const { mutations } = setup({
+      getListRecord: async () => ({
+        value: {
+          purpose: "app.bsky.graph.defs#curatelist",
+          name: "Old Name",
+          description: "Old description",
+          avatar: { ref: { $link: "existing-avatar" } },
+          createdAt: "2024-01-01T00:00:00.000Z",
+        },
+        cid: "listcid",
+      }),
+      putListRecord: async (rkey, record) => {
+        putRecord = record;
+        return {};
+      },
+    });
+
+    await mutations.updateList(testList, {
+      name: "Name",
+      description: "Desc",
+      removeAvatar: true,
+    });
+
+    assert.equal("avatar" in putRecord, false);
+  });
+
+  it("patches dataStore.$lists in place with the new name and description", async () => {
+    // The appview lags briefly after putRecord, so we patch locally rather
+    // than round-tripping through getList (which can return stale data).
+    const { mutations, dataStore } = setup();
+
+    await mutations.updateList(testList, {
+      name: "Patched Name",
+      description: "Patched description",
+    });
+
+    const updated = dataStore.$lists.get(listUri);
+    assert.equal(updated.name, "Patched Name");
+    assert.equal(updated.description, "Patched description");
+    // Non-patched fields survive.
+    assert.equal(updated.uri, listUri);
+    assert.equal(updated.purpose, "app.bsky.graph.defs#curatelist");
+  });
+
+  it("sets the local avatar to a CDN URL built from the uploaded blob ref", async () => {
+    const { mutations, dataStore } = setup({
+      uploadBlob: async () => ({
+        ref: { $link: "bafkreiavatarcid" },
+        mimeType: "image/jpeg",
+        size: 100,
+      }),
+    });
+
+    await mutations.updateList(testList, {
+      name: "Name",
+      description: "Desc",
+      avatarBlob: new Blob(["x"], { type: "image/jpeg" }),
+    });
+
+    assert.equal(
+      dataStore.$lists.get(listUri).avatar,
+      "https://cdn.bsky.app/img/avatar/plain/did:plc:test123/bafkreiavatarcid@jpeg",
+    );
+  });
+
+  it("clears the local avatar when removeAvatar is true", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.$lists.set(listUri, {
+      ...testList,
+      avatar: "https://example.com/list-avatar.jpg",
+    });
+
+    await mutations.updateList(testList, {
+      name: "Name",
+      description: "Desc",
+      removeAvatar: true,
+    });
+
+    assert.equal(dataStore.$lists.get(listUri).avatar, "");
+  });
+});
+
+describe("deleteList", () => {
+  const listUri = "at://did:plc:test123/app.bsky.graph.list/mylist";
+  const otherListUri = "at://did:plc:test123/app.bsky.graph.list/other";
+  const testList = {
+    uri: listUri,
+    cid: "listcid",
+    name: "My List",
+    purpose: "app.bsky.graph.defs#curatelist",
+    creator: { did: "did:plc:test123", handle: "test.bsky.social" },
+    viewer: {},
+  };
+
+  function setup({ listItems = [], overrides = {} } = {}) {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const preferences = Preferences.createLoggedOutPreferences();
+    const preferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async () => {},
+    };
+    dataStore.$lists.set(listUri, testList);
+    const api = {
+      getListItems: async () => ({ records: listItems, cursor: "" }),
+      applyWrites: async () => ({}),
+      ...overrides,
+    };
+    return {
+      api,
+      dataStore,
+      preferencesProvider,
+      mutations: makeMutations(api, dataStore, patchStore, preferencesProvider),
+    };
+  }
+
+  it("deletes the list record via applyWrites and clears the local list", async () => {
+    const writesCalls = [];
+    const { mutations, dataStore } = setup({
+      overrides: {
+        applyWrites: async (writes) => {
+          writesCalls.push(writes);
+          return {};
+        },
+      },
+    });
+
+    await mutations.deleteList(testList);
+
+    assert.equal(writesCalls.length, 1);
+    assert.deepEqual(writesCalls[0], [
+      {
+        $type: "com.atproto.repo.applyWrites#delete",
+        collection: "app.bsky.graph.list",
+        rkey: "mylist",
+      },
+    ]);
+    assert.equal(dataStore.$lists.get(listUri), null);
+  });
+
+  it("also deletes listitems belonging to this list, ignoring items in other lists", async () => {
+    const writesCalls = [];
+    const listItems = [
+      {
+        uri: "at://did:plc:test123/app.bsky.graph.listitem/keep",
+        value: { list: otherListUri },
+      },
+      {
+        uri: "at://did:plc:test123/app.bsky.graph.listitem/item1",
+        value: { list: listUri },
+      },
+      {
+        uri: "at://did:plc:test123/app.bsky.graph.listitem/item2",
+        value: { list: listUri },
+      },
+    ];
+    const { mutations } = setup({
+      listItems,
+      overrides: {
+        applyWrites: async (writes) => {
+          writesCalls.push(writes);
+          return {};
+        },
+      },
+    });
+
+    await mutations.deleteList(testList);
+
+    const flat = writesCalls.flat();
+    const deletedRkeys = flat
+      .filter((w) => w.collection === "app.bsky.graph.listitem")
+      .map((w) => w.rkey);
+    assert.deepEqual(deletedRkeys.sort(), ["item1", "item2"]);
+    assert.equal(
+      flat.filter((w) => w.collection === "app.bsky.graph.list").length,
+      1,
+    );
+  });
+
+  it("chunks applyWrites into batches of 10", async () => {
+    const listItems = Array.from({ length: 25 }, (_, i) => ({
+      uri: `at://did:plc:test123/app.bsky.graph.listitem/item${i}`,
+      value: { list: listUri },
+    }));
+    const writesCalls = [];
+    const { mutations } = setup({
+      listItems,
+      overrides: {
+        applyWrites: async (writes) => {
+          writesCalls.push(writes);
+          return {};
+        },
+      },
+    });
+
+    await mutations.deleteList(testList);
+
+    // 25 items + 1 list record = 26 writes → 10, 10, 6
+    assert.deepEqual(
+      writesCalls.map((c) => c.length),
+      [10, 10, 6],
+    );
+  });
+
+  it("clears cached list members for the deleted list", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.$listMembers.set(listUri, {
+      items: [{ uri: "at://x", subject: { did: "did:plc:m1" } }],
+      cursor: "",
+    });
+
+    await mutations.deleteList(testList);
+
+    assert.equal(dataStore.$listMembers.get(listUri), null);
+  });
+
+  it("removes the list from $actorLists for the creator", async () => {
+    const { mutations, dataStore } = setup();
+    const otherList = { uri: otherListUri, name: "Other" };
+    dataStore.$actorLists.set(testList.creator.did, {
+      lists: [testList, otherList],
+      cursor: "",
+    });
+
+    await mutations.deleteList(testList);
+
+    const remaining = dataStore.$actorLists.get(testList.creator.did);
+    assert.deepEqual(
+      remaining.lists.map((entry) => entry.uri),
+      [otherListUri],
+    );
+  });
+
+  it("removes the list from cached $listsWithMembershipByActor entries", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.$listsWithMembershipByActor.set("did:plc:member1", {
+      listsWithMembership: [
+        { list: { uri: listUri }, listItem: { uri: "at://li1" } },
+        { list: { uri: otherListUri }, listItem: { uri: "at://li2" } },
+      ],
+      cursor: "",
+    });
+    dataStore.$listsWithMembershipByActor.set("did:plc:untouched", {
+      listsWithMembership: [
+        { list: { uri: otherListUri }, listItem: { uri: "at://li3" } },
+      ],
+      cursor: "",
+    });
+
+    await mutations.deleteList(testList);
+
+    assert.deepEqual(
+      dataStore.$listsWithMembershipByActor
+        .get("did:plc:member1")
+        .listsWithMembership.map((entry) => entry.list.uri),
+      [otherListUri],
+    );
+    // Unrelated entries are untouched.
+    assert.equal(
+      dataStore.$listsWithMembershipByActor.get("did:plc:untouched")
+        .listsWithMembership.length,
+      1,
+    );
+  });
+
+  it("removes the list from $pinnedItems if present", async () => {
+    const { mutations, dataStore } = setup();
+    dataStore.$pinnedItems.set([
+      { type: "timeline", data: { uri: "following" } },
+      { type: "list", data: { uri: listUri, displayName: "My List" } },
+      { type: "list", data: { uri: otherListUri, displayName: "Other" } },
+    ]);
+
+    await mutations.deleteList(testList);
+
+    assert.deepEqual(
+      dataStore.$pinnedItems.get().map((item) => item.data.uri),
+      ["following", otherListUri],
+    );
+  });
+
+  it("unpins the list if it was pinned", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    let preferences = Preferences.createLoggedOutPreferences().pinFeed(
+      listUri,
+      "list",
+    );
+    const updateCalls = [];
+    const preferencesProvider = {
+      requirePreferences: () => preferences,
+      updatePreferences: async (next) => {
+        updateCalls.push(next);
+        preferences = next;
+      },
+    };
+    dataStore.$lists.set(listUri, testList);
+    const api = {
+      getListItems: async () => ({ records: [], cursor: "" }),
+      applyWrites: async () => ({}),
+    };
+    const mutations = makeMutations(
+      api,
+      dataStore,
+      patchStore,
+      preferencesProvider,
+    );
+
+    assert.equal(preferences.isFeedPinned(listUri), true);
+    await mutations.deleteList(testList);
+
+    assert.equal(updateCalls.length, 1);
+    assert.equal(preferences.isFeedPinned(listUri), false);
   });
 });

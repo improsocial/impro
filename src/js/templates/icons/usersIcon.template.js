@@ -3,7 +3,13 @@ import { html } from "/js/lib/lit-html.js";
 // https://github.com/halfmage/majesticons/blob/main/line/users-line.svg
 export function usersIconTemplate() {
   return html`<div class="icon users-icon">
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none">
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      width="24"
+      height="24"
+      fill="none"
+    >
       <circle
         cx="9"
         cy="9"

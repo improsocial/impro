@@ -77,17 +77,31 @@ describe("image-cropper", () => {
       assert.deepEqual(element.aspectRatio, 1);
     });
 
-    it("should accept circular attribute", () => {
+    it("should accept a circle shape", () => {
       const element = document.createElement("image-cropper");
-      element.setAttribute("circular", "");
+      element.setAttribute("shape", "circle");
       connectElement(element);
-      assert.deepEqual(element.circular, true);
+      assert.deepEqual(element.shape, "circle");
     });
 
-    it("should not be circular by default", () => {
+    it("should accept a rounded-square shape", () => {
+      const element = document.createElement("image-cropper");
+      element.setAttribute("shape", "rounded-square");
+      connectElement(element);
+      assert.deepEqual(element.shape, "rounded-square");
+    });
+
+    it("should default to square when no shape is set", () => {
       const element = document.createElement("image-cropper");
       connectElement(element);
-      assert.deepEqual(element.circular, false);
+      assert.deepEqual(element.shape, "square");
+    });
+
+    it("should fall back to square when shape is unknown", () => {
+      const element = document.createElement("image-cropper");
+      element.setAttribute("shape", "bogus");
+      connectElement(element);
+      assert.deepEqual(element.shape, "square");
     });
 
     it("should initialize with default state", () => {

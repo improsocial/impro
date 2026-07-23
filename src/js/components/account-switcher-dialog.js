@@ -47,6 +47,8 @@ class AccountSwitcherDialog extends Component {
     this._disposeEffect?.();
     this._disposeEffect = null;
     window.removeEventListener("pageshow", this._onPageShow);
+    this.scrollLock?.release();
+    this.scrollLock = null;
   }
 
   async _load() {

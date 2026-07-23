@@ -28,7 +28,7 @@ describe("edit-profile-dialog", () => {
     it("should render dialog element", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
-      const dialog = element.querySelector(".edit-profile-dialog");
+      const dialog = element.querySelector(".form-dialog");
       assert(dialog !== null, "Dialog should be rendered");
       assert.deepEqual(dialog.tagName, "DIALOG");
     });
@@ -36,7 +36,7 @@ describe("edit-profile-dialog", () => {
     it("should render header with title", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
-      const header = element.querySelector(".edit-profile-dialog-header h2");
+      const header = element.querySelector(".form-dialog-header h2");
       assert(header !== null, "Header should be rendered");
       assert.deepEqual(header.textContent, "Edit profile");
     });
@@ -73,9 +73,7 @@ describe("edit-profile-dialog", () => {
     it("should render cancel button", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
-      const cancelButton = element.querySelector(
-        ".edit-profile-dialog-header-button",
-      );
+      const cancelButton = element.querySelector(".form-dialog-header-button");
       assert(cancelButton !== null, "Cancel button should be rendered");
       assert.deepEqual(cancelButton.textContent.trim(), "Cancel");
     });
@@ -107,7 +105,7 @@ describe("edit-profile-dialog", () => {
       connectElement(element);
       element.setProfile(mockProfile);
       const avatarImg = element.querySelector(
-        ".edit-profile-avatar-preview img",
+        ".form-dialog-avatar-preview img",
       );
       assert(avatarImg !== null, "Avatar image should be rendered");
       assert.deepEqual(avatarImg.src, "https://example.com/avatar.jpg");
@@ -139,11 +137,11 @@ describe("edit-profile-dialog", () => {
       connectElement(element);
       element.setProfile({ ...mockProfile, avatar: null });
       const avatarImg = element.querySelector(
-        ".edit-profile-avatar-preview img:not(.edit-profile-avatar-placeholder)",
+        ".form-dialog-avatar-preview img:not(.form-dialog-avatar-placeholder)",
       );
       assert.deepEqual(avatarImg, null);
       const placeholder = element.querySelector(
-        ".edit-profile-avatar-placeholder",
+        ".form-dialog-avatar-placeholder",
       );
       assert(placeholder !== null, "Avatar placeholder should be shown");
       assert.deepEqual(placeholder.tagName, "IMG");
@@ -159,7 +157,7 @@ describe("edit-profile-dialog", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCount = element.querySelectorAll(".edit-profile-char-count")[0];
+      const charCount = element.querySelectorAll(".form-dialog-char-count")[0];
       assert(charCount !== null, "Char count should be rendered");
       assert(charCount.textContent.includes("/64"), "Should show max of 64");
     });
@@ -168,7 +166,7 @@ describe("edit-profile-dialog", () => {
       const element = document.createElement("edit-profile-dialog");
       connectElement(element);
       element.setProfile(mockProfile);
-      const charCounts = element.querySelectorAll(".edit-profile-char-count");
+      const charCounts = element.querySelectorAll(".form-dialog-char-count");
       assert(charCounts.length >= 2, "Should have at least 2 char counts");
       assert(
         charCounts[1].textContent.includes("/256"),
@@ -233,7 +231,7 @@ describe("edit-profile-dialog", () => {
       input.value = "a".repeat(65);
       input.dispatchEvent(new Event("input", { bubbles: true }));
 
-      const charCount = element.querySelectorAll(".edit-profile-char-count")[0];
+      const charCount = element.querySelectorAll(".form-dialog-char-count")[0];
       assert(
         charCount.classList.contains("overflow"),
         "Should have overflow class",
@@ -310,11 +308,11 @@ describe("edit-profile-dialog", () => {
       items[1].click();
 
       const avatarImg = element.querySelector(
-        ".edit-profile-avatar-preview img:not(.edit-profile-avatar-placeholder)",
+        ".form-dialog-avatar-preview img:not(.form-dialog-avatar-placeholder)",
       );
       assert.deepEqual(avatarImg, null);
       const placeholder = element.querySelector(
-        ".edit-profile-avatar-placeholder",
+        ".form-dialog-avatar-placeholder",
       );
       assert(
         placeholder !== null,
@@ -486,7 +484,7 @@ describe("edit-profile-dialog", () => {
 
       // Cancel button is disabled while saving; Escape key (cancel event) is the
       // available dismiss path during save.
-      const dialog = element.querySelector(".edit-profile-dialog");
+      const dialog = element.querySelector(".form-dialog");
       dialog.dispatchEvent(new Event("cancel", { cancelable: true }));
       await new Promise((resolve) => setTimeout(resolve, 0));
 
