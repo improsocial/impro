@@ -5936,7 +5936,7 @@ emoji-picker-dialog emoji-picker,
   display: flex;
   align-items: flex-start;
   gap: 8px;
-  margin: 0 16px 8px;
+  margin: 0 16px 16px;
   padding: 10px 12px;
   border-radius: var(--text-input-border-radius);
   background-color: var(--error-subtle-color);
