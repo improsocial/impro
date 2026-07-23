@@ -387,22 +387,18 @@ export class SourceProvider {
     if (pluginId.endsWith("__LOCAL")) {
       return [];
     }
-    const urls = [
-      await remoteAssetUrl({ repo, file: "manifest.json", release: version }),
-      await remoteAssetUrl({ repo, file: "main.js", release: version }),
-      await remoteAssetUrl({ repo, file: "styles.css", release: version }),
-    ];
+    const files = ["manifest.json", "main.js", "styles.css"];
     try {
       const manifest = await this.getManifest(pluginId, version, repo);
       for (const font of manifest.fonts ?? []) {
-        urls.push(
-          await remoteAssetUrl({ repo, file: font.file, release: version }),
-        );
+        files.push(font.file);
       }
     } catch {
       // If the manifest can't be read the base URLs are still returned so
       // reconcile doesn't purge a partially-cached plugin.
     }
-    return urls;
+    return await Promise.all(
+      files.map((file) => remoteAssetUrl({ repo, file, release: version })),
+    );
   }
 }
