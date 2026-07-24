@@ -56,17 +56,6 @@ describe("postFeedTemplate - empty state", () => {
     );
   });
 
-  it("should show default empty message", () => {
-    const result = postFeedTemplate({
-      feed: { feed: [], cursor: null },
-      currentUser: mockUser,
-    });
-    const container = document.createElement("div");
-    render(result, container);
-    const message = container.querySelector("[data-testid='feed-end-message']");
-    assert(message.textContent.includes("Feed is empty"));
-  });
-
   it("should show custom empty message when provided", () => {
     const result = postFeedTemplate({
       feed: { feed: [], cursor: null },

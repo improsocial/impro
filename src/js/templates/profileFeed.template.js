@@ -145,7 +145,7 @@ export function profileFeedTemplate({
   }
   if (profiles.length === 0) {
     return html`<div class="feed-end-message" data-testid="feed-end-message">
-      ${emptyMessage ?? "No profiles."}
+      ${emptyMessage ?? "No profiles to show."}
     </div>`;
   }
   return html`<infinite-scroll-container
