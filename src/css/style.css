@@ -2059,12 +2059,6 @@ container-link {
   }
 }
 
-@media (hover: hover) {
-  .post-thread-reply-prompt:hover {
-    background-color: var(--post-hover-color);
-  }
-}
-
 @media (min-width: 800px) {
   .post-thread-reply-prompt-inner {
     border-radius: 0;
@@ -6683,7 +6677,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   border-radius: var(--context-menu-button-radius);
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 16px;
 }
 
 .context-menu-item button > .icon,

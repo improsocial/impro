@@ -71,6 +71,22 @@ function postContextMenuTemplate({
   const canPin = isUserPost && !post.record?.reply;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
+    ${isAuthenticated && canPin
+      ? html`
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-pin"
+              data-teststate=${isPinnedToProfile ? "pinned" : "unpinned"}
+              icon="pin-line"
+              @click=${() => onClickPin(post, !isPinnedToProfile)}
+            >
+              ${isPinnedToProfile
+                ? "Unpin from your profile"
+                : "Pin to your profile"}
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
     <context-menu-item-group>
       <context-menu-item
         data-testid="menu-action-post-open-in-bsky"
@@ -201,22 +217,6 @@ function postContextMenuTemplate({
           ${isUserPost
             ? html`
                 <context-menu-item-group>
-                  ${canPin
-                    ? html`
-                        <context-menu-item
-                          data-testid="menu-action-post-pin"
-                          data-teststate=${isPinnedToProfile
-                            ? "pinned"
-                            : "unpinned"}
-                          icon="pin-line"
-                          @click=${() => onClickPin(post, !isPinnedToProfile)}
-                        >
-                          ${isPinnedToProfile
-                            ? "Unpin from your profile"
-                            : "Pin to your profile"}
-                        </context-menu-item>
-                      `
-                    : null}
                   <context-menu-item
                     data-testid="menu-action-post-delete"
                     icon="delete-bin-line"
