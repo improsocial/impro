@@ -9,6 +9,7 @@ import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
+import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { pageEffect } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
@@ -119,6 +120,7 @@ class ListDetailView extends View {
       const hasMoreMembers = membersEntry?.cursor != null;
       const activeTab = state.$activeTab.get();
       const isCurateList = !isModerationList(list);
+      const isCurrentUserList = listCreator?.did === currentUser?.did;
       const listPermalink = `https://bsky.app/profile/${listCreatorHandle || handleOrDid}/lists/${rkey}`;
       render(
         html`<div id="list-detail-view">
@@ -173,9 +175,7 @@ class ListDetailView extends View {
                     >
                       Copy link to list
                     </context-menu-item>
-                    ${listCreator?.did &&
-                    currentUser?.did &&
-                    listCreator.did === currentUser.did
+                    ${isCurrentUserList
                       ? html`<context-menu-item
                             data-testid="menu-action-list-add-people"
                             @click=${() => handleAddPeople(list)}
@@ -238,7 +238,7 @@ class ListDetailView extends View {
                         >
                           ${isModerationList(list) ? "Moderation list" : "List"}
                           by
-                          ${listCreator.did === currentUser?.did
+                          ${isCurrentUserList
                             ? "you"
                             : `@${listCreator.handle}`}
                         </div>`
@@ -290,8 +290,17 @@ class ListDetailView extends View {
                           pluginService,
                           showEndMessage: true,
                         })}
+                        ${feed?.feed?.length === 0 && isCurrentUserList
+                          ? html`<button
+                              class="rounded-button rounded-button-primary list-empty-add-people-button"
+                              data-testid="list-empty-add-people-button"
+                              @click=${() => handleAddPeople(list)}
+                            >
+                              ${plusIconTemplate()} Add people to list
+                            </button>`
+                          : ""}
                       </div>`
-                    : html`<div class="list-members-container">
+                    : html`<div class="feed-container">
                         ${profileFeedTemplate({
                           profiles: members,
                           hasMore: hasMoreMembers,
@@ -303,6 +312,15 @@ class ListDetailView extends View {
                           profileInteractionHandler,
                           ...(isCurateList ? {} : { rightItemTemplate: null }),
                         })}
+                        ${members?.length === 0 && isCurrentUserList
+                          ? html`<button
+                              class="rounded-button rounded-button-primary list-empty-add-people-button"
+                              data-testid="list-empty-add-people-button"
+                              @click=${() => handleAddPeople(list)}
+                            >
+                              ${plusIconTemplate()} Add people to list
+                            </button>`
+                          : ""}
                       </div>`}
                 </div>
               </main>`}

@@ -355,7 +355,7 @@ describe("new-chat-dialog", () => {
       const { dataLayer } = createFakeDataLayer();
       const element = createDialog(dataLayer);
       assert(
-        element.querySelector(".new-chat-search-container .search-icon") !==
+        element.querySelector(".search-dialog-input-container .search-icon") !==
           null,
       );
     });
@@ -692,7 +692,7 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       element.open();
 
-      const results = element.querySelector(".new-chat-results");
+      const results = element.querySelector(".search-dialog-results");
       const input = element.querySelector(
         '[data-testid="new-chat-search-input"]',
       );

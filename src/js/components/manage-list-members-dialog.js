@@ -105,7 +105,7 @@ class ManageListMembersDialog extends Component {
     } else {
       this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
     }
-    const results = this.querySelector(".new-chat-results");
+    const results = this.querySelector(".search-dialog-results");
     if (results) results.scrollTop = 0;
   }
 
@@ -176,7 +176,7 @@ class ManageListMembersDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-fullscreen manage-list-members-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen search-dialog manage-list-members-dialog"
           data-testid="manage-list-members-dialog"
           autofocus
           @click=${(event) => {
@@ -194,11 +194,11 @@ class ManageListMembersDialog extends Component {
             this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
-          <div class="new-chat-dialog-content">
-            <div class="new-chat-dialog-header">
-              <h2 class="new-chat-dialog-title">Add people to list</h2>
+          <div class="search-dialog-content">
+            <div class="search-dialog-header">
+              <h2 class="search-dialog-title">Add people to list</h2>
               <button
-                class="new-chat-dialog-close"
+                class="search-dialog-close"
                 aria-label="Close"
                 data-testid="manage-list-members-close"
                 @click=${() => this.close()}
@@ -206,11 +206,11 @@ class ManageListMembersDialog extends Component {
                 ${closeIconTemplate()}
               </button>
             </div>
-            <div class="new-chat-search-container">
+            <div class="search-dialog-input-container">
               ${searchIconTemplate()}
               <input
                 type="search"
-                class="new-chat-search-input"
+                class="search-dialog-input"
                 data-testid="manage-list-members-search-input"
                 placeholder="Search"
                 maxlength="50"
@@ -234,12 +234,12 @@ class ManageListMembersDialog extends Component {
                   `
                 : ""}
             </div>
-            <div class="new-chat-results">
+            <div class="search-dialog-results">
               ${(() => {
                 if (query) {
                   if (searchStatus?.error) {
                     return html`<div
-                      class="manage-list-members-message"
+                      class="search-dialog-message"
                       data-testid="manage-list-members-error"
                     >
                       We're having network issues, try again
@@ -265,7 +265,7 @@ class ManageListMembersDialog extends Component {
                 }
                 return html`
                   <div
-                    class="manage-list-members-section-header"
+                    class="search-dialog-section-header"
                     data-testid="manage-list-members-suggested-header"
                   >
                     Suggested
@@ -289,15 +289,15 @@ class ManageListMembersDialog extends Component {
     const dialog = this.querySelector(".manage-list-members-dialog");
     if (dialog?.open) return;
     dialog.showModal();
-    this.querySelector(".new-chat-search-input")?.focus({
+    this.querySelector(".search-dialog-input")?.focus({
       preventScroll: true,
     });
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
-      scrollContainer: this.querySelector(".new-chat-results"),
+      scrollContainer: this.querySelector(".search-dialog-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });
-    resetScrollOnBlur(dialog, this.querySelector(".new-chat-results"));
+    resetScrollOnBlur(dialog, this.querySelector(".search-dialog-results"));
   }
 
   close() {

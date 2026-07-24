@@ -54,6 +54,34 @@ describe("profileListItemTemplate", () => {
   });
 });
 
+describe("profileListItemTemplate - follows-you badge", () => {
+  const followsBackActor = {
+    ...mockActor,
+    viewer: { followedBy: "at://did:plc:testuser/app.bsky.graph.follow/1" },
+  };
+
+  it("should render follows-you badge by default", () => {
+    const result = profileListItemTemplate({ actor: followsBackActor });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='follows-you-badge']") !== null,
+    );
+  });
+
+  it("should hide follows-you badge when compact", () => {
+    const result = profileListItemTemplate({
+      actor: followsBackActor,
+      compact: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='follows-you-badge']") === null,
+    );
+  });
+});
+
 describe("profileListItemTemplate - verification badge", () => {
   it("should render verification badge for verified actor", () => {
     const verifiedActor = {

@@ -149,7 +149,7 @@ export function profileListItemTemplate({
         </div>
         ${rightItem}
       </div>
-      ${showsFollowsYou
+      ${showsFollowsYou && !compact
         ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
             Follows you
           </div>`

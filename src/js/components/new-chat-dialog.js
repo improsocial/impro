@@ -125,7 +125,7 @@ class NewChatDialog extends Component {
     } else {
       this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
     }
-    const results = this.querySelector(".new-chat-results");
+    const results = this.querySelector(".search-dialog-results");
     if (results) results.scrollTop = 0;
   }
 
@@ -164,7 +164,7 @@ class NewChatDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-fullscreen new-chat-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen search-dialog new-chat-dialog"
           data-testid="new-chat-dialog"
           autofocus
           @click=${(event) => {
@@ -182,11 +182,11 @@ class NewChatDialog extends Component {
             this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
-          <div class="new-chat-dialog-content">
-            <div class="new-chat-dialog-header">
-              <h2 class="new-chat-dialog-title">Start a new chat</h2>
+          <div class="search-dialog-content">
+            <div class="search-dialog-header">
+              <h2 class="search-dialog-title">Start a new chat</h2>
               <button
-                class="new-chat-dialog-close"
+                class="search-dialog-close"
                 aria-label="Close"
                 data-testid="new-chat-dialog-close"
                 @click=${() => this.close()}
@@ -194,11 +194,11 @@ class NewChatDialog extends Component {
                 ${closeIconTemplate()}
               </button>
             </div>
-            <div class="new-chat-search-container">
+            <div class="search-dialog-input-container">
               ${searchIconTemplate()}
               <input
                 type="search"
-                class="new-chat-search-input"
+                class="search-dialog-input"
                 data-testid="new-chat-search-input"
                 placeholder="Search for people"
                 maxlength="50"
@@ -222,12 +222,12 @@ class NewChatDialog extends Component {
                   `
                 : ""}
             </div>
-            <div class="new-chat-results">
+            <div class="search-dialog-results">
               ${(() => {
                 if (query) {
                   if (searchStatus?.error) {
                     return html`<div
-                      class="new-chat-message-row"
+                      class="search-dialog-message"
                       data-testid="new-chat-error"
                     >
                       We're having network issues, try again
@@ -258,7 +258,7 @@ class NewChatDialog extends Component {
                 }
                 return html`
                   <div
-                    class="new-chat-section-header"
+                    class="search-dialog-section-header"
                     data-testid="new-chat-suggested-header"
                   >
                     Suggested
@@ -282,15 +282,15 @@ class NewChatDialog extends Component {
     const dialog = this.querySelector(".new-chat-dialog");
     if (dialog?.open) return;
     dialog.showModal();
-    this.querySelector(".new-chat-search-input")?.focus({
+    this.querySelector(".search-dialog-input")?.focus({
       preventScroll: true,
     });
     enableDragToDismiss(dialog, {
       onClose: () => this.close(),
-      scrollContainer: this.querySelector(".new-chat-results"),
+      scrollContainer: this.querySelector(".search-dialog-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });
-    resetScrollOnBlur(dialog, this.querySelector(".new-chat-results"));
+    resetScrollOnBlur(dialog, this.querySelector(".search-dialog-results"));
   }
 
   close() {
