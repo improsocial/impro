@@ -78,6 +78,7 @@ class CreateListDialog extends Component {
 
     render(
       html`<dialog
+        autofocus
         class="bottom-sheet bottom-sheet-fullscreen no-handle form-dialog create-list-dialog"
         @click=${async (event) => {
           if (!isCropping && event.target.tagName === "DIALOG") {
@@ -421,6 +422,7 @@ class CreateListDialog extends Component {
     if (dialog?.open) return;
     if (dialog) {
       dialog.showModal();
+      this.querySelector("#create-list-name")?.focus({ preventScroll: true });
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
         onClose: () => this.close(),
