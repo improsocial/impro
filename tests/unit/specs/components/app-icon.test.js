@@ -1,192 +1,41 @@
-import { describe, it, beforeEach, mock } from "node:test";
+import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { MockFetch } from "../../testHelpers.js";
 import "/js/components/app-icon.js";
 
 describe("app-icon", () => {
-  const SAMPLE_SVG =
-    '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>';
-
-  function flush() {
-    return new Promise((resolve) => setTimeout(resolve, 0));
-  }
-
-  function okResponse(body) {
-    return {
-      ok: true,
-      status: 200,
-      statusText: "OK",
-      text: async () => body,
-    };
-  }
-
-  function notFoundResponse() {
-    return {
-      ok: false,
-      status: 404,
-      statusText: "Not Found",
-      text: async () => "",
-    };
-  }
-
   beforeEach(() => {
     document.body.innerHTML = "";
-    customElements.get("app-icon").cache = new Map();
   });
 
-  describe("AppIcon - iconset resolution", () => {
-    it("resolves an icon from the majesticons set", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
-      globalThis.fetch = fetch;
+  it("renders a <use> reference into the sprite", () => {
+    const element = document.createElement("app-icon");
+    element.setAttribute("icon", "bell");
+    document.body.appendChild(element);
 
-      const element = document.createElement("app-icon");
-      element.setAttribute("icon", "bell");
-      document.body.appendChild(element);
-      await flush();
-
-      assert.deepEqual(fetch.calls[0].url, "/img/icons/majesticons/bell.svg");
-    });
-
-    it("resolves an icon from the custom set", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
-      globalThis.fetch = fetch;
-
-      const element = document.createElement("app-icon");
-      element.setAttribute("icon", "verified-check");
-      document.body.appendChild(element);
-      await flush();
-
-      assert.deepEqual(
-        fetch.calls[0].url,
-        "/img/icons/custom/verified-check.svg",
-      );
-    });
-
-    it("warns and renders nothing for an unknown icon", async () => {
-      const fetch = new MockFetch();
-      globalThis.fetch = fetch;
-
-      const originalWarn = console.warn;
-      const warnMock = mock.fn();
-      console.warn = warnMock;
-
-      try {
-        const element = document.createElement("app-icon");
-        element.setAttribute("icon", "not-a-real-icon");
-        document.body.appendChild(element);
-        await flush();
-
-        assert.deepEqual(fetch.calls.length, 0);
-        assert.deepEqual(element.innerHTML, "");
-        assert.deepEqual(warnMock.mock.callCount(), 1);
-      } finally {
-        console.warn = originalWarn;
-      }
-    });
+    const use = element.querySelector("use");
+    assert(use !== null);
+    assert.deepEqual(use.getAttribute("href"), "/img/icons.svg#bell");
   });
 
-  describe("AppIcon - rendering", () => {
-    it("injects the fetched SVG markup", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
-      globalThis.fetch = fetch;
-
-      const element = document.createElement("app-icon");
-      element.setAttribute("icon", "cake");
-      document.body.appendChild(element);
-      await flush();
-
-      const svg = element.querySelector("svg");
-      assert(svg !== null);
-      assert.deepEqual(svg.getAttribute("viewBox"), "0 0 24 24");
-    });
-
-    it("renders nothing when icon is empty", async () => {
-      const fetch = new MockFetch();
-      globalThis.fetch = fetch;
-
-      const element = document.createElement("app-icon");
-      document.body.appendChild(element);
-      await flush();
-
-      assert.deepEqual(fetch.calls.length, 0);
-      assert.deepEqual(element.innerHTML, "");
-    });
-
-    it("swaps the icon when icon changes", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/majesticons/bus.svg", async () =>
-        okResponse('<svg id="first"></svg>'),
-      );
-      fetch.__intercept("/img/icons/majesticons/car.svg", async () =>
-        okResponse('<svg id="second"></svg>'),
-      );
-      globalThis.fetch = fetch;
-
-      const element = document.createElement("app-icon");
-      element.setAttribute("icon", "bus");
-      document.body.appendChild(element);
-      await flush();
-      assert.deepEqual(element.querySelector("svg").id, "first");
-
-      element.setAttribute("icon", "car");
-      await flush();
-      assert.deepEqual(element.querySelector("svg").id, "second");
-    });
+  it("renders nothing when icon is absent", () => {
+    const element = document.createElement("app-icon");
+    document.body.appendChild(element);
+    assert.deepEqual(element.innerHTML, "");
   });
 
-  describe("AppIcon - caching", () => {
-    it("only fetches once when the same icon is rendered twice", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
-      globalThis.fetch = fetch;
+  it("swaps the reference when the icon attribute changes", () => {
+    const element = document.createElement("app-icon");
+    element.setAttribute("icon", "bus");
+    document.body.appendChild(element);
+    assert.deepEqual(
+      element.querySelector("use").getAttribute("href"),
+      "/img/icons.svg#bus",
+    );
 
-      const first = document.createElement("app-icon");
-      first.setAttribute("icon", "chat");
-      document.body.appendChild(first);
-
-      const second = document.createElement("app-icon");
-      second.setAttribute("icon", "chat");
-      document.body.appendChild(second);
-
-      await flush();
-
-      assert.deepEqual(fetch.calls.length, 1);
-      assert(first.querySelector("svg") !== null);
-      assert(second.querySelector("svg") !== null);
-    });
-  });
-
-  describe("AppIcon - error handling", () => {
-    it("warns and renders nothing when the fetch 404s; does not retry", async () => {
-      const fetch = new MockFetch();
-      fetch.__intercept("/img/icons/", async () => notFoundResponse());
-      globalThis.fetch = fetch;
-
-      const originalWarn = console.warn;
-      const warnMock = mock.fn();
-      console.warn = warnMock;
-
-      try {
-        const element = document.createElement("app-icon");
-        element.setAttribute("icon", "moon");
-        document.body.appendChild(element);
-        await flush();
-
-        assert.deepEqual(element.innerHTML, "");
-        assert.deepEqual(warnMock.mock.callCount(), 1);
-
-        const retry = document.createElement("app-icon");
-        retry.setAttribute("icon", "moon");
-        document.body.appendChild(retry);
-        await flush();
-
-        assert.deepEqual(fetch.calls.length, 1);
-      } finally {
-        console.warn = originalWarn;
-      }
-    });
+    element.setAttribute("icon", "car");
+    assert.deepEqual(
+      element.querySelector("use").getAttribute("href"),
+      "/img/icons.svg#car",
+    );
   });
 });
