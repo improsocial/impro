@@ -7,7 +7,12 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsMutedAccountsView extends View {
-  async render({ root, router, layout, context: { dataLayer } }) {
+  async render({
+    root,
+    router,
+    layout,
+    context: { dataLayer, isAuthenticated },
+  }) {
     await auth.requireAuth();
 
     async function loadMore() {
@@ -57,7 +62,8 @@ class SettingsMutedAccountsView extends View {
                 hasMore,
                 onLoadMore: loadMore,
                 emptyMessage: "You have not muted any accounts yet.",
-                showFollowButton: false,
+                isAuthenticated,
+                rightItemTemplate: null,
               });
             })()}
           </main>

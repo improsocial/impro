@@ -41,7 +41,7 @@ class PluginProfilesList extends Component {
             hasMore: false,
             skeletonCount: dids.length,
             emptyMessage,
-            showFollowButton: false,
+            rightItemTemplate: null,
           }),
           this,
         );

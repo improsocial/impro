@@ -89,6 +89,21 @@ describe("plugin-profiles-list", () => {
       );
     });
 
+    it("does not render follow buttons on any row", async () => {
+      const dataLayer = makeDataLayer();
+      dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
+      dataLayer.__setProfile("did:test:b", makeProfile("did:test:b", "b.test"));
+      const element = document.createElement("plugin-profiles-list");
+      element.dataLayer = dataLayer;
+      element.setAttribute("dids", "did:test:a,did:test:b");
+      document.body.appendChild(element);
+      await flushMicrotasks();
+      assert.deepEqual(
+        element.querySelectorAll("[data-testid='follow-button']").length,
+        0,
+      );
+    });
+
     it("does not render the end-of-feed message", async () => {
       const dataLayer = makeDataLayer();
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));

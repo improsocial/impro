@@ -195,9 +195,8 @@ class GroupChatDetailsView extends View {
                 hasMore,
                 onLoadMore: loadMoreMembers,
                 isAuthenticated,
-                currentUserDid: currentUser?.did ?? null,
-                showFollowButton: false,
-                badgeTemplate: (actor) =>
+                compact: true,
+                rightItemTemplate: (actor) =>
                   memberTrailingTemplate({ member: actor, ownerDid }),
               })}`;
             })()}

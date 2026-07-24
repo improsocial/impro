@@ -17,6 +17,7 @@ import "/js/components/infinite-scroll-container.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/edit-list-details-dialog.js";
+import "/js/components/manage-list-members-dialog.js";
 
 class ListDetailView extends View {
   async render({
@@ -176,6 +177,12 @@ class ListDetailView extends View {
                     currentUser?.did &&
                     listCreator.did === currentUser.did
                       ? html`<context-menu-item
+                            data-testid="menu-action-list-add-people"
+                            @click=${() => handleAddPeople(list)}
+                          >
+                            Add people to list
+                          </context-menu-item>
+                          <context-menu-item
                             data-testid="menu-action-list-edit"
                             @click=${() => handleEditList(list)}
                           >
@@ -294,7 +301,7 @@ class ListDetailView extends View {
                           isAuthenticated,
                           currentUserDid: currentUser?.did ?? null,
                           profileInteractionHandler,
-                          showFollowButton: isCurateList,
+                          ...(isCurateList ? {} : { rightItemTemplate: null }),
                         })}
                       </div>`}
                 </div>
@@ -311,6 +318,17 @@ class ListDetailView extends View {
         ? `/profile/${list.creator.handle}`
         : "/";
       window.router.back({ fallbackRoute });
+    }
+
+    function handleAddPeople(list) {
+      const dialog = document.createElement("manage-list-members-dialog");
+      dialog.dataLayer = dataLayer;
+      dialog.list = list;
+      dialog.addEventListener("dialog-closed", () => {
+        dialog.remove();
+      });
+      root.querySelector("main").appendChild(dialog);
+      dialog.open();
     }
 
     async function handleEditList(list) {

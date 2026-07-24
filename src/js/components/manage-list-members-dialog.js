@@ -6,101 +6,70 @@ import {
   enableDragToDismiss,
   resetScrollOnBlur,
 } from "/js/dialogHelpers.js";
-import { Signal, ReactiveStore, effect } from "/js/signals.js";
+import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
-import { showToast } from "/js/toasts.js";
+import { classnames } from "/js/utils.js";
 
-const CREATE_CHAT_ERROR_TOASTS = {
-  AccountSuspended: "Suspended accounts cannot participate in chat.",
-  BlockedActor: "This user has blocked you and cannot be messaged.",
-  MessagesDisabled: "This user has disabled chat and cannot be messaged.",
-  NotFollowedBySender: "Chat recipient is not followed by the sender.",
-  RecipientNotFound: "Unable to find the selected recipient.",
-};
+const MAX_MEMBER_PAGES = 6;
 
-function canBeMessaged(profile) {
-  const allowIncoming = profile.associated?.chat?.allowIncoming;
-  switch (allowIncoming) {
-    case "none":
-      return false;
-    case "all":
-      return true;
-    case "following":
-    case undefined:
-      return Boolean(profile.viewer?.followedBy);
-    default:
-      return false;
-  }
-}
-
-function createChatErrorToastMessage(error) {
-  if (error instanceof TypeError) {
-    return "A network error occurred. Please check your internet connection.";
-  }
-  return (
-    CREATE_CHAT_ERROR_TOASTS[error?.data?.error] ??
-    "An issue occurred starting the chat, please try again."
-  );
-}
-
-function partitionRows(profiles, currentUserDid) {
-  const seenDids = new Set();
-  const deduped = [];
-  for (const profile of profiles) {
-    if (profile.did === currentUserDid) continue;
-    if (seenDids.has(profile.did)) continue;
-    seenDids.add(profile.did);
-    deduped.push(profile);
-  }
-  return [
-    ...deduped.filter((profile) => canBeMessaged(profile)),
-    ...deduped.filter((profile) => !canBeMessaged(profile)),
-  ];
-}
-
-function notMessageableRightItem(profile) {
-  if (canBeMessaged(profile)) return null;
-  return html`<div
-    class="new-chat-not-messageable-hint"
-    data-testid="not-messageable-hint"
+function toggleButtonTemplate({ profile, isMember, isPending, onToggle }) {
+  return html`<button
+    class=${classnames(
+      "rounded-button",
+      "manage-list-members-toggle",
+      isMember ? "rounded-button-secondary" : "rounded-button-primary",
+    )}
+    data-testid="manage-list-members-toggle"
+    data-teststate=${isMember ? "member" : "not-member"}
+    ?disabled=${isPending}
+    @click=${() => onToggle(profile)}
   >
-    Can't be messaged
-  </div>`;
+    ${isPending
+      ? html`<div class="loading-spinner" data-testid="loading-spinner"></div>`
+      : isMember
+        ? "Remove"
+        : "Add"}
+  </button>`;
 }
 
-function profileListTemplate({ profiles, onSelect, emptyMessage = null }) {
+function profileListTemplate({ profiles, emptyMessage, rightItemTemplate }) {
   return profileFeedTemplate({
     profiles,
     hasMore: false,
-    skeletonCount: 6,
+    clickAction: "none",
     compact: true,
-    clickAction: onSelect,
-    rightItemTemplate: notMessageableRightItem,
-    disabledProfiles: (profiles ?? [])
-      .filter((profile) => !canBeMessaged(profile))
-      .map((profile) => profile.did),
+    rightItemTemplate,
     emptyMessage,
   });
 }
 
-class NewChatDialog extends Component {
+class ManageListMembersDialog extends Component {
   connectedCallback() {
     if (this.initialized) {
       return;
     }
     this.dataLayer = this.dataLayer ?? null;
+    this.list = this.list ?? null;
     this.setAttribute("data-dialog-wrapper", "");
     this.scrollLock = null;
-    this.state = new ReactiveStore("new-chat-dialog");
+    this.state = new ReactiveStore("manage-list-members-dialog");
     this.state.$query = new Signal.State("");
+    this.state.$pendingDids = new SignalSet();
+    this.state.$membersLoaded = new Signal.State(false);
     this.innerHTML = "";
     this._disposeEffect = effect(() => {
       this.render();
     });
     this._loadSuggestions();
+    this._loadAllMembers();
     this.initialized = true;
+  }
+
+  disconnectedCallback() {
+    this._disposeEffect?.();
+    this._disposeEffect = null;
   }
 
   async _loadSuggestions() {
@@ -108,13 +77,24 @@ class NewChatDialog extends Component {
       const currentUser = await this.dataLayer.declarative.ensureCurrentUser();
       await this.dataLayer.declarative.ensureProfileFollows(currentUser.did);
     } catch (error) {
-      console.warn("Failed to load suggested chat recipients", error);
+      console.warn("Failed to load suggested profiles", error);
     }
   }
 
-  disconnectedCallback() {
-    this._disposeEffect?.();
-    this._disposeEffect = null;
+  async _loadAllMembers() {
+    const listUri = this.list.uri;
+    try {
+      await this.dataLayer.requests.loadListMembers(listUri, { reload: true });
+      for (let i = 1; i < MAX_MEMBER_PAGES; i++) {
+        const data = this.dataLayer.dataStore.$listMembers.get(listUri);
+        if (!data?.cursor) break;
+        await this.dataLayer.requests.loadListMembers(listUri);
+      }
+    } catch (error) {
+      console.warn("Failed to load list members", error);
+    } finally {
+      this.state.$membersLoaded.set(true);
+    }
   }
 
   _onSearchInput(value) {
@@ -133,23 +113,43 @@ class NewChatDialog extends Component {
     this._onSearchInput("");
   }
 
-  async _onSelect(profile) {
-    this.close();
+  async _onToggle(profile) {
+    if (this.state.$pendingDids.has(profile.did)) return;
+    const memberDidToUri = this._memberDidToUri();
+    const membershipUri = memberDidToUri.get(profile.did);
+    this.state.$pendingDids.add(profile.did);
     try {
-      const convo = await this.dataLayer.declarative.ensureConvoForProfile(
-        profile.did,
-      );
-      window.router.go(`/messages/${convo.id}`);
+      if (membershipUri) {
+        await this.dataLayer.mutations.removeProfileFromList(
+          profile,
+          this.list,
+          membershipUri,
+        );
+      } else {
+        await this.dataLayer.mutations.addProfileToList(profile, this.list);
+      }
     } catch (error) {
-      console.warn("Failed to start chat", error);
-      showToast(createChatErrorToastMessage(error), { style: "error" });
+      console.error(error);
+    } finally {
+      this.state.$pendingDids.delete(profile.did);
     }
+  }
+
+  _memberDidToUri() {
+    const data = this.dataLayer.dataStore.$listMembers.get(this.list.uri);
+    const map = new Map();
+    if (!data) return map;
+    for (const item of data.items) {
+      map.set(item.subject.did, item.uri);
+    }
+    return map;
   }
 
   render() {
     const query = this.state.$query.get().trim();
     const currentUserDid = this.dataLayer.derived.$currentUser.get()?.did;
-    const results = this.dataLayer.derived.$chatRecipientSearchResults.get();
+    const searchResults =
+      this.dataLayer.derived.$chatRecipientSearchResults.get();
     const searchStatus = this.dataLayer.requests.statusStore.$statuses.get(
       "loadChatRecipientSearch",
     );
@@ -161,11 +161,23 @@ class NewChatDialog extends Component {
           `loadProfileFollows-${currentUserDid}`,
         )
       : null;
+    const memberDidToUri = this._memberDidToUri();
+    const membersLoaded = this.state.$membersLoaded.get();
+    const pendingDids = this.state.$pendingDids;
+    const rightItemTemplate = (profile) => {
+      if (!membersLoaded) return "";
+      return toggleButtonTemplate({
+        profile,
+        isMember: memberDidToUri.has(profile.did),
+        isPending: pendingDids.has(profile.did),
+        onToggle: (p) => this._onToggle(p),
+      });
+    };
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-fullscreen new-chat-dialog"
-          data-testid="new-chat-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen manage-list-members-dialog"
+          data-testid="manage-list-members-dialog"
           autofocus
           @click=${(event) => {
             if (event.target.tagName === "DIALOG") {
@@ -184,11 +196,11 @@ class NewChatDialog extends Component {
         >
           <div class="new-chat-dialog-content">
             <div class="new-chat-dialog-header">
-              <h2 class="new-chat-dialog-title">Start a new chat</h2>
+              <h2 class="new-chat-dialog-title">Add people to list</h2>
               <button
                 class="new-chat-dialog-close"
                 aria-label="Close"
-                data-testid="new-chat-dialog-close"
+                data-testid="manage-list-members-close"
                 @click=${() => this.close()}
               >
                 ${closeIconTemplate()}
@@ -199,8 +211,8 @@ class NewChatDialog extends Component {
               <input
                 type="search"
                 class="new-chat-search-input"
-                data-testid="new-chat-search-input"
-                placeholder="Search for people"
+                data-testid="manage-list-members-search-input"
+                placeholder="Search"
                 maxlength="50"
                 autocomplete="off"
                 autocorrect="off"
@@ -213,7 +225,7 @@ class NewChatDialog extends Component {
                 ? html`
                     <button
                       class="search-clear-button"
-                      data-testid="new-chat-search-clear"
+                      data-testid="manage-list-members-search-clear"
                       aria-label="Clear search"
                       @click=${() => this._onClearSearch()}
                     >
@@ -227,45 +239,40 @@ class NewChatDialog extends Component {
                 if (query) {
                   if (searchStatus?.error) {
                     return html`<div
-                      class="new-chat-message-row"
-                      data-testid="new-chat-error"
+                      class="manage-list-members-message"
+                      data-testid="manage-list-members-error"
                     >
                       We're having network issues, try again
                     </div>`;
                   }
                   return profileListTemplate({
-                    profiles: results
-                      ? partitionRows(results, currentUserDid)
-                      : null,
-                    onSelect: (profile) => this._onSelect(profile),
+                    profiles: searchResults,
                     emptyMessage: "No results",
+                    rightItemTemplate,
                   });
                 }
                 let suggestedProfiles = null;
                 if (profileFollowsStatus?.error) {
                   suggestedProfiles = [];
                 } else if (profileFollows) {
-                  suggestedProfiles = partitionRows(
-                    profileFollows.filter((profile) => canBeMessaged(profile)),
-                    currentUserDid,
-                  );
+                  suggestedProfiles = profileFollows;
                 }
                 if (!suggestedProfiles?.length) {
                   return profileListTemplate({
                     profiles: suggestedProfiles,
-                    emptyMessage: "Search for someone to message",
+                    emptyMessage: "Search for someone to add",
                   });
                 }
                 return html`
                   <div
-                    class="new-chat-section-header"
-                    data-testid="new-chat-suggested-header"
+                    class="manage-list-members-section-header"
+                    data-testid="manage-list-members-suggested-header"
                   >
                     Suggested
                   </div>
                   ${profileListTemplate({
                     profiles: suggestedProfiles,
-                    onSelect: (profile) => this._onSelect(profile),
+                    rightItemTemplate,
                   })}
                 `;
               })()}
@@ -279,7 +286,7 @@ class NewChatDialog extends Component {
 
   open() {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
-    const dialog = this.querySelector(".new-chat-dialog");
+    const dialog = this.querySelector(".manage-list-members-dialog");
     if (dialog?.open) return;
     dialog.showModal();
     this.querySelector(".new-chat-search-input")?.focus({
@@ -294,8 +301,10 @@ class NewChatDialog extends Component {
   }
 
   close() {
-    return closeWithAnimation(this.querySelector(".new-chat-dialog"));
+    return closeWithAnimation(
+      this.querySelector(".manage-list-members-dialog"),
+    );
   }
 }
 
-NewChatDialog.register();
+ManageListMembersDialog.register();

@@ -202,10 +202,12 @@ describe("new-chat-dialog", () => {
       $profileFollows.set("did:plc:me", { follows: [] });
       const element = createDialog(dataLayer);
       assert(
-        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("Search for someone to message"),
+        ),
       );
       assert.deepEqual(
-        element.querySelector('[data-testid="new-chat-result"]'),
+        element.querySelector('[data-testid="profile-list-item-button"]'),
         null,
       );
     });
@@ -232,10 +234,7 @@ describe("new-chat-dialog", () => {
     it("should show skeletons while follows load", () => {
       const { dataLayer } = createFakeDataLayer();
       const element = createDialog(dataLayer);
-      assert(
-        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length >
-          0,
-      );
+      assert(element.querySelectorAll(".profile-skeleton").length > 0);
     });
 
     it("should show only messageable follows under a header", async () => {
@@ -259,9 +258,11 @@ describe("new-chat-dialog", () => {
         element.querySelector('[data-testid="new-chat-suggested-header"]') !==
           null,
       );
-      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
       assert.deepEqual(rows.length, 1);
-      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      assert.deepEqual(rows[0].dataset.teststate, "enabled");
       assert(rows[0].textContent.includes("@alice.test"));
     });
 
@@ -278,10 +279,12 @@ describe("new-chat-dialog", () => {
       });
       const element = createDialog(dataLayer);
       assert(
-        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("Search for someone to message"),
+        ),
       );
       assert.deepEqual(
-        element.querySelector('[data-testid="new-chat-result"]'),
+        element.querySelector('[data-testid="profile-list-item-button"]'),
         null,
       );
     });
@@ -294,7 +297,9 @@ describe("new-chat-dialog", () => {
       await flushMicrotasks();
       await nextFrame();
       assert(
-        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("Search for someone to message"),
+        ),
       );
     });
 
@@ -306,12 +311,11 @@ describe("new-chat-dialog", () => {
       await flushMicrotasks();
       await nextFrame();
       assert(
-        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("Search for someone to message"),
+        ),
       );
-      assert.deepEqual(
-        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length,
-        0,
-      );
+      assert.deepEqual(element.querySelectorAll(".profile-skeleton").length, 0);
     });
 
     it("should hide the suggestions once a query is typed", async () => {
@@ -338,7 +342,9 @@ describe("new-chat-dialog", () => {
         element.querySelector('[data-testid="new-chat-suggested-header"]'),
         null,
       );
-      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
       assert.deepEqual(rows.length, 1);
       assert(rows[0].textContent.includes("@dan.test"));
     });
@@ -380,7 +386,9 @@ describe("new-chat-dialog", () => {
       assert.deepEqual(input.value, "");
       assert.deepEqual(searchCalls[searchCalls.length - 1].query, "");
       assert(
-        element.querySelector('[data-testid="new-chat-empty-prompt"]') !== null,
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("Search for someone to message"),
+        ),
       );
       assert.deepEqual(
         element.querySelector('[data-testid="new-chat-search-clear"]'),
@@ -412,10 +420,7 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       $loading.set("loadChatRecipientSearch", true);
       await typeQuery(element, "alice");
-      assert(
-        element.querySelectorAll('[data-testid="new-chat-skeleton"]').length >
-          0,
-      );
+      assert(element.querySelectorAll(".profile-skeleton").length > 0);
     });
 
     it("should show the empty state when a settled search has no results", async () => {
@@ -423,7 +428,11 @@ describe("new-chat-dialog", () => {
       const element = createDialog(dataLayer);
       $results.set([]);
       await typeQuery(element, "alice");
-      assert(element.querySelector('[data-testid="empty-state"]') !== null);
+      assert(
+        [...element.querySelectorAll('[data-testid="feed-end-message"]')].some(
+          (el) => el.textContent.includes("No results"),
+        ),
+      );
     });
 
     it("should show an error row when the search fails with an ApiError", async () => {
@@ -495,7 +504,9 @@ describe("new-chat-dialog", () => {
         createProfile({ did: "did:plc:me", handle: "me.test" }),
       ]);
       await typeQuery(element, "test");
-      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
       assert.deepEqual(rows.length, 1);
       assert(rows[0].textContent.includes("@alice.test"));
     });
@@ -516,13 +527,16 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       await typeQuery(element, "test");
-      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
       assert.deepEqual(rows.length, 2);
-      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      assert.deepEqual(rows[0].dataset.teststate, "enabled");
       assert.deepEqual(rows[0].disabled, false);
-      assert.deepEqual(rows[1].dataset.teststate, "not-messageable");
+      assert.deepEqual(rows[1].dataset.teststate, "disabled");
       assert.deepEqual(rows[1].disabled, true);
-      assert(rows[1].textContent.includes("@carol.test can't be messaged"));
+      assert(rows[1].textContent.includes("@carol.test"));
+      assert(rows[1].textContent.includes("Can't be messaged"));
     });
 
     it("should treat a missing allowIncoming declaration as following-only", async () => {
@@ -537,10 +551,12 @@ describe("new-chat-dialog", () => {
         createProfile({ did: "did:plc:stranger", handle: "stranger.test" }),
       ]);
       await typeQuery(element, "test");
-      const rows = element.querySelectorAll('[data-testid="new-chat-result"]');
-      assert.deepEqual(rows[0].dataset.teststate, "messageable");
+      const rows = element.querySelectorAll(
+        '[data-testid="profile-list-item-button"]',
+      );
+      assert.deepEqual(rows[0].dataset.teststate, "enabled");
       assert(rows[0].textContent.includes("@follower.test"));
-      assert.deepEqual(rows[1].dataset.teststate, "not-messageable");
+      assert.deepEqual(rows[1].dataset.teststate, "disabled");
     });
   });
 
@@ -561,7 +577,7 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       await typeQuery(element, "alice");
-      element.querySelector('[data-testid="new-chat-result"]').click();
+      element.querySelector('[data-testid="profile-list-item-button"]').click();
       await flushMicrotasks();
       assert(closed, "the dialog closes when a user is selected");
       assert.deepEqual(ensureCalls, ["did:plc:alice"]);
@@ -587,7 +603,7 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       await typeQuery(element, "alice");
-      element.querySelector('[data-testid="new-chat-result"]').click();
+      element.querySelector('[data-testid="profile-list-item-button"]').click();
       await flushMicrotasks();
       const toast = document.body.querySelector('[data-testid="toast"]');
       assert(toast !== null, "toast should be shown");
@@ -614,7 +630,7 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       await typeQuery(element, "alice");
-      element.querySelector('[data-testid="new-chat-result"]').click();
+      element.querySelector('[data-testid="profile-list-item-button"]').click();
       await flushMicrotasks();
       const toast = document.body.querySelector('[data-testid="toast"]');
       assert(toast !== null, "toast should be shown");
@@ -636,7 +652,7 @@ describe("new-chat-dialog", () => {
         }),
       ]);
       await typeQuery(element, "alice");
-      element.querySelector('[data-testid="new-chat-result"]').click();
+      element.querySelector('[data-testid="profile-list-item-button"]').click();
       await flushMicrotasks();
       const toast = document.body.querySelector('[data-testid="toast"]');
       assert(toast !== null, "toast should be shown");
