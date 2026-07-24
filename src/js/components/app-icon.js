@@ -7,9 +7,18 @@ const ICONS = {
     "check",
     "circle-check",
     "crop-indicator",
+    "emoji-sad-line",
+    "emoji-smile-line",
     "hamburger-menu",
+    "quote-line",
     "reply",
     "repost",
+    "speaker-slash-line",
+    "speaker-volume-line",
+    "user-check-line",
+    "user-minus-line",
+    "user-plus-line",
+    "user-x-line",
     "verified-check",
     "verifier-check",
   ]),
@@ -784,11 +793,11 @@ for (const [iconset, icons] of Object.entries(ICONS)) {
   }
 }
 
-class PluginIcon extends Component {
+class AppIcon extends Component {
   static observedAttributes = ["icon"];
   static cache = new Map();
 
-  cache = PluginIcon.cache;
+  cache = AppIcon.cache;
 
   attributeChangedCallback() {
     this.render();
@@ -842,4 +851,4 @@ class PluginIcon extends Component {
   }
 }
 
-PluginIcon.register();
+AppIcon.register();

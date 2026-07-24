@@ -1273,14 +1273,14 @@ tab-bar:not([full-width]) {
   stroke: var(--text-color);
 }
 
-plugin-icon {
+app-icon {
   display: inline-flex;
   width: 1em;
   height: 1em;
   color: inherit;
 }
 
-plugin-icon svg {
+app-icon svg {
   width: 100%;
   height: 100%;
 }
@@ -1302,7 +1302,7 @@ plugin-blob-image .blob-image-fallback {
   color: var(--text-color-muted);
 }
 
-.sidebar-nav-icon plugin-icon {
+.sidebar-nav-icon app-icon {
   width: 25px;
   height: 25px;
   color: var(--text-color);
@@ -6681,6 +6681,27 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   flex: 1;
   padding: 14px;
   border-radius: var(--context-menu-button-radius);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.context-menu-item button > .icon,
+.context-menu-item button > .context-menu-item-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: var(--text-color-muted);
+}
+
+.context-menu-item button > .context-menu-item-icon {
+  margin-left: auto;
+}
+
+.context-menu-item button > .context-menu-item-icon svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .context-menu-item-group .context-menu-item button {
@@ -6719,10 +6740,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 
   .context-menu-item button {
     background-color: transparent;
-    padding: 14px 16px;
+    padding: 10px 12px;
     border: none;
     border-bottom: var(--hair) solid var(--post-border-color);
     border-radius: 0;
+    font-size: 14px;
   }
 }
 

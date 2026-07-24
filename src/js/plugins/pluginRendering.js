@@ -6,7 +6,7 @@ import {
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
-import "/js/components/plugin-icon.js";
+import "/js/components/app-icon.js";
 import "/js/components/plugin-blob-image.js";
 
 function isExternalHref(href) {
@@ -444,7 +444,8 @@ export class PluginRenderer {
     }
     const ns = resolveChildNamespace(parentNs, node);
     if (ns === SVG_NS) return this._createSvg(node);
-    const tag = resolveTag(node, this.pluginId);
+    let tag = resolveTag(node, this.pluginId);
+    if (tag === "plugin-icon") tag = "app-icon";
     const element = document.createElement(tag);
     if (tag === "a") {
       element.setAttribute("target", "_blank");

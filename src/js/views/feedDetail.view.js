@@ -73,6 +73,7 @@ class FeedDetailView extends View {
                 <context-menu>
                   <context-menu-item
                     data-testid="menu-action-feed-open-in-bsky"
+                    icon="open-line"
                     @click=${() => {
                       window.open(feedLink, "_blank");
                     }}
@@ -81,6 +82,7 @@ class FeedDetailView extends View {
                   </context-menu-item>
                   <context-menu-item
                     data-testid="menu-action-feed-copy-link"
+                    icon="link-line"
                     @click=${() => {
                       navigator.clipboard.writeText(feedLink);
                       showToast("Link copied to clipboard", {

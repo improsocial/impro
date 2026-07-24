@@ -216,6 +216,7 @@ class EditListDetailsDialog extends Component {
                   <context-menu-item-group>
                     <context-menu-item
                       data-testid="menu-action-list-avatar-upload"
+                      icon="image-line"
                       @click=${() => this._pickImage()}
                     >
                       Upload from Files
@@ -225,6 +226,7 @@ class EditListDetailsDialog extends Component {
                     ? html`<context-menu-item-group>
                         <context-menu-item
                           data-testid="menu-action-list-avatar-remove"
+                          icon="delete-bin-line"
                           @click=${() => {
                             this._newAvatarDataUrl = null;
                             this._removeAvatar = true;

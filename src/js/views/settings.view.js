@@ -150,6 +150,7 @@ class SettingsView extends View {
                             <context-menu>
                               <context-menu-item
                                 data-testid="settings-account-remove"
+                                icon="delete-bin-line"
                                 @click=${() => onRemove(account)}
                               >
                                 Remove account

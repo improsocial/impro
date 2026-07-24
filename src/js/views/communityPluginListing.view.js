@@ -154,6 +154,7 @@ class CommunityPluginListingView extends View {
                   <context-menu>
                     <context-menu-item
                       data-testid="menu-action-plugin-copy-link"
+                      icon="link-line"
                       @click=${() => {
                         navigator.clipboard.writeText(pluginPermalink);
                         showToast("Link copied to clipboard", {

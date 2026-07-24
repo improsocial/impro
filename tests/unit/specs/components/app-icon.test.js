@@ -1,9 +1,9 @@
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { MockFetch } from "../../testHelpers.js";
-import "/js/components/plugin-icon.js";
+import "/js/components/app-icon.js";
 
-describe("plugin-icon", () => {
+describe("app-icon", () => {
   const SAMPLE_SVG =
     '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/></svg>';
 
@@ -31,16 +31,16 @@ describe("plugin-icon", () => {
 
   beforeEach(() => {
     document.body.innerHTML = "";
-    customElements.get("plugin-icon").cache = new Map();
+    customElements.get("app-icon").cache = new Map();
   });
 
-  describe("PluginIcon - iconset resolution", () => {
+  describe("AppIcon - iconset resolution", () => {
     it("resolves an icon from the majesticons set", async () => {
       const fetch = new MockFetch();
       fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
       globalThis.fetch = fetch;
 
-      const element = document.createElement("plugin-icon");
+      const element = document.createElement("app-icon");
       element.setAttribute("icon", "bell");
       document.body.appendChild(element);
       await flush();
@@ -53,7 +53,7 @@ describe("plugin-icon", () => {
       fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
       globalThis.fetch = fetch;
 
-      const element = document.createElement("plugin-icon");
+      const element = document.createElement("app-icon");
       element.setAttribute("icon", "verified-check");
       document.body.appendChild(element);
       await flush();
@@ -73,7 +73,7 @@ describe("plugin-icon", () => {
       console.warn = warnMock;
 
       try {
-        const element = document.createElement("plugin-icon");
+        const element = document.createElement("app-icon");
         element.setAttribute("icon", "not-a-real-icon");
         document.body.appendChild(element);
         await flush();
@@ -87,13 +87,13 @@ describe("plugin-icon", () => {
     });
   });
 
-  describe("PluginIcon - rendering", () => {
+  describe("AppIcon - rendering", () => {
     it("injects the fetched SVG markup", async () => {
       const fetch = new MockFetch();
       fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
       globalThis.fetch = fetch;
 
-      const element = document.createElement("plugin-icon");
+      const element = document.createElement("app-icon");
       element.setAttribute("icon", "cake");
       document.body.appendChild(element);
       await flush();
@@ -107,7 +107,7 @@ describe("plugin-icon", () => {
       const fetch = new MockFetch();
       globalThis.fetch = fetch;
 
-      const element = document.createElement("plugin-icon");
+      const element = document.createElement("app-icon");
       document.body.appendChild(element);
       await flush();
 
@@ -125,7 +125,7 @@ describe("plugin-icon", () => {
       );
       globalThis.fetch = fetch;
 
-      const element = document.createElement("plugin-icon");
+      const element = document.createElement("app-icon");
       element.setAttribute("icon", "bus");
       document.body.appendChild(element);
       await flush();
@@ -137,17 +137,17 @@ describe("plugin-icon", () => {
     });
   });
 
-  describe("PluginIcon - caching", () => {
+  describe("AppIcon - caching", () => {
     it("only fetches once when the same icon is rendered twice", async () => {
       const fetch = new MockFetch();
       fetch.__intercept("/img/icons/", async () => okResponse(SAMPLE_SVG));
       globalThis.fetch = fetch;
 
-      const first = document.createElement("plugin-icon");
+      const first = document.createElement("app-icon");
       first.setAttribute("icon", "chat");
       document.body.appendChild(first);
 
-      const second = document.createElement("plugin-icon");
+      const second = document.createElement("app-icon");
       second.setAttribute("icon", "chat");
       document.body.appendChild(second);
 
@@ -159,7 +159,7 @@ describe("plugin-icon", () => {
     });
   });
 
-  describe("PluginIcon - error handling", () => {
+  describe("AppIcon - error handling", () => {
     it("warns and renders nothing when the fetch 404s; does not retry", async () => {
       const fetch = new MockFetch();
       fetch.__intercept("/img/icons/", async () => notFoundResponse());
@@ -170,7 +170,7 @@ describe("plugin-icon", () => {
       console.warn = warnMock;
 
       try {
-        const element = document.createElement("plugin-icon");
+        const element = document.createElement("app-icon");
         element.setAttribute("icon", "moon");
         document.body.appendChild(element);
         await flush();
@@ -178,7 +178,7 @@ describe("plugin-icon", () => {
         assert.deepEqual(element.innerHTML, "");
         assert.deepEqual(warnMock.mock.callCount(), 1);
 
-        const retry = document.createElement("plugin-icon");
+        const retry = document.createElement("app-icon");
         retry.setAttribute("icon", "moon");
         document.body.appendChild(retry);
         await flush();

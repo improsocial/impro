@@ -465,7 +465,7 @@ describe("sidebarTemplate - plugin sidebar items", () => {
     assert(invoked);
   });
 
-  it("should render a <plugin-icon> with the entry's icon for each plugin item", () => {
+  it("should render an <app-icon> with the entry's icon for each plugin item", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,
       currentUser: mockUser,
@@ -477,7 +477,7 @@ describe("sidebarTemplate - plugin sidebar items", () => {
     const container = document.createElement("div");
     render(result, container);
     const icons = container.querySelectorAll(
-      ".sidebar-plugin-nav-item plugin-icon",
+      ".sidebar-plugin-nav-item app-icon",
     );
     assert.deepEqual(icons.length, 2);
     assert.deepEqual(icons[0].getAttribute("icon"), "lightning-bolt");

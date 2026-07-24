@@ -88,12 +88,14 @@ class ListDetailView extends View {
         <context-menu>
           <context-menu-item
             data-testid="menu-action-list-mute"
+            icon="speaker-slash-line"
             @click=${() => listInteractionHandler.handleMuteList(list)}
           >
             Mute accounts
           </context-menu-item>
           <context-menu-item
             data-testid="menu-action-list-block"
+            icon="user-x-line"
             @click=${() => listInteractionHandler.handleBlockList(list)}
           >
             Block accounts
@@ -158,6 +160,7 @@ class ListDetailView extends View {
                   <context-menu>
                     <context-menu-item
                       data-testid="menu-action-list-open-in-bsky"
+                      icon="open-line"
                       @click=${() => {
                         window.open(listPermalink, "_blank");
                       }}
@@ -166,6 +169,7 @@ class ListDetailView extends View {
                     </context-menu-item>
                     <context-menu-item
                       data-testid="menu-action-list-copy-link"
+                      icon="link-line"
                       @click=${() => {
                         navigator.clipboard.writeText(listPermalink);
                         showToast("Link copied to clipboard", {
@@ -178,18 +182,21 @@ class ListDetailView extends View {
                     ${isCurrentUserList
                       ? html`<context-menu-item
                             data-testid="menu-action-list-add-people"
+                            icon="user-plus-line"
                             @click=${() => handleAddPeople(list)}
                           >
                             Add people to list
                           </context-menu-item>
                           <context-menu-item
                             data-testid="menu-action-list-edit"
+                            icon="edit-pen-2-line"
                             @click=${() => handleEditList(list)}
                           >
                             Edit list details
                           </context-menu-item>
                           <context-menu-item
                             data-testid="menu-action-list-delete"
+                            icon="delete-bin-line"
                             @click=${() => handleDeleteList(list)}
                           >
                             Delete list

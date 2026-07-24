@@ -369,14 +369,14 @@ describe("PluginRenderer:root reconciliation", () => {
 });
 
 describe("PluginRenderer:plugin-icon", () => {
-  it("renders <plugin-icon> with the icon attribute passed through", () => {
+  it("renders <plugin-icon> as <app-icon> with the icon attribute passed through", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer.createRoot().render({
       tag: "plugin-icon",
       attrs: { icon: "bell" },
     });
-    assert.deepEqual(element.tagName.toLowerCase(), "plugin-icon");
+    assert.deepEqual(element.tagName.toLowerCase(), "app-icon");
     assert.deepEqual(element.getAttribute("icon"), "bell");
   });
 
