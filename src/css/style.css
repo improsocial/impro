@@ -6677,6 +6677,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   border-radius: var(--context-menu-button-radius);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 16px;
 }
 
@@ -6689,7 +6690,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .context-menu-item button > .context-menu-item-icon {
-  margin-left: auto;
+  margin-left: 10px;
 }
 
 .context-menu-item button > .context-menu-item-icon svg {
@@ -6699,7 +6700,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
 }
 
 .context-menu-item-group .context-menu-item button {
-  border-radius: 0;
   border: none;
 }
 
@@ -6718,7 +6718,7 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
     background-color: var(--context-menu-background-color);
     border-radius: var(--context-menu-border-radius);
     animation: none;
-    padding: 0;
+    padding: 4px;
     touch-action: auto;
   }
 
@@ -6737,7 +6737,6 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
     padding: 10px 12px;
     border: none;
     border-bottom: var(--hair) solid var(--post-border-color);
-    border-radius: 0;
     font-size: 14px;
   }
 }
@@ -6770,6 +6769,11 @@ context-menu-item-group:not(:last-child) .context-menu-item-group {
   context-menu-item-group:not(:last-child) .context-menu-item-group {
     border-bottom: var(--hair) solid var(--post-border-color);
     margin-bottom: 0;
+    padding-bottom: 4px;
+  }
+
+  context-menu-item-group:not(:first-child) .context-menu-item-group {
+    padding-top: 4px;
   }
 }
 
