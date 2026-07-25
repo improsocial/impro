@@ -201,6 +201,7 @@ export function enableDragToDismiss(
   const { axis, sign } = DIRECTION_TO_AXIS_SIGN[direction];
   const transformFn = axis === "y" ? "translateY" : "translateX";
   const sizeProp = axis === "y" ? "height" : "width";
+  const maxSizeProp = axis === "y" ? "maxHeight" : "maxWidth";
   let initialSize = 0;
   let caretRestoreTimer = null;
 
@@ -218,7 +219,10 @@ export function enableDragToDismiss(
 
   const clearInlineStyles = () => {
     target.style.transform = "";
-    if (allowOppositeStretch) target.style[sizeProp] = "";
+    if (allowOppositeStretch) {
+      target.style[sizeProp] = "";
+      target.style[maxSizeProp] = "";
+    }
   };
 
   const handle = trackDrag(target, {
@@ -231,6 +235,12 @@ export function enableDragToDismiss(
       clearTimeout(caretRestoreTimer);
       target.style.transition = "none";
       initialSize = target.getBoundingClientRect()[sizeProp];
+      if (allowOppositeStretch) {
+        // Pin the size inline before lifting the max, so the element doesn't
+        // snap to its natural size for a frame when the CSS cap was clamping it.
+        target.style[sizeProp] = `${initialSize}px`;
+        target.style[maxSizeProp] = "none";
+      }
       if (hideCaretDuringDrag) target.style.caretColor = "transparent";
       onDragStart();
     },
@@ -289,6 +299,7 @@ export function enableDragToDismiss(
     target.style.transform = "";
     target.style.transition = "";
     target.style[sizeProp] = "";
+    target.style[maxSizeProp] = "";
     target.style.caretColor = "";
   };
 
