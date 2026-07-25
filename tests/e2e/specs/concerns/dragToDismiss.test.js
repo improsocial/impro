@@ -673,7 +673,7 @@ test.describe("Drag-to-dismiss", () => {
       await drag(page, {
         eventSourceSelector: '[data-testid="toast"]',
         startY: 150,
-        endY: 120,
+        endY: 135,
       });
       await expect(toast).toBeVisible();
     });
