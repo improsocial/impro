@@ -31,16 +31,26 @@ class ContextMenuItem extends Component {
     this.render();
   }
 
+  set iconElement(el) {
+    this._iconElement = el;
+    if (el && !el.classList.contains("context-menu-item-icon")) {
+      el.classList.add("context-menu-item-icon");
+    }
+    if (this._initialized) this.render();
+  }
+
   render() {
     render(
       html`<button ?disabled=${this.disabled}>
         ${this._children}
-        ${this.icon
-          ? html`<app-icon
-              class="context-menu-item-icon"
-              icon=${this.icon}
-            ></app-icon>`
-          : null}
+        ${this._iconElement
+          ? this._iconElement
+          : this.icon
+            ? html`<app-icon
+                class="context-menu-item-icon"
+                icon=${this.icon}
+              ></app-icon>`
+            : null}
       </button>`,
       this,
     );

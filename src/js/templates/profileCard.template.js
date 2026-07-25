@@ -214,7 +214,10 @@ function profileContextMenuTemplate({
         <context-menu-item-group>
           ${group.map(
             (item) => html`
-              <context-menu-item @click=${() => item.invoke()}>
+              <context-menu-item
+                .iconElement=${item.iconElement}
+                @click=${() => item.invoke()}
+              >
                 ${item.title}
               </context-menu-item>
             `,

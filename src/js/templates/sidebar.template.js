@@ -37,9 +37,7 @@ function pluginSidebarItemTemplate({ entry }) {
         entry.invoke();
       }}
     >
-      <span class="sidebar-nav-icon">
-        <app-icon icon=${entry.icon}></app-icon>
-      </span>
+      <span class="sidebar-nav-icon">${entry.iconElement}</span>
       <span class="sidebar-nav-label">${entry.title}</span>
     </button>
   `;

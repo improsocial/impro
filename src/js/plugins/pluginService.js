@@ -210,6 +210,43 @@ export class PluginService extends ReactiveStore {
     return new PluginRenderer(this.pluginBridge, pluginId, this._renderContext);
   }
 
+  _defineIconElement(entry) {
+    let cached;
+    let built = false;
+    Object.defineProperty(entry, "iconElement", {
+      enumerable: true,
+      get: () => {
+        if (!built) {
+          cached = this._createIconElement(entry.pluginId, entry.icon);
+          built = true;
+        }
+        return cached;
+      },
+    });
+  }
+
+  // icon can be string | VirtualEl
+  // if string, render an app-icon, if VirtualEl, render to DOM node
+  _createIconElement(pluginId, icon) {
+    if (icon == null) return null;
+    if (typeof icon === "string") {
+      const el = document.createElement("app-icon");
+      el.setAttribute("icon", icon);
+      return el;
+    }
+    if (typeof icon === "object") {
+      try {
+        const el = this.getRenderer(pluginId).createRoot().render(icon);
+        el.classList.add("plugin-icon");
+        return el;
+      } catch (error) {
+        console.warn(`Plugin ${pluginId} icon render failed:`, error);
+        return null;
+      }
+    }
+    return null;
+  }
+
   _setupRegistries() {
     this.pluginBridge.addRegistrationTarget(
       "sidebarItem",
@@ -220,6 +257,7 @@ export class PluginService extends ReactiveStore {
           title: message.title,
           invoke: () => plugin.call(message.handlerId),
         };
+        this._defineIconElement(entry);
         this.registries.sidebarItems.add(entry);
         return () => this.registries.sidebarItems.delete(entry);
       },
@@ -1012,15 +1050,19 @@ export class PluginService extends ReactiveStore {
         try {
           const items =
             meta != null ? await handler(target, meta) : await handler(target);
-          return (items ?? []).map((item) => ({
-            pluginId,
-            icon: item.icon,
-            title: item.title,
-            invoke: () =>
-              this.pluginBridge
-                .getInstance(pluginId)
-                .call(item.handlerId, target),
-          }));
+          return (items ?? []).map((item) => {
+            const entry = {
+              pluginId,
+              icon: item.icon,
+              title: item.title,
+              invoke: () =>
+                this.pluginBridge
+                  .getInstance(pluginId)
+                  .call(item.handlerId, target),
+            };
+            this._defineIconElement(entry);
+            return entry;
+          });
         } catch (error) {
           console.error(`Plugin ${pluginId} ${event} handler failed:`, error);
           return [];
