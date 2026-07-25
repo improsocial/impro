@@ -40,9 +40,9 @@ test.describe("New chat from chat list flow", () => {
 
     await dialog.locator('[data-testid="new-chat-search-input"]').fill("ali");
 
-    const result = dialog.locator('[data-testid="new-chat-result"]');
+    const result = dialog.locator('[data-testid="profile-list-item-button"]');
     await expect(result).toHaveCount(1, { timeout: 10000 });
-    await expect(result).toHaveAttribute("data-teststate", "messageable");
+    await expect(result).toHaveAttribute("data-teststate", "enabled");
     await expect(result).toContainText("Alice");
     await result.click();
 
@@ -78,7 +78,7 @@ test.describe("New chat from chat list flow", () => {
     const dialog = page.locator('[data-testid="new-chat-dialog"]');
     await expect(dialog).toBeVisible({ timeout: 10000 });
     await dialog.locator('[data-testid="new-chat-search-input"]').fill("ali");
-    const result = dialog.locator('[data-testid="new-chat-result"]');
+    const result = dialog.locator('[data-testid="profile-list-item-button"]');
     await expect(result).toHaveCount(1, { timeout: 10000 });
     await result.click();
 
@@ -112,7 +112,7 @@ test.describe("New chat from chat list flow", () => {
     await expect(
       dialog.locator('[data-testid="new-chat-suggested-header"]'),
     ).toBeVisible({ timeout: 10000 });
-    const result = dialog.locator('[data-testid="new-chat-result"]');
+    const result = dialog.locator('[data-testid="profile-list-item-button"]');
     await expect(result).toHaveCount(1, { timeout: 10000 });
     await expect(result).toContainText("Alice");
     await result.click();
@@ -141,21 +141,15 @@ test.describe("New chat from chat list flow", () => {
 
     await dialog.locator('[data-testid="new-chat-search-input"]').fill("b");
 
-    const results = dialog.locator('[data-testid="new-chat-result"]');
+    const results = dialog.locator('[data-testid="profile-list-item-button"]');
     await expect(results).toHaveCount(2, { timeout: 10000 });
     // Messageable profiles sort first
-    await expect(results.nth(0)).toHaveAttribute(
-      "data-teststate",
-      "messageable",
-    );
-    await expect(results.nth(1)).toHaveAttribute(
-      "data-teststate",
-      "not-messageable",
-    );
+    await expect(results.nth(0)).toHaveAttribute("data-teststate", "enabled");
+    await expect(results.nth(1)).toHaveAttribute("data-teststate", "disabled");
     await expect(results.nth(1)).toBeDisabled();
-    await expect(results.nth(1)).toContainText(
-      "@bob.bsky.social can't be messaged",
-    );
+    await expect(
+      results.nth(1).locator('[data-testid="not-messageable-hint"]'),
+    ).toContainText("Can't be messaged");
   });
 
   test("should show an error toast and stay on the chat list when the server rejects the chat", async ({
@@ -173,7 +167,7 @@ test.describe("New chat from chat list flow", () => {
 
     await dialog.locator('[data-testid="new-chat-search-input"]').fill("ali");
 
-    const result = dialog.locator('[data-testid="new-chat-result"]');
+    const result = dialog.locator('[data-testid="profile-list-item-button"]');
     await expect(result).toHaveCount(1, { timeout: 10000 });
     await result.click();
 

@@ -6639,6 +6639,11 @@ context-menu-item:last-child .context-menu-item {
   }
 }
 
+context-menu-item,
+context-menu-item-group {
+  display: block;
+}
+
 .context-menu-item {
   margin-bottom: 12px;
   white-space: nowrap;
