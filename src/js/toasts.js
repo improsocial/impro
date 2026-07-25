@@ -84,6 +84,8 @@ function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
     enableDragToDismiss(toast, {
       direction: "up",
       allowOppositeTranslate: true,
+      dismissThresholdPx: 25,
+      flickVelocity: 0.2,
       onDismiss: dismiss,
       onDragStart: pauseAutoDismiss,
       onDragEnd: ({ dismissed }) => {
