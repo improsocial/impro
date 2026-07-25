@@ -1035,7 +1035,8 @@ tab-bar:not([full-width]) {
 }
 
 .sidebar {
-  display: block;
+  display: flex;
+  justify-content: flex-end;
   position: fixed;
   top: 0;
   left: 0;
@@ -1053,6 +1054,14 @@ tab-bar:not([full-width]) {
   transform: translateX(-100%);
   transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
   overflow-y: auto;
+}
+
+@media (max-width: 799px) {
+  .sidebar > .sidebar-content {
+    width: var(--sidebar-max-width);
+    max-width: 100%;
+    flex: 0 0 auto;
+  }
 }
 
 @media (min-width: 800px) {
