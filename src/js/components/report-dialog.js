@@ -1,11 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { kebabCase } from "/js/utils.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { checkIconTemplate } from "/js/templates/icons/checkIcon.template.js";
@@ -819,7 +816,7 @@ class ReportDialog extends Component {
     if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".report-dialog-body"),
       ignoreTouchTarget: (el) =>
         !!el.closest("button") || el.tagName === "TEXTAREA",

@@ -1,11 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
@@ -492,7 +489,7 @@ class EditProfileDialog extends Component {
       dialog.showModal();
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
-        onClose: () => this.close(),
+        onDismiss: () => this.close(),
         scrollContainer: this.querySelector(".form-dialog-content"),
         ignoreTouchTarget: (el) =>
           !!el.closest("button") ||

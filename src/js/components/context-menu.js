@@ -3,7 +3,8 @@ import { classnames, isMobileViewport } from "/js/utils.js";
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { hapticsImpactLight } from "/js/haptics.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 
 class ContextMenu extends Component {
   connectedCallback() {
@@ -122,8 +123,8 @@ class ContextMenu extends Component {
     // Setup mobile swipe-to-dismiss
     enableDragToDismiss(this.querySelector(".context-menu"), {
       eventSource: this.querySelector(".context-menu-container"),
-      onClose: () => this.close(),
-      allowUpwardStretch: true,
+      onDismiss: () => this.close(),
+      allowOppositeStretch: true,
       ignoreTouchTarget: (el) => el.closest("button, a") !== null,
       scrollContainer: this.querySelector(".context-menu"),
     });

@@ -46,6 +46,8 @@ export const isTouchDevice = () => navigator.maxTouchPoints > 0;
 export const canHover = () => window.matchMedia("(hover: hover)").matches;
 export const hasKeyboardInput = () =>
   window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+export const prefersReducedMotion = () =>
+  !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
 export const isSafari = () =>
   /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 export const isAndroid = () => /android/i.test(navigator.userAgent);

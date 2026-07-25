@@ -2,11 +2,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { classnames, graphemeCount } from "/js/utils.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
 class ImageAltTextDialog extends Component {
@@ -134,7 +131,7 @@ class ImageAltTextDialog extends Component {
     });
 
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       ignoreTouchTarget: (element) =>
         element.closest("button, textarea") !== null,
     });

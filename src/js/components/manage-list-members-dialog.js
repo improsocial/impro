@@ -1,11 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, SignalSet, ReactiveStore, effect } from "/js/signals.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -294,7 +291,7 @@ class ManageListMembersDialog extends Component {
       preventScroll: true,
     });
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".search-dialog-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });

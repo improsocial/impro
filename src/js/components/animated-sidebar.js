@@ -3,6 +3,7 @@ import { Component, getChildrenFragment } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { isMobileViewport } from "/js/utils.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 
 class AnimatedSidebar extends Component {
   connectedCallback() {
@@ -74,6 +75,11 @@ class AnimatedSidebar extends Component {
     this.scrollLock ??= scrollLocks.acquire({ target: this });
     const dialog = this.querySelector("dialog.sidebar");
     dialog.showModal();
+    enableDragToDismiss(dialog, {
+      direction: "left",
+      allowOppositeStretch: true,
+      onDismiss: () => this.close(),
+    });
   }
 
   close({ restoreScroll = true } = {}) {

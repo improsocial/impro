@@ -1,7 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
 import { showToast } from "/js/toasts.js";
@@ -290,9 +291,9 @@ class AccountSwitcherDialog extends Component {
     if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       confirmDismiss: () => this.state.$pendingAction.get() === null,
-      allowUpwardStretch: true,
+      allowOppositeStretch: true,
       ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }

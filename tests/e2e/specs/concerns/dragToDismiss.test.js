@@ -11,63 +11,65 @@ test.use({
 
 // Dispatches a touchstart→touchmove→touchend sequence on eventSourceSelector.
 // startTouchTarget optionally specifies a child element for touchstart (to test ignoreTouchTarget).
+// startX/endX default to the horizontal center of the event source; startY/endY to the vertical center.
 async function drag(
   page,
-  { eventSourceSelector, startTouchTargetSelector, startY, endY },
+  { eventSourceSelector, startTouchTargetSelector, startX, endX, startY, endY },
 ) {
   await page.evaluate(
-    ({ eventSourceSelector, startTouchTargetSelector, startY, endY }) => {
+    ({
+      eventSourceSelector,
+      startTouchTargetSelector,
+      startX,
+      endX,
+      startY,
+      endY,
+    }) => {
       const eventSource = document.querySelector(eventSourceSelector);
       const startTarget = startTouchTargetSelector
         ? document.querySelector(startTouchTargetSelector)
         : eventSource;
       const rect = eventSource.getBoundingClientRect();
-      const clientX = rect.left + rect.width / 2;
+      const centerX = rect.left + rect.width / 2;
+      const centerY = rect.top + rect.height / 2;
+      const sx = startX ?? centerX;
+      const ex = endX ?? sx;
+      const sy = startY ?? centerY;
+      const ey = endY ?? sy;
+
+      const touchAt = (clientX, clientY) =>
+        new Touch({ identifier: 1, target: startTarget, clientX, clientY });
 
       startTarget.dispatchEvent(
         new TouchEvent("touchstart", {
-          touches: [
-            new Touch({
-              identifier: 1,
-              target: startTarget,
-              clientX,
-              clientY: startY,
-            }),
-          ],
+          touches: [touchAt(sx, sy)],
           bubbles: true,
           cancelable: true,
         }),
       );
       eventSource.dispatchEvent(
         new TouchEvent("touchmove", {
-          touches: [
-            new Touch({
-              identifier: 1,
-              target: startTarget,
-              clientX,
-              clientY: endY,
-            }),
-          ],
+          touches: [touchAt(ex, ey)],
           bubbles: true,
           cancelable: true,
         }),
       );
       eventSource.dispatchEvent(
         new TouchEvent("touchend", {
-          changedTouches: [
-            new Touch({
-              identifier: 1,
-              target: startTarget,
-              clientX,
-              clientY: endY,
-            }),
-          ],
+          changedTouches: [touchAt(ex, ey)],
           bubbles: true,
           cancelable: true,
         }),
       );
     },
-    { eventSourceSelector, startTouchTargetSelector, startY, endY },
+    {
+      eventSourceSelector,
+      startTouchTargetSelector,
+      startX,
+      endX,
+      startY,
+      endY,
+    },
   );
 }
 
@@ -591,6 +593,101 @@ test.describe("Drag-to-dismiss", () => {
         endY: 730,
       });
       await expect(dialog).toBeVisible();
+    });
+  });
+
+  test.describe("sidebar (swipe left)", () => {
+    async function openSidebar(page) {
+      await setupFeedWithPost(page);
+      await page.locator('[data-testid="menu-button"]').click();
+      const sidebar = page.locator("animated-sidebar .sidebar");
+      await expect(sidebar).toBeVisible({ timeout: 5000 });
+      return sidebar;
+    }
+
+    test("dragging left past threshold dismisses it", async ({ page }) => {
+      const sidebar = await openSidebar(page);
+      await drag(page, {
+        eventSourceSelector: "animated-sidebar .sidebar",
+        startX: 250,
+        endX: 50,
+      });
+      await expect(sidebar).not.toHaveJSProperty("open", true, {
+        timeout: 2000,
+      });
+    });
+
+    test("dragging left below threshold snaps back", async ({ page }) => {
+      const sidebar = await openSidebar(page);
+      await drag(page, {
+        eventSourceSelector: "animated-sidebar .sidebar",
+        startX: 250,
+        endX: 220,
+      });
+      await expect(sidebar).toHaveJSProperty("open", true);
+    });
+
+    test("dragging right (opposite direction) does not dismiss", async ({
+      page,
+    }) => {
+      const sidebar = await openSidebar(page);
+      await drag(page, {
+        eventSourceSelector: "animated-sidebar .sidebar",
+        startX: 100,
+        endX: 300,
+      });
+      await expect(sidebar).toHaveJSProperty("open", true);
+    });
+  });
+
+  test.describe("toast (swipe up)", () => {
+    async function showToast(page, options = {}) {
+      await setupFeedWithPost(page);
+      await page.evaluate(
+        async ({ message, timeout }) => {
+          const { showToast } = await import("/js/toasts.js");
+          showToast(message, { timeout });
+        },
+        { message: "Test toast", timeout: options.timeout ?? 10000 },
+      );
+      const toast = page.locator('[data-testid="toast"].active');
+      await expect(toast).toBeVisible({ timeout: 2000 });
+      return toast;
+    }
+
+    test("dragging up past threshold dismisses it", async ({ page }) => {
+      await showToast(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="toast"]',
+        startY: 150,
+        endY: 20,
+      });
+      await expect(page.locator('[data-testid="toast"].active')).toHaveCount(
+        0,
+        { timeout: 2000 },
+      );
+    });
+
+    test("dragging up below threshold snaps back", async ({ page }) => {
+      const toast = await showToast(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="toast"]',
+        startY: 150,
+        endY: 120,
+      });
+      await expect(toast).toBeVisible();
+    });
+
+    test("dragging down (opposite direction) does not dismiss", async ({
+      page,
+    }) => {
+      const toast = await showToast(page);
+      await drag(page, {
+        eventSourceSelector: '[data-testid="toast"]',
+        startY: 100,
+        endY: 250,
+      });
+      await expect(toast).toBeVisible();
     });
   });
 });
