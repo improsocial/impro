@@ -9,7 +9,7 @@ import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
+import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { pageEffect } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
@@ -303,7 +303,7 @@ class ListDetailView extends View {
                               data-testid="list-empty-add-people-button"
                               @click=${() => handleAddPeople(list)}
                             >
-                              ${plusIconTemplate()} Add people to list
+                              ${userPlusIconTemplate()} Add people to list
                             </button>`
                           : ""}
                       </div>`
@@ -325,7 +325,7 @@ class ListDetailView extends View {
                               data-testid="list-empty-add-people-button"
                               @click=${() => handleAddPeople(list)}
                             >
-                              ${plusIconTemplate()} Add people to list
+                              ${userPlusIconTemplate()} Add people to list
                             </button>`
                           : ""}
                       </div>`}

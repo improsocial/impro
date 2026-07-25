@@ -5867,7 +5867,7 @@ button.profile-list-item-button.is-disabled {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin: 32px auto 0;
+  margin: 0 auto;
 }
 
 .feeds-list-item .pin-feed-button svg {
