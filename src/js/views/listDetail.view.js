@@ -11,7 +11,7 @@ import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
@@ -354,8 +354,18 @@ class ListDetailView extends View {
       const dialog = document.createElement("manage-list-members-dialog");
       dialog.dataLayer = dataLayer;
       dialog.list = list;
+      let reloadTimeout = null;
       dialog.addEventListener("dialog-closed", () => {
+        clearTimeout(reloadTimeout);
         dialog.remove();
+      });
+      dialog.addEventListener("members-changed", () => {
+        if (isModerationList(list) || userHasScrolled) return;
+        clearTimeout(reloadTimeout);
+        reloadTimeout = setTimeout(() => {
+          if (userHasScrolled) return;
+          loadFeed({ reload: true });
+        }, 1000); // 1 sec delay for appview update
       });
       root.querySelector("main").appendChild(dialog);
       dialog.open();
@@ -392,25 +402,37 @@ class ListDetailView extends View {
       await dataLayer.requests.loadListMembers(listUri, { reload });
     }
 
+    async function loadListAndFeeds({ reload = false } = {}) {
+      const list = await dataLayer.declarative.ensureList(listUri);
+      const requests = [loadMembers({ reload })];
+      if (!isModerationList(list)) {
+        requests.push(loadFeed({ reload }));
+      }
+      await Promise.all(requests);
+    }
+
+    let userHasScrolled = false;
+    const markUserScrolled = () => {
+      userHasScrolled = true;
+    };
+    bindToPage(root, window, "touchmove", markUserScrolled);
+    bindToPage(root, window, "wheel", markUserScrolled);
+    bindToPage(root, window, "keydown", markUserScrolled);
+
     root.addEventListener("page-enter", async () => {
-      await Promise.all([
-        dataLayer.declarative.ensureList(listUri),
-        loadFeed(),
-        loadMembers(),
-      ]);
+      userHasScrolled = false;
+      await loadListAndFeeds();
     });
 
     root.addEventListener("page-restore", async (e) => {
+      userHasScrolled = false;
       const scrollY = e.detail?.scrollY ?? 0;
       const isBack = e.detail?.isBack ?? false;
       if (isBack) {
         window.scrollTo(0, scrollY);
       } else {
         window.scrollTo(0, 0);
-        await Promise.all([
-          loadFeed({ reload: true }),
-          loadMembers({ reload: true }),
-        ]);
+        await loadListAndFeeds({ reload: true });
       }
     });
   }

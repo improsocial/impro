@@ -128,6 +128,7 @@ class ManageListMembersDialog extends Component {
       } else {
         await this.dataLayer.mutations.addProfileToList(profile, this.list);
       }
+      this.dispatchEvent(new CustomEvent("members-changed"));
     } catch (error) {
       console.error(error);
     } finally {
