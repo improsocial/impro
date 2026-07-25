@@ -17,6 +17,7 @@ import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/context-menu-item-group.js";
 import "/js/components/edit-list-details-dialog.js";
 import "/js/components/manage-list-members-dialog.js";
 
@@ -158,27 +159,29 @@ class ListDetailView extends View {
                     <span>...</span>
                   </button>
                   <context-menu>
-                    <context-menu-item
-                      data-testid="menu-action-list-open-in-bsky"
-                      icon="open-line"
-                      @click=${() => {
-                        window.open(listPermalink, "_blank");
-                      }}
-                    >
-                      Open in bsky.app
-                    </context-menu-item>
-                    <context-menu-item
-                      data-testid="menu-action-list-copy-link"
-                      icon="link-line"
-                      @click=${() => {
-                        navigator.clipboard.writeText(listPermalink);
-                        showToast("Link copied to clipboard", {
-                          style: "success",
-                        });
-                      }}
-                    >
-                      Copy link to list
-                    </context-menu-item>
+                    <context-menu-item-group>
+                      <context-menu-item
+                        data-testid="menu-action-list-open-in-bsky"
+                        icon="open-line"
+                        @click=${() => {
+                          window.open(listPermalink, "_blank");
+                        }}
+                      >
+                        Open in bsky.app
+                      </context-menu-item>
+                      <context-menu-item
+                        data-testid="menu-action-list-copy-link"
+                        icon="link-line"
+                        @click=${() => {
+                          navigator.clipboard.writeText(listPermalink);
+                          showToast("Link copied to clipboard", {
+                            style: "success",
+                          });
+                        }}
+                      >
+                        Copy link to list
+                      </context-menu-item>
+                    </context-menu-item-group>
                     ${isCurrentUserList
                       ? html`<context-menu-item
                             data-testid="menu-action-list-add-people"
@@ -187,20 +190,22 @@ class ListDetailView extends View {
                           >
                             Add people to list
                           </context-menu-item>
-                          <context-menu-item
-                            data-testid="menu-action-list-edit"
-                            icon="edit-pen-2-line"
-                            @click=${() => handleEditList(list)}
-                          >
-                            Edit list details
-                          </context-menu-item>
-                          <context-menu-item
-                            data-testid="menu-action-list-delete"
-                            icon="delete-bin-line"
-                            @click=${() => handleDeleteList(list)}
-                          >
-                            Delete list
-                          </context-menu-item>`
+                          <context-menu-item-group>
+                            <context-menu-item
+                              data-testid="menu-action-list-edit"
+                              icon="edit-pen-2-line"
+                              @click=${() => handleEditList(list)}
+                            >
+                              Edit list details
+                            </context-menu-item>
+                            <context-menu-item
+                              data-testid="menu-action-list-delete"
+                              icon="delete-bin-line"
+                              @click=${() => handleDeleteList(list)}
+                            >
+                              Delete list
+                            </context-menu-item>
+                          </context-menu-item-group>`
                       : ""}
                   </context-menu>
                 `
