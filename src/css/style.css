@@ -331,6 +331,10 @@ video {
   display: none;
 }
 
+context-provider {
+  display: contents;
+}
+
 @media (max-width: 799px) {
   .view-column-center main {
     padding-bottom: calc(var(--footer-height) + var(--safe-area-inset-bottom));

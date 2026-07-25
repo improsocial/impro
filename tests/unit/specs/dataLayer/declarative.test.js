@@ -10,6 +10,7 @@ function createMockDerived(data = {}) {
   return {
     $currentUser: sig(() => data.currentUser ?? null),
     $hydratedDetailedProfiles: mapSig((did) => data.profiles?.[did] ?? null),
+    $hydratedProfiles: mapSig((did) => data.basicProfiles?.[did] ?? null),
     $knownFollowers: mapSig((did) => data.knownFollowers?.[did] ?? null),
     $hydratedPostThreads: mapSig((uri) => data.postThreads?.[uri] ?? null),
     $hydratedPosts: mapSig((uri) => data.posts?.[uri] ?? null),
@@ -93,6 +94,112 @@ describe("ensureCurrentUser", () => {
 
     assert(error !== null);
     assert.deepEqual(error.message, "Current user not found");
+  });
+});
+
+describe("ensureProfile", () => {
+  it("returns cached detailed profile without loading", async () => {
+    const profileDid = "did:test:profile";
+    const profile = { did: profileDid, handle: "test.profile" };
+    let loadCalled = false;
+
+    const derived = createMockDerived({ profiles: { [profileDid]: profile } });
+    const requests = {
+      loadDetailedProfile: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureProfile(profileDid);
+
+    assert.deepEqual(result, profile);
+    assert.deepEqual(loadCalled, false);
+  });
+
+  it("returns cached basic profile without loading when no detailed profile exists", async () => {
+    const profileDid = "did:test:profile";
+    const basicProfile = { did: profileDid, handle: "test.profile" };
+    let loadCalled = false;
+
+    const derived = createMockDerived({
+      basicProfiles: { [profileDid]: basicProfile },
+    });
+    const requests = {
+      loadDetailedProfile: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureProfile(profileDid);
+
+    assert.deepEqual(result, basicProfile);
+    assert.deepEqual(loadCalled, false);
+  });
+
+  it("prefers detailed profile over basic profile when both are cached", async () => {
+    const profileDid = "did:test:profile";
+    const detailed = {
+      did: profileDid,
+      handle: "test.profile",
+      detailed: true,
+    };
+    const basic = { did: profileDid, handle: "test.profile" };
+
+    const derived = createMockDerived({
+      profiles: { [profileDid]: detailed },
+      basicProfiles: { [profileDid]: basic },
+    });
+    const requests = { loadDetailedProfile: async () => {} };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureProfile(profileDid);
+
+    assert.deepEqual(result, detailed);
+  });
+
+  it("loads detailed profile when neither cache has it", async () => {
+    const profileDid = "did:test:profile";
+    const profile = { did: profileDid, handle: "test.profile" };
+    let callCount = 0;
+    let loadCalled = false;
+
+    const derived = {
+      $hydratedDetailedProfiles: mapSig(() => {
+        callCount++;
+        return callCount > 1 ? profile : null;
+      }),
+      $hydratedProfiles: mapSig(() => null),
+    };
+    const requests = {
+      loadDetailedProfile: async () => {
+        loadCalled = true;
+      },
+    };
+
+    const declarative = new Declarative(derived, requests);
+    const result = await declarative.ensureProfile(profileDid);
+
+    assert.deepEqual(result, profile);
+    assert.deepEqual(loadCalled, true);
+  });
+
+  it("throws when profile not found after loading", async () => {
+    const derived = createMockDerived({});
+    const requests = createMockRequests({});
+
+    const declarative = new Declarative(derived, requests);
+
+    let error = null;
+    try {
+      await declarative.ensureProfile("did:nonexistent");
+    } catch (e) {
+      error = e;
+    }
+
+    assert(error !== null);
+    assert.deepEqual(error.message, "Profile not found");
   });
 });
 

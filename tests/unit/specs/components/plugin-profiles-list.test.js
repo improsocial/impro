@@ -1,7 +1,17 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { SignalMap, ComputedMap } from "/js/signals.js";
+import "/js/context-provider.js";
 import "/js/components/plugin-profiles-list.js";
+
+function mount(element, dataLayer) {
+  const provider = document.createElement("context-provider");
+  provider.setAttribute("context-id", "plugin-component-context");
+  provider.context = { dataLayer };
+  provider.appendChild(element);
+  document.body.appendChild(provider);
+  return element;
+}
 
 describe("plugin-profiles-list", () => {
   function makeDataLayer({ ensureDetailedProfiles } = {}) {
@@ -43,11 +53,11 @@ describe("plugin-profiles-list", () => {
   describe("PluginProfilesList - loading state", () => {
     it("renders one skeleton per did before profiles resolve", () => {
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = makeDataLayer({
+      const dataLayer = makeDataLayer({
         ensureDetailedProfiles: () => new Promise(() => {}),
       });
       element.setAttribute("dids", "did:test:a,did:test:b,did:test:c");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       assert.deepEqual(
         element.querySelectorAll("[data-testid='skeleton-avatar']").length,
         3,
@@ -61,9 +71,8 @@ describe("plugin-profiles-list", () => {
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
       dataLayer.__setProfile("did:test:b", makeProfile("did:test:b", "b.test"));
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a,did:test:b");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       const items = element.querySelectorAll(
         "[data-testid='profile-list-item-display-name']",
@@ -77,9 +86,8 @@ describe("plugin-profiles-list", () => {
       const dataLayer = makeDataLayer();
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a,did:test:missing");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       assert.deepEqual(
         element.querySelectorAll(
@@ -94,9 +102,8 @@ describe("plugin-profiles-list", () => {
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
       dataLayer.__setProfile("did:test:b", makeProfile("did:test:b", "b.test"));
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a,did:test:b");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       assert.deepEqual(
         element.querySelectorAll("[data-testid='follow-button']").length,
@@ -108,9 +115,8 @@ describe("plugin-profiles-list", () => {
       const dataLayer = makeDataLayer();
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       assert.deepEqual(
         element.querySelector("[data-testid='feed-end-message']"),
@@ -123,14 +129,14 @@ describe("plugin-profiles-list", () => {
     it("renders no skeletons or items when dids is empty", () => {
       const element = document.createElement("plugin-profiles-list");
       let called = false;
-      element.dataLayer = makeDataLayer({
+      const dataLayer = makeDataLayer({
         ensureDetailedProfiles: async () => {
           called = true;
           return [];
         },
       });
       element.setAttribute("dids", "");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       assert.deepEqual(
         element.querySelectorAll("[data-testid='skeleton-avatar']").length,
         0,
@@ -148,13 +154,13 @@ describe("plugin-profiles-list", () => {
   describe("PluginProfilesList - error state", () => {
     it("renders the error message when ensureDetailedProfiles rejects", async () => {
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = makeDataLayer({
+      const dataLayer = makeDataLayer({
         ensureDetailedProfiles: async () => {
           throw new Error("boom");
         },
       });
       element.setAttribute("dids", "did:test:a");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       const error = element.querySelector(".profile-list-error");
       assert(error !== null);
@@ -177,9 +183,8 @@ describe("plugin-profiles-list", () => {
         },
       });
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       element.setAttribute("dids", "did:test:b,did:test:c");
       await flushMicrotasks();
@@ -212,9 +217,8 @@ describe("plugin-profiles-list", () => {
         );
       };
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:stale");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       element.setAttribute("dids", "did:test:fresh");
       await flushMicrotasks();
       resolveFirst([makeProfile("did:test:stale", "stale")]);
@@ -232,9 +236,8 @@ describe("plugin-profiles-list", () => {
       const dataLayer = makeDataLayer();
       dataLayer.__setProfile("did:test:a", makeProfile("did:test:a", "a.test"));
       const element = document.createElement("plugin-profiles-list");
-      element.dataLayer = dataLayer;
       element.setAttribute("dids", "did:test:a");
-      document.body.appendChild(element);
+      mount(element, dataLayer);
       await flushMicrotasks();
       dataLayer.__setProfile(
         "did:test:a",

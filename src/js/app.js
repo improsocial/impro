@@ -62,6 +62,7 @@ import {
   handleAppViewResetQueryParam,
 } from "/js/appViewConfig.js";
 import { PluginService } from "/js/plugins/pluginService.js";
+import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { MainLayout } from "/js/mainLayout.js";
 
 async function checkDraftsEnabled() {
@@ -94,17 +95,22 @@ export async function main() {
     chatAppViewServiceDid: appViewConfig.chatServiceDid,
   });
   const preferencesProvider = new PreferencesProvider(api);
-  const pluginService = new PluginService(preferencesProvider, session);
   const identityResolver = new IdentityResolver();
   const draftMediaStore = new DraftMediaStore();
+  const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const dataLayer = new DataLayer(
     api,
-    pluginService,
     preferencesProvider,
     identityResolver,
     draftMediaStore,
+    hiddenFeedItemsStore,
   );
-  pluginService.setDataLayer(dataLayer);
+  const pluginService = new PluginService(
+    preferencesProvider,
+    session,
+    dataLayer,
+    hiddenFeedItemsStore,
+  );
   // put dataLayer on window for easy access in dev tools
   window.dataLayer = dataLayer;
   const notificationService = session ? new NotificationService(api) : null;
@@ -201,7 +207,6 @@ export async function main() {
     pluginService,
     interactionHandlers,
   };
-  pluginService.setRenderContext(context);
 
   const isOwnProfile = (params) => {
     const currentUser = dataLayer.derived.$currentUser.get();

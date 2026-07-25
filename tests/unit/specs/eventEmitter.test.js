@@ -50,6 +50,71 @@ describe("on and emit", () => {
   });
 });
 
+describe("emitAsync", () => {
+  it("should await async listeners before resolving", async () => {
+    const emitter = new EventEmitter();
+    const order = [];
+    emitter.on("test", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      order.push("listener");
+    });
+    await emitter.emitAsync("test");
+    order.push("after");
+    assert.deepEqual(order, ["listener", "after"]);
+  });
+
+  it("should run listeners in parallel", async () => {
+    const emitter = new EventEmitter();
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const listener = async () => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      inFlight--;
+    };
+    emitter.on("test", listener);
+    emitter.on("test", listener);
+    emitter.on("test", listener);
+    await emitter.emitAsync("test");
+    assert.deepEqual(maxInFlight, 3);
+  });
+
+  it("should pass data to listeners", async () => {
+    const emitter = new EventEmitter();
+    let received = null;
+    emitter.on("test", async (data) => {
+      received = data;
+    });
+    await emitter.emitAsync("test", { foo: "bar" });
+    assert.deepEqual(received, { foo: "bar" });
+  });
+
+  it("should tolerate sync listeners", async () => {
+    const emitter = new EventEmitter();
+    let called = false;
+    emitter.on("test", () => {
+      called = true;
+    });
+    await emitter.emitAsync("test");
+    assert(called);
+  });
+
+  it("should resolve when there are no listeners", async () => {
+    const emitter = new EventEmitter();
+    await emitter.emitAsync("nonexistent");
+    assert(true);
+  });
+
+  it("should reject when a listener throws", async () => {
+    const emitter = new EventEmitter();
+    emitter.on("test", async () => {
+      throw new Error("boom");
+    });
+    await assert.rejects(() => emitter.emitAsync("test"), /boom/);
+  });
+});
+
 describe("off", () => {
   it("should remove event listener", () => {
     const emitter = new EventEmitter();

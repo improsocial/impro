@@ -109,7 +109,7 @@ export class Derived extends ReactiveStore {
     dataStore,
     patchStore,
     preferencesProvider,
-    pluginService,
+    hiddenFeedItemsStore,
     isAuthenticated,
     draftMediaStore,
   ) {
@@ -117,7 +117,7 @@ export class Derived extends ReactiveStore {
     this.dataStore = dataStore;
     this.patchStore = patchStore;
     this.preferencesProvider = preferencesProvider;
-    this.pluginService = pluginService;
+    this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.isAuthenticated = isAuthenticated;
     this.draftMediaStore = draftMediaStore;
     this.$showLessInteractions = new ComputedMap(
@@ -166,7 +166,7 @@ export class Derived extends ReactiveStore {
         cursor: feed.cursor,
       };
       const pluginFilteredFeedItems =
-        this.pluginService.$pluginFilteredFeedItems.get(feedURI) ?? {};
+        this.hiddenFeedItemsStore.$items.get(feedURI) ?? {};
       if (isFollowingFeedUri(feedURI)) {
         const currentUser = this.$currentUser.get();
         const preferences = this.$preferences.get();

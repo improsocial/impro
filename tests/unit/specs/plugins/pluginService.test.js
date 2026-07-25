@@ -4,8 +4,16 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
-import { Signal } from "/js/signals.js";
+import { Signal, SignalMap } from "/js/signals.js";
+import { EventEmitter } from "/js/eventEmitter.js";
+import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import { respondToConfirm } from "../../testHelpers.js";
+
+function emptyDataLayer() {
+  const dataLayer = new EventEmitter();
+  dataLayer.dataStore = { $feeds: new SignalMap() };
+  return dataLayer;
+}
 
 class FakePreferences {
   constructor(state) {
@@ -59,7 +67,12 @@ function makeService({
   liveManifestsByRepo = {},
 } = {}) {
   const { state, provider } = makeProvider();
-  const service = new PluginService(provider, null);
+  const service = new PluginService(
+    provider,
+    null,
+    emptyDataLayer(),
+    new HiddenFeedItemsStore(),
+  );
   const loadCalls = [];
   const reloadCalls = [];
   const unloadCalls = [];
@@ -1186,10 +1199,95 @@ describe("getFilteredFeedItems", () => {
   });
 });
 
+describe("feed filter integration", () => {
+  function makeHarness(getFilteredFeedItems) {
+    const { provider } = makeProvider();
+    const dataLayer = emptyDataLayer();
+    const hiddenFeedItemsStore = new HiddenFeedItemsStore();
+    const service = new PluginService(
+      provider,
+      null,
+      dataLayer,
+      hiddenFeedItemsStore,
+    );
+    service.getFilteredFeedItems = getFilteredFeedItems;
+    return { service, dataLayer, hiddenFeedItemsStore };
+  }
+
+  async function flush() {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+  }
+
+  it("merges appended pages into the hidden-items store", async () => {
+    let call = 0;
+    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+      call += 1;
+      return call === 1 ? { p1: false } : { p2: false };
+    });
+    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    await flush();
+    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p1: false, p2: false });
+  });
+
+  it("replaces on reload", async () => {
+    let call = 0;
+    const { dataLayer, hiddenFeedItemsStore } = makeHarness(async () => {
+      call += 1;
+      return call === 1 ? { p1: false } : { p2: false };
+    });
+    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: false });
+    await flush();
+    dataLayer.emit("feedLoaded", { feedURI: "f", feed: {}, reload: true });
+    await flush();
+    assert.deepEqual(hiddenFeedItemsStore.get("f"), { p2: false });
+  });
+
+  it("targets a specific feed on refresh request", async () => {
+    const invocations = [];
+    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+      async (uri) => {
+        invocations.push(uri);
+        return { [`x-${uri}`]: false };
+      },
+    );
+    dataLayer.dataStore.$feeds.set("a", { feed: [] });
+    dataLayer.dataStore.$feeds.set("b", { feed: [] });
+    await service.refreshFeedFilters("a");
+    await flush();
+    assert.deepEqual(invocations, ["a"]);
+    assert.deepEqual(hiddenFeedItemsStore.get("a"), { "x-a": false });
+    assert.deepEqual(hiddenFeedItemsStore.get("b"), {});
+  });
+
+  it("refreshes all cached feeds when no URI is supplied", async () => {
+    const invocations = [];
+    const { service, dataLayer, hiddenFeedItemsStore } = makeHarness(
+      async (uri) => {
+        invocations.push(uri);
+        return { [`x-${uri}`]: false };
+      },
+    );
+    dataLayer.dataStore.$feeds.set("a", { feed: [] });
+    dataLayer.dataStore.$feeds.set("b", { feed: [] });
+    await service.refreshFeedFilters();
+    await flush();
+    assert.deepEqual(new Set(invocations), new Set(["a", "b"]));
+    assert.deepEqual(hiddenFeedItemsStore.get("a"), { "x-a": false });
+    assert.deepEqual(hiddenFeedItemsStore.get("b"), { "x-b": false });
+  });
+});
+
 describe("getClaimedFacetTypes", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
-    return new PluginService(provider, null);
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
   }
   function registerTransform(service, pluginId, message) {
     const handler =
@@ -1240,7 +1338,12 @@ describe("slot registry", () => {
   // so they need the real PluginBridge instead of the makeService stub.
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
-    return new PluginService(provider, null);
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
   }
 
   function register(service, plugin, message) {
@@ -1330,12 +1433,6 @@ describe("slot registry", () => {
 });
 
 describe("app.data host methods", () => {
-  function makeServiceWithRealBridge() {
-    const { provider } = makeProvider();
-    return new PluginService(provider, null);
-  }
-
-  // Stubs a ComputedMap: get(key) returns the value directly.
   function makeStubComputedMap(lookup) {
     const calls = [];
     const map = {
@@ -1347,17 +1444,24 @@ describe("app.data host methods", () => {
     return { map, calls };
   }
 
+  function makeService(dataLayerOverrides) {
+    const { provider } = makeProvider();
+    const dataLayer = Object.assign(emptyDataLayer(), dataLayerOverrides);
+    return new PluginService(
+      provider,
+      null,
+      dataLayer,
+      new HiddenFeedItemsStore(),
+    );
+  }
+
   it("getProfile host method returns the hydrated profile from derived", async () => {
-    const service = makeServiceWithRealBridge();
     const profiles = makeStubComputedMap((did) => ({
       did,
       handle: "alice.test",
     }));
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: makeStubComputedMap(() => null).map,
-        $hydratedProfiles: profiles.map,
-      },
+    const service = makeService({
+      derived: { $hydratedProfiles: profiles.map },
     });
     const handler = service.pluginBridge._hostCallHandlers.get("getProfile");
     const result = await handler(null, { did: "did:plc:abc" });
@@ -1365,21 +1469,9 @@ describe("app.data host methods", () => {
     assert.deepEqual(result, { did: "did:plc:abc", handle: "alice.test" });
   });
 
-  it("getPost returns null when dataLayer has not been set", async () => {
-    const service = makeServiceWithRealBridge();
-    const handler = service.pluginBridge._hostCallHandlers.get("getPost");
-    const result = await handler(null, { uri: "at://example" });
-    assert.deepEqual(result, null);
-  });
-
   it("getPost fetches the post on a cache miss", async () => {
-    const service = makeServiceWithRealBridge();
     const ensureCalls = [];
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: makeStubComputedMap(() => null).map,
-        $hydratedProfiles: makeStubComputedMap(() => null).map,
-      },
+    const service = makeService({
       declarative: {
         ensurePost: async (uri) => {
           ensureCalls.push(uri);
@@ -1397,12 +1489,7 @@ describe("app.data host methods", () => {
   });
 
   it("getPost returns null when the post cannot be loaded", async () => {
-    const service = makeServiceWithRealBridge();
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: makeStubComputedMap(() => null).map,
-        $hydratedProfiles: makeStubComputedMap(() => null).map,
-      },
+    const service = makeService({
       declarative: {
         ensurePost: async () => {
           throw new Error("Post not found");
@@ -1415,17 +1502,13 @@ describe("app.data host methods", () => {
   });
 
   it("getProfile fetches on a cache miss and returns the basic hydrated profile", async () => {
-    const service = makeServiceWithRealBridge();
     let loaded = false;
     const profiles = makeStubComputedMap((did) =>
       loaded ? { did, handle: "alice.test" } : null,
     );
     const ensureCalls = [];
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: makeStubComputedMap(() => null).map,
-        $hydratedProfiles: profiles.map,
-      },
+    const service = makeService({
+      derived: { $hydratedProfiles: profiles.map },
       declarative: {
         ensureDetailedProfile: async (did) => {
           ensureCalls.push(did);
@@ -1440,10 +1523,9 @@ describe("app.data host methods", () => {
   });
 
   it("getKnownFollowers resolves via the declarative layer", async () => {
-    const service = makeServiceWithRealBridge();
     const knownFollowers = { followers: [{ did: "did:plc:follower" }] };
     const ensureCalls = [];
-    service.setDataLayer({
+    const service = makeService({
       declarative: {
         ensureKnownFollowers: async (did) => {
           ensureCalls.push(did);
@@ -1459,8 +1541,7 @@ describe("app.data host methods", () => {
   });
 
   it("getKnownFollowers returns null when the list cannot be loaded", async () => {
-    const service = makeServiceWithRealBridge();
-    service.setDataLayer({
+    const service = makeService({
       declarative: {
         ensureKnownFollowers: async () => {
           throw new Error("Known followers not found");
@@ -1474,12 +1555,8 @@ describe("app.data host methods", () => {
   });
 
   it("getProfile returns null when the profile cannot be loaded", async () => {
-    const service = makeServiceWithRealBridge();
-    service.setDataLayer({
-      derived: {
-        $hydratedPosts: makeStubComputedMap(() => null).map,
-        $hydratedProfiles: makeStubComputedMap(() => null).map,
-      },
+    const service = makeService({
+      derived: { $hydratedProfiles: makeStubComputedMap(() => null).map },
       declarative: {
         ensureDetailedProfile: async () => {
           throw new Error("Profile not found");
@@ -1506,7 +1583,6 @@ describe("action host methods", () => {
     hydratedProfiles = {},
   } = {}) {
     const { provider } = makeProvider();
-    const service = new PluginService(provider, null);
     const calls = {
       showLess: [],
       showMore: [],
@@ -1515,7 +1591,7 @@ describe("action host methods", () => {
       block: [],
       unblock: [],
     };
-    service.setDataLayer({
+    const dataLayer = Object.assign(new EventEmitter(), {
       dataStore: {
         $feeds: {
           get: (uri) =>
@@ -1537,7 +1613,17 @@ describe("action host methods", () => {
         blockProfile: async (profile) => calls.block.push(profile),
         unblockProfile: async (profile) => calls.unblock.push(profile),
       },
+      declarative: {
+        ensureProfile: async (did) => hydratedProfiles[did] ?? { did },
+      },
     });
+    const session = { did: "did:plc:me", handle: "me.test" };
+    const service = new PluginService(
+      provider,
+      session,
+      dataLayer,
+      new HiddenFeedItemsStore(),
+    );
     return { service, calls };
   }
 
@@ -1698,7 +1784,12 @@ describe("action host methods", () => {
 
   it("all action methods reject when signed out", async () => {
     const { provider } = makeProvider();
-    const service = new PluginService(provider, null);
+    const service = new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
     const allActionsPlugin = {
       pluginId: "test-plugin",
       permissions: { actions: ["mute", "block", "feedFeedback"] },
@@ -1721,7 +1812,12 @@ describe("action host methods", () => {
 describe("getRecord host method", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();
-    return new PluginService(provider, null);
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
   }
 
   function jsonResponse(status, body) {
@@ -2295,7 +2391,6 @@ describe("rich text transform pipeline", () => {
 
   it("renderRichTextNodeToken mounts a sanitized element and reuses it per token and host", () => {
     const { service } = makeService();
-    service.setRenderContext({});
     const token = {
       type: "inline",
       pluginId: "alpha",

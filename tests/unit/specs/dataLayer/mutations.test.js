@@ -6,7 +6,8 @@ import { DraftMediaStore } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Derived } from "/js/dataLayer/derived.js";
 import { Preferences } from "/js/preferences.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal } from "/js/signals.js";
+import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 
 const mockIdentityResolver = {
   resolveHandle: async () => null,
@@ -21,13 +22,6 @@ function makeMutations(api, dataStore, patchStore, preferencesProvider) {
     mockIdentityResolver,
     new DraftMediaStore("test-media"),
   );
-}
-
-// Minimal pluginService stub for Derived constructor.
-function makePluginService() {
-  return {
-    $pluginFilteredFeedItems: new SignalMap(),
-  };
 }
 
 // `applyPostPatches` now requires the patches array. Helper that fetches the
@@ -59,7 +53,7 @@ function makeDerived(
     dataStore,
     patchStore,
     provider,
-    makePluginService(),
+    new HiddenFeedItemsStore(),
     isAuthenticated,
     new DraftMediaStore("test-media"),
   );

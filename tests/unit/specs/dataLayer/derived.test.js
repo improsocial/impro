@@ -5,7 +5,8 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { DraftMediaStore, getDraftDeviceId } from "/js/drafts.js";
 import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
-import { Signal, SignalMap } from "/js/signals.js";
+import { Signal } from "/js/signals.js";
+import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 import {
   createConvo,
   createMessage,
@@ -21,18 +22,16 @@ function makeDerived(dataStore, { preferences, draftMediaStore } = {}) {
     requirePreferences: () => prefs,
     $preferences: new Signal.State(prefs),
   };
-  const pluginService = {
-    $pluginFilteredFeedItems: new SignalMap(),
-  };
+  const hiddenFeedItemsStore = new HiddenFeedItemsStore();
   const derived = new Derived(
     dataStore,
     patchStore,
     preferencesProvider,
-    pluginService,
+    hiddenFeedItemsStore,
     false,
     draftMediaStore ?? new DraftMediaStore("test-media"),
   );
-  return { derived, patchStore };
+  return { derived, patchStore, hiddenFeedItemsStore };
 }
 
 function fakePreferences(overrides = {}) {

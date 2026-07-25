@@ -373,10 +373,9 @@ function resolveChildNamespace(parentNs, node) {
 
 // Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId, renderContext) {
+  constructor(pluginBridge, pluginId) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
-    this.renderContext = renderContext;
   }
 
   createRoot() {
@@ -456,22 +455,6 @@ export class PluginRenderer {
         event.preventDefault();
         ExternalLinkWarningModal.open({ href });
       });
-    }
-    if (tag === "plugin-profiles-list") {
-      const { dataLayer } = this.renderContext;
-      element.dataLayer = dataLayer;
-    }
-    if (tag === "plugin-posts-feed") {
-      const {
-        dataLayer,
-        isAuthenticated,
-        pluginService,
-        interactionHandlers: { postInteractionHandler },
-      } = this.renderContext;
-      element.dataLayer = dataLayer;
-      element.isAuthenticated = isAuthenticated;
-      element.pluginService = pluginService;
-      element.postInteractionHandler = postInteractionHandler;
     }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin

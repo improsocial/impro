@@ -38,6 +38,7 @@ describe("MainLayout", () => {
       accountSwitcherService: null,
       pluginService: { getSidebarItems: () => [...sidebarItems] },
       groupChatLinkService: { handleAction: mock.fn() },
+      interactionHandlers: { postInteractionHandler: {} },
     };
     const layout = new MainLayout(context, { $currentRoute });
     const appRoot = document.createElement("div");

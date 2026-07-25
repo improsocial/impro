@@ -1,7 +1,17 @@
 import { describe, it, beforeEach } from "node:test";
 import assert from "node:assert/strict";
 import { Signal, SignalMap, ComputedMap } from "/js/signals.js";
+import "/js/context-provider.js";
 import "/js/components/plugin-posts-feed.js";
+
+function mount(element, context) {
+  const provider = document.createElement("context-provider");
+  provider.setAttribute("context-id", "plugin-component-context");
+  provider.context = context;
+  provider.appendChild(element);
+  document.body.appendChild(provider);
+  return element;
+}
 
 describe("plugin-posts-feed", () => {
   function makeDataLayer({ ensurePosts, currentUser } = {}) {
@@ -33,11 +43,13 @@ describe("plugin-posts-feed", () => {
     postInteractionHandler,
   } = {}) {
     const element = document.createElement("plugin-posts-feed");
-    element.dataLayer = makeDataLayer({ ensurePosts, currentUser });
-    element.isAuthenticated = false;
-    element.pluginService = null;
-    element.postInteractionHandler = postInteractionHandler ?? makeHandler();
-    return element;
+    const context = {
+      dataLayer: makeDataLayer({ ensurePosts, currentUser }),
+      isAuthenticated: false,
+      pluginService: null,
+      postInteractionHandler: postInteractionHandler ?? makeHandler(),
+    };
+    return { element, context };
   }
 
   async function flushMicrotasks() {
@@ -53,9 +65,9 @@ describe("plugin-posts-feed", () => {
 
   describe("PluginPostsFeed - loading state", () => {
     it("renders the feed skeleton before posts resolve", () => {
-      const element = makeElement();
+      const { element, context } = makeElement();
       element.setAttribute("uris", "at://a,at://b,at://c");
-      document.body.appendChild(element);
+      mount(element, context);
       assert(element.querySelector(".feed") !== null);
       assert.deepEqual(
         element.querySelectorAll("[data-testid='feed-item']").length,
@@ -67,7 +79,7 @@ describe("plugin-posts-feed", () => {
   describe("PluginPostsFeed - empty uris", () => {
     it("renders the empty message and does not call ensurePosts", async () => {
       let called = false;
-      const element = makeElement({
+      const { element, context } = makeElement({
         ensurePosts: () => {
           called = true;
           return Promise.resolve([]);
@@ -75,7 +87,7 @@ describe("plugin-posts-feed", () => {
       });
       element.setAttribute("uris", "");
       element.setAttribute("empty-message", "Nothing here.");
-      document.body.appendChild(element);
+      mount(element, context);
       await flushMicrotasks();
       const endMessage = element.querySelector(
         "[data-testid='feed-end-message']",
@@ -88,10 +100,9 @@ describe("plugin-posts-feed", () => {
     });
   });
 
-  describe("PluginPostsFeed - missing postInteractionHandler", () => {
-    it("throws when connected without a postInteractionHandler", () => {
+  describe("PluginPostsFeed - missing context provider", () => {
+    it("throws when connected outside a context-provider", () => {
       const element = document.createElement("plugin-posts-feed");
-      element.dataLayer = makeDataLayer();
       let error = null;
       try {
         // jsdom swallows throws from appendChild-triggered connectedCallback,
@@ -101,17 +112,17 @@ describe("plugin-posts-feed", () => {
         error = e;
       }
       assert(error !== null);
-      assert(error.message.includes("postInteractionHandler"));
+      assert(error.message.includes("context-provider"));
     });
   });
 
   describe("PluginPostsFeed - error state", () => {
     it("renders the error message when ensurePosts rejects", async () => {
-      const element = makeElement({
+      const { element, context } = makeElement({
         ensurePosts: () => Promise.reject(new Error("boom")),
       });
       element.setAttribute("uris", "at://a");
-      document.body.appendChild(element);
+      mount(element, context);
       await flushMicrotasks();
       const error = element.querySelector(".posts-feed-error");
       assert(error !== null);
@@ -122,14 +133,14 @@ describe("plugin-posts-feed", () => {
   describe("PluginPostsFeed - uri changes", () => {
     it("reloads when the uris attribute changes", async () => {
       const calls = [];
-      const element = makeElement({
+      const { element, context } = makeElement({
         ensurePosts: (uris) => {
           calls.push(uris);
           return Promise.resolve(uris.map(() => null));
         },
       });
       element.setAttribute("uris", "at://a");
-      document.body.appendChild(element);
+      mount(element, context);
       await flushMicrotasks();
       element.setAttribute("uris", "at://b,at://c");
       await flushMicrotasks();
@@ -142,7 +153,7 @@ describe("plugin-posts-feed", () => {
         resolveFirst = resolve;
       });
       let callIndex = 0;
-      const element = makeElement({
+      const { element, context } = makeElement({
         ensurePosts: () => {
           callIndex++;
           if (callIndex === 1) return firstPromise;
@@ -150,7 +161,7 @@ describe("plugin-posts-feed", () => {
         },
       });
       element.setAttribute("uris", "at://stale");
-      document.body.appendChild(element);
+      mount(element, context);
       element.setAttribute("uris", "at://fresh");
       await flushMicrotasks();
       resolveFirst([null]);
@@ -170,12 +181,13 @@ describe("plugin-posts-feed", () => {
         ensurePosts: () => Promise.resolve([null]),
       });
       const element = document.createElement("plugin-posts-feed");
-      element.dataLayer = dataLayer;
-      element.isAuthenticated = false;
-      element.pluginService = null;
-      element.postInteractionHandler = makeHandler();
       element.setAttribute("uris", "at://a");
-      document.body.appendChild(element);
+      mount(element, {
+        dataLayer,
+        isAuthenticated: false,
+        pluginService: null,
+        postInteractionHandler: makeHandler(),
+      });
       await flushMicrotasks();
       // No post hydrated yet -> empty feed.
       assert.deepEqual(

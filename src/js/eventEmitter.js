@@ -14,6 +14,11 @@ export class EventEmitter {
     listeners.forEach((listener) => listener(data));
   }
 
+  async emitAsync(event, data) {
+    const listeners = this.__eventListeners.get(event) || [];
+    await Promise.all(listeners.map((listener) => listener(data)));
+  }
+
   off(event, listener) {
     const listeners = this.__eventListeners.get(event) || [];
     const index = listeners.indexOf(listener);
