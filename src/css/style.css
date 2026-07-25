@@ -6657,10 +6657,13 @@ context-menu-item > button > .context-menu-item-icon {
   margin-left: 10px;
 }
 
-context-menu-item > button > .context-menu-item-icon svg,
-context-menu-item > button > svg.context-menu-item-icon {
+context-menu-item > button > .context-menu-item-icon svg {
   width: 100%;
   height: 100%;
+  display: block;
+}
+
+context-menu-item > button > svg.context-menu-item-icon {
   display: block;
 }
 
