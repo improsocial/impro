@@ -33,17 +33,15 @@ class ContextMenuItem extends Component {
 
   render() {
     render(
-      html`<div class="context-menu-item">
-        <button ?disabled=${this.disabled}>
-          ${this._children}
-          ${this.icon
-            ? html`<app-icon
-                class="context-menu-item-icon"
-                icon=${this.icon}
-              ></app-icon>`
-            : null}
-        </button>
-      </div> `,
+      html`<button ?disabled=${this.disabled}>
+        ${this._children}
+        ${this.icon
+          ? html`<app-icon
+              class="context-menu-item-icon"
+              icon=${this.icon}
+            ></app-icon>`
+          : null}
+      </button>`,
       this,
     );
   }

@@ -8,17 +8,10 @@ describe("context-menu-item", () => {
   });
 
   describe("ContextMenuItem - rendering", () => {
-    it("should render context-menu-item div", () => {
+    it("should render a button as its child", () => {
       const element = document.createElement("context-menu-item");
       document.body.appendChild(element);
-      const item = element.querySelector(".context-menu-item");
-      assert(item !== null);
-    });
-
-    it("should render a button inside the item", () => {
-      const element = document.createElement("context-menu-item");
-      document.body.appendChild(element);
-      const button = element.querySelector(".context-menu-item button");
+      const button = element.querySelector(":scope > button");
       assert(button !== null);
     });
 
