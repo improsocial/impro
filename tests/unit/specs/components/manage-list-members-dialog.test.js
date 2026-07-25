@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { Signal, SignalMap, ComputedMap } from "/js/signals.js";
+import { makeTestDataLayer } from "../../testHelpers.js";
 import "/js/components/manage-list-members-dialog.js";
 
 describe("manage-list-members-dialog", () => {
@@ -44,7 +44,7 @@ describe("manage-list-members-dialog", () => {
     };
   }
 
-  function createFakeDataLayer({
+  function makeDataLayer({
     members = [],
     searchResults = null,
     follows = null,
@@ -52,116 +52,111 @@ describe("manage-list-members-dialog", () => {
     removeFailure = null,
     membersPages = null,
   } = {}) {
-    const $listMembers = new SignalMap();
-    const $currentUser = new Signal.State({
-      did: "did:plc:me",
-      handle: "me.test",
-    });
-    const $profileFollows = new SignalMap();
-    const $chatRecipientSearchResults = new Signal.State(null);
-    const $loading = new SignalMap();
-    const $errors = new SignalMap();
-    const addCalls = [];
-    const removeCalls = [];
-    const loadMembersCalls = [];
+    const dataLayer = makeTestDataLayer();
+    const currentUser = { did: "did:plc:me", handle: "me.test" };
+    dataLayer.dataStore.$currentUser.set(currentUser);
 
     if (members.length && !membersPages) {
-      $listMembers.set(LIST.uri, {
-        items: members.map((p, i) => ({
+      dataLayer.dataStore.setProfiles(members);
+      dataLayer.dataStore.$listMembers.set(LIST.uri, {
+        items: members.map((profile, i) => ({
           uri: `at://did:plc:me/app.bsky.graph.listitem/li${i}`,
-          subject: p,
+          subject: profile,
         })),
         cursor: null,
       });
     }
     if (follows) {
-      $profileFollows.set("did:plc:me", { follows });
+      dataLayer.dataStore.setProfiles(follows);
+      dataLayer.dataStore.$profileFollows.set("did:plc:me", {
+        follows,
+        cursor: null,
+      });
     }
     if (searchResults) {
-      $chatRecipientSearchResults.set(searchResults);
+      dataLayer.dataStore.setProfiles(searchResults);
+      dataLayer.dataStore.$chatRecipientSearchResults.set({
+        actors: searchResults,
+        cursor: null,
+      });
     }
 
-    const dataLayer = {
-      dataStore: { $listMembers },
-      derived: {
-        $currentUser,
-        $profileFollows,
-        $chatRecipientSearchResults,
+    let loadMembersCallIndex = 0;
+    const loadMembersSpy = mock.method(
+      dataLayer.requests,
+      "loadListMembers",
+      async (uri, { reload = false } = {}) => {
+        if (!membersPages) return;
+        const idx = loadMembersCallIndex++;
+        const page = membersPages[idx];
+        if (!page) return;
+        for (const item of page.items) {
+          dataLayer.dataStore.setProfiles([item.subject]);
+        }
+        const existing = dataLayer.dataStore.$listMembers.get(uri);
+        const items = [
+          ...(existing && !reload ? existing.items : []),
+          ...page.items,
+        ];
+        dataLayer.dataStore.$listMembers.set(uri, {
+          items,
+          cursor: page.cursor,
+        });
       },
-      requests: {
-        statusStore: {
-          $statuses: new ComputedMap((requestId) => ({
-            loading: $loading.get(requestId) ?? false,
-            error: $errors.get(requestId) ?? null,
-          })),
-        },
-        loadListMembers: async (uri, { reload = false } = {}) => {
-          loadMembersCalls.push({ uri, reload });
-          if (membersPages) {
-            const idx = loadMembersCalls.length - 1;
-            const page = membersPages[idx];
-            if (!page) return;
-            const existing = $listMembers.get(uri);
-            const items = [
-              ...(existing && !reload ? existing.items : []),
-              ...page.items,
-            ];
-            $listMembers.set(uri, { items, cursor: page.cursor });
-          }
-        },
-        loadChatRecipientSearch: (query) => {
-          if (!query) {
-            $chatRecipientSearchResults.set(null);
-          }
-          return Promise.resolve();
-        },
+    );
+
+    mock.method(dataLayer.requests, "loadChatRecipientSearch", (query) => {
+      if (!query) {
+        dataLayer.dataStore.$chatRecipientSearchResults.set(null);
+      }
+      return Promise.resolve();
+    });
+
+    const addSpy = mock.method(
+      dataLayer.mutations,
+      "addProfileToList",
+      async (profile, list) => {
+        if (addFailure) throw addFailure;
+        const existing = dataLayer.dataStore.$listMembers.get(list.uri) ?? {
+          items: [],
+          cursor: null,
+        };
+        dataLayer.dataStore.setProfiles([profile]);
+        dataLayer.dataStore.$listMembers.set(list.uri, {
+          ...existing,
+          items: [
+            {
+              uri: `at://did:plc:me/app.bsky.graph.listitem/new-${profile.did}`,
+              subject: profile,
+            },
+            ...existing.items,
+          ],
+        });
       },
-      declarative: {
-        ensureCurrentUser: async () => $currentUser.get(),
-        ensureProfileFollows: async () => $profileFollows.get("did:plc:me"),
-      },
-      mutations: {
-        addProfileToList: async (profile, list) => {
-          addCalls.push({ did: profile.did, listUri: list.uri });
-          if (addFailure) throw addFailure;
-          const existing = $listMembers.get(list.uri) ?? {
-            items: [],
-            cursor: null,
-          };
-          $listMembers.set(list.uri, {
+    );
+
+    const removeSpy = mock.method(
+      dataLayer.mutations,
+      "removeProfileFromList",
+      async (profile, list, _membershipUri) => {
+        if (removeFailure) throw removeFailure;
+        const existing = dataLayer.dataStore.$listMembers.get(list.uri);
+        if (existing) {
+          dataLayer.dataStore.$listMembers.set(list.uri, {
             ...existing,
-            items: [
-              {
-                uri: `at://did:plc:me/app.bsky.graph.listitem/new-${profile.did}`,
-                subject: profile,
-              },
-              ...existing.items,
-            ],
+            items: existing.items.filter(
+              (item) => item.subject.did !== profile.did,
+            ),
           });
-        },
-        removeProfileFromList: async (profile, list, membershipUri) => {
-          removeCalls.push({ did: profile.did, membershipUri });
-          if (removeFailure) throw removeFailure;
-          const existing = $listMembers.get(list.uri);
-          if (existing) {
-            $listMembers.set(list.uri, {
-              ...existing,
-              items: existing.items.filter(
-                (item) => item.subject.did !== profile.did,
-              ),
-            });
-          }
-        },
+        }
       },
-    };
+    );
+
     return {
       dataLayer,
-      $listMembers,
-      $profileFollows,
-      $chatRecipientSearchResults,
-      addCalls,
-      removeCalls,
-      loadMembersCalls,
+      loadMembersSpy,
+      addSpy,
+      removeSpy,
     };
   }
 
@@ -184,7 +179,7 @@ describe("manage-list-members-dialog", () => {
   }
 
   it("renders the dialog title and search input", () => {
-    const { dataLayer } = createFakeDataLayer();
+    const { dataLayer } = makeDataLayer();
     const element = createDialog(dataLayer);
     const dialog = element.querySelector("dialog.manage-list-members-dialog");
     assert(dialog !== null);
@@ -200,7 +195,7 @@ describe("manage-list-members-dialog", () => {
   it("loads all list members on connect (paginating up to the cap)", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
     const bob = createProfile({ did: "did:plc:bob", handle: "bob.test" });
-    const { dataLayer, loadMembersCalls } = createFakeDataLayer({
+    const { dataLayer, loadMembersSpy } = makeDataLayer({
       membersPages: [
         { items: [{ uri: "at://li1", subject: alice }], cursor: "next" },
         { items: [{ uri: "at://li2", subject: bob }], cursor: null },
@@ -208,14 +203,17 @@ describe("manage-list-members-dialog", () => {
     });
     createDialog(dataLayer);
     await flushMicrotasks();
-    assert.deepEqual(loadMembersCalls.length, 2);
-    assert.deepEqual(loadMembersCalls[0].reload, true);
-    assert.deepEqual(loadMembersCalls[1].reload, false);
+    assert.deepEqual(loadMembersSpy.mock.callCount(), 2);
+    assert.deepEqual(loadMembersSpy.mock.calls[0].arguments[1].reload, true);
+    assert.deepEqual(
+      loadMembersSpy.mock.calls[1].arguments[1]?.reload ?? false,
+      false,
+    );
   });
 
   it("shows Add for a suggested profile that is not a member", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
-    const { dataLayer } = createFakeDataLayer({
+    const { dataLayer } = makeDataLayer({
       follows: [alice],
     });
     const element = createDialog(dataLayer);
@@ -231,7 +229,7 @@ describe("manage-list-members-dialog", () => {
 
   it("shows Remove for a search result that is already a member", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
-    const { dataLayer } = createFakeDataLayer({
+    const { dataLayer } = makeDataLayer({
       members: [alice],
       searchResults: [alice],
     });
@@ -248,7 +246,7 @@ describe("manage-list-members-dialog", () => {
 
   it("adds a profile when Add is clicked and flips the button to Remove", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
-    const { dataLayer, addCalls } = createFakeDataLayer({
+    const { dataLayer, addSpy } = makeDataLayer({
       follows: [alice],
     });
     const element = createDialog(dataLayer);
@@ -257,8 +255,8 @@ describe("manage-list-members-dialog", () => {
     element.querySelector('[data-testid="manage-list-members-toggle"]').click();
     await flushMicrotasks();
     await nextFrame();
-    assert.deepEqual(addCalls.length, 1);
-    assert.deepEqual(addCalls[0].did, "did:plc:alice");
+    assert.deepEqual(addSpy.mock.callCount(), 1);
+    assert.deepEqual(addSpy.mock.calls[0].arguments[0].did, "did:plc:alice");
     const button = element.querySelector(
       '[data-testid="manage-list-members-toggle"]',
     );
@@ -268,7 +266,7 @@ describe("manage-list-members-dialog", () => {
 
   it("removes a profile when Remove is clicked and flips the button to Add", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
-    const { dataLayer, removeCalls } = createFakeDataLayer({
+    const { dataLayer, removeSpy } = makeDataLayer({
       members: [alice],
       follows: [alice],
     });
@@ -278,9 +276,9 @@ describe("manage-list-members-dialog", () => {
     element.querySelector('[data-testid="manage-list-members-toggle"]').click();
     await flushMicrotasks();
     await nextFrame();
-    assert.deepEqual(removeCalls.length, 1);
-    assert.deepEqual(removeCalls[0].did, "did:plc:alice");
-    assert.match(removeCalls[0].membershipUri, /listitem\/li0$/);
+    assert.deepEqual(removeSpy.mock.callCount(), 1);
+    assert.deepEqual(removeSpy.mock.calls[0].arguments[0].did, "did:plc:alice");
+    assert.match(removeSpy.mock.calls[0].arguments[2], /listitem\/li0$/);
     const button = element.querySelector(
       '[data-testid="manage-list-members-toggle"]',
     );
@@ -292,12 +290,12 @@ describe("manage-list-members-dialog", () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
     let releaseAdd;
     const gate = new Promise((resolve) => (releaseAdd = resolve));
-    const { dataLayer } = createFakeDataLayer({
+    const { dataLayer } = makeDataLayer({
       follows: [alice],
     });
-    dataLayer.mutations.addProfileToList = async () => {
+    mock.method(dataLayer.mutations, "addProfileToList", async () => {
       await gate;
-    };
+    });
     const element = createDialog(dataLayer);
     await flushMicrotasks();
     await nextFrame();
@@ -326,7 +324,7 @@ describe("manage-list-members-dialog", () => {
   it("switches from suggestions to search results when a query is typed", async () => {
     const alice = createProfile({ did: "did:plc:alice", handle: "alice.test" });
     const dan = createProfile({ did: "did:plc:dan", handle: "dan.test" });
-    const { dataLayer, $chatRecipientSearchResults } = createFakeDataLayer({
+    const { dataLayer } = makeDataLayer({
       follows: [alice],
     });
     const element = createDialog(dataLayer);
@@ -337,7 +335,11 @@ describe("manage-list-members-dialog", () => {
         '[data-testid="manage-list-members-suggested-header"]',
       ) !== null,
     );
-    $chatRecipientSearchResults.set([dan]);
+    dataLayer.dataStore.setProfiles([dan]);
+    dataLayer.dataStore.$chatRecipientSearchResults.set({
+      actors: [dan],
+      cursor: null,
+    });
     await typeQuery(element, "dan");
     assert.equal(
       element.querySelector(
@@ -353,9 +355,12 @@ describe("manage-list-members-dialog", () => {
   });
 
   it("shows the empty state when the search returns nothing", async () => {
-    const { dataLayer, $chatRecipientSearchResults } = createFakeDataLayer();
+    const { dataLayer } = makeDataLayer();
     const element = createDialog(dataLayer);
-    $chatRecipientSearchResults.set([]);
+    dataLayer.dataStore.$chatRecipientSearchResults.set({
+      actors: [],
+      cursor: null,
+    });
     await typeQuery(element, "zzz");
     const emptyMessage = element.querySelector(
       '[data-testid="feed-end-message"]',
@@ -365,7 +370,7 @@ describe("manage-list-members-dialog", () => {
   });
 
   it("closes on the close button", async () => {
-    const { dataLayer } = createFakeDataLayer();
+    const { dataLayer } = makeDataLayer();
     const element = createDialog(dataLayer);
     let closed = false;
     element.addEventListener("dialog-closed", () => {

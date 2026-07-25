@@ -1,7 +1,10 @@
-import { describe, it, beforeEach, afterEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { respondToConfirm } from "../../testHelpers.js";
-import { Signal } from "/js/signals.js";
+import {
+  makeTestDataLayer,
+  respondToConfirm,
+  stubStatusTracked,
+} from "../../testHelpers.js";
 import { getDraftDeviceId } from "/js/drafts.js";
 import "/js/components/drafts-dialog.js";
 
@@ -30,31 +33,30 @@ describe("drafts-dialog", () => {
   }
 
   function createFakeDataLayer({ loadDrafts, deleteDraft } = {}) {
-    const $hydratedDrafts = new Signal.State(null);
-    const loadCalls = [];
-    const deleteCalls = [];
-    const dataLayer = {
-      derived: { $hydratedDrafts },
-      requests: {
-        loadDrafts: (options) => {
-          loadCalls.push(options);
-          if (loadDrafts) {
-            return loadDrafts(options);
-          }
-          return Promise.resolve();
-        },
-      },
-      mutations: {
-        deleteDraft: (args) => {
-          deleteCalls.push(args);
-          if (deleteDraft) {
-            return deleteDraft(args);
-          }
-          return Promise.resolve();
-        },
-      },
+    const dataLayer = makeTestDataLayer();
+    const loadSpy = stubStatusTracked(
+      dataLayer.requests,
+      "loadDrafts",
+      "loadDrafts",
+      loadDrafts ?? (async () => {}),
+    );
+    const deleteSpy = mock.method(
+      dataLayer.mutations,
+      "deleteDraft",
+      deleteDraft ?? (async () => {}),
+    );
+    return {
+      dataLayer,
+      seedDrafts: (drafts, { cursor = null } = {}) =>
+        dataLayer.dataStore.$drafts.set({ drafts, cursor }),
+      seedMedia: (entries) =>
+        dataLayer.draftMediaStore.$media.set({
+          ...dataLayer.draftMediaStore.$media.get(),
+          ...entries,
+        }),
+      loadSpy,
+      deleteSpy,
     };
-    return { dataLayer, $hydratedDrafts, loadCalls, deleteCalls };
   }
 
   function createDialog(dataLayer) {
@@ -85,10 +87,6 @@ describe("drafts-dialog", () => {
     };
   }
 
-  function seedDrafts($hydratedDrafts, draftViews, { cursor = null } = {}) {
-    $hydratedDrafts.set({ drafts: draftViews, cursor });
-  }
-
   describe("DraftsDialog - loading", () => {
     it("should render the dialog chrome with a loading spinner while drafts are null", () => {
       const { dataLayer } = createFakeDataLayer();
@@ -108,18 +106,19 @@ describe("drafts-dialog", () => {
     });
 
     it("should load drafts with reload on connect when none are cached", async () => {
-      const { dataLayer, loadCalls } = createFakeDataLayer();
+      const { dataLayer, loadSpy } = createFakeDataLayer();
       createDialog(dataLayer);
       await flushMicrotasks();
-      assert.deepEqual(loadCalls, [{ reload: true }]);
+      assert.deepEqual(loadSpy.mock.callCount(), 1);
+      assert.deepEqual(loadSpy.mock.calls[0].arguments[0], { reload: true });
     });
 
     it("should not reload drafts that are already cached", async () => {
-      const { dataLayer, $hydratedDrafts, loadCalls } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [createDraftView()]);
+      const { dataLayer, seedDrafts, loadSpy } = createFakeDataLayer();
+      seedDrafts([createDraftView()]);
       createDialog(dataLayer);
       await flushMicrotasks();
-      assert.deepEqual(loadCalls.length, 0);
+      assert.deepEqual(loadSpy.mock.callCount(), 0);
     });
 
     it("should show the error state when the initial load fails", async (t) => {
@@ -135,8 +134,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should show the empty state when there are no drafts", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, []);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([]);
       const element = createDialog(dataLayer);
       assert(element.querySelector('[data-testid="empty-state"]') !== null);
       assert.deepEqual(
@@ -148,8 +147,8 @@ describe("drafts-dialog", () => {
 
   describe("DraftsDialog - draft items", () => {
     it("should render one item per draft with its text and a timestamp", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({ id: "draft-1", posts: [{ text: "First draft" }] }),
         createDraftView({ id: "draft-2", posts: [{ text: "Second draft" }] }),
       ]);
@@ -167,8 +166,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should tag multi-post drafts with the extra post count", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({
           id: "draft-1",
           posts: [{ text: "one" }, { text: "two" }],
@@ -188,8 +187,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should tag drafts containing a quote", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({
           posts: [
             {
@@ -208,21 +207,20 @@ describe("drafts-dialog", () => {
     });
 
     it("should render media thumbs for drafts from this device", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts, seedMedia } = createFakeDataLayer();
+      seedMedia({
+        "images/a": { url: "blob:image-a" },
+        "videos/b": { url: null },
+      });
+      seedDrafts([
         createDraftView({
           posts: [
             {
               text: "with media",
               embedImages: [
-                {
-                  localRef: { path: "images/a" },
-                  previewUrl: "blob:image-a",
-                  exists: true,
-                  alt: "an image",
-                },
+                { localRef: { path: "images/a" }, alt: "an image" },
               ],
-              embedVideos: [{ localRef: { path: "videos/b" }, exists: true }],
+              embedVideos: [{ localRef: { path: "videos/b" } }],
               embedExternals: [
                 { uri: "https://media.tenor.com/x/fun.gif?ww=200&hh=100" },
               ],
@@ -250,8 +248,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should warn about missing media for drafts from this device", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({
           posts: [
             {
@@ -278,8 +276,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should tag foreign-device drafts with missing media and hide their thumbs", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({
           deviceId: "another-device",
           posts: [
@@ -315,9 +313,9 @@ describe("drafts-dialog", () => {
 
   describe("DraftsDialog - selecting a draft", () => {
     it("should close and dispatch draft-selected with the draft on click", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
       const draftView = createDraftView();
-      seedDrafts($hydratedDrafts, [draftView]);
+      seedDrafts([draftView]);
       const element = createDialog(dataLayer);
       element.open();
       const events = [];
@@ -331,9 +329,9 @@ describe("drafts-dialog", () => {
     });
 
     it("should select the draft on Enter", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
       const draftView = createDraftView();
-      seedDrafts($hydratedDrafts, [draftView]);
+      seedDrafts([draftView]);
       const element = createDialog(dataLayer);
       element.open();
       let selected = null;
@@ -352,8 +350,8 @@ describe("drafts-dialog", () => {
 
   describe("DraftsDialog - deleting a draft", () => {
     it("should delete the draft with its local refs and dispatch draft-deleted on confirm", async () => {
-      const { dataLayer, $hydratedDrafts, deleteCalls } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [
+      const { dataLayer, seedDrafts, deleteSpy } = createFakeDataLayer();
+      seedDrafts([
         createDraftView({
           id: "draft-9",
           posts: [
@@ -375,15 +373,17 @@ describe("drafts-dialog", () => {
       element.querySelector('[data-testid="draft-item-delete"]').click();
       await respondToConfirm(true);
       await flushMicrotasks();
-      assert.deepEqual(deleteCalls, [
-        { draftId: "draft-9", localRefs: ["images/a", "videos/b"] },
-      ]);
+      assert.deepEqual(deleteSpy.mock.callCount(), 1);
+      assert.deepEqual(deleteSpy.mock.calls[0].arguments[0], {
+        draftId: "draft-9",
+        localRefs: ["images/a", "videos/b"],
+      });
       assert.deepEqual(deletedDetail, { draftId: "draft-9" });
     });
 
     it("should not delete or dispatch when the confirm is declined", async () => {
-      const { dataLayer, $hydratedDrafts, deleteCalls } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [createDraftView()]);
+      const { dataLayer, seedDrafts, deleteSpy } = createFakeDataLayer();
+      seedDrafts([createDraftView()]);
       const element = createDialog(dataLayer);
       let deleted = false;
       element.addEventListener("draft-deleted", () => {
@@ -392,16 +392,16 @@ describe("drafts-dialog", () => {
       element.querySelector('[data-testid="draft-item-delete"]').click();
       await respondToConfirm(false);
       await flushMicrotasks();
-      assert.deepEqual(deleteCalls.length, 0);
+      assert.deepEqual(deleteSpy.mock.callCount(), 0);
       assert.deepEqual(deleted, false);
     });
 
     it("should show an error toast and skip draft-deleted when the delete fails", async (t) => {
       t.mock.method(console, "error", () => {});
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer({
+      const { dataLayer, seedDrafts } = createFakeDataLayer({
         deleteDraft: () => Promise.reject(new Error("boom")),
       });
-      seedDrafts($hydratedDrafts, [createDraftView()]);
+      seedDrafts([createDraftView()]);
       const element = createDialog(dataLayer);
       let deleted = false;
       element.addEventListener("draft-deleted", () => {
@@ -417,8 +417,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should not select the draft when the delete button is clicked", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [createDraftView()]);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([createDraftView()]);
       const element = createDialog(dataLayer);
       let selected = false;
       element.addEventListener("draft-selected", () => {
@@ -433,8 +433,8 @@ describe("drafts-dialog", () => {
 
   describe("DraftsDialog - pagination", () => {
     it("should disable the infinite scroll container when there is no cursor", () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, [createDraftView()]);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([createDraftView()]);
       const element = createDialog(dataLayer);
       const container = element.querySelector("infinite-scroll-container");
       assert(container.hasAttribute("disabled"));
@@ -442,13 +442,13 @@ describe("drafts-dialog", () => {
 
     it("should load the next page on load-more and resume when done", async () => {
       let resolveLoad;
-      const { dataLayer, $hydratedDrafts, loadCalls } = createFakeDataLayer({
+      const { dataLayer, seedDrafts, loadSpy } = createFakeDataLayer({
         loadDrafts: () =>
           new Promise((resolve) => {
             resolveLoad = resolve;
           }),
       });
-      seedDrafts($hydratedDrafts, [createDraftView()], { cursor: "page-2" });
+      seedDrafts([createDraftView()], { cursor: "page-2" });
       const element = createDialog(dataLayer);
       const container = element.querySelector("infinite-scroll-container");
       assert.deepEqual(container.hasAttribute("disabled"), false);
@@ -459,7 +459,8 @@ describe("drafts-dialog", () => {
         }),
       );
       await nextFrame();
-      assert.deepEqual(loadCalls, [undefined]);
+      assert.deepEqual(loadSpy.mock.callCount(), 1);
+      assert.deepEqual(loadSpy.mock.calls[0].arguments[0], undefined);
       assert(
         container.querySelector(".loading-spinner") !== null,
         "loading-more spinner should show while the page loads",
@@ -474,13 +475,13 @@ describe("drafts-dialog", () => {
 
     it("should resume immediately without a second request while a page load is pending", async () => {
       let resolveLoad;
-      const { dataLayer, $hydratedDrafts, loadCalls } = createFakeDataLayer({
+      const { dataLayer, seedDrafts, loadSpy } = createFakeDataLayer({
         loadDrafts: () =>
           new Promise((resolve) => {
             resolveLoad = resolve;
           }),
       });
-      seedDrafts($hydratedDrafts, [createDraftView()], { cursor: "page-2" });
+      seedDrafts([createDraftView()], { cursor: "page-2" });
       const element = createDialog(dataLayer);
       const container = element.querySelector("infinite-scroll-container");
       const resumes = [];
@@ -494,7 +495,7 @@ describe("drafts-dialog", () => {
           detail: { resume: () => resumes.push("second") },
         }),
       );
-      assert.deepEqual(loadCalls.length, 1);
+      assert.deepEqual(loadSpy.mock.callCount(), 1);
       assert.deepEqual(resumes, ["second"]);
       resolveLoad();
       await flushMicrotasks();
@@ -504,8 +505,8 @@ describe("drafts-dialog", () => {
 
   describe("DraftsDialog - dismissal", () => {
     it("should open the dialog as a modal and close on the back button", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, []);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([]);
       const element = createDialog(dataLayer);
       element.open();
       const dialog = element.querySelector("dialog");
@@ -521,8 +522,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should close on cancel (Escape)", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, []);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([]);
       const element = createDialog(dataLayer);
       element.open();
       let closed = false;
@@ -537,8 +538,8 @@ describe("drafts-dialog", () => {
     });
 
     it("should close on a backdrop click but not on a click inside the sheet", async () => {
-      const { dataLayer, $hydratedDrafts } = createFakeDataLayer();
-      seedDrafts($hydratedDrafts, []);
+      const { dataLayer, seedDrafts } = createFakeDataLayer();
+      seedDrafts([]);
       const element = createDialog(dataLayer);
       element.open();
       let closedCount = 0;
