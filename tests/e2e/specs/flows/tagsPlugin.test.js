@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { test, expect } from "../../base.js";
 import { login } from "../../helpers.js";
 import { MockServer } from "../../mockServer.js";
+import { userProfile } from "../../testData.js";
 import { createProfile } from "../../../shared/factories.js";
 
 // End-to-end coverage for the new host capabilities the "Tags" community
@@ -136,16 +137,41 @@ test.describe("Tags plugin", () => {
         });
       },
     );
+    // Backs syncFromPds — the bulk fetch that populates the local rkey
+    // index once at startup so badge rendering never needs a per-post
+    // network round trip. Counting calls lets the test prove that.
+    let listRecordsCalls = 0;
+    await page.route("**/xrpc/com.atproto.repo.listRecords*", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.searchParams.get("collection") !== SHARED_COLLECTION) {
+        return route.fallback();
+      }
+      listRecordsCalls++;
+      const records = [...tagRecords.entries()].map(([rkey, record]) => ({
+        uri: `at://${userProfile.did}/${SHARED_COLLECTION}/${rkey}`,
+        cid: "bafyfaketagcid",
+        value: record,
+      }));
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ records }),
+      });
+    });
     // Backs both the plugin-facing public getRecord bridge (used by
-    // fetchTags) and the host's own authenticated read-before-write
-    // ownership check inside putRecord/deleteRecord — both hit this same
-    // XRPC path, just against different hosts, and Playwright's route glob
-    // matches either.
+    // fetchTags, the edit modal's live per-DID lookup) and the host's own
+    // authenticated read-before-write ownership check inside putRecord/
+    // deleteRecord — both hit this same XRPC path, just against different
+    // hosts, and Playwright's route glob matches either. Counting calls
+    // lets the test prove badge rendering never triggers one of these,
+    // only the modal's own deliberate per-DID lookup does.
+    let getRecordCalls = 0;
     await page.route("**/xrpc/com.atproto.repo.getRecord*", async (route) => {
       const url = new URL(route.request().url());
       if (url.searchParams.get("collection") !== SHARED_COLLECTION) {
         return route.fallback();
       }
+      getRecordCalls++;
       const rkey = url.searchParams.get("rkey");
       const record = tagRecords.get(rkey);
       if (!record) {
@@ -234,12 +260,22 @@ test.describe("Tags plugin", () => {
     expect(record.$type).toBe(SHARED_COLLECTION);
     expect(record.$plugin).toBe(TAGS_PLUGIN_ID);
 
-    // Reloading the profile should render the tag as a badge next to the
-    // account, via the new author-badges slot.
+    // The badge should show up immediately, updated locally from the
+    // write itself — no fresh listRecords sync needed for this.
+    await expect(
+      profileView.locator(".tag-badges .tag-badge", { hasText: "friend" }),
+    ).toBeVisible({ timeout: 10000 });
+
+    // A fresh load (a new worker, empty in-memory state) has to rebuild
+    // the local index from the PDS — via one bulk listRecords sync, not a
+    // per-post/per-profile getRecord call — and still render the badge.
+    const getRecordCallsBeforeReload = getRecordCalls;
     await page.reload();
     await expect(
       profileView.locator(".tag-badges .tag-badge", { hasText: "friend" }),
     ).toBeVisible({ timeout: 10000 });
+    expect(listRecordsCalls).toBeGreaterThan(0);
+    expect(getRecordCalls).toBe(getRecordCallsBeforeReload);
 
     expect(pageErrors).toEqual([]);
   });
