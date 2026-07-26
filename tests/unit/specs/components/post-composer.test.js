@@ -43,6 +43,9 @@ describe("post-composer", () => {
       $richTextTransformsVersion: { get: () => 0 },
       transformRichTextTokens: async () => null,
       renderRichTextNodeToken: () => null,
+      getClaimedFacetTypes: () => new Set(),
+      $slots: { get: () => null },
+      getSlotEntries: () => [],
     };
     return element;
   }

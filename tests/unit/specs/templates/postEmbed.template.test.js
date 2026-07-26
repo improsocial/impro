@@ -12,6 +12,8 @@ const pluginService = {
   transformRichTextTokens: async () => null,
   renderRichTextNodeToken: () => null,
   getClaimedFacetTypes: () => new Set(),
+  $slots: { get: () => null },
+  getSlotEntries: () => [],
 };
 
 describe("postEmbedTemplate - images", () => {

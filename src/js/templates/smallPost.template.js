@@ -10,6 +10,7 @@ import { noop } from "/js/utils.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
+import "/js/components/plugin-slot.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
@@ -143,6 +144,13 @@ export function smallPostTemplate({
           })}
           ${post.badgeLabels
             ? labelBadgesTemplate({ badgeLabels: post.badgeLabels })
+            : ""}
+          ${pluginService
+            ? html`<plugin-slot
+                name="author-badges"
+                context-did=${post.author?.did ?? ""}
+                .pluginService=${pluginService}
+              ></plugin-slot>`
             : ""}
           ${showReplyToLabel
             ? html`<div class="reply-to-author">
