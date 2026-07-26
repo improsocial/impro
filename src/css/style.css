@@ -934,6 +934,20 @@ header {
   font-weight: 600;
 }
 
+.header .header-title-muted-icon {
+  display: inline-flex;
+  vertical-align: -3px;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  color: var(--text-color-muted);
+}
+
+.header .header-title-muted-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
 .header .header-subtitle {
   font-size: 13px;
   color: var(--text-color-muted);
@@ -3932,6 +3946,63 @@ image-carousel {
   font-weight: 500;
   color: var(--highlight-color);
   background: color-mix(in srgb, var(--highlight-color) 12%, transparent);
+}
+
+.chat-info-panel-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 16px;
+}
+
+.chat-info-panel-action {
+  gap: 6px;
+}
+
+.chat-info-panel-action app-icon {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+}
+
+.chat-info-panel-action app-icon svg {
+  width: 100%;
+  height: 100%;
+}
+
+.chat-info-panel-action-skeleton {
+  width: 90px;
+  height: 34px;
+}
+
+.chat-info-panel-action.muted {
+  color: var(--error-color);
+  background-color: color-mix(in srgb, var(--error-color) 12%, transparent);
+}
+
+@media (hover: hover) {
+  .rounded-button.chat-info-panel-action.muted:not(:disabled):hover {
+    background-color: color-mix(in srgb, var(--error-color) 20%, transparent);
+  }
+}
+
+.convo-item.is-muted {
+  opacity: 0.6;
+}
+
+.convo-item .convo-muted-icon {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  vertical-align: -2px;
+  color: var(--text-color-muted);
+}
+
+.convo-item .convo-muted-icon svg {
+  width: 100%;
+  height: 100%;
 }
 
 .message-day-title {
@@ -7100,6 +7171,7 @@ context-menu-item-group > context-menu-item > button {
   display: flex;
   align-items: center;
   opacity: 0;
+  touch-action: none;
   top: calc(
     env(safe-area-inset-top, 0px) + 8px + var(--toast-stack-offset, 0px)
   );

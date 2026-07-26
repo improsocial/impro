@@ -240,6 +240,54 @@ test.describe("Group chat details view", () => {
     await expect(view.locator(".profile-list-item")).toHaveCount(0);
   });
 
+  test("should show mute toggle and leave button in chat actions", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const { alice, bob } = createTestMembers();
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice, bob],
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1/settings");
+
+    const view = page.locator("#group-chat-details-view");
+    const toggle = view.locator('[data-testid="group-settings-mute-toggle"]');
+    await expect(toggle).toBeVisible({ timeout: 10000 });
+    await expect(toggle).toHaveAttribute("data-teststate", "unmuted");
+    await expect(
+      view.locator('[data-testid="group-settings-leave-button"]'),
+    ).toContainText("Leave");
+  });
+
+  test("should reflect muted state on the group mute toggle", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const { alice, bob } = createTestMembers();
+    const convo = createGroupConvo({
+      id: "convo-1",
+      name: "Cool Group",
+      otherMembers: [alice, bob],
+      muted: true,
+    });
+    mockServer.addConvos([convo]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1/settings");
+
+    const view = page.locator("#group-chat-details-view");
+    await expect(
+      view.locator('[data-testid="group-settings-mute-toggle"]'),
+    ).toHaveAttribute("data-teststate", "muted", { timeout: 10000 });
+  });
+
   test("should show not found for an unknown conversation", async ({
     page,
   }) => {

@@ -472,7 +472,7 @@ export class Derived extends ReactiveStore {
       return preferences.getLabelerSettings(labelerDid);
     });
     this.$convos = new ComputedMap((convoId) =>
-      this.dataStore.$convos.get(convoId),
+      this.patchStore.$patchedConvos.get(convoId),
     );
     this.$convoList = new Signal.Computed(() => {
       const data = this.dataStore.$convoList.get();

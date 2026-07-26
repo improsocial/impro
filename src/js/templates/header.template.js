@@ -4,7 +4,12 @@ import { arrowLeftIconTemplate } from "/js/templates/icons/arrowLeft.template.js
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
 
-function avatarAndTitleTemplate({ title, subtitle, avatarTemplate }) {
+function avatarAndTitleTemplate({
+  title,
+  subtitle,
+  avatarTemplate,
+  titleRightItemTemplate,
+}) {
   return html`${avatarTemplate
     ? html`<div class="header-avatar">${avatarTemplate()}</div>`
     : ""}
@@ -13,7 +18,11 @@ function avatarAndTitleTemplate({ title, subtitle, avatarTemplate }) {
         class="header-title-container"
         data-testid="header-title-container"
       >
-        <span class="header-title" data-testid="header-title">${title}</span>
+        <span class="header-title" data-testid="header-title"
+          >${title}${titleRightItemTemplate
+            ? titleRightItemTemplate()
+            : ""}</span
+        >
         ${subtitle
           ? html`<span class="header-subtitle" data-testid="header-subtitle"
               >${subtitle}</span
@@ -28,6 +37,7 @@ export function headerTemplate({
   subtitle = null,
   titleHref = null,
   avatarTemplate = null,
+  titleRightItemTemplate = null,
   showLoadingSpinner = false,
   leftButton = "back",
   backButtonFallbackRoute = null,
@@ -61,9 +71,19 @@ export function headerTemplate({
           </button>`}
       ${titleHref
         ? html`<container-link class="header-title-link" href=${titleHref}>
-            ${avatarAndTitleTemplate({ title, subtitle, avatarTemplate })}
+            ${avatarAndTitleTemplate({
+              title,
+              subtitle,
+              avatarTemplate,
+              titleRightItemTemplate,
+            })}
           </container-link>`
-        : avatarAndTitleTemplate({ title, subtitle, avatarTemplate })}
+        : avatarAndTitleTemplate({
+            title,
+            subtitle,
+            avatarTemplate,
+            titleRightItemTemplate,
+          })}
       ${showLoadingSpinner
         ? html`<div class="header-spacer"></div>
             <div class="loading-spinner" data-testid="loading-spinner"></div>`

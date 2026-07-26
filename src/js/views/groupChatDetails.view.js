@@ -13,7 +13,10 @@ import {
 import { formatFullDate } from "/js/utils.js";
 import { Signal } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
+import { showToast } from "/js/toasts.js";
+import { confirmModal } from "/js/modals/confirm.modal.js";
 import "/js/components/infinite-scroll-container.js";
+import "/js/components/app-icon.js";
 
 function sortMembers({ members, ownerDid, currentUserDid }) {
   const rank = (member) => {
@@ -55,7 +58,14 @@ function memberTrailingTemplate({ member, ownerDid }) {
   </div>`;
 }
 
-function groupHeaderCardTemplate({ convo, groupDetails, currentUserDid }) {
+function groupHeaderCardTemplate({
+  convo,
+  groupDetails,
+  currentUserDid,
+  isMuteSaving,
+  onToggleMute,
+  onLeave,
+}) {
   const otherMembers = convo.members.filter(
     (member) => member.did !== currentUserDid,
   );
@@ -73,6 +83,34 @@ function groupHeaderCardTemplate({ convo, groupDetails, currentUserDid }) {
           Created ${formatFullDate(groupDetails.createdAt)}
         </div>`
       : ""}
+    <div class="chat-info-panel-actions">
+      <button
+        class="rounded-button chat-info-panel-action ${convo.muted
+          ? "muted"
+          : ""}"
+        data-testid="group-settings-mute-toggle"
+        data-teststate=${convo.muted ? "muted" : "unmuted"}
+        aria-label=${convo.muted
+          ? "Unmute this group chat"
+          : "Mute this group chat"}
+        ?disabled=${isMuteSaving}
+        @click=${() => onToggleMute(!convo.muted)}
+      >
+        <app-icon
+          icon=${convo.muted ? "bell-off-line" : "bell-line"}
+        ></app-icon>
+        <span>${convo.muted ? "Muted" : "Mute"}</span>
+      </button>
+      <button
+        class="rounded-button chat-info-panel-action"
+        data-testid="group-settings-leave-button"
+        aria-label="Leave this group chat"
+        @click=${() => onLeave(groupDetails)}
+      >
+        <app-icon icon="door-exit-line"></app-icon>
+        <span>Leave</span>
+      </button>
+    </div>
   </div>`;
 }
 
@@ -92,6 +130,14 @@ function groupHeaderCardSkeletonTemplate() {
       &#8203;<span
         class="skeleton-line-shorter skeleton-animate group-chat-header-skeleton-handle-line"
       ></span>
+    </div>
+    <div class="chat-info-panel-actions">
+      <div
+        class="rounded-button chat-info-panel-action chat-info-panel-action-skeleton skeleton-animate"
+      ></div>
+      <div
+        class="rounded-button chat-info-panel-action chat-info-panel-action-skeleton skeleton-animate"
+      ></div>
     </div>
   </div>`;
 }
@@ -133,10 +179,16 @@ function notGroupConvoTemplate() {
 }
 
 class GroupChatDetailsView extends View {
-  async render({ root, params, context: { dataLayer, isAuthenticated } }) {
+  async render({
+    root,
+    params,
+    router,
+    context: { dataLayer, isAuthenticated },
+  }) {
     await auth.requireAuth();
 
     const convoId = params.convoId;
+    const $isMuteSaving = new Signal.State(false);
 
     const $requestError = new Signal.Computed(() => {
       return (
@@ -150,6 +202,57 @@ class GroupChatDetailsView extends View {
 
     async function loadMoreMembers() {
       await dataLayer.requests.loadConvoMembers(convoId);
+    }
+
+    async function handleToggleMute(convo, muted) {
+      $isMuteSaving.set(true);
+      try {
+        await dataLayer.mutations.setConvoMuted(convo, muted);
+        showToast(muted ? "Group chat muted" : "Group chat unmuted");
+      } catch (err) {
+        console.error(err);
+        showToast("Failed to mute group chat", { style: "error" });
+      } finally {
+        $isMuteSaving.set(false);
+      }
+    }
+
+    async function handleLeave(convo, groupDetails) {
+      const groupName = groupDetails?.name ?? "this group chat";
+      const didLeave = await confirmModal(
+        `Are you sure you want to leave "${groupName}"? You won't be able to rejoin unless you're invited.`,
+        {
+          title: "Leave group chat",
+          confirmButtonText: "Leave group chat",
+          confirmButtonStyle: "danger",
+          pendingText: "Leaving",
+          onConfirm: async () => {
+            try {
+              await dataLayer.mutations.leaveConvo(convo);
+            } catch (err) {
+              if (err instanceof ApiError) {
+                if (err.data?.error === "OwnerCannotLeave") {
+                  showToast("Owner must lock the group before leaving.", {
+                    style: "error",
+                  });
+                  throw err;
+                }
+                if (err.data?.error === "InvalidConvo") {
+                  showToast("Conversation not found.", { style: "error" });
+                  throw err;
+                }
+              }
+              console.error(err);
+              showToast("Could not leave chat", { style: "error" });
+              throw err;
+            }
+          },
+        },
+      );
+      if (didLeave) {
+        router.go("/messages");
+        showToast("Left group chat");
+      }
     }
 
     bindPageTitle(root, () => "Group chat settings");
@@ -169,6 +272,7 @@ class GroupChatDetailsView extends View {
           })
         : null;
       const hasMore = !!memberFeed?.cursor;
+      const isMuteSaving = $isMuteSaving.get();
 
       render(
         html`<div id="group-chat-details-view">
@@ -189,6 +293,9 @@ class GroupChatDetailsView extends View {
                     convo,
                     groupDetails,
                     currentUserDid: currentUser?.did ?? null,
+                    isMuteSaving,
+                    onToggleMute: (muted) => handleToggleMute(convo, muted),
+                    onLeave: (details) => handleLeave(convo, details),
                   })
                 : groupHeaderCardSkeletonTemplate()}
               ${membersHeadingTemplate({ groupDetails })}

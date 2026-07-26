@@ -30,6 +30,7 @@ export function createConvo({
   lastMessage,
   status = "accepted",
   unreadCount = 0,
+  muted = false,
 }) {
   return {
     id,
@@ -37,6 +38,7 @@ export function createConvo({
     members: [createTestUserMember(), otherMember],
     status,
     unreadCount,
+    muted,
     lastMessage: lastMessage || undefined,
   };
 }
@@ -51,6 +53,7 @@ export function createGroupConvo({
   lockStatus = "unlocked",
   memberCount,
   ownerDid,
+  muted = false,
 }) {
   let members = [createTestUserMember(), ...otherMembers];
   if (ownerDid) {
@@ -68,7 +71,7 @@ export function createGroupConvo({
     members,
     status,
     unreadCount,
-    muted: false,
+    muted,
     lastMessage: lastMessage || undefined,
     kind: {
       $type: "chat.bsky.convo.defs#groupConvo",

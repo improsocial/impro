@@ -1320,26 +1320,52 @@ export class Mutations {
     return updatedConvo;
   }
 
-  async rejectConvo(convo) {
-    await this.api.leaveConvo(convo.id);
-    this.dataStore.$convos.set(convo.id, null);
-    const convoList = this.dataStore.$convoList.get();
-    if (convoList) {
+  async leaveConvo(convo) {
+    const convoId = convo.id;
+    await this.api.leaveConvo(convoId);
+    this.dataStore.$convos.set(convoId, null);
+    const list = this.dataStore.$convoList.get();
+    if (list) {
       this.dataStore.$convoList.set({
-        convos: convoList.convos.filter(
-          (listConvo) => listConvo.id !== convo.id,
-        ),
-        cursor: convoList.cursor,
+        convos: list.convos.filter((listConvo) => listConvo.id !== convoId),
+        cursor: list.cursor,
       });
     }
-    const convoRequestList = this.dataStore.$convoRequestList.get();
-    if (convoRequestList) {
+  }
+
+  async rejectConvo(convo) {
+    const convoId = convo.id;
+    await this.api.leaveConvo(convoId);
+    this.dataStore.$convos.set(convoId, null);
+    const requestList = this.dataStore.$convoRequestList.get();
+    if (requestList) {
       this.dataStore.$convoRequestList.set({
-        convos: convoRequestList.convos.filter(
-          (listConvo) => listConvo.id !== convo.id,
+        convos: requestList.convos.filter(
+          (listConvo) => listConvo.id !== convoId,
         ),
-        cursor: convoRequestList.cursor,
+        cursor: requestList.cursor,
       });
+    }
+  }
+
+  async setConvoMuted(convo, muted) {
+    const convoId = convo.id;
+    const patchId = this.patchStore.addConvoPatch(convoId, {
+      type: "setConvoMuted",
+      muted,
+    });
+    try {
+      if (muted) {
+        await this.api.muteConvo(convoId);
+      } else {
+        await this.api.unmuteConvo(convoId);
+      }
+      const latest = this.dataStore.$convos.get(convoId);
+      if (latest) {
+        this.dataStore.$convos.set(convoId, { ...latest, muted });
+      }
+    } finally {
+      this.patchStore.removeConvoPatch(convoId, patchId);
     }
   }
 
