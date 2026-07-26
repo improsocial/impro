@@ -256,12 +256,85 @@ describe("plugin-slot", () => {
       assert.deepEqual(captured, ["at://one", "at://two"]);
       assert.deepEqual(slot.children[0].textContent, "at://two");
     });
+
+    it("re-renders when context-did changes on an existing element", async () => {
+      const captured = [];
+      const pluginService = makePluginService({
+        entries: {
+          "author-badges": [
+            {
+              pluginId: "alpha",
+              invoke: async (context) => {
+                captured.push(context.did);
+                return { tag: "div", text: context.did };
+              },
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(captured, ["did:plc:one"]);
+
+      slot.setAttribute("context-did", "did:plc:two");
+      await flushMicrotasks();
+      assert.deepEqual(captured, ["did:plc:one", "did:plc:two"]);
+      assert.deepEqual(slot.children[0].textContent, "did:plc:two");
+    });
+
+    it("supports multiple simultaneous instances of the same slot name, each with its own context", async () => {
+      const captured = [];
+      const pluginService = makePluginService({
+        entries: {
+          "author-badges": [
+            {
+              pluginId: "alpha",
+              invoke: async (context) => {
+                captured.push(context.did);
+                return { tag: "div", text: context.did };
+              },
+            },
+          ],
+        },
+      });
+      const slotOne = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      const slotTwo = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:two" },
+      });
+      document.body.appendChild(slotOne);
+      document.body.appendChild(slotTwo);
+      await flushMicrotasks();
+      assert.deepEqual(
+        new Set(captured),
+        new Set(["did:plc:one", "did:plc:two"]),
+      );
+      assert.deepEqual(slotOne.children[0].textContent, "did:plc:one");
+      assert.deepEqual(slotTwo.children[0].textContent, "did:plc:two");
+    });
   });
 
   describe("PluginSlot - interactionHandlers", () => {
-    it("throws when interactionHandlers is not set", () => {
+    it("defaults to an empty object when not set, rather than throwing", () => {
       const element = document.createElement("plugin-slot");
       element.pluginService = makePluginService();
+      element.setAttribute("name", "x");
+      element.connectedCallback();
+      assert.deepEqual(element.interactionHandlers, {});
+    });
+
+    it("throws when pluginService is not set", () => {
+      const element = document.createElement("plugin-slot");
       element.setAttribute("name", "x");
       let caught = null;
       try {
@@ -270,7 +343,7 @@ describe("plugin-slot", () => {
         caught = error;
       }
       assert(caught instanceof Error);
-      assert.deepEqual(caught.message, "interactionHandlers is required");
+      assert.deepEqual(caught.message, "pluginService is required");
     });
   });
 

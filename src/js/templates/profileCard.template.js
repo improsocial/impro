@@ -24,6 +24,7 @@ import "/js/components/detected-rich-text.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import "/js/components/plugin-slot.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
 import "/js/components/context-menu-item-group.js";
@@ -57,6 +58,7 @@ function profileDescriptionTemplate({
   profile,
   identityResolver,
   labelerInfo,
+  pluginService,
 }) {
   if (isBlocking) {
     return html`<div>
@@ -89,6 +91,13 @@ function profileDescriptionTemplate({
       : null}
     ${!isCurrentUser && profile.badgeLabels?.length
       ? labelBadgesTemplate({ badgeLabels: profile.badgeLabels })
+      : ""}
+    ${pluginService
+      ? html`<plugin-slot
+          name="author-badges"
+          context-did=${profile.did}
+          .pluginService=${pluginService}
+        ></plugin-slot>`
       : ""}
   `;
 }
@@ -445,6 +454,7 @@ export function profileCardTemplate({
       labelerInfo,
       profile,
       identityResolver,
+      pluginService,
     })}
   </div>`;
 }
