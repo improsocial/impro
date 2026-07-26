@@ -115,6 +115,10 @@ const ACTION_LABELS = {
     'Send feed feedback (e.g. "show fewer/more like this") on your behalf',
 };
 
+const RECORD_LABELS = {
+  write: "Create, update, and delete its own private records in your account",
+};
+
 function permissionsListTemplate({ permissions }) {
   const sections = [];
   const fetchPatterns = permissions.fetch ?? [];
@@ -137,6 +141,18 @@ function permissionsListTemplate({ permissions }) {
         <ul class="permission-prompt-list">
           ${actionScopes.map(
             (scope) => html`<li>${ACTION_LABELS[scope] ?? scope}</li>`,
+          )}
+        </ul>
+      </div>
+    `);
+  }
+  const recordScopes = permissions.records ?? [];
+  if (recordScopes.length > 0) {
+    sections.push(html`
+      <div class="permission-prompt-section">
+        <ul class="permission-prompt-list">
+          ${recordScopes.map(
+            (scope) => html`<li>${RECORD_LABELS[scope] ?? scope}</li>`,
           )}
         </ul>
       </div>

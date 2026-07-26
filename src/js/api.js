@@ -1433,6 +1433,61 @@ export class Api {
     return res.data;
   }
 
+  // Generic record read/write/delete for plugin-owned collections (see
+  // pluginService.js's putRecord/deleteRecord host methods). Unlike the
+  // resource-specific helpers above, the collection is caller-supplied; the
+  // caller is responsible for having already checked the collection against
+  // the plugin's declared permissions — these methods have no opinion about
+  // that, they just always pin the request to the signed-in user's own repo.
+  //
+  // Named getOwnRecord (not getRecord) to avoid colliding with the existing
+  // getRecord(uri) above, which takes a full AT-URI for an arbitrary repo.
+  // This one is also deliberately distinct from the plugin-facing
+  // app.data.getRecord bridge (Slingshot-backed, public/unauthenticated,
+  // works for any DID): this one reads the user's own repo directly and
+  // authenticated, for the read-before-write ownership check in
+  // pluginService.js, where staleness from a cache/index would be a real
+  // correctness problem.
+  async getOwnRecord(collection, rkey) {
+    try {
+      const res = await this.request("com.atproto.repo.getRecord", {
+        query: { repo: this.session.did, collection, rkey },
+      });
+      return res.data;
+    } catch (error) {
+      if (error instanceof ApiError && error.data?.error === "RecordNotFound") {
+        return null;
+      }
+      throw error;
+    }
+  }
+
+  async putRecord(collection, rkey, record, swapRecord) {
+    const res = await this.request("com.atproto.repo.putRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection,
+        rkey,
+        record,
+        swapRecord: swapRecord ?? null,
+      },
+    });
+    return res.data;
+  }
+
+  async deleteRecord(collection, rkey) {
+    const res = await this.request("com.atproto.repo.deleteRecord", {
+      method: "POST",
+      body: {
+        repo: this.session.did,
+        collection,
+        rkey,
+      },
+    });
+    return res.data;
+  }
+
   async createModerationReport({ reasonType, reason, subject, labelerDid }) {
     const body = {
       reasonType,

@@ -1,6 +1,19 @@
 import { unique } from "/js/utils.js";
 
 const ACTION_SCOPES = ["mute", "block", "feedFeedback"];
+const RECORD_SCOPES = ["write"];
+
+// All records-write plugins share this one collection — a plugin doesn't
+// get to choose its own NSID. AT Protocol OAuth scopes have to name an
+// exact collection at authorization time (no partial wildcards), so
+// enumerating a new collection per plugin would mean a core change *and* a
+// forced re-authentication for every new plugin, forever. Sharing one
+// collection means the OAuth scope for it (see oauthScopes.js) only ever
+// needs to be granted once. Cross-plugin isolation within this shared
+// collection is enforced per-record by pluginService.js's putRecord/
+// deleteRecord (see the $plugin ownership marker there), not by the
+// collection name.
+export const SHARED_PLUGIN_RECORDS_COLLECTION = "social.impro.plugins.cloaca";
 
 export function getPermissionsFromManifest(manifest) {
   return parsePermissions(manifest.permissions ?? {});
@@ -26,6 +39,15 @@ export function parsePermissions(permissions) {
     );
     if (actionScopes.length > 0) parsed.actions = actionScopes;
   }
+  if (permissions.records) {
+    const recordsArray = Array.isArray(permissions.records)
+      ? permissions.records
+      : [permissions.records];
+    const recordScopes = unique(
+      recordsArray.filter((entry) => RECORD_SCOPES.includes(entry)),
+    );
+    if (recordScopes.length > 0) parsed.records = recordScopes;
+  }
   return parsed;
 }
 
@@ -33,6 +55,15 @@ export function parsePermissions(permissions) {
 // like this" feed-interaction signal)
 export function isActionAllowed(action, permissions) {
   return (permissions.actions ?? []).includes(action);
+}
+
+// Currently just "write" — lets a plugin create/update/delete its own
+// records in the shared SHARED_PLUGIN_RECORDS_COLLECTION (see
+// pluginService.js's putRecord/deleteRecord host methods). Writes are
+// always pinned to the signed-in user's own repo; a plugin never supplies
+// or chooses a repo or a collection.
+export function isRecordWriteAllowed(permissions) {
+  return (permissions.records ?? []).includes("write");
 }
 
 export function diffPermissions(current, next) {

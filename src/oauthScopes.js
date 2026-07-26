@@ -142,6 +142,18 @@ const CHAT_OAUTH_RPC_SCOPES = [
 
 const CHAT_OAUTH_REPO_SCOPES = ["repo:chat.bsky.actor.declaration"];
 
+// Every plugin declaring permissions.records: ["write"] shares this single
+// collection (see SHARED_PLUGIN_RECORDS_COLLECTION in pluginPermissions.js)
+// — a plugin never gets its own collection name. AT Protocol OAuth scopes
+// must name an exact collection (no wildcards, partial or otherwise), so
+// per-plugin collections would mean adding a new scope entry here *and*
+// forcing every user to re-authenticate for every single new plugin,
+// forever. Sharing one collection means this is the only scope entry
+// records-write plugins will ever need — cross-plugin isolation is enforced
+// per-record by pluginService.js's putRecord/deleteRecord instead (see the
+// $plugin ownership marker there), not by the OAuth scope.
+const PLUGIN_OAUTH_REPO_SCOPES = ["repo:social.impro.plugins.cloaca"];
+
 const ATPROTO_OAUTH_RPC_SCOPES = [
   "rpc:com.atproto.moderation.createReport",
   "rpc:com.atproto.repo.uploadBlob",
@@ -180,6 +192,7 @@ function buildOauthScopesString() {
     ...expandScopes(ATPROTO_OAUTH_RPC_SCOPES),
     ...expandScopes(BSKY_OAUTH_REPO_SCOPES),
     ...expandScopes(CHAT_OAUTH_REPO_SCOPES),
+    ...expandScopes(PLUGIN_OAUTH_REPO_SCOPES),
     ...expandScopes(OPTIONAL_OAUTH_RPC_SCOPES),
   ];
   return scopes.join(" ");

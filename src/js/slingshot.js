@@ -12,7 +12,7 @@ function isValidNsid(value) {
   return typeof value === "string" && NSID_PATTERN.test(value);
 }
 
-function isValidRkey(value) {
+export function isValidRkey(value) {
   return (
     typeof value === "string" &&
     value !== "." &&

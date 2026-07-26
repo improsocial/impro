@@ -6,6 +6,7 @@ import {
   isEmptyPermissions,
   isFetchAllowed,
   isActionAllowed,
+  isRecordWriteAllowed,
 } from "/js/plugins/pluginPermissions.js";
 
 describe("parsePermissions", () => {
@@ -60,6 +61,46 @@ describe("parsePermissions", () => {
   it("omits the actions key when no valid scopes remain", () => {
     assert.deepEqual(parsePermissions({ actions: [] }), {});
     assert.deepEqual(parsePermissions({ actions: ["feedback"] }), {});
+  });
+
+  it("parses the write record scope", () => {
+    assert.deepEqual(parsePermissions({ records: ["write"] }), {
+      records: ["write"],
+    });
+  });
+
+  it("wraps a string records value into an array", () => {
+    assert.deepEqual(parsePermissions({ records: "write" }), {
+      records: ["write"],
+    });
+  });
+
+  it("filters out unknown record scopes", () => {
+    assert.deepEqual(
+      parsePermissions({ records: ["write", "delete", "read"] }),
+      { records: ["write"] },
+    );
+  });
+
+  it("dedupes records entries", () => {
+    assert.deepEqual(parsePermissions({ records: ["write", "write"] }), {
+      records: ["write"],
+    });
+  });
+
+  it("omits the records key when no valid scopes remain", () => {
+    assert.deepEqual(parsePermissions({ records: [] }), {});
+    assert.deepEqual(parsePermissions({ records: ["delete"] }), {});
+  });
+});
+
+describe("isRecordWriteAllowed", () => {
+  it("allows write when granted", () => {
+    assert(isRecordWriteAllowed({ records: ["write"] }));
+  });
+
+  it("denies everything when the records key is missing", () => {
+    assert(!isRecordWriteAllowed({}));
   });
 });
 
@@ -135,6 +176,19 @@ describe("diffPermissions", () => {
       null,
     );
   });
+
+  it("treats a missing current records key as 'everything new'", () => {
+    assert.deepEqual(diffPermissions({}, { records: ["write"] }), {
+      records: ["write"],
+    });
+  });
+
+  it("returns null when records has no new entries", () => {
+    assert.deepEqual(
+      diffPermissions({ records: ["write"] }, { records: ["write"] }),
+      null,
+    );
+  });
 });
 
 describe("isEmptyPermissions (missing-key shape)", () => {
@@ -150,6 +204,14 @@ describe("isEmptyPermissions", () => {
 
   it("returns false when any array is non-empty", () => {
     assert(!isEmptyPermissions({ fetch: ["https://a.com/*"] }));
+  });
+
+  it("returns true when records is empty", () => {
+    assert(isEmptyPermissions({ records: [] }));
+  });
+
+  it("returns false when records is non-empty", () => {
+    assert(!isEmptyPermissions({ records: ["write"] }));
   });
 });
 

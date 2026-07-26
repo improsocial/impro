@@ -163,6 +163,19 @@ class PluginData {
   getRecord(repo, collection, rkey) {
     return hostCall("getRecord", { repo, collection, rkey });
   }
+  // Writes to the signed-in user's own repo only — there is no `repo`
+  // parameter, unlike getRecord, since a plugin can never write to anyone
+  // else's account. There's also no `collection` parameter: every
+  // records-write plugin shares one fixed collection (requires
+  // `permissions.records: ["write"]`, granted by the user at install time),
+  // and the host rejects any rkey that already belongs to a different
+  // plugin, so a plugin only ever needs to pick its own rkey.
+  putRecord(rkey, record) {
+    return hostCall("putRecord", { rkey, record });
+  }
+  deleteRecord(rkey) {
+    return hostCall("deleteRecord", { rkey });
+  }
 }
 
 class App {
@@ -325,6 +338,18 @@ export class Plugin {
     await hostCall("saveData", { data });
   }
 
+  // Device-local counterpart to loadData/saveData: never synced through the
+  // user's account preferences, so it's the right place for anything that
+  // shouldn't silently follow the plugin to another device (e.g. a locally
+  // held secret key). Cleared on uninstall, same as loadData/saveData.
+  async loadLocalData() {
+    return hostCall("loadLocalData");
+  }
+
+  async saveLocalData(data) {
+    await hostCall("saveLocalData", { data });
+  }
+
   addSettingTab(tab) {
     tab.plugin = this;
     const displayHandlerId = uuid.create();
@@ -402,6 +427,14 @@ export class Plugin {
       name,
       handlerId,
     });
+  }
+
+  // Forces every mounted <plugin-slot name=...> to re-invoke its registered
+  // plugins' callbacks (including other plugins' — the slot has no concept
+  // of per-plugin refresh). Useful when a slot's content depends on data
+  // that resolves asynchronously after the initial render.
+  refreshSlot(name) {
+    return hostCall("refreshSlot", { name });
   }
 
   onload() {}

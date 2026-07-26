@@ -4,9 +4,14 @@ import {
   PluginService,
   PermissionsDeclinedError,
 } from "/js/plugins/pluginService.js";
+import { SHARED_PLUGIN_RECORDS_COLLECTION } from "/js/plugins/pluginPermissions.js";
 import { Signal, SignalMap } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import {
+  getLocalData,
+  setLocalData,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { respondToConfirm } from "../../testHelpers.js";
 
 function emptyDataLayer() {
@@ -613,6 +618,17 @@ describe("uninstallPlugin", () => {
     // Cache should be reconciled against the remaining plugin only
     assert.deepEqual(reconcileCalls.length, 1);
     assert.deepEqual(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
+  });
+
+  it("also clears device-local plugin data", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    setLocalData("a", { keys: [{ id: "k1", secret: "shh" }] });
+    assert.notDeepEqual(getLocalData("a"), null);
+    await service.uninstallPlugin("a");
+    assert.deepEqual(getLocalData("a"), null);
   });
 });
 
@@ -1432,6 +1448,62 @@ describe("slot registry", () => {
   });
 });
 
+describe("refreshSlot host method", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
+  }
+
+  function register(service, plugin, message) {
+    const handler = service.pluginBridge._registrationTargets.get("slot");
+    return handler(plugin, message);
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("triggers effects watching $slots for that name without changing its entries", () => {
+    const service = makeServiceWithRealBridge();
+    register(
+      service,
+      { pluginId: "alpha", call: () => {} },
+      {
+        target: "slot",
+        name: "author-badges",
+        handlerId: 1,
+      },
+    );
+    const before = service.$slots.get("author-badges");
+    getHandler(service, "refreshSlot")(
+      { pluginId: "alpha" },
+      { name: "author-badges" },
+    );
+    const after = service.$slots.get("author-badges");
+    assert.notEqual(before, after);
+    assert.deepEqual(
+      after.map((entry) => entry.pluginId),
+      before.map((entry) => entry.pluginId),
+    );
+  });
+
+  it("is a no-op for a slot name nobody has registered", () => {
+    const service = makeServiceWithRealBridge();
+    assert.doesNotThrow(() =>
+      getHandler(service, "refreshSlot")(
+        { pluginId: "alpha" },
+        { name: "nope" },
+      ),
+    );
+    assert.deepEqual(service.$slots.get("nope"), null);
+  });
+});
+
 describe("app.data host methods", () => {
   function makeStubComputedMap(lookup) {
     const calls = [];
@@ -1936,6 +2008,261 @@ describe("getRecord host method", () => {
       );
     }
     assert.deepEqual(fetched, false);
+  });
+});
+
+describe("putRecord/deleteRecord host methods", () => {
+  const VALID_RKEY = "abc123";
+  const plugin = { pluginId: "tags", permissions: { records: ["write"] } };
+
+  function makeService({
+    session = { did: "did:plc:me", handle: "me.test" },
+    existingRecords = {},
+  } = {}) {
+    const { provider } = makeProvider();
+    const calls = { get: [], put: [], delete: [] };
+    const store = new Map(Object.entries(existingRecords));
+    const dataLayer = Object.assign(new EventEmitter(), {
+      dataStore: { $feeds: new SignalMap() },
+      api: {
+        getOwnRecord: async (collection, rkey) => {
+          calls.get.push([collection, rkey]);
+          const value = store.get(rkey);
+          return value
+            ? { uri: `at://x/${collection}/${rkey}`, cid: "bafyx", value }
+            : null;
+        },
+        putRecord: async (collection, rkey, record) => {
+          calls.put.push([collection, rkey, record]);
+          store.set(rkey, record);
+          return { uri: `at://${session?.did}/${collection}/${rkey}` };
+        },
+        deleteRecord: async (collection, rkey) => {
+          calls.delete.push([collection, rkey]);
+          store.delete(rkey);
+        },
+      },
+    });
+    const service = new PluginService(
+      provider,
+      session,
+      dataLayer,
+      new HiddenFeedItemsStore(),
+    );
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("putRecord writes to the shared collection, stamping $plugin and $type", async () => {
+    const { service, calls } = makeService();
+    const record = { tags: ["a"] };
+    await getHandler(service, "putRecord")(plugin, {
+      rkey: VALID_RKEY,
+      record,
+    });
+    assert.deepEqual(calls.put, [
+      [
+        SHARED_PLUGIN_RECORDS_COLLECTION,
+        VALID_RKEY,
+        {
+          ...record,
+          $type: SHARED_PLUGIN_RECORDS_COLLECTION,
+          $plugin: "tags",
+        },
+      ],
+    ]);
+  });
+
+  it("overrides a plugin-supplied $type — AT Protocol requires it to equal the collection", async () => {
+    const { service, calls } = makeService();
+    await getHandler(service, "putRecord")(plugin, {
+      rkey: VALID_RKEY,
+      record: { $type: "social.impro.plugins.tags", tags: ["a"] },
+    });
+    assert.deepEqual(calls.put[0][2].$type, SHARED_PLUGIN_RECORDS_COLLECTION);
+  });
+
+  it("does not let a plugin spoof another plugin's ownership marker", async () => {
+    const { service, calls } = makeService();
+    await getHandler(service, "putRecord")(plugin, {
+      rkey: VALID_RKEY,
+      record: { $plugin: "somebody-else", tags: ["a"] },
+    });
+    assert.deepEqual(calls.put[0][2].$plugin, "tags");
+  });
+
+  it("allows overwriting a record the same plugin already owns", async () => {
+    const { service, calls } = makeService({
+      existingRecords: { [VALID_RKEY]: { $plugin: "tags", tags: ["old"] } },
+    });
+    const record = { tags: ["new"] };
+    await getHandler(service, "putRecord")(plugin, {
+      rkey: VALID_RKEY,
+      record,
+    });
+    assert.deepEqual(calls.put, [
+      [
+        SHARED_PLUGIN_RECORDS_COLLECTION,
+        VALID_RKEY,
+        {
+          ...record,
+          $type: SHARED_PLUGIN_RECORDS_COLLECTION,
+          $plugin: "tags",
+        },
+      ],
+    ]);
+  });
+
+  it("rejects putRecord when the rkey already belongs to a different plugin", async () => {
+    const { service, calls } = makeService({
+      existingRecords: { [VALID_RKEY]: { $plugin: "other-plugin" } },
+    });
+    await assert.rejects(
+      getHandler(service, "putRecord")(plugin, {
+        rkey: VALID_RKEY,
+        record: {},
+      }),
+      /belongs to another plugin/,
+    );
+    assert.deepEqual(calls.put, []);
+  });
+
+  it("deleteRecord removes a record the caller owns", async () => {
+    const { service, calls } = makeService({
+      existingRecords: { [VALID_RKEY]: { $plugin: "tags" } },
+    });
+    await getHandler(service, "deleteRecord")(plugin, { rkey: VALID_RKEY });
+    assert.deepEqual(calls.delete, [
+      [SHARED_PLUGIN_RECORDS_COLLECTION, VALID_RKEY],
+    ]);
+  });
+
+  it("deleteRecord is a no-op when the rkey doesn't exist", async () => {
+    const { service, calls } = makeService();
+    await getHandler(service, "deleteRecord")(plugin, { rkey: VALID_RKEY });
+    assert.deepEqual(calls.delete, []);
+  });
+
+  it("rejects deleteRecord when the rkey belongs to a different plugin", async () => {
+    const { service, calls } = makeService({
+      existingRecords: { [VALID_RKEY]: { $plugin: "other-plugin" } },
+    });
+    await assert.rejects(
+      getHandler(service, "deleteRecord")(plugin, { rkey: VALID_RKEY }),
+      /belongs to another plugin/,
+    );
+    assert.deepEqual(calls.delete, []);
+  });
+
+  it("rejects when the plugin doesn't have records write permission", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = { pluginId: "tags", permissions: {} };
+    await assert.rejects(
+      getHandler(service, "putRecord")(noPermissionPlugin, {
+        rkey: VALID_RKEY,
+        record: {},
+      }),
+      /records permission/,
+    );
+    await assert.rejects(
+      getHandler(service, "deleteRecord")(noPermissionPlugin, {
+        rkey: VALID_RKEY,
+      }),
+      /records permission/,
+    );
+    assert.deepEqual(calls.put, []);
+    assert.deepEqual(calls.delete, []);
+  });
+
+  it("rejects an invalid rkey without calling the API", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "putRecord")(plugin, {
+        rkey: "has/slash",
+        record: {},
+      }),
+      /invalid rkey/,
+    );
+    await assert.rejects(
+      getHandler(service, "deleteRecord")(plugin, { rkey: "" }),
+      /requires a rkey/,
+    );
+    assert.deepEqual(calls.get, []);
+    assert.deepEqual(calls.put, []);
+    assert.deepEqual(calls.delete, []);
+  });
+
+  it("putRecord requires a record argument", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "putRecord")(plugin, { rkey: VALID_RKEY }),
+      /requires a record/,
+    );
+    assert.deepEqual(calls.put, []);
+  });
+
+  it("rejects when signed out", async () => {
+    const { service, calls } = makeService({ session: null });
+    await assert.rejects(
+      getHandler(service, "putRecord")(plugin, {
+        rkey: VALID_RKEY,
+        record: {},
+      }),
+      /Not signed in/,
+    );
+    await assert.rejects(
+      getHandler(service, "deleteRecord")(plugin, { rkey: VALID_RKEY }),
+      /Not signed in/,
+    );
+    assert.deepEqual(calls.put, []);
+    assert.deepEqual(calls.delete, []);
+  });
+});
+
+describe("loadLocalData/saveLocalData host methods", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const plugin = { pluginId: "tags", permissions: {} };
+
+  it("returns null before anything has been saved", () => {
+    const service = makeServiceWithRealBridge();
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), null);
+  });
+
+  it("round-trips data through saveLocalData/loadLocalData", () => {
+    const service = makeServiceWithRealBridge();
+    const data = { keys: [{ id: "k1", label: "personal", secret: "shh" }] };
+    getHandler(service, "saveLocalData")(plugin, { data });
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), data);
+  });
+
+  it("isolates data between plugins", () => {
+    const service = makeServiceWithRealBridge();
+    getHandler(service, "saveLocalData")(plugin, { data: { a: 1 } });
+    getHandler(service, "saveLocalData")(
+      { pluginId: "other", permissions: {} },
+      { data: { a: 2 } },
+    );
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), { a: 1 });
+    assert.deepEqual(
+      getHandler(service, "loadLocalData")({ pluginId: "other" }),
+      { a: 2 },
+    );
   });
 });
 

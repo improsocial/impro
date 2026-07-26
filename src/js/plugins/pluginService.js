@@ -12,16 +12,23 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import {
+  getLocalData,
+  setLocalData,
+  clearLocalData,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
 import { pluginFetch } from "/js/plugins/pluginRequests.js";
-import { Slingshot } from "/js/slingshot.js";
+import { Slingshot, isValidRkey } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
+  isRecordWriteAllowed,
+  SHARED_PLUGIN_RECORDS_COLLECTION,
 } from "/js/plugins/pluginPermissions.js";
 import { compareVersions, groupBy, isDev, sortBy } from "/js/utils.js";
 import {
@@ -352,12 +359,29 @@ export class PluginService extends ReactiveStore {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
     });
 
+    this.pluginBridge.addHostMethod("loadLocalData", (plugin) => {
+      return getLocalData(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
+      setLocalData(plugin.pluginId, data);
+    });
+
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
       (plugin, { reset = false } = {}) => {
         this.emit("settingTabRefresh", { pluginId: plugin.pluginId, reset });
       },
     );
+
+    // Forces every mounted <plugin-slot name=...> to re-invoke its
+    // registered plugins, for slots whose content depends on data that
+    // resolved asynchronously after the initial render (e.g. a plugin that
+    // fetches something on a cache miss and wants to redraw once it lands).
+    this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name }) => {
+      const current = this.$slots.get(name);
+      if (current) this.$slots.set(name, [...current]);
+    });
 
     this.pluginBridge.addHostMethod(
       "refreshFeedFilters",
@@ -454,6 +478,68 @@ export class PluginService extends ReactiveStore {
       this.slingshot.getRecord(args),
     );
 
+    this.pluginBridge.addHostMethod(
+      "putRecord",
+      async (plugin, { rkey, record }) => {
+        this._requireSignedIn();
+        this._requireRecordWritePermission(plugin);
+        requireHostMethodArg("putRecord", "rkey", rkey);
+        if (!isValidRkey(rkey)) {
+          throw new Error(`putRecord: invalid rkey "${rkey}"`);
+        }
+        requireHostMethodArg("putRecord", "record", record);
+        const existing = await this._dataLayer.api.getOwnRecord(
+          SHARED_PLUGIN_RECORDS_COLLECTION,
+          rkey,
+        );
+        if (existing && existing.value?.$plugin !== plugin.pluginId) {
+          throw new Error(
+            `putRecord: rkey "${rkey}" belongs to another plugin`,
+          );
+        }
+        return await this._dataLayer.api.putRecord(
+          SHARED_PLUGIN_RECORDS_COLLECTION,
+          rkey,
+          // $type must equal the collection it's stored in — that's an AT
+          // Protocol invariant the real PDS enforces (unlike a naive mock),
+          // so a plugin-supplied $type would always 400. Force it, same as
+          // $plugin, rather than let every plugin author discover this the
+          // hard way.
+          {
+            ...record,
+            $type: SHARED_PLUGIN_RECORDS_COLLECTION,
+            $plugin: plugin.pluginId,
+          },
+        );
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "deleteRecord",
+      async (plugin, { rkey }) => {
+        this._requireSignedIn();
+        this._requireRecordWritePermission(plugin);
+        requireHostMethodArg("deleteRecord", "rkey", rkey);
+        if (!isValidRkey(rkey)) {
+          throw new Error(`deleteRecord: invalid rkey "${rkey}"`);
+        }
+        const existing = await this._dataLayer.api.getOwnRecord(
+          SHARED_PLUGIN_RECORDS_COLLECTION,
+          rkey,
+        );
+        if (!existing) return;
+        if (existing.value?.$plugin !== plugin.pluginId) {
+          throw new Error(
+            `deleteRecord: rkey "${rkey}" belongs to another plugin`,
+          );
+        }
+        return await this._dataLayer.api.deleteRecord(
+          SHARED_PLUGIN_RECORDS_COLLECTION,
+          rkey,
+        );
+      },
+    );
+
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
       if (!this.session) return null;
       return {
@@ -546,6 +632,12 @@ export class PluginService extends ReactiveStore {
       throw new Error(
         `"${plugin.pluginId}" does not have "${action}" action permission`,
       );
+    }
+  }
+
+  _requireRecordWritePermission(plugin) {
+    if (!isRecordWriteAllowed(plugin.permissions)) {
+      throw new Error(`"${plugin.pluginId}" does not have records permission`);
     }
   }
 
@@ -835,6 +927,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
+    clearLocalData(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 
