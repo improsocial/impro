@@ -6750,8 +6750,19 @@ context-menu-item-group > context-menu-item > button {
   }
 
   .context-menu > context-menu-item {
-    border-bottom: var(--hair) solid var(--post-border-color);
     padding: 4px 0;
+  }
+
+  .context-menu > context-menu-item:first-child {
+    padding-top: 0;
+  }
+
+  .context-menu > context-menu-item:last-child {
+    padding-bottom: 0;
+  }
+
+  .context-menu > context-menu-item:not(:last-child) {
+    border-bottom: var(--hair) solid var(--post-border-color);
   }
 
   context-menu-item > button {
