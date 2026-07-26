@@ -2222,6 +2222,101 @@ describe("putRecord/deleteRecord host methods", () => {
   });
 });
 
+describe("listRecords host method", () => {
+  const plugin = { pluginId: "tags", permissions: { records: ["write"] } };
+
+  function makeService({
+    session = { did: "did:plc:me", handle: "me.test" },
+    page = { cursor: undefined, records: [] },
+  } = {}) {
+    const { provider } = makeProvider();
+    const calls = { list: [] };
+    const dataLayer = Object.assign(new EventEmitter(), {
+      dataStore: { $feeds: new SignalMap() },
+      api: {
+        listOwnRecords: async (collection, cursor, limit) => {
+          calls.list.push([collection, cursor, limit]);
+          return page;
+        },
+      },
+    });
+    const service = new PluginService(
+      provider,
+      session,
+      dataLayer,
+      new HiddenFeedItemsStore(),
+    );
+    return { service, calls };
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("passes cursor/limit through and returns the page", async () => {
+    const page = {
+      cursor: "next-page",
+      records: [
+        {
+          uri: "at://did:plc:me/social.impro.plugins.cloaca/abc",
+          value: { $plugin: "tags", tags: ["a"] },
+        },
+      ],
+    };
+    const { service, calls } = makeService({ page });
+    const result = await getHandler(service, "listRecords")(plugin, {
+      cursor: "prev-page",
+      limit: 50,
+    });
+    assert.deepEqual(calls.list, [
+      [SHARED_PLUGIN_RECORDS_COLLECTION, "prev-page", 50],
+    ]);
+    assert.deepEqual(result, page);
+  });
+
+  it("filters out records stamped with a different plugin's id", async () => {
+    const page = {
+      cursor: undefined,
+      records: [
+        {
+          uri: "at://did:plc:me/social.impro.plugins.cloaca/mine",
+          value: { $plugin: "tags", tags: ["a"] },
+        },
+        {
+          uri: "at://did:plc:me/social.impro.plugins.cloaca/theirs",
+          value: { $plugin: "other-plugin", notes: "unrelated" },
+        },
+      ],
+    };
+    const { service } = makeService({ page });
+    const result = await getHandler(service, "listRecords")(plugin, {});
+    assert.deepEqual(result.records.length, 1);
+    assert.deepEqual(
+      result.records[0].uri,
+      "at://did:plc:me/social.impro.plugins.cloaca/mine",
+    );
+  });
+
+  it("rejects when the plugin doesn't have records write permission", async () => {
+    const { service, calls } = makeService();
+    const noPermissionPlugin = { pluginId: "tags", permissions: {} };
+    await assert.rejects(
+      getHandler(service, "listRecords")(noPermissionPlugin, {}),
+      /records permission/,
+    );
+    assert.deepEqual(calls.list, []);
+  });
+
+  it("rejects when signed out", async () => {
+    const { service, calls } = makeService({ session: null });
+    await assert.rejects(
+      getHandler(service, "listRecords")(plugin, {}),
+      /Not signed in/,
+    );
+    assert.deepEqual(calls.list, []);
+  });
+});
+
 describe("loadLocalData/saveLocalData host methods", () => {
   function makeServiceWithRealBridge() {
     const { provider } = makeProvider();

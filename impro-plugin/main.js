@@ -176,6 +176,15 @@ class PluginData {
   deleteRecord(rkey) {
     return hostCall("deleteRecord", { rkey });
   }
+  // Lists this plugin's own records in the shared collection — never
+  // another plugin's, even though they live in the same collection; the
+  // host filters by ownership before this ever reaches plugin code.
+  // Requires permissions.records: ["write"], same as putRecord/deleteRecord.
+  // Returns { cursor, records: [{uri, cid, value}] } — page through with
+  // cursor until it comes back undefined/null.
+  listRecords(cursor, limit) {
+    return hostCall("listRecords", { cursor, limit });
+  }
 }
 
 class App {

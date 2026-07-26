@@ -540,6 +540,30 @@ export class PluginService extends ReactiveStore {
       },
     );
 
+    this.pluginBridge.addHostMethod(
+      "listRecords",
+      async (plugin, { cursor, limit } = {}) => {
+        this._requireSignedIn();
+        this._requireRecordWritePermission(plugin);
+        const page = await this._dataLayer.api.listOwnRecords(
+          SHARED_PLUGIN_RECORDS_COLLECTION,
+          cursor,
+          limit,
+        );
+        // Other plugins' records live in this same shared collection —
+        // filter to this plugin's own before it ever reaches plugin code,
+        // the same isolation boundary putRecord/deleteRecord enforce, so a
+        // plugin can't enumerate what another plugin has stored just by
+        // declaring the same "write" scope.
+        return {
+          ...page,
+          records: (page?.records ?? []).filter(
+            (record) => record.value?.$plugin === plugin.pluginId,
+          ),
+        };
+      },
+    );
+
     this.pluginBridge.addHostMethod("getCurrentUser", () => {
       if (!this.session) return null;
       return {

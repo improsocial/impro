@@ -55,6 +55,13 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
   `$type` would otherwise make every write 400 on a real PDS. The write is
   always pinned to the signed-in user's own DID; a plugin can never write to anyone else's
   repo.
+- List its own records in that shared collection (`app.data.listRecords(cursor, limit)`,
+  same `permissions.records: ["write"]` scope) — paged, and filtered by the host to this
+  plugin's own `$plugin`-stamped records before the result ever reaches plugin code, so a
+  plugin can't enumerate another plugin's records just by sharing the same collection.
+  Since the public `getRecord` bridge is unauthenticated and doesn't know whose repo it's
+  reading, this goes through the signed-in user's own session instead — the Slingshot proxy
+  `getRecord` uses doesn't implement `listRecords` at all.
 - Store plugin settings on a user's account (synced across devices, via `loadData`/`saveData`)
   or purely on the current device (never synced, via `loadLocalData`/`saveLocalData` —
   intended for secrets or device-specific values a plugin shouldn't silently propagate,

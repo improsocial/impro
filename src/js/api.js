@@ -1488,6 +1488,23 @@ export class Api {
     return res.data;
   }
 
+  // Named listOwnRecords, not listRecords, for the same reason as
+  // getOwnRecord above — pinned to the signed-in user's own repo. Slingshot
+  // (the public/unauthenticated proxy the plugin-facing getRecord bridge
+  // uses) doesn't implement com.atproto.repo.listRecords at all (confirmed
+  // against the live service — a 404), so this goes through the user's own
+  // authenticated session instead, which is the right fit anyway since
+  // callers only ever want to enumerate the signed-in user's own records.
+  async listOwnRecords(collection, cursor, limit) {
+    const query = { repo: this.session.did, collection };
+    if (cursor) query.cursor = cursor;
+    if (limit) query.limit = limit;
+    const res = await this.request("com.atproto.repo.listRecords", {
+      query,
+    });
+    return res.data;
+  }
+
   async createModerationReport({ reasonType, reason, subject, labelerDid }) {
     const body = {
       reasonType,
