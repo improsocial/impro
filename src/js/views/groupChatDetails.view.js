@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -151,6 +151,8 @@ class GroupChatDetailsView extends View {
     async function loadMoreMembers() {
       await dataLayer.requests.loadConvoMembers(convoId);
     }
+
+    bindPageTitle(root, () => "Group chat settings");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

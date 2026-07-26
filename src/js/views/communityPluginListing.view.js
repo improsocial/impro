@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { linkToLogin, getPermalinkForCommunityPlugin } from "/js/navigation.js";
 import { showToast } from "/js/toasts.js";
@@ -126,6 +126,8 @@ class CommunityPluginListingView extends View {
             : "Install"}
       </button>`;
     }
+
+    bindPageTitle(root, () => state.$listing.get()?.name ?? null);
 
     pageEffect(root, () => {
       const listing = state.$listing.get();

@@ -1,10 +1,12 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 
 class NotFoundView extends View {
   async render({ root }) {
+    bindPageTitle(root, () => "Not Found");
+
     pageEffect(root, () => {
       render(
         html`<div id="not-found-view">

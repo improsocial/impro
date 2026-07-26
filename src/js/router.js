@@ -59,6 +59,28 @@ export function pageEffect(root, callback, options) {
   root.addEventListener("page-exit", detach);
 }
 
+const APP_TITLE = document.title;
+
+export function bindPageTitle(root, callback, options) {
+  const titleCb = () => {
+    const res = callback();
+    document.title = res ? `${res} — ${APP_TITLE}` : APP_TITLE;
+  };
+  let dispose;
+  const attach = () => {
+    dispose?.();
+    dispose = effect(titleCb, options);
+  };
+  const detach = () => {
+    dispose?.();
+    dispose = null;
+    document.title = APP_TITLE;
+  };
+  root.addEventListener("page-enter", attach);
+  root.addEventListener("page-restore", attach);
+  root.addEventListener("page-exit", detach);
+}
+
 export class Router extends EventEmitter {
   constructor() {
     super();

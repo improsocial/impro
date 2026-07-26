@@ -3,7 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { BOOKMARKS_PAGE_SIZE } from "/js/config.js";
 
 class BookmarksView extends View {
@@ -27,6 +27,8 @@ class BookmarksView extends View {
       event.preventDefault();
       scrollAndReloadBookmarks();
     });
+
+    bindPageTitle(root, () => "Saved Posts");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

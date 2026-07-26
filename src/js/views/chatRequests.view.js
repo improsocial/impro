@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -217,6 +217,8 @@ class ChatRequestsView extends View {
       event.preventDefault();
       router.go("/messages");
     });
+
+    bindPageTitle(root, () => "Chat request inbox");
 
     pageEffect(root, () => {
       const chatRequests = dataLayer.derived.$convoRequestList.get();

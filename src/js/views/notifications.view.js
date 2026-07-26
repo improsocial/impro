@@ -8,7 +8,7 @@ import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { displayRelativeTime, batch } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
@@ -716,6 +716,8 @@ class NotificationsView extends View {
       event.preventDefault();
       scrollAndReloadNotifications();
     });
+
+    bindPageTitle(root, () => "Notifications");
 
     pageEffect(root, () => {
       const activeTab = state.$activeTab.get();

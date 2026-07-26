@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
@@ -38,6 +38,8 @@ class ProfileKnownFollowersView extends View {
         </button>
       </div>`;
     }
+
+    bindPageTitle(root, () => "Followers you know");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

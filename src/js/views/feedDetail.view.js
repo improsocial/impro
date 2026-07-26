@@ -6,7 +6,7 @@ import { auth } from "/js/auth.js";
 import "/js/components/infinite-scroll-container.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/context-menu.js";
@@ -39,6 +39,12 @@ class FeedDetailView extends View {
 
     const { postInteractionHandler, feedInteractionHandler } =
       interactionHandlers;
+
+    bindPageTitle(root, () => {
+      return (
+        dataLayer.derived.$feedGenerators.get(feedUri)?.displayName ?? null
+      );
+    });
 
     pageEffect(root, () => {
       const showLessInteractions =

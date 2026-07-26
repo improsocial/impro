@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -1345,6 +1345,8 @@ class ChatDetailView extends View {
       event.preventDefault();
       router.go("/messages");
     });
+
+    bindPageTitle(root, () => "Chat");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

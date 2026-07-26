@@ -9,7 +9,7 @@ import { getDisplayName } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { linkToFeed, linkToProfile } from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import "/js/components/container-link.js";
 import "/js/components/tab-bar.js";
@@ -466,6 +466,8 @@ class SearchView extends View {
           </div>`;
       }
     }
+
+    bindPageTitle(root, () => "Search");
 
     pageEffect(
       root,
