@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { formatLargeNumber } from "/js/utils.js";
@@ -81,6 +81,8 @@ class PostRepostsView extends View {
         root,
       );
     });
+
+    bindPageTitle(root, () => "Reposted by");
 
     async function loadReposts() {
       const postReposts = dataLayer.derived.$postReposts.get(postUri);

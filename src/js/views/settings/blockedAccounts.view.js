@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
@@ -35,6 +35,8 @@ class SettingsBlockedAccountsView extends View {
       event.preventDefault();
       router.go("/settings");
     });
+
+    bindPageTitle(root, () => "Blocked accounts");
 
     pageEffect(root, () => {
       const blockedProfiles = dataLayer.derived.$blockedProfiles.get();

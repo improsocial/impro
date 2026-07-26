@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render, keyed } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
@@ -150,6 +150,8 @@ class SettingsPluginsView extends View {
       event.preventDefault();
       router.go("/settings");
     });
+
+    bindPageTitle(root, () => "Plugins");
 
     pageEffect(root, () => {
       const reloading = state.$reloading.get();

@@ -3,7 +3,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { listFeedTemplate } from "/js/templates/listFeed.template.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { parseUri } from "/js/dataHelpers.js";
 import "/js/components/create-list-dialog.js";
@@ -23,6 +23,8 @@ class ListsView extends View {
       event.preventDefault();
       scrollAndReloadLists();
     });
+
+    bindPageTitle(root, () => "Lists");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

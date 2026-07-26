@@ -17,7 +17,7 @@ import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.templ
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
 class LoginView extends View {
@@ -120,6 +120,8 @@ class LoginView extends View {
       state.$currentDid.set(session?.did ?? null);
       state.$savedAccounts.set(await auth.listAccounts());
     }
+
+    bindPageTitle(root, () => "Sign in");
 
     pageEffect(root, () => {
       const accounts = state.$savedAccounts.get();

@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
@@ -20,6 +20,8 @@ class CommunityPluginsView extends View {
         state.$error.set(error.message ?? String(error));
       }
     }
+
+    bindPageTitle(root, () => "Community plugins");
 
     pageEffect(root, () => {
       const error = state.$error.get();

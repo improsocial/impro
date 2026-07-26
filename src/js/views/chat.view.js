@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
@@ -200,6 +200,8 @@ class ChatView extends View {
       event.preventDefault();
       scrollAndReloadConvos();
     });
+
+    bindPageTitle(root, () => "Messages");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect } from "/js/router.js";
+import { pageEffect, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { auth } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -180,6 +180,8 @@ class FeedsView extends View {
         ${editControls}
       </container-link>`;
     }
+
+    bindPageTitle(root, () => "Feeds");
 
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();

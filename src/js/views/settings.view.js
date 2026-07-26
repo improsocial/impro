@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { eyeIconTemplate } from "/js/templates/icons/eyeIcon.template.js";
 import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.js";
@@ -227,6 +227,8 @@ class SettingsView extends View {
         enabled: true,
       },
     ];
+
+    bindPageTitle(root, () => "Settings");
 
     pageEffect(root, () => {
       const otherAccounts = $otherAccounts.get();

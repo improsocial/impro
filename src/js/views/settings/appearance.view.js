@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import {
@@ -30,6 +30,8 @@ class SettingsAppearanceView extends View {
       event.preventDefault();
       router.go("/settings");
     });
+
+    bindPageTitle(root, () => "Appearance");
 
     pageEffect(root, () => {
       const currentHighlightColor = theme.$highlightColor.get();
