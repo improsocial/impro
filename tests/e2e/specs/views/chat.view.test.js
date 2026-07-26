@@ -474,8 +474,8 @@ test.describe("Chat view", () => {
       dialog.locator('[data-testid="new-chat-search-input"]'),
     ).toBeVisible();
     await expect(
-      dialog.locator('[data-testid="new-chat-empty-prompt"]'),
-    ).toBeVisible();
+      dialog.locator('[data-testid="feed-end-message"]'),
+    ).toContainText("Search for someone to message");
 
     await dialog.locator('[data-testid="new-chat-dialog-close"]').click();
     await expect(dialog).not.toBeVisible();

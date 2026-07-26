@@ -1,11 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { avatarThumbnailUrl } from "/js/dataHelpers.js";
 import { classnames, graphemeCount, readFileAsDataUrl } from "/js/utils.js";
 import { ImageCompressor } from "/js/imageCompressor.js";
@@ -241,6 +238,7 @@ class EditProfileDialog extends Component {
                   <context-menu-item-group>
                     <context-menu-item
                       data-testid="menu-action-banner-upload"
+                      icon="image-line"
                       @click=${() => this._pickImage("banner")}
                     >
                       Upload from Files
@@ -250,6 +248,7 @@ class EditProfileDialog extends Component {
                     ? html`<context-menu-item-group>
                         <context-menu-item
                           data-testid="menu-action-banner-remove"
+                          icon="delete-bin-line"
                           @click=${() => {
                             this._newBannerDataUrl = null;
                             this._removeBanner = true;
@@ -266,6 +265,7 @@ class EditProfileDialog extends Component {
                   <context-menu-item-group>
                     <context-menu-item
                       data-testid="menu-action-avatar-upload"
+                      icon="image-line"
                       @click=${() => this._pickImage("avatar")}
                     >
                       Upload from Files
@@ -275,6 +275,7 @@ class EditProfileDialog extends Component {
                     ? html`<context-menu-item-group>
                         <context-menu-item
                           data-testid="menu-action-avatar-remove"
+                          icon="delete-bin-line"
                           @click=${() => {
                             this._newAvatarDataUrl = null;
                             this._removeAvatar = true;
@@ -488,7 +489,7 @@ class EditProfileDialog extends Component {
       dialog.showModal();
       enableDragToDismiss(dialog, {
         confirmDismiss: () => this.confirmClose(),
-        onClose: () => this.close(),
+        onDismiss: () => this.close(),
         scrollContainer: this.querySelector(".form-dialog-content"),
         ignoreTouchTarget: (el) =>
           !!el.closest("button") ||

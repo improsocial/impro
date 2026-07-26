@@ -1,6 +1,7 @@
 import { render } from "/js/lib/lit-html.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 
 export class Modal {
   static async open(...args) {
@@ -89,7 +90,7 @@ export class Modal {
       if (this.dragToDismiss) {
         const selector = this.scrollContainerSelector;
         enableDragToDismiss(dialog, {
-          onClose: () => dismiss(),
+          onDismiss: () => dismiss(),
           confirmDismiss: () => this.canDismiss(),
           ignoreTouchTarget: (element) => this.ignoreTouchTarget(element),
           scrollContainer: selector ? dialog.querySelector(selector) : null,

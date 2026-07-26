@@ -1,7 +1,8 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import "/js/components/toggle-switch.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 
@@ -156,8 +157,8 @@ class PostNotificationsDialog extends Component {
     if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
-      allowUpwardStretch: true,
+      onDismiss: () => this.close(),
+      allowOppositeStretch: true,
       ignoreTouchTarget: (element) => element.closest("button") !== null,
     });
   }

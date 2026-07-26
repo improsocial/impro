@@ -71,25 +71,29 @@ class FeedDetailView extends View {
                   <span>...</span>
                 </button>
                 <context-menu>
-                  <context-menu-item
-                    data-testid="menu-action-feed-open-in-bsky"
-                    @click=${() => {
-                      window.open(feedLink, "_blank");
-                    }}
-                  >
-                    Open in bsky.app
-                  </context-menu-item>
-                  <context-menu-item
-                    data-testid="menu-action-feed-copy-link"
-                    @click=${() => {
-                      navigator.clipboard.writeText(feedLink);
-                      showToast("Link copied to clipboard", {
-                        style: "success",
-                      });
-                    }}
-                  >
-                    Copy link to feed
-                  </context-menu-item>
+                  <context-menu-item-group>
+                    <context-menu-item
+                      data-testid="menu-action-feed-open-in-bsky"
+                      icon="open-line"
+                      @click=${() => {
+                        window.open(feedLink, "_blank");
+                      }}
+                    >
+                      Open in bsky.app
+                    </context-menu-item>
+                    <context-menu-item
+                      data-testid="menu-action-feed-copy-link"
+                      icon="link-line"
+                      @click=${() => {
+                        navigator.clipboard.writeText(feedLink);
+                        showToast("Link copied to clipboard", {
+                          style: "success",
+                        });
+                      }}
+                    >
+                      Copy link to feed
+                    </context-menu-item>
+                  </context-menu-item-group>
                 </context-menu>
                 <button
                   class=${classnames("pin-feed-button", {

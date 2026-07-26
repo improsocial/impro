@@ -7,7 +7,12 @@ import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import "/js/components/infinite-scroll-container.js";
 
 class SettingsBlockedAccountsView extends View {
-  async render({ root, router, layout, context: { dataLayer } }) {
+  async render({
+    root,
+    router,
+    layout,
+    context: { dataLayer, isAuthenticated },
+  }) {
     await auth.requireAuth();
 
     async function loadMore() {
@@ -61,7 +66,7 @@ class SettingsBlockedAccountsView extends View {
                 hasMore,
                 onLoadMore: loadMore,
                 emptyMessage: "You haven't blocked any accounts.",
-                showFollowButton: false,
+                isAuthenticated,
               });
             })()}
           </main>

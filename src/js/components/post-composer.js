@@ -12,11 +12,8 @@ import {
 import { externalLinkTemplate } from "/js/templates/externalLink.template.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { imageIconTemplate } from "/js/templates/icons/imageIcon.template.js";
 import { emojiIconTemplate } from "/js/templates/icons/emojiIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -1252,7 +1249,7 @@ class PostComposer extends Component {
     // Setup mobile swipe-to-dismiss
     enableDragToDismiss(dialog, {
       confirmDismiss: () => this.confirmClose(),
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".post-composer-scroll-area"),
       ignoreTouchTarget: (el) =>
         !!el.closest("button") ||

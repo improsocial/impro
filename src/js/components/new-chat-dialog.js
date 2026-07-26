@@ -1,16 +1,12 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import {
-  closeWithAnimation,
-  enableDragToDismiss,
-  resetScrollOnBlur,
-} from "/js/dialogHelpers.js";
+import { closeWithAnimation, resetScrollOnBlur } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
-import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
+import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { showToast } from "/js/toasts.js";
 
 const CREATE_CHAT_ERROR_TOASTS = {
@@ -61,84 +57,29 @@ function partitionRows(profiles, currentUserDid) {
   ];
 }
 
-function skeletonTemplate() {
-  return html`${Array.from({ length: 6 }).map(
-    () => html`
-      <div class="new-chat-result skeleton" data-testid="new-chat-skeleton">
-        <div class="new-chat-skeleton-avatar skeleton-animate"></div>
-        <div class="new-chat-result-content">
-          <div class="new-chat-skeleton-name skeleton-animate"></div>
-          <div class="new-chat-skeleton-handle skeleton-animate"></div>
-        </div>
-      </div>
-    `,
-  )}`;
+function notMessageableRightItem(profile) {
+  if (canBeMessaged(profile)) return null;
+  return html`<div
+    class="new-chat-not-messageable-hint"
+    data-testid="not-messageable-hint"
+  >
+    Can't be messaged
+  </div>`;
 }
 
-function resultRowTemplate({ profile, onSelect }) {
-  const isMessageable = canBeMessaged(profile);
-  const hasHandle = profile.handle && profile.handle !== MISSING_HANDLE;
-  return html`
-    <button
-      class="new-chat-result ${isMessageable ? "" : "is-not-messageable"}"
-      data-testid="new-chat-result"
-      data-teststate=${isMessageable ? "messageable" : "not-messageable"}
-      ?disabled=${!isMessageable}
-      @click=${() => onSelect(profile)}
-    >
-      ${avatarTemplate({ author: profile, clickAction: "none" })}
-      <div class="new-chat-result-content">
-        <div class="new-chat-result-name">${getDisplayName(profile)}</div>
-        <div class="new-chat-result-handle">
-          ${hasHandle
-            ? isMessageable
-              ? `@${profile.handle}`
-              : `@${profile.handle} can't be messaged`
-            : ""}
-        </div>
-      </div>
-    </button>
-  `;
-}
-
-function searchResultsTemplate({ status, rows, onSelect }) {
-  if (status.error) {
-    return html`<div class="new-chat-message-row" data-testid="new-chat-error">
-      We're having network issues, try again
-    </div>`;
-  }
-  if (!rows || (rows.length === 0 && status.loading)) {
-    return skeletonTemplate();
-  }
-  if (rows.length === 0) {
-    return html`<div class="new-chat-message-row" data-testid="empty-state">
-      No results
-    </div>`;
-  }
-  return rows.map((profile) => resultRowTemplate({ profile, onSelect }));
-}
-
-function suggestionsTemplate({ status, rows, onSelect }) {
-  if (!rows && !status?.error) {
-    return skeletonTemplate();
-  }
-  if (!rows || rows.length === 0) {
-    return html`<div
-      class="new-chat-message-row"
-      data-testid="new-chat-empty-prompt"
-    >
-      Search for someone to message
-    </div>`;
-  }
-  return html`
-    <div
-      class="new-chat-section-header"
-      data-testid="new-chat-suggested-header"
-    >
-      Suggested
-    </div>
-    ${rows.map((profile) => resultRowTemplate({ profile, onSelect }))}
-  `;
+function profileListTemplate({ profiles, onSelect, emptyMessage = null }) {
+  return profileFeedTemplate({
+    profiles,
+    hasMore: false,
+    skeletonCount: 6,
+    compact: true,
+    clickAction: onSelect,
+    rightItemTemplate: notMessageableRightItem,
+    disabledProfiles: (profiles ?? [])
+      .filter((profile) => !canBeMessaged(profile))
+      .map((profile) => profile.did),
+    emptyMessage,
+  });
 }
 
 class NewChatDialog extends Component {
@@ -181,6 +122,8 @@ class NewChatDialog extends Component {
     } else {
       this.dataLayer.requests.loadChatRecipientSearch(query, { limit: 12 });
     }
+    const results = this.querySelector(".search-dialog-results");
+    if (results) results.scrollTop = 0;
   }
 
   _onClearSearch() {
@@ -202,16 +145,15 @@ class NewChatDialog extends Component {
 
   render() {
     const query = this.state.$query.get().trim();
-    const onSelect = (profile) => this._onSelect(profile);
     const currentUserDid = this.dataLayer.derived.$currentUser.get()?.did;
     const results = this.dataLayer.derived.$chatRecipientSearchResults.get();
     const searchStatus = this.dataLayer.requests.statusStore.$statuses.get(
       "loadChatRecipientSearch",
     );
-    const follows = currentUserDid
+    const profileFollows = currentUserDid
       ? this.dataLayer.derived.$profileFollows.get(currentUserDid)?.follows
       : null;
-    const followsStatus = currentUserDid
+    const profileFollowsStatus = currentUserDid
       ? this.dataLayer.requests.statusStore.$statuses.get(
           `loadProfileFollows-${currentUserDid}`,
         )
@@ -219,7 +161,7 @@ class NewChatDialog extends Component {
     render(
       html`
         <dialog
-          class="bottom-sheet bottom-sheet-fullscreen new-chat-dialog"
+          class="bottom-sheet bottom-sheet-fullscreen search-dialog new-chat-dialog"
           data-testid="new-chat-dialog"
           autofocus
           @click=${(event) => {
@@ -237,11 +179,11 @@ class NewChatDialog extends Component {
             this.dispatchEvent(new CustomEvent("dialog-closed"));
           }}
         >
-          <div class="new-chat-dialog-content">
-            <div class="new-chat-dialog-header">
-              <h2 class="new-chat-dialog-title">Start a new chat</h2>
+          <div class="search-dialog-content">
+            <div class="search-dialog-header">
+              <h2 class="search-dialog-title">Start a new chat</h2>
               <button
-                class="new-chat-dialog-close"
+                class="search-dialog-close"
                 aria-label="Close"
                 data-testid="new-chat-dialog-close"
                 @click=${() => this.close()}
@@ -249,11 +191,11 @@ class NewChatDialog extends Component {
                 ${closeIconTemplate()}
               </button>
             </div>
-            <div class="new-chat-search-container">
+            <div class="search-dialog-input-container">
               ${searchIconTemplate()}
               <input
                 type="search"
-                class="new-chat-search-input"
+                class="search-dialog-input"
                 data-testid="new-chat-search-input"
                 placeholder="Search for people"
                 maxlength="50"
@@ -277,25 +219,53 @@ class NewChatDialog extends Component {
                   `
                 : ""}
             </div>
-            <div class="new-chat-results">
-              ${query
-                ? searchResultsTemplate({
-                    status: searchStatus,
-                    rows: results
+            <div class="search-dialog-results">
+              ${(() => {
+                if (query) {
+                  if (searchStatus?.error) {
+                    return html`<div
+                      class="search-dialog-message"
+                      data-testid="new-chat-error"
+                    >
+                      We're having network issues, try again
+                    </div>`;
+                  }
+                  return profileListTemplate({
+                    profiles: results
                       ? partitionRows(results, currentUserDid)
                       : null,
-                    onSelect,
-                  })
-                : suggestionsTemplate({
-                    status: followsStatus,
-                    rows: follows
-                      ? partitionRows(
-                          follows.filter((profile) => canBeMessaged(profile)),
-                          currentUserDid,
-                        )
-                      : null,
-                    onSelect,
+                    onSelect: (profile) => this._onSelect(profile),
+                    emptyMessage: "No results",
+                  });
+                }
+                let suggestedProfiles = null;
+                if (profileFollowsStatus?.error) {
+                  suggestedProfiles = [];
+                } else if (profileFollows) {
+                  suggestedProfiles = partitionRows(
+                    profileFollows.filter((profile) => canBeMessaged(profile)),
+                    currentUserDid,
+                  );
+                }
+                if (!suggestedProfiles?.length) {
+                  return profileListTemplate({
+                    profiles: suggestedProfiles,
+                    emptyMessage: "Search for someone to message",
+                  });
+                }
+                return html`
+                  <div
+                    class="search-dialog-section-header"
+                    data-testid="new-chat-suggested-header"
+                  >
+                    Suggested
+                  </div>
+                  ${profileListTemplate({
+                    profiles: suggestedProfiles,
+                    onSelect: (profile) => this._onSelect(profile),
                   })}
+                `;
+              })()}
             </div>
           </div>
         </dialog>
@@ -309,15 +279,15 @@ class NewChatDialog extends Component {
     const dialog = this.querySelector(".new-chat-dialog");
     if (dialog?.open) return;
     dialog.showModal();
-    this.querySelector(".new-chat-search-input")?.focus({
+    this.querySelector(".search-dialog-input")?.focus({
       preventScroll: true,
     });
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
-      scrollContainer: this.querySelector(".new-chat-results"),
+      onDismiss: () => this.close(),
+      scrollContainer: this.querySelector(".search-dialog-results"),
       ignoreTouchTarget: (element) => element.closest("button, input") !== null,
     });
-    resetScrollOnBlur(dialog, this.querySelector(".new-chat-results"));
+    resetScrollOnBlur(dialog, this.querySelector(".search-dialog-results"));
   }
 
   close() {

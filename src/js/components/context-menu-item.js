@@ -1,9 +1,10 @@
 import { Component, getChildrenFragment } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
+import "/js/components/app-icon.js";
 
 class ContextMenuItem extends Component {
   static get observedAttributes() {
-    return ["disabled"];
+    return ["disabled", "icon"];
   }
 
   connectedCallback() {
@@ -13,6 +14,7 @@ class ContextMenuItem extends Component {
     this._children = getChildrenFragment(this);
     this.innerHTML = "";
     this.disabled = this.getAttribute("disabled") !== null;
+    this.icon = this.getAttribute("icon");
     this.render();
     this._initialized = true;
   }
@@ -23,19 +25,35 @@ class ContextMenuItem extends Component {
     }
     if (name === "disabled") {
       this.disabled = this.getAttribute("disabled") !== null;
-      this.render();
+    } else if (name === "icon") {
+      this.icon = this.getAttribute("icon");
     }
+    this.render();
+  }
+
+  set iconElement(el) {
+    this._iconElement = el;
+    if (el && !el.classList.contains("context-menu-item-icon")) {
+      el.classList.add("context-menu-item-icon");
+    }
+    if (this._initialized) this.render();
   }
 
   render() {
     render(
-      html`<div class="context-menu-item">
-        <button ?disabled=${this.disabled}></button>
-      </div> `,
+      html`<button ?disabled=${this.disabled}>
+        ${this._children}
+        ${this._iconElement
+          ? this._iconElement
+          : this.icon
+            ? html`<app-icon
+                class="context-menu-item-icon"
+                icon=${this.icon}
+              ></app-icon>`
+            : null}
+      </button>`,
       this,
     );
-    const button = this.querySelector("button");
-    button.appendChild(this._children);
   }
 }
 

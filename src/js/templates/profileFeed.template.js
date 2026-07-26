@@ -9,102 +9,164 @@ import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
 
+// clickAction: "link" | "none" | callback
+function itemWrapperTemplate({ actor, clickAction, isDisabled, children }) {
+  if (typeof clickAction === "function") {
+    return html`<button
+      type="button"
+      class=${classnames("profile-list-item", "profile-list-item-button", {
+        "is-disabled": isDisabled,
+      })}
+      data-testid="profile-list-item-button"
+      data-teststate=${isDisabled ? "disabled" : "enabled"}
+      ?disabled=${isDisabled}
+      @click=${() => {
+        if (isDisabled) return;
+        clickAction(actor);
+      }}
+    >
+      ${children}
+    </button>`;
+  }
+  if (clickAction === "none") {
+    return html`<div class="profile-list-item">${children}</div>`;
+  }
+  return html`<container-link
+    href=${linkToProfile(actor)}
+    class="profile-list-item"
+    >${children}</container-link
+  >`;
+}
+
+function nameTemplate({ actor, doLink }) {
+  const content = html`<span
+    class="profile-list-item-display-name"
+    data-testid="profile-list-item-display-name"
+  >
+    ${getDisplayName(actor)}${verificationBadgeTemplate({
+      profile: actor,
+    })}${automatedAccountBadgeTemplate({ profile: actor })}
+  </span>`;
+  if (doLink) {
+    return html`<a class="profile-list-item-name" href="${linkToProfile(actor)}"
+      >${content}</a
+    >`;
+  }
+  return html`<span class="profile-list-item-name">${content}</span>`;
+}
+
+function followButtonRightItem({
+  actor,
+  isAuthenticated,
+  currentUserDid,
+  profileInteractionHandler,
+}) {
+  const isCurrentUser = currentUserDid && actor.did === currentUserDid;
+  const isBlocking = !!actor.viewer?.blocking;
+  const isBlockedBy = !!actor.viewer?.blockedBy;
+  if (isCurrentUser || !isAuthenticated || isBlocking || isBlockedBy) {
+    return null;
+  }
+  const isFollowing = !!actor.viewer?.following;
+  const isFollowedBy = !!actor.viewer?.followedBy;
+  return html`<button
+    @click=${() => {
+      if (!profileInteractionHandler) {
+        console.warn("No profileInteractionHandler provided for follow button");
+        return;
+      }
+      profileInteractionHandler.handleFollow(actor, !isFollowing);
+    }}
+    class=${classnames(
+      "rounded-button profile-following-button profile-list-item-follow",
+      {
+        "rounded-button-primary": !isFollowing,
+      },
+    )}
+    data-testid="follow-button"
+    data-teststate=${isFollowing
+      ? "following"
+      : isFollowedBy
+        ? "follow-back"
+        : "follow"}
+  >
+    ${isFollowing
+      ? "Following"
+      : isFollowedBy
+        ? html`${plusIconTemplate()} Follow back`
+        : html`${plusIconTemplate()} Follow`}
+  </button>`;
+}
+
 export function profileListItemTemplate({
   actor,
   isAuthenticated = false,
   currentUserDid = null,
   profileInteractionHandler = null,
-  showFollowButton = true,
-  badgeTemplate = null,
+  rightItemTemplate,
+  clickAction = "link",
+  compact = false,
+  isDisabled = false,
 }) {
-  const displayName = getDisplayName(actor);
-  const isCurrentUser = currentUserDid && actor.did === currentUserDid;
-  const isFollowing = !!actor.viewer?.following;
   const isFollowedBy = !!actor.viewer?.followedBy;
   const isBlocking = !!actor.viewer?.blocking;
   const isBlockedBy = !!actor.viewer?.blockedBy;
   const showsFollowsYou = isFollowedBy && !isBlocking && !isBlockedBy;
-  const showsFollowControl =
-    showFollowButton &&
-    !isCurrentUser &&
-    isAuthenticated &&
-    !isBlocking &&
-    !isBlockedBy;
   const description = actor.description?.trim();
-  return html`<container-link
-    href=${linkToProfile(actor)}
-    class="profile-list-item"
-  >
-    <div class="profile-list-item-row">
-      ${avatarTemplate({ author: actor })}
-      <div class="profile-list-item-body" data-testid="profile-list-item-body">
-        <a class="profile-list-item-name" href="${linkToProfile(actor)}">
-          <span
-            class="profile-list-item-display-name"
-            data-testid="profile-list-item-display-name"
-          >
-            ${displayName}${verificationBadgeTemplate({
-              profile: actor,
-            })}${automatedAccountBadgeTemplate({ profile: actor })}
-          </span>
-        </a>
+  // Render follow button by default
+  const rightItem =
+    rightItemTemplate === undefined
+      ? (followButtonRightItem({
+          actor,
+          isAuthenticated,
+          currentUserDid,
+          profileInteractionHandler,
+        }) ?? "")
+      : rightItemTemplate === null
+        ? ""
+        : (rightItemTemplate(actor) ?? "");
+  return itemWrapperTemplate({
+    actor,
+    clickAction,
+    isDisabled,
+    children: html`
+      <div class="profile-list-item-row">
+        ${avatarTemplate({
+          author: actor,
+          clickAction: clickAction === "link" ? "link" : "none",
+        })}
         <div
-          class="profile-list-item-handle"
-          data-testid="profile-list-item-handle"
+          class="profile-list-item-body"
+          data-testid="profile-list-item-body"
         >
-          @${actor.handle}
-        </div>
-      </div>
-      ${badgeTemplate ? (badgeTemplate(actor) ?? "") : ""}
-      ${showsFollowControl
-        ? html`<button
-            @click=${() => {
-              if (!profileInteractionHandler) {
-                console.warn(
-                  "No profileInteractionHandler provided for follow button",
-                );
-                return;
-              }
-              profileInteractionHandler.handleFollow(actor, !isFollowing);
-            }}
-            class=${classnames(
-              "rounded-button profile-following-button profile-list-item-follow",
-              {
-                "rounded-button-primary": !isFollowing,
-              },
-            )}
-            data-testid="follow-button"
-            data-teststate=${isFollowing
-              ? "following"
-              : isFollowedBy
-                ? "follow-back"
-                : "follow"}
+          ${nameTemplate({ actor, doLink: clickAction === "link" })}
+          <div
+            class="profile-list-item-handle"
+            data-testid="profile-list-item-handle"
           >
-            ${isFollowing
-              ? "Following"
-              : isFollowedBy
-                ? html`${plusIconTemplate()} Follow back`
-                : html`${plusIconTemplate()} Follow`}
-          </button>`
+            @${actor.handle}
+          </div>
+        </div>
+        ${rightItem}
+      </div>
+      ${showsFollowsYou && !compact
+        ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
+            Follows you
+          </div>`
         : ""}
-    </div>
-    ${showsFollowsYou
-      ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
-          Follows you
-        </div>`
-      : ""}
-    ${description
-      ? html`<div
-          class="profile-list-item-description"
-          data-testid="profile-list-item-description"
-        >
-          ${richTextTemplate({ text: description })}
-        </div>`
-      : ""}
-  </container-link>`;
+      ${!compact && description
+        ? html`<div
+            class="profile-list-item-description"
+            data-testid="profile-list-item-description"
+          >
+            ${richTextTemplate({ text: description })}
+          </div>`
+        : ""}
+    `,
+  });
 }
 
-export function profileListItemSkeletonTemplate() {
+export function profileListItemSkeletonTemplate({ compact = false } = {}) {
   return html`<div class="profile-list-item profile-skeleton">
     <div class="profile-list-item-row">
       <div
@@ -116,10 +178,12 @@ export function profileListItemSkeletonTemplate() {
         <div class="skeleton-line-shorter skeleton-animate"></div>
       </div>
     </div>
-    <div class="profile-list-item-skeleton-bio">
-      <div class="skeleton-line-short skeleton-animate"></div>
-      <div class="skeleton-line-short skeleton-animate"></div>
-    </div>
+    ${compact
+      ? ""
+      : html`<div class="profile-list-item-skeleton-bio">
+          <div class="skeleton-line-short skeleton-animate"></div>
+          <div class="skeleton-line-short skeleton-animate"></div>
+        </div>`}
   </div>`;
 }
 
@@ -133,21 +197,24 @@ export function profileFeedTemplate({
   isAuthenticated = false,
   currentUserDid = null,
   profileInteractionHandler = null,
-  showFollowButton = true,
-  badgeTemplate = null,
+  rightItemTemplate,
+  clickAction = "link",
+  compact = false,
+  disabledProfiles = null,
 }) {
   if (!profiles) {
     return html`<div class="profile-list">
       ${Array.from({ length: skeletonCount }).map(() =>
-        profileListItemSkeletonTemplate(),
+        profileListItemSkeletonTemplate({ compact }),
       )}
     </div>`;
   }
   if (profiles.length === 0) {
     return html`<div class="feed-end-message" data-testid="feed-end-message">
-      ${emptyMessage ?? "No profiles."}
+      ${emptyMessage ?? "No profiles to show."}
     </div>`;
   }
+  const disabledSet = disabledProfiles ? new Set(disabledProfiles) : null;
   return html`<infinite-scroll-container
     lookahead="2500px"
     @load-more=${async (event) => {
@@ -164,8 +231,10 @@ export function profileFeedTemplate({
           isAuthenticated,
           currentUserDid,
           profileInteractionHandler,
-          showFollowButton,
-          badgeTemplate,
+          rightItemTemplate,
+          clickAction,
+          compact,
+          isDisabled: disabledSet ? disabledSet.has(profile.did) : false,
         }),
       )}
     </div>

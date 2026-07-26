@@ -523,16 +523,24 @@ class SearchView extends View {
                   <input
                     class="search-input"
                     type="search"
+                    name="search"
+                    aria-label="Search"
                     autocapitalize="none"
                     autocomplete="off"
                     autocorrect="off"
                     enterkeyhint="search"
+                    spellcheck="false"
                     placeholder=${isAuthenticated
                       ? "Search for users, posts, and feeds"
                       : "Search for users"}
                     .value=${inputValue}
-                    @input=${(event) => handleInput(event.target.value)}
+                    @input=${(event) => {
+                      // Prevent events from being picked up by password manager extensions
+                      event.stopPropagation();
+                      handleInput(event.target.value);
+                    }}
                     @keydown=${(event) => {
+                      event.stopPropagation();
                       if (event.key === "Enter") {
                         event.preventDefault();
                         commitSearch();

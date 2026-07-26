@@ -66,4 +66,23 @@ test.describe("Settings Muted Accounts view", () => {
     await expect(view).toContainText("Alice");
     await expect(view).toContainText("Bob");
   });
+
+  test("should not render follow buttons on muted accounts", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.mutedProfiles = [alice, bob];
+    mockServer.addProfile(alice);
+    mockServer.addProfile(bob);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/muted-accounts");
+
+    const view = page.locator("#settings-muted-accounts-view");
+    await expect(view.locator(".profile-list-item")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="follow-button"]')).toHaveCount(0);
+  });
 });

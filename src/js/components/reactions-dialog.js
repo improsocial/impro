@@ -2,7 +2,8 @@ import { Component } from "/js/components/component.js";
 import { html, render } from "/js/lib/lit-html.js";
 import { effect } from "/js/signals.js";
 import { scrollLocks } from "/js/scrollLocks.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { getDisplayName, groupReactions } from "/js/dataHelpers.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
@@ -23,7 +24,7 @@ class ReactionsDialog extends Component {
         dialog.showModal();
         this.scrollLock ??= scrollLocks.acquire({ target: this });
         enableDragToDismiss(dialog, {
-          onClose: () => this._close(),
+          onDismiss: () => this._close(),
           scrollContainer: this.querySelector(".reactions-list"),
           ignoreTouchTarget: (element) => element.closest("button") !== null,
         });

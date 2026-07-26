@@ -109,7 +109,9 @@ export class Menu {
     return this.items.map((item) => {
       const handlerId = uuid.create();
       callHandlers.set(handlerId, item._callback);
-      return { title: item.title, icon: item.icon, handlerId };
+      const icon =
+        item.icon instanceof VirtualEl ? item.icon._serialize() : item.icon;
+      return { title: item.title, icon, handlerId };
     });
   }
 }
@@ -309,7 +311,7 @@ export class Plugin {
     self.postMessage({
       type: "register",
       target: "sidebarItem",
-      icon,
+      icon: icon instanceof VirtualEl ? icon._serialize() : icon,
       title,
       handlerId,
     });

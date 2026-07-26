@@ -204,7 +204,7 @@ export function postFeedTemplate({
   if (feed.feed.length === 0) {
     return html`<div class="feed">
       <div class="feed-end-message" data-testid="feed-end-message">
-        ${emptyMessage ?? "Feed is empty."}
+        ${emptyMessage ?? "This feed is empty."}
       </div>
     </div>`;
   }

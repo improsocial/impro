@@ -173,12 +173,12 @@ export class Requests {
     api,
     dataStore,
     preferencesProvider,
-    pluginService,
     draftMediaStore,
+    events,
     { constellation } = {},
   ) {
     this.api = api;
-    this.pluginService = pluginService;
+    this.events = events;
     this.dataStore = dataStore;
     this.preferencesProvider = preferencesProvider;
     this.draftMediaStore = draftMediaStore;
@@ -511,20 +511,12 @@ export class Requests {
     const postsToSave = getPostsFromFeed(feed);
     await this._loadPostDependencies(postsToSave);
     this.dataStore.setPosts(postsToSave);
-    await this.pluginService.refreshFiltersForFeed(uri, feed, { reload });
+    await this.events.emitAsync("feedLoaded", { feedURI: uri, feed, reload });
     writePageToCollection(this.dataStore.$feeds, "feed", feed, {
       key: uri,
       requestCursor: cursor,
       overwrite: reload,
     });
-  }
-
-  async loadPluginFilteredFeedItems(feedURI, { reload = false } = {}) {
-    const feed = this.dataStore.$feeds.get(feedURI);
-    if (!feed) {
-      return;
-    }
-    await this.pluginService.refreshFiltersForFeed(feedURI, feed, { reload });
   }
 
   async _getReplyUrisForPostFromBacklinks(post) {

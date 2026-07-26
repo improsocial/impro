@@ -1,6 +1,12 @@
 import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import { chooseModal, respondToConfirm, waitFor } from "../../testHelpers.js";
+import {
+  chooseModal,
+  makeTestDataLayer,
+  respondToConfirm,
+  stubRecordLinkResolution,
+  waitFor,
+} from "../../testHelpers.js";
 import { ApiError } from "/js/api.js";
 import { getDraftDeviceId } from "/js/drafts.js";
 import { LINK_CARD_SERVICE_URL } from "/js/config.js";
@@ -906,45 +912,8 @@ describe("post-composer", () => {
       element.identityResolver = {
         resolveHandle: async () => "did:plc:creator1",
       };
-      element.dataLayer = {
-        declarative: {
-          ensureFeedGenerator: async (uri) => ({
-            uri,
-            cid: "feedcid",
-            displayName: "Cool Feed",
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ensureList: async (uri) => ({
-            uri,
-            cid: "listcid",
-            name: "Cool List",
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ensureStarterPack: async (uri) => ({
-            $type: "app.bsky.graph.defs#starterPackView",
-            uri,
-            cid: "packcid",
-            record: { name: "Cool Pack", description: "People to follow" },
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ensurePost: async (uri) => ({
-            uri,
-            cid: "postcid",
-            author: {
-              did: "did:plc:creator1",
-              handle: "creator1.test",
-              displayName: "Creator One",
-              avatar: null,
-            },
-            record: {
-              text: "Original post",
-              createdAt: "2025-01-01T00:00:00Z",
-            },
-            indexedAt: "2025-01-01T00:00:00.000Z",
-            labels: [],
-          }),
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      stubRecordLinkResolution(element.dataLayer);
       connectElement(element);
     });
 
@@ -1299,11 +1268,12 @@ describe("post-composer", () => {
 
     it("closes without a prompt when a loaded draft is unmodified", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => "draft-1",
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-1",
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
@@ -1339,15 +1309,12 @@ describe("post-composer", () => {
 
     it("saves and closes when the prompt choice is save", async () => {
       const element = createPostComposer();
-      let savedArgs = null;
-      element.dataLayer = {
-        mutations: {
-          createDraft: async (args) => {
-            savedArgs = args;
-            return "draft-9";
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const createDraft = mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-9",
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
@@ -1356,7 +1323,10 @@ describe("post-composer", () => {
       await chooseModal("save");
       const result = await closing;
       assert.deepEqual(result, true);
-      assert.deepEqual(savedArgs.draft.posts[0].text, "hello");
+      assert.deepEqual(
+        createDraft.mock.calls[0].arguments[0].draft.posts[0].text,
+        "hello",
+      );
       assert.deepEqual(element._draftId, "draft-9");
       assert.deepEqual(element._isDirty, false);
     });
@@ -1375,17 +1345,15 @@ describe("post-composer", () => {
 
     it("saveDraft updates in place when a draft id is set", async () => {
       const element = createPostComposer();
-      let savedArgs = null;
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => {
-            throw new Error("createDraft should not be called for an update");
-          },
-          updateDraft: async (args) => {
-            savedArgs = args;
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(element.dataLayer.mutations, "createDraft", async () => {
+        throw new Error("createDraft should not be called for an update");
+      });
+      const updateDraft = mock.method(
+        element.dataLayer.mutations,
+        "updateDraft",
+        async () => {},
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "edited", facets: [] },
@@ -1394,6 +1362,7 @@ describe("post-composer", () => {
       element._originalLocalRefs = new Set(["image:old"]);
       const result = await element.saveDraft();
       assert.deepEqual(result, true);
+      const savedArgs = updateDraft.mock.calls[0].arguments[0];
       assert.deepEqual(savedArgs.draftId, "draft-1");
       assert.deepEqual(savedArgs.pruneLocalRefs, ["image:old"]);
       assert.deepEqual([...element._originalLocalRefs], []);
@@ -1401,11 +1370,12 @@ describe("post-composer", () => {
 
     it("saveDraft allows text at exactly 1000 graphemes", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => "draft-1",
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-1",
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1000), facets: [] },
@@ -1419,19 +1389,16 @@ describe("post-composer", () => {
       try {
         document.querySelectorAll(".toast").forEach((toast) => toast.remove());
         const element = createPostComposer();
-        element.dataLayer = {
-          mutations: {
-            createDraft: async () => {
-              throw new ApiError({
-                status: 400,
-                statusText: "Bad Request",
-                data: { error: "DraftLimitReached" },
-                headers: {},
-                url: "",
-              });
-            },
-          },
-        };
+        element.dataLayer = makeTestDataLayer();
+        mock.method(element.dataLayer.mutations, "createDraft", async () => {
+          throw new ApiError({
+            status: 400,
+            statusText: "Bad Request",
+            data: { error: "DraftLimitReached" },
+            headers: {},
+            url: "",
+          });
+        });
         connectElement(element);
         element.handleInput(getFirstPost(element).id, {
           detail: { text: "hello", facets: [] },
@@ -1449,21 +1416,19 @@ describe("post-composer", () => {
 
     it("saveDraft refuses over-limit text without calling the mutation", async () => {
       const element = createPostComposer();
-      let called = false;
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => {
-            called = true;
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const createDraft = mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => {},
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "x".repeat(1001), facets: [] },
       });
       const result = await element.saveDraft();
       assert.deepEqual(result, false);
-      assert(!called);
+      assert.deepEqual(createDraft.mock.callCount(), 0);
     });
 
     it("saveDraft surfaces failure and stays dirty", async () => {
@@ -1471,13 +1436,10 @@ describe("post-composer", () => {
       console.error = () => {};
       try {
         const element = createPostComposer();
-        element.dataLayer = {
-          mutations: {
-            createDraft: async () => {
-              throw new Error("boom");
-            },
-          },
-        };
+        element.dataLayer = makeTestDataLayer();
+        mock.method(element.dataLayer.mutations, "createDraft", async () => {
+          throw new Error("boom");
+        });
         connectElement(element);
         element.handleInput(getFirstPost(element).id, {
           detail: { text: "hello", facets: [] },
@@ -1493,11 +1455,12 @@ describe("post-composer", () => {
 
     it("saveDraft writes minted image keys back onto composer state", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => "draft-1",
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-1",
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "with image", facets: [] },
@@ -1512,14 +1475,15 @@ describe("post-composer", () => {
     it("stays dirty when edits land while a save is in flight", async () => {
       const element = createPostComposer();
       let resolveCreate;
-      element.dataLayer = {
-        mutations: {
-          createDraft: () =>
-            new Promise((resolve) => {
-              resolveCreate = resolve;
-            }),
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        () =>
+          new Promise((resolve) => {
+            resolveCreate = resolve;
+          }),
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
@@ -1537,14 +1501,15 @@ describe("post-composer", () => {
     it("does not misassign minted keys to images added during a save", async () => {
       const element = createPostComposer();
       let resolveCreate;
-      element.dataLayer = {
-        mutations: {
-          createDraft: () =>
-            new Promise((resolve) => {
-              resolveCreate = resolve;
-            }),
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        () =>
+          new Promise((resolve) => {
+            resolveCreate = resolve;
+          }),
+      );
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "with image", facets: [] },
@@ -1563,18 +1528,15 @@ describe("post-composer", () => {
 
     it("treats content as a new post after the loaded draft is deleted", async () => {
       const element = createPostComposer();
-      let created = false;
-      element.dataLayer = {
-        mutations: {
-          createDraft: async () => {
-            created = true;
-            return "draft-2";
-          },
-          updateDraft: async () => {
-            throw new Error("updateDraft should not be called after deletion");
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const createDraft = mock.method(
+        element.dataLayer.mutations,
+        "createDraft",
+        async () => "draft-2",
+      );
+      mock.method(element.dataLayer.mutations, "updateDraft", async () => {
+        throw new Error("updateDraft should not be called after deletion");
+      });
       connectElement(element);
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
@@ -1586,7 +1548,7 @@ describe("post-composer", () => {
       assert.deepEqual(element._originalLocalRefs, null);
       assert.deepEqual(element._isDirty, true);
       assert.deepEqual(await element.saveDraft(), true);
-      assert(created);
+      assert.deepEqual(createDraft.mock.callCount(), 1);
       assert.deepEqual(element._draftId, "draft-2");
     });
 
@@ -1621,23 +1583,24 @@ describe("post-composer", () => {
       globalThis.fetch = () => Promise.resolve({ ok: false });
       try {
         const element = createPostComposer();
-        element.dataLayer = {
-          declarative: {
-            ensurePost: async (uri) => ({
-              uri,
-              cid: "postcid",
-              author: {
-                did: "did:plc:creator1",
-                handle: "creator1.test",
-                displayName: "Creator One",
-                avatar: null,
-              },
-              record: { text: "Quoted", createdAt: "2025-01-01T00:00:00Z" },
-              indexedAt: "2025-01-01T00:00:00.000Z",
-              labels: [],
-            }),
-          },
-        };
+        element.dataLayer = makeTestDataLayer();
+        mock.method(
+          element.dataLayer.declarative,
+          "ensurePost",
+          async (uri) => ({
+            uri,
+            cid: "postcid",
+            author: {
+              did: "did:plc:creator1",
+              handle: "creator1.test",
+              displayName: "Creator One",
+              avatar: null,
+            },
+            record: { text: "Quoted", createdAt: "2025-01-01T00:00:00Z" },
+            indexedAt: "2025-01-01T00:00:00.000Z",
+            labels: [],
+          }),
+        );
         connectElement(element);
         element.open();
         const draftView = {
@@ -1684,14 +1647,12 @@ describe("post-composer", () => {
 
     it("re-saving a draft restored from another device keeps its media embeds", async () => {
       const element = createPostComposer();
-      let savedArgs = null;
-      element.dataLayer = {
-        mutations: {
-          updateDraft: async (args) => {
-            savedArgs = args;
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const updateDraft = mock.method(
+        element.dataLayer.mutations,
+        "updateDraft",
+        async () => {},
+      );
       connectElement(element);
       const galleryItems = [
         {
@@ -1731,6 +1692,7 @@ describe("post-composer", () => {
         detail: { text: "foreign media edited", facets: [] },
       });
       assert.deepEqual(await element.saveDraft(), true);
+      const savedArgs = updateDraft.mock.calls[0].arguments[0];
       assert.deepEqual(
         savedArgs.draft.posts[0].embedGallery.items,
         galleryItems,
@@ -1741,17 +1703,17 @@ describe("post-composer", () => {
 
     it("re-saving keeps the video embed when its local bytes are missing", async () => {
       const element = createPostComposer();
-      let savedArgs = null;
-      element.dataLayer = {
-        mutations: {
-          updateDraft: async (args) => {
-            savedArgs = args;
-          },
-        },
-        draftMediaStore: {
-          readBlob: async () => null,
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const updateDraft = mock.method(
+        element.dataLayer.mutations,
+        "updateDraft",
+        async () => {},
+      );
+      mock.method(
+        element.dataLayer.draftMediaStore,
+        "readBlob",
+        async () => null,
+      );
       connectElement(element);
       const videoEmbed = {
         $type: "app.bsky.draft.defs#draftEmbedVideo",
@@ -1772,20 +1734,19 @@ describe("post-composer", () => {
         detail: { text: "video draft edited", facets: [] },
       });
       assert.deepEqual(await element.saveDraft(), true);
+      const savedArgs = updateDraft.mock.calls[0].arguments[0];
       assert.deepEqual(savedArgs.draft.posts[0].embedVideos, [videoEmbed]);
       assert.deepEqual(savedArgs.pruneLocalRefs, []);
     });
 
     it("composer media replaces unrestored media on save", async () => {
       const element = createPostComposer();
-      let savedArgs = null;
-      element.dataLayer = {
-        mutations: {
-          updateDraft: async (args) => {
-            savedArgs = args;
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      const updateDraft = mock.method(
+        element.dataLayer.mutations,
+        "updateDraft",
+        async () => {},
+      );
       connectElement(element);
       await element.restoreFromDraft({
         id: "draft-1",
@@ -1813,6 +1774,7 @@ describe("post-composer", () => {
       });
       patchFirstPost(element, { images: [{ file: {}, dataUrl: "data:new" }] });
       assert.deepEqual(await element.saveDraft(), true);
+      const savedArgs = updateDraft.mock.calls[0].arguments[0];
       const items = savedArgs.draft.posts[0].embedGallery.items;
       assert.deepEqual(items.length, 1);
       assert(items[0].localRef.path !== "image:foreign");
@@ -2132,8 +2094,7 @@ describe("post-composer", () => {
   } = {}) {
     let statusIndex = 0;
     const statusCalls = [];
-    return {
-      statusCalls,
+    const dataLayer = makeTestDataLayer({
       api: {
         getVideoUploadLimits: async () => limits,
         uploadVideoBlob: async () => ({ jobId: "job-1" }),
@@ -2143,7 +2104,9 @@ describe("post-composer", () => {
           return status;
         },
       },
-    };
+    });
+    dataLayer.statusCalls = statusCalls;
+    return dataLayer;
   }
 
   describe("PostComposer - media preview actions", () => {
@@ -2745,7 +2708,7 @@ describe("post-composer", () => {
   });
 
   describe("PostComposer - drafts button", () => {
-    function createWithDialogSpy(dataLayer = null) {
+    function createWithDialogSpy({ dataLayer = null } = {}) {
       const element = createPostComposer();
       if (dataLayer) {
         element.dataLayer = dataLayer;
@@ -2773,8 +2736,13 @@ describe("post-composer", () => {
     });
 
     it("saves then opens when Save is chosen", async () => {
-      const createDraft = mock.fn(async () => "draft-1");
-      const element = createWithDialogSpy({ mutations: { createDraft } });
+      const dataLayer = makeTestDataLayer();
+      const createDraft = mock.method(
+        dataLayer.mutations,
+        "createDraft",
+        async () => "draft-1",
+      );
+      const element = createWithDialogSpy({ dataLayer });
       element.handleInput(getFirstPost(element).id, {
         detail: { text: "hello", facets: [] },
       });
@@ -2790,13 +2758,11 @@ describe("post-composer", () => {
       const originalError = console.error;
       console.error = () => {};
       try {
-        const element = createWithDialogSpy({
-          mutations: {
-            createDraft: async () => {
-              throw new Error("boom");
-            },
-          },
+        const dataLayer = makeTestDataLayer();
+        mock.method(dataLayer.mutations, "createDraft", async () => {
+          throw new Error("boom");
         });
+        const element = createWithDialogSpy({ dataLayer });
         element.handleInput(getFirstPost(element).id, {
           detail: { text: "hello", facets: [] },
         });
@@ -2874,11 +2840,9 @@ describe("post-composer", () => {
 
   describe("PostComposer - drafts dialog wiring", () => {
     function makeDraftsDataLayer() {
-      return {
-        derived: {
-          $hydratedDrafts: { get: () => ({ drafts: [], cursor: null }) },
-        },
-      };
+      const dataLayer = makeTestDataLayer();
+      dataLayer.dataStore.$drafts.set({ drafts: [], cursor: null });
+      return dataLayer;
     }
 
     it("opens the drafts dialog and handles delete and close events", () => {
@@ -2960,12 +2924,12 @@ describe("post-composer", () => {
 
     it("restores draft images from the local media store", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        draftMediaStore: {
-          readBlob: async () =>
-            new globalThis.window.Blob(["img"], { type: "image/png" }),
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.draftMediaStore,
+        "readBlob",
+        async () => new globalThis.window.Blob(["img"], { type: "image/png" }),
+      );
       connectElement(element);
       await element.restoreFromDraft(makeImageDraftView());
       const image = getFirstPost(element).images[0];
@@ -2978,9 +2942,12 @@ describe("post-composer", () => {
 
     it("marks images unrestored when the local bytes are missing", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        draftMediaStore: { readBlob: async () => null },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(
+        element.dataLayer.draftMediaStore,
+        "readBlob",
+        async () => null,
+      );
       connectElement(element);
       const draftView = makeImageDraftView();
       await element.restoreFromDraft(draftView);
@@ -2993,13 +2960,10 @@ describe("post-composer", () => {
 
     it("marks images unrestored when the read fails", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        draftMediaStore: {
-          readBlob: async () => {
-            throw new Error("idb broken");
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(element.dataLayer.draftMediaStore, "readBlob", async () => {
+        throw new Error("idb broken");
+      });
       connectElement(element);
       const draftView = makeImageDraftView();
       await element.restoreFromDraft(draftView);
@@ -3041,29 +3005,8 @@ describe("post-composer", () => {
 
     function createComposerWithDeclarative(overrides = {}) {
       const element = createPostComposer();
-      element.dataLayer = {
-        declarative: {
-          ensureFeedGenerator: async (uri) => ({
-            uri,
-            cid: "feedcid",
-            displayName: "Cool Feed",
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ensureList: async (uri) => ({
-            uri,
-            cid: "listcid",
-            name: "Cool List",
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ensureStarterPack: async (uri) => ({
-            uri,
-            cid: "packcid",
-            record: { name: "Cool Pack" },
-            creator: { did: "did:plc:creator1", handle: "creator1.test" },
-          }),
-          ...overrides,
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      stubRecordLinkResolution(element.dataLayer, overrides);
       connectElement(element);
       return element;
     }
@@ -3297,13 +3240,12 @@ describe("post-composer", () => {
 
     it("restores a draft video with alt text and captions", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        ...makeVideoDataLayer(),
-        draftMediaStore: {
-          readBlob: async () =>
-            new globalThis.window.Blob(["vid"], { type: "video/mp4" }),
-        },
-      };
+      element.dataLayer = makeVideoDataLayer();
+      mock.method(
+        element.dataLayer.draftMediaStore,
+        "readBlob",
+        async () => new globalThis.window.Blob(["vid"], { type: "video/mp4" }),
+      );
       connectElement(element);
       const videoEmbed = {
         $type: "app.bsky.draft.defs#draftEmbedVideo",
@@ -3332,13 +3274,10 @@ describe("post-composer", () => {
 
     it("marks the video unrestored when the local read fails", async () => {
       const element = createPostComposer();
-      element.dataLayer = {
-        draftMediaStore: {
-          readBlob: async () => {
-            throw new Error("idb broken");
-          },
-        },
-      };
+      element.dataLayer = makeTestDataLayer();
+      mock.method(element.dataLayer.draftMediaStore, "readBlob", async () => {
+        throw new Error("idb broken");
+      });
       connectElement(element);
       const videoEmbed = {
         $type: "app.bsky.draft.defs#draftEmbedVideo",

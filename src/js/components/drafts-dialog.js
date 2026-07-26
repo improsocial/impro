@@ -2,7 +2,8 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { scrollLocks } from "/js/scrollLocks.js";
 import { displayRelativeTime } from "/js/utils.js";
-import { closeWithAnimation, enableDragToDismiss } from "/js/dialogHelpers.js";
+import { closeWithAnimation } from "/js/dialogHelpers.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { Signal, ReactiveStore, effect, untrack } from "/js/signals.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
@@ -334,7 +335,7 @@ class DraftsDialog extends Component {
     if (dialog?.open) return;
     dialog.showModal();
     enableDragToDismiss(dialog, {
-      onClose: () => this.close(),
+      onDismiss: () => this.close(),
       scrollContainer: this.querySelector(".drafts-dialog-list"),
       ignoreTouchTarget: (element) => element.closest("button") !== null,
       disableWhenKeyboardOpen: true,

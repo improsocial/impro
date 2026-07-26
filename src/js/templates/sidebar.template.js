@@ -23,7 +23,7 @@ import {
   linkToLogin,
 } from "/js/navigation.js";
 import "/js/components/animated-sidebar.js";
-import "/js/components/plugin-icon.js";
+import "/js/components/app-icon.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
 
 function pluginSidebarItemTemplate({ entry }) {
@@ -37,9 +37,7 @@ function pluginSidebarItemTemplate({ entry }) {
         entry.invoke();
       }}
     >
-      <span class="sidebar-nav-icon">
-        <plugin-icon icon=${entry.icon}></plugin-icon>
-      </span>
+      <span class="sidebar-nav-icon">${entry.iconElement}</span>
       <span class="sidebar-nav-label">${entry.title}</span>
     </button>
   `;

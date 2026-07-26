@@ -66,4 +66,23 @@ test.describe("Settings Blocked Accounts view", () => {
     await expect(view).toContainText("Alice");
     await expect(view).toContainText("Bob");
   });
+
+  test("should not render follow buttons on blocked accounts", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    mockServer.blockedProfiles = [alice, bob];
+    mockServer.addProfile(alice);
+    mockServer.addProfile(bob);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/settings/blocked-accounts");
+
+    const view = page.locator("#settings-blocked-accounts-view");
+    await expect(view.locator(".profile-list-item")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    await expect(view.locator('[data-testid="follow-button"]')).toHaveCount(0);
+  });
 });

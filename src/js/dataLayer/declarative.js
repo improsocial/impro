@@ -15,6 +15,22 @@ export class Declarative {
     return currentUser;
   }
 
+  async ensureProfile(profileDid) {
+    const getProfile = (did) =>
+      this.derived.$hydratedDetailedProfiles.get(did) ??
+      this.derived.$hydratedProfiles.get(did) ??
+      null;
+    let profile = getProfile(profileDid);
+    if (!profile) {
+      await this.requests.loadDetailedProfile(profileDid);
+      profile = getProfile(profileDid);
+    }
+    if (!profile) {
+      throw new Error("Profile not found");
+    }
+    return profile;
+  }
+
   async ensureDetailedProfile(profileDid) {
     const getProfile = (did) => this.derived.$hydratedDetailedProfiles.get(did);
     let profile = getProfile(profileDid);

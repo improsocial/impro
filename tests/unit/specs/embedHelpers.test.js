@@ -1,6 +1,7 @@
-import { describe, it } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 import { parseRecordLink, resolveRecordFromLink } from "/js/embedHelpers.js";
+import { makeTestDataLayer, stubRecordLinkResolution } from "../testHelpers.js";
 
 describe("parseRecordLink", () => {
   it("parses a post link", () => {
@@ -78,6 +79,17 @@ describe("parseRecordLink", () => {
 
 describe("resolveRecordFromLink", () => {
   function makeDeps({ resolveHandleCalls = [] } = {}) {
+    const dataLayer = makeTestDataLayer();
+    stubRecordLinkResolution(dataLayer, {
+      ensurePost: async (uri) => ({
+        uri,
+        cid: "postcid",
+        author: { did: "did:plc:resolved1", handle: "alice.test" },
+        record: { text: "Original post", createdAt: "2025-01-01T00:00:00Z" },
+        indexedAt: "2025-01-01T00:00:00.000Z",
+        labels: [],
+      }),
+    });
     return {
       identityResolver: {
         resolveHandle: async (handle) => {
@@ -85,36 +97,7 @@ describe("resolveRecordFromLink", () => {
           return "did:plc:resolved1";
         },
       },
-      dataLayer: {
-        declarative: {
-          ensurePost: async (uri) => ({
-            uri,
-            cid: "postcid",
-            author: { did: "did:plc:resolved1", handle: "alice.test" },
-            record: {
-              text: "Original post",
-              createdAt: "2025-01-01T00:00:00Z",
-            },
-            indexedAt: "2025-01-01T00:00:00.000Z",
-            labels: [],
-          }),
-          ensureFeedGenerator: async (uri) => ({
-            uri,
-            cid: "feedcid",
-            displayName: "Cool Feed",
-          }),
-          ensureList: async (uri) => ({
-            uri,
-            cid: "listcid",
-            name: "Cool List",
-          }),
-          ensureStarterPack: async (uri) => ({
-            uri,
-            cid: "packcid",
-            record: { name: "Cool Pack" },
-          }),
-        },
-      },
+      dataLayer,
     };
   }
 
@@ -190,9 +173,9 @@ describe("resolveRecordFromLink", () => {
 
   it("propagates resolution failures", async () => {
     const deps = makeDeps();
-    deps.dataLayer.declarative.ensurePost = async () => {
+    mock.method(deps.dataLayer.declarative, "ensurePost", async () => {
       throw new Error("not found");
-    };
+    });
     let thrown = null;
     try {
       await resolveRecordFromLink(

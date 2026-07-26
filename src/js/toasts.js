@@ -1,4 +1,5 @@
 import { html, render } from "/js/lib/lit-html.js";
+import { enableDragToDismiss } from "/js/dragHelpers.js";
 import { alertIconTemplate } from "/js/templates/icons/alertIcon.template.js";
 import { circleCheckIconTemplate } from "/js/templates/icons/circleCheckIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
@@ -62,9 +63,36 @@ function mountToast(toast, { timeout = 3000, onDismiss = () => {} } = {}) {
     activeToasts.unshift(entry);
     restackToasts();
     toast.classList.add("active");
-    if (timeout) {
-      timeoutId = setTimeout(dismiss, timeout);
-    }
+    let remainingMs = timeout;
+    let scheduledAt = null;
+    const scheduleAutoDismiss = () => {
+      if (remainingMs > 0) {
+        scheduledAt = performance.now();
+        timeoutId = setTimeout(dismiss, remainingMs);
+      }
+    };
+    const pauseAutoDismiss = () => {
+      if (timeoutId != null) {
+        remainingMs = Math.max(
+          0,
+          remainingMs - (performance.now() - scheduledAt),
+        );
+        clearTimeout(timeoutId);
+        timeoutId = null;
+      }
+    };
+    enableDragToDismiss(toast, {
+      direction: "up",
+      allowOppositeTranslate: true,
+      dismissThresholdPx: 25,
+      flickVelocity: 0.2,
+      onDismiss: dismiss,
+      onDragStart: pauseAutoDismiss,
+      onDragEnd: ({ dismissed }) => {
+        if (!dismissed) scheduleAutoDismiss();
+      },
+    });
+    scheduleAutoDismiss();
   }
 
   show();

@@ -5,21 +5,17 @@ import { DataStore } from "/js/dataLayer/dataStore.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { Preferences } from "/js/preferences.js";
 import { ApiError } from "/js/api.js";
-import { SignalMap } from "/js/signals.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
 const stubConstellation = { getLinks: async () => [] };
-const stubPluginService = {
-  $pluginFilteredFeedItems: new SignalMap(),
-  refreshFiltersForFeed: async () => {},
-};
 
-function createRequests(api, dataStore, preferencesProvider) {
+function createRequests(api, dataStore, preferencesProvider, events = null) {
   return new Requests(
     api,
     dataStore,
     preferencesProvider,
-    stubPluginService,
     new DraftMediaStore("test-media"),
+    events ?? new EventEmitter(),
     { constellation: stubConstellation },
   );
 }
@@ -221,7 +217,7 @@ describe("loadNextFeedPage", () => {
     assert.deepEqual(dataStore.$feeds.get(feedURI), reloadedFeed);
   });
 
-  it("should forward the reload flag to refreshFiltersForFeed", async () => {
+  it("should emit feedLoaded with the reload flag", async () => {
     const dataStore = new DataStore();
     dataStore.$feeds.set(feedURI, {
       feed: [{ post: { uri: "post1" } }],
@@ -231,20 +227,14 @@ describe("loadNextFeedPage", () => {
     const mockApi = {
       getFeed: async () => ({ feed: [], cursor: "end" }),
     };
+    const events = new EventEmitter();
     const capturedReloads = [];
-    const pluginService = {
-      $pluginFilteredFeedItems: new SignalMap(),
-      refreshFiltersForFeed: async (_uri, _feed, { reload = false } = {}) => {
-        capturedReloads.push(reload);
-      },
-    };
-    const requests = new Requests(
+    events.on("feedLoaded", ({ reload }) => capturedReloads.push(reload));
+    const requests = createRequests(
       mockApi,
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
-      pluginService,
-      new DraftMediaStore("test-media"),
-      { constellation: stubConstellation },
+      events,
     );
 
     await requests.loadNextFeedPage({ type: "feed", uri: feedURI });
@@ -324,119 +314,6 @@ describe("loadNextFeedPage", () => {
       dataStore.$posts.get("parent1").uri,
       normalizedPosts[2].uri,
     );
-  });
-});
-
-describe("loadPluginFilteredFeedItems", () => {
-  const feedURI = "at://did:test/app.bsky.feed.generator/test";
-
-  // Stub pluginService that mimics PluginService.refreshFiltersForFeed,
-  // storing results in $pluginFilteredFeedItems so tests can verify them.
-  function makePluginService(getFilteredFeedItems) {
-    const $pluginFilteredFeedItems = new SignalMap();
-    return {
-      $pluginFilteredFeedItems,
-      refreshFiltersForFeed: async (uri, feed, { reload = false } = {}) => {
-        const filtered = await getFilteredFeedItems(uri, feed);
-        const existing = reload
-          ? {}
-          : ($pluginFilteredFeedItems.get(uri) ?? {});
-        $pluginFilteredFeedItems.set(uri, { ...existing, ...filtered });
-      },
-    };
-  }
-
-  function createRequestsWithPluginService(dataStore, pluginService) {
-    return new Requests(
-      {},
-      dataStore,
-      { requirePreferences: () => Preferences.createLoggedOutPreferences() },
-      pluginService,
-      new DraftMediaStore("test-media"),
-      { constellation: stubConstellation },
-    );
-  }
-
-  it("should return early without writing when feed is missing", async () => {
-    const dataStore = new DataStore();
-    let invoked = false;
-    const pluginService = makePluginService(async () => {
-      invoked = true;
-      return { a: { hidden: true } };
-    });
-    const requests = createRequestsWithPluginService(dataStore, pluginService);
-
-    await requests.loadPluginFilteredFeedItems(feedURI);
-
-    assert.deepEqual(invoked, false);
-    assert.deepEqual(pluginService.$pluginFilteredFeedItems.get(feedURI), null);
-  });
-
-  it("should pass the feed to the plugin service and store results", async () => {
-    const dataStore = new DataStore();
-    const storedFeed = {
-      feed: [{ post: { uri: "p1" } }],
-      cursor: "c1",
-    };
-    dataStore.$feeds.set(feedURI, storedFeed);
-
-    let capturedUri = null;
-    let capturedFeed = null;
-    const pluginService = makePluginService(async (uri, feed) => {
-      capturedUri = uri;
-      capturedFeed = feed;
-      return { p1: { hidden: true } };
-    });
-    const requests = createRequestsWithPluginService(dataStore, pluginService);
-
-    await requests.loadPluginFilteredFeedItems(feedURI);
-
-    assert.deepEqual(capturedUri, feedURI);
-    assert.deepEqual(capturedFeed, storedFeed);
-    assert.deepEqual(pluginService.$pluginFilteredFeedItems.get(feedURI), {
-      p1: { hidden: true },
-    });
-  });
-
-  it("should merge with existing filtered items by default", async () => {
-    const dataStore = new DataStore();
-    dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
-    const pluginService = makePluginService(async () => ({
-      p2: { hidden: false },
-      p3: { hidden: true },
-    }));
-    pluginService.$pluginFilteredFeedItems.set(feedURI, {
-      p1: { hidden: true },
-      p2: { hidden: true },
-    });
-    const requests = createRequestsWithPluginService(dataStore, pluginService);
-
-    await requests.loadPluginFilteredFeedItems(feedURI);
-
-    assert.deepEqual(pluginService.$pluginFilteredFeedItems.get(feedURI), {
-      p1: { hidden: true },
-      p2: { hidden: false },
-      p3: { hidden: true },
-    });
-  });
-
-  it("should replace existing filtered items when reload is true", async () => {
-    const dataStore = new DataStore();
-    dataStore.$feeds.set(feedURI, { feed: [], cursor: null });
-    const pluginService = makePluginService(async () => ({
-      p3: { hidden: true },
-    }));
-    pluginService.$pluginFilteredFeedItems.set(feedURI, {
-      p1: { hidden: true },
-      p2: { hidden: true },
-    });
-    const requests = createRequestsWithPluginService(dataStore, pluginService);
-
-    await requests.loadPluginFilteredFeedItems(feedURI, { reload: true });
-
-    assert.deepEqual(pluginService.$pluginFilteredFeedItems.get(feedURI), {
-      p3: { hidden: true },
-    });
   });
 });
 
@@ -3239,8 +3116,8 @@ function makeRequestsWithConstellation(api, dataStore, constellation) {
     api,
     dataStore,
     { requirePreferences: () => Preferences.createLoggedOutPreferences() },
-    stubPluginService,
     new DraftMediaStore("test-media"),
+    new EventEmitter(),
     { constellation },
   );
 }
@@ -4068,8 +3945,8 @@ describe("loadDrafts", () => {
       api,
       dataStore,
       { requirePreferences: () => Preferences.createLoggedOutPreferences() },
-      stubPluginService,
       draftMediaStore,
+      new EventEmitter(),
       { constellation: stubConstellation },
     );
   }

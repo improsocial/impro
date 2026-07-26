@@ -41,45 +41,25 @@ describe("PluginRenderer:render with fresh roots", () => {
     assert.deepEqual(element.getAttribute("type"), "checkbox");
   });
 
-  it("renders <plugin-profiles-list> and passes dataLayer", () => {
+  it("renders <plugin-profiles-list> with attrs passed through", () => {
     const { bridge } = makeBridge();
-    const dataLayer = {
-      declarative: { ensureDetailedProfiles: async () => [] },
-    };
-    const renderer = new PluginRenderer(bridge, "demo", { dataLayer });
+    const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer.createRoot().render({
       tag: "plugin-profiles-list",
       attrs: { dids: "did:test:a,did:test:b" },
     });
     assert.deepEqual(element.tagName.toLowerCase(), "plugin-profiles-list");
     assert.deepEqual(element.getAttribute("dids"), "did:test:a,did:test:b");
-    assert(element.dataLayer === dataLayer);
   });
 
   it("drops disallowed attributes from <plugin-profiles-list>", () => {
     const { bridge } = makeBridge();
-    const renderer = new PluginRenderer(bridge, "demo", { dataLayer: {} });
+    const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer.createRoot().render({
       tag: "plugin-profiles-list",
       attrs: { dids: "did:test:a", onclick: "alert(1)" },
     });
     assert(!element.hasAttribute("onclick"));
-  });
-
-  it("throws when rendering <plugin-profiles-list> without a dataLayer", () => {
-    const { bridge } = makeBridge();
-    const renderer = new PluginRenderer(bridge, "demo");
-    let error = null;
-    try {
-      renderer.createRoot().render({
-        tag: "plugin-profiles-list",
-        attrs: { dids: "did:test:a" },
-      });
-    } catch (e) {
-      error = e;
-    }
-    assert(error !== null);
-    assert(error.message.includes("dataLayer"));
   });
 });
 
@@ -369,14 +349,14 @@ describe("PluginRenderer:root reconciliation", () => {
 });
 
 describe("PluginRenderer:plugin-icon", () => {
-  it("renders <plugin-icon> with the icon attribute passed through", () => {
+  it("renders <plugin-icon> as <app-icon> with the icon attribute passed through", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");
     const element = renderer.createRoot().render({
       tag: "plugin-icon",
       attrs: { icon: "bell" },
     });
-    assert.deepEqual(element.tagName.toLowerCase(), "plugin-icon");
+    assert.deepEqual(element.tagName.toLowerCase(), "app-icon");
     assert.deepEqual(element.getAttribute("icon"), "bell");
   });
 

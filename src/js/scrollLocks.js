@@ -39,6 +39,35 @@ function lockScroll(container) {
   }
 }
 
+// Hack to workaround incorrect footer positioning in ios PWA mode -
+// scrolls the view by 1px to reset positioning
+// https://bugs.webkit.org/show_bug.cgi?id=254861
+// https://bugs.webkit.org/show_bug.cgi?id=301172
+// https://bugs.webkit.org/show_bug.cgi?id=312149
+function resyncIOSFixedLayers() {
+  const isIOS =
+    /iP(?:hone|ad|od)/.test(navigator.userAgent) ||
+    (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches ||
+    navigator.standalone === true;
+  if (!isIOS || !isStandalone) return;
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      const x = window.scrollX;
+      const y = window.scrollY;
+      const maxY = Math.max(
+        0,
+        document.documentElement.scrollHeight - window.innerHeight,
+      );
+      const nudgedY = y < maxY ? y + 1 : Math.max(0, y - 1);
+      if (nudgedY === y) return;
+      window.scrollTo(x, nudgedY);
+      requestAnimationFrame(() => window.scrollTo(x, y));
+    });
+  });
+}
+
 function unlockScroll(container, { restoreScroll = true } = {}) {
   const header = getHeaderElement(container);
   let headerHeight = 0;
@@ -68,6 +97,7 @@ function unlockScroll(container, { restoreScroll = true } = {}) {
   if (restoreScroll) {
     window.scrollTo(0, scrollTo);
   }
+  resyncIOSFixedLayers();
 }
 
 function findScrollableAncestor(element) {

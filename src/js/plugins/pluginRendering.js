@@ -6,7 +6,7 @@ import {
 import "/js/components/toggle-switch.js";
 import "/js/components/plugin-profiles-list.js";
 import "/js/components/plugin-posts-feed.js";
-import "/js/components/plugin-icon.js";
+import "/js/components/app-icon.js";
 import "/js/components/plugin-blob-image.js";
 
 function isExternalHref(href) {
@@ -373,10 +373,9 @@ function resolveChildNamespace(parentNs, node) {
 
 // Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId, renderContext) {
+  constructor(pluginBridge, pluginId) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
-    this.renderContext = renderContext;
   }
 
   createRoot() {
@@ -444,7 +443,8 @@ export class PluginRenderer {
     }
     const ns = resolveChildNamespace(parentNs, node);
     if (ns === SVG_NS) return this._createSvg(node);
-    const tag = resolveTag(node, this.pluginId);
+    let tag = resolveTag(node, this.pluginId);
+    if (tag === "plugin-icon") tag = "app-icon";
     const element = document.createElement(tag);
     if (tag === "a") {
       element.setAttribute("target", "_blank");
@@ -455,22 +455,6 @@ export class PluginRenderer {
         event.preventDefault();
         ExternalLinkWarningModal.open({ href });
       });
-    }
-    if (tag === "plugin-profiles-list") {
-      const { dataLayer } = this.renderContext;
-      element.dataLayer = dataLayer;
-    }
-    if (tag === "plugin-posts-feed") {
-      const {
-        dataLayer,
-        isAuthenticated,
-        pluginService,
-        interactionHandlers: { postInteractionHandler },
-      } = this.renderContext;
-      element.dataLayer = dataLayer;
-      element.isAuthenticated = isAuthenticated;
-      element.pluginService = pluginService;
-      element.postInteractionHandler = postInteractionHandler;
     }
     if (tag === "toggle-switch") {
       // toggle-switch is controlled — flip its state here since the plugin

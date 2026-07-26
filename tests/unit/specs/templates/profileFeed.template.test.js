@@ -54,6 +54,34 @@ describe("profileListItemTemplate", () => {
   });
 });
 
+describe("profileListItemTemplate - follows-you badge", () => {
+  const followsBackActor = {
+    ...mockActor,
+    viewer: { followedBy: "at://did:plc:testuser/app.bsky.graph.follow/1" },
+  };
+
+  it("should render follows-you badge by default", () => {
+    const result = profileListItemTemplate({ actor: followsBackActor });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='follows-you-badge']") !== null,
+    );
+  });
+
+  it("should hide follows-you badge when compact", () => {
+    const result = profileListItemTemplate({
+      actor: followsBackActor,
+      compact: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='follows-you-badge']") === null,
+    );
+  });
+});
+
 describe("profileListItemTemplate - verification badge", () => {
   it("should render verification badge for verified actor", () => {
     const verifiedActor = {
@@ -189,10 +217,10 @@ describe("profileListItemTemplate - displayName sanitization", () => {
 });
 
 describe("profileListItemTemplate - custom badge", () => {
-  it("should render the badge returned by badgeTemplate", () => {
+  it("should render the badge returned by rightItemTemplate", () => {
     const result = profileListItemTemplate({
       actor: mockActor,
-      badgeTemplate: (actor) =>
+      rightItemTemplate: (actor) =>
         html`<div data-testid="custom-badge">${actor.handle}</div>`,
     });
     const container = document.createElement("div");
@@ -202,10 +230,10 @@ describe("profileListItemTemplate - custom badge", () => {
     assert(badge.textContent.includes(mockActor.handle));
   });
 
-  it("should render nothing when badgeTemplate returns null", () => {
+  it("should render nothing when rightItemTemplate returns null", () => {
     const result = profileListItemTemplate({
       actor: mockActor,
-      badgeTemplate: () => null,
+      rightItemTemplate: () => null,
     });
     const container = document.createElement("div");
     render(result, container);
@@ -309,11 +337,12 @@ describe("profileFeedTemplate", () => {
     assert(msg.textContent.includes("End of feed"));
   });
 
-  it("should pass badgeTemplate through to list items", () => {
+  it("should pass rightItemTemplate through to list items", () => {
     const result = profileFeedTemplate({
       profiles: [mockActor],
       hasMore: false,
-      badgeTemplate: () => html`<div data-testid="custom-badge">Admin</div>`,
+      rightItemTemplate: () =>
+        html`<div data-testid="custom-badge">Admin</div>`,
     });
     render(result, container);
     assert(container.querySelector("[data-testid='custom-badge']") !== null);

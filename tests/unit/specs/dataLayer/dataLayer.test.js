@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { DataLayer } from "/js/dataLayer/dataLayer.js";
 import { DraftMediaStore } from "/js/drafts.js";
 import { PreferencesProvider } from "/js/dataLayer/preferencesProvider.js";
+import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
 
 function createMockApi(options = {}) {
   return {
@@ -17,10 +18,10 @@ function createMockApi(options = {}) {
 function createDataLayer(api) {
   return new DataLayer(
     api,
-    null,
     new PreferencesProvider(api),
     { resolveHandle: async () => null },
     new DraftMediaStore("test-media"),
+    new HiddenFeedItemsStore(),
   );
 }
 

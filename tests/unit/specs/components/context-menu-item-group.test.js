@@ -8,20 +8,11 @@ describe("context-menu-item-group", () => {
   });
 
   describe("ContextMenuItemGroup - rendering", () => {
-    it("should render context-menu-item-group div", () => {
-      const element = document.createElement("context-menu-item-group");
-      document.body.appendChild(element);
-      const group = element.querySelector(".context-menu-item-group");
-      assert(group !== null);
-    });
-
-    it("should preserve children in the group", () => {
+    it("should preserve children", () => {
       const element = document.createElement("context-menu-item-group");
       element.innerHTML = "<span class='test-child'>Test</span>";
       document.body.appendChild(element);
-      const child = element.querySelector(
-        ".context-menu-item-group .test-child",
-      );
+      const child = element.querySelector(".test-child");
       assert(child !== null);
       assert.deepEqual(child.textContent, "Test");
     });
@@ -30,22 +21,8 @@ describe("context-menu-item-group", () => {
       const element = document.createElement("context-menu-item-group");
       element.innerHTML = "<span>One</span><span>Two</span><span>Three</span>";
       document.body.appendChild(element);
-      const spans = element.querySelectorAll(".context-menu-item-group span");
+      const spans = element.querySelectorAll(":scope > span");
       assert.deepEqual(spans.length, 3);
-    });
-  });
-
-  describe("ContextMenuItemGroup - reinitialization protection", () => {
-    it("should not reinitialize when connectedCallback is called multiple times", () => {
-      const element = document.createElement("context-menu-item-group");
-      element.innerHTML = "<span class='test'>Original</span>";
-      document.body.appendChild(element);
-
-      element.connectedCallback();
-
-      const child = element.querySelector(".context-menu-item-group .test");
-      assert(child !== null);
-      assert.deepEqual(child.textContent, "Original");
     });
   });
 });

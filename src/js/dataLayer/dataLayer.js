@@ -4,44 +4,32 @@ import { Mutations } from "/js/dataLayer/mutations.js";
 import { Requests } from "/js/dataLayer/requests.js";
 import { Declarative } from "/js/dataLayer/declarative.js";
 import { Derived } from "/js/dataLayer/derived.js";
+import { EventEmitter } from "/js/eventEmitter.js";
 
-export class DataLayer {
+export class DataLayer extends EventEmitter {
   constructor(
     api,
-    pluginService,
     preferencesProvider,
     identityResolver,
     draftMediaStore,
+    hiddenFeedItemsStore,
   ) {
+    super();
     this.api = api;
-    this.pluginService = pluginService;
     this.identityResolver = identityResolver;
     this.draftMediaStore = draftMediaStore;
     this.isAuthenticated = api.isAuthenticated;
     this.dataStore = new DataStore();
     this.patchStore = new PatchStore(this.dataStore);
     this.preferencesProvider = preferencesProvider;
+    this.hiddenFeedItemsStore = hiddenFeedItemsStore;
     this.requests = new Requests(
       this.api,
       this.dataStore,
       this.preferencesProvider,
-      this.pluginService,
       this.draftMediaStore,
+      this,
     );
-    this.pluginService?.on("feedFiltersRefresh", async ({ feedURI }) => {
-      const feedURIs = feedURI
-        ? [feedURI]
-        : Array.from(this.dataStore.$feeds.keys());
-      await Promise.all(
-        feedURIs.map((uri) => {
-          const feed = this.dataStore.$feeds.get(uri);
-          if (!feed) return;
-          return this.pluginService.refreshFiltersForFeed(uri, feed, {
-            reload: true,
-          });
-        }),
-      );
-    });
     this.mutations = new Mutations(
       this.api,
       this.dataStore,
@@ -54,7 +42,7 @@ export class DataLayer {
       this.dataStore,
       this.patchStore,
       this.preferencesProvider,
-      this.pluginService,
+      this.hiddenFeedItemsStore,
       this.isAuthenticated,
       this.draftMediaStore,
     );

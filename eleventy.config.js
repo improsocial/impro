@@ -23,7 +23,13 @@ const CACHE_SALT = "2";
 export default async function (eleventyConfig) {
   eleventyConfig.addPassthroughCopy("src/js");
   eleventyConfig.addPassthroughCopy("src/css");
-  eleventyConfig.addPassthroughCopy("src/img");
+  // Individual icon SVGs are combined into build/img/icons.svg by
+  // src/img/icons.11ty.js, so we don't ship src/img/icons/ itself.
+  eleventyConfig.addPassthroughCopy(
+    "src/img/*.{png,jpg,jpeg,ico,svg,webp,avif}",
+  );
+  eleventyConfig.addPassthroughCopy("src/img/shortcuts");
+  eleventyConfig.addWatchTarget("src/img/icons");
   eleventyConfig.addPassthroughCopy("src/manifest.json");
   eleventyConfig.addPassthroughCopy("src/_headers");
   eleventyConfig.addPassthroughCopy("src/_routes.json");

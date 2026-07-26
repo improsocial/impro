@@ -2,6 +2,7 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
+import { getContext } from "/js/context-provider.js";
 
 class PluginPostsFeed extends Component {
   static get observedAttributes() {
@@ -11,9 +12,16 @@ class PluginPostsFeed extends Component {
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
-    if (!this.postInteractionHandler) {
-      throw new Error("postInteractionHandler is required");
-    }
+    const {
+      dataLayer,
+      isAuthenticated,
+      pluginService,
+      postInteractionHandler,
+    } = getContext(this, "plugin-component-context");
+    this.dataLayer = dataLayer;
+    this.isAuthenticated = isAuthenticated;
+    this.pluginService = pluginService;
+    this.postInteractionHandler = postInteractionHandler;
     this.state = new ReactiveStore("plugin-posts-feed");
     this.state.$uris = new Signal.State(this.parseUris());
     this.state.$emptyMessage = new Signal.State(

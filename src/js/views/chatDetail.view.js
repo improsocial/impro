@@ -221,6 +221,7 @@ class ChatDetailView extends View {
       return html`
         <context-menu-item
           data-testid="message-action-reply"
+          icon="reply"
           @click=${() => setReply(message)}
         >
           Reply
@@ -1423,6 +1424,7 @@ class ChatDetailView extends View {
                 ${groupDetails && canViewGroupDetails
                   ? html`<context-menu-item
                       data-testid="menu-action-group-chat-details"
+                      icon="settings-cog-line"
                       @click=${() => {
                         router.go(linkToGroupChatDetails(convoId));
                       }}
@@ -1432,6 +1434,7 @@ class ChatDetailView extends View {
                   : ""}
                 <context-menu-item
                   data-testid="menu-action-chat-open-in-bsky"
+                  icon="open-line"
                   @click=${() => {
                     window.open(convoPermalink, "_blank");
                   }}

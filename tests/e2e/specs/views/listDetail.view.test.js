@@ -129,6 +129,105 @@ test.describe("List Detail view", () => {
     });
   });
 
+  test("should show Add people button under empty members on own list", async ({
+    page,
+  }) => {
+    const OWN_LIST_URI = "at://did:plc:testuser123/app.bsky.graph.list/ownlist";
+    const mockServer = new MockServer();
+    const list = createList({
+      uri: OWN_LIST_URI,
+      name: "My Own List",
+      creatorHandle: "testuser.bsky.social",
+    });
+    mockServer.addLists([list]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(view.locator('[data-testid="tab-people"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await view.locator('[data-testid="tab-people"]').click();
+
+    await expect(
+      view.locator('[data-testid="list-empty-add-people-button"]'),
+    ).toBeVisible({ timeout: 10000 });
+    await view.locator('[data-testid="list-empty-add-people-button"]').click();
+    await expect(
+      page.locator('[data-testid="manage-list-members-dialog"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should show Add people button under empty feed on own list", async ({
+    page,
+  }) => {
+    const OWN_LIST_URI = "at://did:plc:testuser123/app.bsky.graph.list/ownlist";
+    const mockServer = new MockServer();
+    const list = createList({
+      uri: OWN_LIST_URI,
+      name: "My Own List",
+      creatorHandle: "testuser.bsky.social",
+    });
+    mockServer.addLists([list]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/testuser.bsky.social/lists/ownlist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(
+      view.locator('[data-testid="list-tab-content"]'),
+    ).toHaveAttribute("data-teststate", "posts", { timeout: 10000 });
+    await expect(
+      view.locator('[data-testid="list-empty-add-people-button"]'),
+    ).toBeVisible({ timeout: 10000 });
+  });
+
+  test("should not show Add people button on empty feed of another user's list", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="list-empty-add-people-button"]'),
+    ).toHaveCount(0);
+  });
+
+  test("should not show Add people button on empty members of another user's list", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    setupList(mockServer);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/profile/creator1.bsky.social/lists/mylist");
+
+    const view = page.locator("#list-detail-view");
+    await expect(view.locator('[data-testid="tab-people"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await view.locator('[data-testid="tab-people"]').click();
+
+    await expect(view.locator('[data-testid="feed-end-message"]')).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(
+      view.locator('[data-testid="list-empty-add-people-button"]'),
+    ).toHaveCount(0);
+  });
+
   test("should show pin button as unpinned by default", async ({ page }) => {
     const mockServer = new MockServer();
     setupList(mockServer);

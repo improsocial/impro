@@ -71,9 +71,26 @@ function postContextMenuTemplate({
   const canPin = isUserPost && !post.record?.reply;
   const pluginGroups = [...groupBy(pluginItems, "pluginId").values()];
   return html`
+    ${isAuthenticated && canPin
+      ? html`
+          <context-menu-item-group>
+            <context-menu-item
+              data-testid="menu-action-post-pin"
+              data-teststate=${isPinnedToProfile ? "pinned" : "unpinned"}
+              icon="pin-line"
+              @click=${() => onClickPin(post, !isPinnedToProfile)}
+            >
+              ${isPinnedToProfile
+                ? "Unpin from your profile"
+                : "Pin to your profile"}
+            </context-menu-item>
+          </context-menu-item-group>
+        `
+      : null}
     <context-menu-item-group>
       <context-menu-item
         data-testid="menu-action-post-open-in-bsky"
+        icon="open-line"
         @click=${() => {
           window.open(getBlueskyLinkForPost(post), "_blank");
         }}
@@ -82,6 +99,7 @@ function postContextMenuTemplate({
       </context-menu-item>
       <context-menu-item
         data-testid="menu-action-post-copy-link"
+        icon="link-line"
         @click=${() => {
           navigator.clipboard.writeText(getPermalinkForPost(post));
           showToast("Link copied to clipboard", { style: "success" });
@@ -93,6 +111,7 @@ function postContextMenuTemplate({
         ? html`
             <context-menu-item
               data-testid="menu-action-post-translate"
+              icon="globe-earth-line"
               @click=${() => {
                 const postText = getFullPostText(post);
                 const targetLang = getBrowserLanguageCodes()[0] || "en";
@@ -103,6 +122,7 @@ function postContextMenuTemplate({
             </context-menu-item>
             <context-menu-item
               data-testid="menu-action-post-copy-text"
+              icon="clipboard-line"
               @click=${() => {
                 const postText = getFullPostText(post);
                 navigator.clipboard.writeText(postText);
@@ -123,12 +143,14 @@ function postContextMenuTemplate({
                 <context-menu-item-group>
                   <context-menu-item
                     data-testid="menu-action-post-show-more"
+                    icon="emoji-smile-line"
                     @click=${() => onClickShowMore(post, feedContext)}
                   >
                     Show more like this
                   </context-menu-item>
                   <context-menu-item
                     data-testid="menu-action-post-show-less"
+                    icon="emoji-sad-line"
                     @click=${() => onClickShowLess(post, feedContext)}
                   >
                     Show less like this
@@ -143,6 +165,7 @@ function postContextMenuTemplate({
                       <context-menu-item-group>
                         <context-menu-item
                           data-testid="menu-action-post-hide"
+                          icon="eye-off-line"
                           @click=${() => onClickHidePost(post)}
                         >
                           Hide ${post.record?.reply ? "reply" : "post"} for me
@@ -156,6 +179,9 @@ function postContextMenuTemplate({
                     data-teststate=${post.author.viewer?.muted
                       ? "muted"
                       : "unmuted"}
+                    icon=${post.author.viewer?.muted
+                      ? "speaker-volume-line"
+                      : "speaker-slash-line"}
                     @click=${() =>
                       onClickMute(post.author, !post.author.viewer?.muted)}
                   >
@@ -168,6 +194,9 @@ function postContextMenuTemplate({
                     data-teststate=${post.author.viewer?.blocking
                       ? "blocking"
                       : "not-blocking"}
+                    icon=${post.author.viewer?.blocking
+                      ? "user-check-line"
+                      : "user-x-line"}
                     @click=${() =>
                       onClickBlock(post.author, !post.author.viewer?.blocking)}
                   >
@@ -177,6 +206,7 @@ function postContextMenuTemplate({
                   </context-menu-item>
                   <context-menu-item
                     data-testid="menu-action-post-report"
+                    icon="flag-line"
                     @click=${() => onClickReport(post)}
                   >
                     Report post
@@ -187,23 +217,9 @@ function postContextMenuTemplate({
           ${isUserPost
             ? html`
                 <context-menu-item-group>
-                  ${canPin
-                    ? html`
-                        <context-menu-item
-                          data-testid="menu-action-post-pin"
-                          data-teststate=${isPinnedToProfile
-                            ? "pinned"
-                            : "unpinned"}
-                          @click=${() => onClickPin(post, !isPinnedToProfile)}
-                        >
-                          ${isPinnedToProfile
-                            ? "Unpin from your profile"
-                            : "Pin to your profile"}
-                        </context-menu-item>
-                      `
-                    : null}
                   <context-menu-item
                     data-testid="menu-action-post-delete"
+                    icon="delete-bin-line"
                     @click=${() => onClickDelete(post)}
                   >
                     Delete post
@@ -218,7 +234,10 @@ function postContextMenuTemplate({
         <context-menu-item-group>
           ${group.map(
             (item) => html`
-              <context-menu-item @click=${() => item.invoke()}>
+              <context-menu-item
+                .iconElement=${item.iconElement}
+                @click=${() => item.invoke()}
+              >
                 ${item.title}
               </context-menu-item>
             `,
@@ -332,6 +351,7 @@ export function postActionBarTemplate({
             <context-menu-item
               data-testid="menu-action-repost"
               data-teststate=${isReposted ? "reposted" : "not-reposted"}
+              icon="repost"
               @click=${() => {
                 if (!isAuthenticated) {
                   SignInModal.open();
@@ -345,6 +365,7 @@ export function postActionBarTemplate({
             <context-menu-item
               data-testid="menu-action-quote-post"
               ?disabled=${!canQuotePost || !currentUser}
+              icon="quote-line"
               @click=${() => {
                 if (!isAuthenticated) {
                   SignInModal.open();
