@@ -470,6 +470,101 @@ describe("oauth", () => {
     });
   });
 
+  describe("confidential client assertions", () => {
+    const AUTH_SERVER_METADATA = {
+      issuer: "https://auth.example.com",
+      token_endpoint: "https://auth.example.com/token",
+      revocation_endpoint: "https://auth.example.com/revoke",
+    };
+    const REVOKE_URL = "https://auth.example.com/revoke";
+    const ORIGINAL_ENV = window.env;
+
+    afterEach(() => {
+      window.env = ORIGINAL_ENV;
+    });
+
+    function interceptAssertion() {
+      globalThis.fetch.__interceptJson("/oauth/assertion", {
+        assertion: "signed-assertion",
+      });
+    }
+
+    function bodyParams(call) {
+      return new URLSearchParams(call.options.body);
+    }
+
+    async function refreshSession() {
+      const client = await buildClient();
+      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+      const session = await client.getSession();
+      globalThis.fetch.__interceptJson(TOKEN_URL, {
+        access_token: "new-at",
+        refresh_token: "new-rt",
+        expires_in: 3600,
+      });
+      await session.refreshToken();
+    }
+
+    it("attaches a fresh assertion to refresh requests in confidential mode", async () => {
+      window.env = { useConfidentialOauth: true };
+      interceptAssertion();
+      await refreshSession();
+      const assertionCall = globalThis.fetch.calls.find(
+        (call) => call.url === "/oauth/assertion",
+      );
+      assert.deepEqual(JSON.parse(assertionCall.options.body), {
+        aud: "https://auth.example.com",
+      });
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      const params = bodyParams(tokenCall);
+      assert.deepEqual(params.get("client_assertion"), "signed-assertion");
+      assert.deepEqual(
+        params.get("client_assertion_type"),
+        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      );
+    });
+
+    it("sends no assertion in public mode", async () => {
+      window.env = { useConfidentialOauth: false };
+      await refreshSession();
+      assert(
+        !globalThis.fetch.calls.some((call) => call.url === "/oauth/assertion"),
+      );
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      assert.deepEqual(bodyParams(tokenCall).get("client_assertion"), null);
+    });
+
+    it("attaches an assertion to revocation requests in confidential mode", async () => {
+      window.env = { useConfidentialOauth: true };
+      interceptAssertion();
+      const client = await buildClient();
+      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+      globalThis.fetch.__interceptJson(REVOKE_URL, {});
+      await client.revoke("did:plc:test");
+      const revokeCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/revoke"),
+      );
+      const params = bodyParams(revokeCall);
+      assert.deepEqual(params.get("token"), "rt");
+      assert.deepEqual(params.get("client_assertion"), "signed-assertion");
+    });
+
+    it("fails refresh when the assertion endpoint errors", async () => {
+      window.env = { useConfidentialOauth: true };
+      globalThis.fetch.__intercept("/oauth/assertion", async () =>
+        mockResponse({ ok: false, status: 501 }),
+      );
+      await assert.rejects(
+        refreshSession(),
+        /Token refresh failed \(network\)/,
+      );
+    });
+  });
+
   describe("Session.fetch token refresh", () => {
     async function getLoadedSession({ expiresAt }) {
       const client = await buildClient();

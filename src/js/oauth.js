@@ -66,6 +66,27 @@ async function fetchAuthServerMetadata(authServerUrl) {
   return await response.json();
 }
 
+const CLIENT_ASSERTION_TYPE =
+  "urn:ietf:params:oauth:client-assertion-type:jwt-bearer";
+
+// If confidential oauth is enabled, include a server-signed client assertion
+async function clientAuthParams(authServerMetadata) {
+  if (!window.env?.useConfidentialOauth) return {};
+  const response = await fetch("/oauth/assertion", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ aud: authServerMetadata.issuer }),
+  });
+  if (!response.ok) {
+    throw new Error(`Client assertion request failed: ${response.status}`);
+  }
+  const { assertion } = await response.json();
+  return {
+    client_assertion_type: CLIENT_ASSERTION_TYPE,
+    client_assertion: assertion,
+  };
+}
+
 const SESSION_KEY_PREFIX = "oauth_session:";
 const ACCOUNTS_KEY = "oauth_accounts";
 const CURRENT_DID_KEY = "oauth_current_did";
@@ -481,25 +502,27 @@ class AuthServer {
 
   async refresh(params, { signal = null } = {}) {
     const tokenEndpoint = this.authServerMetadata.token_endpoint;
+    const authParams = await clientAuthParams(this.authServerMetadata);
     return this.dpopRequests.fetch(tokenEndpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
       },
-      body: new URLSearchParams(params).toString(),
+      body: new URLSearchParams({ ...params, ...authParams }).toString(),
       signal,
     });
   }
 
   async exchangeCodeForToken(clientId, code, codeVerifier, redirectUri) {
     const tokenEndpoint = this.authServerMetadata.token_endpoint;
-
+    const authParams = await clientAuthParams(this.authServerMetadata);
     const params = {
       grant_type: "authorization_code",
       code,
       redirect_uri: redirectUri,
       code_verifier: codeVerifier,
       client_id: clientId,
+      ...authParams,
     };
 
     const response = await this.dpopRequests.fetch(tokenEndpoint, {
@@ -523,7 +546,8 @@ class AuthServer {
   async sendPAR(params) {
     const endpoint =
       this.authServerMetadata.pushed_authorization_request_endpoint;
-    const body = new URLSearchParams(params);
+    const authParams = await clientAuthParams(this.authServerMetadata);
+    const body = new URLSearchParams({ ...params, ...authParams });
     const response = await this.dpopRequests.fetch(endpoint, {
       method: "POST",
       headers: {
@@ -751,6 +775,7 @@ export class OauthClient {
     const refreshToken = sessionData?.refreshToken;
     if (!revocationEndpoint || !refreshToken) return;
     try {
+      const authParams = await clientAuthParams(sessionData.authServerMetadata);
       await this.dpopRequests.fetch(revocationEndpoint, {
         method: "POST",
         headers: {
@@ -760,6 +785,7 @@ export class OauthClient {
           token: refreshToken,
           token_type_hint: "refresh_token",
           client_id: sessionData.clientId ?? this.clientId,
+          ...authParams,
         }).toString(),
       });
     } catch (error) {
