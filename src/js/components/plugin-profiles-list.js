@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { profileFeedTemplate } from "/js/templates/profileFeed.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { getContext } from "/js/context-provider.js";
 
 class PluginProfilesList extends Component {
   static get observedAttributes() {
@@ -12,8 +11,10 @@ class PluginProfilesList extends Component {
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
-    const { dataLayer } = getContext(this, "plugin-component-context");
-    this.dataLayer = dataLayer;
+    if (!this.renderContext) {
+      throw new Error("plugin-profiles-list requires a renderContext property");
+    }
+    this.dataLayer = this.renderContext.dataLayer;
     this.state = new ReactiveStore("plugin-profiles-list");
     this.state.$dids = new Signal.State(this.parseDids());
     this.state.$emptyMessage = new Signal.State(

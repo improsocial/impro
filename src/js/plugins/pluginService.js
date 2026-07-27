@@ -120,6 +120,7 @@ export class PermissionsDeclinedError extends Error {
 export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session, dataLayer, hiddenFeedItemsStore) {
     super("pluginService");
+    this.renderContext = null;
     this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
@@ -207,8 +208,12 @@ export class PluginService extends ReactiveStore {
     });
   }
 
+  setRenderContext(renderContext) {
+    this.renderContext = renderContext;
+  }
+
   getRenderer(pluginId) {
-    return new PluginRenderer(this.pluginBridge, pluginId);
+    return new PluginRenderer(this.pluginBridge, pluginId, this.renderContext);
   }
 
   // icon can be string | VirtualEl

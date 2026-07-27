@@ -52,6 +52,13 @@ const ALLOWED_TAGS = [
 
 const ALLOWED_EVENTS = ["click", "change", "input"];
 
+// App components that need host services (dataLayer, interaction handlers)
+// provided via renderContext
+const HOST_COMPONENT_TAGS = new Set([
+  "plugin-profiles-list",
+  "plugin-posts-feed",
+]);
+
 const HTML_NS = "http://www.w3.org/1999/xhtml";
 const SVG_NS = "http://www.w3.org/2000/svg";
 
@@ -373,9 +380,10 @@ function resolveChildNamespace(parentNs, node) {
 
 // Render a serialized VirtualNode (text or element) into a DOM node.
 export class PluginRenderer {
-  constructor(pluginBridge, pluginId) {
+  constructor(pluginBridge, pluginId, renderContext = null) {
     this.pluginBridge = pluginBridge;
     this.pluginId = pluginId;
+    this.renderContext = renderContext;
   }
 
   createRoot() {
@@ -446,6 +454,9 @@ export class PluginRenderer {
     let tag = resolveTag(node, this.pluginId);
     if (tag === "plugin-icon") tag = "app-icon";
     const element = document.createElement(tag);
+    if (HOST_COMPONENT_TAGS.has(tag)) {
+      element.renderContext = this.renderContext;
+    }
     if (tag === "a") {
       element.setAttribute("target", "_blank");
       element.setAttribute("rel", "noopener noreferrer");

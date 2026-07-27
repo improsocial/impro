@@ -1,15 +1,11 @@
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import "/js/context-provider.js";
 import "/js/components/plugin-posts-feed.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 
-function mount(element, context) {
-  const provider = document.createElement("context-provider");
-  provider.setAttribute("context-id", "plugin-component-context");
-  provider.context = context;
-  provider.appendChild(element);
-  document.body.appendChild(provider);
+function mount(element, renderContext) {
+  element.renderContext = renderContext;
+  document.body.appendChild(element);
   return element;
 }
 
@@ -87,8 +83,8 @@ describe("plugin-posts-feed", () => {
     });
   });
 
-  describe("PluginPostsFeed - missing context provider", () => {
-    it("throws when connected outside a context-provider", () => {
+  describe("PluginPostsFeed - missing render context", () => {
+    it("throws when connected without a renderContext property", () => {
       const element = document.createElement("plugin-posts-feed");
       let error = null;
       try {
@@ -99,7 +95,7 @@ describe("plugin-posts-feed", () => {
         error = e;
       }
       assert(error !== null);
-      assert(error.message.includes("context-provider"));
+      assert(error.message.includes("renderContext"));
     });
   });
 

@@ -331,7 +331,7 @@ video {
   display: none;
 }
 
-context-provider {
+.main-layout-wrapper {
   display: contents;
 }
 
