@@ -19,6 +19,7 @@ import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
+  parsePermissions,
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
@@ -402,7 +403,8 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      return pluginFetch(plugin, url, init);
+      const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+      return pluginFetch(permissions, url, init);
     });
 
     this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
@@ -541,8 +543,14 @@ export class PluginService extends ReactiveStore {
     if (!this.session) throw new Error("Not signed in");
   }
 
+  _getPermissionsForPlugin(pluginId) {
+    const entry = this.prefManager.$installedPlugin.get(pluginId);
+    return parsePermissions(entry?.permissions ?? {});
+  }
+
   _requireActionPermission(plugin, action) {
-    if (!isActionAllowed(action, plugin.permissions)) {
+    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+    if (!isActionAllowed(action, permissions)) {
       throw new Error(
         `"${plugin.pluginId}" does not have "${action}" action permission`,
       );
