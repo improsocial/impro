@@ -222,7 +222,7 @@ class ChatDetailView extends View {
       return html`
         <context-menu-item
           data-testid="message-action-reply"
-          icon="reply"
+          icon="corner-down-right-line"
           @click=${() => setReply(message)}
         >
           Reply
