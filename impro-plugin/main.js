@@ -325,6 +325,18 @@ export class Plugin {
     await hostCall("saveData", { data });
   }
 
+  // Device-local counterpart to loadData/saveData: never synced through the
+  // user's account preferences, so it's the right place for anything that
+  // shouldn't silently follow the plugin to another device (e.g. a locally
+  // held secret key). Cleared on uninstall, same as loadData/saveData.
+  async loadLocalData() {
+    return hostCall("loadLocalData");
+  }
+
+  async saveLocalData(data) {
+    await hostCall("saveLocalData", { data });
+  }
+
   addSettingTab(tab) {
     tab.plugin = this;
     const displayHandlerId = uuid.create();

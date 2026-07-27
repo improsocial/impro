@@ -40,6 +40,10 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Make whitelisted network requests (requires permissions)
 - Read appview data with the current user as the viewer (profiles, posts, etc.)
 - Mute, block, or send feed feedback ("show more/less like this") on the user's behalf (requires permissions)
+- Store plugin settings on a user's account (synced across devices, via `loadData`/`saveData`)
+  or purely on the current device (never synced, via `loadLocalData`/`saveLocalData` —
+  intended for secrets or device-specific values a plugin shouldn't silently propagate,
+  e.g. a locally-held key)
 
 ### Plugins CANNOT:
 

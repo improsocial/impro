@@ -7,6 +7,10 @@ import {
 import { Signal, SignalMap } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import {
+  getLocalData,
+  setLocalData,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { respondToConfirm } from "../../testHelpers.js";
 
 function emptyDataLayer() {
@@ -613,6 +617,17 @@ describe("uninstallPlugin", () => {
     // Cache should be reconciled against the remaining plugin only
     assert.deepEqual(reconcileCalls.length, 1);
     assert.deepEqual(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
+  });
+
+  it("also clears device-local plugin data", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    setLocalData("a", { keys: [{ id: "k1", secret: "shh" }] });
+    assert.notDeepEqual(getLocalData("a"), null);
+    await service.uninstallPlugin("a");
+    assert.deepEqual(getLocalData("a"), null);
   });
 });
 
@@ -1936,6 +1951,50 @@ describe("getRecord host method", () => {
       );
     }
     assert.deepEqual(fetched, false);
+  });
+});
+
+describe("loadLocalData/saveLocalData host methods", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const plugin = { pluginId: "tags", permissions: {} };
+
+  it("returns null before anything has been saved", () => {
+    const service = makeServiceWithRealBridge();
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), null);
+  });
+
+  it("round-trips data through saveLocalData/loadLocalData", () => {
+    const service = makeServiceWithRealBridge();
+    const data = { keys: [{ id: "k1", label: "personal", secret: "shh" }] };
+    getHandler(service, "saveLocalData")(plugin, { data });
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), data);
+  });
+
+  it("isolates data between plugins", () => {
+    const service = makeServiceWithRealBridge();
+    getHandler(service, "saveLocalData")(plugin, { data: { a: 1 } });
+    getHandler(service, "saveLocalData")(
+      { pluginId: "other", permissions: {} },
+      { data: { a: 2 } },
+    );
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), { a: 1 });
+    assert.deepEqual(
+      getHandler(service, "loadLocalData")({ pluginId: "other" }),
+      { a: 2 },
+    );
   });
 });
 
