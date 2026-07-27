@@ -359,6 +359,15 @@ export class PluginService extends ReactiveStore {
       },
     );
 
+    // Forces every mounted <plugin-slot name=...> to re-invoke its
+    // registered plugins, for slots whose content depends on data that
+    // resolved asynchronously after the initial render (e.g. a plugin that
+    // fetches something on a cache miss and wants to redraw once it lands).
+    this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name }) => {
+      const current = this.$slots.get(name);
+      if (current) this.$slots.set(name, [...current]);
+    });
+
     this.pluginBridge.addHostMethod(
       "refreshFeedFilters",
       (plugin, feedURI = null) => {

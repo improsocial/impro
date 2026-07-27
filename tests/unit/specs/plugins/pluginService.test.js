@@ -1432,6 +1432,62 @@ describe("slot registry", () => {
   });
 });
 
+describe("refreshSlot host method", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
+  }
+
+  function register(service, plugin, message) {
+    const handler = service.pluginBridge._registrationTargets.get("slot");
+    return handler(plugin, message);
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  it("triggers effects watching $slots for that name without changing its entries", () => {
+    const service = makeServiceWithRealBridge();
+    register(
+      service,
+      { pluginId: "alpha", call: () => {} },
+      {
+        target: "slot",
+        name: "author-badges",
+        handlerId: 1,
+      },
+    );
+    const before = service.$slots.get("author-badges");
+    getHandler(service, "refreshSlot")(
+      { pluginId: "alpha" },
+      { name: "author-badges" },
+    );
+    const after = service.$slots.get("author-badges");
+    assert.notEqual(before, after);
+    assert.deepEqual(
+      after.map((entry) => entry.pluginId),
+      before.map((entry) => entry.pluginId),
+    );
+  });
+
+  it("is a no-op for a slot name nobody has registered", () => {
+    const service = makeServiceWithRealBridge();
+    assert.doesNotThrow(() =>
+      getHandler(service, "refreshSlot")(
+        { pluginId: "alpha" },
+        { name: "nope" },
+      ),
+    );
+    assert.deepEqual(service.$slots.get("nope"), null);
+  });
+});
+
 describe("app.data host methods", () => {
   function makeStubComputedMap(lookup) {
     const calls = [];

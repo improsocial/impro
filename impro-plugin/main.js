@@ -404,6 +404,14 @@ export class Plugin {
     });
   }
 
+  // Forces every mounted <plugin-slot name=...> to re-invoke its registered
+  // plugins' callbacks (including other plugins' — the slot has no concept
+  // of per-plugin refresh). Useful when a slot's content depends on data
+  // that resolves asynchronously after the initial render.
+  refreshSlot(name) {
+    return hostCall("refreshSlot", { name });
+  }
+
   onload() {}
   onunload() {}
 
