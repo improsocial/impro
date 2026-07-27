@@ -323,7 +323,7 @@ describe("smallPostTemplate - reply-to label", () => {
     );
   });
 
-  it("should render 'Replied to user' when replyToAuthor is missing", () => {
+  it("should render 'Replied to a post' when replyToAuthor is missing", () => {
     const result = smallPostTemplate({
       post: post,
       ...baseProps,
@@ -334,7 +334,7 @@ describe("smallPostTemplate - reply-to label", () => {
     const label = container.querySelector(".reply-to-author");
     assert(label !== null);
     const text = label.textContent.replace(/\s+/g, " ").trim();
-    assert.deepEqual(text, "Replied to user");
+    assert.deepEqual(text, "Replied to a post");
   });
 });
 

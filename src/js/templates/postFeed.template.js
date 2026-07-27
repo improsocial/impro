@@ -3,6 +3,7 @@ import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
 import { postSkeletonTemplate } from "/js/templates/postSkeleton.template.js";
 import { linkToPost } from "/js/navigation.js";
+import { isEmptyPost, isBlockedPost } from "/js/dataHelpers.js";
 
 function feedFeedbackMessageTemplate({ post }) {
   // Attach post URI, we use it to maintain scroll position when feedback is sent
@@ -49,18 +50,30 @@ function replyContextTemplate({
   const root = reply.root;
   const parent = reply.parent;
   const grandparentAuthor = reply.grandparentAuthor;
+  const rootExists = !!root && !isEmptyPost(root);
+  const grandparentIsRoot = parent.record.reply?.parent.uri === root?.uri;
   // don't show view more link if the parent's parent is the root
-  const showViewMoreLink = parent.record.reply?.parent.uri !== root?.uri;
-  const viewMoreLink = root?.author ? linkToPost(root) : linkToPost(post);
+  const showViewMoreLink = rootExists && !grandparentIsRoot;
+  // when the root is blocked or deleted, show a label on the parent instead of
+  // a tombstone post
+  let replyToBlocked = false;
+  let showParentReplyToLabel;
+  if (rootExists) {
+    showParentReplyToLabel = !!grandparentAuthor && showViewMoreLink;
+  } else {
+    const replyToTombstoneRoot = !!root && grandparentIsRoot;
+    replyToBlocked = replyToTombstoneRoot && isBlockedPost(root);
+    showParentReplyToLabel = !!grandparentAuthor || replyToTombstoneRoot;
+  }
   return html`
     <div class="reply-context">
-      ${root
+      ${rootExists
         ? html`
             ${postTemplate({
               post: root,
               currentUser,
               isAuthenticated,
-              isUserPost: root?.author?.did === currentUser?.did,
+              isUserPost: root.author?.did === currentUser?.did,
               replyContext: "root",
               hiddenPostUris,
               postInteractionHandler,
@@ -72,7 +85,7 @@ function replyContextTemplate({
             })}
           `
         : ""}
-      ${root?.uri !== parent?.uri
+      ${root?.uri !== parent.uri
         ? html`
             ${showViewMoreLink
               ? html`
@@ -80,7 +93,7 @@ function replyContextTemplate({
                     <div class="load-more-spacer">
                       <div class="reply-context-line-gap"></div>
                     </div>
-                    <a href="${viewMoreLink}">View full thread</a>
+                    <a href="${linkToPost(root)}">View full thread</a>
                   </div>
                 `
               : ""}
@@ -89,9 +102,10 @@ function replyContextTemplate({
               currentUser,
               isAuthenticated,
               isUserPost: parent.author?.did === currentUser?.did,
-              replyContext: "parent",
-              showReplyToLabel: !!grandparentAuthor && showViewMoreLink,
+              replyContext: rootExists ? "parent" : "root",
+              showReplyToLabel: showParentReplyToLabel,
               replyToAuthor: grandparentAuthor,
+              replyToBlocked,
               hiddenPostUris,
               postInteractionHandler,
               onClickShowLess,
@@ -127,13 +141,19 @@ function feedItemTemplate({
       ? reason.by
       : null;
   const isPinned = reason && reason.$type === "app.bsky.feed.defs#reasonPin";
-  const showReplyContext = !!reply?.parent && !repostAuthor && !isPinned;
+  const parent = reply?.parent;
+  const parentIsView = !!parent && !isEmptyPost(parent);
+  const showReplyContext = parentIsView && !repostAuthor && !isPinned;
   // If the post has a parent but reply context isn't shown, show the reply-to label
   const showReplyToLabel = !!post.record?.reply && !showReplyContext;
   let replyToAuthor = null;
+  let replyToBlocked = false;
   if (showReplyToLabel) {
     replyToAuthor =
-      reply?.parent?.author || post.record?.reply?.parentAuthor || null;
+      (parentIsView ? parent.author : null) ||
+      post.record?.reply?.parentAuthor ||
+      null;
+    replyToBlocked = !!parent && isBlockedPost(parent);
   }
   return html`
     <div>
@@ -168,6 +188,7 @@ function feedItemTemplate({
         repostAuthor,
         showReplyToLabel,
         replyToAuthor,
+        replyToBlocked,
         enableFeedFeedback,
         pluginService,
       })}

@@ -392,11 +392,15 @@ export class Derived extends ReactiveStore {
           hydratedFeedItem.reason = feedItem.reason;
         }
         if (feedItem.reply) {
-          hydratedFeedItem.reply = {
-            ...feedItem.reply,
-            root: this.$hydratedPosts.get(feedItem.reply.root.uri),
-            parent: this.$hydratedPosts.get(feedItem.reply.parent.uri),
-          };
+          let root = feedItem.reply.root;
+          if (isPostView(root)) {
+            root = this.$hydratedPosts.get(root.uri);
+          }
+          let parent = feedItem.reply.parent;
+          if (isPostView(parent)) {
+            parent = this.$hydratedPosts.get(parent.uri);
+          }
+          hydratedFeedItem.reply = { ...feedItem.reply, root, parent };
         }
         hydratedFeedItems.push(hydratedFeedItem);
       }
