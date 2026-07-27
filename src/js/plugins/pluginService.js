@@ -12,6 +12,10 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import {
+  PluginLocalDataStore,
+  PluginMemoryDataStore,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
@@ -189,6 +193,9 @@ export class PluginService extends ReactiveStore {
       this.prefManager.$installedPlugins.get(),
     );
     this.session = session;
+    this.localDataStore = session?.did
+      ? new PluginLocalDataStore(session.did)
+      : new PluginMemoryDataStore();
     this.isPreviewMode = false;
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -356,6 +363,14 @@ export class PluginService extends ReactiveStore {
 
     this.pluginBridge.addHostMethod("saveData", async (plugin, { data }) => {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
+    });
+
+    this.pluginBridge.addHostMethod("loadLocalData", (plugin) => {
+      return this.localDataStore.get(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
+      this.localDataStore.set(plugin.pluginId, data);
     });
 
     this.pluginBridge.addHostMethod(
@@ -848,6 +863,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
+    this.localDataStore.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 

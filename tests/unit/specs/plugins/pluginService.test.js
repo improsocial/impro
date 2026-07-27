@@ -614,6 +614,17 @@ describe("uninstallPlugin", () => {
     assert.deepEqual(reconcileCalls.length, 1);
     assert.deepEqual(reconcileCalls[0], ["https://cache.test/b/1.0.0/ow/b"]);
   });
+
+  it("also clears device-local plugin data", async () => {
+    const { service, state } = makeService();
+    state.installedPlugins = [
+      { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
+    ];
+    service.localDataStore.set("a", { keys: [{ id: "k1", secret: "shh" }] });
+    assert.notDeepEqual(service.localDataStore.get("a"), null);
+    await service.uninstallPlugin("a");
+    assert.deepEqual(service.localDataStore.get("a"), null);
+  });
 });
 
 describe("enablePlugin", () => {
@@ -1937,6 +1948,50 @@ describe("getRecord host method", () => {
       );
     }
     assert.deepEqual(fetched, false);
+  });
+});
+
+describe("loadLocalData/saveLocalData host methods", () => {
+  function makeServiceWithRealBridge() {
+    const { provider } = makeProvider();
+    return new PluginService(
+      provider,
+      null,
+      emptyDataLayer(),
+      new HiddenFeedItemsStore(),
+    );
+  }
+
+  function getHandler(service, name) {
+    return service.pluginBridge._hostCallHandlers.get(name);
+  }
+
+  const plugin = { pluginId: "tags", permissions: {} };
+
+  it("returns null before anything has been saved", () => {
+    const service = makeServiceWithRealBridge();
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), null);
+  });
+
+  it("round-trips data through saveLocalData/loadLocalData", () => {
+    const service = makeServiceWithRealBridge();
+    const data = { keys: [{ id: "k1", label: "personal", secret: "shh" }] };
+    getHandler(service, "saveLocalData")(plugin, { data });
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), data);
+  });
+
+  it("isolates data between plugins", () => {
+    const service = makeServiceWithRealBridge();
+    getHandler(service, "saveLocalData")(plugin, { data: { a: 1 } });
+    getHandler(service, "saveLocalData")(
+      { pluginId: "other", permissions: {} },
+      { data: { a: 2 } },
+    );
+    assert.deepEqual(getHandler(service, "loadLocalData")(plugin), { a: 1 });
+    assert.deepEqual(
+      getHandler(service, "loadLocalData")({ pluginId: "other" }),
+      { a: 2 },
+    );
   });
 });
 
