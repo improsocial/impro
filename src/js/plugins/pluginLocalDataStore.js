@@ -1,29 +1,52 @@
 // Device-local (unsynced) storage for arbitrary plugin data — the local
-// counterpart to loadData/saveData, which round-trips through the user's
-// AT-proto preferences record and syncs across every device/session on the
-// account. Some plugin data should never leave the device it was created on
-// (e.g. a locally-held secret key a "tags"-style plugin uses to derive
-// record keys) — this is that tier. Mirrors the existing precedent in
-// pluginEndpointStore.js (device-local storage for a plugin's configured
-// network endpoint), generalized to hold arbitrary JSON rather than a
-// single URL string.
+// counterpart to loadData/saveData, which sync across devices via the
+// account's preferences. Sessions without a DID get a PluginMemoryDataStore
+// instead, which lasts only for the session.
 
-const KEY_PREFIX = "improPluginLocalData:";
+const KEY_PREFIX = "improPluginLocalData";
 
-export function getLocalData(pluginId) {
-  const raw = localStorage.getItem(KEY_PREFIX + pluginId);
-  if (raw == null) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
+export class PluginLocalDataStore {
+  constructor(did) {
+    this.did = did;
+  }
+
+  _key(pluginId) {
+    return `${KEY_PREFIX}:${this.did}:${pluginId}`;
+  }
+
+  get(pluginId) {
+    const raw = localStorage.getItem(this._key(pluginId));
+    if (raw == null) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  set(pluginId, data) {
+    localStorage.setItem(this._key(pluginId), JSON.stringify(data));
+  }
+
+  clear(pluginId) {
+    localStorage.removeItem(this._key(pluginId));
   }
 }
 
-export function setLocalData(pluginId, data) {
-  localStorage.setItem(KEY_PREFIX + pluginId, JSON.stringify(data));
-}
+export class PluginMemoryDataStore {
+  constructor() {
+    this._data = new Map();
+  }
 
-export function clearLocalData(pluginId) {
-  localStorage.removeItem(KEY_PREFIX + pluginId);
+  get(pluginId) {
+    return this._data.get(pluginId) ?? null;
+  }
+
+  set(pluginId, data) {
+    this._data.set(pluginId, data);
+  }
+
+  clear(pluginId) {
+    this._data.delete(pluginId);
+  }
 }

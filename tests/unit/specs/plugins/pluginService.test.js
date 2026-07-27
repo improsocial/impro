@@ -7,10 +7,6 @@ import {
 import { Signal, SignalMap } from "/js/signals.js";
 import { EventEmitter } from "/js/eventEmitter.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
-import {
-  getLocalData,
-  setLocalData,
-} from "/js/plugins/pluginLocalDataStore.js";
 import { respondToConfirm } from "../../testHelpers.js";
 
 function emptyDataLayer() {
@@ -624,10 +620,10 @@ describe("uninstallPlugin", () => {
     state.installedPlugins = [
       { id: "a", version: "1.0.0", repo: "ow/a", enabled: true },
     ];
-    setLocalData("a", { keys: [{ id: "k1", secret: "shh" }] });
-    assert.notDeepEqual(getLocalData("a"), null);
+    service.localDataStore.set("a", { keys: [{ id: "k1", secret: "shh" }] });
+    assert.notDeepEqual(service.localDataStore.get("a"), null);
     await service.uninstallPlugin("a");
-    assert.deepEqual(getLocalData("a"), null);
+    assert.deepEqual(service.localDataStore.get("a"), null);
   });
 });
 
