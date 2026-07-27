@@ -3141,12 +3141,12 @@ image-carousel {
   background-color: var(--reply-context-line-color);
 }
 
-.reply-context-ellipsis {
+.reply-context-line-gap {
   position: absolute;
   left: 36px;
   top: 2px;
   bottom: 2px;
-  right: 32px;
+  width: var(--reply-context-line-width);
   background-color: var(--reply-context-line-color);
 }
 

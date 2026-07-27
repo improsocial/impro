@@ -409,7 +409,7 @@ class PostThreadView extends View {
             ${hasBrokenReplyRef
               ? html`<div class="load-more-link">
                   <div class="load-more-spacer">
-                    <div class="reply-context-ellipsis"></div>
+                    <div class="reply-context-line-gap"></div>
                   </div>
                   <a
                     href=${linkToPostFromUri(replyParent.uri)}
