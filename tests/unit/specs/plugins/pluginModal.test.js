@@ -213,6 +213,56 @@ describe("showPluginModal", () => {
     hidePluginModal({ pluginId: "iso.plugin", modalId: modalIdA });
     hidePluginModal({ pluginId: "iso.plugin", modalId: modalIdB });
   });
+
+  // Regression: plugin modals mount their <dialog> straight onto <body> (see
+  // above), outside the main layout's <context-provider>. A plugin component
+  // rendered inside modal content — e.g. profile-moderation-tools' relationship
+  // modal using <plugin-profiles-list> — calls getContext() for
+  // "plugin-component-context" from its connectedCallback. Before the
+  // context-provider.js fallback fix, that threw as soon as the element was
+  // inserted (jsdom swallows the throw from an appendChild-triggered
+  // connectedCallback, so the modal just rendered visible-but-empty rather
+  // than surfacing an error — exactly what was reported), since closest()
+  // never finds a provider outside the dialog's own subtree.
+  it("lets a real plugin-profiles-list inside the modal resolve plugin-component-context via a provider mounted elsewhere in the document", () => {
+    clearDOM();
+
+    // Stand-in for mainLayout.js's <context-provider>, mounted in the app
+    // root rather than as an ancestor of the modal's dialog.
+    const layoutProvider = document.createElement("context-provider");
+    layoutProvider.setAttribute("context-id", "plugin-component-context");
+    const componentContext = {
+      dataLayer: {
+        declarative: { ensureDetailedProfiles: async () => [] },
+        derived: { $hydratedProfiles: { get: () => undefined } },
+      },
+    };
+    layoutProvider.context = componentContext;
+    document.body.appendChild(layoutProvider);
+
+    showPluginModal({
+      pluginId: "probe.plugin",
+      modalId: uniqueModalId("probe"),
+      title: { tag: "span", text: "T" },
+      // Mirrors the real relationship modal: a wrapper div whose children
+      // include the profiles list, not the list as the bare top-level node.
+      content: {
+        tag: "div",
+        children: [{ tag: "plugin-profiles-list", attrs: { dids: "" } }],
+      },
+    });
+
+    const list = document.querySelector("plugin-profiles-list");
+    assert(list !== null);
+    assert.equal(
+      list.closest('context-provider[context-id="plugin-component-context"]'),
+      null,
+      "sanity check: the list has no ancestor provider, so this must go through the fallback",
+    );
+    // dataLayer is only assigned once getContext() resolves successfully —
+    // it stays undefined if getContext() threw during connectedCallback.
+    assert.equal(list.dataLayer, componentContext.dataLayer);
+  });
 });
 
 describe("hidePluginModal", () => {
