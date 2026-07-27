@@ -41,6 +41,13 @@ export class PatchStore extends ReactiveStore {
       }
       return patchedMessage;
     });
+    this.$convoPatches = new SignalMap();
+    this.$patchedConvos = new ComputedMap((convoId) => {
+      const convo = this.dataStore.$convos.get(convoId);
+      if (!convo) return convo ?? null;
+      const patches = this.$convoPatches.get(convoId) || [];
+      return this.applyConvoPatches(convo, patches);
+    });
     this.$preferencePatches = new Signal.State([]);
     this.$currentUserPatches = new Signal.State([]);
     this.$authorFeedPatches = new SignalMap();
@@ -292,12 +299,54 @@ export class PatchStore extends ReactiveStore {
           ...message,
           reactions: message.reactions.filter(
             (reaction) =>
-              reaction.sender.did !== currentUserDid &&
-              reaction.value !== value,
+              !(
+                reaction.sender.did === currentUserDid &&
+                reaction.value === value
+              ),
           ),
         };
       default:
         throw new Error("Unknown patch type", patchBody.type);
+    }
+  }
+
+  /* Convo Patches */
+
+  _getConvoPatches(convoId) {
+    return this.$convoPatches.get(convoId) || [];
+  }
+
+  addConvoPatch(convoId, patchBody) {
+    const patchId = this.uuid.create();
+    this.$convoPatches.set(convoId, [
+      ...this._getConvoPatches(convoId),
+      { id: patchId, body: patchBody },
+    ]);
+    return patchId;
+  }
+
+  removeConvoPatch(convoId, patchId) {
+    this.$convoPatches.set(
+      convoId,
+      this._getConvoPatches(convoId).filter(({ id }) => id !== patchId),
+    );
+  }
+
+  applyConvoPatches(convo, patches) {
+    const convoPatches = patches ?? this._getConvoPatches(convo.id);
+    let patchedConvo = convo;
+    for (const patch of convoPatches) {
+      patchedConvo = this.applyConvoPatch(patchedConvo, patch.body);
+    }
+    return patchedConvo;
+  }
+
+  applyConvoPatch(convo, patchBody) {
+    switch (patchBody.type) {
+      case "setConvoMuted":
+        return { ...convo, muted: patchBody.muted };
+      default:
+        throw new Error(`Unknown patch type: ${patchBody.type}`);
     }
   }
 

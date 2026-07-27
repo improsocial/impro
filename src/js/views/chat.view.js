@@ -19,6 +19,7 @@ import { messagePlusIconTemplate } from "/js/templates/icons/messagePlusIcon.tem
 import "/js/components/infinite-scroll-container.js";
 import "/js/components/container-link.js";
 import "/js/components/new-chat-dialog.js";
+import "/js/components/app-icon.js";
 
 class ChatView extends View {
   async render({
@@ -69,8 +70,11 @@ class ChatView extends View {
       const isUnread = convo.unreadCount > 0;
       return html`
         <container-link
-          class="convo-item ${isUnread ? "unread" : ""}"
+          class="convo-item ${isUnread ? "unread" : ""} ${convo.muted
+            ? "is-muted"
+            : ""}"
           data-testid=${groupDetails ? "convo-item-group" : "convo-item-direct"}
+          data-teststate=${convo.muted ? "muted" : "unmuted"}
           href=${`/messages/${convo.id}`}
         >
           <div class="convo-avatar">
@@ -87,8 +91,14 @@ class ChatView extends View {
             <div class="convo-header">
               <div class="convo-name">
                 ${groupDetails ? groupDetails.name : getDisplayName(otherUser)}
+                ${convo.muted
+                  ? html`<app-icon
+                      class="convo-muted-icon"
+                      icon="bell-off"
+                      data-testid="convo-muted-icon"
+                    ></app-icon>`
+                  : ""}
               </div>
-
               ${timeAgo ? html`<div class="convo-time">${timeAgo}</div>` : ""}
             </div>
             <div class="convo-handle">

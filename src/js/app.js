@@ -133,6 +133,12 @@ export async function main() {
     postComposerService,
     reportService,
   });
+  pluginService.setRenderContext({
+    isAuthenticated: !!session,
+    dataLayer,
+    pluginService,
+    postInteractionHandler: interactionHandlers.postInteractionHandler,
+  });
 
   // Precache author DIDs when data is set in the data store.
   // This will save us from needing to resolve handles when navigating between pages.

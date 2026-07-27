@@ -871,6 +871,32 @@ export class Api {
     return res.data;
   }
 
+  async muteConvo(convoId) {
+    const res = await this.request("chat.bsky.convo.muteConvo", {
+      method: "POST",
+      body: {
+        convoId,
+      },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
+  async unmuteConvo(convoId) {
+    const res = await this.request("chat.bsky.convo.unmuteConvo", {
+      method: "POST",
+      body: {
+        convoId,
+      },
+      headers: {
+        "atproto-proxy": this.chatAppViewServiceDid,
+      },
+    });
+    return res.data;
+  }
+
   async getConvoAvailability(memberDids, { labelers = [] } = {}) {
     const res = await this.request("chat.bsky.convo.getConvoAvailability", {
       query: { members: memberDids },

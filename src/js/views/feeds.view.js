@@ -8,6 +8,7 @@ import { menuIconTemplate } from "/js/templates/icons/menuIcon.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
 import { homeIconTemplate } from "/js/templates/icons/homeIcon.template.js";
+import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { linkToList, linkToFeed } from "/js/navigation.js";
 import { Signal, ReactiveStore, SignalSet, SignalArray } from "/js/signals.js";
 import { enableReorder } from "/js/utils.js";
@@ -97,17 +98,8 @@ class FeedsView extends View {
         </button>`;
     }
 
-    function rowTemplate({
-      item,
-      currentUser,
-      isEditing,
-      isSaving,
-      showUnpin,
-    }) {
+    function rowTemplate({ item, currentUser, rightItem }) {
       const value = valueForPinnedItem(item);
-      const editControls = isEditing
-        ? editControlsTemplate({ value, isSaving, showUnpin })
-        : "";
       if (item.type === "timeline") {
         return html`<div
           class="feeds-list-item"
@@ -121,7 +113,7 @@ class FeedsView extends View {
             <div class="feeds-list-item-title">Following</div>
             <div class="feeds-list-item-creator">Feed by @bsky.app</div>
           </div>
-          ${editControls}
+          ${rightItem}
         </div>`;
       }
       if (item.type === "list") {
@@ -149,7 +141,7 @@ class FeedsView extends View {
                 </div>`
               : ""}
           </div>
-          ${editControls}
+          ${rightItem}
         </container-link>`;
       }
       const feedGenerator = item.data;
@@ -177,7 +169,7 @@ class FeedsView extends View {
               </div>`
             : ""}
         </div>
-        ${editControls}
+        ${rightItem}
       </container-link>`;
     }
 
@@ -256,14 +248,17 @@ class FeedsView extends View {
             <div class="feeds-list-header">Pinned Feeds</div>
             ${feedsFeedTemplate({
               items: orderedItems,
-              renderItem: (item) =>
-                rowTemplate({
-                  item,
-                  currentUser,
-                  isEditing,
-                  isSaving,
-                  showUnpin,
-                }),
+              renderItem: (item) => {
+                const value = valueForPinnedItem(item);
+                const rightItem = isEditing
+                  ? editControlsTemplate({ value, isSaving, showUnpin })
+                  : item.type === "timeline"
+                    ? ""
+                    : html`<div class="feeds-list-item-chevron">
+                        ${chevronRightIconTemplate()}
+                      </div>`;
+                return rowTemplate({ item, currentUser, rightItem });
+              },
               isEditing,
             })}
           </main>

@@ -12,5 +12,7 @@ export default {
   playwright: process.env.PLAYWRIGHT ? "true" : "",
   oauthScopes: OAUTH_SCOPES,
   oauthOptionalScopes: OPTIONAL_OAUTH_SCOPES,
+  oauthPublicJwk: process.env.OAUTH_PUBLIC_JWK ?? "",
+  useConfidentialOauth: process.env.OAUTH_PUBLIC_JWK ? "true" : "",
   oatproxyClientId: process.env.OATPROXY_CLIENT_ID ?? "",
 };

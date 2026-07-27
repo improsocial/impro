@@ -24,7 +24,9 @@ import {
   enableLongPress,
   TimeoutError,
   pinScrollPosition,
+  KVIndexedDB,
 } from "/js/utils.js";
+import { installFakeIndexedDB } from "../testHelpers.js";
 
 describe("sortBy", () => {
   it("sorts by a key string ascending", () => {
@@ -1257,5 +1259,78 @@ describe("pinScrollPosition", () => {
     stop();
     await wait(30);
     assert.equal(getTargetY.mock.callCount(), 1);
+  });
+});
+
+describe("KVIndexedDB", () => {
+  afterEach(() => {
+    delete globalThis.indexedDB;
+  });
+
+  it("stores and retrieves values by key", async () => {
+    installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    await db.put("a", { value: 1 });
+    assert.deepEqual(await db.get("a"), { value: 1 });
+  });
+
+  it("returns undefined for a missing key", async () => {
+    installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    assert.deepEqual(await db.get("missing"), undefined);
+  });
+
+  it("has reports presence without reading the value", async () => {
+    installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    await db.put("a", 1);
+    assert.deepEqual(await db.has("a"), true);
+    assert.deepEqual(await db.has("missing"), false);
+  });
+
+  it("delete removes the stored value", async () => {
+    const { records } = installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    await db.put("a", 1);
+    await db.delete("a");
+    assert.deepEqual(await db.has("a"), false);
+    assert.deepEqual(records.size, 0);
+  });
+
+  it("creates the object store during the upgrade on first open", async () => {
+    const { createdStores } = installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    await db.get("anything");
+    assert.deepEqual(createdStores, ["test-store"]);
+  });
+
+  it("opens the database once across sequential and concurrent operations", async () => {
+    const { openCalls } = installFakeIndexedDB();
+    const db = new KVIndexedDB("test-db", "test-store");
+    await Promise.all([db.put("a", 1), db.put("b", 2)]);
+    await db.get("a");
+    await db.has("b");
+    assert.deepEqual(openCalls, [{ dbName: "test-db", version: 1 }]);
+  });
+
+  it("rejects when a write request errors", async () => {
+    installFakeIndexedDB({ failWrites: true });
+    const db = new KVIndexedDB("test-db", "test-store");
+    await assert.rejects(db.put("a", 1), /QuotaExceededError/);
+  });
+
+  it("rejects when opening the database fails", async () => {
+    globalThis.indexedDB = {
+      open() {
+        const request = { onsuccess: null, onerror: null };
+        queueMicrotask(() => {
+          request.error = new Error("open denied");
+          request.onerror?.();
+        });
+        return request;
+      },
+    };
+    const db = new KVIndexedDB("test-db", "test-store");
+    await assert.rejects(db.get("a"), /open denied/);
   });
 });

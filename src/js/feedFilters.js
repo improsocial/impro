@@ -205,17 +205,24 @@ class FilterMutedPosts extends FeedFilter {
 }
 
 class FilterEmptyPosts extends FeedFilter {
+  constructor({ checkParents = true } = {}) {
+    super();
+    this.checkParents = checkParents;
+  }
+
   filterFeedItems(feedItems) {
     const filteredFeedItems = [];
     for (const item of feedItems) {
       if (isEmptyPost(item.post)) {
         continue;
       }
-      if (item.reply?.parent && isEmptyPost(item.reply.parent)) {
-        continue;
-      }
-      if (item.reply?.root && isEmptyPost(item.reply.root)) {
-        continue;
+      if (this.checkParents) {
+        if (item.reply?.parent && isEmptyPost(item.reply.parent)) {
+          continue;
+        }
+        if (item.reply?.root && isEmptyPost(item.reply.root)) {
+          continue;
+        }
       }
       filteredFeedItems.push(item);
     }
@@ -360,7 +367,7 @@ export function filterBookmarksFeed(feed) {
 export function filterAuthorFeed(feed, isAuthenticated) {
   const filter = FeedFilter.compose(
     new DedupeFeed({ includeReposts: false }),
-    new FilterEmptyPosts(),
+    new FilterEmptyPosts({ checkParents: false }),
     new FilterHiddenPosts(),
     new FilterContentLabeledPosts(),
     new FilterUnauthorizedPosts(isAuthenticated),

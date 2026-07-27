@@ -2,8 +2,8 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { pluginFetch } from "/js/plugins/pluginRequests.js";
 
-function makePlugin(patterns) {
-  return { pluginId: "demo", permissions: { fetch: patterns } };
+function makePermissions(patterns) {
+  return { fetch: patterns };
 }
 
 function makeFakeFetch({ status = 200, body = "", headers = {} } = {}) {
@@ -43,7 +43,7 @@ describe("allowlist - scheme", () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://example.com/*"]),
+        makePermissions(["https://example.com/*"]),
         "http://example.com/foo",
         {},
         fakeFetch,
@@ -56,7 +56,7 @@ describe("allowlist - scheme", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["http://example.com/*"]),
+        makePermissions(["http://example.com/*"]),
         "https://example.com/x",
         {},
         fakeFetch,
@@ -69,7 +69,7 @@ describe("allowlist - host matching", () => {
   it("allows exact host + path match", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://example.com/things"]),
+      makePermissions(["https://example.com/things"]),
       "https://example.com/things",
       {},
       fakeFetch,
@@ -81,7 +81,7 @@ describe("allowlist - host matching", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://example.com/things"]),
+        makePermissions(["https://example.com/things"]),
         "https://evil.com/things",
         {},
         fakeFetch,
@@ -93,7 +93,7 @@ describe("allowlist - host matching", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://example.com/*"]),
+        makePermissions(["https://example.com/*"]),
         "https://api.example.com/things",
         {},
         fakeFetch,
@@ -104,7 +104,7 @@ describe("allowlist - host matching", () => {
   it("is case-insensitive on host", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://example.com/things"]),
+      makePermissions(["https://example.com/things"]),
       "https://Example.COM/things",
       {},
       fakeFetch,
@@ -115,7 +115,7 @@ describe("allowlist - host matching", () => {
   it("matches *.host on the bare domain", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://*.example.com/*"]),
+      makePermissions(["https://*.example.com/*"]),
       "https://example.com/foo",
       {},
       fakeFetch,
@@ -126,7 +126,7 @@ describe("allowlist - host matching", () => {
   it("matches *.host on a subdomain", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://*.example.com/*"]),
+      makePermissions(["https://*.example.com/*"]),
       "https://api.example.com/foo",
       {},
       fakeFetch,
@@ -138,7 +138,7 @@ describe("allowlist - host matching", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://*.example.com/*"]),
+        makePermissions(["https://*.example.com/*"]),
         "https://notexample.com/foo",
         {},
         fakeFetch,
@@ -150,7 +150,7 @@ describe("allowlist - host matching", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://example.com/*"]),
+        makePermissions(["https://example.com/*"]),
         "https://example.com@evil.com/x",
         {},
         fakeFetch,
@@ -163,7 +163,7 @@ describe("allowlist - path matching", () => {
   it("matches by prefix when path ends with *", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://example.com/v1/*"]),
+      makePermissions(["https://example.com/v1/*"]),
       "https://example.com/v1/items/42",
       {},
       fakeFetch,
@@ -175,7 +175,7 @@ describe("allowlist - path matching", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://example.com/v1"]),
+        makePermissions(["https://example.com/v1"]),
         "https://example.com/v1/items",
         {},
         fakeFetch,
@@ -183,15 +183,10 @@ describe("allowlist - path matching", () => {
     );
   });
 
-  it("rejects when plugin has no fetch permissions", async () => {
+  it("rejects when the granted permissions have no fetch patterns", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await expectRejection(() =>
-      pluginFetch(
-        { pluginId: "demo", permissions: {} },
-        "https://api.example.com/x",
-        {},
-        fakeFetch,
-      ),
+      pluginFetch({}, "https://api.example.com/x", {}, fakeFetch),
     );
     assert.deepEqual(calls.length, 0);
   });
@@ -201,7 +196,7 @@ describe("safe fetch options", () => {
   it("forces credentials=omit and redirect=error", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       {},
       fakeFetch,
@@ -214,7 +209,7 @@ describe("safe fetch options", () => {
   it("defaults method to GET", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       {},
       fakeFetch,
@@ -225,7 +220,7 @@ describe("safe fetch options", () => {
   it("passes through allowed methods uppercased", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       { method: "post" },
       fakeFetch,
@@ -238,7 +233,7 @@ describe("safe fetch options", () => {
     await expectRejection(
       () =>
         pluginFetch(
-          makePlugin(["https://api.example.com/*"]),
+          makePermissions(["https://api.example.com/*"]),
           "https://api.example.com/x",
           { method: "CONNECT" },
           fakeFetch,
@@ -253,7 +248,7 @@ describe("header handling", () => {
   it("forwards allowed headers", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       { headers: { "X-Custom": "v" } },
       fakeFetch,
@@ -266,7 +261,7 @@ describe("header handling", () => {
     await expectRejection(
       () =>
         pluginFetch(
-          makePlugin(["https://api.example.com/*"]),
+          makePermissions(["https://api.example.com/*"]),
           "https://api.example.com/x",
           { headers: { Cookie: "session=abc" } },
           fakeFetch,
@@ -281,7 +276,7 @@ describe("body handling", () => {
   it("forwards a string body", async () => {
     const { fakeFetch, calls } = makeFakeFetch();
     await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       { method: "POST", body: '{"a":1}' },
       fakeFetch,
@@ -293,7 +288,7 @@ describe("body handling", () => {
     const { fakeFetch } = makeFakeFetch();
     await expectRejection(() =>
       pluginFetch(
-        makePlugin(["https://api.example.com/*"]),
+        makePermissions(["https://api.example.com/*"]),
         "https://api.example.com/x",
         { method: "POST", body: { a: 1 } },
         fakeFetch,
@@ -309,7 +304,7 @@ describe("response shape", () => {
       body: '{"a":1}',
     });
     const result = await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       {},
       fakeFetch,
@@ -321,7 +316,7 @@ describe("response shape", () => {
   it("exposes status and ok", async () => {
     const { fakeFetch } = makeFakeFetch({ status: 404, body: "nope" });
     const result = await pluginFetch(
-      makePlugin(["https://api.example.com/*"]),
+      makePermissions(["https://api.example.com/*"]),
       "https://api.example.com/x",
       {},
       fakeFetch,

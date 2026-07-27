@@ -2,7 +2,6 @@ import { html, render } from "/js/lib/lit-html.js";
 import { Component } from "/js/components/component.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { Signal, ReactiveStore, effect } from "/js/signals.js";
-import { getContext } from "/js/context-provider.js";
 
 class PluginPostsFeed extends Component {
   static get observedAttributes() {
@@ -12,12 +11,15 @@ class PluginPostsFeed extends Component {
   connectedCallback() {
     if (this.initialized) return;
     this.initialized = true;
+    if (!this.renderContext) {
+      throw new Error("plugin-posts-feed requires a renderContext property");
+    }
     const {
       dataLayer,
       isAuthenticated,
       pluginService,
       postInteractionHandler,
-    } = getContext(this, "plugin-component-context");
+    } = this.renderContext;
     this.dataLayer = dataLayer;
     this.isAuthenticated = isAuthenticated;
     this.pluginService = pluginService;

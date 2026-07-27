@@ -1,15 +1,11 @@
 import { describe, it, beforeEach, mock } from "node:test";
 import assert from "node:assert/strict";
-import "/js/context-provider.js";
 import "/js/components/plugin-profiles-list.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 
 function mount(element, dataLayer) {
-  const provider = document.createElement("context-provider");
-  provider.setAttribute("context-id", "plugin-component-context");
-  provider.context = { dataLayer };
-  provider.appendChild(element);
-  document.body.appendChild(provider);
+  element.renderContext = { dataLayer };
+  document.body.appendChild(element);
   return element;
 }
 

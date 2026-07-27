@@ -1,6 +1,5 @@
 import { EventTarget } from "/js/eventEmitter.js";
 import { SimpleUUID, isDev } from "/js/utils.js";
-import { getPermissionsFromManifest } from "/js/plugins/pluginPermissions.js";
 
 const SANDBOX_URL = "/plugin-sandbox.html";
 
@@ -113,7 +112,6 @@ export class PluginInstance {
   constructor(pluginId, manifest, worker, { onRegister, onHostCall }) {
     this.pluginId = pluginId;
     this.manifest = manifest;
-    this.permissions = getPermissionsFromManifest(this.manifest);
     this.worker = worker;
     this._onRegister = onRegister;
     this._onHostCall = onHostCall;

@@ -597,16 +597,8 @@ describe("PluginBridge:reloadPlugin", () => {
   });
 });
 
-describe("PluginInstance:manifest & permissions", () => {
-  it("stores the manifest and parses an empty permissions set by default", () => {
-    const { instance } = makeRealInstance({
-      manifest: { id: "demo", version: "1.0.0" },
-    });
-    assert.deepEqual(instance.manifest.version, "1.0.0");
-    assert.deepEqual(instance.permissions, {});
-  });
-
-  it("parses fetch permissions declared in the manifest", () => {
+describe("PluginInstance:manifest", () => {
+  it("stores the manifest and does not expose manifest permissions", () => {
     const { instance } = makeRealInstance({
       manifest: {
         id: "demo",
@@ -614,14 +606,8 @@ describe("PluginInstance:manifest & permissions", () => {
         permissions: { fetch: ["https://api.example.com/*"] },
       },
     });
-    assert.deepEqual(instance.permissions.fetch, ["https://api.example.com/*"]);
-  });
-
-  it("tolerates a manifest with no permissions field", () => {
-    const { instance } = makeRealInstance({
-      manifest: { id: "demo", version: "1.0.0" },
-    });
-    assert.deepEqual(instance.permissions, {});
+    assert.deepEqual(instance.manifest.version, "1.0.0");
+    assert.deepEqual(instance.permissions, undefined);
   });
 });
 

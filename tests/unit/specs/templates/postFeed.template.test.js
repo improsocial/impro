@@ -2,6 +2,7 @@ import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { post, feed } from "../../testData.js";
+import { createPost, createFeedItem } from "../../../shared/factories.js";
 import { render } from "/js/lib/lit-html.js";
 import { noop } from "/js/utils.js";
 
@@ -103,6 +104,161 @@ describe("postFeedTemplate - feed with posts", () => {
     render(result, container);
     const feedItem = container.querySelector("[data-testid='feed-item']");
     assert(feedItem.getAttribute("data-post-uri") !== null);
+  });
+});
+
+describe("postFeedTemplate - reply context", () => {
+  const rootUri = "at://did:plc:rootauthor/app.bsky.feed.post/root1";
+  const parentUri = "at://did:plc:parentauthor/app.bsky.feed.post/parent1";
+
+  function createReplyPost() {
+    return createPost({
+      uri: "at://did:plc:replyauthor/app.bsky.feed.post/reply1",
+      text: "reply post",
+      authorHandle: "replyauthor.bsky.social",
+      authorDisplayName: "Reply Author",
+      reply: {
+        root: { uri: rootUri, cid: "cid-root" },
+        parent: { uri: parentUri, cid: "cid-parent" },
+      },
+    });
+  }
+
+  function renderFeedItem(feedItem) {
+    const result = postFeedTemplate({
+      feed: { feed: [feedItem], cursor: null },
+      currentUser: mockUser,
+      postInteractionHandler,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    return container;
+  }
+
+  it("should render the parent without a root post when reply.root is null", () => {
+    const parentPost = createPost({
+      uri: parentUri,
+      text: "parent post",
+      authorHandle: "parent.bsky.social",
+      authorDisplayName: "Parent Author",
+    });
+    const container = renderFeedItem(
+      createFeedItem({
+        post: createReplyPost(),
+        reply: { root: null, parent: parentPost },
+      }),
+    );
+    const smallPosts = container.querySelectorAll("[data-testid='small-post']");
+    assert.deepEqual(smallPosts.length, 2);
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") ===
+        null,
+    );
+  });
+
+  it("should show a reply-to label instead of reply context when the parent is blocked", () => {
+    const container = renderFeedItem(
+      createFeedItem({
+        post: createReplyPost(),
+        reply: {
+          root: {
+            $type: "app.bsky.feed.defs#notFoundPost",
+            uri: rootUri,
+            notFound: true,
+          },
+          parent: {
+            $type: "app.bsky.feed.defs#blockedPost",
+            uri: parentUri,
+            blocked: true,
+            author: { did: "did:plc:parentauthor", viewer: {} },
+          },
+        },
+      }),
+    );
+    const smallPosts = container.querySelectorAll("[data-testid='small-post']");
+    assert.deepEqual(smallPosts.length, 1);
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") ===
+        null,
+    );
+    const label = container.querySelector("[data-testid='reply-to-label']");
+    const labelText = label.textContent.replace(/\s+/g, " ");
+    assert(labelText.includes("Replied to a blocked post"));
+  });
+
+  it("should show a reply-to label instead of reply context when the parent is not found", () => {
+    const container = renderFeedItem(
+      createFeedItem({
+        post: createReplyPost(),
+        reply: {
+          root: {
+            $type: "app.bsky.feed.defs#notFoundPost",
+            uri: rootUri,
+            notFound: true,
+          },
+          parent: {
+            $type: "app.bsky.feed.defs#notFoundPost",
+            uri: parentUri,
+            notFound: true,
+          },
+        },
+      }),
+    );
+    assert(
+      container.querySelector("[data-testid='post-tombstone-not-found']") ===
+        null,
+    );
+    const label = container.querySelector("[data-testid='reply-to-label']");
+    const labelText = label.textContent.replace(/\s+/g, " ");
+    assert(labelText.includes("Replied to a post"));
+    assert(!labelText.includes("blocked"));
+  });
+
+  it("should label the parent when the root it replies to is blocked", () => {
+    const parentPost = createPost({
+      uri: parentUri,
+      text: "parent post",
+      authorHandle: "parent.bsky.social",
+      authorDisplayName: "Parent Author",
+      reply: {
+        root: { uri: rootUri, cid: "cid-root" },
+        parent: { uri: rootUri, cid: "cid-root" },
+      },
+    });
+    const container = renderFeedItem(
+      createFeedItem({
+        post: createReplyPost(),
+        reply: {
+          root: {
+            $type: "app.bsky.feed.defs#blockedPost",
+            uri: rootUri,
+            blocked: true,
+            author: { did: "did:plc:rootauthor", viewer: {} },
+          },
+          parent: parentPost,
+        },
+      }),
+    );
+    const smallPosts = container.querySelectorAll("[data-testid='small-post']");
+    assert.deepEqual(smallPosts.length, 2);
+    assert(
+      container.querySelector("[data-testid='post-tombstone-blocked']") ===
+        null,
+    );
+    assert(container.querySelector(".load-more-link") === null);
+    const label = container.querySelector("[data-testid='reply-to-label']");
+    const labelText = label.textContent.replace(/\s+/g, " ");
+    assert(labelText.includes("Replied to a blocked post"));
+    // the parent is the topmost rendered post, so only the reply below it
+    // should draw an incoming reply line
+    assert.deepEqual(
+      container.querySelectorAll(".reply-context-line-in").length,
+      1,
+    );
+    assert.deepEqual(
+      container.querySelectorAll(".reply-context-line-out").length,
+      1,
+    );
   });
 });
 

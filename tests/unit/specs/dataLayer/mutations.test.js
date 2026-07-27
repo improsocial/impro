@@ -2728,8 +2728,9 @@ describe("acceptConvo", () => {
 describe("rejectConvo", () => {
   const convo = { id: "convo-1", status: "request" };
 
-  it("should clear the convo and remove it from the convo list", async () => {
-    const otherConvo = { id: "convo-2", status: "accepted" };
+  it("should clear the convo, call api.leaveConvo, and remove it from the request list only", async () => {
+    const otherAccepted = { id: "convo-2", status: "accepted" };
+    const otherRequest = { id: "convo-3", status: "request" };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
     const mockPreferencesProvider = {
@@ -2737,8 +2738,12 @@ describe("rejectConvo", () => {
     };
     dataStore.$convos.set(convo.id, convo);
     dataStore.$convoList.set({
-      convos: [convo, otherConvo],
+      convos: [otherAccepted],
       cursor: "list-cursor",
+    });
+    dataStore.$convoRequestList.set({
+      convos: [convo, otherRequest],
+      cursor: "request-cursor",
     });
     let leaveCalledWith = null;
     const mutations = makeMutations(
@@ -2755,15 +2760,24 @@ describe("rejectConvo", () => {
     await mutations.rejectConvo(convo);
 
     assert.deepEqual(leaveCalledWith, convo.id);
-    // Mutations sets the convo signal to null on reject (was `undefined` pre-refactor).
     assert.deepEqual(dataStore.$convos.get(convo.id), null);
-    const list = dataStore.$convoList.get();
-    assert.deepEqual(list.convos.length, 1);
-    assert.deepEqual(list.convos[0].id, otherConvo.id);
-    assert.deepEqual(list.cursor, "list-cursor");
+    const requestList = dataStore.$convoRequestList.get();
+    assert.deepEqual(requestList.convos.length, 1);
+    assert.deepEqual(requestList.convos[0].id, otherRequest.id);
+    assert.deepEqual(requestList.cursor, "request-cursor");
+    // Accepted list must not be touched by rejectConvo.
+    const acceptedList = dataStore.$convoList.get();
+    assert.deepEqual(acceptedList.convos.length, 1);
+    assert.deepEqual(acceptedList.convos[0].id, otherAccepted.id);
+    assert.deepEqual(acceptedList.cursor, "list-cursor");
   });
+});
 
-  it("should remove the convo from the request list", async () => {
+describe("leaveConvo", () => {
+  const convo = { id: "convo-1", status: "accepted" };
+
+  it("should clear the convo, call api.leaveConvo, and remove it from the accepted list only", async () => {
+    const otherAccepted = { id: "convo-2", status: "accepted" };
     const otherRequest = { id: "convo-3", status: "request" };
     const dataStore = new DataStore();
     const patchStore = new PatchStore(dataStore);
@@ -2771,25 +2785,180 @@ describe("rejectConvo", () => {
       requirePreferences: () => Preferences.createLoggedOutPreferences(),
     };
     dataStore.$convos.set(convo.id, convo);
+    dataStore.$convoList.set({
+      convos: [convo, otherAccepted],
+      cursor: "list-cursor",
+    });
     dataStore.$convoRequestList.set({
-      convos: [convo, otherRequest],
+      convos: [otherRequest],
       cursor: "request-cursor",
     });
+    let leaveCalledWith = null;
     const mutations = makeMutations(
       {
-        leaveConvo: async () => {},
+        leaveConvo: async (id) => {
+          leaveCalledWith = id;
+        },
       },
       dataStore,
       patchStore,
       mockPreferencesProvider,
     );
 
-    await mutations.rejectConvo(convo);
+    await mutations.leaveConvo(convo);
 
+    assert.deepEqual(leaveCalledWith, convo.id);
+    assert.deepEqual(dataStore.$convos.get(convo.id), null);
+    const acceptedList = dataStore.$convoList.get();
+    assert.deepEqual(acceptedList.convos.length, 1);
+    assert.deepEqual(acceptedList.convos[0].id, otherAccepted.id);
+    assert.deepEqual(acceptedList.cursor, "list-cursor");
+    // Request list must not be touched by leaveConvo.
     const requestList = dataStore.$convoRequestList.get();
     assert.deepEqual(requestList.convos.length, 1);
     assert.deepEqual(requestList.convos[0].id, otherRequest.id);
     assert.deepEqual(requestList.cursor, "request-cursor");
+  });
+
+  it("should leave the store unchanged when api.leaveConvo throws", async () => {
+    const otherAccepted = { id: "convo-2", status: "accepted" };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convo.id, convo);
+    dataStore.$convoList.set({
+      convos: [convo, otherAccepted],
+      cursor: "list-cursor",
+    });
+    const mutations = makeMutations(
+      {
+        leaveConvo: async () => {
+          throw new Error("boom");
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await assert.rejects(() => mutations.leaveConvo(convo));
+
+    assert.deepEqual(dataStore.$convos.get(convo.id), convo);
+    const acceptedList = dataStore.$convoList.get();
+    assert.deepEqual(acceptedList.convos.length, 2);
+    assert.deepEqual(acceptedList.convos[0].id, convo.id);
+  });
+});
+
+describe("setConvoMuted", () => {
+  const convo = { id: "convo-1", muted: false };
+
+  it("should optimistically patch, then write to dataStore and clear the patch on success", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convo.id, convo);
+    let muteCalledWith = null;
+    let patchDuringApi = null;
+    const mutations = makeMutations(
+      {
+        muteConvo: async (id) => {
+          muteCalledWith = id;
+          patchDuringApi = patchStore.$patchedConvos.get(convo.id);
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.setConvoMuted(convo, true);
+
+    assert.deepEqual(muteCalledWith, convo.id);
+    // While the API call was in flight the patched view was already muted.
+    assert.deepEqual(patchDuringApi.muted, true);
+    // On success the dataStore is updated and the patch is cleared.
+    assert.deepEqual(dataStore.$convos.get(convo.id).muted, true);
+    assert.deepEqual(patchStore.$convoPatches.get(convo.id), []);
+  });
+
+  it("should call api.unmuteConvo when muted=false", async () => {
+    const mutedConvo = { id: "convo-1", muted: true };
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(mutedConvo.id, mutedConvo);
+    let unmuteCalledWith = null;
+    const mutations = makeMutations(
+      {
+        unmuteConvo: async (id) => {
+          unmuteCalledWith = id;
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.setConvoMuted(mutedConvo, false);
+
+    assert.deepEqual(unmuteCalledWith, mutedConvo.id);
+    assert.deepEqual(dataStore.$convos.get(mutedConvo.id).muted, false);
+  });
+
+  it("should revert the optimistic patch and leave the dataStore unchanged when the api throws", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convo.id, convo);
+    const mutations = makeMutations(
+      {
+        muteConvo: async () => {
+          throw new Error("boom");
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await assert.rejects(() => mutations.setConvoMuted(convo, true));
+
+    assert.deepEqual(dataStore.$convos.get(convo.id).muted, false);
+    assert.deepEqual(patchStore.$convoPatches.get(convo.id), []);
+    assert.deepEqual(patchStore.$patchedConvos.get(convo.id).muted, false);
+  });
+
+  it("should not write to dataStore if the underlying convo was cleared during the api call", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    dataStore.$convos.set(convo.id, convo);
+    const mutations = makeMutations(
+      {
+        muteConvo: async () => {
+          dataStore.$convos.set(convo.id, null);
+        },
+      },
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.setConvoMuted(convo, true);
+
+    assert.deepEqual(dataStore.$convos.get(convo.id), null);
+    assert.deepEqual(patchStore.$convoPatches.get(convo.id), []);
   });
 });
 

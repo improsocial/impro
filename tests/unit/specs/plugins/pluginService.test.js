@@ -1570,10 +1570,7 @@ describe("app.data host methods", () => {
 });
 
 describe("action host methods", () => {
-  const feedbackPlugin = {
-    pluginId: "test-plugin",
-    permissions: { actions: ["feedFeedback"] },
-  };
+  const feedbackPlugin = { pluginId: "test-plugin" };
   const postUri = "at://did:plc:author/app.bsky.feed.post/1";
   const feedUri = "at://did:plc:feedgen/app.bsky.feed.generator/cool-feed";
 
@@ -1581,8 +1578,12 @@ describe("action host methods", () => {
     feedItem = null,
     feedGenerator = null,
     hydratedProfiles = {},
+    permissions = { actions: ["mute", "block", "feedFeedback"] },
   } = {}) {
-    const { provider } = makeProvider();
+    const { state, provider } = makeProvider();
+    state.installedPlugins = [
+      { id: "test-plugin", version: "1.0.0", enabled: true, permissions },
+    ];
     const calls = {
       showLess: [],
       showMore: [],
@@ -1676,17 +1677,11 @@ describe("action host methods", () => {
   it("muteActor and blockActor reject when did is missing", async () => {
     const { service } = makeService();
     await assert.rejects(
-      getHandler(service, "muteActor")(
-        { pluginId: "test-plugin", permissions: { actions: ["mute"] } },
-        {},
-      ),
+      getHandler(service, "muteActor")({ pluginId: "test-plugin" }, {}),
       /muteActor requires a did/,
     );
     await assert.rejects(
-      getHandler(service, "blockActor")(
-        { pluginId: "test-plugin", permissions: { actions: ["block"] } },
-        {},
-      ),
+      getHandler(service, "blockActor")({ pluginId: "test-plugin" }, {}),
       /blockActor requires a did/,
     );
   });
@@ -1719,14 +1714,12 @@ describe("action host methods", () => {
   });
 
   it("both methods require the feedFeedback action permission", async () => {
-    const { service, calls } = makeService();
-    const noPermissionPlugin = {
-      pluginId: "test-plugin",
+    const { service, calls } = makeService({
       permissions: { actions: ["mute"] },
-    };
+    });
     for (const name of ["showLessLikeThis", "showMoreLikeThis"]) {
       await assert.rejects(
-        getHandler(service, name)(noPermissionPlugin, { postUri, feedUri }),
+        getHandler(service, name)(feedbackPlugin, { postUri, feedUri }),
         /"feedFeedback" action permission/,
       );
     }
@@ -1739,11 +1732,9 @@ describe("action host methods", () => {
     const profile = { did, handle: "target.example" };
     const { service, calls } = makeService({
       hydratedProfiles: { [did]: profile },
-    });
-    const mutePlugin = {
-      pluginId: "test-plugin",
       permissions: { actions: ["mute"] },
-    };
+    });
+    const mutePlugin = { pluginId: "test-plugin" };
     await getHandler(service, "muteActor")(mutePlugin, { did, mute: true });
     await getHandler(service, "muteActor")(mutePlugin, { did, mute: false });
     assert.deepEqual(calls.mute, [profile]);
@@ -1752,11 +1743,10 @@ describe("action host methods", () => {
 
   it("blockActor routes the block flag to blockProfile and unblockProfile", async () => {
     const did = "did:plc:target";
-    const { service, calls } = makeService();
-    const blockPlugin = {
-      pluginId: "test-plugin",
+    const { service, calls } = makeService({
       permissions: { actions: ["block"] },
-    };
+    });
+    const blockPlugin = { pluginId: "test-plugin" };
     await getHandler(service, "blockActor")(blockPlugin, { did, block: true });
     await getHandler(service, "blockActor")(blockPlugin, { did, block: false });
     assert.deepEqual(calls.block, [{ did }]);
@@ -1764,22 +1754,33 @@ describe("action host methods", () => {
   });
 
   it("muteActor and blockActor require their action permissions", async () => {
-    const { service, calls } = makeService();
-    const noPermissionPlugin = {
-      pluginId: "test-plugin",
+    const { service, calls } = makeService({
       permissions: { actions: ["feedFeedback"] },
-    };
+    });
+    const plugin = { pluginId: "test-plugin" };
     const did = "did:plc:target";
     await assert.rejects(
-      getHandler(service, "muteActor")(noPermissionPlugin, { did }),
+      getHandler(service, "muteActor")(plugin, { did }),
       /"mute" action permission/,
     );
     await assert.rejects(
-      getHandler(service, "blockActor")(noPermissionPlugin, { did }),
+      getHandler(service, "blockActor")(plugin, { did }),
       /"block" action permission/,
     );
     assert.deepEqual(calls.mute, []);
     assert.deepEqual(calls.block, []);
+  });
+
+  it("denies actions for a plugin with no installed-plugin entry", async () => {
+    const { service, calls } = makeService();
+    await assert.rejects(
+      getHandler(service, "muteActor")(
+        { pluginId: "not-installed" },
+        { did: "did:plc:x" },
+      ),
+      /"mute" action permission/,
+    );
+    assert.deepEqual(calls.mute, []);
   });
 
   it("all action methods reject when signed out", async () => {

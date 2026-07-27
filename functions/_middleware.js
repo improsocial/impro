@@ -12,7 +12,10 @@ export async function onRequest(context) {
   if (ASSET_EXTENSIONS.test(pathname) && isHtml) {
     return new Response(`Not found: ${pathname}`, {
       status: 404,
-      headers: { "Content-Type": "text/plain; charset=utf-8" },
+      headers: {
+        "Content-Type": "text/plain; charset=utf-8",
+        "Cache-Control": "no-store",
+      },
     });
   }
   return response;

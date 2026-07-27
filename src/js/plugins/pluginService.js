@@ -19,6 +19,7 @@ import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
+  parsePermissions,
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
@@ -119,6 +120,7 @@ export class PermissionsDeclinedError extends Error {
 export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session, dataLayer, hiddenFeedItemsStore) {
     super("pluginService");
+    this.renderContext = null;
     this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
@@ -206,8 +208,12 @@ export class PluginService extends ReactiveStore {
     });
   }
 
+  setRenderContext(renderContext) {
+    this.renderContext = renderContext;
+  }
+
   getRenderer(pluginId) {
-    return new PluginRenderer(this.pluginBridge, pluginId);
+    return new PluginRenderer(this.pluginBridge, pluginId, this.renderContext);
   }
 
   // icon can be string | VirtualEl
@@ -402,7 +408,8 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      return pluginFetch(plugin, url, init);
+      const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+      return pluginFetch(permissions, url, init);
     });
 
     this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
@@ -541,8 +548,14 @@ export class PluginService extends ReactiveStore {
     if (!this.session) throw new Error("Not signed in");
   }
 
+  _getPermissionsForPlugin(pluginId) {
+    const entry = this.prefManager.$installedPlugin.get(pluginId);
+    return parsePermissions(entry?.permissions ?? {});
+  }
+
   _requireActionPermission(plugin, action) {
-    if (!isActionAllowed(action, plugin.permissions)) {
+    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+    if (!isActionAllowed(action, permissions)) {
       throw new Error(
         `"${plugin.pluginId}" does not have "${action}" action permission`,
       );
