@@ -1,9 +1,9 @@
 import { resolveIdentity, getServiceEndpointFromDidDoc } from "/js/atproto.js";
+import { KVIndexedDB } from "/js/utils.js";
 
 // Inspiration from:
 // https://www.npmjs.com/package/@atproto/oauth-client-browser
 // https://www.npmjs.com/package/@atcute/oauth-browser-client
-// Saves dpop keypair in localStorage.
 
 function base64UrlEncode(buffer) {
   const bytes = new Uint8Array(buffer);
@@ -160,51 +160,82 @@ function removeStaleInFlightData() {
   }
 }
 
-async function loadOrGenerateDPoPKeypair() {
-  const dpopKeypairStr = localStorage.getItem("dpop_keypair");
-  if (dpopKeypairStr) {
-    const { privkey, pubkey } = JSON.parse(dpopKeypairStr);
-    return {
-      publicKey: await window.crypto.subtle.importKey(
-        "jwk",
-        pubkey,
-        { name: "ECDSA", namedCurve: "P-256" },
-        true,
-        ["verify"],
-      ),
-      privateKey: await window.crypto.subtle.importKey(
-        "jwk",
-        privkey,
-        { name: "ECDSA", namedCurve: "P-256" },
-        true,
-        ["sign"],
-      ),
-    };
+const LEGACY_DPOP_KEYPAIR_KEY = "dpop_keypair";
+const DPOP_DB_NAME = "oauth-dpop";
+const DPOP_STORE_NAME = "keys";
+const DPOP_KEYPAIR_RECORD_KEY = "keypair";
+
+class DPoPKeyStore {
+  constructor() {
+    this._db = new KVIndexedDB(DPOP_DB_NAME, DPOP_STORE_NAME);
   }
-  const keyPair = await window.crypto.subtle.generateKey(
+
+  async get() {
+    return (await this._db.get(DPOP_KEYPAIR_RECORD_KEY)) ?? null;
+  }
+
+  async put(keypair) {
+    await this._db.put(DPOP_KEYPAIR_RECORD_KEY, keypair);
+  }
+}
+
+async function migrateDPoPKeypairFromLocalStorage(keyStore) {
+  const dpopKeypairStr = localStorage.getItem(LEGACY_DPOP_KEYPAIR_KEY);
+  if (!dpopKeypairStr) return null;
+  let keypair;
+  try {
+    const { privkey, pubkey } = JSON.parse(dpopKeypairStr);
+    const privateKey = await window.crypto.subtle.importKey(
+      "jwk",
+      privkey,
+      { name: "ECDSA", namedCurve: "P-256" },
+      false,
+      ["sign"],
+    );
+    keypair = { privateKey, publicJwk: pubkey };
+  } catch (error) {
+    console.warn("oauth: DPoP keypair migration failed", error);
+    localStorage.removeItem(LEGACY_DPOP_KEYPAIR_KEY);
+    return null;
+  }
+  try {
+    await keyStore.put(keypair);
+    localStorage.removeItem(LEGACY_DPOP_KEYPAIR_KEY);
+  } catch (error) {
+    console.warn("oauth: failed to persist migrated DPoP keypair", error);
+  }
+  return keypair;
+}
+
+async function loadOrGenerateDPoPKeypair() {
+  const keyStore = new DPoPKeyStore();
+  const migrated = await migrateDPoPKeypairFromLocalStorage(keyStore);
+  if (migrated) return migrated;
+  try {
+    const stored = await keyStore.get();
+    if (stored) return stored;
+  } catch (error) {
+    console.warn("oauth: failed to read DPoP keypair from storage", error);
+  }
+  const generatedPair = await window.crypto.subtle.generateKey(
     {
       name: "ECDSA",
       namedCurve: "P-256",
     },
-    true,
+    false,
     ["sign", "verify"],
   );
-  const publicKeyJwk = await window.crypto.subtle.exportKey(
+  const publicJwk = await window.crypto.subtle.exportKey(
     "jwk",
-    keyPair.publicKey,
+    generatedPair.publicKey,
   );
-  const privateKeyJwk = await window.crypto.subtle.exportKey(
-    "jwk",
-    keyPair.privateKey,
-  );
-  localStorage.setItem(
-    "dpop_keypair",
-    JSON.stringify({
-      pubkey: publicKeyJwk,
-      privkey: privateKeyJwk,
-    }),
-  );
-  return keyPair;
+  const keypair = { privateKey: generatedPair.privateKey, publicJwk };
+  try {
+    await keyStore.put(keypair);
+  } catch (error) {
+    console.warn("oauth: failed to persist DPoP keypair", error);
+  }
+  return keypair;
 }
 
 class DPoPRequests {
@@ -256,10 +287,7 @@ class DPoPRequests {
   }
 
   async createProof(method, url, dpopNonce = null, accessToken = null) {
-    const publicJwk = await window.crypto.subtle.exportKey(
-      "jwk",
-      this.dpopKeypair.publicKey,
-    );
+    const publicJwk = this.dpopKeypair.publicJwk;
     const header = {
       typ: "dpop+jwt",
       alg: "ES256",

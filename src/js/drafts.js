@@ -1,4 +1,5 @@
 import { Signal, untrack } from "/js/signals.js";
+import { KVIndexedDB } from "/js/utils.js";
 
 const DEVICE_ID_STORAGE_KEY = "improDraftDeviceId";
 
@@ -12,55 +13,6 @@ export function getDraftDeviceId() {
 }
 
 const DB_NAME = "impro-draft-media";
-
-class KVIndexedDB {
-  constructor(dbName, storeName) {
-    this._dbName = dbName;
-    this._storeName = storeName;
-    this._dbPromise = null;
-  }
-
-  async _open() {
-    if (this._dbPromise) return this._dbPromise;
-    this._dbPromise = new Promise((resolve, reject) => {
-      const request = indexedDB.open(this._dbName, 1);
-      request.onupgradeneeded = () => {
-        request.result.createObjectStore(this._storeName);
-      };
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-    return this._dbPromise;
-  }
-
-  async _request(mode, callback) {
-    const db = await this._open();
-    return new Promise((resolve, reject) => {
-      const transaction = db.transaction(this._storeName, mode);
-      const request = callback(transaction.objectStore(this._storeName));
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = () => reject(request.error);
-    });
-  }
-
-  async get(key) {
-    return this._request("readonly", (store) => store.get(key));
-  }
-
-  async has(key) {
-    return this._request("readonly", (store) => store.getKey(key)).then(
-      (foundKey) => foundKey !== undefined,
-    );
-  }
-
-  async put(key, value) {
-    return this._request("readwrite", (store) => store.put(value, key));
-  }
-
-  async delete(key) {
-    return this._request("readwrite", (store) => store.delete(key));
-  }
-}
 
 // Stores blobs in indexeddb
 class IDBBlobStore {
