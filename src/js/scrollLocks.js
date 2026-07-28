@@ -18,6 +18,9 @@ function lockScroll(container) {
   if (main) {
     const topMargin = -1 * (window.scrollY - headerHeight);
     main.style.marginTop = topMargin + "px";
+    // Non-zero padding keeps the compensation margin from collapsing
+    // with the first child's top margin
+    main.style.paddingTop = "0.05px";
   }
   const body = document.body;
   body.style.position = "fixed";
@@ -78,7 +81,8 @@ function unlockScroll(container, { restoreScroll = true } = {}) {
   const main = container.querySelector("main");
   if (main) {
     scrollTo = -1 * (main.getBoundingClientRect().top - headerHeight);
-    main.style.marginTop = "0";
+    main.style.marginTop = "";
+    main.style.paddingTop = "";
   }
   if (header) {
     header.classList.remove("scroll-lock-pinned");
