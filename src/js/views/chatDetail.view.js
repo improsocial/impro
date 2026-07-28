@@ -23,6 +23,7 @@ import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
 import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import "/js/components/plugin-slot.js";
 import {
   postEmbedTemplate,
   recordEmbedTemplate,
@@ -1136,6 +1137,13 @@ class ChatDetailView extends View {
           : ""}
         ${hasBadgeLabels
           ? labelBadgesTemplate({ badgeLabels: profile.badgeLabels })
+          : ""}
+        ${pluginService
+          ? html`<plugin-slot
+              name="author-badges"
+              context-did=${profile.did}
+              .pluginService=${pluginService}
+            ></plugin-slot>`
           : ""}
         <a
           class="rounded-button chat-info-panel-go-to-profile-button"

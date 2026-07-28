@@ -33,7 +33,7 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Open modals and toasts with custom content
 - Add a settings panel to manage their settings
 - Store settings on a user account
-- Override component rendering with custom HTML (e.g. posts, profiles, buttons etc) [in-progress]
+- Override component rendering with custom HTML (e.g. posts, profiles, badges etc) [in-progress]
 - Add a full page with custom HTML content [in-progress]
 - Add custom feed filters
 - Transform rich text in posts
