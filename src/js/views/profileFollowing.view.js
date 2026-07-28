@@ -16,6 +16,7 @@ class ProfileFollowingView extends View {
       identityResolver,
       interactionHandlers,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await auth.requireAuth();
@@ -84,6 +85,7 @@ class ProfileFollowingView extends View {
                 currentUserDid: currentUser?.did ?? null,
                 profileInteractionHandler:
                   interactionHandlers.profileInteractionHandler,
+                pluginService,
               });
             })()}
           </main>

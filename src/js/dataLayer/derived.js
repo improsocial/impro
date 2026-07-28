@@ -353,25 +353,14 @@ export class Derived extends ReactiveStore {
       if (!profile) return profile;
       const preferences = this.$preferences.get();
       if (!preferences) return profile;
-      const blurLabel = preferences.getProfileBlurLabel(profile);
-      if (!blurLabel) return profile;
-      return { ...profile, blurLabel };
+      return this.hydrateProfileLabels(profile, preferences);
     });
     this.$hydratedDetailedProfiles = new ComputedMap((did) => {
       const profile = this.patchStore.$patchedDetailedProfiles.get(did);
       if (!profile) return null;
       const preferences = this.$preferences.get();
       if (!preferences) return profile;
-      let result = profile;
-      const blurLabel = preferences.getProfileBlurLabel(profile);
-      if (blurLabel) {
-        result = { ...result, blurLabel };
-      }
-      const badgeLabels = preferences.getBadgeLabelsForProfile(profile);
-      if (badgeLabels.length > 0) {
-        result = { ...result, badgeLabels };
-      }
-      return result;
+      return this.hydrateProfileLabels(profile, preferences);
     });
     this.$hydratedAuthorFeeds = new ComputedMap((feedURI) => {
       const rawFeed = this.dataStore.$authorFeeds.get(feedURI);
@@ -527,12 +516,11 @@ export class Derived extends ReactiveStore {
         .map((did) => this.$hydratedProfiles.get(did))
         .filter(Boolean);
       const preferences = this.$preferences.get();
-      const members = convo.members.map((member) => {
-        if (!preferences) return member;
-        const badgeLabels = preferences.getBadgeLabelsForProfile(member);
-        if (badgeLabels.length === 0) return member;
-        return { ...member, badgeLabels };
-      });
+      const members = preferences
+        ? convo.members.map((member) =>
+            this.hydrateProfileLabels(member, preferences),
+          )
+        : convo.members;
       return [...members, ...referencedProfiles];
     });
     this.$convoForProfile = new ComputedMap((profileDid) => {
@@ -627,12 +615,26 @@ export class Derived extends ReactiveStore {
         ),
       };
     });
-    this.$mutedProfiles = new Signal.Computed(() =>
-      this.dataStore.$mutedProfiles.get(),
-    );
-    this.$blockedProfiles = new Signal.Computed(() =>
-      this.dataStore.$blockedProfiles.get(),
-    );
+    this.$mutedProfiles = new Signal.Computed(() => {
+      const data = this.dataStore.$mutedProfiles.get();
+      if (!data) return data;
+      return {
+        ...data,
+        mutes: data.mutes.map((profile) =>
+          this.$hydratedProfiles.get(profile.did),
+        ),
+      };
+    });
+    this.$blockedProfiles = new Signal.Computed(() => {
+      const data = this.dataStore.$blockedProfiles.get();
+      if (!data) return data;
+      return {
+        ...data,
+        blocks: data.blocks.map((profile) =>
+          this.$hydratedProfiles.get(profile.did),
+        ),
+      };
+    });
     this.$notificationCursor = new Signal.Computed(
       () => this.dataStore.$notifications.get()?.cursor ?? null,
     );
@@ -690,6 +692,19 @@ export class Derived extends ReactiveStore {
     const updated = attachJoinLinkPreviewToEmbed(item.embed, preview);
     if (!updated) return item;
     return { ...item, embed: updated };
+  }
+
+  hydrateProfileLabels(profile, preferences) {
+    let result = profile;
+    const blurLabel = preferences.getProfileBlurLabel(profile);
+    if (blurLabel) {
+      result = { ...result, blurLabel };
+    }
+    const badgeLabels = preferences.getBadgeLabelsForProfile(profile);
+    if (badgeLabels.length > 0) {
+      result = { ...result, badgeLabels };
+    }
+    return result;
   }
 
   hydratePost(post, preferences) {
@@ -754,7 +769,11 @@ export class Derived extends ReactiveStore {
     return hydratedSearchResults;
   }
 
-  hydrateNotification(notification) {
+  hydrateNotification(rawNotification) {
+    const notification = {
+      ...rawNotification,
+      author: this.$hydratedProfiles.get(rawNotification.author.did),
+    };
     if (notification.reason === "like" || notification.reason === "repost") {
       const subject =
         this.$hydratedPosts.get(notification.reasonSubject) ??

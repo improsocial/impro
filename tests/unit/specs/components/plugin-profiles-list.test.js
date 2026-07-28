@@ -3,8 +3,15 @@ import assert from "node:assert/strict";
 import "/js/components/plugin-profiles-list.js";
 import { makeTestDataLayer } from "../../testHelpers.js";
 
+function makeStubPluginService() {
+  return {
+    $slots: { get: () => null },
+    getSlotEntries: () => [],
+  };
+}
+
 function mount(element, dataLayer) {
-  element.renderContext = { dataLayer };
+  element.renderContext = { dataLayer, pluginService: makeStubPluginService() };
   document.body.appendChild(element);
   return element;
 }

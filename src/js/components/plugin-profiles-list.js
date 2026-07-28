@@ -14,7 +14,9 @@ class PluginProfilesList extends Component {
     if (!this.renderContext) {
       throw new Error("plugin-profiles-list requires a renderContext property");
     }
-    this.dataLayer = this.renderContext.dataLayer;
+    const { dataLayer, pluginService } = this.renderContext;
+    this.dataLayer = dataLayer;
+    this.pluginService = pluginService;
     this.state = new ReactiveStore("plugin-profiles-list");
     this.state.$dids = new Signal.State(this.parseDids());
     this.state.$emptyMessage = new Signal.State(
@@ -45,6 +47,7 @@ class PluginProfilesList extends Component {
             hasMore: false,
             skeletonCount: dids.length,
             emptyMessage,
+            pluginService: this.pluginService,
             rightItemTemplate: null,
           }),
           this,

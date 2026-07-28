@@ -183,7 +183,7 @@ class GroupChatDetailsView extends View {
     root,
     params,
     router,
-    context: { dataLayer, isAuthenticated },
+    context: { dataLayer, isAuthenticated, pluginService },
   }) {
     await auth.requireAuth();
 
@@ -304,6 +304,7 @@ class GroupChatDetailsView extends View {
                 hasMore,
                 onLoadMore: loadMoreMembers,
                 isAuthenticated,
+                pluginService,
                 compact: true,
                 rightItemTemplate: (actor) =>
                   memberTrailingTemplate({ member: actor, ownerDid }),

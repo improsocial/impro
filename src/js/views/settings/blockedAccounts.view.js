@@ -11,7 +11,7 @@ class SettingsBlockedAccountsView extends View {
     root,
     router,
     layout,
-    context: { dataLayer, isAuthenticated },
+    context: { dataLayer, isAuthenticated, pluginService },
   }) {
     await auth.requireAuth();
 
@@ -69,6 +69,7 @@ class SettingsBlockedAccountsView extends View {
                 onLoadMore: loadMore,
                 emptyMessage: "You haven't blocked any accounts.",
                 isAuthenticated,
+                pluginService,
               });
             })()}
           </main>

@@ -1,4 +1,4 @@
-import { describe, it, beforeEach } from "node:test";
+import { describe, it, beforeEach, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import {
   profileListItemTemplate,
@@ -244,6 +244,115 @@ describe("profileListItemTemplate - custom badge", () => {
   });
 });
 
+describe("profileListItemTemplate - label badges", () => {
+  const badgeLabels = [
+    {
+      labelDefinition: {
+        identifier: "cool-badge",
+        locales: [{ lang: "en", name: "Cool Badge", description: "A badge" }],
+      },
+      labeler: {
+        creator: { handle: "labeler.test", avatar: null },
+      },
+    },
+  ];
+
+  it("should render label badges when the actor has badgeLabels", () => {
+    const result = profileListItemTemplate({
+      actor: { ...mockActor, badgeLabels },
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const badges = container.querySelector("[data-testid='label-badges']");
+    assert(badges !== null);
+    assert(badges.textContent.includes("Cool Badge"));
+  });
+
+  it("should not render label badges when the actor has none", () => {
+    const result = profileListItemTemplate({ actor: mockActor });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-badges']"),
+      null,
+    );
+  });
+
+  it("should not render label badges when compact", () => {
+    const result = profileListItemTemplate({
+      actor: { ...mockActor, badgeLabels },
+      compact: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-badges']"),
+      null,
+    );
+  });
+
+  it("should not render label badges on the current user's own row", () => {
+    const result = profileListItemTemplate({
+      actor: { ...mockActor, badgeLabels },
+      currentUserDid: mockActor.did,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(
+      container.querySelector("[data-testid='label-badges']"),
+      null,
+    );
+  });
+});
+
+describe("profileListItemTemplate - badges wrapper", () => {
+  const badgeLabels = [
+    {
+      labelDefinition: {
+        identifier: "cool-badge",
+        locales: [{ lang: "en", name: "Cool Badge", description: "A badge" }],
+      },
+      labeler: {
+        creator: { handle: "labeler.test", avatar: null },
+      },
+    },
+  ];
+
+  it("should render label badges and the plugin slot inside a shared wrapper", () => {
+    const result = profileListItemTemplate({
+      actor: { ...mockActor, badgeLabels },
+      pluginService: {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const wrapper = container.querySelector(".profile-list-item-badges");
+    assert(wrapper !== null);
+    assert(wrapper.querySelector("[data-testid='label-badges']") !== null);
+    assert(wrapper.querySelector("plugin-slot[name='author-badges']") !== null);
+  });
+});
+
+describe("profileListItemTemplate - plugin author badges", () => {
+  it("should render an author-badges plugin slot when pluginService is provided", () => {
+    const result = profileListItemTemplate({
+      actor: mockActor,
+      pluginService: {},
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const slot = container.querySelector("plugin-slot[name='author-badges']");
+    assert(slot !== null);
+    assert.deepEqual(slot.getAttribute("context-did"), mockActor.did);
+  });
+
+  it("should not render a plugin slot without pluginService", () => {
+    const result = profileListItemTemplate({ actor: mockActor });
+    const container = document.createElement("div");
+    render(result, container);
+    assert.deepEqual(container.querySelector("plugin-slot"), null);
+  });
+});
+
 describe("profileListItemSkeletonTemplate", () => {
   it("should render skeleton avatar", () => {
     const result = profileListItemSkeletonTemplate();
@@ -258,6 +367,12 @@ describe("profileFeedTemplate", () => {
 
   beforeEach(() => {
     container = document.createElement("div");
+    // These tests omit pluginService; silence the missing-pluginService warning.
+    mock.method(console, "warn", () => {});
+  });
+
+  afterEach(() => {
+    mock.restoreAll();
   });
 
   it("should render skeleton when profiles is null", () => {
@@ -362,5 +477,52 @@ describe("profileFeedTemplate", () => {
       container.querySelector("[data-testid='feed-end-message']"),
       null,
     );
+  });
+});
+
+describe("profileFeedTemplate - missing pluginService warning", () => {
+  let container;
+  let warn;
+
+  beforeEach(() => {
+    container = document.createElement("div");
+    warn = mock.method(console, "warn", () => {});
+  });
+
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
+  it("should warn when a non-compact feed has no pluginService", () => {
+    render(
+      profileFeedTemplate({ profiles: [mockActor], hasMore: false }),
+      container,
+    );
+    assert.deepEqual(warn.mock.callCount(), 1);
+    assert(warn.mock.calls[0].arguments[0].includes("pluginService"));
+  });
+
+  it("should not warn when pluginService is provided", () => {
+    render(
+      profileFeedTemplate({
+        profiles: [mockActor],
+        hasMore: false,
+        pluginService: {},
+      }),
+      container,
+    );
+    assert.deepEqual(warn.mock.callCount(), 0);
+  });
+
+  it("should not warn for compact feeds", () => {
+    render(
+      profileFeedTemplate({
+        profiles: [mockActor],
+        hasMore: false,
+        compact: true,
+      }),
+      container,
+    );
+    assert.deepEqual(warn.mock.callCount(), 0);
   });
 });

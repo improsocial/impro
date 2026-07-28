@@ -4,10 +4,12 @@ import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
+import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
+import "/js/components/plugin-slot.js";
 
 // clickAction: "link" | "none" | callback
 function itemWrapperTemplate({ actor, clickAction, isDisabled, children }) {
@@ -103,6 +105,7 @@ export function profileListItemTemplate({
   isAuthenticated = false,
   currentUserDid = null,
   profileInteractionHandler = null,
+  pluginService = null,
   rightItemTemplate,
   clickAction = "link",
   compact = false,
@@ -112,6 +115,8 @@ export function profileListItemTemplate({
   const isBlocking = !!actor.viewer?.blocking;
   const isBlockedBy = !!actor.viewer?.blockedBy;
   const showsFollowsYou = isFollowedBy && !isBlocking && !isBlockedBy;
+  const showsLabelBadges =
+    actor.did !== currentUserDid && !!actor.badgeLabels?.length;
   const description = actor.description?.trim();
   // Render follow button by default
   const rightItem =
@@ -152,6 +157,20 @@ export function profileListItemTemplate({
       ${showsFollowsYou && !compact
         ? html`<div class="profile-follows-you" data-testid="follows-you-badge">
             Follows you
+          </div>`
+        : ""}
+      ${!compact
+        ? html`<div class="profile-list-item-badges">
+            ${showsLabelBadges
+              ? labelBadgesTemplate({ badgeLabels: actor.badgeLabels })
+              : ""}
+            ${pluginService
+              ? html`<plugin-slot
+                  name="author-badges"
+                  context-did=${actor.did}
+                  .pluginService=${pluginService}
+                ></plugin-slot>`
+              : ""}
           </div>`
         : ""}
       ${!compact && description
@@ -197,11 +216,17 @@ export function profileFeedTemplate({
   isAuthenticated = false,
   currentUserDid = null,
   profileInteractionHandler = null,
+  pluginService = null,
   rightItemTemplate,
   clickAction = "link",
   compact = false,
   disabledProfiles = null,
 }) {
+  if (!compact && !pluginService) {
+    console.warn(
+      "profileFeedTemplate: non-compact feed rendered without a pluginService — plugin author badges won't render",
+    );
+  }
   if (!profiles) {
     return html`<div class="profile-list">
       ${Array.from({ length: skeletonCount }).map(() =>
@@ -231,6 +256,7 @@ export function profileFeedTemplate({
           isAuthenticated,
           currentUserDid,
           profileInteractionHandler,
+          pluginService,
           rightItemTemplate,
           clickAction,
           compact,

@@ -11,7 +11,7 @@ class SettingsMutedAccountsView extends View {
     root,
     router,
     layout,
-    context: { dataLayer, isAuthenticated },
+    context: { dataLayer, isAuthenticated, pluginService },
   }) {
     await auth.requireAuth();
 
@@ -65,6 +65,7 @@ class SettingsMutedAccountsView extends View {
                 onLoadMore: loadMore,
                 emptyMessage: "You have not muted any accounts yet.",
                 isAuthenticated,
+                pluginService,
                 rightItemTemplate: null,
               });
             })()}

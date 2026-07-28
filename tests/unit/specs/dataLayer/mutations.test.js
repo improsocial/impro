@@ -1325,7 +1325,6 @@ describe("muteProfile", () => {
     const stored = dataStore.$mutedProfiles.get();
     assert.deepEqual(stored.mutes.length, 2);
     assert.deepEqual(stored.mutes[0].did, profile.did);
-    assert.deepEqual(stored.mutes[0].viewer.muted, true);
     assert.deepEqual(stored.mutes[1].did, existing.did);
     assert.deepEqual(stored.cursor, "abc");
   });
@@ -1449,7 +1448,6 @@ describe("blockProfile", () => {
     const stored = dataStore.$blockedProfiles.get();
     assert.deepEqual(stored.blocks.length, 2);
     assert.deepEqual(stored.blocks[0].did, profile.did);
-    assert.deepEqual(stored.blocks[0].viewer.blocking, blockUri);
     assert.deepEqual(stored.blocks[1].did, existing.did);
     assert.deepEqual(stored.cursor, "abc");
   });

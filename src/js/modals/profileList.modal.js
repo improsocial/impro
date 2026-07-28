@@ -22,6 +22,7 @@ class ProfileListModal extends Modal {
       isAuthenticated,
       currentUserDid,
       profileInteractionHandler,
+      pluginService,
     },
   }) {
     return html`
@@ -40,6 +41,7 @@ class ProfileListModal extends Modal {
             isAuthenticated,
             currentUserDid,
             profileInteractionHandler,
+            pluginService,
           })}
         </div>
       </div>

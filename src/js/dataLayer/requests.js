@@ -835,6 +835,9 @@ export class Requests {
       : readCollectionCursor(this.dataStore.$notifications);
     const labelers = this.requireLabelers();
     const res = await this.api.getNotifications({ cursor, limit, labelers });
+    this.dataStore.setProfiles(
+      res.notifications.map((notification) => notification.author),
+    );
     // Get associated posts
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
@@ -860,6 +863,9 @@ export class Requests {
       reasons: MENTION_REASONS,
       labelers,
     });
+    this.dataStore.setProfiles(
+      res.notifications.map((notification) => notification.author),
+    );
     const postUris = getPostUrisFromNotifications(res.notifications);
     if (postUris.length > 0) {
       const fetchedPosts = await this.api.getPosts(postUris, { labelers });
@@ -1441,6 +1447,7 @@ export class Requests {
   async loadBlockedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
     const res = await this.api.getBlocks({ cursor, labelers });
+    this.dataStore.setProfiles(res.blocks);
 
     writePageToCollection(this.dataStore.$blockedProfiles, "blocks", res, {
       requestCursor: cursor ?? "",
@@ -1451,6 +1458,7 @@ export class Requests {
   async loadMutedProfiles({ cursor } = {}) {
     const labelers = this.requireLabelers();
     const res = await this.api.getMutes({ cursor, labelers });
+    this.dataStore.setProfiles(res.mutes);
 
     writePageToCollection(this.dataStore.$mutedProfiles, "mutes", res, {
       requestCursor: cursor ?? "",

@@ -228,11 +228,14 @@ describe("enableDragToDismiss", () => {
       el.dispatchEvent(touchEvent("touchmove", { clientY: 150 }));
       assert.deepEqual(el.style.caretColor, "transparent");
     });
-    it("restores the caret only after the snap-back transition lands", async () => {
+    it("restores the caret only after the snap-back transition lands", (t) => {
+      t.mock.timers.enable({ apis: ["setTimeout"] });
       handle = enableDragToDismiss(el, { onDismiss: () => closeCount++ });
-      await drag(50);
+      el.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+      el.dispatchEvent(touchEvent("touchmove", { clientY: 150 }));
+      el.dispatchEvent(touchEvent("touchend"));
       assert.deepEqual(el.style.caretColor, "transparent");
-      await wait(300);
+      t.mock.timers.tick(300);
       assert.deepEqual(el.style.caretColor, "");
     });
     it("keeps the caret hidden through a dismiss", async () => {

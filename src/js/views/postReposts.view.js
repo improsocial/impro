@@ -15,6 +15,7 @@ class PostRepostsView extends View {
       identityResolver,
       isAuthenticated,
       interactionHandlers,
+      pluginService,
     },
   }) {
     const { handleOrDid, rkey } = params;
@@ -74,6 +75,7 @@ class PostRepostsView extends View {
                 currentUserDid: currentUser?.did ?? null,
                 profileInteractionHandler:
                   interactionHandlers.profileInteractionHandler,
+                pluginService,
               });
             })()}
           </main>

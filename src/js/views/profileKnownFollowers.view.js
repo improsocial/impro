@@ -16,6 +16,7 @@ class ProfileKnownFollowersView extends View {
       identityResolver,
       interactionHandlers,
       isAuthenticated,
+      pluginService,
     },
   }) {
     await auth.requireAuth();
@@ -74,6 +75,7 @@ class ProfileKnownFollowersView extends View {
                 currentUserDid: currentUser?.did ?? null,
                 profileInteractionHandler:
                   interactionHandlers.profileInteractionHandler,
+                pluginService,
               });
             })()}
           </main>

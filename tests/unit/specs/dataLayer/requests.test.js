@@ -560,6 +560,12 @@ describe("loadMutedProfiles", () => {
     await requests.loadMutedProfiles();
 
     assert.deepEqual(dataStore.$mutedProfiles.get(), res);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
+      did: "did:plc:a",
+    });
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b"), {
+      did: "did:plc:b",
+    });
   });
 
   it("should append paginated muted profiles when cursor is provided", async () => {
@@ -665,6 +671,12 @@ describe("loadBlockedProfiles", () => {
     await requests.loadBlockedProfiles();
 
     assert.deepEqual(dataStore.$blockedProfiles.get(), res);
+    assert.deepEqual(dataStore.$profiles.get("did:plc:a"), {
+      did: "did:plc:a",
+    });
+    assert.deepEqual(dataStore.$profiles.get("did:plc:b"), {
+      did: "did:plc:b",
+    });
   });
 
   it("should append paginated blocked profiles when cursor is provided", async () => {
@@ -1344,7 +1356,9 @@ describe("loadNotifications", () => {
     const dataStore = new DataStore();
     const mockApi = {
       getNotifications: async () => ({
-        notifications: [{ reason: "like", uri: "n1" }],
+        notifications: [
+          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+        ],
         cursor: "next",
       }),
       getPosts: async () => [],
@@ -1355,6 +1369,9 @@ describe("loadNotifications", () => {
 
     assert.deepEqual(dataStore.$notifications.get().notifications.length, 1);
     assert.deepEqual(dataStore.$notifications.get().cursor, "next");
+    assert.deepEqual(dataStore.$profiles.get("did:plc:liker"), {
+      did: "did:plc:liker",
+    });
   });
 
   it("should append when cursor matches previous", async () => {
@@ -1369,7 +1386,9 @@ describe("loadNotifications", () => {
       getNotifications: async ({ cursor }) => {
         capturedCursor = cursor;
         return {
-          notifications: [{ reason: "follow", uri: "n2" }],
+          notifications: [
+            { reason: "follow", uri: "n2", author: { did: "did:plc:f" } },
+          ],
           cursor: "page3",
         };
       },
@@ -1396,7 +1415,9 @@ describe("loadNotifications", () => {
       getNotifications: async ({ cursor }) => {
         capturedCursor = cursor;
         return {
-          notifications: [{ reason: "follow", uri: "n2" }],
+          notifications: [
+            { reason: "follow", uri: "n2", author: { did: "did:plc:f" } },
+          ],
           cursor: "fresh",
         };
       },
@@ -1429,7 +1450,9 @@ describe("loadNotifications", () => {
         // Simulate a reload finishing while this page request is in flight
         dataStore.$notifications.set(reloadedNotifications);
         return {
-          notifications: [{ uri: "n2", reason: "follow" }],
+          notifications: [
+            { uri: "n2", reason: "follow", author: { did: "did:plc:f" } },
+          ],
           cursor: "c2",
         };
       },
@@ -1460,7 +1483,9 @@ describe("loadNotifications", () => {
         // Simulate a duplicate page request landing first and exhausting the list
         dataStore.$notifications.set(fullyLoadedNotifications);
         return {
-          notifications: [{ uri: "n2", reason: "follow" }],
+          notifications: [
+            { uri: "n2", reason: "follow", author: { did: "did:plc:f" } },
+          ],
           cursor: null,
         };
       },
@@ -1481,7 +1506,9 @@ describe("loadMentionNotifications", () => {
       getNotifications: async ({ reasons }) => {
         capturedReasons = reasons;
         return {
-          notifications: [{ reason: "mention", uri: "n1" }],
+          notifications: [
+            { reason: "mention", uri: "n1", author: { did: "did:plc:m" } },
+          ],
           cursor: "next",
         };
       },
@@ -1508,7 +1535,9 @@ describe("loadMentionNotifications", () => {
 
     const mockApi = {
       getNotifications: async () => ({
-        notifications: [{ reason: "reply", uri: "n2" }],
+        notifications: [
+          { reason: "reply", uri: "n2", author: { did: "did:plc:r" } },
+        ],
         cursor: "page3",
       }),
       getPosts: async () => [],
@@ -1533,7 +1562,9 @@ describe("loadMentionNotifications", () => {
 
     const mockApi = {
       getNotifications: async () => ({
-        notifications: [{ reason: "quote", uri: "n2" }],
+        notifications: [
+          { reason: "quote", uri: "n2", author: { did: "did:plc:q" } },
+        ],
         cursor: "fresh",
       }),
       getPosts: async () => [],
