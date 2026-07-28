@@ -14,12 +14,6 @@ class PluginSlot extends Component {
     if (!this.pluginService) {
       throw new Error("pluginService is required");
     }
-    // Only surfaces embedding an interactive plugin-rendered list (e.g.
-    // plugin-posts-feed/plugin-profiles-list) actually need this; slots that
-    // just render simple, non-interactive content (badges, text) have
-    // nothing to wire it to, so default it rather than force every call
-    // site to pass one.
-    this.interactionHandlers ??= {};
     this._pluginRoots = new Map();
     this._currentRequest = null;
     this._subscribe();

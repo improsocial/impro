@@ -52,15 +52,9 @@ describe("plugin-slot", () => {
     };
   }
 
-  function makeSlot({
-    pluginService,
-    name,
-    context = {},
-    interactionHandlers,
-  }) {
+  function makeSlot({ pluginService, name, context = {} }) {
     const element = document.createElement("plugin-slot");
     element.pluginService = pluginService;
-    element.interactionHandlers = interactionHandlers ?? {};
     element.setAttribute("name", name);
     for (const [key, value] of Object.entries(context)) {
       element.setAttribute(`context-${key}`, value);
@@ -324,15 +318,7 @@ describe("plugin-slot", () => {
     });
   });
 
-  describe("PluginSlot - interactionHandlers", () => {
-    it("defaults to an empty object when not set, rather than throwing", () => {
-      const element = document.createElement("plugin-slot");
-      element.pluginService = makePluginService();
-      element.setAttribute("name", "x");
-      element.connectedCallback();
-      assert.deepEqual(element.interactionHandlers, {});
-    });
-
+  describe("PluginSlot - initialization", () => {
     it("throws when pluginService is not set", () => {
       const element = document.createElement("plugin-slot");
       element.setAttribute("name", "x");
