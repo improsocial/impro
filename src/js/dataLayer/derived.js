@@ -218,7 +218,7 @@ export class Derived extends ReactiveStore {
       if (isEmptyPost(postThread)) {
         return postThread;
       }
-      const hiddenReplyUris = postThreadOther.map((item) => item.uri);
+      const hiddenReplyUris = new Set(postThreadOther.map((item) => item.uri));
       const hydrated = this.hydratePostThreadNode(postThread, hiddenReplyUris);
       if (!hydrated) {
         return null;
@@ -814,7 +814,7 @@ export class Derived extends ReactiveStore {
     const post = this.$hydratedPosts.get(node.post.uri);
     if (!post) return null;
     const hydrated = { post };
-    if (hiddenReplyUris.includes(node.post.uri)) {
+    if (hiddenReplyUris.has(node.post.uri)) {
       // NOTE: LEXICON DEVIATION
       hydrated.post = { ...post, isHidden: true };
     }

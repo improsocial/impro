@@ -4,6 +4,7 @@ import {
   unique,
   groupBy,
   sortBy,
+  maxBy,
   noop,
   sliceByByte,
   formatLargeNumber,
@@ -63,6 +64,31 @@ describe("sortBy", () => {
     assert.throws(() => sortBy([], "name", { direction: "up" }), {
       message: "Invalid direction: up",
     });
+  });
+});
+
+describe("maxBy", () => {
+  it("returns the element with the highest value by key string", () => {
+    const input = [{ value: 1 }, { value: 3 }, { value: 2 }];
+    assert.deepEqual(maxBy(input, "value"), { value: 3 });
+  });
+
+  it("returns the element with the highest value by function", () => {
+    const input = [{ value: 1 }, { value: 3 }, { value: 2 }];
+    assert.deepEqual(
+      maxBy(input, (item) => item.value),
+      { value: 3 },
+    );
+  });
+
+  it("returns the first element on ties", () => {
+    const first = { value: 2, id: "a" };
+    const input = [{ value: 1 }, first, { value: 2, id: "b" }];
+    assert(maxBy(input, "value") === first);
+  });
+
+  it("returns null for an empty array", () => {
+    assert.equal(maxBy([], "value"), null);
   });
 });
 
