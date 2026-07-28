@@ -14,6 +14,7 @@ import {
   linkToProfileFollowing,
   linkToFeed,
   linkToCommunityPlugin,
+  linkToPluginSettings,
   getPermalinkForPost,
   getPermalinkForProfile,
   getPermalinkForCommunityPlugin,
@@ -327,6 +328,22 @@ describe("getPermalinkForProfile", () => {
     assert.deepEqual(
       getPermalinkForProfile(profile),
       "https://bsky.app/profile/did:plc:alice",
+    );
+  });
+});
+
+describe("linkToPluginSettings", () => {
+  it("should return correct plugin settings link", () => {
+    assert.deepEqual(
+      linkToPluginSettings("remote-themes"),
+      "/plugin/remote-themes/settings",
+    );
+  });
+
+  it("should encode slashes in plugin ids", () => {
+    assert.deepEqual(
+      linkToPluginSettings("evil/plugin"),
+      "/plugin/evil%2Fplugin/settings",
     );
   });
 });

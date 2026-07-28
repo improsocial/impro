@@ -24,8 +24,8 @@ import settingsMutedWordsView from "/js/views/settings/mutedWords.view.js";
 import settingsBlockedAccountsView from "/js/views/settings/blockedAccounts.view.js";
 import settingsMutedAccountsView from "/js/views/settings/mutedAccounts.view.js";
 import settingsAdvancedView from "/js/views/settings/advanced.view.js";
-import settingsPluginsView from "/js/views/settings/plugins.view.js";
-import settingsPluginDetailView from "/js/views/settings/pluginDetail.view.js";
+import installedPluginsView from "/js/views/installedPlugins.view.js";
+import pluginSettingsView from "/js/views/pluginSettings.view.js";
 import communityPluginsView from "/js/views/communityPlugins.view.js";
 import communityPluginListingView from "/js/views/communityPluginListing.view.js";
 import feedDetailView from "/js/views/feedDetail.view.js";
@@ -322,15 +322,18 @@ export async function main() {
     () => settingsAdvancedView,
     settingsRouteOptions,
   );
+  const pluginsRouteOptions = {
+    layoutOptions: { activeNavItem: "plugins" },
+  };
   router.addRoute(
-    "/settings/plugins",
-    () => settingsPluginsView,
-    settingsRouteOptions,
+    "/plugins/installed",
+    () => installedPluginsView,
+    pluginsRouteOptions,
   );
   router.addRoute(
-    "/settings/plugins/:pluginId",
-    () => settingsPluginDetailView,
-    settingsRouteOptions,
+    "/plugin/:pluginId/settings",
+    () => pluginSettingsView,
+    pluginsRouteOptions,
   );
   router.addRoute("/plugins/community", () => communityPluginsView);
   router.addRoute(
@@ -342,6 +345,10 @@ export async function main() {
     "/settings/plugins/community": () => "/plugins/community",
     "/settings/plugins/community/:pluginId": (params) =>
       `/plugins/community/${encodeURIComponent(params.pluginId)}`,
+    // Old installed plugin URLs
+    "/settings/plugins": () => "/plugins/installed",
+    "/settings/plugins/:pluginId": (params) =>
+      `/plugin/${encodeURIComponent(params.pluginId)}/settings`,
   });
   router.setNotFoundView(() => notFoundView);
 

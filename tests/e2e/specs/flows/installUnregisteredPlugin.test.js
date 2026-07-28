@@ -52,8 +52,8 @@ test.describe("Unregistered plugin install flow", () => {
       `Installed ${PLUGIN_NAME}`,
     );
 
-    await page.goto("/settings/plugins");
-    const plugins = page.locator("#settings-plugins-view");
+    await page.goto("/plugins/installed");
+    const plugins = page.locator("#installed-plugins-view");
     const item = plugins.locator(".plugin-list-item", { hasText: PLUGIN_NAME });
     await expect(item).toBeVisible({ timeout: 10000 });
     await expect(item.locator(".plugin-toggle")).toHaveAttribute("checked", "");

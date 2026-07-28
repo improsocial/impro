@@ -275,6 +275,18 @@ describe("sidebarTemplate - nav items", () => {
     assert(profileLink !== null);
   });
 
+  it("should render plugins nav item", () => {
+    const result = sidebarTemplate({
+      isAuthenticated: true,
+      currentUser: mockUser,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    assert(
+      container.querySelector("[data-testid='sidebar-nav-plugins']") !== null,
+    );
+  });
+
   it("should render settings nav item", () => {
     const result = sidebarTemplate({
       isAuthenticated: true,

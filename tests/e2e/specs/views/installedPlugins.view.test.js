@@ -1,7 +1,7 @@
-import { test, expect } from "../../../base.js";
-import { login } from "../../../helpers.js";
-import { MockServer } from "../../../mockServer.js";
-import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../../testPlugin.js";
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
+import { TEST_PLUGIN_ID, TEST_PLUGIN_MANIFEST } from "../../testPlugin.js";
 
 function seedInstalled(mockServer) {
   mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
@@ -36,16 +36,16 @@ function seedRemoteInstalled(mockServer, { installedVersion, liveVersion }) {
   };
 }
 
-test.describe("Settings plugins view", () => {
+test.describe("Installed plugins view", () => {
   test("lists installed plugins with manifest info", async ({ page }) => {
     const mockServer = new MockServer();
     seedInstalled(mockServer);
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
-    const view = page.locator("#settings-plugins-view");
+    const view = page.locator("#installed-plugins-view");
     await expect(view.locator('[data-testid="header-title"]')).toContainText(
       "Plugins",
       { timeout: 10000 },
@@ -64,9 +64,9 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
-    const view = page.locator("#settings-plugins-view");
+    const view = page.locator("#installed-plugins-view");
     await expect(view.locator(".plugins-empty-state")).toBeVisible({
       timeout: 10000,
     });
@@ -79,7 +79,7 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
     const sampleItem = page.locator(".plugin-list-item", {
       hasText: "Test Plugin",
@@ -102,7 +102,7 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
     const sampleItem = page.locator(".plugin-list-item", {
       hasText: "Test Plugin",
@@ -129,7 +129,7 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
     const sampleItem = page.locator(".plugin-list-item", {
       hasText: "Test Plugin",
@@ -155,9 +155,9 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
-    const view = page.locator("#settings-plugins-view");
+    const view = page.locator("#installed-plugins-view");
     const headerButton = view.locator(".plugin-check-updates-button");
     await expect(headerButton).toContainText("Check for updates", {
       timeout: 10000,
@@ -180,9 +180,9 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
-    const view = page.locator("#settings-plugins-view");
+    const view = page.locator("#installed-plugins-view");
     const headerButton = view.locator(".plugin-check-updates-button");
     await expect(headerButton).toContainText("Check for updates", {
       timeout: 10000,
@@ -217,9 +217,9 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
-    const view = page.locator("#settings-plugins-view");
+    const view = page.locator("#installed-plugins-view");
     const headerButton = view.locator(".plugin-check-updates-button");
     await expect(headerButton).toContainText("Check for updates", {
       timeout: 10000,
@@ -244,7 +244,7 @@ test.describe("Settings plugins view", () => {
     await mockServer.setup(page);
 
     await login(page);
-    await page.goto("/settings/plugins");
+    await page.goto("/plugins/installed");
 
     const sampleItem = page.locator(".plugin-list-item", {
       hasText: "Test Plugin",
@@ -253,8 +253,66 @@ test.describe("Settings plugins view", () => {
     await sampleItem.locator(".plugin-toggle").click();
     await sampleItem.locator(".plugin-settings-link").click();
 
-    await expect(page).toHaveURL(`/settings/plugins/${TEST_PLUGIN_ID}`, {
+    await expect(page).toHaveURL(`/plugin/${TEST_PLUGIN_ID}/settings`, {
       timeout: 10000,
     });
+  });
+
+  test("clicking a remote plugin's info opens its community page", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    seedRemoteInstalled(mockServer, {
+      installedVersion: "1.0.0",
+      liveVersion: "1.0.0",
+    });
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/plugins/installed");
+
+    const sampleItem = page.locator(".plugin-list-item", {
+      hasText: "Remote Themes",
+    });
+    await expect(sampleItem).toBeVisible({ timeout: 10000 });
+    await sampleItem.locator(".plugin-list-item-info").click();
+
+    await expect(page).toHaveURL(`/plugins/community/${REMOTE_ID}`, {
+      timeout: 10000,
+    });
+    await expect(page.locator("#community-plugin-listing-view")).toBeVisible();
+  });
+
+  test("a local plugin's info is not a community page link", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    seedInstalled(mockServer);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/plugins/installed");
+
+    const sampleItem = page.locator(".plugin-list-item", {
+      hasText: "Test Plugin",
+    });
+    await expect(sampleItem).toBeVisible({ timeout: 10000 });
+    await expect(sampleItem.locator("a.plugin-list-item-info")).toHaveCount(0);
+  });
+
+  test("redirects the old settings URLs", async ({ page }) => {
+    const mockServer = new MockServer();
+    seedInstalled(mockServer);
+    await mockServer.setup(page);
+    await login(page);
+
+    await page.goto("/settings/plugins");
+    await expect(page).toHaveURL(/\/plugins\/installed$/);
+    await expect(
+      page.locator('#installed-plugins-view [data-testid="header-title"]'),
+    ).toContainText("Plugins", { timeout: 10000 });
+
+    await page.goto(`/settings/plugins/${TEST_PLUGIN_ID}`);
+    await expect(page).toHaveURL(`/plugin/${TEST_PLUGIN_ID}/settings`);
   });
 });

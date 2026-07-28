@@ -6,7 +6,6 @@ import { eyeSlashIconTemplate } from "/js/templates/icons/eyeSlashIcon.template.
 import { mutedWordIconTemplate } from "/js/templates/icons/mutedWordIcon.template.js";
 import { restrictedIconTemplate } from "/js/templates/icons/restrictedIcon.template.js";
 import { codeIconTemplate } from "/js/templates/icons/codeIcon.template.js";
-import { boxIconTemplate } from "/js/templates/icons/boxIcon.template.js";
 import { moreMenuIconTemplate } from "/js/templates/icons/moreMenuIcon.template.js";
 import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
@@ -210,13 +209,6 @@ class SettingsView extends View {
         icon: restrictedIconTemplate,
         label: "Blocked accounts",
         url: "/settings/blocked-accounts",
-        enabled: true,
-      },
-      {
-        key: "plugins",
-        icon: boxIconTemplate,
-        label: "Plugins (beta)",
-        url: "/settings/plugins",
         enabled: true,
       },
       {
