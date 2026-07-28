@@ -219,6 +219,7 @@ export function quotedPostTemplate({
             ${postHeaderTextTemplate({
               author: quotedPost.author,
               timestamp: quotedPost.indexedAt,
+              enableProfileLink: false,
             })}
           </div>
           ${quotedPost.badgeLabels
