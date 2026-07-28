@@ -19,9 +19,8 @@ function avatarAndTitleTemplate({
         data-testid="header-title-container"
       >
         <span class="header-title" data-testid="header-title"
-          >${title}${titleRightItemTemplate
-            ? titleRightItemTemplate()
-            : ""}</span
+          ><span class="header-title-text">${title}</span
+          >${titleRightItemTemplate ? titleRightItemTemplate() : ""}</span
         >
         ${subtitle
           ? html`<span class="header-subtitle" data-testid="header-subtitle"

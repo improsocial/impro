@@ -934,13 +934,22 @@ header {
 }
 
 .header .header-title {
+  display: flex;
+  align-items: center;
+  min-width: 0;
   font-size: 18px;
   font-weight: 600;
 }
 
+.header .header-title-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .header .header-title-muted-icon {
   display: inline-flex;
-  vertical-align: -3px;
+  flex-shrink: 0;
   width: 16px;
   height: 16px;
   margin-left: 6px;
@@ -953,6 +962,9 @@ header {
 }
 
 .header .header-subtitle {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: 13px;
   color: var(--text-color-muted);
   font-weight: 400;
@@ -3847,6 +3859,10 @@ image-carousel {
   gap: 4px;
   padding: 24px 20px;
   text-align: center;
+}
+
+.chat-info-panel .profile-follows-you {
+  margin-top: 4px;
 }
 
 .chat-info-panel > .avatar .avatar-image-frame,
