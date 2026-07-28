@@ -42,7 +42,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: e2e-results-shard-${{ matrix.shard }}
-          path: tests/e2e/.results/
+          path: |
+            tests/e2e/.results/
+            !tests/e2e/.results/.last-run.json
           include-hidden-files: true
           if-no-files-found: ignore
           retention-days: 7
