@@ -94,6 +94,7 @@ class ImportCollector {
 
 async function parseHtml(contents, { includeDynamic = false } = {}) {
   const scripts = [];
+  const preloadHrefs = [];
   let inScript = false;
   let inImportMap = false;
   let importMapString = "";
@@ -105,6 +106,13 @@ async function parseHtml(contents, { includeDynamic = false } = {}) {
       }
       if (name === "script" && attributes.type === "importmap") {
         inImportMap = true;
+      }
+      if (
+        name === "link" &&
+        attributes.rel === "modulepreload" &&
+        attributes.href
+      ) {
+        preloadHrefs.push(attributes.href);
       }
     },
     ontext(text) {
@@ -129,11 +137,16 @@ async function parseHtml(contents, { includeDynamic = false } = {}) {
     const deps = await getImports(script, { includeDynamic });
     deps.forEach((d) => imports.add(d));
   }
-  return { imports: [...imports], importMapString: importMapString || "{}" };
+  preloadHrefs.forEach((href) => imports.add(href));
+  return {
+    imports: [...imports],
+    preloadHrefs,
+    importMapString: importMapString || "{}",
+  };
 }
 
-export async function getDependencies(
-  contents,
+async function collectDependencies(
+  { imports, importMapString },
   baseUrl,
   { noFetch, exclude = [], includeDynamic = false, urlMap = {} } = {},
 ) {
@@ -143,9 +156,6 @@ export async function getDependencies(
   if (!baseUrl.href.endsWith("/")) {
     baseUrl.href += "/";
   }
-  const { importMapString, imports } = await parseHtml(contents, {
-    includeDynamic,
-  });
   const importMap = parseFromString(importMapString, baseUrl);
   const collector = new ImportCollector({
     imports,
@@ -157,6 +167,13 @@ export async function getDependencies(
     urlMap,
   });
   return collector.collect();
+}
+
+export async function getDependencies(contents, baseUrl, options = {}) {
+  const parsed = await parseHtml(contents, {
+    includeDynamic: options.includeDynamic,
+  });
+  return collectDependencies(parsed, baseUrl, options);
 }
 
 export function injectPreloads(
@@ -194,7 +211,7 @@ export async function linkHtml(
     exclude,
     includeComments,
     includeDynamic,
-    urlMap,
+    urlMap = {},
   } = {},
 ) {
   let html = htmlContentsOrUrl;
@@ -203,11 +220,30 @@ export async function linkHtml(
     html = await fs.promises.readFile(htmlContentsOrUrl, "utf8");
     baseUrl = new URL("./", htmlContentsOrUrl);
   }
-  const dependencies = await getDependencies(html, baseUrl, {
+  const parsed = await parseHtml(html, { includeDynamic });
+  const dependencies = await collectDependencies(parsed, baseUrl, {
     exclude,
     noFetch,
     includeDynamic,
     urlMap,
   });
-  return injectPreloads(html, dependencies, { includeComments });
+  // Pre-existing modulepreload links act as crawl seeds - rewrite
+  // their hrefs through the url map and skip them when injecting
+  const { preloadHrefs } = parsed;
+  const existingHrefs = new Set();
+  for (const href of preloadHrefs) {
+    const mapped = urlMap[href] ?? href;
+    existingHrefs.add(mapped);
+    if (mapped !== href) {
+      html = html.replaceAll(
+        `rel="modulepreload" href="${href}"`,
+        `rel="modulepreload" href="${mapped}"`,
+      );
+    }
+  }
+  return injectPreloads(
+    html,
+    dependencies.filter((dep) => !existingHrefs.has(dep)),
+    { includeComments },
+  );
 }
