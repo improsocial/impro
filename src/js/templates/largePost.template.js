@@ -8,11 +8,10 @@ import {
 } from "/js/dataHelpers.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
-import "/js/components/plugin-slot.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { whoCanReplyBadgeTemplate } from "/js/templates/whoCanReplyBadge.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
@@ -148,14 +147,11 @@ export function largePostTemplate({
           })}
         </div>
       </div>
-      ${badgeLabels.length > 0 ? labelBadgesTemplate({ badgeLabels }) : ""}
-      ${pluginService
-        ? html`<plugin-slot
-            name="author-badges"
-            context-did=${post.author?.did ?? ""}
-            .pluginService=${pluginService}
-          ></plugin-slot>`
-        : ""}
+      ${authorBadgesTemplate({
+        badgeLabels,
+        did: post.author?.did,
+        pluginService,
+      })}
       <div class="post-content-bottom">
         ${mutedWarningTemplate({
           post,

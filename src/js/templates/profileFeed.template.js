@@ -4,12 +4,11 @@ import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
 import { linkToProfile } from "/js/navigation.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
 import { getDisplayName } from "/js/dataHelpers.js";
 import { classnames } from "/js/utils.js";
 import "/js/components/container-link.js";
-import "/js/components/plugin-slot.js";
 
 // clickAction: "link" | "none" | callback
 function itemWrapperTemplate({ actor, clickAction, isDisabled, children }) {
@@ -161,16 +160,11 @@ export function profileListItemTemplate({
         : ""}
       ${!compact
         ? html`<div class="profile-list-item-badges">
-            ${showsLabelBadges
-              ? labelBadgesTemplate({ badgeLabels: actor.badgeLabels })
-              : ""}
-            ${pluginService
-              ? html`<plugin-slot
-                  name="author-badges"
-                  context-did=${actor.did}
-                  .pluginService=${pluginService}
-                ></plugin-slot>`
-              : ""}
+            ${authorBadgesTemplate({
+              badgeLabels: showsLabelBadges ? actor.badgeLabels : null,
+              did: actor.did,
+              pluginService,
+            })}
           </div>`
         : ""}
       ${!compact && description

@@ -1,7 +1,19 @@
 import { html } from "/js/lib/lit-html.js";
 import { getLabelNameAndDescription } from "/js/dataHelpers.js";
+import "/js/components/plugin-slot.js";
 
-export function labelBadgesTemplate({ badgeLabels }) {
+export function authorBadgesTemplate({ badgeLabels, did, pluginService }) {
+  return html`${badgeLabels?.length ? labelBadgesTemplate({ badgeLabels }) : ""}
+  ${pluginService
+    ? html`<plugin-slot
+        name="author-badges"
+        context-did=${did ?? ""}
+        .pluginService=${pluginService}
+      ></plugin-slot>`
+    : ""}`;
+}
+
+function labelBadgesTemplate({ badgeLabels }) {
   return html`<div class="label-badges" data-testid="label-badges">
     ${badgeLabels.map(({ labelDefinition, labeler }) => {
       const { name: displayName } = getLabelNameAndDescription(labelDefinition);

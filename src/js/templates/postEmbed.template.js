@@ -11,9 +11,8 @@ import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import "/js/components/plugin-rich-text.js";
-import "/js/components/plugin-slot.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/container-link.js";
@@ -222,16 +221,11 @@ export function quotedPostTemplate({
               enableProfileLink: false,
             })}
           </div>
-          ${quotedPost.badgeLabels
-            ? labelBadgesTemplate({ badgeLabels: quotedPost.badgeLabels })
-            : ""}
-          ${pluginService
-            ? html`<plugin-slot
-                name="author-badges"
-                context-did=${quotedPost.author?.did ?? ""}
-                .pluginService=${pluginService}
-              ></plugin-slot>`
-            : ""}
+          ${authorBadgesTemplate({
+            badgeLabels: quotedPost.badgeLabels,
+            did: quotedPost.author?.did,
+            pluginService,
+          })}
           <div class="quoted-post-body">
             ${postText.length > 0
               ? html`<div class="post-text">

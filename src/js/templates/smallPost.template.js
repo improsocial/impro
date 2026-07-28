@@ -10,7 +10,6 @@ import { noop } from "/js/utils.js";
 import { linkToPost, linkToProfile } from "/js/navigation.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import "/js/components/plugin-rich-text.js";
-import "/js/components/plugin-slot.js";
 import { postEmbedTemplate } from "/js/templates/postEmbed.template.js";
 import { postActionBarTemplate } from "/js/templates/postActionBar.template.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
@@ -18,7 +17,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
@@ -161,16 +160,11 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.indexedAt,
           })}
-          ${post.badgeLabels
-            ? labelBadgesTemplate({ badgeLabels: post.badgeLabels })
-            : ""}
-          ${pluginService
-            ? html`<plugin-slot
-                name="author-badges"
-                context-did=${post.author?.did ?? ""}
-                .pluginService=${pluginService}
-              ></plugin-slot>`
-            : ""}
+          ${authorBadgesTemplate({
+            badgeLabels: post.badgeLabels,
+            did: post.author?.did,
+            pluginService,
+          })}
           ${showReplyToLabel
             ? replyToLabelTemplate({
                 currentUser,
