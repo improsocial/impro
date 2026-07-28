@@ -1462,6 +1462,9 @@ describe("$notifications", () => {
   const author = createProfile({ did: "did:plc:actor", handle: "actor.test" });
 
   function seedNotifications(dataStore, notifications, cursor = null) {
+    dataStore.setProfiles(
+      notifications.map((notification) => notification.author),
+    );
     dataStore.$notifications.set({ notifications, cursor });
   }
 
@@ -1560,6 +1563,22 @@ describe("$notifications", () => {
     const result = derived.$notifications.get();
     assert.deepEqual(result[0], notification);
   });
+
+  it("should hydrate the author from the profile store", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    seedNotifications(dataStore, [
+      createNotification({ reason: "follow", author }),
+    ]);
+    patchStore.addProfilePatch(author.did, { type: "followProfile" });
+    const result = derived.$notifications.get();
+    assert.deepEqual(result[0].author.badgeLabels, ["verified"]);
+    assert.deepEqual(result[0].author.viewer.following, "fake following");
+  });
 });
 
 describe("$mentionNotifications", () => {
@@ -1573,6 +1592,7 @@ describe("$mentionNotifications", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
     const author = createProfile({ did: "did:plc:a", handle: "a.test" });
+    dataStore.setProfiles([author]);
     dataStore.$posts.set("m1", { uri: "m1", record: { text: "m" } });
     dataStore.$mentionNotifications.set({
       notifications: [
@@ -1858,16 +1878,99 @@ describe("$listMembers", () => {
   });
 });
 
-describe("$hydratedProfiles (blur labels)", () => {
+describe("$hydratedProfiles (labels)", () => {
+  const did = "did:plc:user";
+
   it("should attach a blur label from preferences", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({ getProfileBlurLabel: () => "adult" }),
     });
-    const did = "did:plc:user";
     dataStore.setProfiles([createProfile({ did, handle: "user.test" })]);
     const result = derived.$hydratedProfiles.get(did);
     assert.deepEqual(result.blurLabel, "adult");
+  });
+
+  it("should attach badge labels from preferences", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    dataStore.setProfiles([createProfile({ did, handle: "user.test" })]);
+    const result = derived.$hydratedProfiles.get(did);
+    assert.deepEqual(result.badgeLabels, ["verified"]);
+  });
+
+  it("should return the profile unchanged when no labels apply", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    dataStore.setProfiles([createProfile({ did, handle: "user.test" })]);
+    const result = derived.$hydratedProfiles.get(did);
+    assert.deepEqual(result.blurLabel, undefined);
+    assert.deepEqual(result.badgeLabels, undefined);
+  });
+});
+
+describe("$mutedProfiles and $blockedProfiles", () => {
+  const did = "did:plc:user";
+
+  function seedMuted(dataStore) {
+    const profile = createProfile({ did, handle: "user.test" });
+    dataStore.setProfiles([profile]);
+    dataStore.$mutedProfiles.set({ mutes: [profile], cursor: null });
+  }
+
+  it("should attach badge labels to muted profiles", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    seedMuted(dataStore);
+    const result = derived.$mutedProfiles.get();
+    assert.deepEqual(result.mutes[0].badgeLabels, ["verified"]);
+    assert.deepEqual(result.cursor, null);
+  });
+
+  it("should attach badge labels to blocked profiles", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({
+        getBadgeLabelsForProfile: () => ["verified"],
+      }),
+    });
+    const profile = createProfile({ did, handle: "user.test" });
+    dataStore.setProfiles([profile]);
+    dataStore.$blockedProfiles.set({ blocks: [profile], cursor: null });
+    const result = derived.$blockedProfiles.get();
+    assert.deepEqual(result.blocks[0].badgeLabels, ["verified"]);
+  });
+
+  it("should return the lists unchanged when no labels apply", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    seedMuted(dataStore);
+    const result = derived.$mutedProfiles.get();
+    assert.deepEqual(result.mutes[0].badgeLabels, undefined);
+    assert.deepEqual(result.mutes[0].blurLabel, undefined);
+  });
+
+  it("should reflect profile patches in the list", () => {
+    const dataStore = new DataStore();
+    const { derived, patchStore } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    seedMuted(dataStore);
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    const result = derived.$mutedProfiles.get();
+    assert.deepEqual(result.mutes[0].viewer.following, "fake following");
   });
 });
 
@@ -1996,13 +2099,17 @@ describe("$convoList and $convoRequestList", () => {
   });
 });
 
-describe("$convoProfiles (badge labels)", () => {
-  it("should attach badge labels to convo members", () => {
-    const dataStore = new DataStore();
+describe("$convoProfiles (labels)", () => {
+  function seedConvo(dataStore) {
     dataStore.$convos.set("convo1", {
       id: "convo1",
       members: [{ did: "did:plc:member", handle: "member.test" }],
     });
+  }
+
+  it("should attach badge labels to convo members", () => {
+    const dataStore = new DataStore();
+    seedConvo(dataStore);
     const { derived } = makeDerived(dataStore, {
       preferences: fakePreferences({
         getBadgeLabelsForProfile: () => ["verified"],
@@ -2010,6 +2117,27 @@ describe("$convoProfiles (badge labels)", () => {
     });
     const profiles = derived.$convoProfiles.get("convo1");
     assert.deepEqual(profiles[0].badgeLabels, ["verified"]);
+  });
+
+  it("should attach a blur label to convo members", () => {
+    const dataStore = new DataStore();
+    seedConvo(dataStore);
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences({ getProfileBlurLabel: () => "adult" }),
+    });
+    const profiles = derived.$convoProfiles.get("convo1");
+    assert.deepEqual(profiles[0].blurLabel, "adult");
+  });
+
+  it("should return members unchanged when no labels apply", () => {
+    const dataStore = new DataStore();
+    seedConvo(dataStore);
+    const { derived } = makeDerived(dataStore, {
+      preferences: fakePreferences(),
+    });
+    const profiles = derived.$convoProfiles.get("convo1");
+    assert.deepEqual(profiles[0].badgeLabels, undefined);
+    assert.deepEqual(profiles[0].blurLabel, undefined);
   });
 });
 

@@ -312,6 +312,7 @@ class SearchView extends View {
         isAuthenticated,
         currentUserDid: currentUser?.did ?? null,
         profileInteractionHandler,
+        pluginService,
       });
     }
 

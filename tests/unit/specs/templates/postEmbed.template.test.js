@@ -12,6 +12,8 @@ const pluginService = {
   transformRichTextTokens: async () => null,
   renderRichTextNodeToken: () => null,
   getClaimedFacetTypes: () => new Set(),
+  $slots: { get: () => null },
+  getSlotEntries: () => [],
 };
 
 describe("postEmbedTemplate - images", () => {
@@ -584,6 +586,33 @@ describe("postEmbedTemplate - quoted posts", () => {
     const container = document.createElement("div");
     render(result, container);
     assert(container.querySelector(".quoted-post") !== null);
+  });
+
+  it("should not link the quoted post author to their profile", () => {
+    const embed = {
+      $type: "app.bsky.embed.record#view",
+      record: {
+        $type: "app.bsky.embed.record#viewRecord",
+        author: post.author,
+        value: post.record,
+        uri: post.uri,
+      },
+    };
+    const result = postEmbedTemplate({
+      embed,
+      labels: [],
+      isAuthenticated: true,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const nameElement = container.querySelector(
+      ".quoted-post [data-testid='post-author-name']",
+    );
+    assert.deepEqual(nameElement.tagName.toLowerCase(), "span");
+    const handleElement = container.querySelector(
+      ".quoted-post [data-testid='post-author-handle']",
+    );
+    assert.deepEqual(handleElement.tagName.toLowerCase(), "span");
   });
 
   it("should render blocked quote embed", () => {

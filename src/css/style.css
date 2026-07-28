@@ -393,6 +393,10 @@ plugin-rich-text {
   display: contents;
 }
 
+plugin-slot:empty {
+  display: none;
+}
+
 .rich-text a {
   color: var(--text-link-color);
 }
@@ -5459,6 +5463,22 @@ button.profile-list-item-button.is-disabled {
   text-overflow: ellipsis;
   white-space: nowrap;
   min-width: 0;
+}
+
+.profile-list-item-badges {
+  display: contents;
+}
+
+.profile-list-item .label-badge {
+  font-size: 12px;
+  padding-right: 5px;
+  margin-top: 5px;
+  margin-right: 2px;
+}
+
+.profile-list-item .label-badge-image {
+  width: 12px;
+  height: 12px;
 }
 
 .profile-list-item-follow {

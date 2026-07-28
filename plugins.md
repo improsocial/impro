@@ -33,13 +33,14 @@ Plugins are currently in **beta** as the API surface is being expanded. However,
 - Open modals and toasts with custom content
 - Add a settings panel to manage their settings
 - Store settings on a user account
-- Override component rendering with custom HTML (e.g. posts, profiles, buttons etc) [in-progress]
+- Override component rendering with custom HTML (e.g. posts, profiles, badges etc) [in-progress]
 - Add a full page with custom HTML content [in-progress]
 - Add custom feed filters
 - Transform rich text in posts
 - Make whitelisted network requests (requires permissions)
 - Read appview data with the current user as the viewer (profiles, posts, etc.)
 - Mute, block, or send feed feedback ("show more/less like this") on the user's behalf (requires permissions)
+- Store private plugin data on a user's account (shared across devices) or in local storage
 
 ### Plugins CANNOT:
 

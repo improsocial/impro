@@ -601,13 +601,7 @@ export class Mutations {
         if (!alreadyListed) {
           this.dataStore.$mutedProfiles.set({
             ...mutedProfiles,
-            mutes: [
-              {
-                ...profile,
-                viewer: { ...profile.viewer, muted: true },
-              },
-              ...mutedProfiles.mutes,
-            ],
+            mutes: [profile, ...mutedProfiles.mutes],
           });
         }
       }
@@ -696,13 +690,7 @@ export class Mutations {
         if (!alreadyListed) {
           this.dataStore.$blockedProfiles.set({
             ...blockedProfiles,
-            blocks: [
-              {
-                ...profile,
-                viewer: { ...profile.viewer, blocking: block.uri },
-              },
-              ...blockedProfiles.blocks,
-            ],
+            blocks: [profile, ...blockedProfiles.blocks],
           });
         }
       }

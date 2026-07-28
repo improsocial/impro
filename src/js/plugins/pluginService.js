@@ -12,6 +12,10 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import {
+  PluginLocalDataStore,
+  PluginMemoryDataStore,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
@@ -172,6 +176,7 @@ export class PluginService extends ReactiveStore {
     this._richTextElements = new WeakMap();
     this.$settingTabs = new SignalMap();
     this.$slots = new SignalMap();
+    this._slotEntryVersion = 0;
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -189,6 +194,9 @@ export class PluginService extends ReactiveStore {
       this.prefManager.$installedPlugins.get(),
     );
     this.session = session;
+    this.localDataStore = session?.did
+      ? new PluginLocalDataStore(session.did)
+      : new PluginMemoryDataStore();
     this.isPreviewMode = false;
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -308,16 +316,23 @@ export class PluginService extends ReactiveStore {
       },
     );
     this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
+      const current = this.$slots.get(message.name) ?? [];
+      if (current.some((other) => other.pluginId === plugin.pluginId)) {
+        console.warn(
+          `"${plugin.pluginId}" is already registered for slot "${message.name}"; ignoring duplicate registration`,
+        );
+        return null;
+      }
       const entry = {
         pluginId: plugin.pluginId,
+        version: ++this._slotEntryVersion,
         invoke: (context) => plugin.call(message.handlerId, context),
       };
-      const current = this.$slots.get(message.name) ?? [];
       this.$slots.set(message.name, [...current, entry]);
       return () => {
         const list = this.$slots.get(message.name);
         if (!list) return;
-        const next = list.filter((other) => other !== entry);
+        const next = list.filter((other) => other.pluginId !== plugin.pluginId);
         if (next.length === 0) {
           this.$slots.delete(message.name);
         } else {
@@ -358,12 +373,33 @@ export class PluginService extends ReactiveStore {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
     });
 
+    this.pluginBridge.addHostMethod("loadLocalData", (plugin) => {
+      return this.localDataStore.get(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
+      this.localDataStore.set(plugin.pluginId, data);
+    });
+
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
       (plugin, { reset = false } = {}) => {
         this.emit("settingTabRefresh", { pluginId: plugin.pluginId, reset });
       },
     );
+
+    this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name }) => {
+      const current = this.$slots.get(name);
+      if (!current?.some((entry) => entry.pluginId === plugin.pluginId)) {
+        return;
+      }
+      const next = current.map((entry) =>
+        entry.pluginId === plugin.pluginId
+          ? { ...entry, version: ++this._slotEntryVersion }
+          : entry,
+      );
+      this.$slots.set(name, next);
+    });
 
     this.pluginBridge.addHostMethod(
       "refreshFeedFilters",
@@ -848,6 +884,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
+    this.localDataStore.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 

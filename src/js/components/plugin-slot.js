@@ -14,9 +14,6 @@ class PluginSlot extends Component {
     if (!this.pluginService) {
       throw new Error("pluginService is required");
     }
-    if (!this.interactionHandlers) {
-      throw new Error("interactionHandlers is required");
-    }
     this._pluginRoots = new Map();
     this._currentRequest = null;
     this._subscribe();
@@ -42,7 +39,7 @@ class PluginSlot extends Component {
 
   // TODO - automatic?
   static get observedAttributes() {
-    return ["name", "context-uri"];
+    return ["name", "context-uri", "context-did"];
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -68,6 +65,7 @@ class PluginSlot extends Component {
     const slotName = this.getAttribute("name");
     if (!slotName) return;
     const context = this._getContext();
+    const contextKey = JSON.stringify(context);
     const entries = this.pluginService.getSlotEntries(slotName);
 
     const requestToken = Symbol();
@@ -84,8 +82,18 @@ class PluginSlot extends Component {
       return;
     }
 
+    // Only re-invoke a plugin when its entry version changed
+    // or the context changed - otherwise use cached response
     const results = await Promise.all(
       entries.map(async (entry) => {
+        const cached = this._pluginRoots.get(entry.pluginId);
+        if (
+          cached &&
+          cached.version === entry.version &&
+          cached.contextKey === contextKey
+        ) {
+          return { entry, node: null, reuseCached: true };
+        }
         try {
           const node = await entry.invoke(context);
           return { entry, node };
@@ -102,9 +110,12 @@ class PluginSlot extends Component {
     if (this._currentRequest !== requestToken) return;
 
     const nextChildren = [];
-    for (const { entry, node } of results) {
-      if (!node) continue;
+    for (const { entry, node, reuseCached } of results) {
       let state = this._pluginRoots.get(entry.pluginId);
+      if (reuseCached) {
+        if (state.element) nextChildren.push(state.element);
+        continue;
+      }
       if (!state) {
         const renderer = this.pluginService.getRenderer(entry.pluginId);
         state = {
@@ -112,8 +123,10 @@ class PluginSlot extends Component {
         };
         this._pluginRoots.set(entry.pluginId, state);
       }
-      const element = state.root.render(node);
-      nextChildren.push(element);
+      state.version = entry.version;
+      state.contextKey = contextKey;
+      state.element = node ? state.root.render(node) : null;
+      if (state.element) nextChildren.push(state.element);
     }
     this.replaceChildren(...nextChildren);
   }

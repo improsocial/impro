@@ -22,7 +22,7 @@ import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { avatarGroupTemplate } from "/js/templates/avatarGroup.template.js";
 import { verificationBadgeTemplate } from "/js/templates/verificationBadge.template.js";
 import { automatedAccountBadgeTemplate } from "/js/templates/automatedAccountBadge.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import {
   postEmbedTemplate,
   recordEmbedTemplate,
@@ -1115,7 +1115,6 @@ class ChatDetailView extends View {
         !!profile.viewer?.followedBy &&
         !profile.viewer?.blocking &&
         !profile.viewer?.blockedBy;
-      const hasBadgeLabels = !!profile.badgeLabels?.length;
       return html`<div class="chat-info-panel" data-testid="chat-info-panel">
         ${avatarTemplate({ author: profile })}
         <div class="chat-info-panel-name">
@@ -1134,9 +1133,11 @@ class ChatDetailView extends View {
               Follows you
             </div>`
           : ""}
-        ${hasBadgeLabels
-          ? labelBadgesTemplate({ badgeLabels: profile.badgeLabels })
-          : ""}
+        ${authorBadgesTemplate({
+          badgeLabels: profile.badgeLabels,
+          did: profile.did,
+          pluginService,
+        })}
         <a
           class="rounded-button chat-info-panel-go-to-profile-button"
           data-testid="chat-info-panel-go-to-profile"

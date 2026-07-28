@@ -12,7 +12,7 @@ import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { closeWithAnimation } from "/js/dialogHelpers.js";
 import "/js/components/plugin-rich-text.js";
 import { postHeaderTextTemplate } from "/js/templates/postHeaderText.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { linkToPost, linkToFeed } from "/js/navigation.js";
 import { moderationWarningTemplate } from "/js/templates/moderationWarning.template.js";
 import "/js/components/container-link.js";
@@ -218,11 +218,14 @@ export function quotedPostTemplate({
             ${postHeaderTextTemplate({
               author: quotedPost.author,
               timestamp: quotedPost.indexedAt,
+              enableProfileLink: false,
             })}
           </div>
-          ${quotedPost.badgeLabels
-            ? labelBadgesTemplate({ badgeLabels: quotedPost.badgeLabels })
-            : ""}
+          ${authorBadgesTemplate({
+            badgeLabels: quotedPost.badgeLabels,
+            did: quotedPost.author?.did,
+            pluginService,
+          })}
           <div class="quoted-post-body">
             ${postText.length > 0
               ? html`<div class="post-text">

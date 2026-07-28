@@ -52,15 +52,9 @@ describe("plugin-slot", () => {
     };
   }
 
-  function makeSlot({
-    pluginService,
-    name,
-    context = {},
-    interactionHandlers,
-  }) {
+  function makeSlot({ pluginService, name, context = {} }) {
     const element = document.createElement("plugin-slot");
     element.pluginService = pluginService;
-    element.interactionHandlers = interactionHandlers ?? {};
     element.setAttribute("name", name);
     for (const [key, value] of Object.entries(context)) {
       element.setAttribute(`context-${key}`, value);
@@ -256,12 +250,148 @@ describe("plugin-slot", () => {
       assert.deepEqual(captured, ["at://one", "at://two"]);
       assert.deepEqual(slot.children[0].textContent, "at://two");
     });
+
+    it("re-renders when context-did changes on an existing element", async () => {
+      const captured = [];
+      const pluginService = makePluginService({
+        entries: {
+          "author-badges": [
+            {
+              pluginId: "alpha",
+              invoke: async (context) => {
+                captured.push(context.did);
+                return { tag: "div", text: context.did };
+              },
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(captured, ["did:plc:one"]);
+
+      slot.setAttribute("context-did", "did:plc:two");
+      await flushMicrotasks();
+      assert.deepEqual(captured, ["did:plc:one", "did:plc:two"]);
+      assert.deepEqual(slot.children[0].textContent, "did:plc:two");
+    });
+
+    it("supports multiple simultaneous instances of the same slot name, each with its own context", async () => {
+      const captured = [];
+      const pluginService = makePluginService({
+        entries: {
+          "author-badges": [
+            {
+              pluginId: "alpha",
+              invoke: async (context) => {
+                captured.push(context.did);
+                return { tag: "div", text: context.did };
+              },
+            },
+          ],
+        },
+      });
+      const slotOne = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:one" },
+      });
+      const slotTwo = makeSlot({
+        pluginService,
+        name: "author-badges",
+        context: { did: "did:plc:two" },
+      });
+      document.body.appendChild(slotOne);
+      document.body.appendChild(slotTwo);
+      await flushMicrotasks();
+      assert.deepEqual(
+        new Set(captured),
+        new Set(["did:plc:one", "did:plc:two"]),
+      );
+      assert.deepEqual(slotOne.children[0].textContent, "did:plc:one");
+      assert.deepEqual(slotTwo.children[0].textContent, "did:plc:two");
+    });
   });
 
-  describe("PluginSlot - interactionHandlers", () => {
-    it("throws when interactionHandlers is not set", () => {
+  describe("PluginSlot - per-plugin refresh", () => {
+    function makeVersionedEntries() {
+      const invokeCounts = { alpha: 0, beta: 0 };
+      const entries = [
+        {
+          pluginId: "alpha",
+          version: 0,
+          invoke: async () => {
+            invokeCounts.alpha += 1;
+            return { tag: "div", text: `A${invokeCounts.alpha}` };
+          },
+        },
+        {
+          pluginId: "beta",
+          version: 0,
+          invoke: async () => {
+            invokeCounts.beta += 1;
+            return { tag: "div", text: `B${invokeCounts.beta}` };
+          },
+        },
+      ];
+      return { entries, invokeCounts };
+    }
+
+    it("re-invokes only the plugin whose entry version was bumped", async () => {
+      const { entries, invokeCounts } = makeVersionedEntries();
+      const pluginService = makePluginService({ entries: { x: entries } });
+      const slot = makeSlot({ pluginService, name: "x" });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(invokeCounts, { alpha: 1, beta: 1 });
+      const betaElement = slot.children[1];
+
+      entries[0].version += 1;
+      pluginService.setSlotEntries("x", entries);
+      await flushMicrotasks();
+      assert.deepEqual(invokeCounts, { alpha: 2, beta: 1 });
+      assert.deepEqual(slot.children[0].textContent, "A2");
+      assert.equal(slot.children[1], betaElement);
+    });
+
+    it("does not re-invoke any plugin when the list is re-set unchanged", async () => {
+      const { entries, invokeCounts } = makeVersionedEntries();
+      const pluginService = makePluginService({ entries: { x: entries } });
+      const slot = makeSlot({ pluginService, name: "x" });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      pluginService.setSlotEntries("x", entries);
+      await flushMicrotasks();
+      assert.deepEqual(invokeCounts, { alpha: 1, beta: 1 });
+      assert.deepEqual(slot.children.length, 2);
+    });
+
+    it("still re-invokes every plugin when the context changes", async () => {
+      const { entries, invokeCounts } = makeVersionedEntries();
+      const pluginService = makePluginService({ entries: { x: entries } });
+      const slot = makeSlot({
+        pluginService,
+        name: "x",
+        context: { uri: "at://one" },
+      });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+
+      slot.setAttribute("context-uri", "at://two");
+      await flushMicrotasks();
+      assert.deepEqual(invokeCounts, { alpha: 2, beta: 2 });
+    });
+  });
+
+  describe("PluginSlot - initialization", () => {
+    it("throws when pluginService is not set", () => {
       const element = document.createElement("plugin-slot");
-      element.pluginService = makePluginService();
       element.setAttribute("name", "x");
       let caught = null;
       try {
@@ -270,7 +400,7 @@ describe("plugin-slot", () => {
         caught = error;
       }
       assert(caught instanceof Error);
-      assert.deepEqual(caught.message, "interactionHandlers is required");
+      assert.deepEqual(caught.message, "pluginService is required");
     });
   });
 

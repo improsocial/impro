@@ -17,7 +17,7 @@ import { repostIconTemplate } from "/js/templates/icons/repostIcon.template.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { infoIconTemplate } from "/js/templates/icons/infoIcon.template.js";
 import { cornerDownRightIconTemplate } from "/js/templates/icons/cornerDownRightIcon.template.js";
-import { labelBadgesTemplate } from "/js/templates/labelBadges.template.js";
+import { authorBadgesTemplate } from "/js/templates/labelBadges.template.js";
 import { blockedPostTemplate } from "/js/templates/blockedPost.template.js";
 import { notFoundPostTemplate } from "/js/templates/notFoundPost.template.js";
 import { unavailablePostTemplate } from "/js/templates/unavailablePost.template.js";
@@ -160,9 +160,11 @@ export function smallPostTemplate({
             author: post.author,
             timestamp: post.indexedAt,
           })}
-          ${post.badgeLabels
-            ? labelBadgesTemplate({ badgeLabels: post.badgeLabels })
-            : ""}
+          ${authorBadgesTemplate({
+            badgeLabels: post.badgeLabels,
+            did: post.author?.did,
+            pluginService,
+          })}
           ${showReplyToLabel
             ? replyToLabelTemplate({
                 currentUser,

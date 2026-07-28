@@ -326,6 +326,7 @@ class ListDetailView extends View {
                           isAuthenticated,
                           currentUserDid: currentUser?.did ?? null,
                           profileInteractionHandler,
+                          pluginService,
                           ...(isCurateList ? {} : { rightItemTemplate: null }),
                         })}
                         ${members?.length === 0 && isCurrentUserList

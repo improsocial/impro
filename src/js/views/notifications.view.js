@@ -270,6 +270,7 @@ class NotificationsView extends View {
                       currentUserDid: dataLayer.derived.$currentUser.get()?.did,
                       profileInteractionHandler:
                         interactionHandlers.profileInteractionHandler,
+                      pluginService,
                     },
                   );
                 }}
