@@ -1,111 +1,100 @@
 import { html } from "/js/lib/lit-html.js";
+import { Modal } from "/js/modals/modal.js";
 import { confirmModal } from "/js/modals/confirm.modal.js";
-import { closeWithAnimation } from "/js/dialogHelpers.js";
+
+// Resolution value for programmatic closes (hidePluginModal), which should
+// skip the plugin's onDismiss.
+const PROGRAMMATIC_HIDDEN = Symbol("plugin-modal-hidden");
 
 const pluginModals = new Map();
 
-export function showPluginModal({
+class PluginModal extends Modal {
+  get className() {
+    return "bottom-sheet text-modal plugin-modal";
+  }
+
+  get attributes() {
+    return { "data-plugin-id": this.options.pluginId };
+  }
+
+  render({ props }) {
+    return props.contentEl;
+  }
+}
+
+function buildModalTree(pluginRenderer, title, content) {
+  const hasTitle = !pluginRenderer.isEmptyNode(title);
+  const titleNode = {
+    type: "element",
+    tag: "div",
+    attrs: hasTitle ? { class: "modal-dialog-title" } : {},
+    styles: hasTitle ? {} : { display: "none" },
+    children: hasTitle ? [title] : [],
+  };
+  let childNodes = [];
+  if (content?.children?.length) {
+    childNodes = content.children;
+  } else if (!pluginRenderer.isEmptyNode(content)) {
+    childNodes = [content];
+  }
+  return {
+    type: "element",
+    tag: "div",
+    attrs: { class: "modal-dialog-content" },
+    children: [titleNode, ...childNodes],
+  };
+}
+
+export function showPluginModal(options) {
+  const {
+    pluginRenderer,
+    pluginId,
+    modalId,
+    title,
+    content,
+    onDismiss = () => {},
+  } = options;
+  const key = `${pluginId}:${modalId}`;
+  const existing = pluginModals.get(key);
+  if (existing) {
+    if (existing.modal.closing) {
+      existing.nextOpen = options;
+    }
+    return;
+  }
+
+  const root = pluginRenderer.createRoot();
+  const contentEl = root.render(buildModalTree(pluginRenderer, title, content));
+  const entry = {
+    modal: new PluginModal({ pluginId, contentEl }),
+    root,
+    nextOpen: null,
+  };
+  pluginModals.set(key, entry);
+  entry.modal.open().then((value) => {
+    pluginModals.delete(key);
+    if (value !== PROGRAMMATIC_HIDDEN) onDismiss();
+    if (entry.nextOpen) showPluginModal(entry.nextOpen);
+  });
+}
+
+export function updatePluginModal({
   pluginRenderer,
   pluginId,
   modalId,
   title,
   content,
-  onDismiss = () => {},
 }) {
-  let modal = pluginModals.get(`${pluginId}:${modalId}`);
-  if (modal?.isOpen) return;
-  if (modal?.isDismissing) {
-    modal.nextOpen = {
-      pluginRenderer,
-      pluginId,
-      modalId,
-      title,
-      content,
-      onDismiss,
-    };
-    return;
-  }
-
-  if (!modal) {
-    const dialog = document.createElement("dialog");
-    dialog.classList.add("modal-dialog", "plugin-modal");
-    dialog.dataset.pluginId = pluginId;
-
-    const contentEl = document.createElement("div");
-    contentEl.classList.add("modal-dialog-content");
-    dialog.appendChild(contentEl);
-
-    modal = {
-      dialog,
-      contentEl,
-      isOpen: false,
-      isDismissing: false,
-      nextOpen: null,
-    };
-    let userDismissed = false;
-    // Teardown runs on every close — including the router closing it on
-    // navigation, which bypasses the dismiss() wrapper below. This dialog is
-    // created once and reused across opens, so the listener stays attached.
-    dialog.addEventListener("close", () => {
-      modal.isOpen = false;
-      modal.isDismissing = false;
-      if (userDismissed) {
-        userDismissed = false;
-        modal.onDismiss();
-      }
-      const nextOpen = modal.nextOpen;
-      modal.nextOpen = null;
-      if (nextOpen) showPluginModal(nextOpen);
-    });
-    modal.dismiss = () => closeWithAnimation(dialog);
-
-    function dismiss() {
-      if (!modal.isOpen) return;
-      userDismissed = true;
-      modal.isDismissing = true;
-      return modal.dismiss();
-    }
-
-    dialog.addEventListener("click", (event) => {
-      if (event.target.tagName === "DIALOG") dismiss();
-    });
-    dialog.addEventListener("cancel", (event) => {
-      event.preventDefault();
-      dismiss();
-    });
-
-    pluginModals.set(`${pluginId}:${modalId}`, modal);
-    document.body.appendChild(dialog);
-  }
-
-  modal.onDismiss = onDismiss;
-  modal.contentEl.replaceChildren();
-  if (!pluginRenderer.isEmptyNode(title)) {
-    const titleEl = pluginRenderer.createRoot().render(title);
-    if (titleEl.nodeType === Node.ELEMENT_NODE) {
-      titleEl.classList.add("modal-dialog-title");
-    }
-    modal.contentEl.appendChild(titleEl);
-  }
-  if (content?.children?.length) {
-    for (const childNode of content.children) {
-      modal.contentEl.appendChild(
-        pluginRenderer.createRoot().render(childNode),
-      );
-    }
-  } else if (!pluginRenderer.isEmptyNode(content)) {
-    modal.contentEl.appendChild(pluginRenderer.createRoot().render(content));
-  }
-  modal.isOpen = true;
-  modal.dialog.showModal();
+  const entry = pluginModals.get(`${pluginId}:${modalId}`);
+  if (!entry || entry.modal.closing) return;
+  entry.root.render(buildModalTree(pluginRenderer, title, content));
 }
 
 export function hidePluginModal({ pluginId, modalId }) {
-  const modal = pluginModals.get(`${pluginId}:${modalId}`);
-  if (modal && modal.isOpen) {
-    modal.isDismissing = true;
-    modal.dismiss();
-  }
+  const entry = pluginModals.get(`${pluginId}:${modalId}`);
+  if (!entry) return;
+  entry.nextOpen = null;
+  entry.modal.dismiss(PROGRAMMATIC_HIDDEN);
 }
 
 const ACTION_LABELS = {

@@ -6,7 +6,7 @@ import { enableDragToDismiss } from "/js/dragHelpers.js";
 export class Modal {
   static async open(...args) {
     const instance = new this(...args);
-    return instance._mount();
+    return instance.open();
   }
 
   constructor(options = {}) {
@@ -37,17 +37,23 @@ export class Modal {
     return null;
   }
 
+  get closing() {
+    if (!this.dialog) return false;
+    return !this.dialog.open || this.dialog.hasAttribute("data-closing");
+  }
+
   render() {
     throw new Error(`${this.constructor.name} must implement render()`);
   }
 
-  _mount() {
+  open() {
     return new Promise((resolve) => {
       const dialog = document.createElement("dialog");
       dialog.className = this.className;
       for (const [key, value] of Object.entries(this.attributes)) {
         dialog.setAttribute(key, value);
       }
+      this.dialog = dialog;
 
       let scrollLock = null;
       let resolved = false;
@@ -66,6 +72,7 @@ export class Modal {
         dismissValue = value;
         return closeWithAnimation(dialog);
       };
+      this.dismiss = dismiss;
       const dismissIfAllowed = () => {
         if (this.canDismiss()) dismiss();
       };

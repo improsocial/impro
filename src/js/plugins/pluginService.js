@@ -1,6 +1,7 @@
 import { PluginBridge } from "/js/plugins/pluginBridge.js";
 import {
   showPluginModal,
+  updatePluginModal,
   hidePluginModal,
   showPluginInstallPermissionsModal,
   showPluginUpdatePermissionsModal,
@@ -357,6 +358,19 @@ export class PluginService extends ReactiveStore {
               modalId,
             });
           },
+        });
+      },
+    );
+
+    this.pluginBridge.addHostMethod(
+      "updateModal",
+      (plugin, { modalId, title, content }) => {
+        updatePluginModal({
+          pluginRenderer: this.getRenderer(plugin.pluginId),
+          pluginId: plugin.pluginId,
+          modalId,
+          title,
+          content,
         });
       },
     );
