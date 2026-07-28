@@ -12,7 +12,7 @@ import {
   FOLLOWING_FEED_URI,
   LOGGED_OUT_FEED_URI,
 } from "/js/config.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { WelcomeModal } from "/js/modals/welcome.modal.js";
@@ -203,6 +203,16 @@ class HomeView extends View {
     bindToPage(root, layout, "active-nav-click", (event) => {
       event.preventDefault();
       scrollAndReloadFeed();
+    });
+
+    const $currentPinnedItem = new Signal.Computed(() => {
+      const pinnedItems = dataLayer.derived.$hydratedPinnedItems.get() ?? [];
+      const currentFeedUri = state.$currentFeedUri.get();
+      return pinnedItems.find((item) => item.uri === currentFeedUri);
+    });
+
+    bindPageTitle(root, () => {
+      return $currentPinnedItem.get()?.displayName ?? null;
     });
 
     pageEffect(root, () => {

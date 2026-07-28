@@ -422,7 +422,7 @@ describe("filterAuthorFeed", () => {
     );
   });
 
-  it("should filter out items with blocked reply parent", () => {
+  it("should keep items with blocked reply parent", () => {
     const items = [
       createFeedItem({
         post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
@@ -442,14 +442,10 @@ describe("filterAuthorFeed", () => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assert.deepEqual(result.feed.length, 1);
-    assert.deepEqual(
-      result.feed[0].post.uri,
-      "at://did:plc:test/app.bsky.feed.post/2",
-    );
+    assert.deepEqual(result.feed.length, 2);
   });
 
-  it("should filter out items with not-found reply root", () => {
+  it("should keep items with not-found reply root", () => {
     const items = [
       createFeedItem({
         post: { uri: "at://did:plc:test/app.bsky.feed.post/1" },
@@ -469,11 +465,7 @@ describe("filterAuthorFeed", () => {
 
     const result = filterAuthorFeed(feed, true);
 
-    assert.deepEqual(result.feed.length, 1);
-    assert.deepEqual(
-      result.feed[0].post.uri,
-      "at://did:plc:test/app.bsky.feed.post/2",
-    );
+    assert.deepEqual(result.feed.length, 2);
   });
 
   it("should filter out posts hidden by viewer", () => {

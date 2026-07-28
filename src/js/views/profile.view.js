@@ -11,7 +11,7 @@ import { floatingComposeButtonTemplate } from "/js/templates/floatingComposeButt
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
 import { labelerSettingsTemplate } from "/js/templates/labelerSettings.template.js";
 import { ApiError } from "/js/api.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { AUTHOR_FEED_PAGE_SIZE, BSKY_LABELER_DID } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/tab-bar.js";
@@ -428,6 +428,16 @@ class ProfileView extends View {
     bindToPage(root, layout, "active-nav-click", (event) => {
       event.preventDefault();
       scrollAndReloadFeed();
+    });
+
+    bindPageTitle(root, () => {
+      const profile =
+        dataLayer.derived.$hydratedDetailedProfiles.get(profileDid);
+      if (!profile) return null;
+      if (profile.displayName) {
+        return `${profile.displayName} (@${profile.handle})`;
+      }
+      return `@${profile.handle}`;
     });
 
     pageEffect(root, () => {

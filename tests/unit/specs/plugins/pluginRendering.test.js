@@ -52,6 +52,24 @@ describe("PluginRenderer:render with fresh roots", () => {
     assert.deepEqual(element.getAttribute("dids"), "did:test:a,did:test:b");
   });
 
+  it("stamps renderContext onto host components", () => {
+    const { bridge } = makeBridge();
+    const renderContext = { dataLayer: {} };
+    const renderer = new PluginRenderer(bridge, "demo", renderContext);
+    const profilesList = renderer.createRoot().render({
+      tag: "plugin-profiles-list",
+      attrs: { dids: "did:test:a" },
+    });
+    const postsFeed = renderer.createRoot().render({
+      tag: "plugin-posts-feed",
+      attrs: { uris: "at://a" },
+    });
+    assert(profilesList.renderContext === renderContext);
+    assert(postsFeed.renderContext === renderContext);
+    const plainDiv = renderer.createRoot().render({ tag: "div" });
+    assert.deepEqual(plainDiv.renderContext, undefined);
+  });
+
   it("drops disallowed attributes from <plugin-profiles-list>", () => {
     const { bridge } = makeBridge();
     const renderer = new PluginRenderer(bridge, "demo");

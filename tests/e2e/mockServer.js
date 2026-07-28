@@ -1163,6 +1163,32 @@ export class MockServer {
       });
     });
 
+    await page.route("**/xrpc/chat.bsky.convo.muteConvo*", (route) => {
+      const body = route.request().postDataJSON();
+      const convo = this.convos.find((c) => c.id === body?.convoId);
+      if (convo) {
+        convo.muted = true;
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ convo: convo ?? null }),
+      });
+    });
+
+    await page.route("**/xrpc/chat.bsky.convo.unmuteConvo*", (route) => {
+      const body = route.request().postDataJSON();
+      const convo = this.convos.find((c) => c.id === body?.convoId);
+      if (convo) {
+        convo.muted = false;
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ convo: convo ?? null }),
+      });
+    });
+
     await page.route(
       "**/xrpc/chat.bsky.convo.getConvoAvailability*",
       (route) => {

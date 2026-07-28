@@ -11,7 +11,7 @@ import "/js/components/tab-bar.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
 import { userPlusIconTemplate } from "/js/templates/icons/userPlusIcon.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { FEED_PAGE_SIZE } from "/js/config.js";
 import { showToast } from "/js/toasts.js";
 import "/js/components/infinite-scroll-container.js";
@@ -104,6 +104,10 @@ class ListDetailView extends View {
         </context-menu>
       `;
     }
+
+    bindPageTitle(root, () => {
+      return dataLayer.derived.$lists.get(listUri)?.name ?? null;
+    });
 
     pageEffect(root, () => {
       const showLessInteractions =

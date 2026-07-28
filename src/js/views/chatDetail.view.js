@@ -1,5 +1,5 @@
 import { View } from "/js/views/view.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { html, render, ref } from "/js/lib/lit-html.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { richTextTemplate } from "/js/templates/richText.template.js";
@@ -54,6 +54,7 @@ import "/js/components/emoji-picker-dialog.js";
 import "/js/components/reactions-dialog.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
+import "/js/components/app-icon.js";
 class ChatDetailView extends View {
   async render({
     root,
@@ -222,7 +223,7 @@ class ChatDetailView extends View {
       return html`
         <context-menu-item
           data-testid="message-action-reply"
-          icon="reply"
+          icon="corner-down-right-line"
           @click=${() => setReply(message)}
         >
           Reply
@@ -1354,6 +1355,8 @@ class ChatDetailView extends View {
       router.go("/messages");
     });
 
+    bindPageTitle(root, () => "Chat");
+
     pageEffect(root, () => {
       const currentUser = dataLayer.derived.$currentUser.get();
       const convo = dataLayer.derived.$convos.get(convoId);
@@ -1412,6 +1415,14 @@ class ChatDetailView extends View {
             },
             title,
             subtitle,
+            titleRightItemTemplate: convo?.muted
+              ? () =>
+                  html`<app-icon
+                    class="header-title-muted-icon"
+                    icon="bell-off"
+                    data-testid="header-muted-icon"
+                  ></app-icon>`
+              : null,
             titleHref:
               groupDetails && canViewGroupDetails
                 ? linkToGroupChatDetails(convoId)

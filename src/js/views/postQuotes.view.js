@@ -3,7 +3,7 @@ import { View } from "/js/views/view.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { formatLargeNumber } from "/js/utils.js";
 import { postFeedTemplate } from "/js/templates/postFeed.template.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 
 class PostQuotesView extends View {
   async render({
@@ -87,6 +87,8 @@ class PostQuotesView extends View {
         root,
       );
     });
+
+    bindPageTitle(root, () => "Quoted by");
 
     async function loadQuotes() {
       const postQuotes = dataLayer.derived.$hydratedPostQuotes.get(postUri);

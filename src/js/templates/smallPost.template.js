@@ -68,6 +68,24 @@ function contentWarningTemplate({
   return children;
 }
 
+function replyToLabelTemplate({ currentUser, replyToAuthor, replyToBlocked }) {
+  let repliedTo;
+  if (replyToBlocked) {
+    repliedTo = "a blocked post";
+  } else if (!replyToAuthor) {
+    repliedTo = "a post";
+  } else if (replyToAuthor.did === currentUser?.did) {
+    repliedTo = "you";
+  } else {
+    repliedTo = html`<a href="${linkToProfile(replyToAuthor)}"
+      >${getDisplayName(replyToAuthor)}</a
+    >`;
+  }
+  return html`<div class="reply-to-author" data-testid="reply-to-label">
+    ${cornerDownRightIconTemplate()} Replied to ${repliedTo}
+  </div>`;
+}
+
 export function smallPostTemplate({
   post,
   currentUser,
@@ -86,6 +104,7 @@ export function smallPostTemplate({
   enableFeedFeedback = false,
   showReplyToLabel = false,
   replyToAuthor = null,
+  replyToBlocked = false,
   lazyLoadImages = false,
   pluginService,
 }) {
@@ -153,16 +172,11 @@ export function smallPostTemplate({
               ></plugin-slot>`
             : ""}
           ${showReplyToLabel
-            ? html`<div class="reply-to-author">
-                ${cornerDownRightIconTemplate()} Replied to
-                ${replyToAuthor
-                  ? replyToAuthor.did === currentUser?.did
-                    ? " you"
-                    : html` <a href="${linkToProfile(replyToAuthor)}"
-                        >${getDisplayName(replyToAuthor)}</a
-                      >`
-                  : " user"}
-              </div>`
+            ? replyToLabelTemplate({
+                currentUser,
+                replyToAuthor,
+                replyToBlocked,
+              })
             : ""}
           ${contentWarningTemplate({
             post,

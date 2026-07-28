@@ -190,3 +190,83 @@ export class MockFetch {
     return fetch;
   }
 }
+
+// JSDOM has no IndexedDB; this minimal fake covers the subset KVIndexedDB uses
+// (open/transaction/objectStore/put/get/getKey/delete).
+class FakeIDBRequest {
+  constructor() {
+    this.onsuccess = null;
+    this.onerror = null;
+    this.onupgradeneeded = null;
+  }
+  _resolve(result) {
+    this.result = result;
+    queueMicrotask(() => this.onsuccess?.());
+  }
+  _reject(error) {
+    this.error = error;
+    queueMicrotask(() => this.onerror?.());
+  }
+}
+
+class FakeObjectStore {
+  constructor(records, { failWrites = false } = {}) {
+    this.records = records;
+    this.failWrites = failWrites;
+  }
+  put(value, key) {
+    const request = new FakeIDBRequest();
+    if (this.failWrites) {
+      request._reject(new Error("QuotaExceededError"));
+    } else {
+      this.records.set(key, value);
+      request._resolve(undefined);
+    }
+    return request;
+  }
+  get(key) {
+    const request = new FakeIDBRequest();
+    request._resolve(this.records.get(key));
+    return request;
+  }
+  getKey(key) {
+    const request = new FakeIDBRequest();
+    request._resolve(this.records.has(key) ? key : undefined);
+    return request;
+  }
+  delete(key) {
+    const request = new FakeIDBRequest();
+    this.records.delete(key);
+    request._resolve(undefined);
+    return request;
+  }
+}
+
+export function installFakeIndexedDB({ failWrites = false } = {}) {
+  const records = new Map();
+  const openCalls = [];
+  const createdStores = [];
+  globalThis.indexedDB = {
+    open(dbName, version) {
+      openCalls.push({ dbName, version });
+      const request = new FakeIDBRequest();
+      const db = {
+        createObjectStore(storeName) {
+          createdStores.push(storeName);
+        },
+        transaction() {
+          return {
+            objectStore: () => new FakeObjectStore(records, { failWrites }),
+          };
+        },
+      };
+      request.result = db;
+      queueMicrotask(() => {
+        request.onupgradeneeded?.();
+        request.onsuccess?.();
+      });
+      return request;
+    },
+  };
+  return { records, openCalls, createdStores };
+}

@@ -392,6 +392,60 @@ describe("$hydratedAuthorFeeds", () => {
     assert.deepEqual(result.feed[0].post.uri, "post2");
   });
 
+  it("should pass through tombstone reply roots and parents unchanged", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const repliesFeedURI = `${did}-replies`;
+    const notFoundRoot = {
+      $type: "app.bsky.feed.defs#notFoundPost",
+      uri: "root",
+      notFound: true,
+    };
+    const blockedParent = {
+      $type: "app.bsky.feed.defs#blockedPost",
+      uri: "parent",
+      blocked: true,
+      author: { did: "did:plc:blocked", viewer: {} },
+    };
+    dataStore.$posts.set("post1", { uri: "post1" });
+    dataStore.$authorFeeds.set(repliesFeedURI, {
+      feed: [
+        {
+          post: { uri: "post1" },
+          reply: { root: notFoundRoot, parent: blockedParent },
+        },
+      ],
+      cursor: null,
+    });
+    const result = derived.$hydratedAuthorFeeds.get(repliesFeedURI);
+    assert.deepEqual(result.feed[0].reply.root, notFoundRoot);
+    assert.deepEqual(result.feed[0].reply.parent, blockedParent);
+  });
+
+  it("should hydrate postView reply roots and parents from the post store", () => {
+    const dataStore = new DataStore();
+    const { derived } = makeDerived(dataStore);
+    const repliesFeedURI = `${did}-replies`;
+    const rootPost = { uri: "root", likeCount: 3 };
+    dataStore.$posts.set("post1", { uri: "post1" });
+    dataStore.$posts.set("root", rootPost);
+    dataStore.$authorFeeds.set(repliesFeedURI, {
+      feed: [
+        {
+          post: { uri: "post1" },
+          reply: {
+            root: { $type: "app.bsky.feed.defs#postView", uri: "root" },
+            parent: { $type: "app.bsky.feed.defs#postView", uri: "root" },
+          },
+        },
+      ],
+      cursor: null,
+    });
+    const result = derived.$hydratedAuthorFeeds.get(repliesFeedURI);
+    assert.deepEqual(result.feed[0].reply.root.likeCount, 3);
+    assert.deepEqual(result.feed[0].reply.parent.likeCount, 3);
+  });
+
   it("should apply author feed patches", () => {
     const dataStore = new DataStore();
     const { derived, patchStore } = makeDerived(dataStore);

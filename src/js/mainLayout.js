@@ -48,7 +48,6 @@ function pluginPreviewBannerTemplate({ plugins }) {
 }
 import { Layout } from "/js/router.js";
 import "/js/components/animated-sidebar.js";
-import "/js/context-provider.js";
 
 export function mainLayoutTemplate({
   isAuthenticated = true,
@@ -63,12 +62,10 @@ export function mainLayoutTemplate({
   previewingPlugins = [],
   onLongPressProfile = null,
   groupChatLinkService,
-  pluginComponentContext,
 }) {
   return html`
-    <context-provider
-      context-id="plugin-component-context"
-      .context=${pluginComponentContext}
+    <div
+      class="main-layout-wrapper"
       @chat-join-link:click=${(e) =>
         groupChatLinkService.handleAction(
           e.detail.actionType,
@@ -104,7 +101,7 @@ export function mainLayoutTemplate({
         onClickActiveItem: onClickActiveNavItem,
         onLongPressProfile,
       })}
-    </context-provider>
+    </div>
   `;
 }
 
@@ -134,14 +131,7 @@ export class MainLayout extends Layout {
       accountSwitcherService,
       pluginService,
       groupChatLinkService,
-      interactionHandlers,
     } = this.context;
-    const pluginComponentContext = {
-      isAuthenticated,
-      dataLayer,
-      pluginService,
-      postInteractionHandler: interactionHandlers.postInteractionHandler,
-    };
     const { router, slot } = this;
 
     container.id = "main-layout";
@@ -189,7 +179,6 @@ export class MainLayout extends Layout {
           previewingPlugins,
           onLongPressProfile,
           groupChatLinkService,
-          pluginComponentContext,
         }),
         container,
       );

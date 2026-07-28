@@ -1,6 +1,6 @@
 import { View } from "/js/views/view.js";
 import { html, render } from "/js/lib/lit-html.js";
-import { pageEffect, bindToPage } from "/js/router.js";
+import { pageEffect, bindToPage, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { plusIconTemplate } from "/js/templates/icons/plusIcon.template.js";
@@ -228,6 +228,8 @@ class SettingsMutedWordsView extends View {
       event.preventDefault();
       router.go("/settings");
     });
+
+    bindPageTitle(root, () => "Muted words");
 
     pageEffect(root, () => {
       const preferences = dataLayer.derived.$preferences.get();

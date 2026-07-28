@@ -12,6 +12,10 @@ import {
   LocalPluginRegistry,
 } from "/js/plugins/pluginRegistry.js";
 import { PluginCache } from "/js/plugins/pluginCache.js";
+import {
+  PluginLocalDataStore,
+  PluginMemoryDataStore,
+} from "/js/plugins/pluginLocalDataStore.js";
 import { PluginPreferencesManager } from "/js/plugins/pluginPreferencesManager.js";
 import { SourceProvider } from "/js/plugins/sourceProvider.js";
 import { PluginStylesLoader } from "/js/plugins/pluginStylesLoader.js";
@@ -19,6 +23,7 @@ import { pluginFetch } from "/js/plugins/pluginRequests.js";
 import { Slingshot } from "/js/slingshot.js";
 import {
   getPermissionsFromManifest,
+  parsePermissions,
   diffPermissions,
   isEmptyPermissions,
   isActionAllowed,
@@ -119,6 +124,7 @@ export class PermissionsDeclinedError extends Error {
 export class PluginService extends ReactiveStore {
   constructor(preferencesProvider, session, dataLayer, hiddenFeedItemsStore) {
     super("pluginService");
+    this.renderContext = null;
     this.slingshot = new Slingshot();
     this.registries = {
       sidebarItems: new SignalSet(),
@@ -188,6 +194,9 @@ export class PluginService extends ReactiveStore {
       this.prefManager.$installedPlugins.get(),
     );
     this.session = session;
+    this.localDataStore = session?.did
+      ? new PluginLocalDataStore(session.did)
+      : new PluginMemoryDataStore();
     this.isPreviewMode = false;
     this._dataLayer = dataLayer;
     this._hiddenFeedItemsStore = hiddenFeedItemsStore;
@@ -207,8 +216,12 @@ export class PluginService extends ReactiveStore {
     });
   }
 
+  setRenderContext(renderContext) {
+    this.renderContext = renderContext;
+  }
+
   getRenderer(pluginId) {
-    return new PluginRenderer(this.pluginBridge, pluginId);
+    return new PluginRenderer(this.pluginBridge, pluginId, this.renderContext);
   }
 
   // icon can be string | VirtualEl
@@ -360,6 +373,14 @@ export class PluginService extends ReactiveStore {
       await this.prefManager.writeSettingsForPlugin(plugin.pluginId, data);
     });
 
+    this.pluginBridge.addHostMethod("loadLocalData", (plugin) => {
+      return this.localDataStore.get(plugin.pluginId);
+    });
+
+    this.pluginBridge.addHostMethod("saveLocalData", (plugin, { data }) => {
+      this.localDataStore.set(plugin.pluginId, data);
+    });
+
     this.pluginBridge.addHostMethod(
       "refreshSettingTab",
       (plugin, { reset = false } = {}) => {
@@ -423,7 +444,8 @@ export class PluginService extends ReactiveStore {
     });
 
     this.pluginBridge.addHostMethod("fetch", (plugin, { url, init }) => {
-      return pluginFetch(plugin, url, init);
+      const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+      return pluginFetch(permissions, url, init);
     });
 
     this.pluginBridge.addHostMethod("getPost", async (plugin, { uri }) => {
@@ -562,8 +584,14 @@ export class PluginService extends ReactiveStore {
     if (!this.session) throw new Error("Not signed in");
   }
 
+  _getPermissionsForPlugin(pluginId) {
+    const entry = this.prefManager.$installedPlugin.get(pluginId);
+    return parsePermissions(entry?.permissions ?? {});
+  }
+
   _requireActionPermission(plugin, action) {
-    if (!isActionAllowed(action, plugin.permissions)) {
+    const permissions = this._getPermissionsForPlugin(plugin.pluginId);
+    if (!isActionAllowed(action, permissions)) {
       throw new Error(
         `"${plugin.pluginId}" does not have "${action}" action permission`,
       );
@@ -856,6 +884,7 @@ export class PluginService extends ReactiveStore {
     this.pluginBridge.unloadPlugin(pluginId);
     await this.prefManager.removeInstalledPlugin(pluginId);
     await this.prefManager.clearSettingsForPlugin(pluginId);
+    this.localDataStore.clear(pluginId);
     await this._reconcileCache(this.prefManager.$installedPlugins.get());
   }
 

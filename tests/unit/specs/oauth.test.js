@@ -1,6 +1,6 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { MockFetch } from "../testHelpers.js";
+import { MockFetch, installFakeIndexedDB } from "../testHelpers.js";
 import {
   OauthClient,
   Session,
@@ -11,11 +11,28 @@ import {
 
 describe("oauth", () => {
   async function generateTestKeypair() {
-    return await globalThis.crypto.subtle.generateKey(
+    const keyPair = await globalThis.crypto.subtle.generateKey(
       { name: "ECDSA", namedCurve: "P-256" },
-      true,
+      false,
       ["sign", "verify"],
     );
+    const publicJwk = await globalThis.crypto.subtle.exportKey(
+      "jwk",
+      keyPair.publicKey,
+    );
+    return { privateKey: keyPair.privateKey, publicJwk };
+  }
+
+  async function loadClient(options = {}) {
+    return await OauthClient.load({
+      clientId: "https://app.example.com/client-metadata.json",
+      redirectUri: "https://app.example.com/callback",
+      ...options,
+    });
+  }
+
+  function getStoredKeypair() {
+    return fakeIdb.records.get("keypair");
   }
 
   function mockResponse({
@@ -87,8 +104,11 @@ describe("oauth", () => {
 
   const ORIGINAL_CONCURRENT_RECOVERY_MS = Session.concurrentRefreshRecoveryMs;
 
+  let fakeIdb;
+
   beforeEach(() => {
     globalThis.fetch = new MockFetch();
+    fakeIdb = installFakeIndexedDB();
     Session.refreshBackoffMs = 0;
     Session.concurrentRefreshRecoveryMs = 0;
   });
@@ -96,6 +116,7 @@ describe("oauth", () => {
   afterEach(() => {
     globalThis.localStorage.clear();
     delete globalThis.fetch;
+    delete globalThis.indexedDB;
     Session.refreshBackoffMs = ORIGINAL_REFRESH_BACKOFF_MS;
     Session.concurrentRefreshRecoveryMs = ORIGINAL_CONCURRENT_RECOVERY_MS;
   });
@@ -124,37 +145,123 @@ describe("oauth", () => {
   });
 
   describe("OauthClient.load", () => {
-    it("should generate and persist a DPoP keypair when not stored", async () => {
-      const client = await OauthClient.load({
-        clientId: "https://app.example.com/client-metadata.json",
-        redirectUri: "https://app.example.com/callback",
-      });
+    it("should generate a non-extractable keypair and persist it to IndexedDB", async () => {
+      const client = await loadClient();
       assert(client instanceof OauthClient);
       assert.deepEqual(
         client.clientId,
         "https://app.example.com/client-metadata.json",
       );
-      const stored = localStorage.getItem("dpop_keypair");
-      assert(stored !== null);
-      const parsed = JSON.parse(stored);
-      assert(parsed.pubkey);
-      assert(parsed.privkey);
-      assert.deepEqual(parsed.pubkey.kty, "EC");
-      assert.deepEqual(parsed.pubkey.crv, "P-256");
+      const stored = getStoredKeypair();
+      assert(stored !== undefined);
+      assert.deepEqual(stored.privateKey.extractable, false);
+      assert.deepEqual(stored.privateKey.usages, ["sign"]);
+      assert.deepEqual(stored.publicJwk.kty, "EC");
+      assert.deepEqual(stored.publicJwk.crv, "P-256");
+      assert.deepEqual(localStorage.getItem("dpop_keypair"), null);
     });
 
-    it("should reuse the existing DPoP keypair from localStorage", async () => {
-      await OauthClient.load({
-        clientId: "cid",
-        redirectUri: "ruri",
-      });
-      const firstStored = localStorage.getItem("dpop_keypair");
-      await OauthClient.load({
-        clientId: "cid",
-        redirectUri: "ruri",
-      });
-      const secondStored = localStorage.getItem("dpop_keypair");
-      assert.deepEqual(firstStored, secondStored);
+    it("should reuse the existing keypair from IndexedDB", async () => {
+      await loadClient();
+      const firstStored = getStoredKeypair();
+      const secondClient = await loadClient();
+      assert.deepEqual(getStoredKeypair(), firstStored);
+      assert.deepEqual(
+        secondClient.dpopRequests.dpopKeypair.privateKey,
+        firstStored.privateKey,
+      );
+    });
+
+    it("should generate a fresh in-memory keypair when storage is unavailable", async () => {
+      globalThis.indexedDB = {
+        open() {
+          const request = { onsuccess: null, onerror: null };
+          queueMicrotask(() => {
+            request.error = new Error("idb unavailable");
+            request.onerror?.();
+          });
+          return request;
+        },
+      };
+      const client = await loadClient();
+      assert(client.dpopRequests.dpopKeypair.privateKey !== undefined);
+      assert.deepEqual(client.dpopRequests.dpopKeypair.publicJwk.kty, "EC");
+    });
+  });
+
+  describe("DPoP keypair migration from localStorage", () => {
+    async function writeLegacyDPoPKeypair() {
+      const keyPair = await globalThis.crypto.subtle.generateKey(
+        { name: "ECDSA", namedCurve: "P-256" },
+        true,
+        ["sign", "verify"],
+      );
+      const pubkey = await globalThis.crypto.subtle.exportKey(
+        "jwk",
+        keyPair.publicKey,
+      );
+      const privkey = await globalThis.crypto.subtle.exportKey(
+        "jwk",
+        keyPair.privateKey,
+      );
+      localStorage.setItem("dpop_keypair", JSON.stringify({ pubkey, privkey }));
+      return { pubkey, privkey };
+    }
+
+    it("imports the localStorage JWK as non-extractable, persists it, and clears localStorage", async () => {
+      const { pubkey } = await writeLegacyDPoPKeypair();
+      const client = await loadClient();
+      assert.deepEqual(localStorage.getItem("dpop_keypair"), null);
+      const stored = getStoredKeypair();
+      assert.deepEqual(stored.privateKey.extractable, false);
+      assert.deepEqual(stored.privateKey.usages, ["sign"]);
+      assert.deepEqual(stored.publicJwk, pubkey);
+      assert.deepEqual(client.dpopRequests.dpopKeypair, stored);
+    });
+
+    it("re-migrates when a pre-migration tab rewrites the localStorage entry", async () => {
+      await writeLegacyDPoPKeypair();
+      await loadClient();
+      const { pubkey: rewrittenPubkey } = await writeLegacyDPoPKeypair();
+      await loadClient();
+      assert.deepEqual(localStorage.getItem("dpop_keypair"), null);
+      assert.deepEqual(getStoredKeypair().publicJwk, rewrittenPubkey);
+    });
+
+    it("keeps the localStorage entry and uses the imported keypair when persisting fails", async () => {
+      const { pubkey } = await writeLegacyDPoPKeypair();
+      installFakeIndexedDB({ failWrites: true });
+      const client = await loadClient();
+      assert(localStorage.getItem("dpop_keypair") !== null);
+      assert.deepEqual(client.dpopRequests.dpopKeypair.publicJwk, pubkey);
+    });
+
+    it("clears the localStorage entry and generates a fresh keypair when the import fails", async () => {
+      localStorage.setItem(
+        "dpop_keypair",
+        JSON.stringify({ pubkey: { kty: "EC" }, privkey: { kty: "bogus" } }),
+      );
+      await loadClient();
+      assert.deepEqual(localStorage.getItem("dpop_keypair"), null);
+      const stored = getStoredKeypair();
+      assert.deepEqual(stored.privateKey.extractable, false);
+      assert.deepEqual(stored.publicJwk.kty, "EC");
+      assert(stored.publicJwk.x !== undefined);
+    });
+
+    it("migrated keys sign working DPoP proofs", async () => {
+      const { pubkey } = await writeLegacyDPoPKeypair();
+      const client = await loadClient();
+      writeSession();
+      globalThis.fetch.__interceptJson(PDS_URL, { ok: true });
+      const session = await client.getSession();
+      await session.fetch("https://pds.example.com/xrpc/foo");
+      const proof = globalThis.fetch.calls.at(-1).options.headers.DPoP;
+      const proofJwk = JSON.parse(
+        atob(proof.split(".")[0].replace(/-/g, "+").replace(/_/g, "/")),
+      ).jwk;
+      assert.deepEqual(proofJwk.x, pubkey.x);
+      assert.deepEqual(proofJwk.y, pubkey.y);
     });
   });
 
@@ -359,6 +466,101 @@ describe("oauth", () => {
       assert.deepEqual(
         localStorage.getItem("oauth_current_did"),
         "did:plc:test",
+      );
+    });
+  });
+
+  describe("confidential client assertions", () => {
+    const AUTH_SERVER_METADATA = {
+      issuer: "https://auth.example.com",
+      token_endpoint: "https://auth.example.com/token",
+      revocation_endpoint: "https://auth.example.com/revoke",
+    };
+    const REVOKE_URL = "https://auth.example.com/revoke";
+    const ORIGINAL_ENV = window.env;
+
+    afterEach(() => {
+      window.env = ORIGINAL_ENV;
+    });
+
+    function interceptAssertion() {
+      globalThis.fetch.__interceptJson("/oauth/assertion", {
+        assertion: "signed-assertion",
+      });
+    }
+
+    function bodyParams(call) {
+      return new URLSearchParams(call.options.body);
+    }
+
+    async function refreshSession() {
+      const client = await buildClient();
+      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+      const session = await client.getSession();
+      globalThis.fetch.__interceptJson(TOKEN_URL, {
+        access_token: "new-at",
+        refresh_token: "new-rt",
+        expires_in: 3600,
+      });
+      await session.refreshToken();
+    }
+
+    it("attaches a fresh assertion to refresh requests in confidential mode", async () => {
+      window.env = { useConfidentialOauth: true };
+      interceptAssertion();
+      await refreshSession();
+      const assertionCall = globalThis.fetch.calls.find(
+        (call) => call.url === "/oauth/assertion",
+      );
+      assert.deepEqual(JSON.parse(assertionCall.options.body), {
+        aud: "https://auth.example.com",
+      });
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      const params = bodyParams(tokenCall);
+      assert.deepEqual(params.get("client_assertion"), "signed-assertion");
+      assert.deepEqual(
+        params.get("client_assertion_type"),
+        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      );
+    });
+
+    it("sends no assertion in public mode", async () => {
+      window.env = { useConfidentialOauth: false };
+      await refreshSession();
+      assert(
+        !globalThis.fetch.calls.some((call) => call.url === "/oauth/assertion"),
+      );
+      const tokenCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/token"),
+      );
+      assert.deepEqual(bodyParams(tokenCall).get("client_assertion"), null);
+    });
+
+    it("attaches an assertion to revocation requests in confidential mode", async () => {
+      window.env = { useConfidentialOauth: true };
+      interceptAssertion();
+      const client = await buildClient();
+      writeSession({ authServerMetadata: AUTH_SERVER_METADATA });
+      globalThis.fetch.__interceptJson(REVOKE_URL, {});
+      await client.revoke("did:plc:test");
+      const revokeCall = globalThis.fetch.calls.find((call) =>
+        call.url.includes("/revoke"),
+      );
+      const params = bodyParams(revokeCall);
+      assert.deepEqual(params.get("token"), "rt");
+      assert.deepEqual(params.get("client_assertion"), "signed-assertion");
+    });
+
+    it("fails refresh when the assertion endpoint errors", async () => {
+      window.env = { useConfidentialOauth: true };
+      globalThis.fetch.__intercept("/oauth/assertion", async () =>
+        mockResponse({ ok: false, status: 501 }),
+      );
+      await assert.rejects(
+        refreshSession(),
+        /Token refresh failed \(network\)/,
       );
     });
   });
@@ -1150,14 +1352,20 @@ describe("oauth", () => {
 
     it("is idempotent: a second load after migration changes nothing", async () => {
       writeLegacySession();
-      await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+      await OauthClient.load({
+        clientId: "cid",
+        redirectUri: "ruri",
+      });
       const snapshot = {
         session: localStorage.getItem("oauth_session:did:plc:legacy"),
         accounts: localStorage.getItem("oauth_accounts"),
         current: localStorage.getItem("oauth_current_did"),
         legacy: localStorage.getItem("oauth_session"),
       };
-      await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+      await OauthClient.load({
+        clientId: "cid",
+        redirectUri: "ruri",
+      });
       assert.deepEqual(
         localStorage.getItem("oauth_session:did:plc:legacy"),
         snapshot.session,
@@ -1181,7 +1389,10 @@ describe("oauth", () => {
           { did: "did:plc:other", handle: null, pdsUrl: "https://x" },
         ]),
       );
-      await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+      await OauthClient.load({
+        clientId: "cid",
+        redirectUri: "ruri",
+      });
       assert.deepEqual(localStorage.getItem("oauth_session"), null);
       const accounts = JSON.parse(localStorage.getItem("oauth_accounts"));
       assert.deepEqual(accounts.length, 1);
@@ -1189,7 +1400,10 @@ describe("oauth", () => {
     });
 
     it("creates no keys when there is no legacy or multi-account state", async () => {
-      await OauthClient.load({ clientId: "cid", redirectUri: "ruri" });
+      await OauthClient.load({
+        clientId: "cid",
+        redirectUri: "ruri",
+      });
       assert.deepEqual(localStorage.getItem("oauth_accounts"), null);
       assert.deepEqual(localStorage.getItem("oauth_current_did"), null);
     });

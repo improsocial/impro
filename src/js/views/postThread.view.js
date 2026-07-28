@@ -1,7 +1,7 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { sortBy, pinScrollPosition } from "/js/utils.js";
-import { bindToPage, pageEffect } from "/js/router.js";
+import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { mutedParentToggleTemplate } from "/js/templates/mutedParentToggle.template.js";
@@ -405,7 +405,7 @@ class PostThreadView extends View {
             ${hasBrokenReplyRef
               ? html`<div class="load-more-link">
                   <div class="load-more-spacer">
-                    <div class="reply-context-ellipsis"></div>
+                    <div class="reply-context-line-gap"></div>
                   </div>
                   <a
                     href=${linkToPostFromUri(replyParent.uri)}
@@ -532,6 +532,15 @@ class PostThreadView extends View {
           parent: null,
           replies: null,
         };
+      }
+      return null;
+    });
+
+    bindPageTitle(root, () => {
+      const postThread = state.$postThread.get();
+      const handle = postThread?.post?.author?.handle;
+      if (handle) {
+        return `Post by @${handle}`;
       }
       return null;
     });

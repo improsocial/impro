@@ -5,6 +5,16 @@ function getRootStyle() {
   return getComputedStyle(document.documentElement);
 }
 
+function resolveCssColor(value) {
+  const probe = document.createElement("div");
+  probe.style.color = value;
+  probe.style.display = "none";
+  document.documentElement.appendChild(probe);
+  const resolved = getComputedStyle(probe).color;
+  probe.remove();
+  return resolved;
+}
+
 export function getDefaultHighlightColor() {
   return getRootStyle().getPropertyValue("--blue");
 }
@@ -25,7 +35,7 @@ export class Theme {
   }
 
   getBackgroundColor() {
-    return getRootStyle().getPropertyValue("--background-color");
+    return resolveCssColor("var(--background-color)");
   }
 
   updateHighlightColor(highlightColor) {

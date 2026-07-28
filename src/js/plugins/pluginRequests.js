@@ -6,12 +6,12 @@ const FORBIDDEN_HEADERS = ["authorization", "cookie"];
 const MAX_BODY_CHARS = 1_000_000;
 
 export async function pluginFetch(
-  plugin,
+  permissions,
   url,
   init,
   fetchImpl = fetch.bind(globalThis),
 ) {
-  if (!isFetchAllowed(url, plugin.permissions)) {
+  if (!isFetchAllowed(url, permissions)) {
     throw new Error(`fetch to "${url}" not permitted`);
   }
   const response = await fetchImpl(url, {
