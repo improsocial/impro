@@ -16,6 +16,10 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v5
       - name: Use Node.js
@@ -23,5 +27,21 @@ jobs:
         with:
           node-version: "24.x"
       - run: npm install
-      - run: npx playwright install --with-deps chromium
-      - run: npm run test:e2e
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('./node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+      - run: npx playwright install --with-deps --only-shell chromium
+      - run: npm run test:e2e -- --shard=${{ matrix.shard }}/4
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-results-shard-${{ matrix.shard }}
+          path: tests/e2e/.results/
+          if-no-files-found: ignore
+          retention-days: 7
