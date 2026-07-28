@@ -11,7 +11,6 @@ import { auth, getLoginErrorMessage } from "/js/auth.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { chevronRightIconTemplate } from "/js/templates/icons/chevronRight.template.js";
 import { chevronUpIconTemplate } from "/js/templates/icons/chevronUp.template.js";
-import { classnames } from "/js/utils.js";
 import { linkToLogin } from "/js/navigation.js";
 import "/js/components/context-menu.js";
 import "/js/components/context-menu-item.js";
@@ -188,35 +187,30 @@ class SettingsView extends View {
         icon: eyeIconTemplate,
         label: "Appearance",
         url: "/settings/appearance",
-        enabled: true,
       },
       {
         key: "muted-words",
         icon: mutedWordIconTemplate,
         label: "Muted words",
         url: "/settings/muted-words",
-        enabled: true,
       },
       {
         key: "muted-accounts",
         icon: eyeSlashIconTemplate,
         label: "Muted accounts",
         url: "/settings/muted-accounts",
-        enabled: true,
       },
       {
         key: "blocked-accounts",
         icon: restrictedIconTemplate,
         label: "Blocked accounts",
         url: "/settings/blocked-accounts",
-        enabled: true,
       },
       {
         key: "advanced",
         icon: codeIconTemplate,
         label: "Advanced",
         url: "/settings/advanced",
-        enabled: true,
       },
     ];
 
@@ -306,9 +300,7 @@ class SettingsView extends View {
                 (item) => html`
                   <a
                     href="${item.url}"
-                    class=${classnames("vertical-nav-item", {
-                      disabled: !item.enabled,
-                    })}
+                    class="vertical-nav-item"
                     data-testid="settings-nav-${item.key}"
                   >
                     <span class="vertical-nav-icon">${item.icon()}</span>

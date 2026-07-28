@@ -7764,14 +7764,9 @@ context-menu-item-group > context-menu-item > button {
 }
 
 @media (hover: hover) {
-  .vertical-nav-item:hover:not(.disabled) {
+  .vertical-nav-item:hover {
     background: var(--post-hover-color);
   }
-}
-
-.vertical-nav-item.disabled {
-  opacity: 0.5;
-  pointer-events: none;
 }
 
 .vertical-nav-icon {
