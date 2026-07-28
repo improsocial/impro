@@ -233,6 +233,60 @@ test.describe("Chat detail view", () => {
     await expect(caption).toContainText("You replied to Alice");
   });
 
+  test("groups a follow-up message into the preceding reply's group", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "What time are we meeting?",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    const reply = createMessage({
+      id: "msg-2",
+      text: "Around 7pm",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:01:00.000Z",
+      replyTo: original,
+    });
+    const followUp = createMessage({
+      id: "msg-3",
+      text: "Maybe 7:30 actually",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:02:00.000Z",
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [followUp, reply, original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(3, {
+      timeout: 10000,
+    });
+    // The reply and its follow-up share one group (and one time label);
+    // Alice's original is its own group
+    const sentGroup = chatDetailView.locator(".message-group-sent");
+    await expect(sentGroup).toHaveCount(1);
+    await expect(sentGroup.locator(".message-bubble")).toHaveCount(2);
+    await expect(chatDetailView.locator(".message-group-time")).toHaveCount(2);
+    await expect(
+      chatDetailView.locator('[data-testid="message-reply-caption"]'),
+    ).toHaveCount(1);
+  });
+
   test("should render a subtle fallback when the quoted message has no text", async ({
     page,
   }) => {

@@ -605,13 +605,11 @@ class ChatDetailView extends View {
         }
         const senderDid = message.sender.did;
         const isCurrentUser = senderDid === currentUserDid;
-        const lastMessage = currentGroup?.messages.at(-1);
         if (
           !currentGroup ||
           currentGroup.senderDid !== senderDid ||
           differenceInMinutes(currentGroup.lastSentAt, message.sentAt) > 5 ||
-          message.replyTo ||
-          lastMessage?.replyTo
+          message.replyTo
         ) {
           // Start a new group
           currentGroup = {
