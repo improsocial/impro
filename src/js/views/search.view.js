@@ -21,10 +21,17 @@ class SearchView extends View {
     layout,
     context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
+    function getUrlQuery() {
+      return (
+        new URLSearchParams(window.location.search).get("q") ?? ""
+      ).trim();
+    }
+
+    const initialQuery = getUrlQuery();
     const state = new ReactiveStore("searchView");
     state.$activeTab = new Signal.State("top");
-    state.$inputValue = new Signal.State("");
-    state.$committedQuery = new Signal.State("");
+    state.$inputValue = new Signal.State(initialQuery);
+    state.$committedQuery = new Signal.State(initialQuery);
     state.$showTypeahead = new Signal.State(false);
 
     const tabScrollState = new Map();
@@ -77,14 +84,32 @@ class SearchView extends View {
         .catch((error) => console.warn("Typeahead search failed", error));
     }
 
+    function resetSearchState() {
+      state.$inputValue.set("");
+      state.$showTypeahead.set(false);
+      state.$committedQuery.set("");
+      loadedTabs.clear();
+      tabScrollState.clear();
+      const url = new URL(window.location);
+      url.searchParams.delete("q");
+      window.history.replaceState({}, "", url);
+      dataLayer.requests.loadSearchTypeahead("");
+      dataLayer.requests.loadProfileSearch("");
+      if (isAuthenticated) {
+        dataLayer.requests.loadPostSearchTop("");
+        dataLayer.requests.loadPostSearchLatest("");
+        dataLayer.requests.loadFeedSearch("");
+      }
+    }
+
     function handleInput(value) {
-      state.$inputValue.set(value);
       const trimmed = value.trim();
       if (!trimmed) {
-        state.$showTypeahead.set(false);
-        dataLayer.requests.loadSearchTypeahead("");
+        resetSearchState();
+        state.$inputValue.set(value);
         return;
       }
+      state.$inputValue.set(value);
       state.$showTypeahead.set(true);
       loadTypeahead(trimmed);
     }
@@ -107,21 +132,7 @@ class SearchView extends View {
     }
 
     function handleClearSearch() {
-      state.$inputValue.set("");
-      state.$showTypeahead.set(false);
-      state.$committedQuery.set("");
-      loadedTabs.clear();
-      tabScrollState.clear();
-      const url = new URL(window.location);
-      url.searchParams.delete("q");
-      window.history.replaceState({}, "", url);
-      dataLayer.requests.loadSearchTypeahead("");
-      dataLayer.requests.loadProfileSearch("");
-      if (isAuthenticated) {
-        dataLayer.requests.loadPostSearchTop("");
-        dataLayer.requests.loadPostSearchLatest("");
-        dataLayer.requests.loadFeedSearch("");
-      }
+      resetSearchState();
       root.querySelector(".search-input")?.focus();
     }
 
@@ -594,11 +605,11 @@ class SearchView extends View {
         const tab = query.get("tab");
         state.$activeTab.set(tab === "posts" ? "top" : tab);
       }
-      const q = query.get("q");
+      const q = getUrlQuery();
       if (q) {
         state.$inputValue.set(q);
         state.$showTypeahead.set(false);
-        state.$committedQuery.set(q.trim());
+        state.$committedQuery.set(q);
         loadedTabs.clear();
         tabScrollState.clear();
         loadTabIfNeeded(state.$activeTab.get());
@@ -606,6 +617,14 @@ class SearchView extends View {
     });
 
     root.addEventListener("page-restore", (event) => {
+      if (!event.detail?.isBack && !getUrlQuery()) {
+        state.$inputValue.set("");
+        state.$showTypeahead.set(false);
+        state.$committedQuery.set("");
+        loadedTabs.clear();
+        window.scrollTo(0, 0);
+        return;
+      }
       const scrollY = event.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
     });
