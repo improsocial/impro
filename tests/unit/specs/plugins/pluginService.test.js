@@ -1398,6 +1398,50 @@ describe("slot registry", () => {
     assert.deepEqual(calls, [{ handlerId: 7, args: [{ uri: "at://test" }] }]);
   });
 
+  it("never reuses an entry version for a later registration", () => {
+    const service = makeServiceWithRealBridge();
+    const dispose = register(service, makePlugin("alpha"), {
+      target: "slot",
+      name: "x",
+      handlerId: 1,
+    });
+    const firstVersion = service.getSlotEntries("x")[0].version;
+    dispose();
+    register(service, makePlugin("alpha"), {
+      target: "slot",
+      name: "x",
+      handlerId: 2,
+    });
+    assert.notEqual(service.getSlotEntries("x")[0].version, firstVersion);
+  });
+
+  it("warns and skips when a plugin registers the same slot twice", () => {
+    const service = makeServiceWithRealBridge();
+    const warnings = [];
+    const originalWarn = console.warn;
+    console.warn = (...args) => warnings.push(args.join(" "));
+    try {
+      register(service, makePlugin("alpha"), {
+        target: "slot",
+        name: "x",
+        handlerId: 1,
+      });
+      const dispose = register(service, makePlugin("alpha"), {
+        target: "slot",
+        name: "x",
+        handlerId: 2,
+      });
+      assert.deepEqual(dispose, null);
+      assert.deepEqual(warnings.length, 1);
+      assert(warnings[0].includes("alpha"));
+      const entries = service.getSlotEntries("x");
+      assert.deepEqual(entries.length, 1);
+      assert.deepEqual(entries[0].pluginId, "alpha");
+    } finally {
+      console.warn = originalWarn;
+    }
+  });
+
   it("dispose removes the entry and prunes the slot when empty", () => {
     const service = makeServiceWithRealBridge();
     const dispose = register(service, makePlugin("alpha"), {
@@ -1452,7 +1496,7 @@ describe("refreshSlot host method", () => {
     return service.pluginBridge._hostCallHandlers.get(name);
   }
 
-  it("triggers effects watching $slots for that name without changing its entries", () => {
+  it("bumps only the calling plugin's entry versions and re-sets the list", () => {
     const service = makeServiceWithRealBridge();
     register(
       service,
@@ -1463,7 +1507,19 @@ describe("refreshSlot host method", () => {
         handlerId: 1,
       },
     );
+    register(
+      service,
+      { pluginId: "beta", call: () => {} },
+      {
+        target: "slot",
+        name: "author-badges",
+        handlerId: 1,
+      },
+    );
     const before = service.$slots.get("author-badges");
+    const [alphaVersionBefore, betaVersionBefore] = before.map(
+      (entry) => entry.version,
+    );
     getHandler(service, "refreshSlot")(
       { pluginId: "alpha" },
       { name: "author-badges" },
@@ -1472,8 +1528,29 @@ describe("refreshSlot host method", () => {
     assert.notEqual(before, after);
     assert.deepEqual(
       after.map((entry) => entry.pluginId),
-      before.map((entry) => entry.pluginId),
+      ["alpha", "beta"],
     );
+    assert.notEqual(after[0].version, alphaVersionBefore);
+    assert.equal(after[1].version, betaVersionBefore);
+  });
+
+  it("dispose still removes the entry after a refresh replaced it", () => {
+    const service = makeServiceWithRealBridge();
+    const dispose = register(
+      service,
+      { pluginId: "alpha", call: () => {} },
+      {
+        target: "slot",
+        name: "author-badges",
+        handlerId: 1,
+      },
+    );
+    getHandler(service, "refreshSlot")(
+      { pluginId: "alpha" },
+      { name: "author-badges" },
+    );
+    dispose();
+    assert.deepEqual(service.$slots.get("author-badges"), null);
   });
 
   it("is a no-op for a slot name nobody has registered", () => {
@@ -1485,6 +1562,27 @@ describe("refreshSlot host method", () => {
       ),
     );
     assert.deepEqual(service.$slots.get("nope"), null);
+  });
+
+  it("is a no-op when the calling plugin has no entry in the slot", () => {
+    const service = makeServiceWithRealBridge();
+    register(
+      service,
+      { pluginId: "alpha", call: () => {} },
+      {
+        target: "slot",
+        name: "author-badges",
+        handlerId: 1,
+      },
+    );
+    const before = service.$slots.get("author-badges");
+    const versionBefore = before[0].version;
+    getHandler(service, "refreshSlot")(
+      { pluginId: "beta" },
+      { name: "author-badges" },
+    );
+    assert.equal(service.$slots.get("author-badges"), before);
+    assert.equal(before[0].version, versionBefore);
   });
 });
 

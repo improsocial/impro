@@ -170,6 +170,7 @@ export class PluginService extends ReactiveStore {
     this._richTextElements = new WeakMap();
     this.$settingTabs = new SignalMap();
     this.$slots = new SignalMap();
+    this._slotEntryVersion = 0;
     this.localPluginsEnabled = isDev();
     this.remoteRegistry = new RemotePluginRegistry(PLUGIN_REGISTRY_URL);
     this.localRegistry = this.localPluginsEnabled
@@ -302,16 +303,23 @@ export class PluginService extends ReactiveStore {
       },
     );
     this.pluginBridge.addRegistrationTarget("slot", (plugin, message) => {
+      const current = this.$slots.get(message.name) ?? [];
+      if (current.some((other) => other.pluginId === plugin.pluginId)) {
+        console.warn(
+          `"${plugin.pluginId}" is already registered for slot "${message.name}"; ignoring duplicate registration`,
+        );
+        return null;
+      }
       const entry = {
         pluginId: plugin.pluginId,
+        version: ++this._slotEntryVersion,
         invoke: (context) => plugin.call(message.handlerId, context),
       };
-      const current = this.$slots.get(message.name) ?? [];
       this.$slots.set(message.name, [...current, entry]);
       return () => {
         const list = this.$slots.get(message.name);
         if (!list) return;
-        const next = list.filter((other) => other !== entry);
+        const next = list.filter((other) => other.pluginId !== plugin.pluginId);
         if (next.length === 0) {
           this.$slots.delete(message.name);
         } else {
@@ -359,13 +367,17 @@ export class PluginService extends ReactiveStore {
       },
     );
 
-    // Forces every mounted <plugin-slot name=...> to re-invoke its
-    // registered plugins, for slots whose content depends on data that
-    // resolved asynchronously after the initial render (e.g. a plugin that
-    // fetches something on a cache miss and wants to redraw once it lands).
     this.pluginBridge.addHostMethod("refreshSlot", (plugin, { name }) => {
       const current = this.$slots.get(name);
-      if (current) this.$slots.set(name, [...current]);
+      if (!current?.some((entry) => entry.pluginId === plugin.pluginId)) {
+        return;
+      }
+      const next = current.map((entry) =>
+        entry.pluginId === plugin.pluginId
+          ? { ...entry, version: ++this._slotEntryVersion }
+          : entry,
+      );
+      this.$slots.set(name, next);
     });
 
     this.pluginBridge.addHostMethod(
