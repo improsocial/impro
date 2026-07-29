@@ -1891,15 +1891,16 @@ container-link {
 
 .large-post .author-badges {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   margin-top: 3px;
   margin-bottom: 4px;
 }
 
 .large-post .label-badges {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .small-post .pinned-label {
@@ -3911,13 +3912,16 @@ image-carousel {
 
 .chat-info-panel .author-badges {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
   gap: 4px;
 }
 
 .chat-info-panel .label-badges {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
 }
 
 .chat-info-panel .label-badge {
@@ -5257,15 +5261,16 @@ emoji-picker-dialog emoji-picker,
 
 .profile-card .author-badges {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  flex-direction: column;
   gap: 4px;
   margin-top: 12px;
   padding: 0 16px;
 }
 
 .profile-card .label-badges {
-  display: contents;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
 }
 
 .profile-card .label-badge {
