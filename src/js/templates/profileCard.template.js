@@ -369,9 +369,7 @@ export function profileCardTemplate({
                 data-testid="subscribe-button"
                 data-teststate=${isSubscribed ? "subscribed" : "not-subscribed"}
               >
-                ${isSubscribed
-                  ? "Subscribed"
-                  : html`${plusIconTemplate()} Subscribe`}
+                ${isSubscribed ? "Subscribed" : "Subscribe"}
               </button>`;
             } else {
               return null;
