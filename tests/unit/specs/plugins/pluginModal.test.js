@@ -43,6 +43,37 @@ describe("showPluginModal", () => {
     assert(dialog.hasAttribute("open"));
   });
 
+  it("should take the initial focus itself so content is not scrolled into view", () => {
+    clearDOM();
+    showPluginModal({
+      pluginId: "p",
+      modalId: uniqueModalId("autofocus"),
+      title: { tag: "span", text: "T" },
+      content: {
+        tag: "div",
+        children: [{ tag: "button", text: "Deep button" }],
+      },
+    });
+    const dialog = document.querySelector("dialog.plugin-modal");
+    assert(dialog.hasAttribute("autofocus"));
+  });
+
+  it("should render the body as a scroll region with the title outside it", () => {
+    clearDOM();
+    showPluginModal({
+      pluginId: "p",
+      modalId: uniqueModalId("scroll"),
+      title: { tag: "span", text: "T" },
+      content: { tag: "div", text: "Body" },
+    });
+    const body = document.querySelector(".plugin-modal-body");
+    assert(body !== null);
+    assert(body.classList.contains("sheet-scroll-region"));
+    const title = document.querySelector(".modal-dialog-title");
+    assert(title.parentElement === body.parentElement);
+    assert(body.querySelector(".modal-dialog-title") === null);
+  });
+
   it("should render the title with the modal-dialog-title class", () => {
     clearDOM();
     showPluginModal({
@@ -82,7 +113,7 @@ describe("showPluginModal", () => {
         ],
       },
     });
-    const paragraphs = document.querySelectorAll(".modal-dialog-content > p");
+    const paragraphs = document.querySelectorAll(".plugin-modal-body > p");
     assert.deepEqual(paragraphs.length, 2);
     assert.deepEqual(paragraphs[0].textContent, "First");
     assert.deepEqual(paragraphs[1].textContent, "Second");
@@ -96,7 +127,7 @@ describe("showPluginModal", () => {
       title: { tag: "span", text: "T" },
       content: { tag: "p", text: "Single body" },
     });
-    const body = document.querySelector(".modal-dialog-content > p");
+    const body = document.querySelector(".plugin-modal-body > p");
     assert(body !== null);
     assert.deepEqual(body.textContent, "Single body");
   });
@@ -123,7 +154,7 @@ describe("showPluginModal", () => {
     assert.deepEqual(dialogs.length, 1);
     const title = document.querySelector(".modal-dialog-title");
     assert.deepEqual(title.textContent, "Second Title");
-    const body = document.querySelector(".modal-dialog-content > p");
+    const body = document.querySelector(".plugin-modal-body > p");
     assert.deepEqual(body.textContent, "Second body");
     assert(dialogs[0].hasAttribute("open"));
   });
@@ -254,14 +285,14 @@ describe("updatePluginModal", () => {
       title: { tag: "span", text: "T" },
       content: { tag: "p", text: "One" },
     });
-    const body = document.querySelector(".modal-dialog-content > p");
+    const body = document.querySelector(".plugin-modal-body > p");
     updatePluginModal({
       pluginId,
       modalId,
       title: { tag: "span", text: "T" },
       content: { tag: "p", text: "Two" },
     });
-    const updated = document.querySelector(".modal-dialog-content > p");
+    const updated = document.querySelector(".plugin-modal-body > p");
     assert(updated === body);
     assert.deepEqual(updated.textContent, "Two");
     hidePluginModal({ pluginId, modalId });
@@ -289,7 +320,7 @@ describe("updatePluginModal", () => {
         ],
       },
     });
-    let paragraphs = document.querySelectorAll(".modal-dialog-content > p");
+    let paragraphs = document.querySelectorAll(".plugin-modal-body > p");
     assert.deepEqual(paragraphs.length, 2);
     assert.deepEqual(paragraphs[1].textContent, "Second");
     updatePluginModal({
@@ -298,7 +329,7 @@ describe("updatePluginModal", () => {
       title: { tag: "span", text: "T" },
       content: { tag: "div", children: [{ tag: "p", text: "Only" }] },
     });
-    paragraphs = document.querySelectorAll(".modal-dialog-content > p");
+    paragraphs = document.querySelectorAll(".plugin-modal-body > p");
     assert.deepEqual(paragraphs.length, 1);
     assert.deepEqual(paragraphs[0].textContent, "Only");
     hidePluginModal({ pluginId, modalId });

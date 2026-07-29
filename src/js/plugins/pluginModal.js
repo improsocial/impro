@@ -14,7 +14,11 @@ class PluginModal extends Modal {
   }
 
   get attributes() {
-    return { "data-plugin-id": this.options.pluginId };
+    return { "data-plugin-id": this.options.pluginId, autofocus: "" };
+  }
+
+  get scrollContainerSelector() {
+    return ".plugin-modal-body";
   }
 
   render({ props }) {
@@ -41,7 +45,15 @@ function buildModalTree(pluginRenderer, title, content) {
     type: "element",
     tag: "div",
     attrs: { class: "modal-dialog-content" },
-    children: [titleNode, ...childNodes],
+    children: [
+      titleNode,
+      {
+        type: "element",
+        tag: "div",
+        attrs: { class: "plugin-modal-body sheet-scroll-region" },
+        children: childNodes,
+      },
+    ],
   };
 }
 

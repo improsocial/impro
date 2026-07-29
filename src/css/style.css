@@ -6953,6 +6953,18 @@ context-menu-item-group > context-menu-item > button {
   margin-bottom: 12px;
 }
 
+.plugin-modal {
+  display: flex;
+  flex-direction: column;
+}
+
+.plugin-modal .modal-dialog-content {
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
 .plugin-modal .modal-dialog-title > * {
   font-size: inherit;
   font-weight: inherit;
