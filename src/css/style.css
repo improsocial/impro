@@ -1658,6 +1658,7 @@ container-link {
   display: block;
   color: inherit;
   text-decoration: none;
+  cursor: pointer;
 }
 
 .post {
@@ -10046,6 +10047,7 @@ image-cropper {
 a.plugin-list-item-info {
   color: inherit;
   text-decoration: none;
+  width: 100%;
 }
 
 .plugin-list-item-controls {
