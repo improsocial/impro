@@ -1870,8 +1870,24 @@ container-link {
   object-fit: cover;
 }
 
+.author-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.author-badges .label-badges,
+.author-badges plugin-slot {
+  display: contents;
+}
+
+.author-badges:not(:has(.label-badge, plugin-slot:not(:empty))) {
+  display: none;
+}
+
 .large-post .label-badge {
   font-size: 13px;
+  min-height: 23px;
   padding: 3px 8px 4px;
   margin-right: 4px;
   margin-top: 5px;
@@ -1889,7 +1905,8 @@ container-link {
   height: 16px;
 }
 
-.large-post .label-badges {
+.large-post .author-badges {
+  gap: 4px;
   margin-top: 3px;
   margin-bottom: 4px;
 }
@@ -3901,15 +3918,14 @@ image-carousel {
   text-decoration: none;
 }
 
-.chat-info-panel .label-badges {
-  display: flex;
-  flex-wrap: wrap;
+.chat-info-panel .author-badges {
   justify-content: center;
   gap: 4px;
 }
 
 .chat-info-panel .label-badge {
   font-size: 13px;
+  min-height: 23px;
   padding: 3px 8px 4px;
   background: light-dark(var(--lightest-gray), var(--gray));
 }
@@ -5243,9 +5259,7 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 8px;
 }
 
-.profile-card .label-badges {
-  display: flex;
-  flex-wrap: wrap;
+.profile-card .author-badges {
   gap: 4px;
   margin-top: 12px;
   padding: 0 16px;
@@ -5253,6 +5267,7 @@ emoji-picker-dialog emoji-picker,
 
 .profile-card .label-badge {
   font-size: 13px;
+  min-height: 23px;
   padding: 3px 8px 4px;
   background: light-dark(var(--lightest-gray), var(--gray));
 }

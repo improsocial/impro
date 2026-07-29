@@ -9,13 +9,14 @@ function kebabToCamel(name) {
 
 class PluginSlot extends Component {
   connectedCallback() {
-    if (this.initialized) return;
-    this.initialized = true;
-    if (!this.pluginService) {
-      throw new Error("pluginService is required");
+    if (!this.initialized) {
+      this.initialized = true;
+      if (!this.pluginService) {
+        throw new Error("pluginService is required");
+      }
+      this._pluginRoots = new Map();
+      this._currentRequest = null;
     }
-    this._pluginRoots = new Map();
-    this._currentRequest = null;
     this._subscribe();
   }
 
