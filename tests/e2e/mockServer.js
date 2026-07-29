@@ -83,6 +83,11 @@ export class MockServer {
     this.timelineDelayMs = 0;
     this.pluginSettings = new Map();
     this.installedPlugins = [];
+    // Seeded/captured improSearchHistoryPref state; null means the preference
+    // is absent from getPreferences and no putPreferences has written it.
+    this.searchHistory = null;
+    this.getProfilesDelayMs = 0;
+    this.putPreferencesDelayMs = 0;
     // Override the source served for the local test plugin's main.js; defaults
     // to the standard fixture when null.
     this.localPluginSource = null;
@@ -98,6 +103,10 @@ export class MockServer {
   // simulating a stale/revoked refresh token.
   failTokenRefresh() {
     this.tokenRefreshShouldFail = true;
+  }
+
+  setSearchHistory({ searches = [], profiles = [] } = {}) {
+    this.searchHistory = { searches, profiles };
   }
 
   addAuthorFeedPosts(did, filter, posts) {
@@ -736,6 +745,14 @@ export class MockServer {
                   {
                     $type: "app.bsky.actor.defs#improHiddenPostsPref",
                     items: this.hiddenPostUris,
+                  },
+                ]
+              : []),
+            ...(this.searchHistory
+              ? [
+                  {
+                    $type: "app.bsky.actor.defs#improSearchHistoryPref",
+                    ...this.searchHistory,
                   },
                 ]
               : []),
@@ -1390,7 +1407,12 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.actor.getProfiles*", (route) => {
+    await page.route("**/xrpc/app.bsky.actor.getProfiles*", async (route) => {
+      if (this.getProfilesDelayMs > 0) {
+        await new Promise((resolve) =>
+          setTimeout(resolve, this.getProfilesDelayMs),
+        );
+      }
       const url = new URL(route.request().url());
       const actors = url.searchParams.getAll("actors");
       const profiles = actors
@@ -2326,60 +2348,77 @@ export class MockServer {
       });
     });
 
-    await page.route("**/xrpc/app.bsky.actor.putPreferences*", (route) => {
-      const body = route.request().postDataJSON();
-      const savedFeedsPref = body?.preferences?.find(
-        (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
-      );
-      if (savedFeedsPref) {
-        this.pinnedFeedUris = savedFeedsPref.items
-          .filter((item) => item.type === "feed" && item.pinned)
-          .map((item) => item.value);
-        this.savedFeedUris = savedFeedsPref.items
-          .filter((item) => item.type === "feed" && !item.pinned)
-          .map((item) => item.value);
-      }
-      const hiddenPostsPref = body?.preferences?.find(
-        (p) => p.$type === "app.bsky.actor.defs#improHiddenPostsPref",
-      );
-      if (hiddenPostsPref) {
-        this.hiddenPostUris = hiddenPostsPref.items || [];
-      }
-      const labelersPref = body?.preferences?.find(
-        (p) => p.$type === "app.bsky.actor.defs#labelersPref",
-      );
-      if (labelersPref) {
-        this.labelerSubscriptions = labelersPref.labelers.map((l) => l.did);
-      } else {
-        this.labelerSubscriptions = [];
-      }
-      this.contentLabelPrefs = (body?.preferences || []).filter(
-        (p) => p.$type === "app.bsky.actor.defs#contentLabelPref",
-      );
-      const mutedWordsPref = body?.preferences?.find(
-        (p) => p.$type === "app.bsky.actor.defs#mutedWordsPref",
-      );
-      if (mutedWordsPref) {
-        this.mutedWords = mutedWordsPref.items || [];
-      }
-      const installedPluginsPref = body?.preferences?.find(
-        (p) => p.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
-      );
-      if (installedPluginsPref) {
-        this.installedPlugins = installedPluginsPref.plugins || [];
-      }
-      const pluginSettingsPrefs = (body?.preferences || []).filter(
-        (p) => p.$type === "app.bsky.actor.defs#improPluginSettingsPref",
-      );
-      this.pluginSettings = new Map(
-        pluginSettingsPrefs.map((p) => [p.pluginId, p.data]),
-      );
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: "{}",
-      });
-    });
+    await page.route(
+      "**/xrpc/app.bsky.actor.putPreferences*",
+      async (route) => {
+        if (this.putPreferencesDelayMs > 0) {
+          await new Promise((resolve) =>
+            setTimeout(resolve, this.putPreferencesDelayMs),
+          );
+        }
+        const body = route.request().postDataJSON();
+        const savedFeedsPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#savedFeedsPrefV2",
+        );
+        if (savedFeedsPref) {
+          this.pinnedFeedUris = savedFeedsPref.items
+            .filter((item) => item.type === "feed" && item.pinned)
+            .map((item) => item.value);
+          this.savedFeedUris = savedFeedsPref.items
+            .filter((item) => item.type === "feed" && !item.pinned)
+            .map((item) => item.value);
+        }
+        const hiddenPostsPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#improHiddenPostsPref",
+        );
+        if (hiddenPostsPref) {
+          this.hiddenPostUris = hiddenPostsPref.items || [];
+        }
+        const searchHistoryPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#improSearchHistoryPref",
+        );
+        if (searchHistoryPref) {
+          this.searchHistory = {
+            searches: searchHistoryPref.searches || [],
+            profiles: searchHistoryPref.profiles || [],
+          };
+        }
+        const labelersPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#labelersPref",
+        );
+        if (labelersPref) {
+          this.labelerSubscriptions = labelersPref.labelers.map((l) => l.did);
+        } else {
+          this.labelerSubscriptions = [];
+        }
+        this.contentLabelPrefs = (body?.preferences || []).filter(
+          (p) => p.$type === "app.bsky.actor.defs#contentLabelPref",
+        );
+        const mutedWordsPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#mutedWordsPref",
+        );
+        if (mutedWordsPref) {
+          this.mutedWords = mutedWordsPref.items || [];
+        }
+        const installedPluginsPref = body?.preferences?.find(
+          (p) => p.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+        );
+        if (installedPluginsPref) {
+          this.installedPlugins = installedPluginsPref.plugins || [];
+        }
+        const pluginSettingsPrefs = (body?.preferences || []).filter(
+          (p) => p.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+        );
+        this.pluginSettings = new Map(
+          pluginSettingsPrefs.map((p) => [p.pluginId, p.data]),
+        );
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: "{}",
+        });
+      },
+    );
 
     await page.route(
       "**/xrpc/com.atproto.moderation.createReport*",

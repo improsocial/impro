@@ -41,6 +41,10 @@ function getContentTextFromEmbed(embed) {
   return texts;
 }
 
+const MAX_RECENT_SEARCHES = 10;
+const MAX_RECENT_SEARCH_PROFILES = 10;
+const MAX_RECENT_SEARCH_QUERY_LENGTH = 300;
+
 const WORD_BOUNDARY_REGEX = /[\s\n\t\r\f\v]+/g;
 const LEADING_TRAILING_PUNCTUATION_REGEX = /(?:^\p{P}+|\p{P}+$)/gu;
 const INTERNAL_PUNCTUATION_REGEX = /\p{P}+/gu;
@@ -169,6 +173,91 @@ export class Preferences {
       clone.obj.push(hiddenPostsPreference);
     }
     hiddenPostsPreference.items.push(postUri);
+    return clone;
+  }
+
+  getRecentSearches() {
+    const pref = Preferences.getSearchHistoryPreference(this.obj);
+    if (!pref || !Array.isArray(pref.searches)) {
+      return [];
+    }
+    return pref.searches
+      .filter(
+        (entry) => typeof entry?.q === "string" && entry.q.trim().length > 0,
+      )
+      .map((entry) => ({ ...entry, ts: Number(entry.ts) || 0 }))
+      .slice(0, MAX_RECENT_SEARCHES);
+  }
+
+  addRecentSearch(q) {
+    const clone = this.clone();
+    const query = (q ?? "").trim().slice(0, MAX_RECENT_SEARCH_QUERY_LENGTH);
+    if (!query) {
+      return clone;
+    }
+    const pref = Preferences.ensureSearchHistoryPreference(clone.obj);
+    if (!Array.isArray(pref.searches)) {
+      pref.searches = [];
+    }
+    pref.searches = pref.searches.filter((entry) => entry?.q !== query);
+    pref.searches.unshift({ q: query, ts: Date.now() });
+    pref.searches = pref.searches.slice(0, MAX_RECENT_SEARCHES);
+    return clone;
+  }
+
+  removeRecentSearch(q) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.searches)) {
+      return clone;
+    }
+    pref.searches = pref.searches.filter((entry) => entry?.q !== q);
+    return clone;
+  }
+
+  getRecentSearchProfiles() {
+    const pref = Preferences.getSearchHistoryPreference(this.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return [];
+    }
+    return pref.profiles
+      .filter((did) => typeof did === "string" && did.length > 0)
+      .slice(0, MAX_RECENT_SEARCH_PROFILES);
+  }
+
+  addRecentSearchProfile(did) {
+    const clone = this.clone();
+    if (typeof did !== "string" || did.length === 0) {
+      return clone;
+    }
+    const pref = Preferences.ensureSearchHistoryPreference(clone.obj);
+    if (!Array.isArray(pref.profiles)) {
+      pref.profiles = [];
+    }
+    pref.profiles = pref.profiles.filter((existing) => existing !== did);
+    pref.profiles.unshift(did);
+    pref.profiles = pref.profiles.slice(0, MAX_RECENT_SEARCH_PROFILES);
+    return clone;
+  }
+
+  removeRecentSearchProfile(did) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return clone;
+    }
+    pref.profiles = pref.profiles.filter((existing) => existing !== did);
+    return clone;
+  }
+
+  removeRecentSearchProfiles(dids) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return clone;
+    }
+    const removedSet = new Set(dids);
+    pref.profiles = pref.profiles.filter((did) => !removedSet.has(did));
     return clone;
   }
 
@@ -597,6 +686,26 @@ export class Preferences {
       obj,
       "app.bsky.actor.defs#improHiddenPostsPref",
     );
+  }
+
+  static getSearchHistoryPreference(obj) {
+    // Custom preference type, following the improHiddenPostsPref precedent.
+    return Preferences.getPreferenceByType(
+      obj,
+      "app.bsky.actor.defs#improSearchHistoryPref",
+    );
+  }
+
+  static ensureSearchHistoryPreference(obj) {
+    let pref = Preferences.getSearchHistoryPreference(obj);
+    if (!pref) {
+      pref = {
+        $type: "app.bsky.actor.defs#improSearchHistoryPref",
+        searches: [],
+      };
+      obj.push(pref);
+    }
+    return pref;
   }
 
   static getMutedWordsPreference(obj) {

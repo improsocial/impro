@@ -27,7 +27,7 @@ class PluginSlot extends Component {
     this._disposeEffect = effect(() => {
       this.pluginService.$slots.get(slotName);
       this._reconcile();
-    }, `plugin-slot[${slotName}]`);
+    });
   }
 
   disconnectedCallback() {

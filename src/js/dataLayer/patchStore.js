@@ -395,6 +395,10 @@ export class PatchStore extends ReactiveStore {
           visibility: patchBody.visibility,
           labelerDid: patchBody.labelerDid,
         });
+      case "removeRecentSearch":
+        return preferences.removeRecentSearch(patchBody.q);
+      case "removeRecentSearchProfile":
+        return preferences.removeRecentSearchProfile(patchBody.did);
       default:
         throw new Error("Unknown patch type", patchBody.type);
     }

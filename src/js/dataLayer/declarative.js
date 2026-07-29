@@ -68,6 +68,18 @@ export class Declarative {
     return profileFollows;
   }
 
+  async ensureProfiles(profileDids) {
+    const getProfile = (did) =>
+      this.derived.$hydratedDetailedProfiles.get(did) ??
+      this.derived.$hydratedProfiles.get(did) ??
+      null;
+    const missing = profileDids.filter((did) => !getProfile(did));
+    if (missing.length > 0) {
+      await this.requests.loadDetailedProfiles(missing);
+    }
+    return profileDids.map((did) => getProfile(did));
+  }
+
   async ensureDetailedProfiles(profileDids) {
     const getProfile = (did) => this.derived.$hydratedDetailedProfiles.get(did);
     const missing = profileDids.filter((did) => !getProfile(did));

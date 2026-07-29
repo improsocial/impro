@@ -5686,6 +5686,116 @@ button.profile-list-item-button.is-disabled {
   flex-direction: column;
 }
 
+.search-recent-heading {
+  padding: 8px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-color);
+}
+
+.search-recent-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-recent-row .search-typeahead-row {
+  border: none;
+}
+
+.search-recent-row .search-typeahead-icon {
+  display: none;
+}
+
+.search-recent-row-button {
+  flex: 1;
+  min-width: 0;
+  width: 100%;
+  padding-right: 48px;
+}
+
+.search-recent-remove-button {
+  position: absolute;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  color: var(--text-color-muted);
+}
+
+.search-recent-remove-button .icon,
+.search-recent-remove-button .icon svg {
+  width: 20px;
+  height: 20px;
+}
+
+.search-recent-profiles {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 20px;
+  padding-inline: 16px;
+  padding-top: 8px;
+  padding-bottom: 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.search-recent-profiles::-webkit-scrollbar {
+  display: none;
+}
+
+.search-recent-profile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  width: 80px;
+  flex-shrink: 0;
+}
+
+.search-recent-profile .avatar {
+  height: 72px;
+  line-height: 0;
+}
+
+.search-recent-profile .avatar-image-frame {
+  width: 72px;
+  height: 72px;
+}
+
+.search-recent-profile-name {
+  max-width: 100%;
+  font-size: 11px;
+  color: var(--text-color);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-recent-profile-remove {
+  top: 0;
+  right: 4px;
+  width: 24px;
+  height: 24px;
+}
+
+.search-recent-profile-skeleton-avatar {
+  width: 72px;
+  height: 72px;
+}
+
+.search-recent-profile-skeleton-name-line {
+  display: inline-block;
+  width: 48px;
+  height: 10px;
+}
+
+.search-recent-profile-remove .close-icon,
+.search-recent-profile-remove .close-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
 .search-placeholder {
   padding: 48px 24px;
   color: var(--text-color-muted);

@@ -482,6 +482,58 @@ export class Mutations {
     }
   }
 
+  async addRecentSearch(q) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.addRecentSearch(q);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
+  async removeRecentSearch(q) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "removeRecentSearch",
+      q,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.removeRecentSearch(q);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async addRecentSearchProfile(did) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.addRecentSearchProfile(did);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
+  async removeRecentSearchProfile(did) {
+    const patchId = this.patchStore.addPreferencePatch({
+      type: "removeRecentSearchProfile",
+      did,
+    });
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.removeRecentSearchProfile(did);
+    try {
+      await this.preferencesProvider.updatePreferences(newPreferences);
+    } catch (error) {
+      console.error(error);
+      throw error;
+    } finally {
+      this.patchStore.removePreferencePatch(patchId);
+    }
+  }
+
+  async removeRecentSearchProfiles(dids) {
+    const preferences = this.preferencesProvider.requirePreferences();
+    const newPreferences = preferences.removeRecentSearchProfiles(dids);
+    await this.preferencesProvider.updatePreferences(newPreferences);
+  }
+
   async addMutedWord({ value, targets, actorTarget, expiresAt }) {
     const preferences = this.preferencesProvider.requirePreferences();
     const newPreferences = preferences.addMutedWord({

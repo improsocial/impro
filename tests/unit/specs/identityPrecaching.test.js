@@ -51,6 +51,20 @@ describe("notifications precaching", () => {
   });
 });
 
+describe("search typeahead precaching", () => {
+  it("should cache identities from typeahead search results", async () => {
+    const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
+    setUpIdentityPrecaching(dataLayer, identityResolver);
+
+    dataStore.$searchTypeaheadResults.set({
+      actors: [{ handle: "dave.test", did: "did:plc:dave" }],
+    });
+    await flushEffects();
+
+    assert.deepEqual(resolvedHandles.get("dave.test"), "did:plc:dave");
+  });
+});
+
 describe("post precaching", () => {
   it("should cache identities for posts normalized from nested quotes", async () => {
     const { dataStore, dataLayer, identityResolver, resolvedHandles } = setup();
