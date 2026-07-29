@@ -2,15 +2,22 @@ import { html } from "/js/lib/lit-html.js";
 import { getLabelNameAndDescription } from "/js/dataHelpers.js";
 import "/js/components/plugin-slot.js";
 
+// Wraps the label badges and the plugin author-badges slot in one shared
+// container so a plugin's badge lines up with moderation labels wherever
+// both can appear, instead of the plugin-slot sitting outside whatever
+// padding/alignment a given context applies to .label-badges alone.
 export function authorBadgesTemplate({ badgeLabels, did, pluginService }) {
-  return html`${badgeLabels?.length ? labelBadgesTemplate({ badgeLabels }) : ""}
-  ${pluginService
-    ? html`<plugin-slot
-        name="author-badges"
-        context-did=${did ?? ""}
-        .pluginService=${pluginService}
-      ></plugin-slot>`
-    : ""}`;
+  if (!badgeLabels?.length && !pluginService) return "";
+  return html`<div class="author-badges">
+    ${badgeLabels?.length ? labelBadgesTemplate({ badgeLabels }) : ""}
+    ${pluginService
+      ? html`<plugin-slot
+          name="author-badges"
+          context-did=${did ?? ""}
+          .pluginService=${pluginService}
+        ></plugin-slot>`
+      : ""}
+  </div>`;
 }
 
 function labelBadgesTemplate({ badgeLabels }) {

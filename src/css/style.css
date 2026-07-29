@@ -1889,9 +1889,17 @@ container-link {
   height: 16px;
 }
 
-.large-post .label-badges {
+.large-post .author-badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
   margin-top: 3px;
   margin-bottom: 4px;
+}
+
+.large-post .label-badges {
+  display: contents;
 }
 
 .small-post .pinned-label {
@@ -3901,11 +3909,15 @@ image-carousel {
   text-decoration: none;
 }
 
-.chat-info-panel .label-badges {
+.chat-info-panel .author-badges {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
   gap: 4px;
+}
+
+.chat-info-panel .label-badges {
+  display: contents;
 }
 
 .chat-info-panel .label-badge {
@@ -5243,12 +5255,17 @@ emoji-picker-dialog emoji-picker,
   margin-bottom: 8px;
 }
 
-.profile-card .label-badges {
+.profile-card .author-badges {
   display: flex;
   flex-wrap: wrap;
+  align-items: center;
   gap: 4px;
   margin-top: 12px;
   padding: 0 16px;
+}
+
+.profile-card .label-badges {
+  display: contents;
 }
 
 .profile-card .label-badge {
