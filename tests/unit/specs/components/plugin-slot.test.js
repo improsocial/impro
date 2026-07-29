@@ -426,5 +426,59 @@ describe("plugin-slot", () => {
       await flushMicrotasks();
       assert.deepEqual(invoked, false);
     });
+
+    it("re-subscribes and re-renders when reconnected after a disconnect", async () => {
+      const pluginService = makePluginService({
+        entries: {
+          x: [
+            {
+              pluginId: "alpha",
+              invoke: async () => ({ tag: "div", text: "A" }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({ pluginService, name: "x" });
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(slot.children.length, 1);
+
+      slot.remove();
+      document.body.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(slot.children.length, 1);
+      assert.deepEqual(slot.children[0].textContent, "A");
+
+      // The reconnected subscription must also react to later registrations.
+      pluginService.setSlotEntries("x", [
+        { pluginId: "alpha", invoke: async () => ({ tag: "div", text: "A2" }) },
+        { pluginId: "beta", invoke: async () => ({ tag: "div", text: "B" }) },
+      ]);
+      await flushMicrotasks();
+      assert.deepEqual(slot.children.length, 2);
+    });
+
+    it("renders when reparented synchronously before the first invoke resolves", async () => {
+      // Mimics infinite-scroll-container, which moves its children into an
+      // inner wrapper during its own connectedCallback.
+      const pluginService = makePluginService({
+        entries: {
+          x: [
+            {
+              pluginId: "alpha",
+              invoke: async () => ({ tag: "div", text: "A" }),
+            },
+          ],
+        },
+      });
+      const slot = makeSlot({ pluginService, name: "x" });
+      document.body.appendChild(slot);
+      const wrapper = document.createElement("div");
+      document.body.appendChild(wrapper);
+      wrapper.appendChild(slot);
+      await flushMicrotasks();
+      assert.deepEqual(slot.children.length, 1);
+      assert.deepEqual(slot.children[0].textContent, "A");
+    });
   });
 });
