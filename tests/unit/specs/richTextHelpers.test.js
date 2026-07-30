@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { tokenizeRichText } from "/js/richTextHelpers.js";
+import { tokenizeRichText, isEmojiOnlyTokens } from "/js/richTextHelpers.js";
 
 describe("tokenizeRichText", () => {
   it("returns a single text token for plain text", () => {
@@ -41,5 +41,58 @@ describe("tokenizeRichText", () => {
       tokens.filter((token) => token.type === "facet").length,
       1,
     );
+  });
+});
+
+describe("isEmojiOnlyTokens", () => {
+  it("is true for a single emoji-only text token", () => {
+    assert.deepEqual(isEmojiOnlyTokens([{ type: "text", value: "😀" }]), true);
+  });
+
+  it("concatenates adjacent text tokens before testing", () => {
+    assert.deepEqual(
+      isEmojiOnlyTokens([
+        { type: "text", value: "😀" },
+        { type: "text", value: "🎉" },
+      ]),
+      true,
+    );
+  });
+
+  it("is false when the concatenated text is not emoji-only", () => {
+    assert.deepEqual(
+      isEmojiOnlyTokens([
+        { type: "text", value: "😀" },
+        { type: "text", value: "a" },
+      ]),
+      false,
+    );
+  });
+
+  it("is false when any token is a facet", () => {
+    assert.deepEqual(
+      isEmojiOnlyTokens([
+        { type: "text", value: "😀" },
+        { type: "facet", facet: { index: {} }, text: "😀" },
+      ]),
+      false,
+    );
+  });
+
+  it("is false when any token is an inline or block node", () => {
+    assert.deepEqual(
+      isEmojiOnlyTokens([{ type: "inline", node: { tag: "img" } }]),
+      false,
+    );
+    assert.deepEqual(
+      isEmojiOnlyTokens([{ type: "block", node: { tag: "pre" } }]),
+      false,
+    );
+  });
+
+  it("is false for an empty array and non-arrays", () => {
+    assert.deepEqual(isEmojiOnlyTokens([]), false);
+    assert.deepEqual(isEmojiOnlyTokens(null), false);
+    assert.deepEqual(isEmojiOnlyTokens(undefined), false);
   });
 });

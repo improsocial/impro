@@ -203,6 +203,7 @@ html {
 
   /* sizing */
   --font-size: 15px;
+  --rich-text-emoji-scale: 1.85;
   --hair: 1px;
   --chat-detail-header-height: 56px;
   --footer-height: 55px;
@@ -407,6 +408,11 @@ plugin-slot:empty {
 
 .rich-text-facet-pending {
   display: none;
+}
+
+.rich-text-emoji-only {
+  font-size: calc(1em * var(--rich-text-emoji-scale, 1.85));
+  line-height: 1.15;
 }
 
 @media (hover: hover) {
@@ -4146,6 +4152,18 @@ image-carousel {
   border-bottom-left-radius: 4px;
 }
 
+.message-text .rich-text-emoji-only {
+  --rich-text-emoji-scale: 3;
+}
+
+.message-sent .message-bubble-emoji-only,
+.message-received .message-bubble-emoji-only {
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: var(--text-color);
+}
+
 .message-bubble a {
   text-decoration: underline;
 }
@@ -4267,6 +4285,13 @@ image-carousel {
 .message-wrapper.message-highlighted .message-sent .message-bubble {
   --highlight-flash-base: var(--highlight-color);
   animation: message-highlight-flash-sent 1500ms ease-out;
+}
+
+.message-wrapper.message-highlighted .message-sent .message-bubble-emoji-only,
+.message-wrapper.message-highlighted
+  .message-received
+  .message-bubble-emoji-only {
+  animation: none;
 }
 
 .message-wrapper.message-highlighted

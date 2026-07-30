@@ -36,6 +36,7 @@ import {
   isMobileViewport,
   canHover,
   pinScrollPosition,
+  isOnlyEmoji,
 } from "/js/utils.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 import { ApiError } from "/js/api.js";
@@ -904,6 +905,10 @@ class ChatDetailView extends View {
       </div>`;
     }
 
+    function isEmojiOnlyMessage(message) {
+      return isOnlyEmoji(message?.text ?? "") && !message?.facets?.length;
+    }
+
     function messageTemplate({
       message,
       isCurrentUser,
@@ -921,6 +926,7 @@ class ChatDetailView extends View {
         replyTo && replyTo.sender
           ? getMemberProfile(convo, replyTo.sender.did)
           : null;
+      const isEmojiOnly = isEmojiOnlyMessage(message);
       return html`
         <div
           class="message-wrapper ${isActive ? "message-wrapper-active" : ""}"
@@ -953,8 +959,12 @@ class ChatDetailView extends View {
                   </div>`
                 : null}
               ${message.text
-                ? html`<div class="message-bubble">
-                    ${replyTo
+                ? html`<div
+                    class="message-bubble ${isEmojiOnly
+                      ? "message-bubble-emoji-only"
+                      : ""}"
+                  >
+                    ${replyTo && !isEmojiOnly
                       ? messageReplyQuoteTemplate({
                           replyTo,
                           senderProfile: replySenderProfile,
@@ -1044,6 +1054,7 @@ class ChatDetailView extends View {
         ? null
         : getMemberProfile(convo, group.senderDid);
       const leadingReplyTo = group.messages[0]?.replyTo ?? null;
+      const isLeadingEmojiOnly = isEmojiOnlyMessage(group.messages[0]);
       const replierProfile = group.isCurrentUser
         ? null
         : getMemberProfile(convo, group.senderDid);
@@ -1057,7 +1068,7 @@ class ChatDetailView extends View {
             ? "message-group-sent"
             : "message-group-received"}"
         >
-          ${leadingReplyTo && (isGroup || group.isCurrentUser)
+          ${leadingReplyTo
             ? messageReplyCaptionTemplate({
                 replyTo: leadingReplyTo,
                 replierProfile,
@@ -1067,7 +1078,10 @@ class ChatDetailView extends View {
                   leadingReplyTo.sender?.did === currentUserDid,
               })
             : ""}
-          ${isGroup && !group.isCurrentUser && !leadingReplyTo
+          ${isGroup &&
+          !group.isCurrentUser &&
+          !leadingReplyTo &&
+          !isLeadingEmojiOnly
             ? html`<div
                 class="message-author-name"
                 data-testid="message-author-name"

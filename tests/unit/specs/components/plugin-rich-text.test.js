@@ -311,6 +311,61 @@ describe("plugin-rich-text", () => {
     });
   });
 
+  describe("emoji-only enlargement", () => {
+    function getRichText(element) {
+      return element.querySelector("[data-testid='rich-text']");
+    }
+
+    it("marks emoji-only base text as enlarged", () => {
+      const element = mount({ text: "😀" });
+      assert(getRichText(element).classList.contains("rich-text-emoji-only"));
+    });
+
+    it("does not enlarge while a claimed facet is pending", () => {
+      const claimedType = "blue.moji.richtext.facet";
+      const pluginService = makePluginService({
+        claimedFacetTypes: new Set([claimedType]),
+      });
+      pluginService.transformRichTextTokens = () => new Promise(() => {});
+      const shortcode = ":blobcat:";
+      const facets = [
+        {
+          index: { byteStart: 0, byteEnd: shortcode.length },
+          features: [{ $type: claimedType, did: "did:test", name: "blobcat" }],
+        },
+      ];
+      const element = mount({ pluginService, text: shortcode, facets });
+      assert(element.querySelector(".rich-text-facet-pending") !== null);
+      assert(!getRichText(element).classList.contains("rich-text-emoji-only"));
+    });
+
+    it("does not enlarge a transform result containing node tokens", async () => {
+      const pluginService = makePluginService({
+        result: [
+          {
+            type: "inline",
+            pluginId: "p1",
+            node: { tag: "img", text: "" },
+          },
+        ],
+      });
+      const element = mount({ pluginService, text: "😀" });
+      await flushEffects();
+      assert(element.querySelector("img") !== null);
+      assert(!getRichText(element).classList.contains("rich-text-emoji-only"));
+    });
+
+    it("enlarges a transform result that is emoji-only text", async () => {
+      const pluginService = makePluginService({
+        result: [{ type: "text", value: "🎉" }],
+      });
+      const element = mount({ text: "not emoji", pluginService });
+      assert(!getRichText(element).classList.contains("rich-text-emoji-only"));
+      await flushEffects();
+      assert(getRichText(element).classList.contains("rich-text-emoji-only"));
+    });
+  });
+
   it("stops rendering after disconnect and resumes with the latest text on reconnect", async () => {
     const pluginService = makePluginService({ result: null });
     const element = mount({ pluginService });

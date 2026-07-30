@@ -180,6 +180,13 @@ export function graphemeCount(str) {
   return [...str].length;
 }
 
+const EMOJI_ONLY_RE =
+  /^[\p{Emoji_Presentation}\p{Extended_Pictographic}\uFE0F\u200D]+$/u;
+
+export function isOnlyEmoji(text) {
+  return text.length <= 15 && EMOJI_ONLY_RE.test(text);
+}
+
 export function formatLargeNumber(number) {
   if (number >= 1_000_000) {
     return formatWithSuffix(number / 1_000_000, "M");

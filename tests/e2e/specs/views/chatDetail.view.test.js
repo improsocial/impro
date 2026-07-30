@@ -59,6 +59,110 @@ test.describe("Chat detail view", () => {
     );
   });
 
+  test("should render emoji-only messages enlarged without a bubble", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "Hey there!",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    const messages = [
+      createMessage({
+        id: "msg-4",
+        text: "🎉",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:03:00.000Z",
+        replyTo: original,
+      }),
+      createMessage({
+        id: "msg-3",
+        text: "😀",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:02:00.000Z",
+        facets: [
+          {
+            index: { byteStart: 0, byteEnd: 4 },
+            features: [
+              {
+                $type: "app.bsky.richtext.facet#link",
+                uri: "https://example.com",
+              },
+            ],
+          },
+        ],
+      }),
+      createMessage({
+        id: "msg-2",
+        text: "😀",
+        senderDid: alice.did,
+        sentAt: "2025-01-15T12:01:00.000Z",
+      }),
+      original,
+    ];
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", messages);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    const emojiMessage = chatDetailView.locator('[data-message-id="msg-2"]');
+    const emojiRichText = emojiMessage.locator(".rich-text-emoji-only");
+    await expect(emojiRichText).toBeVisible({ timeout: 10000 });
+    await expect(emojiRichText).toHaveAttribute("data-teststate", "emoji-only");
+
+    // 3x the normal message text size, asserted as a ratio (not a px literal)
+    // so the base font size can change without breaking the test.
+    const normalFontSize = await chatDetailView
+      .locator('[data-message-id="msg-1"] .rich-text')
+      .evaluate((element) => parseFloat(getComputedStyle(element).fontSize));
+    const emojiFontSize = await emojiRichText.evaluate((element) =>
+      parseFloat(getComputedStyle(element).fontSize),
+    );
+    expect(emojiFontSize / normalFontSize).toBeCloseTo(3, 1);
+
+    const emojiBubble = emojiMessage.locator(".message-bubble");
+    await expect(emojiBubble).toHaveClass(/message-bubble-emoji-only/);
+    await expect(emojiBubble).toHaveCSS("background-color", "rgba(0, 0, 0, 0)");
+    await expect(emojiBubble).toHaveCSS("padding", "0px");
+
+    // Emoji text with a facet keeps its normal size and bubble.
+    const facetMessage = chatDetailView.locator('[data-message-id="msg-3"]');
+    await expect(facetMessage.locator(".message-bubble")).toBeVisible();
+    await expect(facetMessage.locator(".message-bubble")).not.toHaveClass(
+      /message-bubble-emoji-only/,
+    );
+    await expect(facetMessage.locator(".rich-text-emoji-only")).toHaveCount(0);
+
+    // An emoji-only reply drops the in-bubble quote but keeps the reply
+    // caption, so the reply context and tap-to-jump affordance survive.
+    const replyMessage = chatDetailView.locator('[data-message-id="msg-4"]');
+    await expect(replyMessage.locator(".message-bubble")).toHaveClass(
+      /message-bubble-emoji-only/,
+    );
+    await expect(
+      replyMessage.locator('[data-testid="message-reply-quote"]'),
+    ).toHaveCount(0);
+    const caption = chatDetailView.locator(
+      '[data-testid="message-reply-caption"]',
+    );
+    await expect(caption).toHaveCount(1);
+    await expect(caption).toContainText("Alice replied to you");
+  });
+
   test("should display messages from both users", async ({ page }) => {
     const mockServer = new MockServer();
     const alice = createProfile({
@@ -231,6 +335,54 @@ test.describe("Chat detail view", () => {
     );
     await expect(caption).toHaveCount(1);
     await expect(caption).toContainText("You replied to Alice");
+  });
+
+  test("should render a reply caption for received replies in 1:1 chats", async ({
+    page,
+  }) => {
+    const mockServer = new MockServer();
+    const alice = createProfile({
+      did: "did:plc:alice1",
+      handle: "alice.bsky.social",
+      displayName: "Alice",
+    });
+    const convo = createConvo({
+      id: "convo-1",
+      otherMember: alice,
+    });
+    const original = createMessage({
+      id: "msg-1",
+      text: "What time are we meeting?",
+      senderDid: userProfile.did,
+      sentAt: "2025-01-15T12:00:00.000Z",
+    });
+    const reply = createMessage({
+      id: "msg-2",
+      text: "Around 7pm",
+      senderDid: alice.did,
+      sentAt: "2025-01-15T12:01:00.000Z",
+      replyTo: original,
+    });
+    mockServer.addConvos([convo]);
+    mockServer.addConvoMessages("convo-1", [reply, original]);
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/messages/convo-1");
+
+    const chatDetailView = page.locator("#chat-detail-view");
+    await expect(chatDetailView.locator(".message-bubble")).toHaveCount(2, {
+      timeout: 10000,
+    });
+    const caption = chatDetailView.locator(
+      '[data-testid="message-reply-caption"]',
+    );
+    await expect(caption).toHaveCount(1);
+    await expect(caption).toContainText("Alice replied to you");
+    // The in-bubble quote renders alongside the caption
+    await expect(
+      chatDetailView.locator('[data-testid="message-reply-quote"]'),
+    ).toHaveCount(1);
   });
 
   test("groups a follow-up message into the preceding reply's group", async ({
@@ -1363,6 +1515,42 @@ test.describe("Chat detail view", () => {
       await expect(
         chatDetailView.locator(".message-received .message-avatar"),
       ).toHaveCount(2);
+    });
+
+    test("hides the author name on emoji-only received clusters", async ({
+      page,
+    }) => {
+      const mockServer = setupGroupConvo({
+        messages: [
+          createMessage({
+            id: "msg-2",
+            text: "😀",
+            senderDid: bob.did,
+            sentAt: "2025-01-15T12:01:00.000Z",
+          }),
+          createMessage({
+            id: "msg-1",
+            text: "Hi from Alice",
+            senderDid: alice.did,
+            sentAt: "2025-01-15T12:00:00.000Z",
+          }),
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/messages/group-1");
+
+      const chatDetailView = page.locator("#chat-detail-view");
+      await expect(chatDetailView.locator(".rich-text-emoji-only")).toBeVisible(
+        { timeout: 10000 },
+      );
+      // Bob's emoji-only cluster gets no author label; Alice's still does
+      const authorNames = chatDetailView.locator(
+        '[data-testid="message-author-name"]',
+      );
+      await expect(authorNames).toHaveCount(1);
+      await expect(authorNames).toContainText("Alice");
     });
 
     test("should render a reply caption above a reply bubble in group chats", async ({

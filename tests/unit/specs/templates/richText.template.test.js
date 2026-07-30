@@ -214,6 +214,37 @@ describe("richTextTemplate", () => {
     assert.deepEqual(richText.textContent, text);
   });
 
+  it("should mark emoji-only text as enlarged", () => {
+    const result = richTextTemplate({ text: "😀", facets: [] });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert(richText.classList.contains("rich-text"));
+    assert(richText.classList.contains("rich-text-emoji-only"));
+    assert.deepEqual(richText.getAttribute("data-teststate"), "emoji-only");
+  });
+
+  it("should not mark emoji text with a facet as enlarged", () => {
+    const facets = [
+      {
+        index: { byteStart: 0, byteEnd: 4 },
+        features: [
+          {
+            $type: "app.bsky.richtext.facet#link",
+            uri: "https://example.com",
+          },
+        ],
+      },
+    ];
+    const result = richTextTemplate({ text: "😀", facets });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert(richText.classList.contains("rich-text"));
+    assert(!richText.classList.contains("rich-text-emoji-only"));
+    assert.deepEqual(richText.getAttribute("data-teststate"), null);
+  });
+
   it("should render a facet with an unknown type as plain text", (t) => {
     t.mock.method(console, "warn", () => {});
     const text = "before unknown after";
@@ -283,6 +314,23 @@ describe("richTextTokensTemplate", () => {
     // The newlines flanking the block are trimmed so the pre-wrap text
     // doesn't add gaps around it.
     assert.deepEqual(richText.textContent, "before" + "const a = 1;" + "after");
+  });
+
+  it("does not mark a stream containing node tokens as enlarged", () => {
+    const result = richTextTokensTemplate({
+      tokens: [
+        {
+          type: "inline",
+          pluginId: "p1",
+          node: { tag: "img", text: "" },
+        },
+      ],
+      renderNodeToken: renderTokenAsElement,
+    });
+    const container = document.createElement("div");
+    render(result, container);
+    const richText = container.querySelector("[data-testid='rich-text']");
+    assert(!richText.classList.contains("rich-text-emoji-only"));
   });
 
   it("skips inline/block tokens the renderer returns null for", () => {

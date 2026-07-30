@@ -1,6 +1,6 @@
 import { html } from "/js/lib/lit-html.js";
 import { sanitizeUri } from "/js/utils.js";
-import { tokenizeRichText } from "/js/richTextHelpers.js";
+import { tokenizeRichText, isEmojiOnlyTokens } from "/js/richTextHelpers.js";
 import { linkToHashtag, linkToProfileByDid } from "/js/navigation.js";
 
 const KNOWN_UNSUPPORTED_FACET_TYPES = [
@@ -67,6 +67,7 @@ export function richTextTokensTemplate({
   renderNodeToken = () => null,
   placeholderFacetTypes = null,
 }) {
+  const isEmojiOnly = isEmojiOnlyTokens(tokens);
   const parts = [];
   tokens.forEach((token, index) => {
     switch (token.type) {
@@ -119,6 +120,10 @@ export function richTextTokensTemplate({
       }
     }
   });
+  if (isEmojiOnly) {
+    // prettier-ignore
+    return html`<div class="rich-text rich-text-emoji-only" data-testid="rich-text" data-teststate="emoji-only">${parts}</div>`;
+  }
   // prettier-ignore
   return html`<div class="rich-text" data-testid="rich-text">${parts}</div>`;
 }
