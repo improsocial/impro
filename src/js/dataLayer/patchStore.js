@@ -3,6 +3,8 @@ import { pinPostInFeed, unpinPostInFeed } from "/js/dataHelpers.js";
 import { Signal, SignalMap, ComputedMap, ReactiveStore } from "/js/signals.js";
 
 // The store saves patch data for optimistic updates.
+// Patches are convergent - if the target has already
+// been updated they have no effect.
 export class PatchStore extends ReactiveStore {
   constructor(dataStore) {
     super("patchStore");
@@ -93,6 +95,7 @@ export class PatchStore extends ReactiveStore {
   applyPostPatch(post, patchBody) {
     switch (patchBody.type) {
       case "createRepost":
+        if (post.viewer?.repost) return post;
         return {
           ...post,
           viewer: {
@@ -102,6 +105,7 @@ export class PatchStore extends ReactiveStore {
           repostCount: post.repostCount + 1,
         };
       case "deleteRepost":
+        if (!post.viewer?.repost) return post;
         return {
           ...post,
           viewer: {
@@ -111,6 +115,7 @@ export class PatchStore extends ReactiveStore {
           repostCount: post.repostCount - 1,
         };
       case "addLike":
+        if (post.viewer?.like) return post;
         return {
           ...post,
           viewer: {
@@ -120,6 +125,7 @@ export class PatchStore extends ReactiveStore {
           likeCount: post.likeCount + 1,
         };
       case "removeLike":
+        if (!post.viewer?.like) return post;
         return {
           ...post,
           viewer: {
@@ -129,6 +135,7 @@ export class PatchStore extends ReactiveStore {
           likeCount: post.likeCount - 1,
         };
       case "addBookmark":
+        if (post.viewer?.bookmarked) return post;
         return {
           ...post,
           viewer: {
@@ -138,6 +145,7 @@ export class PatchStore extends ReactiveStore {
           bookmarkCount: post.bookmarkCount + 1,
         };
       case "removeBookmark":
+        if (!post.viewer?.bookmarked) return post;
         return {
           ...post,
           viewer: {
@@ -193,6 +201,7 @@ export class PatchStore extends ReactiveStore {
   applyProfilePatch(profile, patchBody) {
     switch (patchBody.type) {
       case "followProfile":
+        if (profile.viewer?.following) return profile;
         return {
           ...profile,
           followersCount: profile.followersCount + 1,
@@ -202,6 +211,7 @@ export class PatchStore extends ReactiveStore {
           },
         };
       case "unfollowProfile":
+        if (!profile.viewer?.following) return profile;
         return {
           ...profile,
           followersCount: profile.followersCount - 1,
@@ -227,6 +237,7 @@ export class PatchStore extends ReactiveStore {
           },
         };
       case "blockProfile":
+        if (profile.viewer?.blocking) return profile;
         return {
           ...profile,
           viewer: {
@@ -235,6 +246,7 @@ export class PatchStore extends ReactiveStore {
           },
         };
       case "unblockProfile":
+        if (!profile.viewer?.blocking) return profile;
         return {
           ...profile,
           viewer: {
@@ -288,11 +300,19 @@ export class PatchStore extends ReactiveStore {
 
   applyMessagePatch(message, patchBody) {
     switch (patchBody.type) {
-      case "addReaction":
+      case "addReaction": {
+        const { reaction } = patchBody;
+        const alreadyPresent = message.reactions.some(
+          (existing) =>
+            existing.sender.did === reaction.sender.did &&
+            existing.value === reaction.value,
+        );
+        if (alreadyPresent) return message;
         return {
           ...message,
-          reactions: [...message.reactions, patchBody.reaction],
+          reactions: [...message.reactions, reaction],
         };
+      }
       case "removeReaction":
         const { currentUserDid, value } = patchBody;
         return {

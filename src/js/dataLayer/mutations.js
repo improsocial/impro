@@ -36,18 +36,23 @@ export class Mutations {
     });
     try {
       const like = await this.api.createLikeRecord(post);
-      // update post in store
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, like: like.uri },
-        likeCount: post.likeCount + 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (!latestPost.viewer?.like) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, like: like.uri },
+          likeCount: latestPost.likeCount + 1,
+        });
+      }
       // If the "likes" feed is loaded, add the post to it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const feedURI = `${currentUser.did}-likes`;
         const likedFeed = this.dataStore.$authorFeeds.get(feedURI);
-        if (likedFeed) {
+        if (
+          likedFeed &&
+          !likedFeed.feed.some((feedItem) => feedItem.post?.uri === post.uri)
+        ) {
           this.dataStore.$authorFeeds.set(feedURI, {
             feed: [{ post: post }, ...likedFeed.feed],
             cursor: likedFeed.cursor,
@@ -70,12 +75,14 @@ export class Mutations {
     });
     try {
       await this.api.deleteLikeRecord(post);
-      // update post in store
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, like: null },
-        likeCount: post.likeCount - 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (latestPost.viewer?.like) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, like: null },
+          likeCount: latestPost.likeCount - 1,
+        });
+      }
     } catch (error) {
       console.error(error);
       throw error;
@@ -91,17 +98,28 @@ export class Mutations {
     });
     try {
       const repost = await this.api.createRepostRecord(post);
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, repost: repost.uri },
-        repostCount: post.repostCount + 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (!latestPost.viewer?.repost) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, repost: repost.uri },
+          repostCount: latestPost.repostCount + 1,
+        });
+      }
       // If the current user's author feed is loaded, add the repost to it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
         const authorFeedURI = `${currentUser.did}-posts`;
         const authorFeed = this.dataStore.$authorFeeds.get(authorFeedURI);
-        if (authorFeed) {
+        if (
+          authorFeed &&
+          !authorFeed.feed.some(
+            (feedItem) =>
+              feedItem.post?.uri === post.uri &&
+              feedItem.reason?.$type === "app.bsky.feed.defs#reasonRepost" &&
+              feedItem.reason?.by?.did === currentUser.did,
+          )
+        ) {
           const newFeedItem = {
             post: post,
             reason: {
@@ -133,11 +151,14 @@ export class Mutations {
     });
     try {
       await this.api.deleteRepostRecord(post);
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, repost: null },
-        repostCount: post.repostCount - 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (latestPost.viewer?.repost) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, repost: null },
+          repostCount: latestPost.repostCount - 1,
+        });
+      }
       // If the current user's author feed is loaded, remove the repost from it.
       const currentUser = this.dataStore.$currentUser.get();
       if (currentUser) {
@@ -174,15 +195,20 @@ export class Mutations {
     });
     try {
       await this.api.createBookmark(post);
-      // update post in store
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, bookmarked: true },
-        bookmarkCount: post.bookmarkCount + 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (!latestPost.viewer?.bookmarked) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, bookmarked: true },
+          bookmarkCount: latestPost.bookmarkCount + 1,
+        });
+      }
       // If the bookmarks feed is loaded, add the post to it.
       const bookmarks = this.dataStore.$bookmarks.get();
-      if (bookmarks) {
+      if (
+        bookmarks &&
+        !bookmarks.bookmarks.some((bookmark) => bookmark.item?.uri === post.uri)
+      ) {
         this.dataStore.$bookmarks.set({
           bookmarks: [{ item: { ...post } }, ...bookmarks.bookmarks],
           cursor: bookmarks.cursor,
@@ -204,12 +230,14 @@ export class Mutations {
     });
     try {
       await this.api.deleteBookmark(post);
-      // update post in store
-      this.dataStore.$posts.set(post.uri, {
-        ...post,
-        viewer: { ...post.viewer, bookmarked: false },
-        bookmarkCount: post.bookmarkCount - 1,
-      });
+      const latestPost = this.dataStore.$posts.get(post.uri) ?? post;
+      if (latestPost.viewer?.bookmarked) {
+        this.dataStore.$posts.set(post.uri, {
+          ...latestPost,
+          viewer: { ...latestPost.viewer, bookmarked: false },
+          bookmarkCount: latestPost.bookmarkCount - 1,
+        });
+      }
       // If the bookmarks feed is loaded, remove the post from it.
       const bookmarks = this.dataStore.$bookmarks.get();
       if (bookmarks) {
@@ -235,12 +263,16 @@ export class Mutations {
     });
     try {
       const follow = await this.api.createFollowRecord(profile);
-      this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, following: follow.uri },
-      });
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
+      if (!latestProfile.viewer?.following) {
+        this.dataStore.$profiles.set(profile.did, {
+          ...latestProfile,
+          viewer: { ...latestProfile.viewer, following: follow.uri },
+        });
+      }
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
+      if (detailed && !detailed.viewer?.following) {
         this.dataStore.$detailedProfiles.set(profile.did, {
           ...detailed,
           followersCount: detailed.followersCount + 1,
@@ -309,12 +341,16 @@ export class Mutations {
     });
     try {
       await this.api.deleteFollowRecord(profile);
-      this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, following: null },
-      });
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
+      if (latestProfile.viewer?.following) {
+        this.dataStore.$profiles.set(profile.did, {
+          ...latestProfile,
+          viewer: { ...latestProfile.viewer, following: null },
+        });
+      }
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
-      if (detailed) {
+      if (detailed?.viewer?.following) {
         this.dataStore.$detailedProfiles.set(profile.did, {
           ...detailed,
           followersCount: detailed.followersCount - 1,
@@ -625,9 +661,11 @@ export class Mutations {
     });
     try {
       await this.api.muteActor(profile.did);
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
       this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, muted: true },
+        ...latestProfile,
+        viewer: { ...latestProfile.viewer, muted: true },
       });
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
       if (detailed) {
@@ -671,9 +709,11 @@ export class Mutations {
     });
     try {
       await this.api.unmuteActor(profile.did);
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
       this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, muted: false },
+        ...latestProfile,
+        viewer: { ...latestProfile.viewer, muted: false },
       });
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
       if (detailed) {
@@ -714,9 +754,11 @@ export class Mutations {
     });
     try {
       const block = await this.api.blockActor(profile);
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
       this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, blocking: block.uri },
+        ...latestProfile,
+        viewer: { ...latestProfile.viewer, blocking: block.uri },
       });
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
       if (detailed) {
@@ -761,9 +803,11 @@ export class Mutations {
     });
     try {
       await this.api.putActivitySubscription(profile.did, activitySubscription);
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
       this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, activitySubscription },
+        ...latestProfile,
+        viewer: { ...latestProfile.viewer, activitySubscription },
       });
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
       if (detailed) {
@@ -786,9 +830,11 @@ export class Mutations {
     });
     try {
       await this.api.unblockActor(profile);
+      const latestProfile =
+        this.dataStore.$profiles.get(profile.did) ?? profile;
       this.dataStore.$profiles.set(profile.did, {
-        ...profile,
-        viewer: { ...profile.viewer, blocking: null },
+        ...latestProfile,
+        viewer: { ...latestProfile.viewer, blocking: null },
       });
       const detailed = this.dataStore.$detailedProfiles.get(profile.did);
       if (detailed) {

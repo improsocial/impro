@@ -1144,6 +1144,184 @@ describe("Profile Patches - $patchedProfiles / $patchedDetailedProfiles overlays
   });
 });
 
+describe("Post Patches - convergence", () => {
+  const postURI = "at://did:test/app.bsky.feed.post/test";
+
+  it("should no-op addLike on a post that already reflects the like", () => {
+    const patchStore = new PatchStore();
+    const likedPost = {
+      uri: postURI,
+      likeCount: 6,
+      viewer: { like: "server-like-uri" },
+    };
+    patchStore.addPostPatch(postURI, { type: "addLike" });
+    const result = applyPostPatches(patchStore, likedPost);
+    assert.deepEqual(result.likeCount, 6);
+    assert.deepEqual(result.viewer.like, "server-like-uri");
+  });
+
+  it("should no-op removeLike on a post without a like", () => {
+    const patchStore = new PatchStore();
+    const post = { uri: postURI, likeCount: 5, viewer: { like: null } };
+    patchStore.addPostPatch(postURI, { type: "removeLike" });
+    const result = applyPostPatches(patchStore, post);
+    assert.deepEqual(result.likeCount, 5);
+    assert.deepEqual(result.viewer.like, null);
+  });
+
+  it("should no-op createRepost on a post that already reflects the repost", () => {
+    const patchStore = new PatchStore();
+    const repostedPost = {
+      uri: postURI,
+      repostCount: 3,
+      viewer: { repost: "server-repost-uri" },
+    };
+    patchStore.addPostPatch(postURI, { type: "createRepost" });
+    const result = applyPostPatches(patchStore, repostedPost);
+    assert.deepEqual(result.repostCount, 3);
+    assert.deepEqual(result.viewer.repost, "server-repost-uri");
+  });
+
+  it("should no-op deleteRepost on a post without a repost", () => {
+    const patchStore = new PatchStore();
+    const post = { uri: postURI, repostCount: 2, viewer: { repost: null } };
+    patchStore.addPostPatch(postURI, { type: "deleteRepost" });
+    const result = applyPostPatches(patchStore, post);
+    assert.deepEqual(result.repostCount, 2);
+  });
+
+  it("should no-op addBookmark / removeBookmark when already converged", () => {
+    const patchStore = new PatchStore();
+    const bookmarkedPost = {
+      uri: postURI,
+      bookmarkCount: 2,
+      viewer: { bookmarked: true },
+    };
+    patchStore.addPostPatch(postURI, { type: "addBookmark" });
+    let result = applyPostPatches(patchStore, bookmarkedPost);
+    assert.deepEqual(result.bookmarkCount, 2);
+
+    const plainPost = {
+      uri: postURI,
+      bookmarkCount: 1,
+      viewer: { bookmarked: false },
+    };
+    const patchStore2 = new PatchStore();
+    patchStore2.addPostPatch(postURI, { type: "removeBookmark" });
+    result = applyPostPatches(patchStore2, plainPost);
+    assert.deepEqual(result.bookmarkCount, 1);
+  });
+
+  it("should not double-apply when a canonical refresh lands while the patch is installed", () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      likeCount: 5,
+      viewer: { like: null },
+    });
+    patchStore.addPostPatch(postURI, { type: "addLike" });
+    assert.deepEqual(patchStore.$patchedPosts.get(postURI).likeCount, 6);
+
+    // Refresh delivers the server state with the like already applied.
+    dataStore.$posts.set(postURI, {
+      uri: postURI,
+      likeCount: 6,
+      viewer: { like: "server-like-uri" },
+    });
+    const patched = patchStore.$patchedPosts.get(postURI);
+    assert.deepEqual(patched.likeCount, 6);
+    assert.deepEqual(patched.viewer.like, "server-like-uri");
+  });
+});
+
+describe("Profile Patches - convergence", () => {
+  const did = "did:plc:test";
+
+  it("should no-op followProfile on an already-followed profile", () => {
+    const patchStore = new PatchStore();
+    const followedProfile = {
+      did,
+      followersCount: 11,
+      viewer: { following: "server-follow-uri" },
+    };
+    patchStore.addProfilePatch(did, { type: "followProfile" });
+    const result = patchStore.applyProfilePatches(followedProfile);
+    assert.deepEqual(result.followersCount, 11);
+    assert.deepEqual(result.viewer.following, "server-follow-uri");
+  });
+
+  it("should no-op unfollowProfile on a profile without a follow", () => {
+    const patchStore = new PatchStore();
+    const profile = { did, followersCount: 10, viewer: { following: null } };
+    patchStore.addProfilePatch(did, { type: "unfollowProfile" });
+    const result = patchStore.applyProfilePatches(profile);
+    assert.deepEqual(result.followersCount, 10);
+  });
+
+  it("should no-op blockProfile / unblockProfile when already converged", () => {
+    const patchStore = new PatchStore();
+    const blockedProfile = {
+      did,
+      viewer: { blocking: "server-block-uri" },
+    };
+    patchStore.addProfilePatch(did, { type: "blockProfile" });
+    let result = patchStore.applyProfilePatches(blockedProfile);
+    assert.deepEqual(result.viewer.blocking, "server-block-uri");
+
+    const patchStore2 = new PatchStore();
+    const plainProfile = { did, viewer: { blocking: null } };
+    patchStore2.addProfilePatch(did, { type: "unblockProfile" });
+    result = patchStore2.applyProfilePatches(plainProfile);
+    assert.deepEqual(result.viewer.blocking, null);
+  });
+});
+
+describe("Message Patches - convergence", () => {
+  const messageId = "msg-1";
+  const currentUserDid = "did:plc:me";
+
+  it("should not duplicate a reaction the canonical message already carries", () => {
+    const patchStore = new PatchStore();
+    // The canonical reaction carries a full sender profile; the optimistic
+    // one only has the did.
+    const messageWithReaction = {
+      id: messageId,
+      reactions: [
+        {
+          sender: { did: currentUserDid, handle: "me.test", displayName: "Me" },
+          value: "👍",
+        },
+      ],
+    };
+    patchStore.addMessagePatch(messageId, {
+      type: "addReaction",
+      reaction: { sender: { did: currentUserDid }, value: "👍" },
+    });
+    const patched = patchStore.applyMessagePatches(messageWithReaction);
+    assert.deepEqual(patched.reactions.length, 1);
+    assert.deepEqual(patched.reactions[0].sender.handle, "me.test");
+  });
+
+  it("should still add a reaction when only the emoji or sender differs", () => {
+    const patchStore = new PatchStore();
+    const messageWithReaction = {
+      id: messageId,
+      reactions: [{ sender: { did: "did:plc:other" }, value: "👍" }],
+    };
+    patchStore.addMessagePatch(messageId, {
+      type: "addReaction",
+      reaction: { sender: { did: currentUserDid }, value: "👍" },
+    });
+    patchStore.addMessagePatch(messageId, {
+      type: "addReaction",
+      reaction: { sender: { did: currentUserDid }, value: "❤️" },
+    });
+    const patched = patchStore.applyMessagePatches(messageWithReaction);
+    assert.deepEqual(patched.reactions.length, 3);
+  });
+});
+
 describe("Convo Patches - $patchedConvos", () => {
   it("should overlay the patch on top of the dataStore convo", () => {
     const dataStore = new DataStore();
