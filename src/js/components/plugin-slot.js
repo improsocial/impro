@@ -38,7 +38,6 @@ class PluginSlot extends Component {
     this._pluginRoots.clear();
   }
 
-  // TODO - automatic?
   static get observedAttributes() {
     return ["name", "context-uri", "context-did"];
   }

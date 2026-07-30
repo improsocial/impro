@@ -137,6 +137,44 @@ describe("plugin-posts-feed", () => {
       ]);
     });
 
+    it("does not reload when only the empty-message attribute changes", async () => {
+      const dataLayer = await setupDataLayer();
+      const ensurePosts = mock.method(
+        dataLayer.declarative,
+        "ensurePosts",
+        async (uris) => uris.map(() => null),
+      );
+      const element = document.createElement("plugin-posts-feed");
+      element.setAttribute("uris", "at://a");
+      element.setAttribute("empty-message", "Nothing here.");
+      mount(element, makeContext(dataLayer));
+      await flushMicrotasks();
+      element.setAttribute("empty-message", "Still nothing.");
+      await flushMicrotasks();
+      assert.deepEqual(ensurePosts.mock.callCount(), 1);
+      const endMessage = element.querySelector(
+        "[data-testid='feed-end-message']",
+      );
+      assert(endMessage !== null);
+      assert(endMessage.textContent.includes("Still nothing."));
+    });
+
+    it("does not reload when the uris attribute is set to the same value", async () => {
+      const dataLayer = await setupDataLayer();
+      const ensurePosts = mock.method(
+        dataLayer.declarative,
+        "ensurePosts",
+        async (uris) => uris.map(() => null),
+      );
+      const element = document.createElement("plugin-posts-feed");
+      element.setAttribute("uris", "at://a");
+      mount(element, makeContext(dataLayer));
+      await flushMicrotasks();
+      element.setAttribute("uris", "at://a");
+      await flushMicrotasks();
+      assert.deepEqual(ensurePosts.mock.callCount(), 1);
+    });
+
     it("ignores stale ensurePosts results when uris change mid-flight", async () => {
       const dataLayer = await setupDataLayer();
       let resolveFirst;

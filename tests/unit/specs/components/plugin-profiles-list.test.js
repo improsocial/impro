@@ -221,6 +221,44 @@ describe("plugin-profiles-list", () => {
       assert.deepEqual(loadDetailedProfiles.mock.callCount(), 0);
     });
 
+    it("does not reload when only the empty-message attribute changes", async () => {
+      const dataLayer = makeTestDataLayer();
+      const ensureProfiles = mock.method(
+        dataLayer.declarative,
+        "ensureProfiles",
+        async () => [],
+      );
+      const element = document.createElement("plugin-profiles-list");
+      element.setAttribute("dids", "did:test:missing");
+      element.setAttribute("empty-message", "Nothing here.");
+      mount(element, dataLayer);
+      await flushMicrotasks();
+      element.setAttribute("empty-message", "Still nothing.");
+      await flushMicrotasks();
+      assert.deepEqual(ensureProfiles.mock.callCount(), 1);
+      const endMessage = element.querySelector(
+        "[data-testid='feed-end-message']",
+      );
+      assert(endMessage !== null);
+      assert(endMessage.textContent.includes("Still nothing."));
+    });
+
+    it("does not reload when the dids attribute is set to the same value", async () => {
+      const dataLayer = makeTestDataLayer();
+      const ensureProfiles = mock.method(
+        dataLayer.declarative,
+        "ensureProfiles",
+        async () => [],
+      );
+      const element = document.createElement("plugin-profiles-list");
+      element.setAttribute("dids", "did:test:a");
+      mount(element, dataLayer);
+      await flushMicrotasks();
+      element.setAttribute("dids", "did:test:a");
+      await flushMicrotasks();
+      assert.deepEqual(ensureProfiles.mock.callCount(), 1);
+    });
+
     it("ignores stale ensureProfiles results when dids change mid-flight", async () => {
       const dataLayer = makeTestDataLayer();
       let resolveFirst;
