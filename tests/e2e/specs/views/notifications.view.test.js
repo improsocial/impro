@@ -954,6 +954,61 @@ test.describe("Notifications view", () => {
     await expect(view).toContainText("Liker 60");
   });
 
+  test("should keep page 2 notifications unread after page 1 marks all seen", async ({
+    page,
+  }) => {
+    // Use like notifications with unique reasonSubjects so they are not grouped
+    const likedPosts = [];
+    const notifications = [];
+    for (let i = 1; i <= 60; i++) {
+      const post = createPost({
+        uri: `at://did:plc:testuser123/app.bsky.feed.post/notifpost${i}`,
+        text: `Notification post ${i}`,
+        authorHandle: "testuser.bsky.social",
+        authorDisplayName: "Test User",
+      });
+      likedPosts.push(post);
+
+      const author = createProfile({
+        did: `did:plc:liker${i}`,
+        handle: `liker${i}.bsky.social`,
+        displayName: `Liker ${i}`,
+      });
+      notifications.push(
+        createNotification({
+          reason: "like",
+          author,
+          reasonSubject: post.uri,
+          isRead: false,
+          indexedAt: new Date(Date.now() - i * 60000).toISOString(),
+        }),
+      );
+    }
+
+    const mockServer = new MockServer();
+    mockServer.addPosts(likedPosts);
+    mockServer.addNotifications(notifications);
+    // All notifications were indexed after the last seen time, so every page
+    // is unread; loading page 1 fires updateSeen, which advances the server's
+    // seen state before page 2 is fetched.
+    mockServer.setNotificationsSeenAt(
+      new Date(Date.now() - 61 * 60000).toISOString(),
+    );
+    await mockServer.setup(page);
+
+    await login(page);
+    await page.goto("/notifications");
+
+    const view = page.locator("#notifications-view");
+    const items = view.locator(".notification-item");
+
+    await expect(items.first()).toBeVisible({ timeout: 10000 });
+    await items.last().scrollIntoViewIfNeeded();
+    await expect(items).toHaveCount(60, { timeout: 10000 });
+
+    await expect(view.locator(".notification-item.unread")).toHaveCount(60);
+  });
+
   test("should display error state when notifications fail to load", async ({
     page,
   }) => {

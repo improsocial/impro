@@ -1434,6 +1434,103 @@ describe("loadNotifications", () => {
     assert.deepEqual(stored.cursor, "fresh");
   });
 
+  it("should capture seenAt on first load", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getNotifications: async () => ({
+        notifications: [
+          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+        ],
+        cursor: "next",
+        seenAt: "2025-01-15T10:00:00.000Z",
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications();
+
+    assert.deepEqual(
+      dataStore.$notificationsLastSeenAt.get(),
+      "2025-01-15T10:00:00.000Z",
+    );
+  });
+
+  it("should overwrite the captured seenAt on reload", async () => {
+    const dataStore = new DataStore();
+    dataStore.$notifications.set({
+      notifications: [{ reason: "like", uri: "n1" }],
+      cursor: "page2",
+    });
+    dataStore.$notificationsLastSeenAt.set("2025-01-14T10:00:00.000Z");
+
+    const mockApi = {
+      getNotifications: async () => ({
+        notifications: [
+          { reason: "follow", uri: "n2", author: { did: "did:plc:f" } },
+        ],
+        cursor: "fresh",
+        seenAt: "2025-01-15T10:00:00.000Z",
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications({ reload: true });
+
+    assert.deepEqual(
+      dataStore.$notificationsLastSeenAt.get(),
+      "2025-01-15T10:00:00.000Z",
+    );
+  });
+
+  it("should not capture seenAt on subsequent pages", async () => {
+    const dataStore = new DataStore();
+    dataStore.$notifications.set({
+      notifications: [{ reason: "like", uri: "n1" }],
+      cursor: "page2",
+    });
+    dataStore.$notificationsLastSeenAt.set("2025-01-14T10:00:00.000Z");
+
+    const mockApi = {
+      getNotifications: async () => ({
+        notifications: [
+          { reason: "follow", uri: "n2", author: { did: "did:plc:f" } },
+        ],
+        cursor: "page3",
+        seenAt: "2025-01-15T10:00:00.000Z",
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications();
+
+    assert.deepEqual(
+      dataStore.$notificationsLastSeenAt.get(),
+      "2025-01-14T10:00:00.000Z",
+    );
+  });
+
+  it("should set seenAt to null when the response omits it", async () => {
+    const dataStore = new DataStore();
+    dataStore.$notificationsLastSeenAt.set("2025-01-14T10:00:00.000Z");
+    const mockApi = {
+      getNotifications: async () => ({
+        notifications: [
+          { reason: "like", uri: "n1", author: { did: "did:plc:liker" } },
+        ],
+        cursor: "next",
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadNotifications();
+
+    assert.deepEqual(dataStore.$notificationsLastSeenAt.get(), null);
+  });
+
   it("should discard a stale response when a reload lands mid-flight", async () => {
     const dataStore = new DataStore();
     dataStore.$notifications.set({
@@ -1524,6 +1621,25 @@ describe("loadMentionNotifications", () => {
       1,
     );
     assert.deepEqual(dataStore.$mentionNotifications.get().cursor, "next");
+  });
+
+  it("should not capture seenAt", async () => {
+    const dataStore = new DataStore();
+    const mockApi = {
+      getNotifications: async () => ({
+        notifications: [
+          { reason: "mention", uri: "n1", author: { did: "did:plc:m" } },
+        ],
+        cursor: "next",
+        seenAt: "2025-01-15T10:00:00.000Z",
+      }),
+      getPosts: async () => [],
+    };
+    const requests = makeRequests(mockApi, dataStore);
+
+    await requests.loadMentionNotifications();
+
+    assert.deepEqual(dataStore.$notificationsLastSeenAt.get(), null);
   });
 
   it("should append when cursor matches previous", async () => {
