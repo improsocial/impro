@@ -153,7 +153,8 @@ describe("enableDragToDismiss", () => {
     });
   });
   it("releases the gesture to native scroll on opposite-direction drags with a scroll container", async () => {
-    const scrollContainer = { scrollTop: 0 };
+    const scrollContainer = document.createElement("div");
+    el.appendChild(scrollContainer);
     const events = [];
     const recordDefault = (e) => events.push(e.defaultPrevented);
     el.addEventListener("touchmove", recordDefault);
@@ -170,6 +171,33 @@ describe("enableDragToDismiss", () => {
     assert.equal(closeCount, 0);
     assert.deepEqual(events, [false]);
     assert.equal(el.style.transform, "");
+  });
+  it("does not dismiss when a drag starts inside a scrolled container", async () => {
+    const scrollContainer = document.createElement("div");
+    scrollContainer.scrollTop = 100;
+    el.appendChild(scrollContainer);
+    handle = enableDragToDismiss(el, {
+      direction: "down",
+      onDismiss: () => closeCount++,
+      scrollContainer,
+    });
+    scrollContainer.dispatchEvent(touchEvent("touchstart", { clientY: 100 }));
+    el.dispatchEvent(touchEvent("touchmove", { clientY: 250 }));
+    el.dispatchEvent(touchEvent("touchend"));
+    await wait(0);
+    assert.equal(closeCount, 0);
+  });
+  it("allows dismissing from outside a scrolled container", async () => {
+    const scrollContainer = document.createElement("div");
+    scrollContainer.scrollTop = 100;
+    el.appendChild(scrollContainer);
+    handle = enableDragToDismiss(el, {
+      direction: "down",
+      onDismiss: () => closeCount++,
+      scrollContainer,
+    });
+    await dragTouch([{ clientY: 100 }, { clientY: 250 }]);
+    assert.equal(closeCount, 1);
   });
   describe("default direction (down)", () => {
     let originalVisualViewport;

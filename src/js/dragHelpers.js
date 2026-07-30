@@ -70,7 +70,13 @@ function trackDrag(
     if (disableWhenKeyboardOpen && isKeyboardOpen()) return;
     if (ignoreTouchTarget(e.target)) return;
     if (hasTextSelection()) return;
-    if (scrollContainer && scrollContainer.scrollTop > 0) return;
+    if (
+      scrollContainer &&
+      scrollContainer.contains(e.target) &&
+      scrollContainer.scrollTop > 0
+    ) {
+      return;
+    }
 
     const touch = e.touches[0];
     state.tracking = true;
