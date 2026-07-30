@@ -743,13 +743,6 @@ export class Preferences {
     );
   }
 
-  static getImproThemePreference(obj) {
-    return Preferences.getPreferenceByType(
-      obj,
-      "app.bsky.actor.defs#improThemePref",
-    );
-  }
-
   static getLabelerDidsFromPreferences(obj) {
     const labelerPreference = Preferences.getLabelerPreference(obj);
     const labelers = labelerPreference ? labelerPreference.labelers : [];
