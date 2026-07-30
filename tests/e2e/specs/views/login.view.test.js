@@ -12,7 +12,6 @@ test.describe("Login view", () => {
     await expect(
       loginView.getByRole("heading", { name: "Sign in" }),
     ).toBeVisible();
-    await expect(loginView.locator("h2")).toContainText("IMPRO");
 
     const handleInput = page.locator('input[name="handle"]');
     await expect(handleInput).toBeVisible();

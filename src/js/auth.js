@@ -247,18 +247,6 @@ export class OAuthProvider {
     }
     window.location.href = authUrl;
     return new Promise(() => {}); // no resolve, just wait for redirect
-    // if (isNative()) {
-    //   // Listen for the native app callback
-    //   App.addListener("appUrlOpen", (state) => {
-    //     if (data.url.startsWith("dev.pages.impro:/callback")) {
-    //       const params = data.url.split("?")[1];
-    //       window.location.href = "/callback.html?" + params;
-    //     }
-    //   });
-    //   await Browser.open({ url: authUrl });
-    // } else {
-    //   window.location.href = authUrl;
-    // }
   }
 
   async logout(did = null) {
