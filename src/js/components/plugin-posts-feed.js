@@ -80,11 +80,12 @@ class PluginPostsFeed extends Component {
     this._disposers = null;
   }
 
-  attributeChangedCallback() {
-    if (this.initialized) {
-      // TODO - smarter updates?
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (!this.initialized || oldValue === newValue) return;
+    if (name === "uris") {
       this.state.$uris.set(this.parseUris());
-      this.state.$emptyMessage.set(this.getAttribute("empty-message"));
+    } else if (name === "empty-message") {
+      this.state.$emptyMessage.set(newValue);
     }
   }
 

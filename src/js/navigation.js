@@ -97,6 +97,10 @@ export function linkToGroupChatDetails(convoId) {
   return `/messages/${encodePathSegment(convoId)}/settings`;
 }
 
+export function linkToPluginSettings(pluginId) {
+  return `/plugin/${encodePathSegment(pluginId)}/settings`;
+}
+
 export function linkToCommunityPlugin(pluginId) {
   return `/plugins/community/${encodePathSegment(pluginId)}`;
 }

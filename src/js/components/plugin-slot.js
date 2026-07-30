@@ -9,13 +9,14 @@ function kebabToCamel(name) {
 
 class PluginSlot extends Component {
   connectedCallback() {
-    if (this.initialized) return;
-    this.initialized = true;
-    if (!this.pluginService) {
-      throw new Error("pluginService is required");
+    if (!this.initialized) {
+      this.initialized = true;
+      if (!this.pluginService) {
+        throw new Error("pluginService is required");
+      }
+      this._pluginRoots = new Map();
+      this._currentRequest = null;
     }
-    this._pluginRoots = new Map();
-    this._currentRequest = null;
     this._subscribe();
   }
 
@@ -26,7 +27,7 @@ class PluginSlot extends Component {
     this._disposeEffect = effect(() => {
       this.pluginService.$slots.get(slotName);
       this._reconcile();
-    }, `plugin-slot[${slotName}]`);
+    });
   }
 
   disconnectedCallback() {
@@ -37,7 +38,6 @@ class PluginSlot extends Component {
     this._pluginRoots.clear();
   }
 
-  // TODO - automatic?
   static get observedAttributes() {
     return ["name", "context-uri", "context-did"];
   }

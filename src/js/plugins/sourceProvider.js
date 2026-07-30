@@ -101,7 +101,7 @@ function assertFontMagicBytes(file, bytes) {
 // entirely — this isn't fixable by changing the URL we hit on that host.
 //
 // Instead, resolve and fetch entirely through standard AT Protocol
-// infrastructure, which is CORS-enabled throughout (impro already depends
+// infrastructure, which is CORS-enabled throughout (we already depend
 // on plc.directory and the handle resolver for its own core function, so
 // this adds no new trust surface):
 //   1. resolveIdentity(ownerHandle) -> owner DID + DID doc (handle

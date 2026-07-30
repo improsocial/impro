@@ -149,6 +149,44 @@ describe("plugin-blob-image", () => {
       assert(element.querySelector("img").getAttribute("src").includes(didB));
     });
 
+    it("updates the rendered alt text when alt changes", async () => {
+      const element = makeElement({
+        did: uniqueDid(),
+        cid: VALID_CID,
+        alt: ":old:",
+        cdnPrefix: "feed_thumbnail",
+      });
+      await flush();
+
+      element.setAttribute("alt", ":new:");
+      await flush();
+      assert.deepEqual(
+        element.querySelector("img").getAttribute("alt"),
+        ":new:",
+      );
+    });
+
+    it("keeps the fallback when only alt changes after a load error", async () => {
+      const element = makeElement({
+        did: uniqueDid(),
+        cid: VALID_CID,
+        alt: ":old:",
+        cdnPrefix: "feed_thumbnail",
+      });
+      await flush();
+
+      element.querySelector("img").dispatchEvent(new window.Event("error"));
+      await flush();
+      assert(element.querySelector("img") === null);
+
+      element.setAttribute("alt", ":new:");
+      await flush();
+      assert(element.querySelector("img") === null);
+      const fallback = element.querySelector(".blob-image-fallback");
+      assert(fallback !== null);
+      assert.deepEqual(fallback.textContent, ":new:");
+    });
+
     it("clears the error state so a fixed cid stops showing the fallback", async () => {
       const element = makeElement({
         did: uniqueDid(),

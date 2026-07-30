@@ -69,13 +69,20 @@ class PluginBlobImage extends Component {
     this._disposers = null;
   }
 
-  attributeChangedCallback() {
-    if (!this.initialized) return;
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (!this.initialized || oldValue === newValue) return;
+    if (name === "alt") {
+      this.state.$alt.set(newValue);
+      return;
+    }
     this.state.$failed.set(false);
-    this.state.$did.set(this.getAttribute("did"));
-    this.state.$cid.set(this.getAttribute("cid"));
-    this.state.$alt.set(this.getAttribute("alt"));
-    this.state.$cdnPrefix.set(this.getAttribute("cdn-prefix"));
+    if (name === "did") {
+      this.state.$did.set(newValue);
+    } else if (name === "cid") {
+      this.state.$cid.set(newValue);
+    } else if (name === "cdn-prefix") {
+      this.state.$cdnPrefix.set(newValue);
+    }
   }
 }
 

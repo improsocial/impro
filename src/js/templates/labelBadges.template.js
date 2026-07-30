@@ -3,14 +3,16 @@ import { getLabelNameAndDescription } from "/js/dataHelpers.js";
 import "/js/components/plugin-slot.js";
 
 export function authorBadgesTemplate({ badgeLabels, did, pluginService }) {
-  return html`${badgeLabels?.length ? labelBadgesTemplate({ badgeLabels }) : ""}
-  ${pluginService
-    ? html`<plugin-slot
-        name="author-badges"
-        context-did=${did ?? ""}
-        .pluginService=${pluginService}
-      ></plugin-slot>`
-    : ""}`;
+  return html`<div class="author-badges">
+    ${badgeLabels?.length ? labelBadgesTemplate({ badgeLabels }) : ""}
+    ${pluginService
+      ? html`<plugin-slot
+          name="author-badges"
+          context-did=${did ?? ""}
+          .pluginService=${pluginService}
+        ></plugin-slot>`
+      : ""}
+  </div>`;
 }
 
 function labelBadgesTemplate({ badgeLabels }) {

@@ -12,13 +12,14 @@ import { confirmModal } from "/js/modals/confirm.modal.js";
 import { showToast } from "/js/toasts.js";
 import { Signal, SignalSet, ReactiveStore } from "/js/signals.js";
 import { PermissionsDeclinedError } from "/js/plugins/pluginService.js";
+import { linkToPluginSettings, linkToCommunityPlugin } from "/js/navigation.js";
 import "/js/components/toggle-switch.js";
 
-class SettingsPluginsView extends View {
+class InstalledPluginsView extends View {
   async render({ root, router, layout, context: { pluginService } }) {
     await auth.requireAuth();
 
-    const state = new ReactiveStore("settingsPluginsView");
+    const state = new ReactiveStore("installedPluginsView");
     state.$uninstallingIds = new SignalSet();
     state.$enablingIds = new SignalSet();
     state.$disablingIds = new SignalSet();
@@ -148,7 +149,9 @@ class SettingsPluginsView extends View {
 
     bindToPage(root, layout, "active-nav-click", (event) => {
       event.preventDefault();
-      router.go("/settings");
+      if (window.scrollY > 0) {
+        window.scrollTo({ top: -1, behavior: "smooth" });
+      }
     });
 
     bindPageTitle(root, () => "Plugins");
@@ -162,10 +165,9 @@ class SettingsPluginsView extends View {
       const hasAvailableUpdates =
         availableUpdates !== null && availableUpdates.size > 0;
       render(
-        html`<div id="settings-plugins-view">
+        html`<div id="installed-plugins-view">
           ${headerTemplate({
             title: "Plugins",
-            backButtonFallbackRoute: "/settings",
           })}
           <main>
             <a class="community-plugins-link" href="/plugins/community">
@@ -241,6 +243,28 @@ class SettingsPluginsView extends View {
                           state.$enablingIds.has(plugin.id) ||
                           state.$disablingIds.has(plugin.id) ||
                           isUpdating;
+                        const isLocal = plugin.id.endsWith("__LOCAL");
+                        const infoContent = html`
+                          <div class="plugin-list-item-name">
+                            ${plugin.name}
+                            ${isLocal
+                              ? html`<span class="plugin-local-badge"
+                                  >local</span
+                                >`
+                              : ""}
+                          </div>
+                          ${plugin.description
+                            ? html`<div class="plugin-list-item-description">
+                                ${plugin.description}
+                              </div>`
+                            : ""}
+                          <div class="plugin-list-item-version">
+                            Version: ${plugin.version}
+                          </div>
+                          <div class="plugin-list-item-author">
+                            By ${plugin.author}
+                          </div>
+                        `;
                         // Keyed to avoid flipping animation when plugins are added / removed
                         return keyed(
                           plugin.id,
@@ -253,29 +277,16 @@ class SettingsPluginsView extends View {
                                 : ""}"
                               ?inert=${isPending}
                             >
-                              <div class="plugin-list-item-info">
-                                <div class="plugin-list-item-name">
-                                  ${plugin.name}
-                                  ${plugin.id.endsWith("__LOCAL")
-                                    ? html`<span class="plugin-local-badge"
-                                        >local</span
-                                      >`
-                                    : ""}
-                                </div>
-                                ${plugin.description
-                                  ? html`<div
-                                      class="plugin-list-item-description"
-                                    >
-                                      ${plugin.description}
-                                    </div>`
-                                  : ""}
-                                <div class="plugin-list-item-version">
-                                  Version: ${plugin.version}
-                                </div>
-                                <div class="plugin-list-item-author">
-                                  By ${plugin.author}
-                                </div>
-                              </div>
+                              ${isLocal
+                                ? html`<div class="plugin-list-item-info">
+                                    ${infoContent}
+                                  </div>`
+                                : html`<a
+                                    class="plugin-list-item-info"
+                                    href=${linkToCommunityPlugin(plugin.id)}
+                                  >
+                                    ${infoContent}
+                                  </a>`}
                               <div class="plugin-list-item-controls">
                                 ${hasUpdate
                                   ? html`<button
@@ -295,7 +306,7 @@ class SettingsPluginsView extends View {
                                 ${plugin.enabled && plugin.hasSettings
                                   ? html`<a
                                       class="plugin-settings-link icon-button"
-                                      href="/settings/plugins/${plugin.id}"
+                                      href=${linkToPluginSettings(plugin.id)}
                                       aria-label="Settings for ${plugin.name}"
                                     >
                                       ${settingsIconTemplate()}
@@ -339,4 +350,4 @@ class SettingsPluginsView extends View {
   }
 }
 
-export default new SettingsPluginsView();
+export default new InstalledPluginsView();

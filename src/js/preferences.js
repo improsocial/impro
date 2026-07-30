@@ -14,6 +14,15 @@ import { LOGGED_OUT_FEED_URI, BSKY_LABELER_DID } from "/js/config.js";
 import { getTagsFromFacets } from "/js/facetHelpers.js";
 import { isListFeed } from "/js/dataHelpers.js";
 
+export const HIDDEN_POSTS_PREF_TYPE =
+  "app.bsky.actor.defs#improHiddenPostsPref";
+export const PLUGIN_SETTINGS_PREF_TYPE =
+  "app.bsky.actor.defs#improPluginSettingsPref";
+export const INSTALLED_PLUGINS_PREF_TYPE =
+  "app.bsky.actor.defs#improInstalledPluginsPref";
+export const SEARCH_HISTORY_PREF_TYPE =
+  "app.bsky.actor.defs#improSearchHistoryPref";
+
 function getContentTextFromEmbed(embed) {
   const texts = [];
 
@@ -40,6 +49,10 @@ function getContentTextFromEmbed(embed) {
 
   return texts;
 }
+
+const MAX_RECENT_SEARCHES = 10;
+const MAX_RECENT_SEARCH_PROFILES = 10;
+const MAX_RECENT_SEARCH_QUERY_LENGTH = 300;
 
 const WORD_BOUNDARY_REGEX = /[\s\n\t\r\f\v]+/g;
 const LEADING_TRAILING_PUNCTUATION_REGEX = /(?:^\p{P}+|\p{P}+$)/gu;
@@ -163,12 +176,97 @@ export class Preferences {
     // If the preference doesn't exist, create it
     if (!hiddenPostsPreference) {
       hiddenPostsPreference = {
-        $type: "app.bsky.actor.defs#improHiddenPostsPref",
+        $type: HIDDEN_POSTS_PREF_TYPE,
         items: [],
       };
       clone.obj.push(hiddenPostsPreference);
     }
     hiddenPostsPreference.items.push(postUri);
+    return clone;
+  }
+
+  getRecentSearches() {
+    const pref = Preferences.getSearchHistoryPreference(this.obj);
+    if (!pref || !Array.isArray(pref.searches)) {
+      return [];
+    }
+    return pref.searches
+      .filter(
+        (entry) => typeof entry?.q === "string" && entry.q.trim().length > 0,
+      )
+      .map((entry) => ({ ...entry, ts: Number(entry.ts) || 0 }))
+      .slice(0, MAX_RECENT_SEARCHES);
+  }
+
+  addRecentSearch(q) {
+    const clone = this.clone();
+    const query = (q ?? "").trim().slice(0, MAX_RECENT_SEARCH_QUERY_LENGTH);
+    if (!query) {
+      return clone;
+    }
+    const pref = Preferences.ensureSearchHistoryPreference(clone.obj);
+    if (!Array.isArray(pref.searches)) {
+      pref.searches = [];
+    }
+    pref.searches = pref.searches.filter((entry) => entry?.q !== query);
+    pref.searches.unshift({ q: query, ts: Date.now() });
+    pref.searches = pref.searches.slice(0, MAX_RECENT_SEARCHES);
+    return clone;
+  }
+
+  removeRecentSearch(q) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.searches)) {
+      return clone;
+    }
+    pref.searches = pref.searches.filter((entry) => entry?.q !== q);
+    return clone;
+  }
+
+  getRecentSearchProfiles() {
+    const pref = Preferences.getSearchHistoryPreference(this.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return [];
+    }
+    return pref.profiles
+      .filter((did) => typeof did === "string" && did.length > 0)
+      .slice(0, MAX_RECENT_SEARCH_PROFILES);
+  }
+
+  addRecentSearchProfile(did) {
+    const clone = this.clone();
+    if (typeof did !== "string" || did.length === 0) {
+      return clone;
+    }
+    const pref = Preferences.ensureSearchHistoryPreference(clone.obj);
+    if (!Array.isArray(pref.profiles)) {
+      pref.profiles = [];
+    }
+    pref.profiles = pref.profiles.filter((existing) => existing !== did);
+    pref.profiles.unshift(did);
+    pref.profiles = pref.profiles.slice(0, MAX_RECENT_SEARCH_PROFILES);
+    return clone;
+  }
+
+  removeRecentSearchProfile(did) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return clone;
+    }
+    pref.profiles = pref.profiles.filter((existing) => existing !== did);
+    return clone;
+  }
+
+  removeRecentSearchProfiles(dids) {
+    const clone = this.clone();
+    const pref = Preferences.getSearchHistoryPreference(clone.obj);
+    if (!pref || !Array.isArray(pref.profiles)) {
+      return clone;
+    }
+    const removedSet = new Set(dids);
+    pref.profiles = pref.profiles.filter((did) => !removedSet.has(did));
     return clone;
   }
 
@@ -530,7 +628,7 @@ export class Preferences {
       existing.data = data;
     } else {
       clone.obj.push({
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId,
         data,
       });
@@ -543,8 +641,7 @@ export class Preferences {
     clone.obj = clone.obj.filter(
       (pref) =>
         !(
-          pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
-          pref.pluginId === pluginId
+          pref.$type === PLUGIN_SETTINGS_PREF_TYPE && pref.pluginId === pluginId
         ),
     );
     return clone;
@@ -553,7 +650,7 @@ export class Preferences {
   getInstalledPlugins() {
     const pref = Preferences.getPreferenceByType(
       this.obj,
-      "app.bsky.actor.defs#improInstalledPluginsPref",
+      INSTALLED_PLUGINS_PREF_TYPE,
     );
     return pref?.plugins ?? [];
   }
@@ -562,13 +659,13 @@ export class Preferences {
     const clone = this.clone();
     const existing = Preferences.getPreferenceByType(
       clone.obj,
-      "app.bsky.actor.defs#improInstalledPluginsPref",
+      INSTALLED_PLUGINS_PREF_TYPE,
     );
     if (existing) {
       existing.plugins = plugins;
     } else {
       clone.obj.push({
-        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        $type: INSTALLED_PLUGINS_PREF_TYPE,
         plugins,
       });
     }
@@ -591,12 +688,26 @@ export class Preferences {
   }
 
   static getHiddenPostsPreference(obj) {
-    // Note: This is a custom preference type. social-app stores hidden posts in local storage,
+    // Note: social-app stores hidden posts in local storage,
     // but there's a note in the code to "move to the server" so let's just do that here.
-    return Preferences.getPreferenceByType(
-      obj,
-      "app.bsky.actor.defs#improHiddenPostsPref",
-    );
+    return Preferences.getPreferenceByType(obj, HIDDEN_POSTS_PREF_TYPE);
+  }
+
+  static getSearchHistoryPreference(obj) {
+    // As with hidden posts, store these on preferences instead of locally.
+    return Preferences.getPreferenceByType(obj, SEARCH_HISTORY_PREF_TYPE);
+  }
+
+  static ensureSearchHistoryPreference(obj) {
+    let pref = Preferences.getSearchHistoryPreference(obj);
+    if (!pref) {
+      pref = {
+        $type: SEARCH_HISTORY_PREF_TYPE,
+        searches: [],
+      };
+      obj.push(pref);
+    }
+    return pref;
   }
 
   static getMutedWordsPreference(obj) {
@@ -629,15 +740,7 @@ export class Preferences {
   static getPluginSettingsPreference(obj, pluginId) {
     return obj.find(
       (pref) =>
-        pref.$type === "app.bsky.actor.defs#improPluginSettingsPref" &&
-        pref.pluginId === pluginId,
-    );
-  }
-
-  static getImproThemePreference(obj) {
-    return Preferences.getPreferenceByType(
-      obj,
-      "app.bsky.actor.defs#improThemePref",
+        pref.$type === PLUGIN_SETTINGS_PREF_TYPE && pref.pluginId === pluginId,
     );
   }
 

@@ -1315,15 +1315,15 @@ describe("getClaimedFacetTypes", () => {
     const service = makeServiceWithRealBridge();
     registerTransform(service, "alpha", {
       handlerId: 1,
-      handlesFacetTypes: ["blue.moji.richtext.facet", "dev.impro.foo"],
+      handlesFacetTypes: ["blue.moji.richtext.facet", "com.domain.foo"],
     });
     registerTransform(service, "beta", {
       handlerId: 2,
-      handlesFacetTypes: ["dev.impro.foo"],
+      handlesFacetTypes: ["com.domain.foo"],
     });
     assert.deepEqual([...service.getClaimedFacetTypes()].sort(), [
       "blue.moji.richtext.facet",
-      "dev.impro.foo",
+      "com.domain.foo",
     ]);
   });
 

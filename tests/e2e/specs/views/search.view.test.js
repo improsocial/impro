@@ -1259,4 +1259,372 @@ test.describe("Search view", () => {
       await expect(view.locator("tab-bar")).toBeHidden();
     });
   });
+
+  test.describe("Recent searches", () => {
+    test("shows recent searches instead of the placeholder when history exists", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({
+        searches: [
+          { q: "dogs", ts: 2 },
+          { q: "cats", ts: 1 },
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator('[data-testid="search-recent"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(view.locator(".search-placeholder")).not.toBeVisible();
+      const rows = view.locator('[data-testid="search-recent-row"]');
+      await expect(rows).toHaveCount(2);
+      await expect(rows.nth(0)).toContainText("dogs");
+      await expect(rows.nth(1)).toContainText("cats");
+      // Rendering recents must not fire any search requests
+      expect(mockServer.searchRequestCounts.profiles).toBe(0);
+      expect(mockServer.searchRequestCounts.top).toBe(0);
+      expect(mockServer.searchRequestCounts.latest).toBe(0);
+      expect(mockServer.searchRequestCounts.feeds).toBe(0);
+      expect(mockServer.searchRequestCounts.typeahead).toBe(0);
+    });
+
+    test("records a committed search and shows it after clearing the input", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const input = view.locator(".search-input");
+      await expect(view.locator(".search-placeholder")).toBeVisible({
+        timeout: 10000,
+      });
+      await input.fill("kittens");
+      await input.press("Enter");
+
+      await expect
+        .poll(() => mockServer.searchHistory?.searches?.[0]?.q, {
+          timeout: 10000,
+        })
+        .toBe("kittens");
+
+      await view.locator(".search-clear-button").click();
+      const rows = view.locator('[data-testid="search-recent-row"]');
+      await expect(rows).toHaveCount(1, { timeout: 10000 });
+      await expect(rows.nth(0)).toContainText("kittens");
+    });
+
+    test("re-running an existing search moves it to the front without duplicating", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({
+        searches: [
+          { q: "cats", ts: 2 },
+          { q: "dogs", ts: 1 },
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const input = view.locator(".search-input");
+      await expect(view.locator('[data-testid="search-recent"]')).toBeVisible({
+        timeout: 10000,
+      });
+      await input.fill("dogs");
+      await input.press("Enter");
+
+      await expect
+        .poll(
+          () => mockServer.searchHistory?.searches?.map((entry) => entry.q),
+          { timeout: 10000 },
+        )
+        .toEqual(["dogs", "cats"]);
+    });
+
+    test("clicking a recent row fills the input and runs the search", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({ searches: [{ q: "hello", ts: 1 }] });
+      mockServer.addSearchPosts([
+        createPost({
+          uri: "at://did:plc:author1/app.bsky.feed.post/post1",
+          text: "Hello world from search",
+          authorHandle: "author1.bsky.social",
+          authorDisplayName: "Author One",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view
+        .locator('[data-testid="search-recent-row-button"]')
+        .first()
+        .click();
+
+      await expect(page).toHaveURL(/[?&]q=hello/);
+      await expect(view.locator(".search-input")).toHaveValue("hello");
+      await expect(
+        view.locator(".search-post-results-top [data-post-uri]"),
+      ).toHaveCount(1, { timeout: 10000 });
+    });
+
+    test("removing a middle entry keeps the others and does not navigate", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({
+        searches: [
+          { q: "alpha", ts: 3 },
+          { q: "beta", ts: 2 },
+          { q: "gamma", ts: 1 },
+        ],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const rows = view.locator('[data-testid="search-recent-row"]');
+      await expect(rows).toHaveCount(3, { timeout: 10000 });
+
+      await rows
+        .nth(1)
+        .locator('[data-testid="search-recent-remove-button"]')
+        .click();
+
+      await expect(rows).toHaveCount(2, { timeout: 10000 });
+      await expect(rows.nth(0)).toContainText("alpha");
+      await expect(rows.nth(1)).toContainText("gamma");
+      await expect(page).toHaveURL(/\/search$/);
+      await expect
+        .poll(
+          () => mockServer.searchHistory?.searches?.map((entry) => entry.q),
+          { timeout: 10000 },
+        )
+        .toEqual(["alpha", "gamma"]);
+    });
+
+    test("removes a recent search optimistically before the write settles", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({
+        searches: [
+          { q: "cats", ts: 2 },
+          { q: "dogs", ts: 1 },
+        ],
+      });
+      mockServer.putPreferencesDelayMs = 2000;
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const rows = view.locator('[data-testid="search-recent-row"]');
+      await expect(rows).toHaveCount(2, { timeout: 10000 });
+
+      await rows
+        .nth(0)
+        .locator('[data-testid="search-recent-remove-button"]')
+        .click();
+
+      // The row disappears immediately, long before the delayed
+      // putPreferences settles
+      await expect(rows).toHaveCount(1, { timeout: 500 });
+      await expect(rows.nth(0)).toContainText("dogs");
+      expect(mockServer.searchHistory.searches.length).toBe(2);
+
+      await expect
+        .poll(
+          () => mockServer.searchHistory?.searches?.map((entry) => entry.q),
+          { timeout: 10000 },
+        )
+        .toEqual(["dogs"]);
+      await expect(rows).toHaveCount(1);
+    });
+
+    test("shows the placeholder again after removing the last entry", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.setSearchHistory({ searches: [{ q: "cats", ts: 1 }] });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await view
+        .locator('[data-testid="search-recent-remove-button"]')
+        .first()
+        .click();
+
+      await expect(view.locator(".search-placeholder")).toBeVisible({
+        timeout: 10000,
+      });
+      await expect(
+        view.locator('[data-testid="search-recent"]'),
+      ).not.toBeVisible();
+    });
+
+    test("logged out shows the placeholder and never writes history", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      mockServer.addSearchProfiles([
+        createProfile({
+          did: "did:plc:profile1",
+          handle: "alice.bsky.social",
+          displayName: "Alice",
+        }),
+      ]);
+      await mockServer.setup(page);
+
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      await expect(view.locator(".search-placeholder")).toBeVisible({
+        timeout: 10000,
+      });
+
+      const input = view.locator(".search-input");
+      await input.fill("alice");
+      await input.press("Enter");
+      await expect(view.locator(".profile-list-item")).toHaveCount(1, {
+        timeout: 10000,
+      });
+      expect(mockServer.searchHistory).toBe(null);
+    });
+
+    test("renders recent profiles in stored order and navigates on tap", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const profile1 = createProfile({
+        did: "did:plc:recent1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const profile2 = createProfile({
+        did: "did:plc:recent2",
+        handle: "bob.bsky.social",
+        displayName: "Bob",
+      });
+      mockServer.addProfile(profile1);
+      mockServer.addProfile(profile2);
+      mockServer.setSearchHistory({
+        profiles: [profile2.did, profile1.did],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const tiles = view.locator('[data-testid="search-recent-profile"]');
+      await expect(tiles).toHaveCount(2, { timeout: 10000 });
+      await expect(tiles.nth(0)).toContainText("Bob");
+      await expect(tiles.nth(1)).toContainText("Alice");
+
+      await tiles.nth(0).click();
+      await expect(page).toHaveURL(/\/profile\//, { timeout: 10000 });
+    });
+
+    test("shows skeleton tiles while recent profiles load, matching loaded height", async ({
+      page,
+    }) => {
+      const mockServer = new MockServer();
+      const profile1 = createProfile({
+        did: "did:plc:recent1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const profile2 = createProfile({
+        did: "did:plc:recent2",
+        handle: "bob.bsky.social",
+        displayName: "Bob",
+      });
+      mockServer.addProfile(profile1);
+      mockServer.addProfile(profile2);
+      mockServer.setSearchHistory({
+        profiles: [profile2.did, profile1.did],
+      });
+      mockServer.getProfilesDelayMs = 1500;
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const skeletons = view.locator(
+        '[data-testid="search-recent-profile-skeleton"]',
+      );
+      await expect(skeletons).toHaveCount(2, { timeout: 10000 });
+      const skeletonBox = await skeletons.first().boundingBox();
+
+      const tiles = view.locator('[data-testid="search-recent-profile"]');
+      await expect(tiles).toHaveCount(2, { timeout: 10000 });
+      await expect(skeletons).toHaveCount(0);
+      const tileBox = await tiles.first().boundingBox();
+      expect(tileBox.height).toBe(skeletonBox.height);
+      expect(tileBox.width).toBe(skeletonBox.width);
+    });
+
+    test("removing a recent profile does not navigate", async ({ page }) => {
+      const mockServer = new MockServer();
+      const profile1 = createProfile({
+        did: "did:plc:recent1",
+        handle: "alice.bsky.social",
+        displayName: "Alice",
+      });
+      const profile2 = createProfile({
+        did: "did:plc:recent2",
+        handle: "bob.bsky.social",
+        displayName: "Bob",
+      });
+      mockServer.addProfile(profile1);
+      mockServer.addProfile(profile2);
+      mockServer.setSearchHistory({
+        profiles: [profile2.did, profile1.did],
+      });
+      await mockServer.setup(page);
+
+      await login(page);
+      await page.goto("/search");
+
+      const view = page.locator("#search-view");
+      const tiles = view.locator('[data-testid="search-recent-profile"]');
+      await expect(tiles).toHaveCount(2, { timeout: 10000 });
+
+      await tiles
+        .nth(0)
+        .locator('[data-testid="search-recent-profile-remove"]')
+        .click();
+
+      await expect(tiles).toHaveCount(1, { timeout: 10000 });
+      await expect(tiles.nth(0)).toContainText("Alice");
+      await expect(page).toHaveURL(/\/search$/);
+      await expect
+        .poll(() => mockServer.searchHistory?.profiles, { timeout: 10000 })
+        .toEqual(["did:plc:recent1"]);
+    });
+  });
 });

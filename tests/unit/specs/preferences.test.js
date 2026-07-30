@@ -1,6 +1,11 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { Preferences } from "/js/preferences.js";
+import {
+  Preferences,
+  PLUGIN_SETTINGS_PREF_TYPE,
+  INSTALLED_PLUGINS_PREF_TYPE,
+  SEARCH_HISTORY_PREF_TYPE,
+} from "/js/preferences.js";
 
 describe("Preferences.createLoggedOutPreferences", () => {
   it("should create preferences with discover feed pinned", () => {
@@ -2946,7 +2951,7 @@ describe("Preferences plugin settings", () => {
   it("returns stored data for a plugin", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId: "my-plugin",
         data: { foo: "bar" },
       },
@@ -2960,7 +2965,7 @@ describe("Preferences plugin settings", () => {
   it("does not return data scoped to a different plugin", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improPluginSettingsPref",
+        $type: PLUGIN_SETTINGS_PREF_TYPE,
         pluginId: "plugin-a",
         data: { foo: "bar" },
       },
@@ -2985,7 +2990,7 @@ describe("Preferences plugin settings", () => {
     assert.deepEqual(updated.getPluginSettings("my-plugin"), { count: 2 });
     // Only one record stored
     const records = updated.obj.filter(
-      (pref) => pref.$type === "app.bsky.actor.defs#improPluginSettingsPref",
+      (pref) => pref.$type === PLUGIN_SETTINGS_PREF_TYPE,
     );
     assert.deepEqual(records.length, 1);
   });
@@ -3027,7 +3032,7 @@ describe("Preferences installed plugins", () => {
   it("returns stored plugins list", () => {
     const obj = [
       {
-        $type: "app.bsky.actor.defs#improInstalledPluginsPref",
+        $type: INSTALLED_PLUGINS_PREF_TYPE,
         plugins: [
           { id: "alpha", version: "1.0.0", enabled: true },
           { id: "beta", version: "2.0.0", enabled: false },
@@ -3064,8 +3069,238 @@ describe("Preferences installed plugins", () => {
       { id: "alpha", version: "1.1.0", enabled: true },
     ]);
     const records = updated.obj.filter(
-      (pref) => pref.$type === "app.bsky.actor.defs#improInstalledPluginsPref",
+      (pref) => pref.$type === INSTALLED_PLUGINS_PREF_TYPE,
     );
     assert.deepEqual(records.length, 1);
+  });
+});
+
+describe("Preferences recent searches", () => {
+  const buildObj = (searches) => [
+    {
+      $type: SEARCH_HISTORY_PREF_TYPE,
+      searches,
+    },
+  ];
+
+  it("returns empty array when no search history preference exists", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(preferences.getRecentSearches(), []);
+  });
+
+  it("adds a search and reads it back newest first", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearch("cats")
+      .addRecentSearch("dogs");
+    const searches = preferences.getRecentSearches();
+    assert.deepEqual(
+      searches.map((entry) => entry.q),
+      ["dogs", "cats"],
+    );
+    assert(typeof searches[0].ts === "number");
+    assert(searches[0].ts > 0);
+  });
+
+  it("creates the preference on first add", () => {
+    const preferences = new Preferences([], []);
+    const updated = preferences.addRecentSearch("cats");
+    const pref = Preferences.getSearchHistoryPreference(updated.obj);
+    assert.deepEqual(pref.$type, SEARCH_HISTORY_PREF_TYPE);
+    assert.deepEqual(pref.searches.length, 1);
+    // Original unchanged
+    assert.deepEqual(preferences.getRecentSearches(), []);
+  });
+
+  it("trims the query and ignores empty/whitespace queries", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearch("  cats  ")
+      .addRecentSearch("")
+      .addRecentSearch("   ")
+      .addRecentSearch(null);
+    const searches = preferences.getRecentSearches();
+    assert.deepEqual(
+      searches.map((entry) => entry.q),
+      ["cats"],
+    );
+  });
+
+  it("clamps overlong queries", () => {
+    const preferences = new Preferences([], []).addRecentSearch(
+      "a".repeat(500),
+    );
+    assert.deepEqual(preferences.getRecentSearches()[0].q, "a".repeat(300));
+  });
+
+  it("dedupes by moving an existing query to the front", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearch("cats")
+      .addRecentSearch("dogs")
+      .addRecentSearch("cats");
+    assert.deepEqual(
+      preferences.getRecentSearches().map((entry) => entry.q),
+      ["cats", "dogs"],
+    );
+  });
+
+  it("caps stored searches at 10, dropping the oldest", () => {
+    let preferences = new Preferences([], []);
+    for (let i = 1; i <= 12; i++) {
+      preferences = preferences.addRecentSearch(`query ${i}`);
+    }
+    const searches = preferences.getRecentSearches();
+    assert.deepEqual(searches.length, 10);
+    assert.deepEqual(searches[0].q, "query 12");
+    assert.deepEqual(searches[9].q, "query 3");
+  });
+
+  it("removes a search by query", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearch("cats")
+      .addRecentSearch("dogs");
+    const updated = preferences.removeRecentSearch("cats");
+    assert.deepEqual(
+      updated.getRecentSearches().map((entry) => entry.q),
+      ["dogs"],
+    );
+    // Original unchanged
+    assert.deepEqual(preferences.getRecentSearches().length, 2);
+  });
+
+  it("handles removing an absent query gracefully", () => {
+    const preferences = new Preferences([], []).addRecentSearch("cats");
+    const updated = preferences.removeRecentSearch("dogs");
+    assert.deepEqual(updated.getRecentSearches().length, 1);
+    const noPref = new Preferences([], []).removeRecentSearch("cats");
+    assert.deepEqual(noPref.getRecentSearches(), []);
+  });
+
+  it("drops malformed entries on read", () => {
+    const preferences = new Preferences(
+      buildObj([
+        { q: "valid", ts: 123 },
+        { q: "", ts: 1 },
+        { q: "   ", ts: 1 },
+        { q: 42, ts: 1 },
+        { ts: 1 },
+        null,
+        "bare string",
+      ]),
+      [],
+    );
+    const searches = preferences.getRecentSearches();
+    assert.deepEqual(searches.length, 1);
+    assert.deepEqual(searches[0].q, "valid");
+  });
+
+  it("returns empty array when searches is not an array", () => {
+    const preferences = new Preferences(buildObj("not an array"), []);
+    assert.deepEqual(preferences.getRecentSearches(), []);
+  });
+
+  it("coerces non-numeric ts to 0 on read", () => {
+    const preferences = new Preferences(
+      buildObj([{ q: "cats", ts: "soon" }, { q: "dogs" }]),
+      [],
+    );
+    const searches = preferences.getRecentSearches();
+    assert.deepEqual(searches[0].ts, 0);
+    assert.deepEqual(searches[1].ts, 0);
+  });
+
+  it("preserves unknown entry keys through unrelated mutations", () => {
+    const preferences = new Preferences(
+      buildObj([{ q: "cats", ts: 123, filters: { lang: "en" } }]),
+      [],
+    );
+    const updated = preferences.addRecentSearch("dogs");
+    const pref = Preferences.getSearchHistoryPreference(updated.obj);
+    assert.deepEqual(pref.searches[1], {
+      q: "cats",
+      ts: 123,
+      filters: { lang: "en" },
+    });
+  });
+
+  it("leaves other preference types untouched", () => {
+    const obj = [{ $type: "app.bsky.actor.defs#savedFeedsPrefV2", items: [] }];
+    const preferences = new Preferences(obj, []);
+    const updated = preferences.addRecentSearch("cats");
+    assert.deepEqual(
+      Preferences.getSavedFeedsPreference(updated.obj).items,
+      [],
+    );
+    assert.deepEqual(updated.obj.length, 2);
+  });
+});
+
+describe("Preferences recent search profiles", () => {
+  it("returns empty array when no search history preference exists", () => {
+    const preferences = new Preferences([], []);
+    assert.deepEqual(preferences.getRecentSearchProfiles(), []);
+  });
+
+  it("adds profiles newest first and dedupes by DID", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearchProfile("did:plc:aaa")
+      .addRecentSearchProfile("did:plc:bbb")
+      .addRecentSearchProfile("did:plc:aaa");
+    assert.deepEqual(preferences.getRecentSearchProfiles(), [
+      "did:plc:aaa",
+      "did:plc:bbb",
+    ]);
+  });
+
+  it("caps stored profiles at 10", () => {
+    let preferences = new Preferences([], []);
+    for (let i = 1; i <= 12; i++) {
+      preferences = preferences.addRecentSearchProfile(`did:plc:profile${i}`);
+    }
+    const profiles = preferences.getRecentSearchProfiles();
+    assert.deepEqual(profiles.length, 10);
+    assert.deepEqual(profiles[0], "did:plc:profile12");
+    assert.deepEqual(profiles[9], "did:plc:profile3");
+  });
+
+  it("removes a profile by DID without mutating the original", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearchProfile("did:plc:aaa")
+      .addRecentSearchProfile("did:plc:bbb");
+    const updated = preferences.removeRecentSearchProfile("did:plc:bbb");
+    assert.deepEqual(updated.getRecentSearchProfiles(), ["did:plc:aaa"]);
+    assert.deepEqual(preferences.getRecentSearchProfiles().length, 2);
+  });
+
+  it("removes multiple profiles preserving stored order", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearchProfile("did:plc:aaa")
+      .addRecentSearchProfile("did:plc:bbb")
+      .addRecentSearchProfile("did:plc:ccc");
+    const updated = preferences.removeRecentSearchProfiles([
+      "did:plc:bbb",
+      "did:plc:absent",
+    ]);
+    assert.deepEqual(updated.getRecentSearchProfiles(), [
+      "did:plc:ccc",
+      "did:plc:aaa",
+    ]);
+  });
+
+  it("shares the preference record with recent searches", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearch("cats")
+      .addRecentSearchProfile("did:plc:aaa");
+    const records = preferences.obj.filter(
+      (pref) => pref.$type === SEARCH_HISTORY_PREF_TYPE,
+    );
+    assert.deepEqual(records.length, 1);
+    assert.deepEqual(preferences.getRecentSearches().length, 1);
+    assert.deepEqual(preferences.getRecentSearchProfiles().length, 1);
+  });
+
+  it("ignores invalid DID values", () => {
+    const preferences = new Preferences([], [])
+      .addRecentSearchProfile("")
+      .addRecentSearchProfile(null);
+    assert.deepEqual(preferences.getRecentSearchProfiles(), []);
   });
 });

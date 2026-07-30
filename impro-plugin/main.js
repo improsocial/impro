@@ -535,6 +535,21 @@ export class Modal {
     });
   }
 
+  update() {
+    if (!openModals.has(this._modalId)) return;
+    self.postMessage({
+      type: "hostCall",
+      method: "updateModal",
+      args: [
+        {
+          modalId: this._modalId,
+          title: this.titleEl._serialize(),
+          content: this.contentEl._serialize(),
+        },
+      ],
+    });
+  }
+
   close() {
     if (!openModals.has(this._modalId)) return;
     openModals.delete(this._modalId);

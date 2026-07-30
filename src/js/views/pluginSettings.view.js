@@ -5,13 +5,13 @@ import { headerTemplate } from "/js/templates/header.template.js";
 import { auth } from "/js/auth.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
 
-class SettingsPluginDetailView extends View {
+class PluginSettingsView extends View {
   async render({ root, router, layout, params, context: { pluginService } }) {
     await auth.requireAuth();
 
     const { pluginId } = params;
 
-    const state = new ReactiveStore("settingsPluginDetailView");
+    const state = new ReactiveStore("pluginSettingsView");
     state.$pluginDetails = new Signal.Computed(() => {
       const installed = pluginService.$installedPlugins
         .get()
@@ -59,7 +59,7 @@ class SettingsPluginDetailView extends View {
 
     bindToPage(root, layout, "active-nav-click", (event) => {
       event.preventDefault();
-      router.go("/settings");
+      router.go("/plugins/installed");
     });
 
     bindPageTitle(root, () => {
@@ -72,10 +72,10 @@ class SettingsPluginDetailView extends View {
       const tabContent = state.$tabContent.get();
       const tabError = state.$tabError.get();
       render(
-        html`<div id="settings-plugin-detail-view">
+        html`<div id="plugin-settings-view">
           ${headerTemplate({
             title: pluginDetails?.name ?? pluginId,
-            backButtonFallbackRoute: "/settings/plugins",
+            backButtonFallbackRoute: "/plugins/installed",
           })}
           <main>
             ${(() => {
@@ -131,4 +131,4 @@ class SettingsPluginDetailView extends View {
   }
 }
 
-export default new SettingsPluginDetailView();
+export default new PluginSettingsView();

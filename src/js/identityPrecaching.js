@@ -61,6 +61,14 @@ export function setUpIdentityPrecaching(dataLayer, identityResolver) {
   });
 
   effect(() => {
+    const typeaheadResults = dataLayer.dataStore.$searchTypeaheadResults.get();
+    if (!typeaheadResults) return;
+    for (const searchResult of typeaheadResults.actors) {
+      setDid(searchResult);
+    }
+  });
+
+  effect(() => {
     const preferences = dataLayer.preferencesProvider.$preferences.get();
     if (!preferences) return;
     for (const labelerDef of preferences.labelerDefs) {

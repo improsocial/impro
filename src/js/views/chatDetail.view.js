@@ -605,13 +605,11 @@ class ChatDetailView extends View {
         }
         const senderDid = message.sender.did;
         const isCurrentUser = senderDid === currentUserDid;
-        const lastMessage = currentGroup?.messages.at(-1);
         if (
           !currentGroup ||
           currentGroup.senderDid !== senderDid ||
           differenceInMinutes(currentGroup.lastSentAt, message.sentAt) > 5 ||
-          message.replyTo ||
-          lastMessage?.replyTo
+          message.replyTo
         ) {
           // Start a new group
           currentGroup = {
@@ -1433,6 +1431,15 @@ class ChatDetailView extends View {
                 <span>...</span>
               </button>
               <context-menu>
+                <context-menu-item
+                  data-testid="menu-action-chat-open-in-bsky"
+                  icon="open-line"
+                  @click=${() => {
+                    window.open(convoPermalink, "_blank");
+                  }}
+                >
+                  Open in bsky.app
+                </context-menu-item>
                 ${groupDetails && canViewGroupDetails
                   ? html`<context-menu-item
                       data-testid="menu-action-group-chat-details"
@@ -1444,15 +1451,6 @@ class ChatDetailView extends View {
                       Group chat settings
                     </context-menu-item>`
                   : ""}
-                <context-menu-item
-                  data-testid="menu-action-chat-open-in-bsky"
-                  icon="open-line"
-                  @click=${() => {
-                    window.open(convoPermalink, "_blank");
-                  }}
-                >
-                  Open in bsky.app
-                </context-menu-item>
               </context-menu>
             `,
           })}

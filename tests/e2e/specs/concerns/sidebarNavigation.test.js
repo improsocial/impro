@@ -45,6 +45,17 @@ test.describe("Sidebar navigation flow", () => {
     await expect(page).toHaveURL(/\/feeds/);
   });
 
+  test("should navigate to installed plugins when clicking Plugins", async ({
+    page,
+  }) => {
+    await page.locator('[data-testid="sidebar-nav-plugins"]').click();
+
+    await expect(page.locator("#installed-plugins-view")).toBeVisible({
+      timeout: 10000,
+    });
+    await expect(page).toHaveURL(/\/plugins\/installed/);
+  });
+
   test("should navigate to Bookmarks when clicking Saved", async ({ page }) => {
     await page.locator('[data-testid="sidebar-nav-bookmarks"]').click();
 

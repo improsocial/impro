@@ -1,13 +1,17 @@
-import { html, render } from "/js/lib/lit-html.js";
+import { html, keyed, render } from "/js/lib/lit-html.js";
 import { View } from "/js/views/view.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { closeIconTemplate } from "/js/templates/icons/closeIcon.template.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
 import { classnames } from "/js/utils.js";
-import { getDisplayName } from "/js/dataHelpers.js";
+import { getDisplayName, MISSING_HANDLE } from "/js/dataHelpers.js";
 import { Signal, ReactiveStore } from "/js/signals.js";
-import { linkToFeed, linkToProfile } from "/js/navigation.js";
+import {
+  linkToFeed,
+  linkToProfile,
+  linkToProfileByDid,
+} from "/js/navigation.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
 import { pageEffect, bindPageTitle } from "/js/router.js";
 import { pinIconTemplate } from "/js/templates/icons/pinIcon.template.js";
@@ -21,11 +25,19 @@ class SearchView extends View {
     layout,
     context: { dataLayer, isAuthenticated, pluginService, interactionHandlers },
   }) {
+    function getUrlQuery() {
+      return (
+        new URLSearchParams(window.location.search).get("q") ?? ""
+      ).trim();
+    }
+
+    const initialQuery = getUrlQuery();
     const state = new ReactiveStore("searchView");
     state.$activeTab = new Signal.State("top");
-    state.$inputValue = new Signal.State("");
-    state.$committedQuery = new Signal.State("");
+    state.$inputValue = new Signal.State(initialQuery);
+    state.$committedQuery = new Signal.State(initialQuery);
     state.$showTypeahead = new Signal.State(false);
+    state.$recentProfilesLoading = new Signal.State(true);
 
     const tabScrollState = new Map();
     const loadedTabs = new Set();
@@ -77,36 +89,7 @@ class SearchView extends View {
         .catch((error) => console.warn("Typeahead search failed", error));
     }
 
-    function handleInput(value) {
-      state.$inputValue.set(value);
-      const trimmed = value.trim();
-      if (!trimmed) {
-        state.$showTypeahead.set(false);
-        dataLayer.requests.loadSearchTypeahead("");
-        return;
-      }
-      state.$showTypeahead.set(true);
-      loadTypeahead(trimmed);
-    }
-
-    function commitSearch() {
-      const query = state.$inputValue.get().trim();
-      if (!query) return;
-      state.$showTypeahead.set(false);
-      const queryChanged = query !== state.$committedQuery.get();
-      state.$committedQuery.set(query);
-      const url = new URL(window.location);
-      url.searchParams.set("q", query);
-      window.history.replaceState({}, "", url);
-      if (queryChanged) {
-        loadedTabs.clear();
-        tabScrollState.clear();
-      }
-      loadTabIfNeeded(state.$activeTab.get());
-      root.querySelector(".search-input")?.blur();
-    }
-
-    function handleClearSearch() {
+    function resetSearchState() {
       state.$inputValue.set("");
       state.$showTypeahead.set(false);
       state.$committedQuery.set("");
@@ -122,7 +105,103 @@ class SearchView extends View {
         dataLayer.requests.loadPostSearchLatest("");
         dataLayer.requests.loadFeedSearch("");
       }
+    }
+
+    function handleInput(value) {
+      const trimmed = value.trim();
+      if (!trimmed) {
+        resetSearchState();
+        state.$inputValue.set(value);
+        return;
+      }
+      state.$inputValue.set(value);
+      state.$showTypeahead.set(true);
+      loadTypeahead(trimmed);
+    }
+
+    function commitSearch() {
+      const query = state.$inputValue.get().trim();
+      if (!query) return;
+      if (isAuthenticated) {
+        dataLayer.mutations.addRecentSearch(query).catch(console.warn);
+      }
+      state.$showTypeahead.set(false);
+      const queryChanged = query !== state.$committedQuery.get();
+      state.$committedQuery.set(query);
+      const url = new URL(window.location);
+      url.searchParams.set("q", query);
+      window.history.replaceState({}, "", url);
+      if (queryChanged) {
+        loadedTabs.clear();
+        tabScrollState.clear();
+      }
+      loadTabIfNeeded(state.$activeTab.get());
+      root.querySelector(".search-input")?.blur();
+    }
+
+    function handleClearSearch() {
+      resetSearchState();
       root.querySelector(".search-input")?.focus();
+    }
+
+    function handleRecentSearchSelect(q) {
+      state.$inputValue.set(q);
+      state.$showTypeahead.set(false);
+      commitSearch();
+    }
+
+    function handleRecentSearchRemove(q) {
+      dataLayer.mutations.removeRecentSearch(q).catch(console.warn);
+    }
+
+    function handleRecentProfileRecord(did) {
+      if (!isAuthenticated) return;
+      dataLayer.mutations.addRecentSearchProfile(did).catch(console.warn);
+    }
+
+    function handleRecentProfileRemove(did) {
+      dataLayer.mutations.removeRecentSearchProfile(did).catch(console.warn);
+    }
+
+    function isRecentProfileVisible(profile) {
+      if (!profile) return false;
+      if (profile.viewer?.blocking || profile.viewer?.blockedBy) return false;
+      if (profile.handle === MISSING_HANDLE) return false;
+      if ((profile.labels ?? []).some((label) => label.val === "!takendown")) {
+        return false;
+      }
+      return true;
+    }
+
+    async function hydrateAndPruneRecentProfiles() {
+      try {
+        if (!isAuthenticated) return;
+        const entries = dataLayer.derived.$recentSearchProfiles.get() ?? [];
+        if (entries.length === 0) return;
+        const dids = entries.map((entry) => entry.did);
+        try {
+          await dataLayer.declarative.ensureProfiles(dids);
+        } catch (error) {
+          console.warn("Failed to load recent search profiles", error);
+          return;
+        }
+        const hydrated = dataLayer.derived.$recentSearchProfiles.get() ?? [];
+        const fetchedDids = new Set(dids);
+        const prunedDids = hydrated
+          .filter(
+            (entry) =>
+              fetchedDids.has(entry.did) &&
+              !isRecentProfileVisible(entry.profile),
+          )
+          .map((entry) => entry.did);
+        if (prunedDids.length > 0) {
+          dataLayer.mutations
+            .removeRecentSearchProfiles(prunedDids)
+            .catch(console.warn);
+        }
+      } finally {
+        state.$recentProfilesLoading.set(false);
+      }
     }
 
     function handleTabChange(tab) {
@@ -205,6 +284,7 @@ class SearchView extends View {
                   class="search-typeahead-row clickable"
                   data-testid="search-typeahead-result"
                   href=${linkToProfile(profile)}
+                  @click=${() => handleRecentProfileRecord(profile.did)}
                 >
                   ${avatarTemplate({ author: profile, clickAction: "none" })}
                   <div class="search-typeahead-text">
@@ -218,6 +298,95 @@ class SearchView extends View {
                 </container-link>
               `,
             )}
+      </div>`;
+    }
+
+    function recentSearchRowTemplate(q) {
+      return html`<div
+        class="search-recent-row"
+        data-testid="search-recent-row"
+      >
+        <button
+          type="button"
+          class="search-typeahead-row search-recent-row-button"
+          data-testid="search-recent-row-button"
+          @click=${() => handleRecentSearchSelect(q)}
+        >
+          <div class="search-typeahead-icon">${searchIconTemplate()}</div>
+          <div class="search-typeahead-text">${q}</div>
+        </button>
+        <button
+          type="button"
+          class="icon-button search-recent-remove-button"
+          data-testid="search-recent-remove-button"
+          aria-label="Remove ${q}"
+          @mousedown=${(event) => event.preventDefault()}
+          @click=${(event) => {
+            event.stopPropagation();
+            handleRecentSearchRemove(q);
+          }}
+        >
+          ${closeIconTemplate()}
+        </button>
+      </div>`;
+    }
+
+    function recentProfileTileTemplate(profile) {
+      return html`<container-link
+        class="search-recent-profile clickable"
+        data-testid="search-recent-profile"
+        href=${linkToProfileByDid(profile.did)}
+        @click=${() => handleRecentProfileRecord(profile.did)}
+      >
+        ${avatarTemplate({ author: profile, clickAction: "none" })}
+        <div class="search-recent-profile-name">${getDisplayName(profile)}</div>
+        <button
+          type="button"
+          class="embed-preview-close-button search-recent-profile-remove"
+          data-testid="search-recent-profile-remove"
+          aria-label="Remove ${getDisplayName(profile)}"
+          @click=${(event) => {
+            event.stopPropagation();
+            handleRecentProfileRemove(profile.did);
+          }}
+        >
+          ${closeIconTemplate()}
+        </button>
+      </container-link>`;
+    }
+
+    function recentProfileSkeletonTemplate() {
+      return html`<div
+        class="search-recent-profile search-recent-profile-skeleton"
+        data-testid="search-recent-profile-skeleton"
+      >
+        <div
+          class="skeleton-avatar skeleton-animate search-recent-profile-skeleton-avatar"
+        ></div>
+        <div class="search-recent-profile-name">
+          &#8203;<span
+            class="skeleton-line-shorter skeleton-animate search-recent-profile-skeleton-name-line"
+          ></span>
+        </div>
+      </div>`;
+    }
+
+    function recentSearchesTemplate({ terms, profileItems }) {
+      return html`<div class="search-landing" data-testid="search-recent">
+        <div class="search-recent-heading">Recent searches</div>
+        ${profileItems.length > 0
+          ? html`<div class="search-recent-profiles">
+              ${profileItems.map((item) =>
+                keyed(
+                  item.did,
+                  item.profile
+                    ? recentProfileTileTemplate(item.profile)
+                    : recentProfileSkeletonTemplate(),
+                ),
+              )}
+            </div>`
+          : ""}
+        ${terms.map((entry) => recentSearchRowTemplate(entry.q))}
       </div>`;
     }
 
@@ -470,38 +639,59 @@ class SearchView extends View {
 
     bindPageTitle(root, () => "Search");
 
-    pageEffect(
-      root,
-      () => {
-        const currentUser = dataLayer.derived.$currentUser.get();
-        const inputValue = state.$inputValue.get();
-        const showTypeahead = state.$showTypeahead.get();
-        const committedQuery = state.$committedQuery.get();
-        const activeTab = state.$activeTab.get();
-        const trimmedInput = inputValue.trim();
-        const mode = !trimmedInput
-          ? "placeholder"
-          : showTypeahead
-            ? "typeahead"
-            : "results";
+    pageEffect(root, () => {
+      const currentUser = dataLayer.derived.$currentUser.get();
+      const inputValue = state.$inputValue.get();
+      const showTypeahead = state.$showTypeahead.get();
+      const committedQuery = state.$committedQuery.get();
+      const activeTab = state.$activeTab.get();
+      const trimmedInput = inputValue.trim();
+      const mode = !trimmedInput
+        ? "placeholder"
+        : showTypeahead
+          ? "typeahead"
+          : "results";
 
-        let bodyTemplate;
-        if (mode === "typeahead") {
-          bodyTemplate = typeaheadTemplate({
-            query: trimmedInput,
-            profiles: dataLayer.derived.$searchTypeaheadResults.get(),
-            onCommit: commitSearch,
+      let bodyTemplate;
+      if (mode === "typeahead") {
+        bodyTemplate = typeaheadTemplate({
+          query: trimmedInput,
+          profiles: dataLayer.derived.$searchTypeaheadResults.get(),
+          onCommit: commitSearch,
+        });
+      } else if (mode === "results") {
+        bodyTemplate = html`<div class="search-tab-panels">
+          <div class="search-tab-panel">
+            ${getActivePanelTemplate(
+              isAuthenticated ? activeTab : "profiles",
+              committedQuery,
+              currentUser,
+            )}
+          </div>
+        </div>`;
+      } else {
+        const recentTerms = isAuthenticated
+          ? dataLayer.derived.$recentSearchTerms.get()
+          : [];
+        const recentProfilesLoading = state.$recentProfilesLoading.get();
+        const recentProfileItems = (
+          (isAuthenticated
+            ? dataLayer.derived.$recentSearchProfiles.get()
+            : null) ?? []
+        )
+          .map((entry) => ({
+            did: entry.did,
+            profile: isRecentProfileVisible(entry.profile)
+              ? entry.profile
+              : null,
+            pending: !entry.profile && recentProfilesLoading,
+          }))
+          .filter((item) => item.profile || item.pending);
+        if (recentTerms.length > 0 || recentProfileItems.length > 0) {
+          bodyTemplate = recentSearchesTemplate({
+            terms: recentTerms,
+            profileItems: recentProfileItems,
           });
-        } else if (mode === "results") {
-          bodyTemplate = html`<div class="search-tab-panels">
-            <div class="search-tab-panel">
-              ${getActivePanelTemplate(
-                isAuthenticated ? activeTab : "profiles",
-                committedQuery,
-                currentUser,
-              )}
-            </div>
-          </div>`;
         } else {
           bodyTemplate = html`<div class="search-placeholder">
             <div class="search-placeholder-icon">${searchIconTemplate()}</div>
@@ -513,80 +703,79 @@ class SearchView extends View {
             </div>
           </div>`;
         }
+      }
 
-        render(
-          html`<div id="search-view">
-            ${headerTemplate({
-              title: "Search",
-              leftButton: "menu",
-              onClickMenuButton: () => layout.openSidebar(),
-              bottomItemTemplate: () => html`
-                <div class="search-input-container">
-                  ${searchIconTemplate()}
-                  <input
-                    class="search-input"
-                    type="search"
-                    name="search"
-                    aria-label="Search"
-                    autocapitalize="none"
-                    autocomplete="off"
-                    autocorrect="off"
-                    enterkeyhint="search"
-                    spellcheck="false"
-                    placeholder=${isAuthenticated
-                      ? "Search for users, posts, and feeds"
-                      : "Search for users"}
-                    .value=${inputValue}
-                    @input=${(event) => {
-                      // Prevent events from being picked up by password manager extensions
-                      event.stopPropagation();
-                      handleInput(event.target.value);
-                    }}
-                    @keydown=${(event) => {
-                      event.stopPropagation();
-                      if (event.key === "Enter") {
-                        event.preventDefault();
-                        commitSearch();
-                      }
-                    }}
-                  />
-                  ${inputValue.length > 0
-                    ? html`
-                        <button
-                          class="search-clear-button"
-                          @click=${() => handleClearSearch()}
-                        >
-                          ${closeIconTemplate()}
-                        </button>
-                      `
-                    : ""}
-                  ${mode === "results" && isAuthenticated
-                    ? html`
-                        <tab-bar
-                          .tabs=${[
-                            { value: "top", label: "Top" },
-                            { value: "latest", label: "Latest" },
-                            { value: "profiles", label: "People" },
-                            { value: "feeds", label: "Feeds" },
-                          ]}
-                          active-tab=${activeTab}
-                          full-width
-                          @tab-click=${(event) => handleTabChange(event.detail)}
-                        ></tab-bar>
-                      `
-                    : ""}
-                </div>
-              `,
-            })}
-            <main>
-              <div class="search-results-container">${bodyTemplate}</div>
-            </main>
-          </div>`,
-          root,
-        );
-      },
-      { debugName: "searchView" },
-    );
+      render(
+        html`<div id="search-view">
+          ${headerTemplate({
+            title: "Search",
+            leftButton: "menu",
+            onClickMenuButton: () => layout.openSidebar(),
+            bottomItemTemplate: () => html`
+              <div class="search-input-container">
+                ${searchIconTemplate()}
+                <input
+                  class="search-input"
+                  type="search"
+                  name="search"
+                  aria-label="Search"
+                  autocapitalize="none"
+                  autocomplete="off"
+                  autocorrect="off"
+                  enterkeyhint="search"
+                  spellcheck="false"
+                  placeholder=${isAuthenticated
+                    ? "Search for users, posts, and feeds"
+                    : "Search for users"}
+                  .value=${inputValue}
+                  @input=${(event) => {
+                    // Prevent events from being picked up by password manager extensions
+                    event.stopPropagation();
+                    handleInput(event.target.value);
+                  }}
+                  @keydown=${(event) => {
+                    event.stopPropagation();
+                    if (event.key === "Enter") {
+                      event.preventDefault();
+                      commitSearch();
+                    }
+                  }}
+                />
+                ${inputValue.length > 0
+                  ? html`
+                      <button
+                        class="search-clear-button"
+                        @click=${() => handleClearSearch()}
+                      >
+                        ${closeIconTemplate()}
+                      </button>
+                    `
+                  : ""}
+                ${mode === "results" && isAuthenticated
+                  ? html`
+                      <tab-bar
+                        .tabs=${[
+                          { value: "top", label: "Top" },
+                          { value: "latest", label: "Latest" },
+                          { value: "profiles", label: "People" },
+                          { value: "feeds", label: "Feeds" },
+                        ]}
+                        active-tab=${activeTab}
+                        full-width
+                        @tab-click=${(event) => handleTabChange(event.detail)}
+                      ></tab-bar>
+                    `
+                  : ""}
+              </div>
+            `,
+          })}
+          <main>
+            <div class="search-results-container">${bodyTemplate}</div>
+          </main>
+        </div>`,
+        root,
+      );
+    });
 
     root.addEventListener("page-enter", () => {
       const query = new URLSearchParams(window.location.search);
@@ -594,18 +783,27 @@ class SearchView extends View {
         const tab = query.get("tab");
         state.$activeTab.set(tab === "posts" ? "top" : tab);
       }
-      const q = query.get("q");
+      const q = getUrlQuery();
       if (q) {
         state.$inputValue.set(q);
         state.$showTypeahead.set(false);
-        state.$committedQuery.set(q.trim());
+        state.$committedQuery.set(q);
         loadedTabs.clear();
         tabScrollState.clear();
         loadTabIfNeeded(state.$activeTab.get());
       }
+      hydrateAndPruneRecentProfiles().catch(console.warn);
     });
 
     root.addEventListener("page-restore", (event) => {
+      if (!event.detail?.isBack && !getUrlQuery()) {
+        state.$inputValue.set("");
+        state.$showTypeahead.set(false);
+        state.$committedQuery.set("");
+        loadedTabs.clear();
+        window.scrollTo(0, 0);
+        return;
+      }
       const scrollY = event.detail?.scrollY ?? 0;
       window.scrollTo(0, scrollY);
     });

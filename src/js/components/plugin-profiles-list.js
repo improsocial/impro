@@ -66,10 +66,12 @@ class PluginProfilesList extends Component {
     this._disposers = null;
   }
 
-  attributeChangedCallback() {
-    if (this.initialized) {
+  attributeChangedCallback(name, oldValue, newValue) {
+    if (!this.initialized || oldValue === newValue) return;
+    if (name === "dids") {
       this.state.$dids.set(this.parseDids());
-      this.state.$emptyMessage.set(this.getAttribute("empty-message"));
+    } else if (name === "empty-message") {
+      this.state.$emptyMessage.set(newValue);
     }
   }
 
@@ -92,7 +94,7 @@ class PluginProfilesList extends Component {
     }
     this.state.$loaded.set(false);
     try {
-      await this.dataLayer.declarative.ensureDetailedProfiles(dids);
+      await this.dataLayer.declarative.ensureProfiles(dids);
       if (this._requestToken !== requestToken) return;
       this.state.$loaded.set(true);
     } catch (error) {

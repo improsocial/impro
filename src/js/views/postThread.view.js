@@ -1,6 +1,6 @@
 import { html, render } from "/js/lib/lit-html.js";
 import { avatarTemplate } from "/js/templates/avatar.template.js";
-import { sortBy, pinScrollPosition } from "/js/utils.js";
+import { sortBy, maxBy, pinScrollPosition } from "/js/utils.js";
 import { bindToPage, pageEffect, bindPageTitle } from "/js/router.js";
 import { headerTemplate } from "/js/templates/header.template.js";
 import { smallPostTemplate } from "/js/templates/smallPost.template.js";
@@ -124,11 +124,9 @@ class PostThreadView extends View {
         // get most liked reply
         const shownReplies = getShownReplies(currentPost.replies);
         if (shownReplies.length > 0) {
-          let mostLikedReply = sortBy(
-            shownReplies,
-            (reply) => getLikesWithoutUser(reply.post),
-            { direction: "desc" },
-          )[0];
+          const mostLikedReply = maxBy(shownReplies, (reply) =>
+            getLikesWithoutUser(reply.post),
+          );
           chain.push(mostLikedReply);
           currentPost = mostLikedReply;
         } else {

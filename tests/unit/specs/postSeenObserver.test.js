@@ -5,8 +5,11 @@ import { createPost } from "../../shared/factories.js";
 
 const originalSetTimeout = globalThis.setTimeout;
 
-function flushTimers() {
-  return new Promise((resolve) => originalSetTimeout(resolve, 20));
+// Awaits two macrotask turns so the observer's 0-delay-patched dwell and batch
+// timers (scheduled earlier, so ahead in the timer queue) have fired.
+async function flushTimers() {
+  await new Promise((resolve) => originalSetTimeout(resolve, 0));
+  await new Promise((resolve) => originalSetTimeout(resolve, 0));
 }
 
 function createObserver() {

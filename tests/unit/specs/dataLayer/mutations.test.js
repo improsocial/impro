@@ -116,7 +116,7 @@ describe("addLike", () => {
     assert.deepEqual(patchedPost, storedPost);
   });
 
-  it("should handle concurrent like operations", async () => {
+  it("should only count once across concurrent like operations", async () => {
     const mockApi = {
       createLikeRecord: async () =>
         new Promise((resolve) =>
@@ -138,10 +138,45 @@ describe("addLike", () => {
     const promise1 = mutations.addLike(testPost);
     const promise2 = mutations.addLike(testPost);
 
+    // The second patch is a no-op because the first already applied the like.
     const patchedPost = applyPostPatches(patchStore, testPost);
-    assert.deepEqual(patchedPost.likeCount, 7);
+    assert.deepEqual(patchedPost.likeCount, 6);
+    assert.deepEqual(patchedPost.viewer.like, "fake like");
 
     await Promise.all([promise1, promise2]);
+  });
+
+  it("should not double-count when a refresh lands while the like is in flight", async () => {
+    const dataStore = new DataStore();
+    const patchStore = new PatchStore(dataStore);
+    const mockApi = {
+      createLikeRecord: async () => {
+        // Simulate a feed refresh delivering the server state (like already
+        // applied) before the mutation's own commit runs.
+        dataStore.$posts.set(testPost.uri, {
+          ...testPost,
+          likeCount: 6,
+          viewer: { like: "server-like-uri" },
+        });
+        return { uri: "like-123" };
+      },
+    };
+    const mockPreferencesProvider = {
+      requirePreferences: () => Preferences.createLoggedOutPreferences(),
+    };
+    const mutations = makeMutations(
+      mockApi,
+      dataStore,
+      patchStore,
+      mockPreferencesProvider,
+    );
+
+    await mutations.addLike(testPost);
+
+    const storedPost = dataStore.$posts.get(testPost.uri);
+    assert.deepEqual(storedPost.likeCount, 6);
+    assert.deepEqual(storedPost.viewer.like, "server-like-uri");
+    assert.deepEqual(patchStore.$patchedPosts.get(testPost.uri).likeCount, 6);
   });
 });
 
@@ -1782,6 +1817,26 @@ describe("createRepost", () => {
       "at://did:plc:me/app.bsky.feed.repost/abc",
     );
     assert.deepEqual(feed.cursor, "c1");
+  });
+
+  it("should not add a duplicate feed item when the feed already has the repost", async () => {
+    // A refresh-delivered reasonRepost may omit the optional uri field.
+    const existingItem = {
+      post: { uri: testPost.uri },
+      reason: {
+        $type: "app.bsky.feed.defs#reasonRepost",
+        by: currentUser,
+        indexedAt: "2024-01-01T00:00:00.000Z",
+      },
+    };
+    const { mutations, dataStore } = setup(
+      {},
+      { authorFeed: { feed: [existingItem], cursor: "c1" } },
+    );
+    await mutations.createRepost(testPost);
+    const feed = dataStore.$authorFeeds.get(`${currentUser.did}-posts`);
+    assert.deepEqual(feed.feed.length, 1);
+    assert.deepEqual(feed.feed[0], existingItem);
   });
 });
 

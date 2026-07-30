@@ -613,6 +613,35 @@ describe("Modal", () => {
     assert.deepEqual(opens.length, 1);
   });
 
+  it("update() posts updateModal with the current title and content", () => {
+    const modal = new Modal();
+    modal.titleEl.setText("Title");
+    modal.contentEl.setText("Before");
+    modal.open();
+    clearMessages();
+    modal.contentEl.setText("After");
+    modal.update();
+    const sent = lastMessage();
+    assert.deepEqual(sent.type, "hostCall");
+    assert.deepEqual(sent.method, "updateModal");
+    assert.deepEqual(sent.args[0].modalId, modal._modalId);
+    assert.deepEqual(sent.args[0].content.children[0], {
+      type: "text",
+      value: "After",
+    });
+  });
+
+  it("update() before open posts nothing", () => {
+    clearMessages();
+    const modal = new Modal();
+    modal.contentEl.setText("Body");
+    modal.update();
+    const updates = postedMessages.filter(
+      (message) => message.method === "updateModal",
+    );
+    assert.deepEqual(updates.length, 0);
+  });
+
   it("close() posts closeModal and invokes onClose", () => {
     const modal = new Modal();
     modal.open();

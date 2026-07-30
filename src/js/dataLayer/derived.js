@@ -218,7 +218,7 @@ export class Derived extends ReactiveStore {
       if (isEmptyPost(postThread)) {
         return postThread;
       }
-      const hiddenReplyUris = postThreadOther.map((item) => item.uri);
+      const hiddenReplyUris = new Set(postThreadOther.map((item) => item.uri));
       const hydrated = this.hydratePostThreadNode(postThread, hiddenReplyUris);
       if (!hydrated) {
         return null;
@@ -282,6 +282,22 @@ export class Derived extends ReactiveStore {
       const data = this.dataStore.$searchTypeaheadResults.get();
       if (!data) return null;
       return data.actors.map((actor) => this.$hydratedProfiles.get(actor.did));
+    });
+    this.$recentSearchTerms = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      if (!preferences) return [];
+      return preferences.getRecentSearches();
+    });
+    this.$recentSearchProfiles = new Signal.Computed(() => {
+      const preferences = this.$preferences.get();
+      if (!preferences) return null;
+      return preferences.getRecentSearchProfiles().map((did) => ({
+        did,
+        profile:
+          this.$hydratedDetailedProfiles.get(did) ??
+          this.$hydratedProfiles.get(did) ??
+          null,
+      }));
     });
     this.$feedSearchResults = new Signal.Computed(() => {
       const data = this.dataStore.$feedSearchResults.get();
@@ -814,7 +830,7 @@ export class Derived extends ReactiveStore {
     const post = this.$hydratedPosts.get(node.post.uri);
     if (!post) return null;
     const hydrated = { post };
-    if (hiddenReplyUris.includes(node.post.uri)) {
+    if (hiddenReplyUris.has(node.post.uri)) {
       // NOTE: LEXICON DEVIATION
       hydrated.post = { ...post, isHidden: true };
     }

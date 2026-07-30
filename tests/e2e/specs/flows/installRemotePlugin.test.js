@@ -41,8 +41,8 @@ test.describe("Remote plugin install flow", () => {
     await putPrefs;
 
     // Navigate back to the plugins list; the installed plugin should appear.
-    await page.goto("/settings/plugins");
-    const plugins = page.locator("#settings-plugins-view");
+    await page.goto("/plugins/installed");
+    const plugins = page.locator("#installed-plugins-view");
     const remoteItem = plugins.locator(".plugin-list-item", {
       hasText: "Remote Themes",
     });

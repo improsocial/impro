@@ -7,6 +7,7 @@ import { PatchStore } from "/js/dataLayer/patchStore.js";
 import { Preferences } from "/js/preferences.js";
 import { Signal } from "/js/signals.js";
 import { HiddenFeedItemsStore } from "/js/dataLayer/hiddenFeedItemsStore.js";
+import { createUnavailablePost } from "/js/dataHelpers.js";
 import {
   createConvo,
   createMessage,
@@ -748,10 +749,10 @@ describe("$hydratedPosts (post hydration)", () => {
       preferences: fakePreferences(),
     });
     const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
-    dataStore.$unavailablePosts.set(quotedUri, {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: quotedUri,
-    });
+    dataStore.$unavailablePosts.set(
+      quotedUri,
+      createUnavailablePost(quotedUri),
+    );
     dataStore.$posts.set(
       postURI,
       makeBlockedQuotePost({ blocking: "at://did:me/app.bsky.graph.block/1" }),
@@ -769,10 +770,10 @@ describe("$hydratedPosts (post hydration)", () => {
       preferences: fakePreferences(),
     });
     const quotedUri = "at://did:blocked/app.bsky.feed.post/q";
-    dataStore.$unavailablePosts.set(quotedUri, {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: quotedUri,
-    });
+    dataStore.$unavailablePosts.set(
+      quotedUri,
+      createUnavailablePost(quotedUri),
+    );
     dataStore.$posts.set(postURI, makeBlockedQuotePost({ blockedBy: true }));
     const result = derived.$hydratedPosts.get(postURI);
     assert.deepEqual(
@@ -1493,10 +1494,7 @@ describe("$notifications", () => {
       createNotification({ reason: "repost", author, reasonSubject: "gone" }),
     ]);
     const result = derived.$notifications.get();
-    assert.deepEqual(result[0].subject, {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: "gone",
-    });
+    assert.deepEqual(result[0].subject, createUnavailablePost("gone"));
   });
 
   it("should resolve via-repost notifications from the record subject", () => {
@@ -1713,10 +1711,7 @@ describe("$hydratedPostThreads", () => {
   it("should replace a confirmed-unavailable parent with an unavailable post", () => {
     const dataStore = new DataStore();
     const { derived } = makeDerived(dataStore);
-    dataStore.$unavailablePosts.set("pp", {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: "pp",
-    });
+    dataStore.$unavailablePosts.set("pp", createUnavailablePost("pp"));
     seedThreadWithParent(dataStore, {
       $type: "app.bsky.feed.defs#blockedPost",
       uri: "pp",
@@ -1724,10 +1719,7 @@ describe("$hydratedPostThreads", () => {
       author: { did: "did:blocked", viewer: {} },
     });
     const result = derived.$hydratedPostThreads.get(threadUri);
-    assert.deepEqual(result.parent, {
-      $type: "social.impro.feed.defs#unavailablePost",
-      uri: "pp",
-    });
+    assert.deepEqual(result.parent, createUnavailablePost("pp"));
   });
 
   it("should keep a blocked parent as-is when the parent author blocks the viewer", () => {

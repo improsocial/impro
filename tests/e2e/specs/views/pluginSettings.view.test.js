@@ -1,6 +1,6 @@
-import { test, expect } from "../../../base.js";
-import { login } from "../../../helpers.js";
-import { MockServer } from "../../../mockServer.js";
+import { test, expect } from "../../base.js";
+import { login } from "../../helpers.js";
+import { MockServer } from "../../mockServer.js";
 import {
   TEST_PLUGIN_ID,
   TEST_PLUGIN_NAME,
@@ -9,7 +9,7 @@ import {
   TAB_LOAD_ERROR_MESSAGE,
   getThrowingTabPluginSource,
   getNoSettingsPluginSource,
-} from "../../../testPlugin.js";
+} from "../../testPlugin.js";
 
 const PLUGIN_ID = TEST_PLUGIN_ID;
 
@@ -18,15 +18,15 @@ function seedEnabled(mockServer) {
 }
 
 async function gotoDetailView(page) {
-  await page.goto(`/settings/plugins/${PLUGIN_ID}`);
-  const view = page.locator("#settings-plugin-detail-view");
+  await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+  const view = page.locator("#plugin-settings-view");
   await expect(view.locator(".setting-item").first()).toBeVisible({
     timeout: 10000,
   });
   return view;
 }
 
-test.describe("Settings plugin detail view", () => {
+test.describe("Plugin settings view", () => {
   test("renders the header with the plugin name", async ({ page }) => {
     const mockServer = new MockServer();
     await mockServer.setup(page);
@@ -195,8 +195,8 @@ test.describe("Settings plugin detail view", () => {
     await login(page);
     seedEnabled(mockServer);
 
-    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
-    const view = page.locator("#settings-plugin-detail-view");
+    await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+    const view = page.locator("#plugin-settings-view");
     const error = view.locator('[data-testid="plugin-detail-tab-error"]');
     await expect(error).toBeVisible({ timeout: 10000 });
     await expect(error).toContainText(TAB_LOAD_ERROR_MESSAGE);
@@ -212,8 +212,8 @@ test.describe("Settings plugin detail view", () => {
     await login(page);
     // No installed plugins seeded.
 
-    await page.goto("/settings/plugins/does-not-exist__LOCAL");
-    const view = page.locator("#settings-plugin-detail-view");
+    await page.goto("/plugin/does-not-exist__LOCAL/settings");
+    const view = page.locator("#plugin-settings-view");
     await expect(
       view.locator('[data-testid="plugin-detail-not-found"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -227,8 +227,8 @@ test.describe("Settings plugin detail view", () => {
     await login(page);
     mockServer.installedPlugins = [{ ...TEST_PLUGIN_MANIFEST, enabled: false }];
 
-    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
-    const view = page.locator("#settings-plugin-detail-view");
+    await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+    const view = page.locator("#plugin-settings-view");
     await expect(
       view.locator('[data-testid="plugin-detail-disabled"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -243,8 +243,8 @@ test.describe("Settings plugin detail view", () => {
     await login(page);
     seedEnabled(mockServer);
 
-    await page.goto(`/settings/plugins/${PLUGIN_ID}`);
-    const view = page.locator("#settings-plugin-detail-view");
+    await page.goto(`/plugin/${PLUGIN_ID}/settings`);
+    const view = page.locator("#plugin-settings-view");
     await expect(
       view.locator('[data-testid="plugin-detail-no-settings"]'),
     ).toBeVisible({ timeout: 10000 });
@@ -252,7 +252,7 @@ test.describe("Settings plugin detail view", () => {
 
   test.describe("Logged-out behavior", () => {
     test("redirects to /login when not authenticated", async ({ page }) => {
-      await page.goto(`/settings/plugins/${PLUGIN_ID}`);
+      await page.goto(`/plugin/${PLUGIN_ID}/settings`);
       await expect(page).toHaveURL(/\/login(\?|$)/, { timeout: 10000 });
     });
   });

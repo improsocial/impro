@@ -72,6 +72,24 @@ export function sortBy(array, fnOrKey, { direction = "asc" } = {}) {
   return sorted;
 }
 
+// Returns the first element with the highest value, or null for an empty array
+export function maxBy(array, fnOrKey) {
+  let fn = fnOrKey;
+  if (typeof fnOrKey === "string") {
+    fn = (item) => item[fnOrKey];
+  }
+  let maxItem = null;
+  let maxValue = null;
+  for (const item of array) {
+    const value = fn(item);
+    if (maxItem === null || value > maxValue) {
+      maxItem = item;
+      maxValue = value;
+    }
+  }
+  return maxItem;
+}
+
 // Temporary (?) hack to avoid render flash
 let relativeTimeBase = new Date();
 

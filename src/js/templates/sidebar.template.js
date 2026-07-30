@@ -11,6 +11,7 @@ import { userIconTemplate } from "/js/templates/icons/userIcon.template.js";
 import { searchIconTemplate } from "/js/templates/icons/searchIcon.template.js";
 import { chatIconTemplate } from "/js/templates/icons/chatIcon.template.js";
 import { settingsIconTemplate } from "/js/templates/icons/settingsIcon.template.js";
+import { widgetsIconTemplate } from "/js/templates/icons/widgetsIcon.template.js";
 import { notificationsIconTemplate } from "/js/templates/icons/notificationsIcon.template.js";
 import { hashtagIconTemplate } from "/js/templates/icons/hashtagIcon.template.js";
 import { bookmarkIconTemplate } from "/js/templates/icons/bookmarkIcon.template.js";
@@ -218,6 +219,12 @@ export function sidebarTemplate({
       label: "Profile",
       url: currentUser ? `/profile/${currentUser.did}` : "",
       disabled: !currentUser,
+    },
+    {
+      id: "plugins",
+      icon: widgetsIconTemplate,
+      label: "Plugins",
+      url: "/plugins/installed",
     },
     {
       id: "settings",
